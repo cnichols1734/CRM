@@ -37,24 +37,42 @@
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
                         <input type="email" name="email" value="{{ contact.email }}" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-md 
+                                      border-2 border-gray-200
+                                      bg-gray-50 
+                                      px-3 py-2
+                                      focus:bg-white
+                                      focus:border-blue-500 focus:ring-1 focus:ring-blue-500
+                                      hover:border-gray-300">
                     </div>
 
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
                         <input type="tel" name="phone" value="{{ contact.phone }}"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-md 
+                                      border-2 border-gray-200
+                                      bg-gray-50 
+                                      px-3 py-2
+                                      focus:bg-white
+                                      focus:border-blue-500 focus:ring-1 focus:ring-blue-500
+                                      hover:border-gray-300">
                     </div>
 
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
                         <input type="text" name="address" value="{{ contact.address }}"
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="mt-1 block w-full rounded-md 
+                                      border-2 border-gray-200
+                                      bg-gray-50 
+                                      px-3 py-2
+                                      focus:bg-white
+                                      focus:border-blue-500 focus:ring-1 focus:ring-blue-500
+                                      hover:border-gray-300">
                     </div>
 
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Created</h3>
-                        <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                        <p class="text-gray-900 px-3 py-2">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
                     </div>
 
                     <!-- Groups Section -->
@@ -71,11 +89,18 @@
                         </div>
                     </div>
 
-                    <!-- Add Notes field to edit form -->
+                    <!-- Notes field -->
                     <div class="md:col-span-2">
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
                         <textarea name="notes" rows="4" 
-                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ contact.notes }}</textarea>
+                                  class="mt-1 block w-full rounded-md 
+                                         border-2 border-gray-200
+                                         bg-gray-50 
+                                         px-3 py-2
+                                         focus:bg-white
+                                         focus:border-blue-500 focus:ring-1 focus:ring-blue-500
+                                         hover:border-gray-300
+                                         resize-y">{{ contact.notes }}</textarea>
                     </div>
                 </div>
             </form>
