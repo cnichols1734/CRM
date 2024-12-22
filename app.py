@@ -90,36 +90,22 @@ def create_app():
     def login():
         if current_user.is_authenticated:
             return redirect(url_for('index'))
-
+        
         form = LoginForm()
         if form.validate_on_submit():
-            print(f"Form submitted with username: {form.username.data}")  # Debug log
-
-            user = User.query.filter_by(username=form.username.data).first()
-            print(f"User found in database: {user is not None}")  # Debug log
-
-            if user:
-                password_check = user.check_password(form.password.data)
-                print(f"Password check result: {password_check}")  # Debug log
-
-                if password_check:
-                    login_user(user)
-                    next_page = request.args.get('next')
-                    if not next_page or urlparse(next_page).netloc != '':
-                        next_page = url_for('index')
-
-                    user.last_login = datetime.utcnow()
-                    db.session.commit()
-
-                    flash('Logged in successfully.', 'success')
-                    return redirect(next_page)
-                else:
-                    print("Password verification failed")  # Debug log
+            # Check if input is email or username
+            user = User.query.filter(
+                (User.username == form.username.data) | 
+                (User.email == form.username.data)
+            ).first()
+            
+            if user and user.check_password(form.password.data):
+                login_user(user)
+                next_page = request.args.get('next')
+                return redirect(next_page) if next_page else redirect(url_for('index'))
             else:
-                print("User not found")  # Debug log
-
-            flash('Invalid username or password', 'error')
-
+                flash('Invalid username/email or password', 'error')
+        
         return render_template('login.html', form=form)
 
     @app.route('/contact/new', methods=['GET', 'POST'])

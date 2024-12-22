@@ -13,9 +13,13 @@ class RegistrationForm(FlaskForm):
     submit = SubmitField('Register')
 
 class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    submit = SubmitField('Login')
+    username = StringField('Username or Email', validators=[
+        DataRequired(message='Please enter your username or email')
+    ])
+    password = PasswordField('Password', validators=[
+        DataRequired(message='Please enter your password')
+    ])
+    submit = SubmitField('Sign in')
 
 class ContactForm(FlaskForm):
     first_name = StringField('First Name', validators=[DataRequired()])
