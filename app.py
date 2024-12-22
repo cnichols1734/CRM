@@ -24,9 +24,14 @@ def create_app():
     @app.route('/')
     @login_required
     def index():
-        contacts = Contact.query.filter_by(user_id=current_user.id).all() if not current_user.role == 'admin' \
-            else Contact.query.all()
-        return render_template('index.html', contacts=contacts)
+        show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+        
+        if show_all:
+            contacts = Contact.query.all()
+        else:
+            contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        
+        return render_template('index.html', contacts=contacts, show_all=show_all)
 
     @app.route('/contact/<int:contact_id>')
     @login_required

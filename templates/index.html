@@ -22,10 +22,18 @@
     <!-- Filter Tabs -->
     <div class="border-b mb-4">
         <div class="flex space-x-6">
-            <button class="px-4 py-2 text-sm text-blue-600 border-b-2 border-blue-600">
-                All contacts
-            </button>
-            <button class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+            {% if current_user.role == 'admin' %}
+                <button 
+                    class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                    onclick="window.location.href='{{ url_for('index', view='all') }}'"
+                >
+                    All contacts
+                </button>
+            {% endif %}
+            <button 
+                class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                onclick="window.location.href='{{ url_for('index', view='my') }}'"
+            >
                 My contacts
             </button>
         </div>
