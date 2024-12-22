@@ -25,13 +25,47 @@ def create_app():
     @login_required
     def index():
         show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+        sort_by = request.args.get('sort', 'created_at')  # Default sort by created_at
+        sort_dir = request.args.get('dir', 'desc')  # Default direction is descending
         
+        # Start with base query
         if show_all:
-            contacts = Contact.query.all()
+            query = Contact.query
         else:
-            contacts = Contact.query.filter_by(user_id=current_user.id).all()
+            query = Contact.query.filter_by(user_id=current_user.id)
         
-        return render_template('index.html', contacts=contacts, show_all=show_all)
+        # Apply sorting
+        if sort_by == 'owner':
+            # Join with User table and sort by owner's name
+            query = query.join(User, Contact.user_id == User.id)
+            if sort_dir == 'asc':
+                query = query.order_by(User.first_name.asc(), User.last_name.asc())
+            else:
+                query = query.order_by(User.first_name.desc(), User.last_name.desc())
+        else:
+            # Map frontend column names to model attributes
+            sort_map = {
+                'name': [Contact.first_name, Contact.last_name],
+                'email': [Contact.email],
+                'phone': [Contact.phone],
+                'address': [Contact.address],
+                'notes': [Contact.notes],
+                'created_at': [Contact.created_at]
+            }
+            
+            if sort_by in sort_map:
+                sort_attrs = sort_map[sort_by]
+                if sort_dir == 'asc':
+                    query = query.order_by(*[attr.asc() for attr in sort_attrs])
+                else:
+                    query = query.order_by(*[attr.desc() for attr in sort_attrs])
+        
+        contacts = query.all()
+        return render_template('index.html', 
+                             contacts=contacts, 
+                             show_all=show_all, 
+                             current_sort=sort_by, 
+                             current_dir=sort_dir)
 
     @app.route('/contact/<int:contact_id>')
     @login_required

@@ -2,6 +2,44 @@
 {% extends "base.html" %}
 
 {% block content %}
+<script>
+function sortTable(column) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort') || 'created_at';
+    const currentDir = urlParams.get('dir') || 'desc';
+    
+    let newDir = 'asc';
+    if (currentSort === column && currentDir === 'asc') {
+        newDir = 'desc';
+    }
+    
+    urlParams.set('sort', column);
+    urlParams.set('dir', newDir);
+    
+    // Preserve the view parameter if it exists
+    const view = urlParams.get('view');
+    if (view) {
+        urlParams.set('view', view);
+    }
+    
+    window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+}
+
+function clearSort() {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.delete('sort');
+    urlParams.delete('dir');
+    
+    // Preserve the view parameter if it exists
+    const view = urlParams.get('view');
+    const newUrl = view 
+        ? `${window.location.pathname}?view=${view}`
+        : window.location.pathname;
+    
+    window.location.href = newUrl;
+}
+</script>
+
 <div class="p-6">
     <!-- Header Section -->
     <div class="flex justify-between items-center mb-6">
@@ -25,14 +63,14 @@
             {% if current_user.role == 'admin' %}
                 <button 
                     class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                    onclick="window.location.href='{{ url_for('index', view='all') }}'"
+                    onclick="window.location.href='{{ url_for('index', view='all') }}';"
                 >
                     All contacts
                 </button>
             {% endif %}
             <button 
                 class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                onclick="window.location.href='{{ url_for('index', view='my') }}'"
+                onclick="window.location.href = '{{ url_for('index', view='my') }}';"
             >
                 My contacts
             </button>
@@ -50,6 +88,15 @@
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
         </div>
         <div class="flex items-center space-x-3">
+            {% if current_sort != 'created_at' or current_dir != 'desc' %}
+                <button 
+                    onclick="clearSort()" 
+                    class="text-sm px-3 py-1.5 border rounded text-blue-600 hover:bg-blue-50 flex items-center space-x-1"
+                >
+                    <i class="fas fa-times-circle"></i>
+                    <span>Clear sort</span>
+                </button>
+            {% endif %}
             <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Export
             </button>
@@ -69,28 +116,32 @@
                     </th>
                     {% if current_user.role == 'admin' and show_all %}
                     <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('owner')">
                             <span>OWNER</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'owner' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'owner' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     {% endif %}
                     <th class="w-64 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('name')">
                             <span>NAME</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'name' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'name' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('email')">
                             <span>EMAIL</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'email' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'email' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('phone')">
                             <span>PHONE NUMBER</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'phone' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'phone' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-64 px-4 py-3 font-medium text-gray-600 border-l text-sm">
@@ -100,21 +151,24 @@
                         </div>
                     </th>
                     <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('address')">
                             <span>ADDRESS</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'address' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'address' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('notes')">
                             <span>NOTES</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'notes' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'notes' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('created_at')">
                             <span>CREATE DATE</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                            <i class="fas fa-sort{% if current_sort == 'created_at' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'created_at' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                 </tr>
