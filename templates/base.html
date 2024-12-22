@@ -1,0 +1,131 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Real Estate CRM{% endblock %}</title>
+    <!-- Include Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: "Lexend Deca", Helvetica, Arial, sans-serif;
+        }
+        .toast-message {
+            transition: opacity 0.5s ease-out;
+        }
+        .toast-message.fade-out {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-[#2d3e50]">
+
+<!-- Top Header -->
+<header class="text-white h-14 flex items-center justify-between">
+    <div class="flex items-center space-x-12">
+        <div class="w-16 flex justify-center">  <!-- Added container div with same width as sidebar -->
+            <i class="fas fa-bars h-5 w-5"></i>
+        </div>
+        <div class="relative">
+            <i class="fas fa-search h-4 w-4 absolute left-3 top-2.5 text-gray-400"></i>
+            <input
+                type="text"
+                placeholder="Search"
+                class="bg-[#3d4d63] text-sm rounded pl-9 pr-4 py-1.5 w-64 focus:outline-none"
+            >
+        </div>
+    </div>
+
+    <div class="flex items-center space-x-4 pr-4 relative">
+        <i class="fas fa-bell h-5 w-5"></i>
+        <i class="fas fa-question-circle h-5 w-5"></i>
+        <div class="relative">
+            <i class="fas fa-cog h-5 w-5 cursor-pointer" id="settingsDropdownToggle"></i>
+            <div id="settingsDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border">
+                <ul class="py-1">
+                    <li>
+                        <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        <!-- Full-width container with flex + justify-center to center messages -->
+        <div class="fixed top-4 w-full flex justify-center z-50">
+            <div>
+                {% for category, message in messages %}
+                    <div class="toast-message mb-4 p-4 rounded-md
+                        {% if category == 'error' %}
+                            bg-red-100 text-red-700
+                        {% else %}
+                            bg-green-100 text-green-700
+                        {% endif %}
+                    ">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+{% endwith %}
+
+<div class="flex flex-1 overflow-hidden relative">
+    <!-- Sidebar -->
+    <aside class="w-16 flex flex-col items-center py-4 z-10">
+        <a href="{{ url_for('index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] mb-2">
+            <i class="fas fa-address-book text-white"></i>
+        </a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-auto bg-white absolute inset-0 ml-16 rounded-tl-[1.1rem]">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<script>
+    // Settings dropdown toggle
+    document.getElementById('settingsDropdownToggle').addEventListener('click', function(event) {
+        event.stopPropagation();
+        const dropdown = document.getElementById('settingsDropdown');
+        dropdown.classList.toggle('hidden');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('settingsDropdown');
+        if (dropdown && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Flash message auto-dismiss
+    document.addEventListener('DOMContentLoaded', function() {
+        const flashMessages = document.querySelectorAll('.toast-message');
+
+        flashMessages.forEach(function(message) {
+            setTimeout(function() {
+                message.classList.add('fade-out');
+
+                // Remove the message from the DOM after fade-out
+                setTimeout(function() {
+                    message.remove();
+                }, 500); // Match the CSS transition time
+            }, 4000); // 4 seconds
+        });
+    });
+</script>
+
+</body>
+</html>

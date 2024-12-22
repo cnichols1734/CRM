@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex min-h-full flex-col px-6 py-12 lg:px-8">
+    <div class="sm:mx-auto sm:w-full sm:max-w-2xl">
+        <h2 class="text-2xl font-bold leading-9 tracking-tight text-gray-900">
+            Create New Contact
+        </h2>
+    </div>
+
+    <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-2xl">
+        <form method="POST" action="{{ url_for('create_contact') }}" class="space-y-6">
+            {{ form.hidden_tag() }}
+            
+            <div class="grid grid-cols-2 gap-4">
+                <!-- First Name -->
+                <div>
+                    <label for="first_name" class="block text-sm font-medium leading-6 text-gray-900">First Name</label>
+                    <div class="mt-2">
+                        {{ form.first_name(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                    </div>
+                    {% if form.first_name.errors %}
+                        {% for error in form.first_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+
+                <!-- Last Name -->
+                <div>
+                    <label for="last_name" class="block text-sm font-medium leading-6 text-gray-900">Last Name</label>
+                    <div class="mt-2">
+                        {{ form.last_name(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                    </div>
+                    {% if form.last_name.errors %}
+                        {% for error in form.last_name.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+                <label for="email" class="block text-sm font-medium leading-6 text-gray-900">Email</label>
+                <div class="mt-2">
+                    {{ form.email(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                </div>
+                {% if form.email.errors %}
+                    {% for error in form.email.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Phone -->
+            <div>
+                <label for="phone" class="block text-sm font-medium leading-6 text-gray-900">Phone</label>
+                <div class="mt-2">
+                    {{ form.phone(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                </div>
+                {% if form.phone.errors %}
+                    {% for error in form.phone.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Address -->
+            <div>
+                <label for="address" class="block text-sm font-medium leading-6 text-gray-900">Address</label>
+                <div class="mt-2">
+                    {{ form.address(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                </div>
+                {% if form.address.errors %}
+                    {% for error in form.address.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Contact Groups (Multiple Selection) -->
+            <div>
+                <label for="group_ids" class="block text-sm font-medium leading-6 text-gray-900">Groups</label>
+                <div class="mt-2">
+                    {{ form.group_ids(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6", size="5") }}
+                </div>
+                {% if form.group_ids.errors %}
+                    {% for error in form.group_ids.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple groups</p>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label for="notes" class="block text-sm font-medium leading-6 text-gray-900">Notes</label>
+                <div class="mt-2">
+                    {{ form.notes(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6", rows="4") }}
+                </div>
+                {% if form.notes.errors %}
+                    {% for error in form.notes.errors %}
+                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('index') }}" class="px-4 py-2 text-sm font-semibold text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50">
+                    Cancel
+                </a>
+                {{ form.submit(class="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-md shadow-sm hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600") }}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
