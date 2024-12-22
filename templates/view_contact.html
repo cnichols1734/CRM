@@ -17,6 +17,16 @@
         </div>
         <div>
             <h1 class="text-2xl font-semibold">{{ contact.first_name }} {{ contact.last_name }}</h1>
+            {% if current_user.role == 'admin' %}
+                <div class="flex items-center text-gray-600 mt-1 mb-2">
+                    <div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
+                        {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+                    </div>
+                    <span class="text-sm">
+                        Owned by {{ contact.owner.first_name }} {{ contact.owner.last_name }}
+                    </span>
+                </div>
+            {% endif %}
             <div class="flex flex-wrap gap-2 mt-1">
                 {% for group in contact.groups %}
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
