@@ -89,15 +89,13 @@ function clearSort() {
                 autocomplete="off"
             >
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
-            {% if request.args.get('q') %}
             <button 
                 id="clearSearch" 
-                class="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
                 type="button"
             >
                 <i class="fas fa-times"></i>
             </button>
-            {% endif %}
         </div>
         <div class="flex items-center space-x-3">
             {% if current_sort != 'created_at' or current_dir != 'desc' %}
@@ -126,7 +124,17 @@ function clearSort() {
         const clearSearch = document.getElementById('clearSearch');
         let lastValue = searchInput?.value || '';
         
+        // Function to toggle clear button visibility
+        const toggleClearButton = (value) => {
+            if (clearSearch) {
+                clearSearch.classList.toggle('hidden', !value);
+            }
+        };
+        
         if (searchInput) {
+            // Show/hide clear button on initial load
+            toggleClearButton(searchInput.value);
+            
             // Auto-focus and move cursor to end if there's a value
             if (searchInput.value) {
                 searchInput.focus();
@@ -136,6 +144,9 @@ function clearSort() {
             searchInput.addEventListener('input', function(e) {
                 clearTimeout(searchTimeout);
                 const currentValue = e.target.value.trim();
+                
+                // Toggle clear button visibility
+                toggleClearButton(currentValue);
                 
                 // Only search if value has changed
                 if (currentValue !== lastValue) {
@@ -192,6 +203,7 @@ function clearSort() {
         if (clearSearch) {
             clearSearch.addEventListener('click', function() {
                 searchInput.value = '';
+                toggleClearButton('');  // Hide the clear button
                 const urlParams = new URLSearchParams(window.location.search);
                 urlParams.delete('q');
                 
