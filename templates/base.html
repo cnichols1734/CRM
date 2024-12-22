@@ -94,14 +94,13 @@
         <div class="relative">
             <button
                 id="userIcon"
-                class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold"
+                class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200"
             >
                 {% if current_user.is_authenticated %}
-  {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
-{% else %}
-  OG
-{% endif %}
-
+                    {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                {% else %}
+                    OG
+                {% endif %}
             </button>
 
             <!-- Dropdown -->
