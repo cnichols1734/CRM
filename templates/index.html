@@ -84,10 +84,20 @@ function clearSort() {
                 type="text"
                 id="searchInput"
                 placeholder="Search name, phone, email..."
-                class="w-64 pl-8 pr-4 py-2 border rounded text-sm"
+                class="w-64 pl-8 pr-8 py-2 border rounded text-sm"
                 value="{{ request.args.get('q', '') }}"
+                autocomplete="off"
             >
             <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+            {% if request.args.get('q') %}
+            <button 
+                id="clearSearch" 
+                class="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                type="button"
+            >
+                <i class="fas fa-times"></i>
+            </button>
+            {% endif %}
         </div>
         <div class="flex items-center space-x-3">
             {% if current_sort != 'created_at' or current_dir != 'desc' %}
@@ -108,36 +118,95 @@ function clearSort() {
         </div>
     </div>
 
-    <!-- Add the search JavaScript right after the search bar -->
+    <!-- Update the search JavaScript -->
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         let searchTimeout;
         const searchInput = document.getElementById('searchInput');
+        const clearSearch = document.getElementById('clearSearch');
+        let lastValue = searchInput?.value || '';
         
         if (searchInput) {
+            // Auto-focus and move cursor to end if there's a value
+            if (searchInput.value) {
+                searchInput.focus();
+                searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+            }
+
             searchInput.addEventListener('input', function(e) {
                 clearTimeout(searchTimeout);
+                const currentValue = e.target.value.trim();
                 
-                searchTimeout = setTimeout(() => {
-                    const searchValue = e.target.value.trim();
-                    const urlParams = new URLSearchParams(window.location.search);
-                    
-                    // Preserve existing parameters
-                    const view = urlParams.get('view');
-                    const sort = urlParams.get('sort');
-                    const dir = urlParams.get('dir');
-                    
-                    // Build new URL
-                    const newParams = new URLSearchParams();
-                    if (searchValue) newParams.set('q', searchValue);
-                    if (view) newParams.set('view', view);
-                    if (sort) newParams.set('sort', sort);
-                    if (dir) newParams.set('dir', dir);
-                    
-                    // Navigate to new URL
-                    const newUrl = `${window.location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`;
-                    window.location.href = newUrl;
-                }, 300); // 300ms delay to prevent too many requests
+                // Only search if value has changed
+                if (currentValue !== lastValue) {
+                    searchTimeout = setTimeout(() => {
+                        const urlParams = new URLSearchParams(window.location.search);
+                        
+                        // Preserve existing parameters
+                        const view = urlParams.get('view');
+                        const sort = urlParams.get('sort');
+                        const dir = urlParams.get('dir');
+                        
+                        // Build new URL
+                        const newParams = new URLSearchParams();
+                        if (currentValue) newParams.set('q', currentValue);
+                        if (view) newParams.set('view', view);
+                        if (sort) newParams.set('sort', sort);
+                        if (dir) newParams.set('dir', dir);
+                        
+                        // Store current value before navigation
+                        lastValue = currentValue;
+                        
+                        // Navigate to new URL
+                        const newUrl = `${window.location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`;
+                        
+                        // Use history.pushState instead of location.href
+                        history.pushState({}, '', newUrl);
+                        
+                        // Fetch and update results without full page reload
+                        fetch(newUrl)
+                            .then(response => response.text())
+                            .then(html => {
+                                const parser = new DOMParser();
+                                const newDoc = parser.parseFromString(html, 'text/html');
+                                
+                                // Update only the table body
+                                const currentTable = document.querySelector('table tbody');
+                                const newTable = newDoc.querySelector('table tbody');
+                                if (currentTable && newTable) {
+                                    currentTable.innerHTML = newTable.innerHTML;
+                                }
+                                
+                                // Update record count
+                                const currentCount = document.querySelector('.text-gray-500');
+                                const newCount = newDoc.querySelector('.text-gray-500');
+                                if (currentCount && newCount) {
+                                    currentCount.innerHTML = newCount.innerHTML;
+                                }
+                            });
+                    }, 300);
+                }
+            });
+        }
+        
+        if (clearSearch) {
+            clearSearch.addEventListener('click', function() {
+                searchInput.value = '';
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.delete('q');
+                
+                // Preserve other parameters
+                const view = urlParams.get('view');
+                const sort = urlParams.get('sort');
+                const dir = urlParams.get('dir');
+                
+                const newParams = new URLSearchParams();
+                if (view) newParams.set('view', view);
+                if (sort) newParams.set('sort', sort);
+                if (dir) newParams.set('dir', dir);
+                
+                const newUrl = `${window.location.pathname}${newParams.toString() ? '?' + newParams.toString() : ''}`;
+                window.location.href = newUrl;
             });
         }
     });
