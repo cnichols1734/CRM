@@ -149,6 +149,30 @@ def create_app():
 
         return render_template('contact_form.html', form=form)
 
+    @app.route('/contacts/<int:contact_id>/edit', methods=['POST'])
+    @login_required
+    def edit_contact(contact_id):
+        contact = Contact.query.get_or_404(contact_id)
+        
+        # Check if user has permission to edit this contact
+        if not current_user.role == 'admin' and contact.user_id != current_user.id:
+            abort(403)
+        
+        # Update contact information from form data
+        contact.email = request.form.get('email')
+        contact.phone = request.form.get('phone')
+        contact.address = request.form.get('address')
+        contact.notes = request.form.get('notes')
+        
+        try:
+            db.session.commit()
+            flash('Contact updated successfully!', 'success')
+            return {'status': 'success'}, 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating contact: {str(e)}")
+            return {'status': 'error', 'message': 'Error updating contact'}, 500
+
     return app
 
 

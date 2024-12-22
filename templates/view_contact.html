@@ -32,59 +32,200 @@
         <div class="p-6">
             <h2 class="text-lg font-semibold mb-4">Contact Information</h2>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                    <p class="text-gray-900">{{ contact.email or '--' }}</p>
-                </div>
+            <form id="editContactForm" class="hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
+                        <input type="email" name="email" value="{{ contact.email }}" 
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
 
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
-                    <p class="text-gray-900">{{ contact.phone or '--' }}</p>
-                </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
+                        <input type="tel" name="phone" value="{{ contact.phone }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
 
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                    <p class="text-gray-900">{{ contact.address or '--' }}</p>
-                </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
+                        <input type="text" name="address" value="{{ contact.address }}"
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
 
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Created</h3>
-                    <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
-                </div>
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Created</h3>
+                        <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
 
-                <!-- Groups Section -->
-                <div class="md:col-span-2">
-                    <h3 class="text-sm font-medium text-gray-500 mb-2">Groups</h3>
-                    <div class="flex flex-wrap gap-2">
-                        {% for group in contact.groups %}
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                                {{ group.name }}
-                            </span>
-                        {% else %}
-                            <span class="text-gray-500">No groups assigned</span>
-                        {% endfor %}
+                    <!-- Groups Section -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-sm font-medium text-gray-500 mb-2">Groups</h3>
+                        <div class="flex flex-wrap gap-2">
+                            {% for group in contact.groups %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                    {{ group.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">No groups assigned</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Add Notes field to edit form -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
+                        <textarea name="notes" rows="4" 
+                                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">{{ contact.notes }}</textarea>
+                    </div>
+                </div>
+            </form>
+
+            <div id="viewContactInfo">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
+                        <p class="text-gray-900">{{ contact.email }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
+                        <p class="text-gray-900">{{ contact.phone }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
+                        <p class="text-gray-900">{{ contact.address }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Created</h3>
+                        <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                    </div>
+
+                    <!-- Groups Section -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-sm font-medium text-gray-500 mb-2">Groups</h3>
+                        <div class="flex flex-wrap gap-2">
+                            {% for group in contact.groups %}
+                                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                    {{ group.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-gray-500">No groups assigned</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
+                        <p class="text-gray-900 whitespace-pre-line">{{ contact.notes }}</p>
                     </div>
                 </div>
             </div>
-
-            {% if contact.notes %}
-            <div class="mt-6">
-                <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
-                <p class="text-gray-900 whitespace-pre-line">{{ contact.notes }}</p>
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- Action Buttons -->
     <div class="mt-6 flex justify-end space-x-4">
-        <button class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+        <button id="editButton" onclick="toggleEditMode()" 
+                class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
             Edit Contact
+        </button>
+        <button id="saveButton" onclick="saveContact()" class="hidden px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700">
+            Save Changes
+        </button>
+        <button id="cancelButton" onclick="cancelEdit()" class="hidden px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+            Cancel
         </button>
         <button class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50">
             Delete Contact
         </button>
     </div>
+
+    <!-- Add this script at the bottom of your template -->
+    <script>
+    function toggleEditMode() {
+        const viewMode = document.getElementById('viewContactInfo');
+        const editMode = document.getElementById('editContactForm');
+        const editBtn = document.getElementById('editButton');
+        const saveBtn = document.getElementById('saveButton');
+        const cancelBtn = document.getElementById('cancelButton');
+
+        viewMode.classList.add('hidden');
+        editMode.classList.remove('hidden');
+        editBtn.classList.add('hidden');
+        saveBtn.classList.remove('hidden');
+        cancelBtn.classList.remove('hidden');
+    }
+
+    function cancelEdit() {
+        const viewMode = document.getElementById('viewContactInfo');
+        const editMode = document.getElementById('editContactForm');
+        const editBtn = document.getElementById('editButton');
+        const saveBtn = document.getElementById('saveButton');
+        const cancelBtn = document.getElementById('cancelButton');
+
+        viewMode.classList.remove('hidden');
+        editMode.classList.add('hidden');
+        editBtn.classList.remove('hidden');
+        saveBtn.classList.add('hidden');
+        cancelBtn.classList.add('hidden');
+    }
+
+    async function saveContact() {
+        const form = document.getElementById('editContactForm');
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch(`/contacts/{{ contact.id }}/edit`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Error saving changes');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error saving changes');
+        }
+    }
+
+    // Phone number formatting
+    document.addEventListener('DOMContentLoaded', function() {
+        const editForm = document.getElementById('editContactForm');
+        const phoneInput = editForm.querySelector('input[name="phone"]');
+
+        phoneInput.addEventListener('input', function(e) {
+            // Remove all non-digit characters
+            let inputVal = e.target.value.replace(/\D/g, '');
+
+            // Limit to 10 digits
+            if (inputVal.length > 10) {
+                inputVal = inputVal.slice(0, 10);
+            }
+
+            // Build the formatted output (XXX) XXX-XXXX
+            let formattedNumber = '';
+
+            // (XXX
+            if (inputVal.length > 0) {
+                formattedNumber += '(' + inputVal.substring(0, 3);
+            }
+            // (XXX) XXX
+            if (inputVal.length >= 4) {
+                formattedNumber += ') ' + inputVal.substring(3, 6);
+            }
+            // (XXX) XXX-XXXX
+            if (inputVal.length >= 7) {
+                formattedNumber += '-' + inputVal.substring(6, 10);
+            }
+
+            e.target.value = formattedNumber;
+        });
+    });
+    </script>
 </div>
 {% endblock %}
