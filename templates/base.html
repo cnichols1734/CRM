@@ -27,7 +27,7 @@
 <!-- Top Header -->
 <header class="text-white h-14 flex items-center justify-between">
     <div class="flex items-center space-x-12">
-        <div class="w-16 flex justify-center">  <!-- Added container div with same width as sidebar -->
+        <div class="w-16 flex justify-center pl-1.5">  <!-- Added pl-0.5 for slight right shift -->
             <i class="fas fa-bars h-5 w-5"></i>
         </div>
         <div class="relative">
@@ -72,9 +72,25 @@
 <div class="flex flex-1 overflow-hidden relative">
     <!-- Sidebar -->
     <aside class="w-16 flex flex-col items-center py-4 z-10">
-        <a href="{{ url_for('index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] mb-2">
-            <i class="fas fa-address-book text-white"></i>
-        </a>
+        <!-- Contacts Icon with Tooltip -->
+        <div class="relative group mb-8">
+            <a href="{{ url_for('index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+                <i class="fas fa-address-book text-white"></i>
+            </a>
+            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                Contacts
+            </div>
+        </div>
+        
+        <!-- Marketing Icon with Tooltip -->
+        <div class="relative group mb-8">
+            <a href="#" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+                <i class="fas fa-bullhorn text-white"></i>
+            </a>
+            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                Marketing
+            </div>
+        </div>
 
         <!-- Spacer to push user icon to bottom -->
         <div class="flex-1"></div>
@@ -239,6 +255,36 @@
                     message.remove();
                 }, 500); // Match the CSS transition time
             }, 4000); // 4 seconds
+        });
+    });
+
+    // Tooltip functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const iconGroups = document.querySelectorAll('aside .group');
+        let tooltipTimeouts = new Map();
+
+        iconGroups.forEach(group => {
+            const tooltip = group.querySelector('.tooltip-label');
+
+            group.addEventListener('mouseenter', () => {
+                const timeoutId = setTimeout(() => {
+                    tooltip.classList.remove('hidden');
+                    requestAnimationFrame(() => {
+                        tooltip.classList.add('opacity-100');
+                    });
+                }, 500);
+                tooltipTimeouts.set(group, timeoutId);
+            });
+
+            group.addEventListener('mouseleave', () => {
+                const timeoutId = tooltipTimeouts.get(group);
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    tooltipTimeouts.delete(group);
+                }
+                tooltip.classList.remove('opacity-100');
+                tooltip.classList.add('hidden');
+            });
         });
     });
 </script>
