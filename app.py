@@ -34,7 +34,8 @@ def create_app():
         contact = Contact.query.get_or_404(contact_id)
         if not current_user.role == 'admin' and contact.user_id != current_user.id:
             abort(403)
-        return render_template('view_contact.html', contact=contact)
+        all_groups = ContactGroup.query.all()
+        return render_template('view_contact.html', contact=contact, all_groups=all_groups)
 
     @app.route('/register', methods=['GET', 'POST'])
     def register():
@@ -163,6 +164,10 @@ def create_app():
         contact.phone = request.form.get('phone')
         contact.address = request.form.get('address')
         contact.notes = request.form.get('notes')
+        
+        # Handle groups
+        selected_group_ids = request.form.getlist('group_ids')
+        contact.groups = ContactGroup.query.filter(ContactGroup.id.in_(selected_group_ids)).all()
         
         try:
             db.session.commit()

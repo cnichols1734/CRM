@@ -79,18 +79,24 @@
                 {% endif %}
             </div>
 
-            <!-- Contact Groups (Multiple Selection) -->
+            <!-- Groups Section -->
             <div>
                 <label for="group_ids" class="block text-sm font-medium leading-6 text-gray-900">Groups</label>
-                <div class="mt-2">
-                    {{ form.group_ids(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6", size="5") }}
+                <div class="mt-2 border rounded-md p-3">
+                    <div class="flex flex-wrap gap-2">
+                        {% for group in form.group_ids.choices %}
+                            <label class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium 
+                                        bg-gray-100 text-gray-700 hover:bg-blue-50 
+                                        cursor-pointer transition-colors duration-200">
+                                <input type="checkbox" 
+                                       name="group_ids" 
+                                       value="{{ group[0] }}"
+                                       class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                {{ group[1] }}
+                            </label>
+                        {% endfor %}
+                    </div>
                 </div>
-                {% if form.group_ids.errors %}
-                    {% for error in form.group_ids.errors %}
-                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                    {% endfor %}
-                {% endif %}
-                <p class="mt-1 text-sm text-gray-500">Hold Ctrl/Cmd to select multiple groups</p>
             </div>
 
             <!-- Notes -->
