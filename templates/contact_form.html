@@ -57,7 +57,7 @@
             <div>
                 <label for="phone" class="block text-sm font-medium leading-6 text-gray-900">Phone</label>
                 <div class="mt-2">
-                    {{ form.phone(class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
+                    {{ form.phone(id="phone", class="block w-full rounded-md border-0 py-1.5 px-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6") }}
                 </div>
                 {% if form.phone.errors %}
                     {% for error in form.phone.errors %}
@@ -116,4 +116,39 @@
         </form>
     </div>
 </div>
+
+<!-- JavaScript to auto-format phone number -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.getElementById('phone');
+
+        phoneInput.addEventListener('input', function(e) {
+            // Remove all non-digit characters
+            let inputVal = e.target.value.replace(/\D/g, '');
+
+            // Limit to 10 digits
+            if (inputVal.length > 10) {
+                inputVal = inputVal.slice(0, 10);
+            }
+
+            // Build the formatted output (XXX) XXX-XXXX
+            let formattedNumber = '';
+
+            // (XXX
+            if (inputVal.length > 0) {
+                formattedNumber += '(' + inputVal.substring(0, 3);
+            }
+            // (XXX) XXX
+            if (inputVal.length >= 4) {
+                formattedNumber += ') ' + inputVal.substring(3, 6);
+            }
+            // (XXX) XXX-XXXX
+            if (inputVal.length >= 7) {
+                formattedNumber += '-' + inputVal.substring(6, 10);
+            }
+
+            e.target.value = formattedNumber;
+        });
+    });
+</script>
 {% endblock %}
