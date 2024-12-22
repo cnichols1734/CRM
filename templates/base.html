@@ -86,6 +86,44 @@
         <a href="{{ url_for('index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] mb-2">
             <i class="fas fa-address-book text-white"></i>
         </a>
+
+        <!-- Spacer to push user icon to bottom -->
+        <div class="flex-1"></div>
+
+        <!-- User Icon -->
+        <div class="relative">
+            <button
+                id="userIcon"
+                class="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg font-semibold"
+            >
+                {% if current_user.is_authenticated %}
+  {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+{% else %}
+  OG
+{% endif %}
+
+            </button>
+
+            <!-- Dropdown -->
+            <div
+                id="userDropdown"
+                class="hidden absolute bottom-0 left-full ml-4 w-56 bg-white rounded-md shadow-lg border z-50"
+            >
+                <div class="py-2 px-4 border-b text-sm text-gray-600">
+                    Logged in as <strong>{{ current_user.username }}</strong>
+                </div>
+                <ul class="py-1">
+                    <li>
+                        <a
+                            href="{{ url_for('view_user_profile') }}"
+                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                            <i class="fas fa-user mr-2"></i>Profile
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </aside>
 
     <!-- Main Content -->
@@ -106,6 +144,25 @@
     document.addEventListener('click', function(event) {
         const dropdown = document.getElementById('settingsDropdown');
         if (dropdown && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // User dropdown toggle
+    document.getElementById('userIcon').addEventListener('click', function (event) {
+        event.stopPropagation();
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.classList.toggle('hidden');
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (event) {
+        const dropdown = document.getElementById('userDropdown');
+        const userIcon = document.getElementById('userIcon');
+
+        if (!dropdown.classList.contains('hidden') &&
+            !dropdown.contains(event.target) &&
+            !userIcon.contains(event.target)) {
             dropdown.classList.add('hidden');
         }
     });

@@ -73,6 +73,11 @@ def create_app():
         flash('You have been logged out successfully.', 'success')
         return redirect(url_for('login'))
 
+    @app.route('/profile')
+    @login_required
+    def view_user_profile():
+        return render_template('user_profile.html', user=current_user)
+
     @app.route('/test_password/<username>/<password>')
     def test_password(username, password):
         user = User.query.filter_by(username=username).first()
