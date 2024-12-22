@@ -25,14 +25,25 @@ def create_app():
     @login_required
     def index():
         show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
-        sort_by = request.args.get('sort', 'created_at')  # Default sort by created_at
-        sort_dir = request.args.get('dir', 'desc')  # Default direction is descending
+        sort_by = request.args.get('sort', 'created_at')
+        sort_dir = request.args.get('dir', 'desc')
+        search_query = request.args.get('q', '').strip()
         
         # Start with base query
         if show_all:
             query = Contact.query
         else:
             query = Contact.query.filter_by(user_id=current_user.id)
+        
+        # Apply search if query exists
+        if search_query:
+            search_filter = (
+                (Contact.first_name.ilike(f'%{search_query}%')) |
+                (Contact.last_name.ilike(f'%{search_query}%')) |
+                (Contact.email.ilike(f'%{search_query}%')) |
+                (Contact.phone.ilike(f'%{search_query}%'))
+            )
+            query = query.filter(search_filter)
         
         # Apply sorting
         if sort_by == 'owner':
