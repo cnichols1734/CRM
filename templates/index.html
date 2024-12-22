@@ -32,16 +32,22 @@
     </div>
 
     <!-- Search Bar -->
-    <div class="mb-4 relative">
-        <input
-            type="text"
-            placeholder="Search name, phone, email..."
-            class="w-64 pl-8 pr-4 py-2 border rounded text-sm"
-        >
-        <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
-        <div class="absolute right-3 space-x-2">
-            <button class="text-sm text-gray-500">Export</button>
-            <button class="text-sm text-gray-500">Edit columns</button>
+    <div class="mb-4 flex items-center justify-between">
+        <div class="relative">
+            <input
+                type="text"
+                placeholder="Search name, phone, email..."
+                class="w-64 pl-8 pr-4 py-2 border rounded text-sm"
+            >
+            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+                Export
+            </button>
+            <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+                Edit columns
+            </button>
         </div>
     </div>
 
