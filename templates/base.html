@@ -43,18 +43,7 @@
     <div class="flex items-center space-x-4 pr-4 relative">
         <i class="fas fa-bell h-5 w-5"></i>
         <i class="fas fa-question-circle h-5 w-5"></i>
-        <div class="relative">
-            <i class="fas fa-cog h-5 w-5 cursor-pointer" id="settingsDropdownToggle"></i>
-            <div id="settingsDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-50 border">
-                <ul class="py-1">
-                    <li>
-                        <a href="{{ url_for('logout') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            <i class="fas fa-sign-out-alt mr-2"></i>Logout
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </div>
+        <i class="fas fa-cog h-5 w-5"></i>
     </div>
 </header>
 
@@ -90,39 +79,45 @@
         <!-- Spacer to push user icon to bottom -->
         <div class="flex-1"></div>
 
-        <!-- User Icon -->
-        <div class="relative">
-            <button
-                id="userIcon"
-                class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200"
-            >
-                {% if current_user.is_authenticated %}
+        <!-- User Icon and Dropdown -->
+        {% if current_user.is_authenticated %}
+            <div class="relative group">
+                <button
+                    id="userIcon"
+                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200"
+                >
                     {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
-                {% else %}
-                    OG
-                {% endif %}
-            </button>
+                </button>
 
-            <!-- Dropdown -->
-            <div
-                id="userDropdown"
-                class="hidden absolute bottom-0 left-full ml-4 w-56 bg-white rounded-md shadow-lg border z-50"
-            >
-                <div class="py-2 px-4 border-b text-sm text-gray-600">
-                    Logged in as <strong>{{ current_user.username }}</strong>
+                <!-- Dropdown -->
+                <div
+                    id="userDropdown"
+                    class="hidden absolute bottom-0 left-full ml-4 w-56 bg-white rounded-md shadow-lg border z-50 transition-opacity duration-300 opacity-0 group-hover:opacity-100"
+                >
+                    <div class="py-2 px-4 border-b text-sm text-gray-600">
+                        Logged in as <strong>{{ current_user.username }}</strong>
+                    </div>
+                    <ul class="py-1">
+                        <li>
+                            <a
+                                href="{{ url_for('view_user_profile') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                                <i class="fas fa-user mr-2"></i>Profile
+                            </a>
+                        </li>
+                        <li>
+                            <a
+                                href="{{ url_for('logout') }}"
+                                class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                            >
+                                <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                            </a>
+                        </li>
+                    </ul>
                 </div>
-                <ul class="py-1">
-                    <li>
-                        <a
-                            href="{{ url_for('view_user_profile') }}"
-                            class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                            <i class="fas fa-user mr-2"></i>Profile
-                        </a>
-                    </li>
-                </ul>
             </div>
-        </div>
+        {% endif %}
     </aside>
 
     <!-- Main Content -->
@@ -132,38 +127,74 @@
 </div>
 
 <script>
-    // Settings dropdown toggle
-    document.getElementById('settingsDropdownToggle').addEventListener('click', function(event) {
-        event.stopPropagation();
-        const dropdown = document.getElementById('settingsDropdown');
-        dropdown.classList.toggle('hidden');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function(event) {
-        const dropdown = document.getElementById('settingsDropdown');
-        if (dropdown && !dropdown.contains(event.target)) {
-            dropdown.classList.add('hidden');
-        }
-    });
-
-    // User dropdown toggle
-    document.getElementById('userIcon').addEventListener('click', function (event) {
-        event.stopPropagation();
-        const dropdown = document.getElementById('userDropdown');
-        dropdown.classList.toggle('hidden');
-    });
-
-    // Close dropdown when clicking outside
-    document.addEventListener('click', function (event) {
-        const dropdown = document.getElementById('userDropdown');
+    document.addEventListener('DOMContentLoaded', function() {
         const userIcon = document.getElementById('userIcon');
+        const dropdown = document.getElementById('userDropdown');
+        let timeoutId;
 
-        if (!dropdown.classList.contains('hidden') &&
-            !dropdown.contains(event.target) &&
-            !userIcon.contains(event.target)) {
-            dropdown.classList.add('hidden');
-        }
+        // Show dropdown on hover with delay
+        userIcon.parentElement.addEventListener('mouseenter', function() {
+            timeoutId = setTimeout(() => {
+                dropdown.classList.remove('hidden');
+                // Small delay before showing opacity
+                requestAnimationFrame(() => {
+                    dropdown.classList.add('opacity-100');
+                });
+            }, 300); // 300ms delay for opening
+        });
+
+        // Only hide dropdown when mouse leaves both icon and dropdown
+        userIcon.parentElement.addEventListener('mouseleave', function(e) {
+            // Check if we're moving to the dropdown
+            if (!e.relatedTarget || !dropdown.contains(e.relatedTarget)) {
+                clearTimeout(timeoutId);
+                // Increased delay before hiding to allow movement to dropdown
+                setTimeout(() => {
+                    if (!dropdown.matches(':hover')) {
+                        dropdown.classList.remove('opacity-100');
+                        dropdown.classList.add('hidden');
+                    }
+                }, 400); // Increased from 100ms to 400ms
+            }
+        });
+
+        // Add listener for dropdown hover
+        dropdown.addEventListener('mouseenter', function() {
+            clearTimeout(timeoutId);
+            dropdown.classList.remove('hidden');
+            dropdown.classList.add('opacity-100');
+        });
+
+        dropdown.addEventListener('mouseleave', function() {
+            // Added delay when leaving the dropdown as well
+            setTimeout(() => {
+                if (!userIcon.matches(':hover')) {
+                    dropdown.classList.remove('opacity-100');
+                    dropdown.classList.add('hidden');
+                }
+            }, 400); // Same 400ms delay when leaving dropdown
+        });
+
+        // Keep the click functionality as fallback
+        userIcon.addEventListener('click', function(event) {
+            event.stopPropagation();
+            dropdown.classList.toggle('hidden');
+            if (!dropdown.classList.contains('hidden')) {
+                dropdown.classList.add('opacity-100');
+            } else {
+                dropdown.classList.remove('opacity-100');
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!dropdown.classList.contains('hidden') &&
+                !dropdown.contains(event.target) &&
+                !userIcon.contains(event.target)) {
+                dropdown.classList.remove('opacity-100');
+                dropdown.classList.add('hidden');
+            }
+        });
     });
 
     // Flash message auto-dismiss
