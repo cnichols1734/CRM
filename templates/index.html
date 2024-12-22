@@ -67,6 +67,14 @@
                     <th class="w-8 px-4 py-3">
                         <input type="checkbox" class="rounded">
                     </th>
+                    {% if current_user.role == 'admin' and show_all %}
+                    <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
+                        <div class="flex items-center space-x-1">
+                            <span>OWNER</span>
+                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
+                        </div>
+                    </th>
+                    {% endif %}
                     <th class="w-64 px-4 py-3 font-medium text-gray-600 border-l text-sm">
                         <div class="flex items-center space-x-1">
                             <span>NAME</span>
@@ -117,6 +125,18 @@
                     <td class="px-4">
                         <input type="checkbox" class="rounded">
                     </td>
+                    {% if current_user.role == 'admin' and show_all %}
+                    <td class="px-4 border-l">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2 flex-shrink-0">
+                                {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+                            </div>
+                            <span class="text-gray-600 text-sm">
+                                {{ contact.owner.first_name }} {{ contact.owner.last_name }}
+                            </span>
+                        </div>
+                    </td>
+                    {% endif %}
                     <td class="px-4 border-l">
                         <div class="flex items-center">
                             <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm mr-2 flex-shrink-0">
@@ -189,7 +209,7 @@
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="8" class="px-4 py-8 text-center text-gray-500 text-sm">
+                    <td colspan="{{ '9' if current_user.role == 'admin' and show_all else '8' }}" class="px-4 py-8 text-center text-gray-500 text-sm">
                         No contacts found. Click "Create contact" to add one.
                     </td>
                 </tr>
