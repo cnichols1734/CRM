@@ -81,18 +81,19 @@
 
             <!-- Groups Section -->
             <div>
-                <label for="group_ids" class="block text-sm font-medium leading-6 text-gray-900">Groups</label>
-                <div class="mt-2 border rounded-md p-3">
-                    <div class="flex flex-wrap gap-2">
+                <label for="group_ids" class="block text-sm font-medium leading-6 text-gray-900 mb-3">Groups</label>
+                <div class="border rounded-lg p-6 bg-white">
+                    <div class="grid grid-cols-2 gap-3">
                         {% for group in form.group_ids.choices %}
-                            <label class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium 
-                                        bg-gray-100 text-gray-700 hover:bg-blue-50 
+                            <label class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm
+                                        bg-gray-50 hover:bg-gray-100 
+                                        border border-gray-200
                                         cursor-pointer transition-colors duration-200">
                                 <input type="checkbox" 
                                        name="group_ids" 
                                        value="{{ group[0] }}"
-                                       class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                {{ group[1] }}
+                                       class="form-checkbox h-4 w-4 mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <span class="text-gray-700">{{ group[1] }}</span>
                             </label>
                         {% endfor %}
                     </div>
