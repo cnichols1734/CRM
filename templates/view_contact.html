@@ -157,6 +157,16 @@
                                          hover:border-gray-300
                                          resize-y">{{ contact.notes }}</textarea>
                     </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission ($)</h3>
+                        <input type="number" 
+                               name="potential_commission" 
+                               value="{{ contact.potential_commission }}"
+                               step="0.01"
+                               min="0"
+                               class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
+                    </div>
                 </div>
             </form>
 
@@ -214,6 +224,17 @@
                     <div class="md:col-span-2">
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
                         <p class="text-gray-900 whitespace-pre-line">{{ contact.notes }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission</h3>
+                        <p class="text-gray-900">
+                            {% if contact.potential_commission is not none %}
+                                ${{ "{:,.2f}".format(contact.potential_commission|float) }}
+                            {% else %}
+                                $0.00
+                            {% endif %}
+                        </p>
                     </div>
                 </div>
             </div>

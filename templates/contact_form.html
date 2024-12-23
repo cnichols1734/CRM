@@ -131,6 +131,22 @@
                         </div>
                     </div>
 
+                    <!-- Potential Commission -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission ($)</h3>
+                        {{ form.potential_commission(
+                            class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300",
+                            type="number",
+                            step="0.01",
+                            min="0"
+                        ) }}
+                        {% if form.potential_commission.errors %}
+                            {% for error in form.potential_commission.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
                     <!-- Notes -->
                     <div class="md:col-span-2">
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>

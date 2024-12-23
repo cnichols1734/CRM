@@ -311,10 +311,10 @@ function clearSort() {
                         </div>
                     </th>
                     <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('notes')">
-                            <span>NOTES</span>
-                            <i class="fas fa-sort{% if current_sort == 'notes' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'notes' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('potential_commission')">
+                            <span>POTENTIAL COMMISSION</span>
+                            <i class="fas fa-sort{% if current_sort == 'potential_commission' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'potential_commission' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
                     <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
@@ -418,25 +418,15 @@ function clearSort() {
                             </div>
                         {% endif %}
                     </td>
-
-                    <!-- Updated NOTES column -->
-                    <td class="px-4 border-l relative group w-48">
-                        {% if contact.notes %}
-                            <!-- Constrained width & "truncate" for ellipses -->
-                            <div class="block w-48 truncate text-gray-900">
-                                {{ contact.notes }}
-                            </div>
-                            {% if contact.notes|length > 50 %}
-                                <div class="hidden group-hover:block absolute z-10 bg-gray-800 text-white text-sm rounded p-2 left-0 ml-4 mt-2 max-w-md whitespace-normal">
-                                    {{ contact.notes }}
-                                </div>
+                    <td class="px-4 border-l">
+                        <div class="text-right">
+                            {% if contact.potential_commission is not none %}
+                                ${{ "{:,.2f}".format(contact.potential_commission|float) }}
+                            {% else %}
+                                $0.00
                             {% endif %}
-                        {% else %}
-                            <span class="text-gray-500">--</span>
-                        {% endif %}
+                        </div>
                     </td>
-                    <!-- End of updated NOTES column -->
-
                     <td class="px-4 border-l whitespace-nowrap">
                         {{ contact.created_at.strftime('%b %d, %Y') }}
                     </td>
