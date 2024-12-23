@@ -11,7 +11,7 @@
     <!-- Key Metrics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <!-- Total Commission Card -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-sm font-medium text-gray-500">Total Potential Commission</h3>
                 <span class="bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full">All time</span>
@@ -22,7 +22,7 @@
         </div>
 
         <!-- Total Contacts Card -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-sm font-medium text-gray-500">Total Contacts</h3>
                 <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full">Active</span>
@@ -33,7 +33,7 @@
         </div>
 
         <!-- Average Commission Card -->
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-sm font-medium text-gray-500">Average Commission</h3>
                 <span class="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded-full">Per contact</span>
@@ -47,7 +47,7 @@
     <!-- Charts and Tables Grid -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Group Distribution Chart -->
-        <div class="bg-white rounded-lg shadow p-6 lg:col-span-1">
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-1">
             <div class="flex items-center justify-between mb-6">
                 <h3 class="text-lg font-medium text-gray-900">Contact Groups</h3>
                 <span class="text-sm text-gray-500">Distribution</span>
@@ -69,40 +69,57 @@
         </div>
 
         <!-- Top Contacts Table -->
-        <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-2">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Top Contacts by Commission</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Potential Commission</th>
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Groups</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Potential Commission</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200">
                         {% for contact in top_contacts %}
-                        <tr class="hover:bg-gray-50">
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center">
-                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3
-                                        {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                                        {% if initials[0] in 'ABCDE' %}bg-blue-100 text-blue-800
-                                        {% elif initials[0] in 'FGHIJ' %}bg-green-100 text-green-800
-                                        {% elif initials[0] in 'KLMNO' %}bg-yellow-100 text-yellow-800
-                                        {% elif initials[0] in 'PQRST' %}bg-red-100 text-red-800
-                                        {% else %}bg-purple-100 text-purple-800{% endif %}">
-                                        {{ contact.first_name[0] }}{{ contact.last_name[0] }}
+                        <tr class="hover:bg-white transition-colors duration-150">
+                            <td class="px-6 py-4">
+                                <a href="{{ url_for('view_contact', contact_id=contact.id, source='dashboard') }}" class="group">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-2 flex-shrink-0 text-gray-600
+                                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                                            {% if initials[0] in 'ABCDE' %}bg-blue-100 text-blue-800
+                                            {% elif initials[0] in 'FGHIJ' %}bg-green-100 text-green-800
+                                            {% elif initials[0] in 'KLMNO' %}bg-yellow-100 text-yellow-800
+                                            {% elif initials[0] in 'PQRST' %}bg-red-100 text-red-800
+                                            {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                            {{ contact.first_name[0] }}{{ contact.last_name[0] }}
+                                        </div>
+                                        <div class="text-sm font-medium text-blue-600 group-hover:text-blue-800">
+                                            {{ contact.first_name }} {{ contact.last_name }}
+                                        </div>
                                     </div>
-                                    <div class="text-sm font-medium text-gray-900">
-                                        {{ contact.first_name }} {{ contact.last_name }}
-                                    </div>
+                                </a>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-wrap gap-1">
+                                    {% for group in contact.groups[:2] %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                            {{ group.name }}
+                                        </span>
+                                    {% endfor %}
+                                    {% if contact.groups|length > 2 %}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                            +{{ contact.groups|length - 2 }}
+                                        </span>
+                                    {% endif %}
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ contact.email or '--' }}
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                            <td class="px-6 py-4 text-right text-sm font-medium text-gray-900">
                                 ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
                             </td>
                         </tr>
