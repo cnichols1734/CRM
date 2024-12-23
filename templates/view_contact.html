@@ -16,7 +16,25 @@
             {{ contact.first_name[0] }}{{ contact.last_name[0] }}
         </div>
         <div>
-            <h1 class="text-2xl font-semibold">{{ contact.first_name }} {{ contact.last_name }}</h1>
+            <h1 id="viewContactName" class="text-2xl font-semibold">{{ contact.first_name }} {{ contact.last_name }}</h1>
+            <div id="editContactName" class="hidden space-y-2">
+                <div class="flex space-x-4">
+                    <div>
+                        <input type="text" 
+                               name="first_name" 
+                               value="{{ contact.first_name }}"
+                               class="block rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-2xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300"
+                               placeholder="First Name">
+                    </div>
+                    <div>
+                        <input type="text" 
+                               name="last_name" 
+                               value="{{ contact.last_name }}"
+                               class="block rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 text-2xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300"
+                               placeholder="Last Name">
+                    </div>
+                </div>
+            </div>
             {% if current_user.role == 'admin' %}
                 <div class="flex items-center text-gray-600 mt-1 mb-2">
                     <div class="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2">
@@ -225,12 +243,16 @@
     function toggleEditMode() {
         const viewMode = document.getElementById('viewContactInfo');
         const editMode = document.getElementById('editContactForm');
+        const viewName = document.getElementById('viewContactName');
+        const editName = document.getElementById('editContactName');
         const editBtn = document.getElementById('editButton');
         const saveBtn = document.getElementById('saveButton');
         const cancelBtn = document.getElementById('cancelButton');
 
         viewMode.classList.add('hidden');
         editMode.classList.remove('hidden');
+        viewName.classList.add('hidden');
+        editName.classList.remove('hidden');
         editBtn.classList.add('hidden');
         saveBtn.classList.remove('hidden');
         cancelBtn.classList.remove('hidden');
@@ -239,12 +261,16 @@
     function cancelEdit() {
         const viewMode = document.getElementById('viewContactInfo');
         const editMode = document.getElementById('editContactForm');
+        const viewName = document.getElementById('viewContactName');
+        const editName = document.getElementById('editContactName');
         const editBtn = document.getElementById('editButton');
         const saveBtn = document.getElementById('saveButton');
         const cancelBtn = document.getElementById('cancelButton');
 
         viewMode.classList.remove('hidden');
         editMode.classList.add('hidden');
+        viewName.classList.remove('hidden');
+        editName.classList.add('hidden');
         editBtn.classList.remove('hidden');
         saveBtn.classList.add('hidden');
         cancelBtn.classList.add('hidden');
@@ -252,7 +278,25 @@
 
     async function saveContact() {
         const form = document.getElementById('editContactForm');
-        const formData = new FormData(form);
+        const formData = new FormData();
+        
+        // Explicitly add the name fields from the edit name section
+        const firstNameInput = document.querySelector('input[name="first_name"]');
+        const lastNameInput = document.querySelector('input[name="last_name"]');
+        formData.append('first_name', firstNameInput.value);
+        formData.append('last_name', lastNameInput.value);
+        
+        // Add all other form fields
+        const formInputs = form.querySelectorAll('input, textarea, select');
+        formInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                if (input.checked) {
+                    formData.append(input.name, input.value);
+                }
+            } else {
+                formData.append(input.name, input.value);
+            }
+        });
 
         try {
             const response = await fetch(`/contacts/{{ contact.id }}/edit`, {
@@ -260,14 +304,16 @@
                 body: formData
             });
 
+            const data = await response.json();
+            
             if (response.ok) {
                 window.location.reload();
             } else {
-                alert('Error saving changes');
+                alert(data.message || 'Error saving changes');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('Error saving changes');
+            alert('Error saving changes. Check the console for details.');
         }
     }
 

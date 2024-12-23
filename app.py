@@ -203,29 +203,53 @@ def create_app():
         if not current_user.role == 'admin' and contact.user_id != current_user.id:
             abort(403)
         
-        # Update contact information from form data
-        contact.email = request.form.get('email')
-        contact.phone = request.form.get('phone')
-        contact.street_address = request.form.get('street_address')
-        contact.city = request.form.get('city')
-        contact.state = request.form.get('state')
-        contact.zip_code = request.form.get('zip_code')
-        contact.notes = request.form.get('notes')
+        # Get form data with validation and print for debugging
+        first_name = request.form.get('first_name')
+        last_name = request.form.get('last_name')
         
-        # Handle groups
-        selected_group_ids = request.form.getlist('group_ids')
-        contact.groups = ContactGroup.query.filter(
-            ContactGroup.id.in_(selected_group_ids)
-        ).all()
+        print("Form data received:")
+        print(f"First Name: {first_name}")
+        print(f"Last Name: {last_name}")
+        print("All form data:", request.form)
+        
+        # Validate required fields
+        if not first_name or not last_name:
+            error_msg = 'First name and last name are required'
+            print(f"Validation error: {error_msg}")
+            return {
+                'status': 'error',
+                'message': error_msg
+            }, 400
         
         try:
+            # Update contact information from form data
+            contact.first_name = first_name
+            contact.last_name = last_name
+            contact.email = request.form.get('email')
+            contact.phone = request.form.get('phone')
+            contact.street_address = request.form.get('street_address')
+            contact.city = request.form.get('city')
+            contact.state = request.form.get('state')
+            contact.zip_code = request.form.get('zip_code')
+            contact.notes = request.form.get('notes')
+            
+            # Handle groups
+            selected_group_ids = request.form.getlist('group_ids')
+            print(f"Selected group IDs: {selected_group_ids}")
+            
+            contact.groups = ContactGroup.query.filter(
+                ContactGroup.id.in_(selected_group_ids)
+            ).all()
+            
             db.session.commit()
             flash('Contact updated successfully!', 'success')
             return {'status': 'success'}, 200
+            
         except Exception as e:
             db.session.rollback()
-            print(f"Error updating contact: {str(e)}")
-            return {'status': 'error', 'message': 'Error updating contact'}, 500
+            error_msg = f"Error updating contact: {str(e)}"
+            print(error_msg)
+            return {'status': 'error', 'message': error_msg}, 500
 
     @app.route('/contacts/<int:contact_id>/delete', methods=['POST'])
     @login_required
