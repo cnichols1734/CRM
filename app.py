@@ -4,6 +4,10 @@ from urllib.parse import urlparse
 from datetime import datetime
 from models import db, User, ContactGroup, Contact, Interaction
 from forms import RegistrationForm, LoginForm, ContactForm
+import csv
+from io import StringIO
+from werkzeug.utils import secure_filename
+import os
 
 
 def create_app():
@@ -232,6 +236,64 @@ def create_app():
             db.session.rollback()
             print(f"Error deleting contact: {str(e)}")
             return {'status': 'error', 'message': 'Error deleting contact'}, 500
+
+    @app.route('/import-contacts', methods=['POST'])
+    @login_required
+    def import_contacts():
+        if 'file' not in request.files:
+            flash('No file uploaded', 'error')
+            return redirect(url_for('index'))
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('No file selected', 'error')
+            return redirect(url_for('index'))
+        
+        if not file.filename.endswith('.csv'):
+            flash('Please upload a CSV file', 'error')
+            return redirect(url_for('index'))
+        
+        try:
+            # Read CSV file
+            stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
+            csv_data = csv.DictReader(stream)
+            
+            success_count = 0
+            error_count = 0
+            
+            for row in csv_data:
+                try:
+                    # Create new contact
+                    contact = Contact(
+                        user_id=current_user.id,
+                        first_name=row['first_name'].strip(),
+                        last_name=row['last_name'].strip(),
+                        email=row['email'].strip() if row['email'] else None,
+                        phone=row['phone'].strip() if row['phone'] else None,
+                        address=row['address'].strip() if row['address'] else None,
+                        notes=row['notes'].strip() if row['notes'] else None
+                    )
+                    
+                    # Handle groups if provided
+                    if 'groups' in row and row['groups']:
+                        group_names = [name.strip() for name in row['groups'].split(';')]
+                        groups = ContactGroup.query.filter(ContactGroup.name.in_(group_names)).all()
+                        contact.groups = groups
+                    
+                    db.session.add(contact)
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    continue
+            
+            db.session.commit()
+            flash(f'Successfully imported {success_count} contacts. {error_count} failed.', 'success')
+            
+        except Exception as e:
+            flash(f'Error processing CSV file: {str(e)}', 'error')
+            
+        return redirect(url_for('index'))
 
     return app
 

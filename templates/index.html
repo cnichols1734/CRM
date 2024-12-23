@@ -48,7 +48,11 @@ function clearSort() {
             <span class="text-sm text-gray-500">{{ contacts|length }} record{% if contacts|length != 1 %}s{% endif %}</span>
         </div>
         <div class="flex items-center space-x-3">
-            <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+            <form id="importForm" class="hidden" enctype="multipart/form-data">
+                <input type="file" id="csvFile" name="file" accept=".csv" class="hidden">
+            </form>
+            <button onclick="document.getElementById('csvFile').click()" 
+                    class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Import
             </button>
             <a href="{{ url_for('create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
@@ -407,4 +411,25 @@ function clearSort() {
         </div>
     </div>
 </div>
+
+<script>
+document.getElementById('csvFile').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) {
+        const formData = new FormData();
+        formData.append('file', e.target.files[0]);
+        
+        fetch('{{ url_for("import_contacts") }}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+});
+</script>
 {% endblock %}
