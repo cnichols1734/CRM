@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectMultipleField
+from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectMultipleField, DecimalField
 from wtforms.validators import DataRequired, Email, Length, EqualTo
 
 class RegistrationForm(FlaskForm):
@@ -32,4 +32,5 @@ class ContactForm(FlaskForm):
     zip_code = StringField('ZIP Code')
     group_ids = SelectMultipleField('Groups', coerce=int, validators=[DataRequired()])
     notes = TextAreaField('Notes')
+    potential_commission = DecimalField('Potential Commission ($)', default=5000.00)
     submit = SubmitField('Create Contact')

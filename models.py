@@ -57,6 +57,7 @@ class Contact(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                           onupdate=datetime.utcnow)
+    potential_commission = db.Column(db.Numeric(10, 2), nullable=False, default=5000.00)
 
     # Update the relationship to use backref
     owner = db.relationship('User', backref=db.backref('contacts', lazy=True))

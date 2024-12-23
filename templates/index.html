@@ -141,9 +141,10 @@ function clearSort() {
                     <span>Clear sort</span>
                 </button>
             {% endif %}
-            <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+            <a href="{{ url_for('export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}" 
+               class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Export
-            </button>
+            </a>
             <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Edit columns
             </button>
@@ -345,7 +346,21 @@ function clearSort() {
                     {% endif %}
                     <td class="px-4 border-l">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm mr-2 flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-2 flex-shrink-0 text-gray-600
+                                {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                                {% set colors = {
+                                    'A': 'bg-blue-100', 'B': 'bg-rose-100', 'C': 'bg-green-100', 
+                                    'D': 'bg-amber-100', 'E': 'bg-purple-100', 'F': 'bg-pink-100',
+                                    'G': 'bg-indigo-100', 'H': 'bg-teal-100', 'I': 'bg-orange-100',
+                                    'J': 'bg-cyan-100', 'K': 'bg-lime-100', 'L': 'bg-emerald-100',
+                                    'M': 'bg-sky-100', 'N': 'bg-violet-100', 'O': 'bg-fuchsia-100',
+                                    'P': 'bg-red-100', 'Q': 'bg-yellow-100', 'R': 'bg-blue-200',
+                                    'S': 'bg-rose-200', 'T': 'bg-green-200', 'U': 'bg-amber-200',
+                                    'V': 'bg-purple-200', 'W': 'bg-pink-200', 'X': 'bg-indigo-200',
+                                    'Y': 'bg-teal-200', 'Z': 'bg-orange-200'
+                                } %}
+                                {{ colors[initials[0]] or 'bg-gray-100' }}"
+                            >
                                 {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                             </div>
                             <a href="{{ url_for('view_contact', contact_id=contact.id) }}"
@@ -367,7 +382,7 @@ function clearSort() {
                     <td class="px-4 border-l relative">
                         <div class="flex flex-wrap gap-1 max-h-12 overflow-hidden relative">
                             {% for group in contact.groups[:2] %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 whitespace-nowrap">
                                     {{ group.name }}
                                 </span>
                             {% else %}

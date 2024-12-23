@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, abort
+from flask import Flask, render_template, redirect, url_for, flash, request, abort, Response
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from datetime import datetime
@@ -179,7 +179,8 @@ def create_app():
                 city=form.city.data,
                 state=form.state.data,
                 zip_code=form.zip_code.data,
-                notes=form.notes.data
+                notes=form.notes.data,
+                potential_commission=form.potential_commission.data or 5000.00
             )
             
             selected_groups = ContactGroup.query.filter(
@@ -232,6 +233,7 @@ def create_app():
             contact.state = request.form.get('state')
             contact.zip_code = request.form.get('zip_code')
             contact.notes = request.form.get('notes')
+            contact.potential_commission = float(request.form.get('potential_commission', 5000.00))
             
             # Handle groups
             selected_group_ids = request.form.getlist('group_ids')
@@ -332,6 +334,67 @@ def create_app():
                 'status': 'error',
                 'message': f'Error processing CSV file: {str(e)}'
             }, 500
+
+    @app.route('/export-contacts')
+    @login_required
+    def export_contacts():
+        # Get contacts based on current view and filters
+        show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+        search_query = request.args.get('q', '').strip()
+        
+        if show_all:
+            query = Contact.query
+        else:
+            query = Contact.query.filter_by(user_id=current_user.id)
+        
+        # Apply search if query exists
+        if search_query:
+            search_filter = (
+                (Contact.first_name.ilike(f'%{search_query}%')) |
+                (Contact.last_name.ilike(f'%{search_query}%')) |
+                (Contact.email.ilike(f'%{search_query}%')) |
+                (Contact.phone.ilike(f'%{search_query}%'))
+            )
+            query = query.filter(search_filter)
+        
+        contacts = query.all()
+        
+        # Create CSV in memory
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # Write headers
+        writer.writerow(['first_name', 'last_name', 'email', 'phone', 'street_address', 
+                        'city', 'state', 'zip_code', 'notes', 'groups'])
+        
+        # Write contact data
+        for contact in contacts:
+            groups = ';'.join([group.name for group in contact.groups])
+            writer.writerow([
+                contact.first_name,
+                contact.last_name,
+                contact.email or '',
+                contact.phone or '',
+                contact.street_address or '',
+                contact.city or '',
+                contact.state or '',
+                contact.zip_code or '',
+                contact.notes or '',
+                groups
+            ])
+        
+        # Prepare response
+        output.seek(0)
+        filename = f"{current_user.first_name}_{current_user.last_name}_contacts.csv"
+        
+        return Response(
+            output.getvalue(),
+            mimetype='text/csv',
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv",
+            }
+        )
 
     return app
 
