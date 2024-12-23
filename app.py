@@ -57,6 +57,13 @@ def create_app():
                 query = query.order_by(User.first_name.asc(), User.last_name.asc())
             else:
                 query = query.order_by(User.first_name.desc(), User.last_name.desc())
+        elif sort_by == 'potential_commission':
+            # Handle potential_commission sorting with NULL values
+            from sqlalchemy import func
+            if sort_dir == 'asc':
+                query = query.order_by(func.coalesce(Contact.potential_commission, 0).asc())
+            else:
+                query = query.order_by(func.coalesce(Contact.potential_commission, 0).desc())
         else:
             # Map frontend column names to model attributes
             sort_map = {
