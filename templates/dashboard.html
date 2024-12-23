@@ -8,6 +8,26 @@
         <p class="text-sm text-gray-500">Welcome back, {{ current_user.first_name }}</p>
     </div>
 
+    <!-- Filter Tabs (Only show for admin) -->
+    {% if current_user.role == 'admin' %}
+    <div class="border-b mb-6">
+        <div class="flex space-x-6">
+            <button 
+                class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                onclick="window.location.href='{{ url_for('dashboard', view='all') }}';"
+            >
+                All contacts
+            </button>
+            <button 
+                class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                onclick="window.location.href='{{ url_for('dashboard', view='my') }}';"
+            >
+                My contacts
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Key Metrics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <!-- Total Commission Card -->

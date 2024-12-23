@@ -406,11 +406,20 @@ def create_app():
     @app.route('/dashboard')
     @login_required
     def dashboard():
-        # Get user's contacts (or all contacts for admin)
-        if current_user.role == 'admin':
-            contacts = Contact.query.all()
-        else:
+        # Get the view parameter (default to 'my' for non-admins)
+        view = request.args.get('view', 'my')
+        
+        # For non-admin users, always show their own contacts
+        if current_user.role != 'admin':
+            show_all = False
             contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        else:
+            # For admin users, respect the view parameter
+            show_all = view == 'all'
+            if show_all:
+                contacts = Contact.query.all()
+            else:
+                contacts = Contact.query.filter_by(user_id=current_user.id).all()
         
         # Calculate key metrics
         total_contacts = len(contacts)
@@ -440,7 +449,8 @@ def create_app():
                              total_commission=total_commission,
                              avg_commission=avg_commission,
                              top_contacts=top_contacts,
-                             group_stats=group_stats)
+                             group_stats=group_stats,
+                             show_all=show_all)
 
     return app
 
