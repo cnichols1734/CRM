@@ -63,7 +63,7 @@ def create_app():
                 'name': [Contact.first_name, Contact.last_name],
                 'email': [Contact.email],
                 'phone': [Contact.phone],
-                'address': [Contact.address],
+                'address': [Contact.street_address],
                 'notes': [Contact.notes],
                 'created_at': [Contact.created_at]
             }
@@ -166,7 +166,6 @@ def create_app():
     @login_required
     def create_contact():
         form = ContactForm()
-        # Update choices to work with multiple select
         form.group_ids.choices = [(g.id, g.name) for g in ContactGroup.query.order_by('sort_order')]
 
         if form.validate_on_submit():
@@ -176,11 +175,16 @@ def create_app():
                 last_name=form.last_name.data,
                 email=form.email.data,
                 phone=form.phone.data,
-                address=form.address.data,
+                street_address=form.street_address.data,
+                city=form.city.data,
+                state=form.state.data,
+                zip_code=form.zip_code.data,
                 notes=form.notes.data
             )
-            # Add selected groups
-            selected_groups = ContactGroup.query.filter(ContactGroup.id.in_(form.group_ids.data)).all()
+            
+            selected_groups = ContactGroup.query.filter(
+                ContactGroup.id.in_(form.group_ids.data)
+            ).all()
             contact.groups = selected_groups
 
             db.session.add(contact)
@@ -202,12 +206,17 @@ def create_app():
         # Update contact information from form data
         contact.email = request.form.get('email')
         contact.phone = request.form.get('phone')
-        contact.address = request.form.get('address')
+        contact.street_address = request.form.get('street_address')
+        contact.city = request.form.get('city')
+        contact.state = request.form.get('state')
+        contact.zip_code = request.form.get('zip_code')
         contact.notes = request.form.get('notes')
         
         # Handle groups
         selected_group_ids = request.form.getlist('group_ids')
-        contact.groups = ContactGroup.query.filter(ContactGroup.id.in_(selected_group_ids)).all()
+        contact.groups = ContactGroup.query.filter(
+            ContactGroup.id.in_(selected_group_ids)
+        ).all()
         
         try:
             db.session.commit()
@@ -241,17 +250,14 @@ def create_app():
     @login_required
     def import_contacts():
         if 'file' not in request.files:
-            flash('No file uploaded', 'error')
-            return redirect(url_for('index'))
+            return {'status': 'error', 'message': 'No file uploaded'}, 400
         
         file = request.files['file']
         if file.filename == '':
-            flash('No file selected', 'error')
-            return redirect(url_for('index'))
+            return {'status': 'error', 'message': 'No file selected'}, 400
         
         if not file.filename.endswith('.csv'):
-            flash('Please upload a CSV file', 'error')
-            return redirect(url_for('index'))
+            return {'status': 'error', 'message': 'Please upload a CSV file'}, 400
         
         try:
             # Read CSV file
@@ -270,7 +276,10 @@ def create_app():
                         last_name=row['last_name'].strip(),
                         email=row['email'].strip() if row['email'] else None,
                         phone=row['phone'].strip() if row['phone'] else None,
-                        address=row['address'].strip() if row['address'] else None,
+                        street_address=row['street_address'].strip() if row['street_address'] else None,
+                        city=row['city'].strip() if row['city'] else None,
+                        state=row['state'].strip() if row['state'] else None,
+                        zip_code=row['zip_code'].strip() if row['zip_code'] else None,
                         notes=row['notes'].strip() if row['notes'] else None
                     )
                     
@@ -288,12 +297,17 @@ def create_app():
                     continue
             
             db.session.commit()
-            flash(f'Successfully imported {success_count} contacts. {error_count} failed.', 'success')
+            return {
+                'status': 'success',
+                'success_count': success_count,
+                'error_count': error_count
+            }
             
         except Exception as e:
-            flash(f'Error processing CSV file: {str(e)}', 'error')
-            
-        return redirect(url_for('index'))
+            return {
+                'status': 'error',
+                'message': f'Error processing CSV file: {str(e)}'
+            }, 500
 
     return app
 

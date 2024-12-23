@@ -23,8 +23,6 @@ class User(UserMixin, db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
 
-    contacts = db.relationship('Contact', backref='owner', lazy=True)
-
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -51,17 +49,24 @@ class Contact(db.Model):
     last_name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120))
     phone = db.Column(db.String(20))
-    address = db.Column(db.String(200))
+    street_address = db.Column(db.String(200))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
-                           onupdate=datetime.utcnow)
+                          onupdate=datetime.utcnow)
 
-    # Updated relationship definition using the association table
+    # Update the relationship to use backref
+    owner = db.relationship('User', backref=db.backref('contacts', lazy=True))
     groups = db.relationship('ContactGroup',
                            secondary=contact_groups,
                            back_populates='contacts',
                            lazy='joined')
+
+    def __repr__(self):
+        return f'<Contact {self.first_name} {self.last_name}>'
 
 class Interaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)

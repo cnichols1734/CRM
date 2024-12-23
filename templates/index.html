@@ -51,10 +51,40 @@ function clearSort() {
             <form id="importForm" class="hidden" enctype="multipart/form-data">
                 <input type="file" id="csvFile" name="file" accept=".csv" class="hidden">
             </form>
-            <button onclick="document.getElementById('csvFile').click()" 
-                    class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
-                Import
-            </button>
+            
+            <!-- Import button and loading state -->
+            <div class="relative">
+                <button onclick="document.getElementById('csvFile').click()" 
+                        id="importButton"
+                        class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+                    Import
+                </button>
+                <!-- Loading spinner (hidden by default) -->
+                <div id="importLoading" class="hidden">
+                    <div class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 rounded">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import status message (hidden by default) -->
+            <div id="importStatus" class="hidden fixed top-4 right-4 max-w-sm bg-white shadow-lg rounded-lg pointer-events-auto p-4">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <i id="statusIcon" class="fas fa-check-circle text-green-400"></i>
+                    </div>
+                    <div class="ml-3 w-0 flex-1">
+                        <p id="statusMessage" class="text-sm font-medium text-gray-900"></p>
+                    </div>
+                    <div class="ml-4 flex-shrink-0 flex">
+                        <button onclick="hideImportStatus()" class="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Close</span>
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <a href="{{ url_for('create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
                 Create contact
             </a>
@@ -352,11 +382,24 @@ function clearSort() {
                     </td>
                     <td class="px-4 border-l relative group">
                         <div class="overflow-hidden overflow-ellipsis whitespace-nowrap">
-                            {{ contact.address or '--' }}
+                            {% set address_parts = [] %}
+                            {% if contact.street_address %}
+                                {% set _ = address_parts.append(contact.street_address) %}
+                            {% endif %}
+                            {% if contact.city %}
+                                {% set _ = address_parts.append(contact.city) %}
+                            {% endif %}
+                            {% if contact.state %}
+                                {% set _ = address_parts.append(contact.state) %}
+                            {% endif %}
+                            {% if contact.zip_code %}
+                                {% set _ = address_parts.append(contact.zip_code) %}
+                            {% endif %}
+                            {{ address_parts|join(', ') or '--' }}
                         </div>
-                        {% if contact.address and contact.address|length > 30 %}
+                        {% if address_parts|length > 0 %}
                             <div class="hidden group-hover:block absolute z-10 bg-gray-800 text-white text-sm rounded p-2 -mt-2 ml-2">
-                                {{ contact.address }}
+                                {{ address_parts|join(', ') }}
                             </div>
                         {% endif %}
                     </td>
@@ -418,18 +461,57 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
         const formData = new FormData();
         formData.append('file', e.target.files[0]);
         
+        // Show loading state
+        document.getElementById('importButton').classList.add('opacity-50', 'cursor-not-allowed');
+        document.getElementById('importLoading').classList.remove('hidden');
+        
         fetch('{{ url_for("import_contacts") }}', {
             method: 'POST',
             body: formData
         })
         .then(response => response.json())
         .then(data => {
+            // Hide loading state
+            document.getElementById('importButton').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('importLoading').classList.add('hidden');
+            
+            // Show success message
+            const statusIcon = document.getElementById('statusIcon');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            if (data.status === 'success') {
+                statusIcon.className = 'fas fa-check-circle text-green-400';
+                statusMessage.textContent = `Successfully imported ${data.success_count} contacts. ${data.error_count} failed.`;
+            } else {
+                statusIcon.className = 'fas fa-exclamation-circle text-red-400';
+                statusMessage.textContent = data.message || 'Error importing contacts';
+            }
+            
+            document.getElementById('importStatus').classList.remove('hidden');
+            
+            // Auto-hide message after 5 seconds
+            setTimeout(hideImportStatus, 5000);
+            
+            // Reload the contacts table
             window.location.reload();
         })
         .catch(error => {
             console.error('Error:', error);
+            document.getElementById('importButton').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('importLoading').classList.add('hidden');
+            
+            // Show error message
+            const statusIcon = document.getElementById('statusIcon');
+            const statusMessage = document.getElementById('statusMessage');
+            statusIcon.className = 'fas fa-exclamation-circle text-red-400';
+            statusMessage.textContent = 'Error uploading file';
+            document.getElementById('importStatus').classList.remove('hidden');
         });
     }
 });
+
+function hideImportStatus() {
+    document.getElementById('importStatus').classList.add('hidden');
+}
 </script>
 {% endblock %}

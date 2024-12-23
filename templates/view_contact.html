@@ -68,16 +68,30 @@
                                       hover:border-gray-300">
                     </div>
 
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                        <input type="text" name="address" value="{{ contact.address }}"
-                               class="mt-1 block w-full rounded-md 
-                                      border-2 border-gray-200
-                                      bg-gray-50 
-                                      px-3 py-2
-                                      focus:bg-white
-                                      focus:border-blue-500 focus:ring-1 focus:ring-blue-500
-                                      hover:border-gray-300">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">Street Address</h3>
+                            <input type="text" name="street_address" value="{{ contact.street_address }}"
+                                   class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">City</h3>
+                            <input type="text" name="city" value="{{ contact.city }}"
+                                   class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">State</h3>
+                            <input type="text" name="state" value="{{ contact.state }}"
+                                   class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">ZIP Code</h3>
+                            <input type="text" name="zip_code" value="{{ contact.zip_code }}"
+                                   class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
+                        </div>
                     </div>
 
                     <div>
@@ -141,8 +155,23 @@
                     </div>
 
                     <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                        <p class="text-gray-900">{{ contact.address }}</p>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Street Address</h3>
+                        <p class="text-gray-900">{{ contact.street_address }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">City</h3>
+                        <p class="text-gray-900">{{ contact.city }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">State</h3>
+                        <p class="text-gray-900">{{ contact.state }}</p>
+                    </div>
+
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">ZIP Code</h3>
+                        <p class="text-gray-900">{{ contact.zip_code }}</p>
                     </div>
 
                     <div>

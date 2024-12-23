@@ -66,12 +66,45 @@
                         {% endif %}
                     </div>
 
-                    <!-- Address -->
+                    <!-- Street Address -->
                     <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                        {{ form.address(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.address.errors %}
-                            {% for error in form.address.errors %}
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">Street Address</h3>
+                        {{ form.street_address(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
+                        {% if form.street_address.errors %}
+                            {% for error in form.street_address.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- City -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">City</h3>
+                        {{ form.city(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
+                        {% if form.city.errors %}
+                            {% for error in form.city.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- State -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">State</h3>
+                        {{ form.state(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
+                        {% if form.state.errors %}
+                            {% for error in form.state.errors %}
+                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <!-- ZIP Code -->
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-500 mb-1">ZIP Code</h3>
+                        {{ form.zip_code(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
+                        {% if form.zip_code.errors %}
+                            {% for error in form.zip_code.errors %}
                                 <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
