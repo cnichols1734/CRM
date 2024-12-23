@@ -81,3 +81,51 @@ class Interaction(db.Model):
 
     contact = db.relationship('Contact', backref='interactions')
     user = db.relationship('User', backref='interactions')
+
+class TaskType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)  # e.g., 'Call', 'Email', 'Meeting', 'Showing', 'Follow-up'
+    sort_order = db.Column(db.Integer, nullable=False)
+    
+    # Relationship to subtypes
+    subtypes = db.relationship('TaskSubtype', backref='task_type', lazy=True)
+
+class TaskSubtype(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task_type_id = db.Column(db.Integer, db.ForeignKey('task_type.id'), nullable=False)
+    name = db.Column(db.String(50), nullable=False)  # e.g., for Call: 'Check-in', 'Schedule Showing', 'Discuss Offer'
+    sort_order = db.Column(db.Integer, nullable=False)
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Task Details
+    type_id = db.Column(db.Integer, db.ForeignKey('task_type.id'), nullable=False)
+    subtype_id = db.Column(db.Integer, db.ForeignKey('task_subtype.id'), nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    priority = db.Column(db.String(20), nullable=False, default='medium')  # low, medium, high
+    
+    # Status
+    status = db.Column(db.String(20), nullable=False, default='pending')  # pending, completed, cancelled
+    outcome = db.Column(db.Text)  # Notes about what happened when task was completed
+    
+    # Dates
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    due_date = db.Column(db.DateTime, nullable=False)
+    completed_at = db.Column(db.DateTime)
+    
+    # Optional fields specific to real estate
+    property_address = db.Column(db.String(200))  # If task is related to specific property
+    scheduled_time = db.Column(db.DateTime)  # For meetings/showings
+    reminder_sent = db.Column(db.Boolean, default=False)
+    
+    # Relationships
+    contact = db.relationship('Contact', backref=db.backref('tasks', lazy=True))
+    assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_tasks')
+    task_type = db.relationship('TaskType')
+    task_subtype = db.relationship('TaskSubtype')

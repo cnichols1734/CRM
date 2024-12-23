@@ -1,8 +1,8 @@
-from flask import Flask, render_template, redirect, url_for, flash, request, abort, Response
+from flask import Flask, render_template, redirect, url_for, flash, request, abort, Response, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
 from datetime import datetime
-from models import db, User, ContactGroup, Contact, Interaction
+from models import db, User, ContactGroup, Contact, Interaction, Task, TaskType, TaskSubtype
 from forms import RegistrationForm, LoginForm, ContactForm
 import csv
 from io import StringIO
@@ -452,6 +452,142 @@ def create_app():
                              group_stats=group_stats,
                              show_all=show_all)
 
+    @app.route('/tasks')
+    @login_required
+    def tasks():
+        # Get the view parameter (default to 'my' for non-admins)
+        view = request.args.get('view', 'my')
+        
+        # For non-admin users, always show their own tasks
+        if current_user.role != 'admin':
+            show_all = False
+            tasks = Task.query.filter_by(assigned_to_id=current_user.id).all()
+        else:
+            # For admin users, respect the view parameter
+            show_all = view == 'all'
+            if show_all:
+                tasks = Task.query.all()
+            else:
+                tasks = Task.query.filter_by(assigned_to_id=current_user.id).all()
+        
+        return render_template('tasks.html', tasks=tasks, show_all=show_all)
+
+    @app.route('/task/new', methods=['GET', 'POST'])
+    @login_required
+    def create_task():
+        if request.method == 'POST':
+            try:
+                contact_id = request.form.get('contact_id')
+                contact = Contact.query.get_or_404(contact_id)
+                
+                # Create new task
+                task = Task(
+                    contact_id=contact_id,
+                    assigned_to_id=request.form.get('assigned_to_id', current_user.id),
+                    created_by_id=current_user.id,
+                    type_id=request.form.get('type_id'),
+                    subtype_id=request.form.get('subtype_id'),
+                    subject=request.form.get('subject'),
+                    description=request.form.get('description'),
+                    priority=request.form.get('priority', 'medium'),
+                    due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d'),
+                    property_address=request.form.get('property_address'),
+                    scheduled_time=datetime.strptime(request.form.get('scheduled_time'), '%Y-%m-%dT%H:%M') if request.form.get('scheduled_time') else None
+                )
+                
+                db.session.add(task)
+                db.session.commit()
+                
+                flash('Task created successfully!', 'success')
+                return redirect(url_for('tasks'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error creating task: {str(e)}', 'error')
+                return redirect(url_for('tasks'))
+        
+        # GET request - show the form
+        contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        task_types = TaskType.query.all()
+        users = User.query.all() if current_user.role == 'admin' else [current_user]
+        
+        return render_template('create_task.html',
+                             contacts=contacts,
+                             task_types=task_types,
+                             users=users)
+
+    @app.route('/task/<int:task_id>/edit', methods=['GET', 'POST'])
+    @login_required
+    def edit_task(task_id):
+        task = Task.query.get_or_404(task_id)
+        
+        # Check permissions
+        if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
+            abort(403)
+            
+        if request.method == 'POST':
+            try:
+                task.subject = request.form.get('subject')
+                task.description = request.form.get('description')
+                task.priority = request.form.get('priority')
+                task.status = request.form.get('status')
+                task.due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
+                task.scheduled_time = datetime.strptime(request.form.get('scheduled_time'), '%Y-%m-%dT%H:%M') if request.form.get('scheduled_time') else None
+                
+                if current_user.role == 'admin':
+                    task.assigned_to_id = request.form.get('assigned_to_id')
+                
+                db.session.commit()
+                flash('Task updated successfully!', 'success')
+                return redirect(url_for('tasks'))
+                
+            except Exception as e:
+                db.session.rollback()
+                flash(f'Error updating task: {str(e)}', 'error')
+                return redirect(url_for('tasks'))
+        
+        # GET request - show the form
+        users = User.query.all() if current_user.role == 'admin' else [current_user]
+        return render_template('edit_task.html', task=task, users=users)
+
+    @app.route('/task/<int:task_id>/delete', methods=['POST'])
+    @login_required
+    def delete_task(task_id):
+        task = Task.query.get_or_404(task_id)
+        
+        # Check permissions
+        if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
+            abort(403)
+            
+        try:
+            db.session.delete(task)
+            db.session.commit()
+            flash('Task deleted successfully!', 'success')
+            return {'status': 'success'}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {'status': 'error', 'message': str(e)}, 500
+
+    @app.route('/api/task-types/<int:type_id>/subtypes')
+    @login_required
+    def get_task_subtypes(type_id):
+        subtypes = TaskSubtype.query.filter_by(task_type_id=type_id).all()
+        return jsonify([{
+            'id': subtype.id,
+            'name': subtype.name
+        } for subtype in subtypes])
+
+    @app.route('/task/<int:task_id>')
+    @login_required
+    def view_task(task_id):
+        task = Task.query.get_or_404(task_id)
+        
+        # Check permissions
+        if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
+            abort(403)
+        
+        return render_template('view_task.html', task=task)
+
     return app
 
 
@@ -459,4 +595,4 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5003, debug=True)
+    app.run(host='0.0.0.0', port=5004, debug=True)

@@ -92,6 +92,16 @@
             </div>
         </div>
         
+        <!-- Tasks Icon with Tooltip -->
+        <div class="relative group mb-8">
+            <a href="{{ url_for('tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+                <i class="fas fa-tasks text-white"></i>
+            </a>
+            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                Tasks
+            </div>
+        </div>
+
         <!-- Marketing Icon with Tooltip -->
         <div class="relative group mb-8">
             <a href="#" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">

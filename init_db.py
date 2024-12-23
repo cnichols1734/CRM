@@ -32,6 +32,49 @@ INITIAL_GROUPS = [
     {"name": "Real Estate Agent", "category": "Professional", "sort_order": 54}
 ]
 
+TASK_TYPES = [
+    {
+        "name": "Call",
+        "sort_order": 10,
+        "subtypes": [
+            {"name": "Check-in", "sort_order": 1},
+            {"name": "Schedule Showing", "sort_order": 2},
+            {"name": "Discuss Offer", "sort_order": 3},
+            {"name": "Follow-up", "sort_order": 4}
+        ]
+    },
+    {
+        "name": "Meeting",
+        "sort_order": 20,
+        "subtypes": [
+            {"name": "Initial Consultation", "sort_order": 1},
+            {"name": "Property Showing", "sort_order": 2},
+            {"name": "Contract Review", "sort_order": 3},
+            {"name": "Home Inspection", "sort_order": 4}
+        ]
+    },
+    {
+        "name": "Email",
+        "sort_order": 30,
+        "subtypes": [
+            {"name": "Send Listings", "sort_order": 1},
+            {"name": "Send Documents", "sort_order": 2},
+            {"name": "Market Update", "sort_order": 3},
+            {"name": "General Follow-up", "sort_order": 4}
+        ]
+    },
+    {
+        "name": "Document",
+        "sort_order": 40,
+        "subtypes": [
+            {"name": "Prepare Contract", "sort_order": 1},
+            {"name": "Review Documents", "sort_order": 2},
+            {"name": "Submit Offer", "sort_order": 3},
+            {"name": "Process Paperwork", "sort_order": 4}
+        ]
+    }
+]
+
 
 def init_db():
     app = create_app()
