@@ -66,7 +66,7 @@
             <li class="hover:bg-gray-50">
                 <div class="px-6 py-4">
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3">
+                        <div class="flex items-center space-x-4 flex-1">
                             <!-- Task Status Checkbox -->
                             <input type="checkbox" 
                                    class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
@@ -74,9 +74,10 @@
                                    onchange="updateTaskStatus({{ task.id }}, this.checked)">
                             
                             <!-- Task Info -->
-                            <div>
+                            <div class="flex-1 min-w-0">
+                                <!-- Top Row: Subject, Priority, and Type -->
                                 <div class="flex items-center space-x-2">
-                                    <span class="text-sm font-medium text-gray-900">
+                                    <span class="text-sm font-medium text-gray-900 truncate">
                                         <a href="{{ url_for('view_task', task_id=task.id) }}" class="hover:text-blue-600">
                                             {{ task.subject }}
                                         </a>
@@ -93,17 +94,42 @@
                                         {{ task.priority|capitalize }}
                                     </span>
                                 </div>
-                                <div class="mt-1 text-sm text-gray-500">
-                                    Due {{ task.due_date.strftime('%b %d, %Y') }}
+                                
+                                <!-- Bottom Row: Task Details -->
+                                <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                                    <!-- Due Date -->
+                                    <div class="flex items-center">
+                                        <i class="far fa-calendar-alt mr-1.5 text-gray-400"></i>
+                                        {{ task.due_date.strftime('%b %d, %Y') }}
+                                    </div>
+
+                                    <!-- Task Type -->
+                                    <div class="flex items-center">
+                                        <i class="far fa-folder mr-1.5 text-gray-400"></i>
+                                        {{ task.task_type.name }} - {{ task.task_subtype.name }}
+                                    </div>
+
+                                    <!-- Contact -->
                                     {% if task.contact %}
-                                    • For {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                    <div class="flex items-center">
+                                        <i class="far fa-user mr-1.5 text-gray-400"></i>
+                                        {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Scheduled Time -->
+                                    {% if task.scheduled_time %}
+                                    <div class="flex items-center">
+                                        <i class="far fa-clock mr-1.5 text-gray-400"></i>
+                                        {{ task.scheduled_time.strftime('%I:%M %p') }}
+                                    </div>
                                     {% endif %}
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Task Actions -->
-                        <div class="flex items-center space-x-4">
+                        <!-- Right Side: Assigned User and Actions -->
+                        <div class="flex items-center space-x-6 ml-4">
                             {% if show_all %}
                             <div class="flex items-center">
                                 <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-600 mr-2">
@@ -115,7 +141,7 @@
                             </div>
                             {% endif %}
                             
-                            <div class="flex items-center space-x-2">
+                            <div class="flex items-center space-x-3">
                                 <button onclick="window.location.href='{{ url_for('edit_task', task_id=task.id) }}'"
                                         class="text-gray-400 hover:text-gray-500">
                                     <i class="fas fa-edit"></i>

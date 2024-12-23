@@ -164,6 +164,112 @@
             </div>
         </div>
     </div>
+
+    <!-- Upcoming Tasks Section -->
+    <div class="mt-6">
+        <div class="bg-gray-50 rounded-lg shadow-md border border-gray-200">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-medium text-gray-900">Upcoming Tasks</h3>
+                    <p class="text-sm text-gray-500 mt-1">Tasks due in the next 7 days</p>
+                </div>
+                <a href="{{ url_for('tasks') }}" 
+                   class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                    View all tasks
+                    <i class="fas fa-arrow-right ml-2"></i>
+                </a>
+            </div>
+
+            <!-- Task List -->
+            {% if upcoming_tasks %}
+            <ul class="divide-y divide-gray-200">
+                {% for task in upcoming_tasks %}
+                <li class="hover:bg-white transition-colors duration-150">
+                    <div class="px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4 flex-1">
+                                <!-- Status Checkbox -->
+                                <input type="checkbox" 
+                                       class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                       {% if task.status == 'completed' %}checked{% endif %}
+                                       onchange="updateTaskStatus({{ task.id }}, this.checked)">
+                                
+                                <!-- Task Info -->
+                                <div class="flex-1">
+                                    <div class="flex items-center">
+                                        <a href="{{ url_for('view_task', task_id=task.id) }}" 
+                                           class="text-sm font-medium text-gray-900 hover:text-blue-600">
+                                            {{ task.subject }}
+                                        </a>
+                                        <!-- Priority Badge -->
+                                        <span class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium
+                                            {% if task.priority == 'high' %}
+                                                bg-red-100 text-red-800
+                                            {% elif task.priority == 'medium' %}
+                                                bg-yellow-100 text-yellow-800
+                                            {% else %}
+                                                bg-green-100 text-green-800
+                                            {% endif %}">
+                                            {{ task.priority|capitalize }}
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- Task Details -->
+                                    <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                                        <!-- Due Date -->
+                                        <div class="flex items-center">
+                                            <i class="far fa-calendar-alt mr-1.5 text-gray-400"></i>
+                                            {% set days_until = (task.due_date - now).days %}
+                                            {% if days_until == 0 %}
+                                                <span class="text-red-600 font-medium">Due today</span>
+                                            {% elif days_until < 0 %}
+                                                <span class="text-red-600 font-medium">Overdue by {{ abs(days_until) }} days</span>
+                                            {% elif days_until == 1 %}
+                                                <span class="text-yellow-600">Due tomorrow</span>
+                                            {% else %}
+                                                Due in {{ days_until }} days
+                                            {% endif %}
+                                        </div>
+
+                                        <!-- Task Type -->
+                                        <div class="flex items-center">
+                                            <i class="far fa-folder mr-1.5 text-gray-400"></i>
+                                            {{ task.task_type.name }}
+                                        </div>
+
+                                        <!-- Contact -->
+                                        <div class="flex items-center">
+                                            <i class="far fa-user mr-1.5 text-gray-400"></i>
+                                            {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                        </div>
+
+                                        {% if task.scheduled_time %}
+                                        <div class="flex items-center">
+                                            <i class="far fa-clock mr-1.5 text-gray-400"></i>
+                                            {{ task.scheduled_time.strftime('%I:%M %p') }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="px-6 py-8 text-center">
+                <div class="text-gray-500">No upcoming tasks</div>
+                <a href="{{ url_for('create_task') }}" 
+                   class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
+                    <i class="fas fa-plus mr-2"></i>
+                    Create a new task
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
 
 <!-- ApexCharts -->

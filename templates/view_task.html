@@ -2,137 +2,123 @@
 
 {% block content %}
 <div class="p-6 max-w-4xl mx-auto">
-    <!-- Header with Actions -->
+    <!-- Back button -->
+    <div class="mb-6">
+        <a href="{{ url_for('tasks') }}" class="text-gray-600 hover:text-gray-800 flex items-center">
+            <i class="fas fa-arrow-left mr-2"></i>
+            Back to Tasks
+        </a>
+    </div>
+
+    <!-- Header -->
     <div class="flex justify-between items-start mb-6">
         <div>
             <h1 class="text-2xl font-semibold text-gray-900">{{ task.subject }}</h1>
-            <p class="mt-1 text-sm text-gray-500">
-                Created {{ task.created_at.strftime('%B %d, %Y') }} by {{ task.created_by.first_name }} {{ task.created_by.last_name }}
-            </p>
+            <p class="mt-1 text-sm text-gray-500">Created {{ task.created_at.strftime('%B %d, %Y') }} by {{ task.created_by.first_name }} {{ task.created_by.last_name }}</p>
         </div>
         <div class="flex space-x-3">
-            <button onclick="window.location.href='{{ url_for('edit_task', task_id=task.id) }}'"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            <a href="{{ url_for('edit_task', task_id=task.id) }}" 
+               class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 <i class="fas fa-edit mr-2"></i>
                 Edit
-            </button>
+            </a>
             <button onclick="deleteTask({{ task.id }})"
-                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700">
                 <i class="fas fa-trash mr-2"></i>
                 Delete
             </button>
         </div>
     </div>
 
-    <!-- Task Details -->
-    <div class="bg-white shadow rounded-lg divide-y divide-gray-200">
-        <!-- Status and Priority Section -->
-        <div class="p-6">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-4">
-                    <!-- Status Badge -->
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                        {% if task.status == 'completed' %}
-                            bg-green-100 text-green-800
-                        {% else %}
-                            bg-yellow-100 text-yellow-800
-                        {% endif %}">
-                        <span class="h-2 w-2 mr-2 rounded-full 
-                            {% if task.status == 'completed' %}bg-green-400{% else %}bg-yellow-400{% endif %}">
-                        </span>
-                        {{ task.status|capitalize }}
+    <!-- Task Details Card -->
+    <div class="bg-white rounded-lg border">
+        <!-- Status Section -->
+        <div class="p-4 border-b flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    {% if task.status == 'completed' %}
+                        bg-green-100 text-green-800
+                    {% else %}
+                        bg-yellow-100 text-yellow-800
+                    {% endif %}">
+                    <span class="h-2 w-2 mr-2 rounded-full 
+                        {% if task.status == 'completed' %}bg-green-400{% else %}bg-yellow-400{% endif %}">
                     </span>
-                    
-                    <!-- Priority Badge -->
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                        {% if task.priority == 'high' %}
-                            bg-red-100 text-red-800
-                        {% elif task.priority == 'medium' %}
-                            bg-yellow-100 text-yellow-800
-                        {% else %}
-                            bg-green-100 text-green-800
-                        {% endif %}">
-                        {{ task.priority|capitalize }} Priority
-                    </span>
-                </div>
+                    {{ task.status|capitalize }}
+                </span>
                 
-                <!-- Quick Status Update -->
-                <div class="flex items-center">
-                    <label class="mr-3 text-sm text-gray-500">Mark as Complete</label>
-                    <input type="checkbox" 
-                           class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                           {% if task.status == 'completed' %}checked{% endif %}
-                           onchange="updateTaskStatus({{ task.id }}, this.checked)">
-                </div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                    {% if task.priority == 'high' %}
+                        bg-red-100 text-red-800
+                    {% elif task.priority == 'medium' %}
+                        bg-yellow-100 text-yellow-800
+                    {% else %}
+                        bg-green-100 text-green-800
+                    {% endif %}">
+                    {{ task.priority|capitalize }} Priority
+                </span>
+            </div>
+            
+            <div class="flex items-center">
+                <label class="mr-3 text-sm text-gray-500">Mark as Complete</label>
+                <input type="checkbox" 
+                       class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                       {% if task.status == 'completed' %}checked{% endif %}
+                       onchange="updateTaskStatus({{ task.id }}, this.checked)">
             </div>
         </div>
 
-        <!-- Task Type and Assignment -->
-        <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500">Task Type</h3>
-                    <p class="mt-1 text-sm text-gray-900">
-                        {{ task.task_type.name }} - {{ task.task_subtype.name }}
-                    </p>
-                </div>
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500">Assigned To</h3>
-                    <div class="mt-1 flex items-center">
-                        <div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm text-gray-600 mr-2">
-                            {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
-                        </div>
-                        <span class="text-sm text-gray-900">
-                            {{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}
-                        </span>
+        <!-- Main Info Grid -->
+        <div class="grid grid-cols-2 gap-x-6 p-4 border-b">
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Task Type</h3>
+                <p class="mt-1 text-sm text-gray-900">{{ task.task_type.name }} - {{ task.task_subtype.name }}</p>
+            </div>
+            
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Assigned To</h3>
+                <div class="mt-1 flex items-center">
+                    <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-600 mr-2">
+                        {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
                     </div>
+                    <span class="text-sm text-gray-900">{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
                 </div>
             </div>
-        </div>
 
-        <!-- Dates and Contact -->
-        <div class="p-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500">Due Date</h3>
-                    <p class="mt-1 text-sm text-gray-900">
-                        {{ task.due_date.strftime('%B %d, %Y') }}
-                    </p>
-                </div>
-                {% if task.scheduled_time %}
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500">Scheduled Time</h3>
-                    <p class="mt-1 text-sm text-gray-900">
-                        {{ task.scheduled_time.strftime('%I:%M %p') }}
-                    </p>
-                </div>
-                {% endif %}
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500">Related Contact</h3>
-                    <a href="{{ url_for('view_contact', contact_id=task.contact.id) }}" 
-                       class="mt-1 text-sm text-blue-600 hover:text-blue-500 flex items-center">
-                        {{ task.contact.first_name }} {{ task.contact.last_name }}
-                        <i class="fas fa-external-link-alt ml-1 text-xs"></i>
-                    </a>
-                </div>
+            <div class="mt-4">
+                <h3 class="text-sm font-medium text-gray-500">Due Date</h3>
+                <p class="mt-1 text-sm text-gray-900">{{ task.due_date.strftime('%B %d, %Y') }}</p>
             </div>
-        </div>
 
-        <!-- Property Address -->
-        {% if task.property_address %}
-        <div class="p-6">
-            <h3 class="text-sm font-medium text-gray-500">Property Address</h3>
-            <p class="mt-1 text-sm text-gray-900">{{ task.property_address }}</p>
+            <div class="mt-4">
+                <h3 class="text-sm font-medium text-gray-500">Related Contact</h3>
+                <a href="{{ url_for('view_contact', contact_id=task.contact.id) }}" 
+                   class="mt-1 text-sm text-blue-600 hover:text-blue-500 flex items-center">
+                    {{ task.contact.first_name }} {{ task.contact.last_name }}
+                    <i class="fas fa-external-link-alt ml-1 text-xs"></i>
+                </a>
+            </div>
+
+            {% if task.scheduled_time %}
+            <div class="mt-4">
+                <h3 class="text-sm font-medium text-gray-500">Scheduled Time</h3>
+                <p class="mt-1 text-sm text-gray-900">{{ task.scheduled_time.strftime('%I:%M %p') }}</p>
+            </div>
+            {% endif %}
+
+            {% if task.property_address %}
+            <div class="mt-4">
+                <h3 class="text-sm font-medium text-gray-500">Property Address</h3>
+                <p class="mt-1 text-sm text-gray-900">{{ task.property_address }}</p>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
 
         <!-- Description -->
         {% if task.description %}
-        <div class="p-6">
-            <h3 class="text-sm font-medium text-gray-500 mb-2">Description</h3>
-            <div class="prose prose-sm max-w-none text-gray-900 whitespace-pre-line">
-                {{ task.description }}
-            </div>
+        <div class="p-4">
+            <h3 class="text-sm font-medium text-gray-500">Description</h3>
+            <div class="mt-2 text-sm text-gray-900 whitespace-pre-line">{{ task.description }}</div>
         </div>
         {% endif %}
     </div>

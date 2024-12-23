@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, abort, Response, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from urllib.parse import urlparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from models import db, User, ContactGroup, Contact, Interaction, Task, TaskType, TaskSubtype
 from forms import RegistrationForm, LoginForm, ContactForm
 import csv
@@ -444,13 +444,31 @@ def create_app():
                     'count': contact_count
                 })
         
+        # Get upcoming tasks (next 7 days)
+        now = datetime.now()
+        seven_days = now + timedelta(days=7)
+        
+        if current_user.role == 'admin' and show_all:
+            upcoming_tasks = Task.query.filter(
+                Task.due_date.between(now, seven_days),
+                Task.status != 'completed'
+            ).order_by(Task.due_date.asc()).limit(5).all()
+        else:
+            upcoming_tasks = Task.query.filter(
+                Task.assigned_to_id == current_user.id,
+                Task.due_date.between(now, seven_days),
+                Task.status != 'completed'
+            ).order_by(Task.due_date.asc()).limit(5).all()
+
         return render_template('dashboard.html',
-                             total_contacts=total_contacts,
+                             show_all=show_all,
                              total_commission=total_commission,
+                             total_contacts=total_contacts,
                              avg_commission=avg_commission,
-                             top_contacts=top_contacts,
                              group_stats=group_stats,
-                             show_all=show_all)
+                             top_contacts=top_contacts,
+                             upcoming_tasks=upcoming_tasks,
+                             now=now)  # Pass current time for due date calculations
 
     @app.route('/tasks')
     @login_required
