@@ -32,23 +32,23 @@ def create_app():
         sort_by = request.args.get('sort', 'created_at')
         sort_dir = request.args.get('dir', 'desc')
         search_query = request.args.get('q', '').strip()
-        
+
         # Start with base query
         if show_all:
             query = Contact.query
         else:
             query = Contact.query.filter_by(user_id=current_user.id)
-        
+
         # Apply search if query exists
         if search_query:
             search_filter = (
-                (Contact.first_name.ilike(f'%{search_query}%')) |
-                (Contact.last_name.ilike(f'%{search_query}%')) |
-                (Contact.email.ilike(f'%{search_query}%')) |
-                (Contact.phone.ilike(f'%{search_query}%'))
+                    (Contact.first_name.ilike(f'%{search_query}%')) |
+                    (Contact.last_name.ilike(f'%{search_query}%')) |
+                    (Contact.email.ilike(f'%{search_query}%')) |
+                    (Contact.phone.ilike(f'%{search_query}%'))
             )
             query = query.filter(search_filter)
-        
+
         # Apply sorting
         if sort_by == 'owner':
             # Join with User table and sort by owner's name
@@ -74,20 +74,20 @@ def create_app():
                 'notes': [Contact.notes],
                 'created_at': [Contact.created_at]
             }
-            
+
             if sort_by in sort_map:
                 sort_attrs = sort_map[sort_by]
                 if sort_dir == 'asc':
                     query = query.order_by(*[attr.asc() for attr in sort_attrs])
                 else:
                     query = query.order_by(*[attr.desc() for attr in sort_attrs])
-        
+
         contacts = query.all()
-        return render_template('index.html', 
-                             contacts=contacts, 
-                             show_all=show_all, 
-                             current_sort=sort_by, 
-                             current_dir=sort_dir)
+        return render_template('index.html',
+                               contacts=contacts,
+                               show_all=show_all,
+                               current_sort=sort_by,
+                               current_dir=sort_dir)
 
     @app.route('/contact/<int:contact_id>')
     @login_required
@@ -151,22 +151,22 @@ def create_app():
     def login():
         if current_user.is_authenticated:
             return redirect(url_for('index'))
-        
+
         form = LoginForm()
         if form.validate_on_submit():
             # Check if input is email or username
             user = User.query.filter(
-                (User.username == form.username.data) | 
+                (User.username == form.username.data) |
                 (User.email == form.username.data)
             ).first()
-            
+
             if user and user.check_password(form.password.data):
                 login_user(user)
                 next_page = request.args.get('next')
                 return redirect(next_page) if next_page else redirect(url_for('index'))
             else:
                 flash('Invalid username/email or password', 'error')
-        
+
         return render_template('login.html', form=form)
 
     @app.route('/contact/new', methods=['GET', 'POST'])
@@ -189,7 +189,7 @@ def create_app():
                 notes=form.notes.data,
                 potential_commission=form.potential_commission.data or 5000.00
             )
-            
+
             selected_groups = ContactGroup.query.filter(
                 ContactGroup.id.in_(form.group_ids.data)
             ).all()
@@ -206,20 +206,20 @@ def create_app():
     @login_required
     def edit_contact(contact_id):
         contact = Contact.query.get_or_404(contact_id)
-        
+
         # Check if user has permission to edit this contact
         if not current_user.role == 'admin' and contact.user_id != current_user.id:
             abort(403)
-        
+
         # Get form data with validation and print for debugging
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
-        
+
         print("Form data received:")
         print(f"First Name: {first_name}")
         print(f"Last Name: {last_name}")
         print("All form data:", request.form)
-        
+
         # Validate required fields
         if not first_name or not last_name:
             error_msg = 'First name and last name are required'
@@ -228,7 +228,7 @@ def create_app():
                 'status': 'error',
                 'message': error_msg
             }, 400
-        
+
         try:
             # Update contact information from form data
             contact.first_name = first_name
@@ -241,19 +241,19 @@ def create_app():
             contact.zip_code = request.form.get('zip_code')
             contact.notes = request.form.get('notes')
             contact.potential_commission = float(request.form.get('potential_commission', 5000.00))
-            
+
             # Handle groups
             selected_group_ids = request.form.getlist('group_ids')
             print(f"Selected group IDs: {selected_group_ids}")
-            
+
             contact.groups = ContactGroup.query.filter(
                 ContactGroup.id.in_(selected_group_ids)
             ).all()
-            
+
             db.session.commit()
             flash('Contact updated successfully!', 'success')
             return {'status': 'success'}, 200
-            
+
         except Exception as e:
             db.session.rollback()
             error_msg = f"Error updating contact: {str(e)}"
@@ -264,11 +264,11 @@ def create_app():
     @login_required
     def delete_contact(contact_id):
         contact = Contact.query.get_or_404(contact_id)
-        
+
         # Check if user has permission to delete this contact
         if not current_user.role == 'admin' and contact.user_id != current_user.id:
             abort(403)
-        
+
         try:
             db.session.delete(contact)
             db.session.commit()
@@ -284,22 +284,22 @@ def create_app():
     def import_contacts():
         if 'file' not in request.files:
             return {'status': 'error', 'message': 'No file uploaded'}, 400
-        
+
         file = request.files['file']
         if file.filename == '':
             return {'status': 'error', 'message': 'No file selected'}, 400
-        
+
         if not file.filename.endswith('.csv'):
             return {'status': 'error', 'message': 'Please upload a CSV file'}, 400
-        
+
         try:
             # Read CSV file
             stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
             csv_data = csv.DictReader(stream)
-            
+
             success_count = 0
             error_count = 0
-            
+
             for row in csv_data:
                 try:
                     # Create new contact
@@ -315,27 +315,27 @@ def create_app():
                         zip_code=row['zip_code'].strip() if row['zip_code'] else None,
                         notes=row['notes'].strip() if row['notes'] else None
                     )
-                    
+
                     # Handle groups if provided
                     if 'groups' in row and row['groups']:
                         group_names = [name.strip() for name in row['groups'].split(';')]
                         groups = ContactGroup.query.filter(ContactGroup.name.in_(group_names)).all()
                         contact.groups = groups
-                    
+
                     db.session.add(contact)
                     success_count += 1
-                    
+
                 except Exception as e:
                     error_count += 1
                     continue
-            
+
             db.session.commit()
             return {
                 'status': 'success',
                 'success_count': success_count,
                 'error_count': error_count
             }
-            
+
         except Exception as e:
             return {
                 'status': 'error',
@@ -348,32 +348,32 @@ def create_app():
         # Get contacts based on current view and filters
         show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
         search_query = request.args.get('q', '').strip()
-        
+
         if show_all:
             query = Contact.query
         else:
             query = Contact.query.filter_by(user_id=current_user.id)
-        
+
         # Apply search if query exists
         if search_query:
             search_filter = (
-                (Contact.first_name.ilike(f'%{search_query}%')) |
-                (Contact.last_name.ilike(f'%{search_query}%')) |
-                (Contact.email.ilike(f'%{search_query}%')) |
-                (Contact.phone.ilike(f'%{search_query}%'))
+                    (Contact.first_name.ilike(f'%{search_query}%')) |
+                    (Contact.last_name.ilike(f'%{search_query}%')) |
+                    (Contact.email.ilike(f'%{search_query}%')) |
+                    (Contact.phone.ilike(f'%{search_query}%'))
             )
             query = query.filter(search_filter)
-        
+
         contacts = query.all()
-        
+
         # Create CSV in memory
         output = StringIO()
         writer = csv.writer(output)
-        
+
         # Write headers
-        writer.writerow(['first_name', 'last_name', 'email', 'phone', 'street_address', 
-                        'city', 'state', 'zip_code', 'notes', 'groups'])
-        
+        writer.writerow(['first_name', 'last_name', 'email', 'phone', 'street_address',
+                         'city', 'state', 'zip_code', 'notes', 'groups'])
+
         # Write contact data
         for contact in contacts:
             groups = ';'.join([group.name for group in contact.groups])
@@ -389,11 +389,11 @@ def create_app():
                 contact.notes or '',
                 groups
             ])
-        
+
         # Prepare response
         output.seek(0)
         filename = f"{current_user.first_name}_{current_user.last_name}_contacts.csv"
-        
+
         return Response(
             output.getvalue(),
             mimetype='text/csv',
@@ -402,6 +402,45 @@ def create_app():
                 "Content-Type": "text/csv",
             }
         )
+
+    @app.route('/dashboard')
+    @login_required
+    def dashboard():
+        # Get user's contacts (or all contacts for admin)
+        if current_user.role == 'admin':
+            contacts = Contact.query.all()
+        else:
+            contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        
+        # Calculate key metrics
+        total_contacts = len(contacts)
+        total_commission = sum(c.potential_commission or 0 for c in contacts)
+        avg_commission = total_commission / total_contacts if total_contacts > 0 else 0
+        
+        # Get top contacts by commission
+        top_contacts = sorted(
+            contacts,
+            key=lambda x: x.potential_commission or 0,
+            reverse=True
+        )[:5]
+        
+        # Get group distribution
+        groups = ContactGroup.query.all()
+        group_stats = []
+        for group in groups:
+            contact_count = len([c for c in contacts if group in c.groups])
+            if contact_count > 0:  # Only include groups with contacts
+                group_stats.append({
+                    'name': group.name,
+                    'count': contact_count
+                })
+        
+        return render_template('dashboard.html',
+                             total_contacts=total_contacts,
+                             total_commission=total_commission,
+                             avg_commission=avg_commission,
+                             top_contacts=top_contacts,
+                             group_stats=group_stats)
 
     return app
 
