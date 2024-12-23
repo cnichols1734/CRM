@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900">Dashboard</h1>
+        <p class="text-sm text-gray-500">Welcome back, {{ current_user.first_name }}</p>
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <!-- Total Commission Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500">Total Potential Commission</h3>
+                <span class="bg-green-100 text-green-800 text-xs px-2.5 py-0.5 rounded-full">All time</span>
+            </div>
+            <div class="flex items-baseline">
+                <span class="text-3xl font-bold text-gray-900">${{ "{:,.0f}".format(total_commission) }}</span>
+            </div>
+        </div>
+
+        <!-- Total Contacts Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500">Total Contacts</h3>
+                <span class="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded-full">Active</span>
+            </div>
+            <div class="flex items-baseline">
+                <span class="text-3xl font-bold text-gray-900">{{ total_contacts }}</span>
+            </div>
+        </div>
+
+        <!-- Average Commission Card -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-medium text-gray-500">Average Commission</h3>
+                <span class="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded-full">Per contact</span>
+            </div>
+            <div class="flex items-baseline">
+                <span class="text-3xl font-bold text-gray-900">${{ "{:,.0f}".format(avg_commission) }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Tables Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Group Distribution Chart -->
+        <div class="bg-white rounded-lg shadow p-6 lg:col-span-1">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-medium text-gray-900">Contact Groups</h3>
+                <span class="text-sm text-gray-500">Distribution</span>
+            </div>
+            <div id="groupChart" class="w-full h-64"></div>
+            <div class="mt-4">
+                <div class="grid grid-cols-1 gap-2">
+                    {% for group in group_stats %}
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 rounded-full mr-2" style="background-color: {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}"></div>
+                            <span class="text-gray-600">{{ group.name }}</span>
+                        </div>
+                        <span class="font-medium text-gray-900">{{ group.count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Contacts Table -->
+        <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Top Contacts by Commission</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Potential Commission</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for contact in top_contacts %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-3
+                                        {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                                        {% if initials[0] in 'ABCDE' %}bg-blue-100 text-blue-800
+                                        {% elif initials[0] in 'FGHIJ' %}bg-green-100 text-green-800
+                                        {% elif initials[0] in 'KLMNO' %}bg-yellow-100 text-yellow-800
+                                        {% elif initials[0] in 'PQRST' %}bg-red-100 text-red-800
+                                        {% else %}bg-purple-100 text-purple-800{% endif %}">
+                                        {{ contact.first_name[0] }}{{ contact.last_name[0] }}
+                                    </div>
+                                    <div class="text-sm font-medium text-gray-900">
+                                        {{ contact.first_name }} {{ contact.last_name }}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ contact.email or '--' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-900">
+                                ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ApexCharts -->
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const groupData = {{ group_stats|tojson }};
+    const labels = groupData.map(item => item.name);
+    const series = groupData.map(item => item.count);
+
+    const options = {
+        series: series,
+        chart: {
+            type: 'donut',
+            height: 256,
+            sparkline: {
+                enabled: true
+            }
+        },
+        labels: labels,
+        colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '75%',
+                    background: 'transparent'
+                }
+            }
+        },
+        stroke: {
+            width: 0
+        },
+        tooltip: {
+            enabled: true,
+            y: {
+                formatter: function(value) {
+                    return value + ' contacts'
+                }
+            }
+        },
+        legend: {
+            show: false
+        }
+    };
+
+    const chart = new ApexCharts(document.querySelector("#groupChart"), options);
+    chart.render();
+});
+</script>
+{% endblock %}
