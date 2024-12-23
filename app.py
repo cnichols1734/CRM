@@ -214,6 +214,25 @@ def create_app():
             print(f"Error updating contact: {str(e)}")
             return {'status': 'error', 'message': 'Error updating contact'}, 500
 
+    @app.route('/contacts/<int:contact_id>/delete', methods=['POST'])
+    @login_required
+    def delete_contact(contact_id):
+        contact = Contact.query.get_or_404(contact_id)
+        
+        # Check if user has permission to delete this contact
+        if not current_user.role == 'admin' and contact.user_id != current_user.id:
+            abort(403)
+        
+        try:
+            db.session.delete(contact)
+            db.session.commit()
+            flash('Contact deleted successfully!', 'success')
+            return {'status': 'success'}, 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting contact: {str(e)}")
+            return {'status': 'error', 'message': 'Error deleting contact'}, 500
+
     return app
 
 

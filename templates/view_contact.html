@@ -185,7 +185,8 @@
         <button id="cancelButton" onclick="cancelEdit()" class="hidden px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
             Cancel
         </button>
-        <button class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50">
+        <button onclick="deleteContact()" 
+                class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50">
             Delete Contact
         </button>
     </div>
@@ -274,6 +275,28 @@
             e.target.value = formattedNumber;
         });
     });
+
+    async function deleteContact() {
+        if (!confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/contacts/{{ contact.id }}/delete`, {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                window.location.href = "{{ url_for('index') }}";
+            } else {
+                const data = await response.json();
+                alert(data.message || 'Error deleting contact');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error deleting contact');
+        }
+    }
     </script>
 </div>
 {% endblock %}
