@@ -48,7 +48,7 @@ function clearSort() {
             <span class="text-sm text-gray-500 translate-y-0.5 ml-2">{{ contacts|length }} record{% if contacts|length != 1 %}s{% endif %}</span>
         </div>
         <div class="flex items-center space-x-3">
-            <form id="importForm" class="hidden" enctype="multipart/form-data">
+            <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden" enctype="multipart/form-data">
                 <input type="file" id="csvFile" name="file" accept=".csv" class="hidden">
             </form>
             
@@ -85,7 +85,7 @@ function clearSort() {
                 </div>
             </div>
 
-            <a href="{{ url_for('create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
+            <a href="{{ url_for('contacts.create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
                 Create contact
             </a>
         </div>
@@ -97,14 +97,14 @@ function clearSort() {
             {% if current_user.role == 'admin' %}
                 <button 
                     class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                    onclick="window.location.href='{{ url_for('index', view='all') }}';"
+                    onclick="window.location.href='{{ url_for('main.index', view='all') }}';"
                 >
                     All contacts
                 </button>
             {% endif %}
             <button 
                 class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                onclick="window.location.href = '{{ url_for('index', view='my') }}';"
+                onclick="window.location.href = '{{ url_for('main.index', view='my') }}';"
             >
                 My contacts
             </button>
@@ -141,7 +141,7 @@ function clearSort() {
                     <span>Clear sort</span>
                 </button>
             {% endif %}
-            <a href="{{ url_for('export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}" 
+            <a href="{{ url_for('contacts.export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}" 
                class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Export
             </a>
@@ -363,7 +363,7 @@ function clearSort() {
                             >
                                 {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                             </div>
-                            <a href="{{ url_for('view_contact', contact_id=contact.id) }}"
+                            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
                                class="text-blue-600 hover:text-blue-800 text-sm overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[180px]">
                                 {{ contact.first_name }} {{ contact.last_name }}
                             </a>
@@ -470,7 +470,7 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
         document.getElementById('importButton').classList.add('opacity-50', 'cursor-not-allowed');
         document.getElementById('importLoading').classList.remove('hidden');
         
-        fetch('{{ url_for("import_contacts") }}', {
+        fetch('{{ url_for("contacts.import_contacts") }}', {
             method: 'POST',
             body: formData
         })

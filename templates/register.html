@@ -9,7 +9,7 @@
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-        <form class="space-y-6" method="POST" action="{{ url_for('register') }}">
+        <form class="space-y-6" method="POST" action="{{ url_for('auth.register') }}">
             {{ form.hidden_tag() }}
             
             <div>
@@ -91,7 +91,7 @@
 
         <p class="mt-10 text-center text-sm text-gray-500">
             Already have an account?
-            <a href="{{ url_for('login') }}" class="font-semibold leading-6 text-blue-600 hover:text-blue-500">Sign in here</a>
+            <a href="{{ url_for('auth.login') }}" class="font-semibold leading-6 text-blue-600 hover:text-blue-500">Sign in here</a>
         </p>
     </div>
 </div>

@@ -14,13 +14,13 @@
         <div class="flex space-x-6">
             <button 
                 class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                onclick="window.location.href='{{ url_for('dashboard', view='all') }}';"
+                onclick="window.location.href='{{ url_for('main.dashboard', view='all') }}';"
             >
                 All contacts
             </button>
             <button 
                 class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
-                onclick="window.location.href='{{ url_for('dashboard', view='my') }}';"
+                onclick="window.location.href='{{ url_for('main.dashboard', view='my') }}';"
             >
                 My contacts
             </button>
@@ -120,7 +120,7 @@
                             </td>
                             {% endif %}
                             <td class="px-6 py-4">
-                                <a href="{{ url_for('view_contact', contact_id=contact.id, source='dashboard') }}" class="group">
+                                <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="group">
                                     <div class="flex items-center">
                                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-2 flex-shrink-0 text-gray-600
                                             {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
@@ -174,7 +174,7 @@
                     <h3 class="text-lg font-medium text-gray-900">Upcoming Tasks</h3>
                     <p class="text-sm text-gray-500 mt-1">Tasks due in the next 7 days</p>
                 </div>
-                <a href="{{ url_for('tasks') }}" 
+                <a href="{{ url_for('tasks.tasks') }}" 
                    class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
                     View all tasks
                     <i class="fas fa-arrow-right ml-2"></i>
@@ -198,7 +198,7 @@
                                 <!-- Task Info -->
                                 <div class="flex-1">
                                     <div class="flex items-center">
-                                        <a href="{{ url_for('view_task', task_id=task.id) }}" 
+                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" 
                                            class="text-sm font-medium text-gray-900 hover:text-blue-600">
                                             {{ task.subject }}
                                         </a>
@@ -261,7 +261,7 @@
             {% else %}
             <div class="px-6 py-8 text-center">
                 <div class="text-gray-500">No upcoming tasks</div>
-                <a href="{{ url_for('create_task') }}" 
+                <a href="{{ url_for('tasks.create_task') }}" 
                    class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                     <i class="fas fa-plus mr-2"></i>
                     Create a new task
@@ -318,5 +318,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const chart = new ApexCharts(document.querySelector("#groupChart"), options);
     chart.render();
 });
+
+function updateTaskStatus(taskId, completed) {
+    fetch(`/tasks/${taskId}/edit`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status=${completed ? 'completed' : 'pending'}`
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        // Optionally refresh the page or update the UI
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        // Handle error (show message to user, etc.)
+    });
+}
 </script>
 {% endblock %}

@@ -4,8 +4,7 @@
 <div class="p-6 max-w-4xl mx-auto">
     <!-- Back button and header -->
     <div class="flex items-center mb-6">
-        <a href="{{ url_for('index') if request.args.get('source') != 'dashboard' else url_for('dashboard') }}" 
-           class="flex items-center text-gray-600 hover:text-gray-800">
+        <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-900">
             <i class="fas fa-arrow-left mr-2"></i>
             Back to {{ 'Dashboard' if request.args.get('source') == 'dashboard' else 'Contacts' }}
         </a>
@@ -61,7 +60,7 @@
         <div class="p-6">
             <h2 class="text-lg font-semibold mb-4">Contact Information</h2>
 
-            <form id="editContactForm" class="hidden">
+            <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST" id="editContactForm" class="hidden">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
@@ -254,10 +253,12 @@
         <button id="cancelButton" onclick="cancelEdit()" class="hidden px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
             Cancel
         </button>
-        <button onclick="deleteContact()" 
-                class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50">
-            Delete Contact
-        </button>
+        <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST" id="deleteContactForm">
+            <button onclick="deleteContact()" 
+                    class="px-4 py-2 border border-red-300 rounded-md text-sm font-medium text-red-700 hover:bg-red-50">
+                Delete Contact
+            </button>
+        </form>
     </div>
 
     <!-- Add this script at the bottom of your template -->
@@ -384,7 +385,7 @@
             });
 
             if (response.ok) {
-                window.location.href = "{{ url_for('index') }}";
+                window.location.href = "{{ url_for('main.index') }}";
             } else {
                 const data = await response.json();
                 alert(data.message || 'Error deleting contact');

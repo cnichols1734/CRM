@@ -74,7 +74,7 @@
     <aside class="w-16 flex flex-col items-center py-4 z-10">
         <!-- Dashboard Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+            <a href="{{ url_for('main.dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
                 <i class="fas fa-chart-line text-white"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
@@ -84,7 +84,7 @@
 
         <!-- Contacts Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+            <a href="{{ url_for('main.index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
                 <i class="fas fa-address-book text-white"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
@@ -94,7 +94,7 @@
         
         <!-- Tasks Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
+            <a href="{{ url_for('tasks.tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
                 <i class="fas fa-tasks text-white"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
@@ -150,7 +150,7 @@
 
                     <!-- Navigation Links -->
                     <div class="py-2">
-                        <a href="{{ url_for('view_user_profile') }}" 
+                        <a href="{{ url_for('auth.view_user_profile') }}" 
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
                             Profile Settings
@@ -174,7 +174,7 @@
 
                     <!-- Logout -->
                     <div class="py-2">
-                        <a href="{{ url_for('logout') }}" 
+                        <a href="{{ url_for('auth.logout') }}" 
                            class="flex items-center px-6 py-2 text-sm text-red-600 hover:bg-white">
                             <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
                             Logout
