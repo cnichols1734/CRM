@@ -1,10 +1,24 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import User, db
+from models import User, db, Contact
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 from flask_mail import Message
+from functools import wraps
+from datetime import datetime
+import pytz
 
 auth_bp = Blueprint('auth', __name__)
+
+def format_datetime_cst(utc_dt):
+    if not utc_dt:
+        return 'Never'
+    # Convert UTC to Central time
+    central = pytz.timezone('America/Chicago')
+    if utc_dt.tzinfo is None:
+        utc_dt = pytz.utc.localize(utc_dt)
+    central_dt = utc_dt.astimezone(central)
+    # Format as MM/DD/YYYY HH:MM AM/PM
+    return central_dt.strftime('%m/%d/%Y %I:%M %p')
 
 def send_reset_email(user):
     token = user.get_reset_token()
@@ -17,6 +31,15 @@ def send_reset_email(user):
 If you did not make this request then simply ignore this email and no changes will be made.
 '''
     current_app.extensions['mail'].send(msg)
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            flash('You do not have permission to access this page.', 'error')
+            return redirect(url_for('main.index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
@@ -154,3 +177,86 @@ def reset_password(token):
         flash('Your password has been updated! You are now able to log in', 'success')
         return redirect(url_for('auth.login'))
     return render_template('reset_password.html', form=form)
+
+@auth_bp.route('/manage-users')
+@login_required
+@admin_required
+def manage_users():
+    users = User.query.order_by(User.created_at.desc()).all()
+    return render_template('manage_users.html', users=users, format_datetime=format_datetime_cst)
+
+@auth_bp.route('/user/<int:user_id>/role', methods=['POST'])
+@login_required
+@admin_required
+def update_user_role(user_id):
+    user = User.query.get_or_404(user_id)
+    new_role = request.form.get('role')
+    
+    if new_role not in ['admin', 'agent']:
+        flash('Invalid role specified.', 'error')
+        return redirect(url_for('auth.manage_users'))
+    
+    if user.id == current_user.id and new_role != 'admin':
+        flash('You cannot remove your own admin privileges.', 'error')
+        return redirect(url_for('auth.manage_users'))
+    
+    user.role = new_role
+    db.session.commit()
+    flash(f'Role updated for {user.username}', 'success')
+    return redirect(url_for('auth.manage_users'))
+
+@auth_bp.route('/user/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def edit_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if request.method == 'POST':
+        try:
+            user.first_name = request.form.get('first_name')
+            user.last_name = request.form.get('last_name')
+            user.email = request.form.get('email')
+            
+            # Update password if provided
+            new_password = request.form.get('new_password')
+            if new_password:
+                user.set_password(new_password)
+            
+            db.session.commit()
+            flash('User updated successfully', 'success')
+            return redirect(url_for('auth.manage_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Error updating user: {str(e)}', 'error')
+    
+    return render_template('user_profile.html', user=user, is_admin_edit=True)
+
+@auth_bp.route('/user/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    if current_user.id == user_id:
+        flash('You cannot delete your own account.', 'error')
+        return redirect(url_for('auth.manage_users'))
+    
+    user = User.query.get_or_404(user_id)
+    try:
+        # Delete all contacts associated with the user
+        Contact.query.filter_by(user_id=user.id).delete()
+        # Delete the user
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User {user.username} has been deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
+    
+    return redirect(url_for('auth.manage_users'))
+
+@auth_bp.before_request
+def update_last_login():
+    if current_user.is_authenticated:
+        current_user.last_login = datetime.utcnow()
+        try:
+            db.session.commit()
+        except:
+            db.session.rollback()

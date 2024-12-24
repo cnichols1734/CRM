@@ -4,19 +4,19 @@
 <div class="container mx-auto px-4 py-8">
     <div class="max-w-3xl mx-auto">
         <!-- Back button -->
-        <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-800">
+        <a href="{% if is_admin_edit %}{{ url_for('auth.manage_users') }}{% else %}{{ url_for('main.index') }}{% endif %}" class="flex items-center text-gray-600 hover:text-gray-800">
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
             </svg>
-            Back to Dashboard
+            {% if is_admin_edit %}Back to User Management{% else %}Back to Dashboard{% endif %}
         </a>
 
         <!-- Profile Card -->
         <div class="bg-white rounded-lg shadow-md mt-6 p-6">
-            <h1 class="text-2xl font-bold text-gray-900 mb-6">User Profile</h1>
+            <h1 class="text-2xl font-bold text-gray-900 mb-6">{% if is_admin_edit %}Edit User{% else %}User Profile{% endif %}</h1>
 
             <!-- Profile Form -->
-            <form method="POST" action="{{ url_for('auth.update_profile') }}" class="space-y-6">
+            <form method="POST" action="{% if is_admin_edit %}{{ url_for('auth.edit_user', user_id=user.id) }}{% else %}{{ url_for('auth.update_profile') }}{% endif %}" class="space-y-6">
                 {{ form.csrf_token if form }}
                 <div>
                     <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
@@ -42,6 +42,7 @@
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
+                {% if not is_admin_edit %}
                 <div>
                     <label for="phone" class="block text-sm font-medium text-gray-700">Phone</label>
                     <input type="tel" name="phone" id="phone" value="{{ user.phone }}"
@@ -53,23 +54,28 @@
                     <input type="password" name="current_password" id="current_password"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
+                {% endif %}
 
                 <div>
-                    <label for="new_password" class="block text-sm font-medium text-gray-700">New Password (optional)</label>
+                    <label for="new_password" class="block text-sm font-medium text-gray-700">
+                        {% if is_admin_edit %}Set New Password{% else %}New Password (optional){% endif %}
+                    </label>
                     <input type="password" name="new_password" id="new_password"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
 
+                {% if not is_admin_edit %}
                 <div>
                     <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
                     <input type="password" name="confirm_password" id="confirm_password"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
+                {% endif %}
 
                 <div class="flex justify-end">
                     <button type="submit"
                             class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        Save Changes
+                        {% if is_admin_edit %}Save Changes{% else %}Update Profile{% endif %}
                     </button>
                 </div>
             </form>
