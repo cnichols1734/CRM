@@ -2,6 +2,23 @@
 
 {% block content %}
 <div class="p-6 max-w-4xl mx-auto">
+    <!-- Toast Message Container -->
+    <div id="toast-message" class="fixed top-4 left-1/2 transform -translate-x-1/2 hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md">
+            <div class="flex items-center">
+                <div class="py-1">
+                    <svg class="h-6 w-6 text-red-500 mr-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <div>
+                    <p class="font-bold">Error</p>
+                    <p>Please select at least one group.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Back button and header -->
     <div class="flex items-center mb-6">
         <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-900">
@@ -111,7 +128,7 @@
                     </div>
 
                     <!-- Groups Section -->
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-2 groups-section">
                         <h3 class="text-sm font-medium text-gray-500 mb-3">Groups</h3>
                         <div class="border rounded-lg p-6 bg-white">
                             <div class="grid grid-cols-2 gap-3">
@@ -171,37 +188,59 @@
     </div>
 </div>
 
-<!-- JavaScript to auto-format phone number -->
+<!-- JavaScript to auto-format phone number and validate form -->
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Phone formatting code
         const phoneInput = document.getElementById('phone');
+        const form = document.querySelector('form');
+        const toastMessage = document.getElementById('toast-message');
 
         phoneInput.addEventListener('input', function(e) {
-            // Remove all non-digit characters
+            // Existing phone formatting code
             let inputVal = e.target.value.replace(/\D/g, '');
-
-            // Limit to 10 digits
             if (inputVal.length > 10) {
                 inputVal = inputVal.slice(0, 10);
             }
-
-            // Build the formatted output (XXX) XXX-XXXX
             let formattedNumber = '';
-
-            // (XXX
             if (inputVal.length > 0) {
                 formattedNumber += '(' + inputVal.substring(0, 3);
             }
-            // (XXX) XXX
             if (inputVal.length >= 4) {
                 formattedNumber += ') ' + inputVal.substring(3, 6);
             }
-            // (XXX) XXX-XXXX
             if (inputVal.length >= 7) {
                 formattedNumber += '-' + inputVal.substring(6, 10);
             }
-
             e.target.value = formattedNumber;
+        });
+
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            const groupCheckboxes = document.querySelectorAll('input[name="group_ids"]');
+            const isAnyGroupSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
+
+            if (!isAnyGroupSelected) {
+                e.preventDefault();
+                // Show toast with fade in
+                toastMessage.classList.remove('hidden');
+                // Force a reflow to ensure the transition works
+                toastMessage.offsetHeight;
+                toastMessage.classList.add('opacity-100');
+                
+                // Start fade out after 2.5 seconds
+                setTimeout(() => {
+                    toastMessage.classList.remove('opacity-100');
+                    // Hide the element after fade out completes
+                    setTimeout(() => {
+                        toastMessage.classList.add('hidden');
+                    }, 300);
+                }, 2500);
+
+                // Scroll to groups section
+                const groupsSection = document.querySelector('.groups-section');
+                groupsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
         });
     });
 </script>
