@@ -20,7 +20,7 @@
         <div class="p-6">
             <form method="POST" action="{{ url_for('contacts.create_contact') }}" class="space-y-6">
                 {{ form.hidden_tag() }}
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- First Name -->
                     <div>
@@ -117,11 +117,11 @@
                             <div class="grid grid-cols-2 gap-3">
                                 {% for group in form.group_ids.choices %}
                                     <label class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm
-                                                bg-gray-50 hover:bg-gray-100 
+                                                bg-gray-50 hover:bg-gray-100
                                                 border border-gray-200
                                                 cursor-pointer transition-colors duration-200">
-                                        <input type="checkbox" 
-                                               name="group_ids" 
+                                        <input type="checkbox"
+                                               name="group_ids"
                                                value="{{ group[0] }}"
                                                class="form-checkbox h-4 w-4 mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                         <span class="text-gray-700">{{ group[1] }}</span>

@@ -8,13 +8,14 @@ from sqlalchemy import func
 
 contacts_bp = Blueprint('contacts', __name__)
 
+
 @contacts_bp.route('/contact/<int:contact_id>')
 @login_required
 def view_contact(contact_id):
     contact = Contact.query.get_or_404(contact_id)
     if not current_user.role == 'admin' and contact.user_id != current_user.id:
         abort(403)
-    
+
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return jsonify({
@@ -35,9 +36,10 @@ def view_contact(contact_id):
                 'name': group.name
             } for group in contact.groups]
         })
-    
+
     all_groups = ContactGroup.query.all()
     return render_template('view_contact.html', contact=contact, all_groups=all_groups)
+
 
 @contacts_bp.route('/contact/new', methods=['GET', 'POST'])
 @login_required
@@ -71,6 +73,7 @@ def create_contact():
         return redirect(url_for('main.index'))
 
     return render_template('contact_form.html', form=form)
+
 
 @contacts_bp.route('/contacts/<int:contact_id>/edit', methods=['POST'])
 @login_required
@@ -114,6 +117,7 @@ def edit_contact(contact_id):
         db.session.rollback()
         return {'status': 'error', 'message': str(e)}, 500
 
+
 @contacts_bp.route('/contacts/<int:contact_id>/delete', methods=['POST'])
 @login_required
 def delete_contact(contact_id):
@@ -130,6 +134,7 @@ def delete_contact(contact_id):
     except Exception as e:
         db.session.rollback()
         return {'status': 'error', 'message': 'Error deleting contact'}, 500
+
 
 @contacts_bp.route('/import-contacts', methods=['POST'])
 @login_required
@@ -190,6 +195,7 @@ def import_contacts():
             'status': 'error',
             'message': f'Error processing CSV file: {str(e)}'
         }, 500
+
 
 @contacts_bp.route('/export-contacts')
 @login_required
