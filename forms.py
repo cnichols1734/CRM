@@ -34,3 +34,13 @@ class ContactForm(FlaskForm):
     notes = TextAreaField('Notes')
     potential_commission = DecimalField('Potential Commission ($)', default=5000.00)
     submit = SubmitField('Create Contact')
+
+class RequestResetForm(FlaskForm):
+    email = StringField('Email', validators=[DataRequired(), Email()])
+    submit = SubmitField('Request Password Reset')
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField('New Password', validators=[DataRequired()])
+    confirm_password = PasswordField('Confirm Password',
+                                   validators=[DataRequired(), EqualTo('password')])
+    submit = SubmitField('Reset Password')

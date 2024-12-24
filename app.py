@@ -4,6 +4,7 @@ warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .*
 
 from flask import Flask
 from flask_login import LoginManager
+from flask_mail import Mail
 from models import db, User
 from routes import register_blueprints
 
@@ -16,6 +17,10 @@ def create_app():
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+
+    # Initialize Flask-Mail
+    mail = Mail()
+    mail.init_app(app)
 
     @login_manager.user_loader
     def load_user(user_id):
