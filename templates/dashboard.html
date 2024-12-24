@@ -749,20 +749,30 @@ function deleteTaskFromModal() {
     }
 }
 
-// Close modal when clicking outside or pressing Escape
+// Close task modal when clicking outside or pressing Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeTaskModal();
+        closeContactModal();
     }
 });
 
 document.addEventListener('click', function(event) {
-    const modal = document.getElementById('taskModal');
-    const modalContent = modal.querySelector('.relative');
+    const taskModal = document.getElementById('taskModal');
+    const taskModalContent = taskModal.querySelector('.relative');
+    const contactModal = document.getElementById('contactModal');
+    const contactModalContent = contactModal.querySelector('.relative');
     
-    if (!modal.classList.contains('hidden') && 
-        !modalContent.contains(event.target)) {
+    // Close task modal if clicking outside
+    if (!taskModal.classList.contains('hidden') && 
+        !taskModalContent.contains(event.target)) {
         closeTaskModal();
+    }
+    
+    // Close contact modal if clicking outside
+    if (!contactModal.classList.contains('hidden') && 
+        !contactModalContent.contains(event.target)) {
+        closeContactModal();
     }
 });
 
