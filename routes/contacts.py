@@ -41,7 +41,7 @@ def view_contact(contact_id):
     return render_template('view_contact.html', contact=contact, all_groups=all_groups)
 
 
-@contacts_bp.route('/contact/new', methods=['GET', 'POST'])
+@contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
 @login_required
 def create_contact():
     form = ContactForm()
