@@ -856,9 +856,11 @@ document.addEventListener('DOMContentLoaded', function() {
     contactLinks.forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             const contactId = this.getAttribute('href').split('/')[2];
             openContactModal(contactId);
-        });
+            return false;
+        }, true);
     });
 });
 </script>
