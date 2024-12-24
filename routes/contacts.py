@@ -14,6 +14,28 @@ def view_contact(contact_id):
     contact = Contact.query.get_or_404(contact_id)
     if not current_user.role == 'admin' and contact.user_id != current_user.id:
         abort(403)
+    
+    # Check if it's an AJAX request
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'id': contact.id,
+            'first_name': contact.first_name,
+            'last_name': contact.last_name,
+            'email': contact.email,
+            'phone': contact.phone,
+            'street_address': contact.street_address,
+            'city': contact.city,
+            'state': contact.state,
+            'zip_code': contact.zip_code,
+            'notes': contact.notes,
+            'potential_commission': float(contact.potential_commission) if contact.potential_commission else None,
+            'created_at': contact.created_at.isoformat(),
+            'groups': [{
+                'id': group.id,
+                'name': group.name
+            } for group in contact.groups]
+        })
+    
     all_groups = ContactGroup.query.all()
     return render_template('view_contact.html', contact=contact, all_groups=all_groups)
 
