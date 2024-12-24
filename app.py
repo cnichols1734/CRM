@@ -1,3 +1,7 @@
+import warnings
+from sqlalchemy.exc import SAWarning
+warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .* will copy column .*')
+
 from flask import Flask
 from flask_login import LoginManager
 from models import db, User
