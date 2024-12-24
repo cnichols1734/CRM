@@ -1,16 +1,18 @@
 {% extends "base.html" %}
 
+{% block mobile_title %}Tasks{% endblock %}
+
 {% block content %}
 <div class="p-6">
     <!-- Header Section -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center space-x-2">
-            <h1 class="text-2xl font-semibold text-gray-900">Tasks</h1>
+            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Tasks</h1>
             <span class="text-sm text-gray-500 translate-y-0.5 ml-2">
                 {% if show_all %}
-                Viewing all tasks across the organization
+                Viewing all tasks
                 {% else %}
-                Viewing your assigned tasks
+                Your tasks
                 {% endif %}
             </span>
         </div>
@@ -18,7 +20,7 @@
         <!-- Action Buttons -->
         <div class="flex space-x-3">
             {% if current_user.role == 'admin' %}
-            <div class="relative">
+            <div class="relative hidden md:block">
                 <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
                         class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
                     <option value="my" {% if not show_all %}selected{% endif %}>My Tasks</option>
@@ -31,9 +33,9 @@
             {% endif %}
             
             <a href="{{ url_for('tasks.create_task') }}" 
-               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-500 hover:bg-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                <i class="fas fa-plus mr-2"></i>
-                New Task
+               class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
+                <span class="hidden md:inline">Create task</span>
+                <i class="fas fa-plus md:hidden"></i>
             </a>
         </div>
     </div>
@@ -43,7 +45,7 @@
         <div class="flex space-x-6">
             <a href="?status=pending{% if show_all %}&view=all{% endif %}" 
                class="px-4 py-2 text-sm {% if current_status == 'pending' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
-                Active Tasks
+                Active
             </a>
             <a href="?status=completed{% if show_all %}&view=all{% endif %}" 
                class="px-4 py-2 text-sm {% if current_status == 'completed' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
@@ -51,13 +53,112 @@
             </a>
             <a href="?status=all{% if show_all %}&view=all{% endif %}" 
                class="px-4 py-2 text-sm {% if current_status == 'all' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
-                All Tasks
+                All
             </a>
         </div>
     </div>
 
-    <!-- Task List -->
-    <div class="border rounded-lg overflow-hidden">
+    <!-- Mobile Task List -->
+    <div class="md:hidden space-y-2.5 pb-20">
+        {% for task in tasks %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-3.5">
+                <div class="flex items-start">
+                    <!-- Left Side: Checkbox and Priority -->
+                    <div class="flex items-center space-x-2.5 pt-1">
+                        <input type="checkbox" 
+                               class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                               {% if task.status == 'completed' %}checked{% endif %}
+                               onchange="quickUpdateStatus({{ task.id }}, this.checked)">
+                        
+                        <div class="w-2 h-2 rounded-full 
+                            {% if task.priority == 'high' %}
+                                bg-red-500
+                            {% elif task.priority == 'medium' %}
+                                bg-yellow-500
+                            {% else %}
+                                bg-green-500
+                            {% endif %}">
+                        </div>
+                    </div>
+
+                    <!-- Middle: Task Content -->
+                    <div class="flex-1 min-w-0 ml-3">
+                        <!-- Task Title -->
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-medium text-gray-900 text-base">{{ task.subject }}</h3>
+                            <button onclick="openTaskModal({{ task.id }})"
+                                    class="text-gray-400 hover:text-gray-600 ml-2">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        
+                        <!-- Due Date -->
+                        {% set days_until_due = (task.due_date - now).days %}
+                        <div class="mt-1 flex items-center">
+                            <i class="far fa-calendar-alt mr-1.5 text-lg
+                                {% if days_until_due < 0 %}
+                                    text-red-500
+                                {% elif days_until_due == 0 %}
+                                    text-orange-500
+                                {% elif days_until_due <= 2 %}
+                                    text-yellow-500
+                                {% else %}
+                                    text-gray-400
+                                {% endif %}">
+                            </i>
+                            <span class="text-sm {% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-500{% else %}text-gray-500{% endif %}">
+                                {% if days_until_due < 0 %}
+                                    {{ abs(days_until_due) }} day{{ 's' if abs(days_until_due) != 1 }} overdue
+                                {% elif days_until_due == 0 %}
+                                    Due today
+                                {% elif days_until_due == 1 %}
+                                    Due tomorrow
+                                {% else %}
+                                    Due in {{ days_until_due }} days
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        <!-- Contact and Property in one line -->
+                        <div class="mt-1 flex items-center space-x-4">
+                            {% if task.contact %}
+                            <div class="flex items-center text-gray-500 text-sm">
+                                <i class="far fa-user mr-1.5 text-gray-400"></i>
+                                {{ task.contact.first_name }} {{ task.contact.last_name }}
+                            </div>
+                            {% endif %}
+
+                            {% if task.property_address %}
+                            <div class="flex items-center text-gray-500 text-sm truncate">
+                                <i class="far fa-building mr-1.5 text-gray-400"></i>
+                                {{ task.property_address }}
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Task Types -->
+                        <div class="mt-2 flex flex-wrap gap-1.5">
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                {{ task.task_type.name }}
+                            </span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-600">
+                                {{ task.task_subtype.name }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+            No tasks found. Click the + button to add one.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Desktop Task List -->
+    <div class="border rounded-lg overflow-hidden hidden md:block">
         {% if tasks %}
         <div class="divide-y divide-gray-200">
             {% for task in tasks %}
@@ -167,7 +268,7 @@
                                 </div>
                                 {% endif %}
 
-                                <!-- Property Address (if exists) -->
+                                <!-- Property Address -->
                                 {% if task.property_address %}
                                 <div class="flex items-center">
                                     <i class="far fa-building mr-1.5 text-gray-400"></i>
@@ -216,80 +317,95 @@
 
 <!-- Task Modal -->
 <div id="taskModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full">
+    <div class="flex min-h-full items-center justify-center p-0 md:p-4">
+        <div class="relative bg-white w-full md:rounded-lg shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
             <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
                 <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
-                <button onclick="closeTaskModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times"></i>
+                <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-times text-gray-400"></i>
                 </button>
             </div>
             
             <!-- Modal content -->
-            <div class="px-6 py-4 space-y-4" id="modalTaskContent">
-                <!-- Priority, Status, Due Date -->
-                <div class="flex flex-wrap items-center gap-4">
+            <div class="px-4 py-4 md:px-6 space-y-4" id="modalTaskContent">
+                <!-- Priority and Status -->
+                <div class="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
                     <div class="flex items-center space-x-2">
                         <span class="text-sm font-medium text-gray-500">Priority:</span>
-                        <span id="modalTaskPriority" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
+                        <span id="modalTaskPriority" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"></span>
                     </div>
                     
                     <div class="flex items-center space-x-2">
                         <span class="text-sm font-medium text-gray-500">Status:</span>
-                        <span id="modalTaskStatus" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
+                        <span id="modalTaskStatus" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"></span>
                     </div>
-                    
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Due Date:</span>
-                        <span id="modalTaskDueDate" class="text-sm text-gray-700"></span>
-                        <span class="text-sm text-gray-500">
+                </div>
+
+                <!-- Due Date -->
+                <div class="flex items-center space-x-2 bg-gray-50 p-3 rounded-lg">
+                    <i class="far fa-calendar-alt text-lg text-gray-400"></i>
+                    <div>
+                        <span id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></span>
+                        <span class="text-sm text-gray-500 ml-1">
                             (<span id="modalTaskDueActual"></span>)
                         </span>
                     </div>
                 </div>
                 
                 <!-- Task Type and Subtype -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Type:</span>
-                        <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
-                        <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
-                    </div>
+                <div class="flex flex-wrap gap-2">
+                    <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"></span>
+                    <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-600"></span>
                 </div>
                 
                 <!-- Contact -->
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-gray-500">Contact:</span>
-                    <a id="modalTaskContact" href="#" class="text-sm text-blue-600 hover:text-blue-800 hover:underline"></a>
+                <div class="bg-gray-50 p-3 rounded-lg">
+                    <div class="flex items-center space-x-2">
+                        <i class="far fa-user text-lg text-gray-400"></i>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Contact</span>
+                            <a id="modalTaskContact" href="#" class="block text-sm text-blue-600 hover:text-blue-800"></a>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden">
-                    <span class="text-sm font-medium text-gray-500">Property Address:</span>
-                    <span id="modalTaskProperty" class="ml-2 text-sm text-gray-700"></span>
+                <div id="modalTaskPropertyContainer" class="hidden bg-gray-50 p-3 rounded-lg">
+                    <div class="flex items-center space-x-2">
+                        <i class="far fa-building text-lg text-gray-400"></i>
+                        <div>
+                            <span class="text-sm font-medium text-gray-500">Property Address</span>
+                            <span id="modalTaskProperty" class="block text-sm text-gray-900"></span>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Description -->
-                <div class="space-y-1">
-                    <span class="text-sm font-medium text-gray-500">Description:</span>
-                    <p id="modalTaskDescription" class="text-sm text-gray-700 whitespace-pre-line bg-gray-50 rounded-md p-4"></p>
+                <div class="space-y-1.5">
+                    <span class="text-sm font-medium text-gray-500">Description</span>
+                    <p id="modalTaskDescription" class="text-sm text-gray-700 whitespace-pre-line bg-gray-50 rounded-lg p-3"></p>
                 </div>
             </div>
             
             <!-- Modal footer -->
-            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="toggleTaskStatus()" class="text-sm px-4 py-2 border rounded-md bg-white hover:bg-gray-50 transition-colors duration-150">
-                        <span id="modalTaskStatusButton"></span>
-                    </button>
-                    <button onclick="deleteTaskFromModal()" class="text-sm px-4 py-2 border rounded-md text-red-600 hover:bg-red-50 transition-colors duration-150">
-                        Delete Task
-                    </button>
+            <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
+                <div class="flex flex-col md:flex-row md:justify-between gap-3">
+                    <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
+                        <button onclick="toggleTaskStatus()" 
+                                class="flex-1 md:flex-none text-center px-4 py-2.5 md:py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm">
+                            <span id="modalTaskStatusButton"></span>
+                        </button>
+                        <button onclick="deleteTaskFromModal()" 
+                                class="flex-1 md:flex-none text-center px-4 py-2.5 md:py-2 border rounded-lg text-red-600 hover:bg-red-50 transition-colors duration-150 text-sm">
+                            Delete Task
+                        </button>
+                    </div>
+                    <a id="modalTaskFullView" href="#" 
+                       class="flex-1 md:flex-none text-center px-4 py-2.5 md:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm">
+                        Open Full View
+                    </a>
                 </div>
-                <a id="modalTaskFullView" href="#" class="text-sm px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-150">
-                    Open Full View
-                </a>
             </div>
         </div>
     </div>

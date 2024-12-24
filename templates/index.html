@@ -1,6 +1,8 @@
 <!-- templates/index.html -->
 {% extends "base.html" %}
 
+{% block mobile_title %}Contacts{% endblock %}
+
 {% block content %}
 <script>
 function sortTable(column) {
@@ -44,16 +46,24 @@ function clearSort() {
     <!-- Header Section -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center space-x-2">
-            <h1 class="text-2xl font-semibold text-gray-900">Contacts</h1>
+            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Contacts</h1>
             <span class="text-sm text-gray-500 translate-y-0.5 ml-2">{{ contacts|length }} record{% if contacts|length != 1 %}s{% endif %}</span>
         </div>
         <div class="flex items-center space-x-3">
-            <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden" enctype="multipart/form-data">
+            <!-- Mobile Search Button -->
+            <button 
+                onclick="toggleMobileSearch()"
+                class="md:hidden text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50"
+            >
+                <i class="fas fa-search"></i>
+            </button>
+
+            <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden md:block" enctype="multipart/form-data">
                 <input type="file" id="csvFile" name="file" accept=".csv" class="hidden">
             </form>
             
-            <!-- Import button and loading state -->
-            <div class="relative">
+            <!-- Import button (hidden on mobile) -->
+            <div class="relative hidden md:block">
                 <button onclick="document.getElementById('csvFile').click()" 
                         id="importButton"
                         class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
@@ -86,8 +96,30 @@ function clearSort() {
             </div>
 
             <a href="{{ url_for('contacts.create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
-                Create contact
+                <span class="hidden md:inline">Create contact</span>
+                <i class="fas fa-plus md:hidden"></i>
             </a>
+        </div>
+    </div>
+
+    <!-- Mobile Search Bar (Hidden by default) -->
+    <div id="mobileSearchBar" class="mb-4 md:hidden hidden">
+        <div class="relative">
+            <input
+                type="text"
+                id="mobileSearchInput"
+                placeholder="Search contacts..."
+                class="w-full pl-10 pr-4 py-2 border rounded-lg text-sm"
+                autocomplete="off"
+            >
+            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+            <button 
+                onclick="clearMobileSearch()"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
+                type="button"
+            >
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     </div>
 
@@ -111,8 +143,8 @@ function clearSort() {
         </div>
     </div>
 
-    <!-- Search Bar -->
-    <div class="mb-4 flex items-center justify-between">
+    <!-- Desktop Search Bar -->
+    <div class="mb-4 items-center justify-between hidden md:flex">
         <div class="relative">
             <input
                 type="text"
@@ -259,8 +291,88 @@ function clearSort() {
     });
     </script>
 
-    <!-- Table -->
-    <div class="border rounded-lg overflow-hidden">
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4 pb-20">
+        {% for contact in contacts %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm
+                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                            {% set colors = {
+                                'A': 'bg-blue-100 text-blue-800', 'B': 'bg-rose-100 text-rose-800', 
+                                'C': 'bg-green-100 text-green-800', 'D': 'bg-amber-100 text-amber-800',
+                                'E': 'bg-purple-100 text-purple-800', 'F': 'bg-pink-100 text-pink-800',
+                                'G': 'bg-indigo-100 text-indigo-800', 'H': 'bg-teal-100 text-teal-800',
+                                'I': 'bg-orange-100 text-orange-800', 'J': 'bg-cyan-100 text-cyan-800',
+                                'K': 'bg-lime-100 text-lime-800', 'L': 'bg-emerald-100 text-emerald-800',
+                                'M': 'bg-sky-100 text-sky-800', 'N': 'bg-violet-100 text-violet-800',
+                                'O': 'bg-fuchsia-100 text-fuchsia-800', 'P': 'bg-red-100 text-red-800',
+                                'Q': 'bg-yellow-100 text-yellow-800', 'R': 'bg-blue-200 text-blue-900',
+                                'S': 'bg-rose-200 text-rose-900', 'T': 'bg-green-200 text-green-900',
+                                'U': 'bg-amber-200 text-amber-900', 'V': 'bg-purple-200 text-purple-900',
+                                'W': 'bg-pink-200 text-pink-900', 'X': 'bg-indigo-200 text-indigo-900',
+                                'Y': 'bg-teal-200 text-teal-900', 'Z': 'bg-orange-200 text-orange-900'
+                            } %}
+                            {{ colors[initials[0]] or 'bg-gray-100 text-gray-800' }}"
+                        >
+                            {{ contact.first_name[0] }}{{ contact.last_name[0] }}
+                        </div>
+                        <div>
+                            <h3 class="font-medium text-gray-900">{{ contact.first_name }} {{ contact.last_name }}</h3>
+                            <p class="text-sm text-gray-500">{{ contact.email or 'No email' }}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onclick="openContactModal('{{ contact.id }}')"
+                        class="text-gray-400 hover:text-gray-600"
+                    >
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    {% if contact.phone %}
+                    <div>
+                        <p class="text-gray-500">Phone</p>
+                        <p class="text-gray-900">{{ contact.phone }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if contact.potential_commission %}
+                    <div>
+                        <p class="text-gray-500">Commission</p>
+                        <p class="text-gray-900">${{ "{:,.2f}".format(contact.potential_commission|float) }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if contact.groups %}
+                <div class="mt-3 flex flex-wrap gap-1">
+                    {% for group in contact.groups[:2] %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            {{ group.name }}
+                        </span>
+                    {% endfor %}
+                    {% if contact.groups|length > 2 %}
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                            +{{ contact.groups|length - 2 }}
+                        </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-8 text-gray-500">
+            No contacts found. Click the + button to add one.
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="border rounded-lg overflow-hidden hidden md:block">
         <table class="w-full">
             <thead class="bg-gray-100 text-sm border-b">
                 <tr>
@@ -443,7 +555,7 @@ function clearSort() {
     </div>
 
     <!-- Pagination -->
-    <div class="flex items-center justify-between mt-4">
+    <div class="flex items-center justify-between mt-4 pb-20 md:pb-4">
         <div class="flex items-center space-x-2">
             <button class="px-2 py-1 text-gray-500 disabled:opacity-50" disabled>
                 <i class="fas fa-chevron-left"></i> Prev
@@ -748,6 +860,52 @@ document.addEventListener('DOMContentLoaded', function() {
             openContactModal(contactId);
         });
     });
+});
+</script>
+
+<script>
+// Mobile search functionality
+function toggleMobileSearch() {
+    const searchBar = document.getElementById('mobileSearchBar');
+    searchBar.classList.toggle('hidden');
+    if (!searchBar.classList.contains('hidden')) {
+        document.getElementById('mobileSearchInput').focus();
+    }
+}
+
+function clearMobileSearch() {
+    const searchInput = document.getElementById('mobileSearchInput');
+    searchInput.value = '';
+    searchInput.focus();
+}
+
+// Mobile search input handler
+document.addEventListener('DOMContentLoaded', function() {
+    const mobileSearchInput = document.getElementById('mobileSearchInput');
+    const clearButton = mobileSearchInput?.parentElement.querySelector('button');
+    let searchTimeout;
+
+    if (mobileSearchInput) {
+        mobileSearchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const currentValue = e.target.value.trim();
+            
+            // Toggle clear button
+            if (clearButton) {
+                clearButton.classList.toggle('hidden', !currentValue);
+            }
+            
+            searchTimeout = setTimeout(() => {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (currentValue) {
+                    urlParams.set('q', currentValue);
+                } else {
+                    urlParams.delete('q');
+                }
+                window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+            }, 300);
+        });
+    }
 });
 </script>
 {% endblock %}

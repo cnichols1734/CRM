@@ -20,12 +20,48 @@
         .toast-message.fade-out {
             opacity: 0;
         }
+        @media (max-width: 768px) {
+            .mobile-nav {
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                transition: opacity 0.15s ease;
+            }
+            .mobile-nav-link {
+                transition: color 0.2s ease;
+            }
+            .mobile-nav-link.active {
+                color: #f97316;
+            }
+            .content-wrapper {
+                min-height: calc(100vh - 3.5rem);
+                transition: opacity 0.15s ease;
+            }
+            .content-wrapper.loading {
+                opacity: 0.5;
+            }
+            /* Updated page transition styles */
+            .page-transition {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 3.5rem; /* Height of mobile nav bar */
+                background-color: rgba(255, 255, 255, 0.1);
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.2s ease;
+                z-index: 100;
+            }
+            .page-transition.active {
+                opacity: 1;
+            }
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col bg-[#2d3e50]">
 
-<!-- Top Header -->
-<header class="text-white h-14 flex items-center justify-between">
+<!-- Top Header - Hidden on Mobile -->
+<header class="text-white h-14 items-center justify-between hidden md:flex">
     <div class="flex items-center space-x-12">
         <div class="w-16 flex justify-center pl-1.5">  <!-- Added pl-0.5 for slight right shift -->
             <i class="fas fa-bars h-5 w-5"></i>
@@ -41,11 +77,102 @@
     </div>
 
     <div class="flex items-center space-x-4 pr-4 relative">
-        <i class="fas fa-bell h-5 w-5"></i>
-        <i class="fas fa-question-circle h-5 w-5"></i>
-        <i class="fas fa-cog h-5 w-5"></i>
+        {% if current_user.is_authenticated %}
+            <i class="fas fa-bell h-5 w-5"></i>
+            <i class="fas fa-question-circle h-5 w-5"></i>
+            <i class="fas fa-cog h-5 w-5"></i>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
+                <i class="fas fa-sign-in-alt h-5 w-5"></i>
+            </a>
+        {% endif %}
     </div>
 </header>
+
+<!-- Mobile Header -->
+<header class="text-white h-14 flex items-center justify-between px-4 md:hidden">
+    <h1 class="text-lg font-semibold">{% block mobile_title %}Real Estate CRM{% endblock %}</h1>
+    <div class="flex items-center space-x-4">
+        {% if current_user.is_authenticated %}
+            <i class="fas fa-bell h-5 w-5"></i>
+            <div class="relative">
+                <button
+                    id="mobileUserIcon"
+                    onclick="toggleMobileUserMenu()"
+                    class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold"
+                >
+                    {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                </button>
+            </div>
+        {% else %}
+            <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
+                <i class="fas fa-sign-in-alt h-5 w-5"></i>
+            </a>
+        {% endif %}
+    </div>
+</header>
+
+<!-- Mobile User Menu (Slides down from top) -->
+{% if current_user.is_authenticated %}
+<div id="mobileUserMenu" 
+     class="fixed inset-x-0 top-0 z-50 transform -translate-y-full transition-transform duration-300 ease-in-out md:hidden opacity-0 pointer-events-none">
+    <div class="bg-white shadow-lg">
+        <!-- User Info Section -->
+        <div class="p-6 border-b border-gray-200">
+            <div class="flex items-center space-x-4">
+                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                    <span class="text-blue-600 text-lg font-semibold">
+                        {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                    </span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+                    <div class="text-sm text-gray-500 truncate">{{ current_user.email }}</div>
+                </div>
+                <button onclick="toggleMobileUserMenu()" class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-times text-gray-400"></i>
+                </button>
+            </div>
+            <div class="mt-3 text-sm text-gray-500">
+                Role: <span class="font-medium capitalize">{{ current_user.role }}</span>
+            </div>
+        </div>
+
+        <!-- Navigation Links -->
+        <div class="py-2">
+            <a href="{{ url_for('auth.view_user_profile') }}" 
+               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
+                Profile Settings
+            </a>
+            
+            <a href="#" 
+               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
+                Notifications
+            </a>
+
+            <a href="#" 
+               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
+                Change Password
+            </a>
+        </div>
+
+        <!-- Divider -->
+        <div class="border-t border-gray-200"></div>
+
+        <!-- Logout -->
+        <div class="py-2">
+            <a href="{{ url_for('auth.logout') }}" 
+               class="flex items-center px-6 py-3 text-base text-red-600 hover:bg-red-50">
+                <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Flash Messages -->
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -70,8 +197,8 @@
 {% endwith %}
 
 <div class="flex flex-1 overflow-hidden relative">
-    <!-- Sidebar -->
-    <aside class="w-16 flex flex-col items-center py-4 z-10">
+    <!-- Sidebar - Hidden on Mobile -->
+    <aside class="w-16 flex-col items-center py-4 z-10 hidden md:flex">
         <!-- Dashboard Icon with Tooltip -->
         <div class="relative group mb-8">
             <a href="{{ url_for('main.dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
@@ -186,13 +313,60 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto bg-white absolute inset-0 ml-16 rounded-tl-[1.1rem]">
-        {% block content %}{% endblock %}
+    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] pb-14 md:pb-0">
+        <div class="content-wrapper">
+            {% block content %}{% endblock %}
+        </div>
     </main>
+
+    <!-- Mobile Navigation Bar -->
+    <nav class="mobile-nav fixed bottom-0 left-0 right-0 h-14 bg-[#2d3e50] bg-opacity-90 flex items-center justify-around z-50 md:hidden">
+        <a href="{{ url_for('main.dashboard') }}" 
+           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+            <i class="fas fa-chart-line text-lg"></i>
+            <span class="text-xs mt-0.5">Dashboard</span>
+        </a>
+        <a href="{{ url_for('main.index') }}" 
+           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.index' %}active{% endif %}">
+            <i class="fas fa-address-book text-lg"></i>
+            <span class="text-xs mt-0.5">Contacts</span>
+        </a>
+        <a href="{{ url_for('tasks.tasks') }}" 
+           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'tasks.tasks' %}active{% endif %}">
+            <i class="fas fa-tasks text-lg"></i>
+            <span class="text-xs mt-0.5">Tasks</span>
+        </a>
+    </nav>
 </div>
 
+<!-- Add this right after the body tag -->
+<div class="page-transition"></div>
+
 <script>
+    // Initialize mobile menu state
+    function initializeMobileMenu() {
+        const menu = document.getElementById('mobileUserMenu');
+        if (menu) {
+            menu.classList.add('-translate-y-full');
+            menu.classList.add('opacity-0');
+            menu.classList.add('pointer-events-none');
+            document.body.style.overflow = '';
+        }
+    }
+
+    // Call initialization immediately
+    initializeMobileMenu();
+
     document.addEventListener('DOMContentLoaded', function() {
+        initializeMobileMenu();
+        // Store menu state in sessionStorage
+        const mobileMenu = document.getElementById('mobileUserMenu');
+        if (mobileMenu) {
+            // Ensure menu is hidden on page load
+            mobileMenu.classList.add('-translate-y-full');
+            document.body.style.overflow = '';
+        }
+
         const userIcon = document.getElementById('userIcon');
         const dropdown = document.getElementById('userDropdown');
         let timeoutId;
@@ -260,10 +434,8 @@
                 dropdown.classList.add('hidden');
             }
         });
-    });
 
-    // Flash message auto-dismiss
-    document.addEventListener('DOMContentLoaded', function() {
+        // Flash message auto-dismiss
         const flashMessages = document.querySelectorAll('.toast-message');
 
         flashMessages.forEach(function(message) {
@@ -276,10 +448,8 @@
                 }, 500); // Match the CSS transition time
             }, 4000); // 4 seconds
         });
-    });
 
-    // Tooltip functionality
-    document.addEventListener('DOMContentLoaded', function() {
+        // Tooltip functionality
         const iconGroups = document.querySelectorAll('aside .group');
         let tooltipTimeouts = new Map();
 
@@ -306,6 +476,157 @@
                 tooltip.classList.add('hidden');
             });
         });
+
+        // Enhanced mobile navigation handling
+        const contentWrapper = document.querySelector('.content-wrapper');
+        const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+        const pageTransition = document.querySelector('.page-transition');
+        const mobileNav = document.querySelector('.mobile-nav');
+        
+        function handlePageTransition(href) {
+            // Prevent default if it's an anchor tag
+            event?.preventDefault();
+            
+            // Don't transition if it's the current page
+            if (window.location.pathname === href || window.location.href === href) {
+                return;
+            }
+
+            // Add transition effects
+            contentWrapper.classList.add('loading');
+            pageTransition.classList.add('active');
+            
+            // Small delay to ensure transition is visible
+            setTimeout(() => {
+                window.location.href = href;
+            }, 100);
+        }
+
+        // Handle mobile navigation clicks specifically
+        mobileNavLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const href = this.getAttribute('href');
+                handlePageTransition(href);
+            }, true);
+        });
+
+        // Handle all other navigation clicks
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (link && 
+                !link.hasAttribute('download') && 
+                !link.getAttribute('href').startsWith('#') && 
+                !link.getAttribute('href').startsWith('javascript:') &&
+                !link.getAttribute('target') &&
+                !link.classList.contains('mobile-nav-link')) { // Exclude mobile nav links
+                
+                e.preventDefault();
+                const href = link.getAttribute('href');
+                handlePageTransition(href);
+            }
+        });
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function() {
+            handlePageTransition(window.location.href);
+        });
+
+        // Reset transitions on page load
+        window.addEventListener('pageshow', function(event) {
+            contentWrapper.classList.remove('loading');
+            pageTransition.classList.remove('active');
+            mobileNav.style.opacity = '1';
+            
+            if (event.persisted) {
+                // Additional cleanup for back/forward cache
+                document.body.style.overflow = '';
+                const menu = document.getElementById('mobileUserMenu');
+                if (menu) {
+                    hideMobileMenu(menu);
+                }
+            }
+        });
+
+        // Handle page hide
+        window.addEventListener('pagehide', function() {
+            contentWrapper.classList.add('loading');
+            pageTransition.classList.add('active');
+            mobileNav.style.opacity = '0.5';
+        });
+    });
+
+    function toggleMobileUserMenu() {
+        const menu = document.getElementById('mobileUserMenu');
+        if (!menu) return;
+
+        const isHidden = menu.classList.contains('-translate-y-full');
+        
+        if (isHidden) {
+            // Show menu
+            menu.classList.remove('-translate-y-full');
+            menu.classList.remove('opacity-0');
+            menu.classList.remove('pointer-events-none');
+            document.body.style.overflow = 'hidden';
+        } else {
+            // Hide menu
+            hideMobileMenu(menu);
+        }
+    }
+
+    function hideMobileMenu(menu) {
+        if (!menu) menu = document.getElementById('mobileUserMenu');
+        if (!menu) return;
+
+        menu.classList.add('-translate-y-full');
+        menu.classList.add('opacity-0');
+        menu.classList.add('pointer-events-none');
+        document.body.style.overflow = '';
+    }
+
+    // Ensure menu is hidden before any navigation
+    window.addEventListener('beforeunload', function() {
+        const menu = document.getElementById('mobileUserMenu');
+        if (menu) {
+            hideMobileMenu(menu);
+        }
+    });
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', function(event) {
+        const menu = document.getElementById('mobileUserMenu');
+        const mobileUserIcon = document.getElementById('mobileUserIcon');
+        
+        if (!menu || !mobileUserIcon) return;
+        
+        if (!menu.classList.contains('-translate-y-full') && // Menu is visible
+            !menu.contains(event.target) && // Click not inside menu
+            event.target !== mobileUserIcon && // Click not on user icon
+            !mobileUserIcon.contains(event.target)) { // Click not inside user icon
+            hideMobileMenu(menu);
+        }
+    });
+
+    // Close mobile menu on escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            const menu = document.getElementById('mobileUserMenu');
+            if (menu && !menu.classList.contains('-translate-y-full')) {
+                hideMobileMenu(menu);
+            }
+        }
+    });
+
+    // Close mobile menu before page navigation
+    document.addEventListener('click', function(event) {
+        const isNavigationLink = event.target.closest('a[href]');
+        if (isNavigationLink) {
+            const menu = document.getElementById('mobileUserMenu');
+            if (menu) {
+                hideMobileMenu(menu);
+            }
+        }
     });
 </script>
 
