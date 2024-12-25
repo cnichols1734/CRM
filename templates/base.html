@@ -209,8 +209,8 @@
     <aside class="w-16 flex-col items-center py-4 z-10 hidden md:flex">
         <!-- Dashboard Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('main.dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
-                <i class="fas fa-chart-line text-white"></i>
+            <a href="{{ url_for('main.dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
+                <i class="fas fa-chart-line"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Dashboard
@@ -219,8 +219,8 @@
 
         <!-- Contacts Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('main.index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
-                <i class="fas fa-address-book text-white"></i>
+            <a href="{{ url_for('main.index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}text-orange-500{% else %}text-white{% endif %}">
+                <i class="fas fa-address-book"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Contacts
@@ -229,8 +229,8 @@
         
         <!-- Tasks Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="{{ url_for('tasks.tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
-                <i class="fas fa-tasks text-white"></i>
+            <a href="{{ url_for('tasks.tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
+                <i class="fas fa-tasks"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Tasks
@@ -239,8 +239,8 @@
 
         <!-- Marketing Icon with Tooltip -->
         <div class="relative group mb-8">
-            <a href="#" class="p-2.5 rounded-lg hover:bg-[#3d4d63]">
-                <i class="fas fa-bullhorn text-white"></i>
+            <a href="{{ url_for('main.marketing') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
+                <i class="fas fa-bullhorn"></i>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Marketing

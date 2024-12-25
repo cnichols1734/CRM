@@ -123,3 +123,8 @@ def dashboard():
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
                          now=now)
+
+@main_bp.route('/marketing')
+@login_required
+def marketing():
+    return render_template('marketing.html')
