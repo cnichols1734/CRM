@@ -173,6 +173,14 @@ function clearSort() {
                     <span>Clear sort</span>
                 </button>
             {% endif %}
+            <button 
+                onclick="toggleFilters()"
+                class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50 flex items-center space-x-1"
+            >
+                <i class="fas fa-filter"></i>
+                <span>Filters</span>
+                <span id="activeFiltersCount" class="hidden ml-1 bg-blue-100 text-blue-800 text-xs px-1.5 rounded-full"></span>
+            </button>
             <a href="{{ url_for('contacts.export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}" 
                class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
                 Export
@@ -182,6 +190,526 @@ function clearSort() {
             </button>
         </div>
     </div>
+
+    <!-- Filter Panel -->
+    <style>
+        #filterPanel {
+            transition: all 0.3s ease-in-out;
+            transform-origin: top;
+            transform: scaleY(0);
+            opacity: 0;
+            max-height: 0;
+            overflow: hidden;
+        }
+        #filterPanel.show {
+            transform: scaleY(1);
+            opacity: 1;
+            max-height: 1000px; /* Large enough to fit content */
+        }
+        
+        /* Filter tag animations */
+        .filter-tag {
+            transition: all 0.2s ease-in-out;
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .filter-tag.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .filter-tag.removing {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+    </style>
+
+    <div id="filterPanel" class="mb-6 bg-white border rounded-lg shadow-sm">
+        <div class="p-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Filters</h3>
+                <div class="flex items-center space-x-3">
+                    <button 
+                        onclick="clearAllFilters()" 
+                        class="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50 flex items-center space-x-1"
+                    >
+                        <i class="fas fa-times-circle"></i>
+                        <span>Clear all filters</span>
+                    </button>
+                </div>
+            </div>
+            
+            <form id="filterForm" class="space-y-6" onsubmit="applyFilters(event)">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {% if current_user.role == 'admin' and show_all %}
+                    <!-- Contact Owner Filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Contact Owner</label>
+                        <select id="ownerFilter" multiple placeholder="Select owners..." class="w-full">
+                            {% for owner in all_owners %}
+                                <option value="{{ owner.id }}">{{ owner.first_name }} {{ owner.last_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Groups Filter -->
+                    <div {% if not (current_user.role == 'admin' and show_all) %}class="md:col-span-1"{% endif %}>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Groups</label>
+                        <select id="groupFilter" multiple placeholder="Select groups..." class="w-full">
+                            {% for group in all_groups %}
+                                <option value="{{ group.id }}">{{ group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Zip Codes Filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Zip Codes</label>
+                        <div class="relative">
+                            <input 
+                                type="text" 
+                                id="zipFilter"
+                                placeholder="Enter zip codes"
+                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                            <p class="mt-1 text-xs text-gray-500">Separate multiple zip codes with commas</p>
+                        </div>
+                    </div>
+
+                    <!-- Commission Range Filter -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Commission Range</label>
+                        <select 
+                            id="commissionFilter"
+                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                        >
+                            <option value="">All ranges</option>
+                            <option value="0-5000">$0 - $5,000</option>
+                            <option value="5000-15000">$5,000 - $15,000</option>
+                            <option value="15000-up">$15,000 and up</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Active Filters Display -->
+                <div id="activeFilters" class="hidden pt-4 border-t">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Active Filters</h4>
+                    <div class="flex flex-wrap gap-2" id="activeFilterTags"></div>
+                </div>
+
+                <!-- Apply Filters Button -->
+                <div class="flex justify-end pt-4 border-t">
+                    <button 
+                        type="submit"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        Apply Filters
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Include Tom Select for better multi-select -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+
+    <script>
+    // Initialize Tom Select for groups
+    let groupSelect = new TomSelect('#groupFilter', {
+        plugins: ['remove_button'],
+        maxItems: null,
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text'],
+        create: false,
+        onItemAdd: function() {
+            updateActiveFilters();
+        },
+        onItemRemove: function() {
+            updateActiveFilters();
+        }
+    });
+
+    {% if current_user.role == 'admin' and show_all %}
+    // Initialize Tom Select for owners
+    let ownerSelect = new TomSelect('#ownerFilter', {
+        plugins: ['remove_button'],
+        maxItems: null,
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text'],
+        create: false,
+        onItemAdd: function() {
+            updateActiveFilters();
+        },
+        onItemRemove: function() {
+            updateActiveFilters();
+        }
+    });
+    {% endif %}
+
+    function toggleFilters() {
+        const filterPanel = document.getElementById('filterPanel');
+        if (filterPanel.classList.contains('show')) {
+            // Closing animation
+            filterPanel.classList.remove('show');
+            // Remove display:none after animation completes
+            setTimeout(() => {
+                if (!filterPanel.classList.contains('show')) {
+                    filterPanel.style.display = 'none';
+                }
+            }, 300);
+        } else {
+            // Opening animation
+            filterPanel.style.display = 'block';
+            // Trigger reflow
+            filterPanel.offsetHeight;
+            filterPanel.classList.add('show');
+        }
+    }
+
+    function updateActiveFilters() {
+        const activeFilters = [];
+        const tagsContainer = document.getElementById('activeFilterTags');
+        const activeFiltersSection = document.getElementById('activeFilters');
+        const activeFiltersCount = document.getElementById('activeFiltersCount');
+        
+        // Remove existing tags with animation
+        const existingTags = tagsContainer.querySelectorAll('.filter-tag');
+        existingTags.forEach(tag => {
+            tag.classList.add('removing');
+        });
+        
+        // Clear container after animation
+        setTimeout(() => {
+            tagsContainer.innerHTML = '';
+            
+            // Add new tags
+            {% if current_user.role == 'admin' and show_all %}
+            // Check Owners
+            const selectedOwners = ownerSelect.items;
+            if (selectedOwners.length > 0) {
+                const ownerNames = selectedOwners.map(id => {
+                    const option = ownerSelect.options[id];
+                    return option ? option.text : '';
+                }).filter(Boolean);
+                
+                const tag = createFilterTag('Owners', `${ownerNames.join(', ')}`, () => {
+                    ownerSelect.clear();
+                });
+                tagsContainer.appendChild(tag);
+                activeFilters.push('owners');
+            }
+            {% endif %}
+            
+            // Check Groups
+            const selectedGroups = groupSelect.items;
+            if (selectedGroups.length > 0) {
+                const groupNames = selectedGroups.map(id => {
+                    const option = groupSelect.options[id];
+                    return option ? option.text : '';
+                }).filter(Boolean);
+                
+                const tag = createFilterTag('Groups', `${groupNames.join(', ')}`, () => {
+                    groupSelect.clear();
+                });
+                tagsContainer.appendChild(tag);
+                activeFilters.push('groups');
+            }
+            
+            // Check Zip Codes
+            const zipCodes = document.getElementById('zipFilter').value.trim();
+            if (zipCodes) {
+                const tag = createFilterTag('Zip Codes', zipCodes, () => {
+                    document.getElementById('zipFilter').value = '';
+                    updateActiveFilters();
+                });
+                tagsContainer.appendChild(tag);
+                activeFilters.push('zips');
+            }
+            
+            // Check Commission Range
+            const commissionRange = document.getElementById('commissionFilter');
+            if (commissionRange.value) {
+                const rangeText = commissionRange.options[commissionRange.selectedIndex].text;
+                const tag = createFilterTag('Commission', rangeText, () => {
+                    commissionRange.value = '';
+                    updateActiveFilters();
+                });
+                tagsContainer.appendChild(tag);
+                activeFilters.push('commission');
+            }
+            
+            // Show/hide active filters section with animation
+            if (activeFilters.length > 0) {
+                activeFiltersSection.classList.remove('hidden');
+                activeFiltersCount.textContent = activeFilters.length;
+                activeFiltersCount.classList.remove('hidden');
+            } else {
+                // Add fade-out animation for the section
+                activeFiltersSection.style.opacity = '0';
+                setTimeout(() => {
+                    activeFiltersSection.classList.add('hidden');
+                    activeFiltersSection.style.opacity = '';
+                }, 200);
+                activeFiltersCount.classList.add('hidden');
+            }
+        }, 200); // Match the CSS transition duration
+    }
+
+    function createFilterTag(label, value, onRemove) {
+        const tag = document.createElement('div');
+        tag.className = 'filter-tag inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200';
+        tag.innerHTML = `
+            <span class="font-medium mr-1">${label}:</span>
+            <span class="mr-2">${value}</span>
+            <button type="button" class="text-blue-500 hover:text-blue-700 focus:outline-none">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        // Add click handler with animation
+        tag.querySelector('button').addEventListener('click', (e) => {
+            e.preventDefault();
+            tag.classList.add('removing');
+            setTimeout(() => {
+                onRemove();
+            }, 200); // Match the CSS transition duration
+        });
+
+        // Trigger entrance animation after a small delay
+        requestAnimationFrame(() => {
+            tag.classList.add('show');
+        });
+
+        return tag;
+    }
+
+    function clearAllFilters() {
+        // Clear all filter inputs
+        groupSelect.clear();
+        {% if current_user.role == 'admin' and show_all %}
+        ownerSelect.clear();
+        {% endif %}
+        document.getElementById('zipFilter').value = '';
+        document.getElementById('commissionFilter').value = '';
+        updateActiveFilters();
+        
+        // Animate closing the filter panel
+        const filterPanel = document.getElementById('filterPanel');
+        filterPanel.classList.remove('show');
+        setTimeout(() => {
+            if (!filterPanel.classList.contains('show')) {
+                filterPanel.style.display = 'none';
+            }
+            
+            // Update URL and fetch results after panel closes
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // Remove all filter parameters
+            urlParams.delete('groups');
+            urlParams.delete('zips');
+            urlParams.delete('commission');
+            {% if current_user.role == 'admin' and show_all %}
+            urlParams.delete('owners');
+            {% endif %}
+            
+            // Preserve search query and view parameters
+            const searchQuery = document.getElementById('searchInput')?.value;
+            if (searchQuery) {
+                urlParams.set('q', searchQuery);
+            }
+            const view = urlParams.get('view');
+            if (view) {
+                urlParams.set('view', view);
+            }
+            
+            const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+            window.history.pushState({}, '', newUrl);
+
+            // Fetch and update results without full page reload
+            fetch(newUrl)
+                .then(response => response.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const newDoc = parser.parseFromString(html, 'text/html');
+                    
+                    // Update only the table body
+                    const currentTable = document.querySelector('table tbody');
+                    const newTable = newDoc.querySelector('table tbody');
+                    if (currentTable && newTable) {
+                        currentTable.innerHTML = newTable.innerHTML;
+                    }
+                    
+                    // Update record count
+                    const currentCount = document.querySelector('.text-gray-500');
+                    const newCount = newDoc.querySelector('.text-gray-500');
+                    if (currentCount && newCount) {
+                        currentCount.innerHTML = newCount.innerHTML;
+                    }
+
+                    // Update mobile cards if they exist
+                    const currentCards = document.querySelector('.md\\:hidden.space-y-4');
+                    const newCards = newDoc.querySelector('.md\\:hidden.space-y-4');
+                    if (currentCards && newCards) {
+                        currentCards.innerHTML = newCards.innerHTML;
+                    }
+                });
+        }, 300);
+    }
+
+    function applyFilters(event) {
+        event.preventDefault();
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        {% if current_user.role == 'admin' and show_all %}
+        // Get selected owners
+        const selectedOwners = ownerSelect.items;
+        if (selectedOwners.length > 0) {
+            urlParams.set('owners', selectedOwners.join(','));
+        } else {
+            urlParams.delete('owners');
+        }
+        {% endif %}
+        
+        // Get selected groups
+        const selectedGroups = groupSelect.items;
+        if (selectedGroups.length > 0) {
+            urlParams.set('groups', selectedGroups.join(','));
+        } else {
+            urlParams.delete('groups');
+        }
+        
+        // Get zip codes
+        const zipCodes = document.getElementById('zipFilter').value.trim();
+        if (zipCodes) {
+            urlParams.set('zips', zipCodes);
+        } else {
+            urlParams.delete('zips');
+        }
+        
+        // Get commission range
+        const commissionRange = document.getElementById('commissionFilter').value;
+        if (commissionRange) {
+            urlParams.set('commission', commissionRange);
+        } else {
+            urlParams.delete('commission');
+        }
+        
+        // Preserve existing search query and view parameters
+        const searchQuery = document.getElementById('searchInput')?.value;
+        if (searchQuery) {
+            urlParams.set('q', searchQuery);
+        }
+        const view = urlParams.get('view');
+        if (view) {
+            urlParams.set('view', view);
+        }
+
+        // Update URL without page reload
+        const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+        window.history.pushState({}, '', newUrl);
+
+        // Fetch and update results without full page reload
+        fetch(newUrl)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const newDoc = parser.parseFromString(html, 'text/html');
+                
+                // Update only the table body
+                const currentTable = document.querySelector('table tbody');
+                const newTable = newDoc.querySelector('table tbody');
+                if (currentTable && newTable) {
+                    currentTable.innerHTML = newTable.innerHTML;
+                }
+                
+                // Update record count
+                const currentCount = document.querySelector('.text-gray-500');
+                const newCount = newDoc.querySelector('.text-gray-500');
+                if (currentCount && newCount) {
+                    currentCount.innerHTML = newCount.innerHTML;
+                }
+
+                // Update mobile cards if they exist
+                const currentCards = document.querySelector('.md\\:hidden.space-y-4');
+                const newCards = newDoc.querySelector('.md\\:hidden.space-y-4');
+                if (currentCards && newCards) {
+                    currentCards.innerHTML = newCards.innerHTML;
+                }
+            });
+    }
+
+    // Initialize filters from URL parameters
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Check if we should show the filter panel (has active filters)
+        const hasFilters = urlParams.has('groups') || 
+                          urlParams.has('zips') || 
+                          urlParams.has('commission') || 
+                          {% if current_user.role == 'admin' and show_all %}
+                          urlParams.has('owners') ||
+                          {% endif %}
+                          false;
+
+        if (hasFilters) {
+            const filterPanel = document.getElementById('filterPanel');
+            filterPanel.style.display = 'block';
+            // Trigger reflow
+            filterPanel.offsetHeight;
+            filterPanel.classList.add('show');
+        }
+        
+        {% if current_user.role == 'admin' and show_all %}
+        // Set owners
+        const owners = urlParams.get('owners');
+        if (owners) {
+            const ownerIds = owners.split(',');
+            ownerIds.forEach(id => {
+                ownerSelect.addItem(id);
+            });
+        }
+        {% endif %}
+        
+        // Set groups
+        const groups = urlParams.get('groups');
+        if (groups) {
+            const groupIds = groups.split(',');
+            groupIds.forEach(id => {
+                groupSelect.addItem(id);
+            });
+        }
+        
+        // Set zip codes
+        const zips = urlParams.get('zips');
+        if (zips) {
+            document.getElementById('zipFilter').value = zips;
+        }
+        
+        // Set commission range
+        const commission = urlParams.get('commission');
+        if (commission) {
+            document.getElementById('commissionFilter').value = commission;
+        }
+        
+        // Update active filters display
+        updateActiveFilters();
+        
+        // Restore filter panel state
+        const filterPanelVisible = sessionStorage.getItem('filterPanelVisible') === 'true';
+        if (filterPanelVisible) {
+            document.getElementById('filterPanel').classList.remove('hidden');
+        }
+    });
+
+    // Add event listeners for filter changes
+    document.getElementById('zipFilter').addEventListener('input', updateActiveFilters);
+    document.getElementById('commissionFilter').addEventListener('change', updateActiveFilters);
+    </script>
 
     <!-- Update the search JavaScript -->
     <script>
@@ -910,4 +1438,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
 {% endblock %}

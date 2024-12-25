@@ -29,6 +29,30 @@ def index():
         )
         query = query.filter(search_filter)
 
+    owners = request.args.get('owners')
+    if show_all and owners:
+        owner_ids = [int(id) for id in owners.split(',')]
+        query = query.filter(Contact.user_id.in_(owner_ids))
+
+    groups = request.args.get('groups')
+    if groups:
+        group_ids = [int(id) for id in groups.split(',')]
+        query = query.join(Contact.groups).filter(ContactGroup.id.in_(group_ids))
+
+    zips = request.args.get('zips')
+    if zips:
+        zip_list = [z.strip() for z in zips.split(',')]
+        query = query.filter(Contact.zip_code.in_(zip_list))
+
+    commission_range = request.args.get('commission')
+    if commission_range:
+        if commission_range == '0-5000':
+            query = query.filter(Contact.potential_commission.between(0, 5000))
+        elif commission_range == '5000-15000':
+            query = query.filter(Contact.potential_commission.between(5000, 15000))
+        elif commission_range == '15000-up':
+            query = query.filter(Contact.potential_commission >= 15000)
+
     if sort_by == 'owner':
         query = query.join(User, Contact.user_id == User.id)
         if sort_dir == 'asc':
@@ -37,9 +61,9 @@ def index():
             query = query.order_by(User.first_name.desc(), User.last_name.desc())
     elif sort_by == 'potential_commission':
         if sort_dir == 'asc':
-            query = query.order_by(func.coalesce(Contact.potential_commission, 0).asc())
+            query = query.filter(Contact.potential_commission.isnot(None)).order_by(Contact.potential_commission.asc())
         else:
-            query = query.order_by(func.coalesce(Contact.potential_commission, 0).desc())
+            query = query.filter(Contact.potential_commission.isnot(None)).order_by(Contact.potential_commission.desc())
     else:
         sort_map = {
             'name': [Contact.first_name, Contact.last_name],
@@ -57,12 +81,20 @@ def index():
             else:
                 query = query.order_by(*[attr.desc() for attr in sort_attrs])
 
+    all_groups = ContactGroup.query.order_by(ContactGroup.name).all()
+
+    all_owners = []
+    if show_all:
+        all_owners = User.query.order_by(User.first_name, User.last_name).all()
+
     contacts = query.all()
     return render_template('index.html',
-                           contacts=contacts,
-                           show_all=show_all,
-                           current_sort=sort_by,
-                           current_dir=sort_dir)
+                         contacts=contacts,
+                         show_all=show_all,
+                         current_sort=sort_by,
+                         current_dir=sort_dir,
+                         all_groups=all_groups,
+                         all_owners=all_owners)
 
 @main_bp.route('/dashboard')
 @login_required
