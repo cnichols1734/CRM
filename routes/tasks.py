@@ -111,15 +111,15 @@ def edit_task(task_id):
         else:
             task.scheduled_time = None
 
-        new_type_id = request.form.get('task_type_id')
-        new_subtype_id = request.form.get('task_subtype_id')
+        new_type_id = request.form.get('type_id')
+        new_subtype_id = request.form.get('subtype_id')
 
         if new_type_id:
-            task.task_type_id = int(new_type_id)
+            task.type_id = int(new_type_id)
             if new_subtype_id:
                 subtype = db.session.get(TaskSubtype, int(new_subtype_id))
                 if subtype and str(subtype.task_type_id) == new_type_id:
-                    task.task_subtype_id = int(new_subtype_id)
+                    task.subtype_id = int(new_subtype_id)
 
         if request.form.get('contact_id'):
             task.contact_id = int(request.form.get('contact_id'))
@@ -165,7 +165,8 @@ def view_task(task_id):
     task = Task.query.options(
         joinedload(Task.contact),
         joinedload(Task.task_type),
-        joinedload(Task.task_subtype)
+        joinedload(Task.task_subtype),
+        joinedload(Task.assigned_to)
     ).get_or_404(task_id)
 
     contacts = Contact.query.all()
@@ -195,6 +196,10 @@ def view_task(task_id):
             'task_subtype': {
                 'id': task.task_subtype.id,
                 'name': task.task_subtype.name
+            },
+            'assigned_to': {
+                'first_name': task.assigned_to.first_name,
+                'last_name': task.assigned_to.last_name
             }
         })
 

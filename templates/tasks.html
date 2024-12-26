@@ -223,14 +223,26 @@
                         <div class="flex-1 min-w-0 ml-4">
                             <!-- Task Subject and Types -->
                             <div class="flex items-center space-x-3 mb-2">
-                                <h3 class="text-base font-medium text-gray-900">{{ task.subject }}</h3>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-800">
-                                        {{ task.task_type.name }}
-                                    </span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-gray-50 text-gray-600">
-                                        {{ task.task_subtype.name }}
-                                    </span>
+                                <div class="flex-1">
+                                    <div class="flex items-center space-x-3">
+                                        <h3 class="text-base font-medium text-gray-900">{{ task.subject }}</h3>
+                                        <div class="flex items-center space-x-1.5">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
+                                                {{ task.task_type.name }}
+                                            </span>
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-gray-50 text-gray-600">
+                                                {{ task.task_subtype.name }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% if current_user.role == 'admin' and show_all %}
+                                    <div class="flex items-center text-gray-500 text-sm mt-0.5">
+                                        <div class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5">
+                                            {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
+                                        </div>
+                                        <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </div>
 
@@ -329,6 +341,12 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
+                        {% if current_user.role == 'admin' and show_all %}
+                        <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
+                            <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
+                            <span id="modalTaskOwner"></span>
+                        </div>
+                        {% endif %}
                         <p class="text-sm text-gray-500" id="modalTaskDueDate"></p>
                     </div>
                 </div>
@@ -559,6 +577,13 @@ function openTaskModal(taskId) {
             // Update modal content
             document.getElementById('modalTaskSubject').textContent = task.subject;
             document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
+            
+            // Owner Info (for admin view)
+            {% if current_user.role == 'admin' and show_all %}
+            const ownerInitials = document.getElementById('modalTaskOwnerInitials');
+            ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
+            document.getElementById('modalTaskOwner').textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
+            {% endif %}
             
             // Priority Indicator
             const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
