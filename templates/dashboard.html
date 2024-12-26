@@ -239,6 +239,15 @@
                                     </div>
                                 </div>
 
+                                {% if current_user.role == 'admin' and show_all %}
+                                <div class="flex items-center text-gray-500 text-sm mt-0.5">
+                                    <div class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5">
+                                        {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
+                                    </div>
+                                    <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
+                                </div>
+                                {% endif %}
+
                                 <!-- Task Details -->
                                 <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
                                     <!-- Due Date with Color Coding -->
@@ -265,6 +274,7 @@
                                             {% else %}
                                                 Due in {{ days_until_due }} days
                                             {% endif %}
+                                            ({{ task.due_date.strftime('%m/%d/%y') }})
                                         </span>
                                     </div>
 
@@ -292,7 +302,7 @@
                                     {% if task.scheduled_time %}
                                     <div class="flex items-center">
                                         <i class="far fa-clock mr-1.5 text-gray-400"></i>
-                                        {{ task.scheduled_time.strftime('%I:%M %p') }}
+                                        {{ task.due_date.strftime('%m/%d/%y') }} - {{ task.scheduled_time.strftime('%I:%M %p') }}
                                     </div>
                                     {% endif %}
                                 </div>
@@ -335,80 +345,154 @@
 
 <!-- Task Modal -->
 <div id="taskModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full">
+    <div class="flex min-h-full items-center justify-center p-0 md:p-4">
+        <div class="relative bg-white w-full md:rounded-lg shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
             <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
-                <button onclick="closeTaskModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times"></i>
+            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
+                <div class="flex items-center space-x-4">
+                    <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
+                        <i class="fas fa-flag"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
+                        {% if current_user.role == 'admin' and show_all %}
+                        <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
+                            <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
+                            <span id="modalTaskOwner"></span>
+                        </div>
+                        {% endif %}
+                        <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
+                    </div>
+                </div>
+                <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-times text-gray-400"></i>
                 </button>
             </div>
             
             <!-- Modal content -->
-            <div class="px-6 py-4 space-y-4" id="modalTaskContent">
-                <!-- Priority, Status, Due Date -->
-                <div class="flex flex-wrap items-center gap-4">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Priority:</span>
-                        <span id="modalTaskPriority" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
+            <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
+                <!-- Status and Priority -->
+                <div class="flex flex-wrap gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-tasks text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Status</p>
+                                <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Status:</span>
-                        <span id="modalTaskStatus" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"></span>
-                    </div>
-                    
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Due Date:</span>
-                        <span id="modalTaskDueDate" class="text-sm text-gray-700"></span>
-                        <span class="text-sm text-gray-500">
-                            (<span id="modalTaskDueActual"></span>)
-                        </span>
+                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-flag text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Priority</p>
+                                <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
+
+                <!-- Due Date and Scheduled Time -->
+                <div class="flex flex-wrap gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-calendar text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Due Date</p>
+                                <p id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="modalTaskScheduledContainer" class="hidden bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-clock text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Scheduled Time</p>
+                                <p id="modalTaskScheduledTime" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Task Type and Subtype -->
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-500">Type:</span>
-                        <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
-                        <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                            <i class="fas fa-tag text-gray-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Task Type</p>
+                            <div class="flex items-center space-x-2 mt-1">
+                                <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
+                                <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
+
                 <!-- Contact -->
-                <div class="flex items-center space-x-2">
-                    <span class="text-sm font-medium text-gray-500">Contact:</span>
-                    <a id="modalTaskContact" href="#" class="text-sm text-blue-600 hover:text-blue-800 hover:underline"></a>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                            <i class="fas fa-user text-gray-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Contact</p>
+                            <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
+                        </div>
+                    </div>
                 </div>
-                
+
                 <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden">
-                    <span class="text-sm font-medium text-gray-500">Property Address:</span>
-                    <span id="modalTaskProperty" class="ml-2 text-sm text-gray-700"></span>
+                <div id="modalTaskPropertyContainer" class="hidden bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                            <i class="fas fa-building text-gray-400"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500">Property Address</p>
+                            <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
+                        </div>
+                    </div>
                 </div>
-                
+
                 <!-- Description -->
-                <div class="space-y-1">
-                    <span class="text-sm font-medium text-gray-500">Description:</span>
-                    <p id="modalTaskDescription" class="text-sm text-gray-700 whitespace-pre-line bg-gray-50 rounded-md p-4"></p>
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <div class="flex items-start space-x-3">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                            <i class="fas fa-align-left text-gray-400"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-500">Description</p>
+                            <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
             <!-- Modal footer -->
-            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="toggleTaskStatus()" class="text-sm px-4 py-2 border rounded-md bg-white hover:bg-gray-50 transition-colors duration-150">
-                        <span id="modalTaskStatusButton"></span>
-                    </button>
-                    <button onclick="deleteTaskFromModal()" class="text-sm px-4 py-2 border rounded-md text-red-600 hover:bg-red-50 transition-colors duration-150">
-                        Delete Task
-                    </button>
+            <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
+                <div class="flex flex-col md:flex-row md:justify-between gap-3">
+                    <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
+                        <button onclick="toggleTaskStatus()" 
+                                class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
+                            <span id="modalTaskStatusButton"></span>
+                        </button>
+                    </div>
+                    <a id="modalTaskFullView" href="#" 
+                       class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                        Open Full View
+                    </a>
                 </div>
-                <a id="modalTaskFullView" href="#" class="text-sm px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-150">
-                    Open Full View
-                </a>
             </div>
         </div>
     </div>
@@ -657,20 +741,30 @@ function openTaskModal(taskId) {
             document.getElementById('modalTaskSubject').textContent = task.subject;
             document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
             
-            // Priority
-            const prioritySpan = document.getElementById('modalTaskPriority');
-            prioritySpan.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
-            prioritySpan.className = `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-green-100 text-green-800'
+            // Owner Info (for admin view)
+            {% if current_user.role == 'admin' and show_all %}
+            const ownerInitials = document.getElementById('modalTaskOwnerInitials');
+            ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
+            document.getElementById('modalTaskOwner').textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
+            {% endif %}
+            
+            // Priority Indicator
+            const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
+            priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                task.priority === 'high' ? 'bg-red-100 text-red-700' :
+                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
             }`;
             
+            // Priority
+            const priorityText = document.getElementById('modalTaskPriority');
+            priorityText.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+            
             // Status
-            const statusSpan = document.getElementById('modalTaskStatus');
-            statusSpan.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
-            statusSpan.className = `inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                task.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+            const statusText = document.getElementById('modalTaskStatus');
+            statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
+            statusText.className = `text-sm font-medium ${
+                task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
             }`;
             
             // Due Date
@@ -689,12 +783,23 @@ function openTaskModal(taskId) {
             } else {
                 dueDateText = `Due in ${diffDays} days`;
             }
-            document.getElementById('modalTaskDueDate').textContent = dueDateText;
             
-            // Add actual due date
             const options = { weekday: 'short', month: 'short', day: 'numeric' };
-            document.getElementById('modalTaskDueActual').textContent = dueDate.toLocaleDateString('en-US', options);
-
+            const formattedDate = dueDate.toLocaleDateString('en-US', options);
+            document.getElementById('modalTaskHeaderDueDate').textContent = `${dueDateText}`;
+            document.getElementById('modalTaskDueDate').textContent = formattedDate;
+            
+            // Scheduled Time
+            const scheduledContainer = document.getElementById('modalTaskScheduledContainer');
+            const scheduledTimeText = document.getElementById('modalTaskScheduledTime');
+            if (task.scheduled_time) {
+                const scheduledTime = new Date(task.scheduled_time);
+                scheduledTimeText.textContent = scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                scheduledContainer.classList.remove('hidden');
+            } else {
+                scheduledContainer.classList.add('hidden');
+            }
+            
             // Type and Subtype
             document.getElementById('modalTaskType').textContent = task.task_type.name;
             document.getElementById('modalTaskSubtype').textContent = task.task_subtype.name;
