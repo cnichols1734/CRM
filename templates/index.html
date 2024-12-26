@@ -205,6 +205,7 @@ function clearSort() {
             transform: scaleY(1);
             opacity: 1;
             max-height: 1000px; /* Large enough to fit content */
+            overflow: visible; /* Allow dropdowns to extend beyond */
         }
         
         /* Filter tag animations */
@@ -221,6 +222,11 @@ function clearSort() {
             opacity: 0;
             transform: scale(0.9);
             pointer-events: none;
+        }
+
+        /* Tom Select dropdown styles */
+        .ts-dropdown {
+            z-index: 100;
         }
     </style>
 
@@ -245,7 +251,7 @@ function clearSort() {
                     <!-- Contact Owner Filter -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Contact Owner</label>
-                        <select id="ownerFilter" multiple placeholder="Select owners..." class="w-full">
+                        <select id="ownerFilter" multiple placeholder="Select owners..." class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             {% for owner in all_owners %}
                                 <option value="{{ owner.id }}">{{ owner.first_name }} {{ owner.last_name }}</option>
                             {% endfor %}
@@ -256,7 +262,7 @@ function clearSort() {
                     <!-- Groups Filter -->
                     <div {% if not (current_user.role == 'admin' and show_all) %}class="md:col-span-1"{% endif %}>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Groups</label>
-                        <select id="groupFilter" multiple placeholder="Select groups..." class="w-full">
+                        <select id="groupFilter" multiple placeholder="Select groups..." class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
                             {% for group in all_groups %}
                                 <option value="{{ group.id }}">{{ group.name }}</option>
                             {% endfor %}
@@ -271,7 +277,7 @@ function clearSort() {
                                 type="text" 
                                 id="zipFilter"
                                 placeholder="Enter zip codes"
-                                class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
                             >
                             <p class="mt-1 text-xs text-gray-500">Separate multiple zip codes with commas</p>
                         </div>
@@ -282,7 +288,7 @@ function clearSort() {
                         <label class="block text-sm font-medium text-gray-700 mb-1">Commission Range</label>
                         <select 
                             id="commissionFilter"
-                            class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
                         >
                             <option value="">All ranges</option>
                             <option value="0-5000">$0 - $5,000</option>
@@ -292,17 +298,14 @@ function clearSort() {
                     </div>
                 </div>
 
-                <!-- Active Filters Display -->
-                <div id="activeFilters" class="hidden pt-4 border-t">
-                    <h4 class="text-sm font-medium text-gray-700 mb-2">Active Filters</h4>
-                    <div class="flex flex-wrap gap-2" id="activeFilterTags"></div>
-                </div>
-
-                <!-- Apply Filters Button -->
-                <div class="flex justify-end pt-4 border-t">
+                <!-- Combined Active Filters and Apply Button Section -->
+                <div class="flex items-center justify-end pt-4 border-t">
+                    <div id="activeFilters" class="flex-grow mr-auto">
+                        <div class="flex flex-wrap gap-2" id="activeFilterTags"></div>
+                    </div>
                     <button 
                         type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0"
                     >
                         Apply Filters
                     </button>
@@ -349,6 +352,30 @@ function clearSort() {
         }
     });
     {% endif %}
+
+    // Initialize Tom Select for commission range
+    let commissionSelect = new TomSelect('#commissionFilter', {
+        plugins: ['remove_button'],
+        maxItems: 1,
+        valueField: 'value',
+        labelField: 'text',
+        searchField: ['text'],
+        create: false,
+        onItemAdd: function() {
+            updateActiveFilters();
+        },
+        onItemRemove: function() {
+            updateActiveFilters();
+        }
+    });
+
+    // Add Tom Select style to zip codes input
+    const zipInput = document.getElementById('zipFilter');
+    if (zipInput) {
+        zipInput.classList.add('ts-control');
+        zipInput.style.padding = '8px 12px';
+        zipInput.style.minHeight = '36px';
+    }
 
     function toggleFilters() {
         const filterPanel = document.getElementById('filterPanel');
@@ -444,28 +471,25 @@ function clearSort() {
             
             // Show/hide active filters section with animation
             if (activeFilters.length > 0) {
-                activeFiltersSection.classList.remove('hidden');
                 activeFiltersCount.textContent = activeFilters.length;
                 activeFiltersCount.classList.remove('hidden');
+                activeFiltersSection.style.width = 'auto';
+                activeFiltersSection.style.marginRight = '1rem';
             } else {
-                // Add fade-out animation for the section
-                activeFiltersSection.style.opacity = '0';
-                setTimeout(() => {
-                    activeFiltersSection.classList.add('hidden');
-                    activeFiltersSection.style.opacity = '';
-                }, 200);
                 activeFiltersCount.classList.add('hidden');
+                activeFiltersSection.style.width = '0';
+                activeFiltersSection.style.marginRight = '0';
             }
         }, 200); // Match the CSS transition duration
     }
 
     function createFilterTag(label, value, onRemove) {
         const tag = document.createElement('div');
-        tag.className = 'filter-tag inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700 border border-blue-200';
+        tag.className = 'filter-tag inline-flex items-center px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 border border-gray-200';
         tag.innerHTML = `
             <span class="font-medium mr-1">${label}:</span>
             <span class="mr-2">${value}</span>
-            <button type="button" class="text-blue-500 hover:text-blue-700 focus:outline-none">
+            <button type="button" class="text-gray-500 hover:text-gray-700 focus:outline-none">
                 <i class="fas fa-times"></i>
             </button>
         `;
