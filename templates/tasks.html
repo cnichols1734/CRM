@@ -68,6 +68,13 @@
                     <div class="flex items-start">
                         <!-- Left Side: Priority and Status -->
                         <div class="flex items-center space-x-3">
+                            <!-- Status Checkbox -->
+                            <div class="flex items-center">
+                                <input type="checkbox"
+                                       {% if task.status == 'completed' %}checked{% endif %}
+                                       onchange="quickUpdateStatus({{ task.id }}, this.checked)"
+                                       class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            </div>
                             <!-- Priority -->
                             <div class="relative">
                                 <button onclick="togglePriorityMenu({{ task.id }})"
@@ -727,7 +734,15 @@ function openContactModal(contactId) {
         document.getElementById('modalContactInitials').textContent = `${contact.first_name[0]}${contact.last_name[0]}`;
         document.getElementById('modalContactEmail').textContent = contact.email || 'Not provided';
         document.getElementById('modalContactPhone').textContent = contact.phone || 'Not provided';
-        document.getElementById('modalContactAddress').textContent = contact.address || 'Not provided';
+        
+        // Address - Updated to match view_task.html implementation
+        const addressParts = [];
+        if (contact.street_address) addressParts.push(contact.street_address);
+        if (contact.city) addressParts.push(contact.city);
+        if (contact.state) addressParts.push(contact.state);
+        if (contact.zip_code) addressParts.push(contact.zip_code);
+        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'Not provided';
+        
         document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes';
         document.getElementById('modalContactCommission').textContent = contact.potential_commission ? `$${contact.potential_commission}` : 'Not set';
 
