@@ -58,12 +58,12 @@ def tasks():
     ).all()
 
     # Get current time in user's timezone
-    now = datetime.now(user_tz).date()
+    now = datetime.now(user_tz)
 
-    # Convert task due_dates to user's timezone
+    # Convert task due_dates and scheduled_times to user's timezone
     for task in tasks:
         if isinstance(task.due_date, datetime):
-            task.due_date = convert_to_local(task.due_date, user_tz).date()
+            task.due_date = convert_to_local(task.due_date, user_tz)
         if task.scheduled_time:
             task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 

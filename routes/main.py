@@ -159,8 +159,9 @@ def dashboard():
     for task in upcoming_tasks:
         if isinstance(task.due_date, datetime):
             # Convert UTC to user's timezone
-            local_due_date = task.due_date.replace(tzinfo=timezone.utc).astimezone(user_tz)
-            task.due_date = local_due_date.date()
+            task.due_date = task.due_date.replace(tzinfo=timezone.utc).astimezone(user_tz)
+        if task.scheduled_time:
+            task.scheduled_time = task.scheduled_time.replace(tzinfo=timezone.utc).astimezone(user_tz)
 
     return render_template('dashboard.html',
                          show_all=show_all,
@@ -170,7 +171,7 @@ def dashboard():
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
-                         now=now.date())
+                         now=now)
 
 @main_bp.route('/marketing')
 @login_required
