@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from models import Contact, ContactGroup, Task, User
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import pytz
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
@@ -131,20 +132,35 @@ def dashboard():
                 'count': contact_count
             })
 
-    now = datetime.now()
+    # Get user's timezone (default to 'America/Chicago' if not set)
+    user_tz = pytz.timezone('America/Chicago')
+    
+    # Get current time in user's timezone
+    now = datetime.now(user_tz)
     seven_days = now + timedelta(days=7)
+    
+    # Convert to UTC for database query
+    utc_now = now.astimezone(timezone.utc)
+    utc_seven_days = seven_days.astimezone(timezone.utc)
 
     if current_user.role == 'admin' and show_all:
         upcoming_tasks = Task.query.filter(
-            Task.due_date.between(now, seven_days),
+            Task.due_date.between(utc_now, utc_seven_days),
             Task.status != 'completed'
         ).order_by(Task.due_date.asc()).limit(5).all()
     else:
         upcoming_tasks = Task.query.filter(
             Task.assigned_to_id == current_user.id,
-            Task.due_date.between(now, seven_days),
+            Task.due_date.between(utc_now, utc_seven_days),
             Task.status != 'completed'
         ).order_by(Task.due_date.asc()).limit(5).all()
+
+    # Convert task due_dates to user's timezone
+    for task in upcoming_tasks:
+        if isinstance(task.due_date, datetime):
+            # Convert UTC to user's timezone
+            local_due_date = task.due_date.replace(tzinfo=timezone.utc).astimezone(user_tz)
+            task.due_date = local_due_date.date()
 
     return render_template('dashboard.html',
                          show_all=show_all,
@@ -154,7 +170,7 @@ def dashboard():
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
-                         now=now)
+                         now=now.date())
 
 @main_bp.route('/marketing')
 @login_required

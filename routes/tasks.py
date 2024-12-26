@@ -1,17 +1,39 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from models import db, Task, Contact, TaskType, TaskSubtype, User
-from datetime import datetime
+from datetime import datetime, timezone, time
+import pytz
 from sqlalchemy.orm import joinedload
 from sqlalchemy import case
 
 tasks_bp = Blueprint('tasks', __name__)
+
+def get_user_timezone():
+    """Helper function to get user's timezone"""
+    return pytz.timezone('America/Chicago')
+
+def convert_to_utc(dt, user_tz=None):
+    """Helper function to convert datetime to UTC"""
+    if not user_tz:
+        user_tz = get_user_timezone()
+    if not dt.tzinfo:
+        dt = user_tz.localize(dt)
+    return dt.astimezone(timezone.utc)
+
+def convert_to_local(dt, user_tz=None):
+    """Helper function to convert datetime from UTC to local time"""
+    if not user_tz:
+        user_tz = get_user_timezone()
+    if not dt.tzinfo:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(user_tz)
 
 @tasks_bp.route('/tasks')
 @login_required
 def tasks():
     view = request.args.get('view', 'my')
     status_filter = request.args.get('status', 'pending')
+    user_tz = get_user_timezone()
 
     query = Task.query.options(
         joinedload(Task.contact),
@@ -35,16 +57,21 @@ def tasks():
         )
     ).all()
 
-    # Convert task due_dates to date objects if they're datetime objects
+    # Get current time in user's timezone
+    now = datetime.now(user_tz).date()
+
+    # Convert task due_dates to user's timezone
     for task in tasks:
         if isinstance(task.due_date, datetime):
-            task.due_date = task.due_date.date()
+            task.due_date = convert_to_local(task.due_date, user_tz).date()
+        if task.scheduled_time:
+            task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 
     return render_template('tasks.html', 
                          tasks=tasks, 
                          show_all=current_user.role == 'admin' and view == 'all',
                          current_status=status_filter,
-                         now=datetime.now().date())
+                         now=now)
 
 @tasks_bp.route('/tasks/new', methods=['GET', 'POST'])
 @login_required
@@ -56,6 +83,23 @@ def create_task():
             if not contact:
                 abort(404)
 
+            user_tz = get_user_timezone()
+            
+            # Parse the date in user's timezone
+            due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
+            
+            # If there's a scheduled time, combine it with the date
+            if request.form.get('scheduled_time'):
+                time_str = request.form.get('scheduled_time')
+                scheduled_time = datetime.strptime(time_str, '%H:%M').time()
+                due_date = datetime.combine(due_date.date(), scheduled_time)
+            else:
+                # If no time specified, use end of day
+                due_date = datetime.combine(due_date.date(), time(23, 59, 59))
+            
+            # Convert to UTC for storage
+            utc_due_date = convert_to_utc(due_date, user_tz)
+
             task = Task(
                 contact_id=contact_id,
                 assigned_to_id=request.form.get('assigned_to_id', current_user.id),
@@ -65,16 +109,10 @@ def create_task():
                 subject=request.form.get('subject'),
                 description=request.form.get('description'),
                 priority=request.form.get('priority', 'medium'),
-                due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d'),
-                property_address=request.form.get('property_address')
+                due_date=utc_due_date,
+                property_address=request.form.get('property_address'),
+                scheduled_time=utc_due_date if request.form.get('scheduled_time') else None
             )
-
-            # Handle scheduled time (optional)
-            if request.form.get('scheduled_time'):
-                scheduled_time = datetime.strptime(request.form.get('scheduled_time'), '%H:%M').time()
-                task.scheduled_time = datetime.combine(task.due_date, scheduled_time)
-            else:
-                task.scheduled_time = None
 
             db.session.add(task)
             db.session.commit()
@@ -104,18 +142,30 @@ def edit_task(task_id):
         abort(404)
 
     try:
+        user_tz = get_user_timezone()
+        
         task.subject = request.form.get('subject')
         task.status = request.form.get('status')
         task.priority = request.form.get('priority')
         task.description = request.form.get('description')
         task.property_address = request.form.get('property_address')
-        task.due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
-
+        
+        # Parse the date in user's timezone
+        due_date = datetime.strptime(request.form.get('due_date'), '%Y-%m-%d')
+        
+        # If there's a scheduled time, combine it with the date
         if request.form.get('scheduled_time'):
-            scheduled_time = datetime.strptime(request.form.get('scheduled_time'), '%H:%M').time()
-            task.scheduled_time = datetime.combine(task.due_date, scheduled_time)
+            time_str = request.form.get('scheduled_time')
+            scheduled_time = datetime.strptime(time_str, '%H:%M').time()
+            due_date = datetime.combine(due_date.date(), scheduled_time)
         else:
-            task.scheduled_time = None
+            # If no time specified, use end of day
+            due_date = datetime.combine(due_date.date(), time(23, 59, 59))
+        
+        # Convert to UTC for storage
+        utc_due_date = convert_to_utc(due_date, user_tz)
+        task.due_date = utc_due_date
+        task.scheduled_time = utc_due_date if request.form.get('scheduled_time') else None
 
         new_type_id = request.form.get('type_id')
         new_subtype_id = request.form.get('subtype_id')
@@ -174,6 +224,14 @@ def view_task(task_id):
         joinedload(Task.task_subtype),
         joinedload(Task.assigned_to)
     ).get_or_404(task_id)
+
+    user_tz = get_user_timezone()
+
+    # Convert dates to user's timezone
+    if isinstance(task.due_date, datetime):
+        task.due_date = convert_to_local(task.due_date, user_tz)
+    if task.scheduled_time:
+        task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 
     contacts = Contact.query.all()
     task_types = TaskType.query.all()

@@ -142,7 +142,7 @@
                                     </i>
                                     <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-500{% endif %}">
                                         {% if days_until_due < 0 %}
-                                            Overdue by {{ abs(days_until_due) }} day{{ 's' if abs(days_until_due) != 1 }}
+                                            Overdue by {{ days_until_due|abs }} day{{ 's' if days_until_due|abs != 1 }}
                                         {% elif days_until_due == 0 %}
                                             Due today
                                         {% elif days_until_due == 1 %}
