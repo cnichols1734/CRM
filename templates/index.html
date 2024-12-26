@@ -1184,107 +1184,113 @@ function hideImportStatus() {
 </script>
 
 <!-- Contact Modal -->
-<div id="contactModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
-        <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:mx-auto">
-            <!-- Modal header -->
-            <div class="flex items-center justify-between p-6 border-b">
-                <div class="flex items-center space-x-4">
-                    <div id="modalContactInitials" class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm"></div>
-                    <div>
-                        <h2 class="text-2xl font-semibold text-gray-900" id="modalContactName"></h2>
-                        <p class="text-sm text-gray-500 mt-0.5" id="modalContactRole">Contact</p>
-                    </div>
-                </div>
-                <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 transition-colors">
-                    <i class="fas fa-times text-lg"></i>
-                </button>
-            </div>
-            
-            <!-- Modal content -->
-            <div class="px-6 py-6 space-y-8">
-                <!-- Primary Contact Information -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-6">
-                        <!-- Email -->
+<div id="contactModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[200]">
+    <!-- Modal backdrop -->
+    <div id="modalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[201]"></div>
+    
+    <!-- Modal container -->
+    <div class="fixed inset-0 z-[202] overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between p-6 border-b">
+                    <div class="flex items-center space-x-4">
+                        <div id="modalContactInitials" class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm"></div>
                         <div>
-                            <div class="flex items-center space-x-2 mb-2">
-                                <i class="fas fa-envelope text-gray-400"></i>
-                                <h3 class="text-sm font-medium text-gray-900">Email</h3>
-                            </div>
-                            <p id="modalContactEmail" class="text-gray-600"></p>
-                        </div>
-
-                        <!-- Phone -->
-                        <div>
-                            <div class="flex items-center space-x-2 mb-2">
-                                <i class="fas fa-phone text-gray-400"></i>
-                                <h3 class="text-sm font-medium text-gray-900">Phone</h3>
-                            </div>
-                            <p id="modalContactPhone" class="text-gray-600"></p>
+                            <h2 class="text-2xl font-semibold text-gray-900" id="modalContactName"></h2>
+                            <p class="text-sm text-gray-500 mt-0.5" id="modalContactRole">Contact</p>
                         </div>
                     </div>
-
-                    <div class="space-y-6">
-                        <!-- Potential Commission -->
-                        <div>
-                            <div class="flex items-center space-x-2 mb-2">
-                                <i class="fas fa-dollar-sign text-gray-400"></i>
-                                <h3 class="text-sm font-medium text-gray-900">Potential Commission</h3>
+                    <button onclick="event.stopPropagation(); closeContactModal();" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- Modal content -->
+                <div class="px-6 py-6 space-y-8">
+                    <!-- Primary Contact Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-6">
+                            <!-- Email -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-envelope text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Email</h3>
+                                </div>
+                                <p id="modalContactEmail" class="text-gray-600"></p>
                             </div>
-                            <p id="modalContactCommission" class="text-gray-600"></p>
+
+                            <!-- Phone -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-phone text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Phone</h3>
+                                </div>
+                                <p id="modalContactPhone" class="text-gray-600"></p>
+                            </div>
                         </div>
 
-                        <!-- Created Date -->
-                        <div>
-                            <div class="flex items-center space-x-2 mb-2">
-                                <i class="fas fa-calendar text-gray-400"></i>
-                                <h3 class="text-sm font-medium text-gray-900">Created</h3>
+                        <div class="space-y-6">
+                            <!-- Potential Commission -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-dollar-sign text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Potential Commission</h3>
+                                </div>
+                                <p id="modalContactCommission" class="text-gray-600"></p>
                             </div>
-                            <p id="modalContactCreated" class="text-gray-600"></p>
+
+                            <!-- Created Date -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-calendar text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Created</h3>
+                                </div>
+                                <p id="modalContactCreated" class="text-gray-600"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-map-marker-alt text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Address</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <p id="modalContactAddress" class="text-gray-600"></p>
+                        </div>
+                    </div>
+
+                    <!-- Groups -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-tags text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Groups</h3>
+                        </div>
+                        <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-sticky-note text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Notes</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <p id="modalContactNotes" class="text-gray-600 whitespace-pre-line"></p>
                         </div>
                     </div>
                 </div>
-
-                <!-- Address -->
-                <div class="pt-2">
-                    <div class="flex items-center space-x-2 mb-3">
-                        <i class="fas fa-map-marker-alt text-gray-400"></i>
-                        <h3 class="text-sm font-medium text-gray-900">Address</h3>
-                    </div>
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <p id="modalContactAddress" class="text-gray-600"></p>
-                    </div>
+                
+                <!-- Modal footer -->
+                <div class="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-end">
+                    <a id="modalContactFullView" href="#" 
+                       class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                        <i class="fas fa-external-link-alt mr-2"></i>
+                        Open Full View
+                    </a>
                 </div>
-
-                <!-- Groups -->
-                <div class="pt-2">
-                    <div class="flex items-center space-x-2 mb-3">
-                        <i class="fas fa-tags text-gray-400"></i>
-                        <h3 class="text-sm font-medium text-gray-900">Groups</h3>
-                    </div>
-                    <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
-                </div>
-
-                <!-- Notes -->
-                <div class="pt-2">
-                    <div class="flex items-center space-x-2 mb-3">
-                        <i class="fas fa-sticky-note text-gray-400"></i>
-                        <h3 class="text-sm font-medium text-gray-900">Notes</h3>
-                    </div>
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <p id="modalContactNotes" class="text-gray-600 whitespace-pre-line"></p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Modal footer -->
-            <div class="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-end">
-                <a id="modalContactFullView" href="#" 
-                   class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
-                    <i class="fas fa-external-link-alt mr-2"></i>
-                    Open Full View
-                </a>
             </div>
         </div>
     </div>
@@ -1296,109 +1302,135 @@ let currentContactId = null;
 function openContactModal(contactId) {
     currentContactId = contactId;
     
-    // Fetch contact details
     fetch(`/contact/${contactId}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-        .then(response => response.json())
-        .then(contact => {
-            // Update modal content
-            document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
-            document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
-            
-            // Set initials with color
-            const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
-            const initialsDiv = document.getElementById('modalContactInitials');
-            initialsDiv.textContent = initials;
-            
-            // Color based on first initial
-            const colorClasses = {
-                'ABCDE': 'bg-blue-100 text-blue-800',
-                'FGHIJ': 'bg-green-100 text-green-800',
-                'KLMNO': 'bg-yellow-100 text-yellow-800',
-                'PQRST': 'bg-red-100 text-red-800',
-                'UVWXYZ': 'bg-purple-100 text-purple-800'
-            };
-            
-            let colorClass = 'bg-gray-100 text-gray-800';
-            for (const [letters, className] of Object.entries(colorClasses)) {
-                if (letters.includes(initials[0].toUpperCase())) {
-                    colorClass = className;
-                    break;
-                }
+    .then(response => response.json())
+    .then(contact => {
+        // Update modal content
+        document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
+        document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
+        
+        // Set initials with color
+        const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
+        const initialsDiv = document.getElementById('modalContactInitials');
+        initialsDiv.textContent = initials;
+        
+        // Color based on first initial
+        const colorClasses = {
+            'ABCDE': 'bg-blue-100 text-blue-800',
+            'FGHIJ': 'bg-green-100 text-green-800',
+            'KLMNO': 'bg-yellow-100 text-yellow-800',
+            'PQRST': 'bg-red-100 text-red-800',
+            'UVWXYZ': 'bg-purple-100 text-purple-800'
+        };
+        
+        let colorClass = 'bg-gray-100 text-gray-800';
+        for (const [letters, className] of Object.entries(colorClasses)) {
+            if (letters.includes(initials[0].toUpperCase())) {
+                colorClass = className;
+                break;
             }
-            initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
-            
-            // Contact details
-            document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
-            document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
-            
-            // Address
-            const addressParts = [];
-            if (contact.street_address) addressParts.push(contact.street_address);
-            if (contact.city) addressParts.push(contact.city);
-            if (contact.state) addressParts.push(contact.state);
-            if (contact.zip_code) addressParts.push(contact.zip_code);
-            document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
-            
-            // Groups
-            const groupsContainer = document.getElementById('modalContactGroups');
-            groupsContainer.innerHTML = '';
-            if (contact.groups && contact.groups.length > 0) {
-                contact.groups.forEach(group => {
-                    const span = document.createElement('span');
-                    span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
-                    span.textContent = group.name;
-                    groupsContainer.appendChild(span);
-                });
-            } else {
+        }
+        initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
+        
+        // Contact details
+        document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
+        document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
+        
+        // Address
+        const addressParts = [];
+        if (contact.street_address) addressParts.push(contact.street_address);
+        if (contact.city) addressParts.push(contact.city);
+        if (contact.state) addressParts.push(contact.state);
+        if (contact.zip_code) addressParts.push(contact.zip_code);
+        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
+        
+        // Groups
+        const groupsContainer = document.getElementById('modalContactGroups');
+        groupsContainer.innerHTML = '';
+        if (contact.groups && contact.groups.length > 0) {
+            contact.groups.forEach(group => {
                 const span = document.createElement('span');
-                span.className = 'text-gray-500 italic';
-                span.textContent = 'No groups assigned';
+                span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
+                span.textContent = group.name;
                 groupsContainer.appendChild(span);
-            }
-            
-            // Notes
-            document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
-            
-            // Commission
-            document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
-                `$${parseFloat(contact.potential_commission).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 
-                '$0.00';
-            
-            // Created date
-            const createdDate = new Date(contact.created_at);
-            document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
             });
-            
-            // Show modal with animation
-            const modal = document.getElementById('contactModal');
-            modal.classList.remove('hidden');
-            // Trigger reflow
-            modal.offsetHeight;
-            modal.querySelector('.relative').classList.add('transform', 'translate-y-0', 'opacity-100');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading contact details');
+        } else {
+            const span = document.createElement('span');
+            span.className = 'text-gray-500 italic';
+            span.textContent = 'No groups assigned';
+            groupsContainer.appendChild(span);
+        }
+        
+        // Notes
+        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
+        
+        // Commission
+        document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
+            `$${parseFloat(contact.potential_commission).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 
+            '$0.00';
+        
+        // Created date
+        const createdDate = new Date(contact.created_at);
+        document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
-}
-
-function editContactFromModal() {
-    if (currentContactId) {
-        window.location.href = `/contacts/${currentContactId}/edit`;
-    }
+        
+        // Show modal with animation
+        const modal = document.getElementById('contactModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Enable pointer events and show modal
+        document.body.style.overflow = 'hidden';
+        modal.classList.remove('pointer-events-none');
+        modal.classList.add('pointer-events-auto');
+        
+        // Add click outside handler
+        const handleClickOutside = (event) => {
+            if (!modalContent.contains(event.target)) {
+                closeContactModal();
+                document.removeEventListener('click', handleClickOutside);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 0);
+        
+        // Trigger reflow
+        modal.offsetHeight;
+        
+        // Add the fade-in classes
+        modal.classList.add('opacity-100');
+        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading contact details');
+    });
 }
 
 function closeContactModal() {
     const modal = document.getElementById('contactModal');
-    modal.classList.add('hidden');
-    currentContactId = null;
+    const modalContent = modal.querySelector('.relative');
+    
+    // Start the fade-out animation
+    modal.classList.remove('opacity-100');
+    modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+    modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+    
+    // After the animation completes, disable pointer events
+    setTimeout(() => {
+        document.body.style.overflow = '';
+        modal.classList.remove('pointer-events-auto');
+        modal.classList.add('pointer-events-none');
+        currentContactId = null;
+    }, 300);
 }
 
 function deleteContactFromModal() {
@@ -1419,7 +1451,7 @@ function deleteContactFromModal() {
     }
 }
 
-// Close modal when clicking outside or pressing Escape
+// Close modal when pressing Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
         closeContactModal();
@@ -1430,9 +1462,12 @@ document.addEventListener('click', function(event) {
     const modal = document.getElementById('contactModal');
     const modalContent = modal.querySelector('.relative');
     
-    if (!modal.classList.contains('hidden') && 
-        !modalContent.contains(event.target)) {
-        closeContactModal();
+    if (!modal.classList.contains('pointer-events-none')) {
+        // Check if click is outside modal content
+        const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !modalContent.contains(event.target);
+        if (clickedOnBackdrop) {
+            closeContactModal();
+        }
     }
 });
 </script>
@@ -1478,6 +1513,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
             }, 300);
+        });
+    }
+
+    // Add backdrop click handler
+    const backdrop = document.getElementById('modalBackdrop');
+    if (backdrop) {
+        backdrop.addEventListener('click', function(event) {
+            if (!event.target.closest('.relative')) {
+                closeContactModal();
+            }
         });
     }
 });
