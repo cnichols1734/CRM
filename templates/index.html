@@ -992,8 +992,8 @@ function clearSort() {
             </thead>
             <tbody class="divide-y text-sm">
                 {% for contact in contacts %}
-                <tr class="hover:bg-gray-50 h-16">
-                    <td class="px-4">
+                <tr class="hover:bg-gray-50 h-16 cursor-pointer" onclick="openContactModal('{{ contact.id }}')">
+                    <td class="px-4" onclick="event.stopPropagation()">
                         <input type="checkbox" class="rounded">
                     </td>
                     {% if current_user.role == 'admin' and show_all %}
@@ -1027,14 +1027,13 @@ function clearSort() {
                             >
                                 {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                             </div>
-                            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
-                               class="text-blue-600 hover:text-blue-800 text-sm overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[180px]">
+                            <span class="text-gray-900 text-sm overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[180px]">
                                 {{ contact.first_name }} {{ contact.last_name }}
-                            </a>
+                            </span>
                         </div>
                     </td>
                     <td class="px-4 border-l">
-                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-blue-600">
+                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-gray-900">
                             {{ contact.email or '--' }}
                         </div>
                     </td>
