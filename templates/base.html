@@ -16,11 +16,23 @@
         body {
             font-family: "Lexend Deca", Helvetica, Arial, sans-serif;
         }
+        :root {
+            --sidebar-width: 4rem;
+            --sidebar-expanded-width: 11rem;
+        }
         .toast-message {
             transition: opacity 0.5s ease-out;
         }
         .toast-message.fade-out {
             opacity: 0;
+        }
+        /* Add sidebar specific styles */
+        #sidebar .sidebar-link {
+            padding: 0.625rem 0.75rem;
+        }
+        #sidebar .sidebar-text {
+            margin-left: 0.75rem;
+            font-size: 0.875rem;
         }
         @media (max-width: 768px) {
             .mobile-nav {
@@ -59,25 +71,29 @@
             }
         }
     </style>
+    <!-- Initialize sidebar state immediately before DOM loads -->
+    <script>
+        (function() {
+            const isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
+            if (isExpanded) {
+                document.documentElement.style.setProperty('--sidebar-width', 'var(--sidebar-expanded-width)');
+                document.documentElement.classList.add('sidebar-expanded');
+                // Prevent FOUC by setting initial styles
+                const style = document.createElement('style');
+                style.setAttribute('data-initial-sidebar', '');
+                style.textContent = `
+                    #sidebar { width: var(--sidebar-expanded-width) !important; }
+                    #mainContent { margin-left: var(--sidebar-expanded-width) !important; }
+                `;
+                document.head.appendChild(style);
+            }
+        })();
+    </script>
 </head>
 <body class="h-screen flex flex-col bg-[#2d3e50]">
 
 <!-- Top Header - Hidden on Mobile -->
-<header class="text-white h-14 items-center justify-between hidden md:flex">
-    <div class="flex items-center space-x-12">
-        <div class="w-16 flex justify-center pl-1.5">  <!-- Added pl-0.5 for slight right shift -->
-            <i class="fas fa-bars h-5 w-5"></i>
-        </div>
-        <div class="relative">
-            <i class="fas fa-search h-4 w-4 absolute left-3 top-2.5 text-gray-400"></i>
-            <input
-                type="text"
-                placeholder="Search"
-                class="bg-[#3d4d63] text-sm rounded pl-9 pr-4 py-1.5 w-64 focus:outline-none"
-            >
-        </div>
-    </div>
-
+<header class="text-white h-14 items-center justify-end hidden md:flex">
     <div class="flex items-center space-x-4 pr-4 relative">
         {% if current_user.is_authenticated %}
             <i class="fas fa-bell h-5 w-5"></i>
@@ -208,11 +224,23 @@
 
 <div class="flex flex-1 overflow-hidden relative">
     <!-- Sidebar - Hidden on Mobile -->
-    <aside class="w-16 flex-col items-center py-4 z-10 hidden md:flex">
+    <aside id="sidebar" class="w-16 transition-all duration-300 ease-in-out flex-col items-center py-4 z-10 hidden md:flex">
+        <!-- Toggle Button -->
+        <div class="w-full flex justify-center mb-8">
+            <button id="sidebarToggle" class="p-2.5 rounded-lg hover:bg-[#3d4d63] text-white">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
         <!-- Dashboard Icon with Tooltip -->
-        <div class="relative group mb-8">
-            <a href="{{ url_for('main.dashboard') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
-                <i class="fas fa-chart-line"></i>
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('main.dashboard') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Dashboard</span>
+                </div>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Dashboard
@@ -220,9 +248,14 @@
         </div>
 
         <!-- Contacts Icon with Tooltip -->
-        <div class="relative group mb-8">
-            <a href="{{ url_for('main.index') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}text-orange-500{% else %}text-white{% endif %}">
-                <i class="fas fa-address-book"></i>
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('main.index') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-address-book"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Contacts</span>
+                </div>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Contacts
@@ -230,9 +263,14 @@
         </div>
         
         <!-- Tasks Icon with Tooltip -->
-        <div class="relative group mb-8">
-            <a href="{{ url_for('tasks.tasks') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
-                <i class="fas fa-tasks"></i>
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('tasks.tasks') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Tasks</span>
+                </div>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Tasks
@@ -240,9 +278,14 @@
         </div>
 
         <!-- Marketing Icon with Tooltip -->
-        <div class="relative group mb-8">
-            <a href="{{ url_for('main.marketing') }}" class="p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
-                <i class="fas fa-bullhorn"></i>
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('main.marketing') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-bullhorn"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Marketing</span>
+                </div>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Marketing
@@ -254,7 +297,7 @@
 
         <!-- User Icon and Dropdown -->
         {% if current_user.is_authenticated %}
-            <div class="relative group">
+            <div class="relative group w-full flex justify-center">
                 <button
                     id="userIcon"
                     class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200"
@@ -331,7 +374,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] pb-14 md:pb-0">
+    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] pb-14 md:pb-0 transition-all duration-300" id="mainContent">
         <div class="content-wrapper">
             {% block content %}{% endblock %}
         </div>
@@ -361,127 +404,172 @@
 <div class="page-transition"></div>
 
 <script>
-    // Initialize mobile menu state
-    function initializeMobileMenu() {
-        const menu = document.getElementById('mobileUserMenu');
-        if (menu) {
-            menu.classList.add('-translate-y-full');
-            menu.classList.add('opacity-0');
-            menu.classList.add('pointer-events-none');
-            document.body.style.overflow = '';
-        }
-    }
-
-    // Call initialization immediately
-    initializeMobileMenu();
-
     document.addEventListener('DOMContentLoaded', function() {
-        initializeMobileMenu();
-        // Store menu state in sessionStorage
-        const mobileMenu = document.getElementById('mobileUserMenu');
-        if (mobileMenu) {
-            // Ensure menu is hidden on page load
-            mobileMenu.classList.add('-translate-y-full');
-            document.body.style.overflow = '';
+        const flashMessages = document.querySelectorAll('.toast-message');
+        const userIcon = document.getElementById('userIcon');
+        const userDropdown = document.getElementById('userDropdown');
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('mainContent');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarTexts = document.querySelectorAll('.sidebar-text');
+        const tooltipLabels = document.querySelectorAll('.tooltip-label');
+        const iconGroups = document.querySelectorAll('aside .group');
+        const contentWrapper = document.querySelector('.content-wrapper');
+        const pageTransition = document.querySelector('.page-transition');
+        const mobileNav = document.querySelector('.mobile-nav');
+        
+        let userDropdownTimeout;
+        let tooltipTimeouts = new Map();
+        let isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
+
+        function applyInitialState() {
+            requestAnimationFrame(() => {
+                // Remove the initial style element if it exists
+                const initialStyle = document.querySelector('style[data-initial-sidebar]');
+                if (initialStyle) {
+                    initialStyle.remove();
+                }
+
+                sidebar.style.transition = 'none';
+                mainContent.style.transition = 'none';
+                sidebarTexts.forEach(text => text.style.transition = 'none');
+                
+                if (isExpanded) {
+                    sidebar.classList.remove('w-16');
+                    sidebar.classList.add('w-44');
+                    mainContent.classList.remove('md:ml-16');
+                    mainContent.classList.add('md:ml-44');
+                    
+                    sidebarTexts.forEach(text => {
+                        text.classList.remove('opacity-0', 'w-0');
+                        text.classList.add('opacity-100');
+                        text.style.width = 'auto';
+                    });
+                    
+                    tooltipLabels.forEach(tooltip => {
+                        tooltip.style.display = 'none';
+                    });
+                }
+                
+                // Force reflow
+                sidebar.offsetHeight;
+                
+                requestAnimationFrame(() => {
+                    sidebar.style.transition = '';
+                    mainContent.style.transition = '';
+                    sidebarTexts.forEach(text => text.style.transition = '');
+                });
+            });
         }
 
-        const userIcon = document.getElementById('userIcon');
-        const dropdown = document.getElementById('userDropdown');
-        let timeoutId;
+        applyInitialState();
 
-        // Show dropdown on hover with delay
-        userIcon.parentElement.addEventListener('mouseenter', function() {
-            timeoutId = setTimeout(() => {
-                dropdown.classList.remove('hidden');
-                // Small delay before showing opacity
-                requestAnimationFrame(() => {
-                    dropdown.classList.add('opacity-100');
+        function toggleSidebar() {
+            isExpanded = !isExpanded;
+            localStorage.setItem('sidebarExpanded', isExpanded);
+            
+            if (isExpanded) {
+                document.documentElement.style.setProperty('--sidebar-width', 'var(--sidebar-expanded-width)');
+                document.documentElement.classList.add('sidebar-expanded');
+                sidebar.classList.remove('w-16');
+                sidebar.classList.add('w-44');
+                mainContent.classList.remove('md:ml-16');
+                mainContent.classList.add('md:ml-44');
+                
+                sidebarTexts.forEach(text => {
+                    text.classList.remove('opacity-0', 'w-0');
+                    text.classList.add('opacity-100');
+                    text.style.width = 'auto';
                 });
-            }, 300); // 300ms delay for opening
-        });
-
-        // Only hide dropdown when mouse leaves both icon and dropdown
-        userIcon.parentElement.addEventListener('mouseleave', function(e) {
-            // Check if we're moving to the dropdown
-            if (!e.relatedTarget || !dropdown.contains(e.relatedTarget)) {
-                clearTimeout(timeoutId);
-                // Increased delay before hiding to allow movement to dropdown
-                setTimeout(() => {
-                    if (!dropdown.matches(':hover')) {
-                        dropdown.classList.remove('opacity-100');
-                        dropdown.classList.add('hidden');
-                    }
-                }, 400); // Increased from 100ms to 400ms
-            }
-        });
-
-        // Add listener for dropdown hover
-        dropdown.addEventListener('mouseenter', function() {
-            clearTimeout(timeoutId);
-            dropdown.classList.remove('hidden');
-            dropdown.classList.add('opacity-100');
-        });
-
-        dropdown.addEventListener('mouseleave', function() {
-            // Added delay when leaving the dropdown as well
-            setTimeout(() => {
-                if (!userIcon.matches(':hover')) {
-                    dropdown.classList.remove('opacity-100');
-                    dropdown.classList.add('hidden');
-                }
-            }, 400); // Same 400ms delay when leaving dropdown
-        });
-
-        // Keep the click functionality as fallback
-        userIcon.addEventListener('click', function(event) {
-            event.stopPropagation();
-            dropdown.classList.toggle('hidden');
-            if (!dropdown.classList.contains('hidden')) {
-                dropdown.classList.add('opacity-100');
+                
+                tooltipLabels.forEach(tooltip => {
+                    tooltip.style.display = 'none';
+                });
             } else {
-                dropdown.classList.remove('opacity-100');
+                document.documentElement.style.setProperty('--sidebar-width', '4rem');
+                document.documentElement.classList.remove('sidebar-expanded');
+                sidebar.classList.remove('w-44');
+                sidebar.classList.add('w-16');
+                mainContent.classList.remove('md:ml-44');
+                mainContent.classList.add('md:ml-16');
+                
+                sidebarTexts.forEach(text => {
+                    text.classList.remove('opacity-100');
+                    text.classList.add('opacity-0', 'w-0');
+                    text.style.width = '0';
+                });
+                
+                tooltipLabels.forEach(tooltip => {
+                    tooltip.style.display = '';
+                });
             }
-        });
+        }
 
-        // Close dropdown when clicking outside
-        document.addEventListener('click', function(event) {
-            if (!dropdown.classList.contains('hidden') &&
-                !dropdown.contains(event.target) &&
-                !userIcon.contains(event.target)) {
-                dropdown.classList.remove('opacity-100');
-                dropdown.classList.add('hidden');
-            }
-        });
+        sidebarToggle.addEventListener('click', toggleSidebar);
 
         // Flash message auto-dismiss
-        const flashMessages = document.querySelectorAll('.toast-message');
-
         flashMessages.forEach(function(message) {
             setTimeout(function() {
                 message.classList.add('fade-out');
-
-                // Remove the message from the DOM after fade-out
                 setTimeout(function() {
                     message.remove();
-                }, 500); // Match the CSS transition time
-            }, 4000); // 4 seconds
+                }, 500);
+            }, 4000);
         });
 
-        // Tooltip functionality
-        const iconGroups = document.querySelectorAll('aside .group');
-        let tooltipTimeouts = new Map();
+        // User dropdown functionality
+        if (userIcon && userDropdown) {
+            userIcon.parentElement.addEventListener('mouseenter', () => {
+                clearTimeout(userDropdownTimeout);
+                userDropdown.classList.remove('hidden');
+                requestAnimationFrame(() => {
+                    userDropdown.classList.add('opacity-100');
+                });
+            });
 
+            userIcon.parentElement.addEventListener('mouseleave', (e) => {
+                if (!e.relatedTarget || !userDropdown.contains(e.relatedTarget)) {
+                    userDropdownTimeout = setTimeout(() => {
+                        if (!userDropdown.matches(':hover')) {
+                            userDropdown.classList.remove('opacity-100');
+                            setTimeout(() => {
+                                userDropdown.classList.add('hidden');
+                            }, 300);
+                        }
+                    }, 200);
+                }
+            });
+
+            userDropdown.addEventListener('mouseenter', () => {
+                clearTimeout(userDropdownTimeout);
+            });
+
+            userDropdown.addEventListener('mouseleave', () => {
+                userDropdownTimeout = setTimeout(() => {
+                    if (!userIcon.matches(':hover')) {
+                        userDropdown.classList.remove('opacity-100');
+                        setTimeout(() => {
+                            userDropdown.classList.add('hidden');
+                        }, 300);
+                    }
+                }, 200);
+            });
+        }
+
+        // Tooltip functionality
         iconGroups.forEach(group => {
             const tooltip = group.querySelector('.tooltip-label');
 
             group.addEventListener('mouseenter', () => {
-                const timeoutId = setTimeout(() => {
-                    tooltip.classList.remove('hidden');
-                    requestAnimationFrame(() => {
-                        tooltip.classList.add('opacity-100');
-                    });
-                }, 500);
-                tooltipTimeouts.set(group, timeoutId);
+                if (!isExpanded) {
+                    const timeoutId = setTimeout(() => {
+                        tooltip.classList.remove('hidden');
+                        requestAnimationFrame(() => {
+                            tooltip.classList.add('opacity-100');
+                        });
+                    }, 500);
+                    tooltipTimeouts.set(group, timeoutId);
+                }
             });
 
             group.addEventListener('mouseleave', () => {
@@ -495,156 +583,25 @@
             });
         });
 
-        // Enhanced mobile navigation handling
-        const contentWrapper = document.querySelector('.content-wrapper');
-        const mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
-        const pageTransition = document.querySelector('.page-transition');
-        const mobileNav = document.querySelector('.mobile-nav');
-        
-        function handlePageTransition(href) {
-            // Prevent default if it's an anchor tag
-            event?.preventDefault();
-            
-            // Don't transition if it's the current page
-            if (window.location.pathname === href || window.location.href === href) {
-                return;
-            }
-
-            // Add transition effects
-            contentWrapper.classList.add('loading');
-            pageTransition.classList.add('active');
-            
-            // Small delay to ensure transition is visible
-            setTimeout(() => {
-                window.location.href = href;
-            }, 100);
-        }
-
-        // Handle mobile navigation clicks specifically
-        mobileNavLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                const href = this.getAttribute('href');
-                handlePageTransition(href);
-            }, true);
-        });
-
-        // Handle all other navigation clicks
-        document.addEventListener('click', function(e) {
-            const link = e.target.closest('a[href]');
-            if (link && 
-                !link.hasAttribute('download') && 
-                !link.getAttribute('href').startsWith('#') && 
-                !link.getAttribute('href').startsWith('javascript:') &&
-                !link.getAttribute('target') &&
-                !link.classList.contains('mobile-nav-link')) { // Exclude mobile nav links
-                
-                e.preventDefault();
-                const href = link.getAttribute('href');
-                handlePageTransition(href);
-            }
-        });
-
-        // Handle browser back/forward buttons
-        window.addEventListener('popstate', function() {
-            handlePageTransition(window.location.href);
-        });
-
-        // Reset transitions on page load
-        window.addEventListener('pageshow', function(event) {
-            contentWrapper.classList.remove('loading');
-            pageTransition.classList.remove('active');
-            mobileNav.style.opacity = '1';
-            
-            if (event.persisted) {
-                // Additional cleanup for back/forward cache
-                document.body.style.overflow = '';
-                const menu = document.getElementById('mobileUserMenu');
-                if (menu) {
-                    hideMobileMenu(menu);
-                }
-            }
-        });
-
-        // Handle page hide
-        window.addEventListener('pagehide', function() {
-            contentWrapper.classList.add('loading');
-            pageTransition.classList.add('active');
-            mobileNav.style.opacity = '0.5';
-        });
-    });
-
-    function toggleMobileUserMenu() {
-        const menu = document.getElementById('mobileUserMenu');
-        if (!menu) return;
-
-        const isHidden = menu.classList.contains('-translate-y-full');
-        
-        if (isHidden) {
-            // Show menu
-            menu.classList.remove('-translate-y-full');
-            menu.classList.remove('opacity-0');
-            menu.classList.remove('pointer-events-none');
-            document.body.style.overflow = 'hidden';
-        } else {
-            // Hide menu
-            hideMobileMenu(menu);
-        }
-    }
-
-    function hideMobileMenu(menu) {
-        if (!menu) menu = document.getElementById('mobileUserMenu');
-        if (!menu) return;
-
-        menu.classList.add('-translate-y-full');
-        menu.classList.add('opacity-0');
-        menu.classList.add('pointer-events-none');
-        document.body.style.overflow = '';
-    }
-
-    // Ensure menu is hidden before any navigation
-    window.addEventListener('beforeunload', function() {
-        const menu = document.getElementById('mobileUserMenu');
-        if (menu) {
-            hideMobileMenu(menu);
-        }
-    });
-
-    // Close mobile menu when clicking outside
-    document.addEventListener('click', function(event) {
-        const menu = document.getElementById('mobileUserMenu');
-        const mobileUserIcon = document.getElementById('mobileUserIcon');
-        
-        if (!menu || !mobileUserIcon) return;
-        
-        if (!menu.classList.contains('-translate-y-full') && // Menu is visible
-            !menu.contains(event.target) && // Click not inside menu
-            event.target !== mobileUserIcon && // Click not on user icon
-            !mobileUserIcon.contains(event.target)) { // Click not inside user icon
-            hideMobileMenu(menu);
-        }
-    });
-
-    // Close mobile menu on escape key
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const menu = document.getElementById('mobileUserMenu');
-            if (menu && !menu.classList.contains('-translate-y-full')) {
-                hideMobileMenu(menu);
-            }
-        }
-    });
-
-    // Close mobile menu before page navigation
-    document.addEventListener('click', function(event) {
-        const isNavigationLink = event.target.closest('a[href]');
-        if (isNavigationLink) {
+        // Mobile menu functionality
+        function initializeMobileMenu() {
             const menu = document.getElementById('mobileUserMenu');
             if (menu) {
-                hideMobileMenu(menu);
+                menu.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+                document.body.style.overflow = '';
             }
         }
+
+        function hideMobileMenu(menu) {
+            if (!menu) menu = document.getElementById('mobileUserMenu');
+            if (!menu) return;
+
+            menu.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
+            document.body.style.overflow = '';
+        }
+
+        // Initialize mobile menu
+        initializeMobileMenu();
     });
 </script>
 
