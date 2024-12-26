@@ -1,289 +1,290 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-6 max-w-4xl mx-auto">
-    <!-- Back button -->
-    <div class="flex items-center mb-6">
-        <a href="{{ url_for('tasks.tasks') }}" class="flex items-center text-gray-600 hover:text-gray-900">
-            <i class="fas fa-arrow-left mr-2"></i>
-            Back to Tasks
-        </a>
-    </div>
-
-    <!-- Header -->
-    <div class="flex justify-between items-start mb-6">
-        <div>
-            <h1 id="viewTaskSubject" class="text-2xl font-semibold text-gray-900">{{ task.subject }}</h1>
-            <div id="editTaskSubject" class="hidden">
-                <input type="text"
-                       name="subject"
-                       value="{{ task.subject }}"
-                       class="text-2xl font-semibold w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300"
-                       placeholder="Task Subject">
-            </div>
-            <p class="mt-1 text-sm text-gray-500">Created {{ task.created_at.strftime('%B %d, %Y') }} by {{ task.created_by.first_name }} {{ task.created_by.last_name }}</p>
-        </div>
-        <div class="flex space-x-3">
-            <button id="editButton" onclick="toggleEditMode()"
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-                <i class="fas fa-edit mr-2"></i>
-                Edit
-            </button>
-            <button id="saveButton" onclick="saveTask()"
-                    class="hidden inline-flex items-center px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
-                Save Changes
-            </button>
-            <button id="cancelButton" onclick="cancelEdit()"
-                    class="hidden inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                Cancel
-            </button>
-            <button onclick="deleteTask({{ task.id }})"
-                    class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-red-700">
-                <i class="fas fa-trash mr-2"></i>
-                Delete
-            </button>
-        </div>
-    </div>
-
-    <!-- Task Details -->
-    <div class="bg-white rounded-lg border shadow-sm">
-        <!-- View Mode -->
-        <div id="viewTaskInfo">
-            <!-- Status Section -->
-            <div class="p-6 border-b">
+<div class="min-h-full bg-gray-50">
+    <!-- Back button and header -->
+    <div class="bg-white border-b sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-4 flex items-center justify-between">
+                <a href="{{ url_for('tasks.tasks') }}" class="flex items-center text-gray-600 hover:text-gray-900">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Back to Tasks
+                </a>
                 <div class="flex items-center space-x-3">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                        {% if task.status == 'completed' %}
-                            bg-green-100 text-green-800
-                        {% else %}
-                            bg-yellow-100 text-yellow-800
-                        {% endif %}">
-                        <span class="h-2 w-2 mr-2 rounded-full
-                            {% if task.status == 'completed' %}bg-green-400{% else %}bg-yellow-400{% endif %}">
-                        </span>
-                        {{ task.status|capitalize }}
-                    </span>
-
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                        {% if task.priority == 'high' %}
-                            bg-red-100 text-red-800
-                        {% elif task.priority == 'medium' %}
-                            bg-yellow-100 text-yellow-800
-                        {% else %}
-                            bg-green-100 text-green-800
-                        {% endif %}">
-                        {{ task.priority|capitalize }} Priority
-                    </span>
-                </div>
-            </div>
-
-            <!-- Main Info Grid -->
-            <div class="grid grid-cols-2 gap-6 p-6">
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Task Type</h3>
-                    <p class="text-gray-900">{{ task.task_type.name }} - {{ task.task_subtype.name }}</p>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Due Date</h3>
-                    <p class="text-gray-900">{{ task.due_date.strftime('%B %d, %Y') }}</p>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Related Contact</h3>
-                    <a href="#" 
-                       onclick="openContactModal({{ task.contact.id }}); return false;"
-                       class="text-blue-600 hover:text-blue-800">
-                        {{ task.contact.first_name }} {{ task.contact.last_name }}
-                    </a>
-                </div>
-
-                {% if task.scheduled_time %}
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Scheduled Time</h3>
-                    <p class="text-gray-900">{{ task.scheduled_time.strftime('%I:%M %p') }}</p>
-                </div>
-                {% endif %}
-
-                {% if task.property_address %}
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Property Address</h3>
-                    <p class="text-gray-900">{{ task.property_address }}</p>
-                </div>
-                {% endif %}
-
-                {% if task.description %}
-                <div class="col-span-2">
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Description</h3>
-                    <p class="text-gray-900 whitespace-pre-line">{{ task.description }}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Edit Mode -->
-        <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="editTaskForm" class="hidden">
-            <!-- Status Section -->
-            <div class="p-6 border-b">
-                <div class="flex items-center space-x-4">
-                    <div>
-                        <label class="text-sm font-medium text-gray-500 mb-1">Status</label>
-                        <select name="status" class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                            <option value="pending" {% if task.status == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="completed" {% if task.status == 'completed' %}selected{% endif %}>Completed</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-sm font-medium text-gray-500 mb-1">Priority</label>
-                        <select name="priority" class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                            <option value="low" {% if task.priority == 'low' %}selected{% endif %}>Low</option>
-                            <option value="medium" {% if task.priority == 'medium' %}selected{% endif %}>Medium</option>
-                            <option value="high" {% if task.priority == 'high' %}selected{% endif %}>High</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Info Grid -->
-            <div class="grid grid-cols-2 gap-6 p-6">
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Task Type</h3>
-                    <select name="task_type_id" onchange="updateSubtypes(this.value)"
-                            class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                        {% for type in task_types %}
-                        <option value="{{ type.id }}" {% if task.task_type.id == type.id %}selected{% endif %}>
-                            {{ type.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Task Subtype</h3>
-                    <select name="task_subtype_id" id="subtype_id"
-                            class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                        {% for subtype in task_subtypes %}
-                        <option value="{{ subtype.id }}" {% if task.task_subtype.id == subtype.id %}selected{% endif %}>
-                            {{ subtype.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Due Date</h3>
-                    <input type="date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}"
-                           class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Related Contact</h3>
-                    <select name="contact_id" class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                        {% for contact in contacts %}
-                        <option value="{{ contact.id }}" {% if task.contact.id == contact.id %}selected{% endif %}>
-                            {{ contact.first_name }} {{ contact.last_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Scheduled Time</h3>
-                    <input type="time" name="scheduled_time"
-                           value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}"
-                           class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                </div>
-
-                <div>
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Property Address</h3>
-                    <input type="text" name="property_address" value="{{ task.property_address or '' }}"
-                           class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">
-                </div>
-
-                <div class="col-span-2">
-                    <h3 class="text-sm font-medium text-gray-500 mb-1">Description</h3>
-                    <textarea name="description" rows="4"
-                              class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2">{{ task.description or '' }}</textarea>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
-<!-- Contact Modal -->
-<div id="contactModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full">
-            <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                <div class="flex items-center space-x-4">
-                    <div id="modalContactInitials" class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium"></div>
-                    <h3 class="text-lg font-medium text-gray-900" id="modalContactName"></h3>
-                </div>
-                <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <!-- Modal content -->
-            <div class="px-6 py-4 space-y-4">
-                <!-- Contact Information -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Email -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                        <p id="modalContactEmail" class="text-gray-900"></p>
-                    </div>
-
-                    <!-- Phone -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
-                        <p id="modalContactPhone" class="text-gray-900"></p>
-                    </div>
-
-                    <!-- Address -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                        <p id="modalContactAddress" class="text-gray-900"></p>
-                    </div>
-
-                    <!-- Groups -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-2">Groups</h3>
-                        <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
-                    </div>
-
-                    <!-- Notes -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
-                        <p id="modalContactNotes" class="text-gray-900 whitespace-pre-line bg-gray-50 rounded-md p-4"></p>
-                    </div>
-
-                    <!-- Potential Commission -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission</h3>
-                        <p id="modalContactCommission" class="text-gray-900"></p>
-                    </div>
-
-                    <!-- Created Date -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Created</h3>
-                        <p id="modalContactCreated" class="text-gray-900"></p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Modal footer -->
-            <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-lg flex justify-between">
-                <div class="flex items-center space-x-4">
-                    <button onclick="deleteContactFromModal()" class="text-sm px-4 py-2 border rounded-md text-red-600 hover:bg-red-50 transition-colors duration-150">
-                        Delete Contact
+                    <button id="editButton" onclick="toggleEditMode()" 
+                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                        <i class="fas fa-pencil-alt mr-2"></i>
+                        Edit Task
+                    </button>
+                    <button id="saveButton" onclick="saveTask()" 
+                            class="hidden inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-check mr-2"></i>
+                        Save Changes
+                    </button>
+                    <button id="cancelButton" onclick="cancelEdit()" 
+                            class="hidden inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                        Cancel
                     </button>
                 </div>
-                <a id="modalContactFullView" href="#" class="text-sm px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-150">
-                    Open Full View
-                </a>
             </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Task Header -->
+        <div class="bg-white rounded-2xl shadow-sm border p-6 mb-4">
+            <div class="flex items-center">
+                <div class="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-semibold mr-5
+                    {% if task.priority == 'high' %}
+                        bg-red-100 text-red-700
+                    {% elif task.priority == 'medium' %}
+                        bg-yellow-100 text-yellow-700
+                    {% else %}
+                        bg-green-100 text-green-700
+                    {% endif %}">
+                    <i class="fas fa-flag"></i>
+                </div>
+                <div class="flex-1">
+                    <div id="viewTaskSubject" class="text-2xl font-semibold text-gray-900 mb-1">
+                        {{ task.subject }}
+                    </div>
+                    <div id="editTaskSubject" class="hidden mb-3">
+                        <input type="text"
+                               name="subject"
+                               value="{{ task.subject }}"
+                               class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors w-full"
+                               placeholder="Task Subject">
+                    </div>
+                    <div class="flex items-center text-gray-600 mb-2">
+                        <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-2">
+                            {{ task.created_by.first_name[0] }}{{ task.created_by.last_name[0] }}
+                        </div>
+                        <span class="text-sm">
+                            Created by {{ task.created_by.first_name }} {{ task.created_by.last_name }} on {{ task.created_at.strftime('%B %d, %Y') }}
+                        </span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium
+                            {% if task.status == 'completed' %}
+                                bg-green-100 text-green-800
+                            {% else %}
+                                bg-yellow-100 text-yellow-800
+                            {% endif %}">
+                            {{ task.status|capitalize }}
+                        </span>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium
+                            {% if task.priority == 'high' %}
+                                bg-red-100 text-red-800
+                            {% elif task.priority == 'medium' %}
+                                bg-yellow-100 text-yellow-800
+                            {% else %}
+                                bg-green-100 text-green-800
+                            {% endif %}">
+                            {{ task.priority|capitalize }} Priority
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Information -->
+        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+            <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="editTaskForm" class="hidden">
+                <div class="divide-y divide-gray-100">
+                    <!-- Basic Information Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select name="status" 
+                                        class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    <option value="pending" {% if task.status == 'pending' %}selected{% endif %}>Pending</option>
+                                    <option value="completed" {% if task.status == 'completed' %}selected{% endif %}>Completed</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                                <select name="priority" 
+                                        class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    <option value="low" {% if task.priority == 'low' %}selected{% endif %}>Low</option>
+                                    <option value="medium" {% if task.priority == 'medium' %}selected{% endif %}>Medium</option>
+                                    <option value="high" {% if task.priority == 'high' %}selected{% endif %}>High</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                                <input type="date" 
+                                       name="due_date" 
+                                       value="{{ task.due_date.strftime('%Y-%m-%d') }}"
+                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Scheduled Time</label>
+                                <input type="time" 
+                                       name="scheduled_time"
+                                       value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}"
+                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Task Type Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Task Type</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                <select name="task_type_id" 
+                                        onchange="updateSubtypes(this.value)"
+                                        class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    {% for type in task_types %}
+                                    <option value="{{ type.id }}" {% if task.task_type.id == type.id %}selected{% endif %}>
+                                        {{ type.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Subtype</label>
+                                <select name="task_subtype_id" 
+                                        id="subtype_id"
+                                        class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    {% for subtype in task_subtypes %}
+                                    <option value="{{ subtype.id }}" {% if task.task_subtype.id == subtype.id %}selected{% endif %}>
+                                        {{ subtype.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Related Information Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Related Information</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Related Contact</label>
+                                <select name="contact_id" 
+                                        class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    {% for contact in contacts %}
+                                    <option value="{{ contact.id }}" {% if task.contact.id == contact.id %}selected{% endif %}>
+                                        {{ contact.first_name }} {{ contact.last_name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Property Address</label>
+                                <input type="text" 
+                                       name="property_address" 
+                                       value="{{ task.property_address or '' }}"
+                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Description</h2>
+                        <textarea name="description" 
+                                  rows="4"
+                                  class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ task.description or '' }}</textarea>
+                    </div>
+                </div>
+            </form>
+
+            <div id="viewTaskInfo">
+                <div class="divide-y divide-gray-100">
+                    <!-- Basic Information Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Status</h3>
+                                <p class="text-gray-900">{{ task.status|capitalize }}</p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Priority</h3>
+                                <p class="text-gray-900">{{ task.priority|capitalize }}</p>
+                            </div>
+
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Due Date</h3>
+                                <p class="text-gray-900">{{ task.due_date.strftime('%B %d, %Y') }}</p>
+                            </div>
+
+                            {% if task.scheduled_time %}
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Scheduled Time</h3>
+                                <p class="text-gray-900">{{ task.scheduled_time.strftime('%I:%M %p') }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Task Type Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Task Type</h2>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    {{ task.task_type.name }}
+                                </span>
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600">
+                                    {{ task.task_subtype.name }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Related Information Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Related Information</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Related Contact</h3>
+                                <a href="#" 
+                                   onclick="openContactModal({{ task.contact.id }}); return false;"
+                                   class="text-blue-600 hover:text-blue-800">
+                                    {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                </a>
+                            </div>
+
+                            {% if task.property_address %}
+                            <div class="bg-gray-50 rounded-lg p-3">
+                                <h3 class="text-sm font-medium text-gray-600 mb-1">Property Address</h3>
+                                <p class="text-gray-900">{{ task.property_address }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Description Section -->
+                    <div class="p-6">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Description</h2>
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <p class="text-gray-900 whitespace-pre-line">{{ task.description or 'No description provided' }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Task Button -->
+        <div class="mt-4 flex justify-end">
+            <button onclick="deleteTask({{ task.id }})" 
+                    class="inline-flex items-center px-4 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                <i class="fas fa-trash-alt mr-2"></i>
+                Delete Task
+            </button>
         </div>
     </div>
 </div>
