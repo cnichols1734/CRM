@@ -1,112 +1,114 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen hero bg-base-200">
-    <div class="flex-col hero-content">
-        <div class="text-center">
-            <h2 class="text-3xl font-bold">Create your account</h2>
-            <p class="py-3 text-sm text-base-content/70">Fill in your information to get started</p>
-        </div>
-        
-        <div class="w-full card bg-base-100 shadow-xl sm:w-[450px]">
-            <form class="card-body" method="POST" action="{{ url_for('auth.register') }}">
-                {{ form.hidden_tag() }}
-                
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Username</span>
-                    </label>
-                    {{ form.username(class="input input-bordered w-full") }}
-                    {% if form.username.errors %}
-                        {% for error in form.username.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+<div class="absolute inset-0 bg-base-200">
+    <div class="min-h-screen hero pt-8 -mt-32">
+        <div class="flex-col hero-content">
+            <div class="text-center">
+                <h2 class="text-3xl font-bold">Create your account</h2>
+                <p class="py-3 text-sm text-base-content/70">Fill in your information to get started</p>
+            </div>
+            
+            <div class="w-full card bg-base-100 shadow-xl sm:w-[450px]">
+                <form class="card-body" method="POST" action="{{ url_for('auth.register') }}">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Username</span>
+                        </label>
+                        {{ form.username(class="input input-bordered w-full") }}
+                        {% if form.username.errors %}
+                            {% for error in form.username.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Email address</span>
-                    </label>
-                    {{ form.email(class="input input-bordered w-full") }}
-                    {% if form.email.errors %}
-                        {% for error in form.email.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Email address</span>
+                        </label>
+                        {{ form.email(class="input input-bordered w-full") }}
+                        {% if form.email.errors %}
+                            {% for error in form.email.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">First Name</span>
-                    </label>
-                    {{ form.first_name(class="input input-bordered w-full") }}
-                    {% if form.first_name.errors %}
-                        {% for error in form.first_name.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">First Name</span>
+                        </label>
+                        {{ form.first_name(class="input input-bordered w-full") }}
+                        {% if form.first_name.errors %}
+                            {% for error in form.first_name.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Last Name</span>
-                    </label>
-                    {{ form.last_name(class="input input-bordered w-full") }}
-                    {% if form.last_name.errors %}
-                        {% for error in form.last_name.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Last Name</span>
+                        </label>
+                        {{ form.last_name(class="input input-bordered w-full") }}
+                        {% if form.last_name.errors %}
+                            {% for error in form.last_name.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Password</span>
-                    </label>
-                    {{ form.password(class="input input-bordered w-full") }}
-                    {% if form.password.errors %}
-                        {% for error in form.password.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Password</span>
+                        </label>
+                        {{ form.password(class="input input-bordered w-full") }}
+                        {% if form.password.errors %}
+                            {% for error in form.password.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Confirm Password</span>
-                    </label>
-                    {{ form.confirm_password(class="input input-bordered w-full") }}
-                    {% if form.confirm_password.errors %}
-                        {% for error in form.confirm_password.errors %}
-                            <label class="label">
-                                <span class="label-text-alt text-error">{{ error }}</span>
-                            </label>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Confirm Password</span>
+                        </label>
+                        {{ form.confirm_password(class="input input-bordered w-full") }}
+                        {% if form.confirm_password.errors %}
+                            {% for error in form.confirm_password.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
 
-                <div class="mt-6 form-control">
-                    {{ form.submit(class="btn btn-primary w-full text-white") }}
-                </div>
+                    <div class="mt-6 form-control">
+                        {{ form.submit(class="btn btn-primary w-full text-white") }}
+                    </div>
 
-                <div class="text-center">
-                    <p class="text-sm text-base-content/70">
-                        Already have an account?
-                        <a href="{{ url_for('auth.login') }}" class="link link-primary">Sign in here</a>
-                    </p>
-                </div>
-            </form>
+                    <div class="text-center">
+                        <p class="text-sm text-base-content/70">
+                            Already have an account?
+                            <a href="{{ url_for('auth.login') }}" class="link link-primary">Sign in here</a>
+                        </p>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
