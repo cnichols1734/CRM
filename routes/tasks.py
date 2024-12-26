@@ -66,9 +66,15 @@ def create_task():
                 description=request.form.get('description'),
                 priority=request.form.get('priority', 'medium'),
                 due_date=datetime.strptime(request.form.get('due_date'), '%Y-%m-%d'),
-                property_address=request.form.get('property_address'),
-                scheduled_time=datetime.strptime(request.form.get('scheduled_time'), '%Y-%m-%dT%H:%M') if request.form.get('scheduled_time') else None
+                property_address=request.form.get('property_address')
             )
+
+            # Handle scheduled time (optional)
+            if request.form.get('scheduled_time'):
+                scheduled_time = datetime.strptime(request.form.get('scheduled_time'), '%H:%M').time()
+                task.scheduled_time = datetime.combine(task.due_date, scheduled_time)
+            else:
+                task.scheduled_time = None
 
             db.session.add(task)
             db.session.commit()

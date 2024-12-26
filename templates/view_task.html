@@ -138,7 +138,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                                <select name="task_type_id" 
+                                <select name="type_id" 
                                         onchange="updateSubtypes(this.value)"
                                         class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
                                     {% for type in task_types %}
@@ -151,7 +151,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Subtype</label>
-                                <select name="task_subtype_id" 
+                                <select name="subtype_id" 
                                         id="subtype_id"
                                         class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
                                     {% for subtype in task_subtypes %}

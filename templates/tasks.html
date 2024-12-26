@@ -299,7 +299,9 @@
                                 {% if task.scheduled_time %}
                                 <div class="flex items-center">
                                     <i class="far fa-clock mr-2 text-base text-gray-400"></i>
-                                    <span>{{ task.scheduled_time.strftime('%I:%M %p') }}</span>
+                                    <span>
+                                        {{ task.due_date.strftime('%m/%d/%y') }} - {{ task.scheduled_time.strftime('%I:%M %p') }}
+                                    </span>
                                 </div>
                                 {% endif %}
                             </div>
@@ -347,7 +349,7 @@
                             <span id="modalTaskOwner"></span>
                         </div>
                         {% endif %}
-                        <p class="text-sm text-gray-500" id="modalTaskDueDate"></p>
+                        <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
                     </div>
                 </div>
                 <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
@@ -378,6 +380,32 @@
                             <div>
                                 <p class="text-sm text-gray-500">Priority</p>
                                 <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Due Date and Scheduled Time -->
+                <div class="flex flex-wrap gap-3">
+                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-calendar text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Due Date</p>
+                                <p id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="modalTaskScheduledContainer" class="hidden bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-clock text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Scheduled Time</p>
+                                <p id="modalTaskScheduledTime" class="text-sm font-medium text-gray-900"></p>
                             </div>
                         </div>
                     </div>
@@ -622,7 +650,20 @@ function openTaskModal(taskId) {
             }
             
             const options = { weekday: 'short', month: 'short', day: 'numeric' };
-            document.getElementById('modalTaskDueDate').textContent = `${dueDateText} (${dueDate.toLocaleDateString('en-US', options)})`;
+            const formattedDate = dueDate.toLocaleDateString('en-US', options);
+            document.getElementById('modalTaskHeaderDueDate').textContent = `${dueDateText}`;
+            document.getElementById('modalTaskDueDate').textContent = formattedDate;
+            
+            // Scheduled Time
+            const scheduledContainer = document.getElementById('modalTaskScheduledContainer');
+            const scheduledTimeText = document.getElementById('modalTaskScheduledTime');
+            if (task.scheduled_time) {
+                const scheduledTime = new Date(task.scheduled_time);
+                scheduledTimeText.textContent = scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                scheduledContainer.classList.remove('hidden');
+            } else {
+                scheduledContainer.classList.add('hidden');
+            }
             
             // Type and Subtype
             document.getElementById('modalTaskType').textContent = task.task_type.name;
