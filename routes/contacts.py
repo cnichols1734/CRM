@@ -5,9 +5,14 @@ from forms import ContactForm
 import csv
 from io import StringIO
 from sqlalchemy import func
+from datetime import datetime
+import pytz
 
 contacts_bp = Blueprint('contacts', __name__)
 
+def get_user_timezone():
+    """Helper function to get user's timezone"""
+    return pytz.timezone('America/Chicago')
 
 @contacts_bp.route('/contact/<int:contact_id>')
 @login_required
@@ -38,7 +43,13 @@ def view_contact(contact_id):
         })
 
     all_groups = ContactGroup.query.all()
-    return render_template('view_contact.html', contact=contact, all_groups=all_groups)
+    user_tz = get_user_timezone()
+    now = datetime.now(user_tz)
+
+    return render_template('view_contact.html', 
+                         contact=contact, 
+                         all_groups=all_groups,
+                         now=now)
 
 
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])

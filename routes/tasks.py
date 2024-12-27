@@ -287,6 +287,11 @@ def quick_update_task(task_id):
         new_status = request.form.get('status')
         if new_status in ['pending', 'completed']:
             task.status = new_status
+            # Set completed_at timestamp when task is marked as completed
+            if new_status == 'completed':
+                task.completed_at = datetime.now(timezone.utc)
+            else:
+                task.completed_at = None
             
         new_priority = request.form.get('priority')
         if new_priority in ['low', 'medium', 'high']:

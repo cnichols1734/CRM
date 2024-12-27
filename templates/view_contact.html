@@ -4,7 +4,7 @@
 <div class="min-h-full bg-gray-50">
     <!-- Back button and header -->
     <div class="bg-white border-b sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-4 flex items-center justify-between">
                 <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-900">
                     <i class="fas fa-arrow-left mr-2"></i>
@@ -30,256 +30,399 @@
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Contact Header -->
-        <div class="bg-white rounded-2xl shadow-sm border p-6 mb-4">
-            <div class="flex items-center">
-                <div class="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-semibold mr-5
-                    {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                    {% set colors = {
-                        'A': 'bg-blue-100 text-blue-800', 'B': 'bg-rose-100 text-rose-800', 
-                        'C': 'bg-green-100 text-green-800', 'D': 'bg-amber-100 text-amber-800',
-                        'E': 'bg-purple-100 text-purple-800', 'F': 'bg-pink-100 text-pink-800',
-                        'G': 'bg-indigo-100 text-indigo-800', 'H': 'bg-teal-100 text-teal-800',
-                        'I': 'bg-orange-100 text-orange-800', 'J': 'bg-cyan-100 text-cyan-800'
-                    } %}
-                    {{ colors[initials[0]] or 'bg-gray-100 text-gray-800' }}">
-                    {{ contact.first_name[0] }}{{ contact.last_name[0] }}
-                </div>
-                <div class="flex-1">
-                    <div id="viewContactName" class="text-2xl font-semibold text-gray-900 mb-1">
-                        {{ contact.first_name }} {{ contact.last_name }}
-                    </div>
-                    <div id="editContactName" class="hidden space-x-3 mb-3">
-                        <input type="text" 
-                               name="first_name" 
-                               value="{{ contact.first_name }}"
-                               class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
-                               placeholder="First Name">
-                        <input type="text" 
-                               name="last_name" 
-                               value="{{ contact.last_name }}"
-                               class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
-                               placeholder="Last Name">
-                    </div>
-                    {% if current_user.role == 'admin' %}
-                    <div class="flex items-center text-gray-600 mb-2">
-                        <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-2">
-                            {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Main Content -->
+            <div class="flex-1">
+                <!-- Contact Header -->
+                <div class="bg-white rounded-2xl shadow-sm border p-6 mb-4">
+                    <div class="flex items-center">
+                        <div class="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-semibold mr-5
+                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                            {% set colors = {
+                                'A': 'bg-blue-100 text-blue-800', 'B': 'bg-rose-100 text-rose-800', 
+                                'C': 'bg-green-100 text-green-800', 'D': 'bg-amber-100 text-amber-800',
+                                'E': 'bg-purple-100 text-purple-800', 'F': 'bg-pink-100 text-pink-800',
+                                'G': 'bg-indigo-100 text-indigo-800', 'H': 'bg-teal-100 text-teal-800',
+                                'I': 'bg-orange-100 text-orange-800', 'J': 'bg-cyan-100 text-cyan-800'
+                            } %}
+                            {{ colors[initials[0]] or 'bg-gray-100 text-gray-800' }}">
+                            {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                         </div>
-                        <span class="text-sm">
-                            Owned by {{ contact.owner.first_name }} {{ contact.owner.last_name }}
-                        </span>
-                    </div>
-                    {% endif %}
-                    <div class="flex flex-wrap gap-2">
-                        {% for group in contact.groups %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                                {{ group.name }}
-                            </span>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Contact Information -->
-        <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
-            <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST" id="editContactForm" class="hidden">
-                <div class="divide-y divide-gray-100">
-                    <!-- Basic Information Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                <input type="email" name="email" value="{{ contact.email }}" 
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                        <div class="flex-1">
+                            <div id="viewContactName" class="text-2xl font-semibold text-gray-900 mb-1">
+                                {{ contact.first_name }} {{ contact.last_name }}
                             </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                <input type="tel" name="phone" value="{{ contact.phone }}"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                            <div id="editContactName" class="hidden space-x-3 mb-3">
+                                <input type="text" 
+                                       name="first_name" 
+                                       value="{{ contact.first_name }}"
+                                       class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
+                                       placeholder="First Name">
+                                <input type="text" 
+                                       name="last_name" 
+                                       value="{{ contact.last_name }}"
+                                       class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
+                                       placeholder="Last Name">
                             </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Potential Commission ($)</label>
-                                <input type="number" 
-                                       name="potential_commission" 
-                                       value="{{ contact.potential_commission }}"
-                                       step="0.01"
-                                       min="0"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                            {% if current_user.role == 'admin' %}
+                            <div class="flex items-center text-gray-600 mb-2">
+                                <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-2">
+                                    {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+                                </div>
+                                <span class="text-sm">
+                                    Owned by {{ contact.owner.first_name }} {{ contact.owner.last_name }}
+                                </span>
                             </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Created</label>
-                                <p class="px-3 py-2 text-gray-600">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Address Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
-                                <input type="text" name="street_address" value="{{ contact.street_address }}"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                                <input type="text" name="city" value="{{ contact.city }}"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
-                                <input type="text" name="state" value="{{ contact.state }}"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
-                            </div>
-
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
-                                <input type="text" name="zip_code" value="{{ contact.zip_code }}"
-                                       class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Groups Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                            {% for group in all_groups %}
-                                <label class="inline-flex items-center px-3 py-2 rounded-lg text-sm
-                                            {% if group in contact.groups %}
-                                                bg-blue-50 border-blue-200 text-blue-700
-                                            {% else %}
-                                                bg-gray-50 border-gray-200 text-gray-700
-                                            {% endif %}
-                                            hover:bg-gray-100 
-                                            border
-                                            cursor-pointer transition-colors duration-200">
-                                    <input type="checkbox" 
-                                           name="group_ids" 
-                                           value="{{ group.id }}"
-                                           {% if group in contact.groups %}checked{% endif %}
-                                           class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                    {{ group.name }}
-                                </label>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <!-- Notes Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
-                        <textarea name="notes" rows="4" 
-                                  class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.notes }}</textarea>
-                    </div>
-                </div>
-            </form>
-
-            <div id="viewContactInfo">
-                <div class="divide-y divide-gray-100">
-                    <!-- Basic Information Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">Email</h3>
-                                <p class="text-gray-900">{{ contact.email or 'No email provided' }}</p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">Phone</h3>
-                                <p class="text-gray-900">{{ contact.phone or 'No phone provided' }}</p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">Potential Commission</h3>
-                                <p class="text-gray-900">
-                                    {% if contact.potential_commission is not none %}
-                                        ${{ "{:,.2f}".format(contact.potential_commission|float) }}
-                                    {% else %}
-                                        $0.00
-                                    {% endif %}
-                                </p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">Created</h3>
-                                <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Address Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="md:col-span-2 bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">Street Address</h3>
-                                <p class="text-gray-900">{{ contact.street_address or 'No street address provided' }}</p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">City</h3>
-                                <p class="text-gray-900">{{ contact.city or 'No city provided' }}</p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">State</h3>
-                                <p class="text-gray-900">{{ contact.state or 'No state provided' }}</p>
-                            </div>
-
-                            <div class="bg-gray-50 rounded-lg p-3">
-                                <h3 class="text-sm font-medium text-gray-600 mb-1">ZIP Code</h3>
-                                <p class="text-gray-900">{{ contact.zip_code or 'No ZIP code provided' }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Groups Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
-                        <div class="bg-gray-50 rounded-lg p-3">
+                            {% endif %}
                             <div class="flex flex-wrap gap-2">
                                 {% for group in contact.groups %}
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
                                         {{ group.name }}
                                     </span>
-                                {% else %}
-                                    <span class="text-gray-500 italic">No groups assigned</span>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Notes Section -->
-                    <div class="p-6">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
-                        <div class="bg-gray-50 rounded-lg p-3">
-                            <p class="text-gray-900 whitespace-pre-line">{{ contact.notes or 'No notes added' }}</p>
+                <!-- Contact Information -->
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                    <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST" id="editContactForm" class="hidden">
+                        <div class="divide-y divide-gray-100">
+                            <!-- Basic Information Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <input type="email" name="email" value="{{ contact.email }}" 
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                        <input type="tel" name="phone" value="{{ contact.phone }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Potential Commission ($)</label>
+                                        <input type="number" 
+                                               name="potential_commission" 
+                                               value="{{ contact.potential_commission }}"
+                                               step="0.01"
+                                               min="0"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Created</label>
+                                        <p class="px-3 py-2 text-gray-600">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Address Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                                        <input type="text" name="street_address" value="{{ contact.street_address }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                        <input type="text" name="city" value="{{ contact.city }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                        <input type="text" name="state" value="{{ contact.state }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                                        <input type="text" name="zip_code" value="{{ contact.zip_code }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Groups Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    {% for group in all_groups %}
+                                        <label class="inline-flex items-center px-3 py-2 rounded-lg text-sm
+                                                    {% if group in contact.groups %}
+                                                        bg-blue-50 border-blue-200 text-blue-700
+                                                    {% else %}
+                                                        bg-gray-50 border-gray-200 text-gray-700
+                                                    {% endif %}
+                                                    hover:bg-gray-100 
+                                                    border
+                                                    cursor-pointer transition-colors duration-200">
+                                            <input type="checkbox" 
+                                                   name="group_ids" 
+                                                   value="{{ group.id }}"
+                                                   {% if group in contact.groups %}checked{% endif %}
+                                                   class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                            {{ group.name }}
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Notes Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
+                                <textarea name="notes" rows="4" 
+                                          class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.notes }}</textarea>
+                            </div>
+                        </div>
+                    </form>
+
+                    <div id="viewContactInfo">
+                        <div class="divide-y divide-gray-100">
+                            <!-- Basic Information Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Email</h3>
+                                        <p class="text-gray-900">{{ contact.email or 'No email provided' }}</p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Phone</h3>
+                                        <p class="text-gray-900">{{ contact.phone or 'No phone provided' }}</p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Potential Commission</h3>
+                                        <p class="text-gray-900">
+                                            {% if contact.potential_commission is not none %}
+                                                ${{ "{:,.2f}".format(contact.potential_commission|float) }}
+                                            {% else %}
+                                                $0.00
+                                            {% endif %}
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Created</h3>
+                                        <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Address Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2 bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Street Address</h3>
+                                        <p class="text-gray-900">{{ contact.street_address or 'No street address provided' }}</p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">City</h3>
+                                        <p class="text-gray-900">{{ contact.city or 'No city provided' }}</p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">State</h3>
+                                        <p class="text-gray-900">{{ contact.state or 'No state provided' }}</p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">ZIP Code</h3>
+                                        <p class="text-gray-900">{{ contact.zip_code or 'No ZIP code provided' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Groups Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        {% for group in contact.groups %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                {{ group.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-gray-500 italic">No groups assigned</span>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <p class="text-gray-900 whitespace-pre-line">{{ contact.notes or 'No notes added' }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Delete Contact Button -->
-        <div class="mt-4 flex justify-end">
-            <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST" id="deleteContactForm">
-                <button onclick="deleteContact()" 
-                        class="inline-flex items-center px-4 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                    <i class="fas fa-trash-alt mr-2"></i>
-                    Delete Contact
-                </button>
-            </form>
+                <!-- Delete Contact Button -->
+                <div class="mt-4 flex justify-end">
+                    <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST" id="deleteContactForm">
+                        <button onclick="deleteContact()" 
+                                class="inline-flex items-center px-4 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                            <i class="fas fa-trash-alt mr-2"></i>
+                            Delete Contact
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Side Container - Related Tasks -->
+            <div class="lg:w-96">
+                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden sticky top-24">
+                    <div class="p-4 border-b border-gray-100">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-semibold text-gray-900">Related Tasks</h2>
+                            <a href="{{ url_for('tasks.create_task', contact_id=contact.id) }}" 
+                               class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <i class="fas fa-plus mr-1"></i>
+                                New Task
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Task Filter Tabs -->
+                    <div class="border-b border-gray-100">
+                        <div class="flex">
+                            <button onclick="switchTaskView('pending')" 
+                                    id="pendingTasksTab"
+                                    class="flex-1 py-2 px-4 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
+                                Active Tasks
+                            </button>
+                            <button onclick="switchTaskView('completed')" 
+                                    id="completedTasksTab"
+                                    class="flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700">
+                                Completed
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Task Lists -->
+                    <div id="pendingTasks" class="divide-y divide-gray-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                        {% for task in contact.tasks|selectattr('status', 'equalto', 'pending')|sort(attribute='due_date') %}
+                        <div class="p-4 hover:bg-gray-50">
+                            <div class="flex items-start space-x-3">
+                                <!-- Priority Indicator -->
+                                <div class="flex-shrink-0">
+                                    <div class="w-6 h-6 rounded flex items-center justify-center {% if task.priority == 'high' %}bg-red-100 text-red-700{% elif task.priority == 'medium' %}bg-yellow-100 text-yellow-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                        <i class="fas fa-flag text-xs"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Task Content -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2">
+                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" 
+                                           class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                            {{ task.subject }}
+                                        </a>
+                                    </div>
+                                    <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            {{ task.task_type.name }}
+                                        </span>
+                                        {% set task_date = task.due_date.date() %}
+                                        {% set current_date = now.date() %}
+                                        {% set days_until_due = (task_date - current_date).days %}
+                                        <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-500{% endif %}">
+                                            {% if days_until_due < 0 %}
+                                                {{ days_until_due|abs }}d overdue
+                                            {% elif days_until_due == 0 %}
+                                                Due today
+                                            {% elif days_until_due == 1 %}
+                                                Due tomorrow
+                                            {% else %}
+                                                Due in {{ days_until_due }}d
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Actions -->
+                                <div class="flex-shrink-0">
+                                    <button onclick="quickUpdateStatus({{ task.id }}, true)" 
+                                            class="text-gray-400 hover:text-green-500 p-1">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="p-6 text-center text-gray-500 text-sm">
+                            No active tasks
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <div id="completedTasks" class="hidden divide-y divide-gray-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                        {% for task in contact.tasks|selectattr('status', 'equalto', 'completed')|sort(attribute='completed_at', reverse=true) %}
+                        <div class="p-4 hover:bg-gray-50">
+                            <div class="flex items-start space-x-3">
+                                <!-- Completed Indicator -->
+                                <div class="flex-shrink-0">
+                                    <div class="w-6 h-6 rounded-full flex items-center justify-center bg-green-100 text-green-700">
+                                        <i class="fas fa-check text-xs"></i>
+                                    </div>
+                                </div>
+
+                                <!-- Task Content -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2">
+                                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}" 
+                                           class="text-sm font-medium text-gray-600 hover:text-gray-800 truncate">
+                                            {{ task.subject }}
+                                        </a>
+                                    </div>
+                                    <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            {{ task.task_type.name }}
+                                        </span>
+                                        <span>
+                                            {% if task.completed_at %}
+                                                Completed {{ task.completed_at.strftime('%m/%d/%y') }}
+                                            {% else %}
+                                                Completed recently
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Quick Actions -->
+                                <div class="flex-shrink-0">
+                                    <button onclick="quickUpdateStatus({{ task.id }}, false)" 
+                                            class="text-gray-400 hover:text-yellow-500 p-1">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="p-6 text-center text-gray-500 text-sm">
+                            No completed tasks
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -416,6 +559,47 @@ async function deleteContact() {
         console.error('Error:', error);
         alert('Error deleting contact');
     }
+}
+
+function switchTaskView(view) {
+    const pendingTab = document.getElementById('pendingTasksTab');
+    const completedTab = document.getElementById('completedTasksTab');
+    const pendingList = document.getElementById('pendingTasks');
+    const completedList = document.getElementById('completedTasks');
+
+    if (view === 'pending') {
+        pendingTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        pendingTab.classList.remove('text-gray-500');
+        completedTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        completedTab.classList.add('text-gray-500');
+        pendingList.classList.remove('hidden');
+        completedList.classList.add('hidden');
+    } else {
+        completedTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        completedTab.classList.remove('text-gray-500');
+        pendingTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        pendingTab.classList.add('text-gray-500');
+        completedList.classList.remove('hidden');
+        pendingList.classList.add('hidden');
+    }
+}
+
+function quickUpdateStatus(taskId, completed) {
+    fetch(`/tasks/${taskId}/quick-update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status=${completed ? 'completed' : 'pending'}`
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating task status');
+    });
 }
 </script>
 {% endblock %}
