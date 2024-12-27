@@ -1262,6 +1262,19 @@ function hideImportStatus() {
                         </div>
                     </div>
 
+                    <!-- Active Tasks -->
+                    <div class="pt-2">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-tasks text-gray-400"></i>
+                                <h3 class="text-sm font-medium text-gray-900">Active Tasks</h3>
+                            </div>
+                        </div>
+                        <div id="modalContactTasks" class="space-y-2">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+
                     <!-- Groups -->
                     <div class="pt-2">
                         <div class="flex items-center space-x-2 mb-3">
@@ -1347,6 +1360,77 @@ function openContactModal(contactId) {
         if (contact.state) addressParts.push(contact.state);
         if (contact.zip_code) addressParts.push(contact.zip_code);
         document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
+        
+        // Active Tasks
+        const tasksContainer = document.getElementById('modalContactTasks');
+        tasksContainer.innerHTML = '';
+        
+        if (contact.active_tasks && contact.active_tasks.length > 0) {
+            contact.active_tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'bg-white border rounded-lg p-3 hover:bg-gray-50';
+                
+                // Calculate due date text
+                const dueDate = new Date(task.due_date);
+                const now = new Date();
+                const diffTime = dueDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let dueDateText = '';
+                if (diffDays < 0) {
+                    dueDateText = `${Math.abs(diffDays)}d overdue`;
+                } else if (diffDays === 0) {
+                    dueDateText = 'Due today';
+                } else if (diffDays === 1) {
+                    dueDateText = 'Due tomorrow';
+                } else {
+                    dueDateText = `Due in ${diffDays}d`;
+                }
+                
+                taskDiv.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-6 h-6 rounded flex items-center justify-center 
+                                ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                  'bg-green-100 text-green-700'}">
+                                <i class="fas fa-flag text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <a href="#" onclick="openTaskModal(${task.id}); return false;"
+                                   class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                    ${task.subject}
+                                </a>
+                            </div>
+                            <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    ${task.task_type.name}
+                                </span>
+                                <span class="${diffDays < 0 ? 'text-red-500' : 
+                                            diffDays === 0 ? 'text-orange-500' : 
+                                            diffDays <= 2 ? 'text-yellow-500' : ''}">
+                                    ${dueDateText}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <button onclick="event.stopPropagation(); quickUpdateStatus(${task.id}, true)" 
+                                    class="text-gray-400 hover:text-green-500 p-1">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                tasksContainer.appendChild(taskDiv);
+            });
+        } else {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-xl';
+            emptyState.textContent = 'No active tasks';
+            tasksContainer.appendChild(emptyState);
+        }
         
         // Groups
         const groupsContainer = document.getElementById('modalContactGroups');
@@ -1526,6 +1610,339 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
+<!-- Task Modal -->
+<div id="taskModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[300]">
+    <!-- Modal backdrop -->
+    <div id="taskModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[301]"></div>
+    
+    <div class="fixed inset-0 z-[302] overflow-y-auto" onclick="closeTaskModal()">
+        <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out" onclick="event.stopPropagation()">
+                <!-- Modal header -->
+                <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
+                    <div class="flex items-center space-x-4">
+                        <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
+                            <i class="fas fa-flag"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
+                            {% if current_user.role == 'admin' and show_all %}
+                            <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
+                                <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
+                                <span id="modalTaskOwner"></span>
+                            </div>
+                            {% endif %}
+                            <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-times text-gray-400"></i>
+                    </button>
+                </div>
+                
+                <!-- Modal content -->
+                <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
+                    <!-- Status and Priority -->
+                    <div class="flex flex-wrap gap-3">
+                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-tasks text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Status</p>
+                                    <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-flag text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Priority</p>
+                                    <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Type and Contact -->
+                    <div class="flex flex-wrap gap-3">
+                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-tag text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Type</p>
+                                    <p id="modalTaskType" class="text-sm font-medium text-gray-900"></p>
+                                    <p id="modalTaskSubtype" class="text-xs text-gray-500 mt-0.5"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-user text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Contact</p>
+                                    <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Property Address -->
+                    <div id="modalTaskPropertyContainer" class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-home text-gray-400"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Property Address</p>
+                                <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                <i class="fas fa-align-left text-gray-400"></i>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm text-gray-500">Description</p>
+                                <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modal footer -->
+                <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
+                    <div class="flex flex-col md:flex-row md:justify-between gap-3">
+                        <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
+                            <button onclick="toggleTaskStatus()" 
+                                    class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
+                                <span id="modalTaskStatusButton"></span>
+                            </button>
+                        </div>
+                        <a id="modalTaskFullView" href="#" 
+                           class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                            Open Full View
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentTaskId = null;
+
+function openTaskModal(taskId) {
+    currentTaskId = taskId;
+    
+    // Get modal elements
+    const modal = document.getElementById('taskModal');
+    const modalContent = modal.querySelector('.relative');
+    
+    // Enable pointer events and show modal
+    modal.classList.remove('pointer-events-none');
+    modal.classList.add('pointer-events-auto');
+    
+    // Prevent contact modal from receiving click events while task modal is open
+    document.getElementById('contactModal').style.pointerEvents = 'none';
+    
+    // Fetch task details
+    fetch(`/tasks/${taskId}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(task => {
+        // Update modal content
+        document.getElementById('modalTaskSubject').textContent = task.subject;
+        document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
+        
+        // Owner Info (for admin view)
+        const ownerInitials = document.getElementById('modalTaskOwnerInitials');
+        const ownerName = document.getElementById('modalTaskOwner');
+        if (ownerInitials && ownerName && task.assigned_to) {
+            ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
+            ownerName.textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
+        }
+        
+        // Priority Indicator
+        const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
+        priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+            task.priority === 'high' ? 'bg-red-100 text-red-700' :
+            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+            'bg-green-100 text-green-700'
+        }`;
+        
+        // Priority
+        const priorityText = document.getElementById('modalTaskPriority');
+        priorityText.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+        
+        // Status
+        const statusText = document.getElementById('modalTaskStatus');
+        statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
+        statusText.className = `text-sm font-medium ${
+            task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
+        }`;
+        
+        // Due Date
+        const dueDate = new Date(task.due_date);
+        const now = new Date();
+        const diffTime = dueDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let dueDateText = '';
+        if (diffDays < 0) {
+            dueDateText = `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`;
+        } else if (diffDays === 0) {
+            dueDateText = 'Due today';
+        } else if (diffDays === 1) {
+            dueDateText = 'Due tomorrow';
+        } else {
+            dueDateText = `Due in ${diffDays} days`;
+        }
+        
+        document.getElementById('modalTaskHeaderDueDate').textContent = dueDateText;
+        
+        // Type and Subtype
+        document.getElementById('modalTaskType').textContent = task.task_type.name;
+        document.getElementById('modalTaskSubtype').textContent = task.task_subtype.name;
+        
+        // Contact
+        const contactLink = document.getElementById('modalTaskContact');
+        contactLink.textContent = `${task.contact.first_name} ${task.contact.last_name}`;
+        contactLink.href = `/contact/${task.contact.id}`;
+        
+        // Property Address
+        const propertyContainer = document.getElementById('modalTaskPropertyContainer');
+        if (task.property_address) {
+            document.getElementById('modalTaskProperty').textContent = task.property_address;
+            propertyContainer.classList.remove('hidden');
+        } else {
+            propertyContainer.classList.add('hidden');
+        }
+        
+        // Description
+        document.getElementById('modalTaskDescription').textContent = task.description || 'No description provided';
+        
+        // Status Button
+        const statusButton = document.getElementById('modalTaskStatusButton');
+        statusButton.textContent = task.status === 'completed' ? 'Mark as Pending' : 'Mark as Complete';
+        
+        // Trigger reflow
+        modal.offsetHeight;
+        
+        // Add the fade-in classes
+        modal.classList.add('opacity-100');
+        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading task details');
+    });
+}
+
+function closeTaskModal() {
+    const modal = document.getElementById('taskModal');
+    const modalContent = modal.querySelector('.relative');
+    
+    // Start the fade-out animation
+    modal.classList.remove('opacity-100');
+    modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+    modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+    
+    // After the animation completes, disable pointer events
+    setTimeout(() => {
+        modal.classList.remove('pointer-events-auto');
+        modal.classList.add('pointer-events-none');
+        currentTaskId = null;
+        
+        // Re-enable contact modal pointer events
+        document.getElementById('contactModal').style.pointerEvents = '';
+    }, 300);
+}
+
+// Remove old event listeners
+document.removeEventListener('keydown', closeTaskModal);
+document.removeEventListener('click', closeTaskModal);
+
+// Add new event listener for Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        if (currentTaskId) {
+            closeTaskModal();
+            event.stopPropagation(); // Prevent contact modal from closing
+        } else {
+            closeContactModal();
+        }
+    }
+});
+
+// Update contact modal click handler
+document.addEventListener('click', function(event) {
+    const contactModal = document.getElementById('contactModal');
+    const contactModalContent = contactModal.querySelector('.relative');
+    const taskModal = document.getElementById('taskModal');
+    
+    if (!contactModal.classList.contains('pointer-events-none') && 
+        !taskModal.classList.contains('pointer-events-auto')) { // Only handle contact modal clicks if task modal is closed
+        // Check if click is outside modal content
+        const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !contactModalContent.contains(event.target);
+        if (clickedOnBackdrop) {
+            closeContactModal();
+        }
+    }
+});
+
+function toggleTaskStatus() {
+    if (!currentTaskId) return;
+    
+    const newStatus = document.getElementById('modalTaskStatus').textContent.toLowerCase() === 'completed' ? 'pending' : 'completed';
+    quickUpdateStatus(currentTaskId, newStatus === 'completed');
+}
+
+function quickUpdateStatus(taskId, completed) {
+    fetch(`/tasks/${taskId}/quick-update`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `status=${completed ? 'completed' : 'pending'}`
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        
+        // If task modal is open, close it
+        if (currentTaskId) {
+            closeTaskModal();
+        }
+        
+        // Refresh the contact modal to update the task list
+        if (currentContactId) {
+            openContactModal(currentContactId);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating task status');
+    });
+}
 </script>
 
 {% endblock %}

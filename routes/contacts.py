@@ -23,6 +23,10 @@ def view_contact(contact_id):
 
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Get active tasks for the contact
+        active_tasks = [task for task in contact.tasks if task.status == 'pending']
+        active_tasks.sort(key=lambda x: x.due_date)  # Sort by due date
+
         return jsonify({
             'id': contact.id,
             'first_name': contact.first_name,
@@ -39,7 +43,16 @@ def view_contact(contact_id):
             'groups': [{
                 'id': group.id,
                 'name': group.name
-            } for group in contact.groups]
+            } for group in contact.groups],
+            'active_tasks': [{
+                'id': task.id,
+                'subject': task.subject,
+                'priority': task.priority,
+                'due_date': task.due_date.isoformat(),
+                'task_type': {
+                    'name': task.task_type.name
+                }
+            } for task in active_tasks]
         })
 
     all_groups = ContactGroup.query.all()
