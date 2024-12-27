@@ -346,13 +346,13 @@
 </div>
 
 <!-- Task Modal -->
-<div id="taskModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[200]">
+<div id="taskModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[300]">
     <!-- Modal backdrop -->
-    <div id="taskModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[201]"></div>
+    <div id="taskModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[301]"></div>
     
-    <div class="fixed inset-0 z-[202] overflow-y-auto">
+    <div class="fixed inset-0 z-[302] overflow-y-auto" onclick="closeTaskModal()">
         <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
-            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out" onclick="event.stopPropagation()">
                 <!-- Modal header -->
                 <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
                     <div class="flex items-center space-x-4">
@@ -370,7 +370,7 @@
                             <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
                         </div>
                     </div>
-                    <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
+                    <button onclick="event.stopPropagation(); closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
                         <i class="fas fa-times text-gray-400"></i>
                     </button>
                 </div>
@@ -403,66 +403,38 @@
                         </div>
                     </div>
 
-                    <!-- Due Date and Scheduled Time -->
+                    <!-- Type and Contact -->
                     <div class="flex flex-wrap gap-3">
                         <div class="bg-gray-50 rounded-lg p-3 flex-1">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-calendar text-gray-400"></i>
+                                    <i class="fas fa-tag text-gray-400"></i>
                                 </div>
                                 <div>
-                                    <p class="text-sm text-gray-500">Due Date</p>
-                                    <p id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></p>
+                                    <p class="text-sm text-gray-500">Type</p>
+                                    <p id="modalTaskType" class="text-sm font-medium text-gray-900"></p>
+                                    <p id="modalTaskSubtype" class="text-xs text-gray-500 mt-0.5"></p>
                                 </div>
                             </div>
                         </div>
-                        <div id="modalTaskScheduledContainer" class="hidden bg-gray-50 rounded-lg p-3 flex-1">
+                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
                             <div class="flex items-center space-x-3">
                                 <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-clock text-gray-400"></i>
+                                    <i class="fas fa-user text-gray-400"></i>
                                 </div>
                                 <div>
-                                    <p class="text-sm text-gray-500">Scheduled Time</p>
-                                    <p id="modalTaskScheduledTime" class="text-sm font-medium text-gray-900"></p>
+                                    <p class="text-sm text-gray-500">Contact</p>
+                                    <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Task Type and Subtype -->
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-tag text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Task Type</p>
-                                <div class="flex items-center space-x-2 mt-1">
-                                    <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
-                                    <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Contact -->
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-user text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Contact</p>
-                                <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
                             </div>
                         </div>
                     </div>
 
                     <!-- Property Address -->
-                    <div id="modalTaskPropertyContainer" class="hidden bg-gray-50 rounded-lg p-3">
+                    <div id="modalTaskPropertyContainer" class="bg-gray-50 rounded-lg p-3">
                         <div class="flex items-center space-x-3">
                             <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-building text-gray-400"></i>
+                                <i class="fas fa-home text-gray-400"></i>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-500">Property Address</p>
@@ -583,6 +555,19 @@
                         </div>
                     </div>
 
+                    <!-- Active Tasks -->
+                    <div class="pt-2">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-tasks text-gray-400"></i>
+                                <h3 class="text-sm font-medium text-gray-900">Active Tasks</h3>
+                            </div>
+                        </div>
+                        <div id="modalContactTasks" class="space-y-2">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+
                     <!-- Groups -->
                     <div class="pt-2">
                         <div class="flex items-center space-x-2 mb-3">
@@ -674,7 +659,16 @@ function quickUpdateStatus(taskId, completed) {
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
+        
+        // If task modal is open, close it
+        if (currentTaskId) {
+            closeTaskModal();
+        }
+        
+        // Refresh the contact modal to update the task list
+        if (currentContactId) {
+            openContactModal(currentContactId);
+        }
     })
     .catch(error => {
         console.error('Error:', error);
@@ -775,9 +769,11 @@ function openTaskModal(taskId) {
     const modalContent = modal.querySelector('.relative');
     
     // Enable pointer events and show modal
-    document.body.style.overflow = 'hidden';
     modal.classList.remove('pointer-events-none');
     modal.classList.add('pointer-events-auto');
+    
+    // Prevent contact modal from receiving click events while task modal is open
+    document.getElementById('contactModal').style.pointerEvents = 'none';
     
     // Fetch task details
     fetch(`/tasks/${taskId}`, {
@@ -835,21 +831,7 @@ function openTaskModal(taskId) {
             dueDateText = `Due in ${diffDays} days`;
         }
         
-        const options = { weekday: 'short', month: 'short', day: 'numeric' };
-        const formattedDate = dueDate.toLocaleDateString('en-US', options);
-        document.getElementById('modalTaskHeaderDueDate').textContent = `${dueDateText}`;
-        document.getElementById('modalTaskDueDate').textContent = formattedDate;
-        
-        // Scheduled Time
-        const scheduledContainer = document.getElementById('modalTaskScheduledContainer');
-        const scheduledTimeText = document.getElementById('modalTaskScheduledTime');
-        if (task.scheduled_time) {
-            const scheduledTime = new Date(task.scheduled_time);
-            scheduledTimeText.textContent = scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-            scheduledContainer.classList.remove('hidden');
-        } else {
-            scheduledContainer.classList.add('hidden');
-        }
+        document.getElementById('modalTaskHeaderDueDate').textContent = dueDateText;
         
         // Type and Subtype
         document.getElementById('modalTaskType').textContent = task.task_type.name;
@@ -858,7 +840,7 @@ function openTaskModal(taskId) {
         // Contact
         const contactLink = document.getElementById('modalTaskContact');
         contactLink.textContent = `${task.contact.first_name} ${task.contact.last_name}`;
-        contactLink.href = `/contacts/${task.contact.id}`;
+        contactLink.href = `/contact/${task.contact.id}`;
         
         // Property Address
         const propertyContainer = document.getElementById('modalTaskPropertyContainer');
@@ -901,10 +883,12 @@ function closeTaskModal() {
     
     // After the animation completes, disable pointer events
     setTimeout(() => {
-        document.body.style.overflow = '';
         modal.classList.remove('pointer-events-auto');
         modal.classList.add('pointer-events-none');
         currentTaskId = null;
+        
+        // Re-enable contact modal pointer events
+        document.getElementById('contactModal').style.pointerEvents = '';
     }, 300);
 }
 
@@ -912,7 +896,6 @@ function toggleTaskStatus() {
     if (!currentTaskId) return;
     
     const newStatus = document.getElementById('modalTaskStatus').textContent.toLowerCase() === 'completed' ? 'pending' : 'completed';
-    
     quickUpdateStatus(currentTaskId, newStatus === 'completed');
 }
 
@@ -927,29 +910,25 @@ function deleteTaskFromModal() {
 // Close task modal when clicking outside or pressing Escape
 document.addEventListener('keydown', function(event) {
     if (event.key === 'Escape') {
-        closeTaskModal();
-        closeContactModal();
+        if (currentTaskId) {
+            closeTaskModal();
+            event.stopPropagation(); // Prevent contact modal from closing
+        } else {
+            closeContactModal();
+        }
     }
 });
 
 document.addEventListener('click', function(event) {
-    const taskModal = document.getElementById('taskModal');
-    const taskModalContent = taskModal.querySelector('.relative');
     const contactModal = document.getElementById('contactModal');
     const contactModalContent = contactModal.querySelector('.relative');
+    const taskModal = document.getElementById('taskModal');
     
-    if (!taskModal.classList.contains('pointer-events-none')) {
-        // Check if click is outside task modal content
-        const clickedOnTaskBackdrop = event.target.closest('.fixed.inset-0') && !taskModalContent.contains(event.target);
-        if (clickedOnTaskBackdrop) {
-            closeTaskModal();
-        }
-    }
-    
-    if (!contactModal.classList.contains('pointer-events-none')) {
-        // Check if click is outside contact modal content
-        const clickedOnContactBackdrop = event.target.closest('.fixed.inset-0') && !contactModalContent.contains(event.target);
-        if (clickedOnContactBackdrop) {
+    if (!contactModal.classList.contains('pointer-events-none') && 
+        !taskModal.classList.contains('pointer-events-auto')) { // Only handle contact modal clicks if task modal is closed
+        // Check if click is outside modal content
+        const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !contactModalContent.contains(event.target);
+        if (clickedOnBackdrop) {
             closeContactModal();
         }
     }
@@ -971,16 +950,6 @@ let currentContactId = null;
 function openContactModal(contactId) {
     currentContactId = contactId;
     
-    // Get modal elements
-    const modal = document.getElementById('contactModal');
-    const modalContent = modal.querySelector('.relative');
-    
-    // Enable pointer events and show modal
-    document.body.style.overflow = 'hidden';
-    modal.classList.remove('pointer-events-none');
-    modal.classList.add('pointer-events-auto');
-    
-    // Fetch contact details
     fetch(`/contact/${contactId}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -1013,11 +982,11 @@ function openContactModal(contactId) {
                 break;
             }
         }
-        initialsDiv.className = `w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium ${colorClass}`;
+        initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
         
         // Contact details
-        document.getElementById('modalContactEmail').textContent = contact.email || '--';
-        document.getElementById('modalContactPhone').textContent = contact.phone || '--';
+        document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
+        document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
         
         // Address
         const addressParts = [];
@@ -1025,7 +994,78 @@ function openContactModal(contactId) {
         if (contact.city) addressParts.push(contact.city);
         if (contact.state) addressParts.push(contact.state);
         if (contact.zip_code) addressParts.push(contact.zip_code);
-        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || '--';
+        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
+        
+        // Active Tasks
+        const tasksContainer = document.getElementById('modalContactTasks');
+        tasksContainer.innerHTML = '';
+        
+        if (contact.active_tasks && contact.active_tasks.length > 0) {
+            contact.active_tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'bg-white border rounded-lg p-3 hover:bg-gray-50';
+                
+                // Calculate due date text
+                const dueDate = new Date(task.due_date);
+                const now = new Date();
+                const diffTime = dueDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let dueDateText = '';
+                if (diffDays < 0) {
+                    dueDateText = `${Math.abs(diffDays)}d overdue`;
+                } else if (diffDays === 0) {
+                    dueDateText = 'Due today';
+                } else if (diffDays === 1) {
+                    dueDateText = 'Due tomorrow';
+                } else {
+                    dueDateText = `Due in ${diffDays}d`;
+                }
+                
+                taskDiv.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-6 h-6 rounded flex items-center justify-center 
+                                ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                  'bg-green-100 text-green-700'}">
+                                <i class="fas fa-flag text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <a href="#" onclick="openTaskModal(${task.id}); return false;"
+                                   class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                    ${task.subject}
+                                </a>
+                            </div>
+                            <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    ${task.task_type.name}
+                                </span>
+                                <span class="${diffDays < 0 ? 'text-red-500' : 
+                                            diffDays === 0 ? 'text-orange-500' : 
+                                            diffDays <= 2 ? 'text-yellow-500' : ''}">
+                                    ${dueDateText}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <button onclick="event.stopPropagation(); quickUpdateStatus(${task.id}, true)" 
+                                    class="text-gray-400 hover:text-green-500 p-1">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                tasksContainer.appendChild(taskDiv);
+            });
+        } else {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-xl';
+            emptyState.textContent = 'No active tasks';
+            tasksContainer.appendChild(emptyState);
+        }
         
         // Groups
         const groupsContainer = document.getElementById('modalContactGroups');
@@ -1033,19 +1073,19 @@ function openContactModal(contactId) {
         if (contact.groups && contact.groups.length > 0) {
             contact.groups.forEach(group => {
                 const span = document.createElement('span');
-                span.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800';
+                span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
                 span.textContent = group.name;
                 groupsContainer.appendChild(span);
             });
         } else {
             const span = document.createElement('span');
-            span.className = 'text-gray-500';
+            span.className = 'text-gray-500 italic';
             span.textContent = 'No groups assigned';
             groupsContainer.appendChild(span);
         }
         
         // Notes
-        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes';
+        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
         
         // Commission
         document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
@@ -1059,6 +1099,26 @@ function openContactModal(contactId) {
             month: 'long',
             day: 'numeric'
         });
+        
+        // Show modal with animation
+        const modal = document.getElementById('contactModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Enable pointer events and show modal
+        document.body.style.overflow = 'hidden';
+        modal.classList.remove('pointer-events-none');
+        modal.classList.add('pointer-events-auto');
+        
+        // Add click outside handler
+        const handleClickOutside = (event) => {
+            if (!modalContent.contains(event.target)) {
+                closeContactModal();
+                document.removeEventListener('click', handleClickOutside);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 0);
         
         // Trigger reflow
         modal.offsetHeight;
