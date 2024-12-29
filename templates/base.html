@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: "Lexend Deca", Helvetica, Arial, sans-serif;
+            font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
         }
         .company-name {
             font-family: "Outfit", sans-serif;
@@ -140,7 +140,7 @@
 
 <!-- Mobile User Menu (Slides down from top) -->
 {% if current_user.is_authenticated %}
-<div id="mobileUserMenu" 
+<div id="mobileUserMenu"
      class="fixed inset-x-0 top-0 z-50 transform -translate-y-full transition-transform duration-300 ease-in-out md:hidden opacity-0 pointer-events-none">
     <div class="bg-white shadow-lg">
         <!-- User Info Section -->
@@ -166,27 +166,27 @@
 
         <!-- Navigation Links -->
         <div class="py-2">
-            <a href="{{ url_for('auth.view_user_profile') }}" 
+            <a href="{{ url_for('auth.view_user_profile') }}"
                class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
                 Profile Settings
             </a>
-            
+
             {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('auth.manage_users') }}" 
+            <a href="{{ url_for('auth.manage_users') }}"
                class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
                 Manage Users
             </a>
             {% endif %}
 
-            <a href="#" 
+            <a href="#"
                class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
                 Notifications
             </a>
 
-            <a href="#" 
+            <a href="#"
                class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
                 Change Password
@@ -198,7 +198,7 @@
 
         <!-- Logout -->
         <div class="py-2">
-            <a href="{{ url_for('auth.logout') }}" 
+            <a href="{{ url_for('auth.logout') }}"
                class="flex items-center px-6 py-3 text-base text-red-600 hover:bg-red-50">
                 <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
                 Logout
@@ -269,7 +269,7 @@
                 Contacts
             </div>
         </div>
-        
+
         <!-- Tasks Icon with Tooltip -->
         <div class="relative group mb-8 w-full px-3">
             <a href="{{ url_for('tasks.tasks') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
@@ -338,27 +338,27 @@
 
                     <!-- Navigation Links -->
                     <div class="py-2">
-                        <a href="{{ url_for('auth.view_user_profile') }}" 
+                        <a href="{{ url_for('auth.view_user_profile') }}"
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
                             Profile Settings
                         </a>
-                        
+
                         {% if current_user.role == 'admin' %}
-                        <a href="{{ url_for('auth.manage_users') }}" 
+                        <a href="{{ url_for('auth.manage_users') }}"
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
                             Manage Users
                         </a>
                         {% endif %}
 
-                        <a href="#" 
+                        <a href="#"
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
                             Notifications
                         </a>
 
-                        <a href="#" 
+                        <a href="#"
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
                             Change Password
@@ -370,7 +370,7 @@
 
                     <!-- Logout -->
                     <div class="py-2">
-                        <a href="{{ url_for('auth.logout') }}" 
+                        <a href="{{ url_for('auth.logout') }}"
                            class="flex items-center px-6 py-2 text-sm text-red-600 hover:bg-white">
                             <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
                             Logout
@@ -390,17 +390,17 @@
 
     <!-- Mobile Navigation Bar -->
     <nav class="mobile-nav fixed bottom-0 left-0 right-0 h-14 bg-[#2d3e50] bg-opacity-90 flex items-center justify-around z-50 md:hidden">
-        <a href="{{ url_for('main.dashboard') }}" 
+        <a href="{{ url_for('main.dashboard') }}"
            class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
             <i class="fas fa-chart-line text-lg"></i>
             <span class="text-xs mt-0.5">Dashboard</span>
         </a>
-        <a href="{{ url_for('main.index') }}" 
+        <a href="{{ url_for('main.index') }}"
            class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.index' %}active{% endif %}">
             <i class="fas fa-address-book text-lg"></i>
             <span class="text-xs mt-0.5">Contacts</span>
         </a>
-        <a href="{{ url_for('tasks.tasks') }}" 
+        <a href="{{ url_for('tasks.tasks') }}"
            class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'tasks.tasks' %}active{% endif %}">
             <i class="fas fa-tasks text-lg"></i>
             <span class="text-xs mt-0.5">Tasks</span>
@@ -425,7 +425,7 @@
         const contentWrapper = document.querySelector('.content-wrapper');
         const pageTransition = document.querySelector('.page-transition');
         const mobileNav = document.querySelector('.mobile-nav');
-        
+
         let userDropdownTimeout;
         let tooltipTimeouts = new Map();
         let isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
@@ -441,27 +441,27 @@
                 sidebar.style.transition = 'none';
                 mainContent.style.transition = 'none';
                 sidebarTexts.forEach(text => text.style.transition = 'none');
-                
+
                 if (isExpanded) {
                     sidebar.classList.remove('w-16');
                     sidebar.classList.add('w-44');
                     mainContent.classList.remove('md:ml-16');
                     mainContent.classList.add('md:ml-44');
-                    
+
                     sidebarTexts.forEach(text => {
                         text.classList.remove('opacity-0', 'w-0');
                         text.classList.add('opacity-100');
                         text.style.width = 'auto';
                     });
-                    
+
                     tooltipLabels.forEach(tooltip => {
                         tooltip.style.display = 'none';
                     });
                 }
-                
+
                 // Force reflow
                 sidebar.offsetHeight;
-                
+
                 requestAnimationFrame(() => {
                     sidebar.style.transition = '';
                     mainContent.style.transition = '';
@@ -475,7 +475,7 @@
         function toggleSidebar() {
             isExpanded = !isExpanded;
             localStorage.setItem('sidebarExpanded', isExpanded);
-            
+
             if (isExpanded) {
                 document.documentElement.style.setProperty('--sidebar-width', 'var(--sidebar-expanded-width)');
                 document.documentElement.classList.add('sidebar-expanded');
@@ -483,13 +483,13 @@
                 sidebar.classList.add('w-44');
                 mainContent.classList.remove('md:ml-16');
                 mainContent.classList.add('md:ml-44');
-                
+
                 sidebarTexts.forEach(text => {
                     text.classList.remove('opacity-0', 'w-0');
                     text.classList.add('opacity-100');
                     text.style.width = 'auto';
                 });
-                
+
                 tooltipLabels.forEach(tooltip => {
                     tooltip.style.display = 'none';
                 });
@@ -500,13 +500,13 @@
                 sidebar.classList.add('w-16');
                 mainContent.classList.remove('md:ml-44');
                 mainContent.classList.add('md:ml-16');
-                
+
                 sidebarTexts.forEach(text => {
                     text.classList.remove('opacity-100');
                     text.classList.add('opacity-0', 'w-0');
                     text.style.width = '0';
                 });
-                
+
                 tooltipLabels.forEach(tooltip => {
                     tooltip.style.display = '';
                 });
