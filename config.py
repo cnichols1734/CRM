@@ -15,3 +15,4 @@ class Config:
     MAIL_DEFAULT_SENDER = ('TechnolOG', 'ogtechnolog@gmail.com')
     MAIL_MAX_EMAILS = None
     MAIL_ASCII_ATTACHMENTS = False
+    OPENAI_API_KEY = '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'

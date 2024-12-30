@@ -12,6 +12,8 @@
     <!-- Add Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap" rel="stylesheet">
+    <!-- Add AI Chat Widget styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
     <style>
         body {
             font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -612,6 +614,15 @@
         initializeMobileMenu();
     });
 </script>
+
+{% if current_user.is_authenticated %}
+    <!-- AI Chat Widget will be injected here by JavaScript -->
+{% endif %}
+
+<!-- Add AI Chat Widget script -->
+{% if current_user.is_authenticated %}
+    <script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+{% endif %}
 
 </body>
 </html>

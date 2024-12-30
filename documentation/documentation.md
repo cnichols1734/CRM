@@ -15,6 +15,13 @@ This project is a Customer Relationship Management (CRM) system tailored for the
 *   **User Authentication:** Secure user registration, login, and password reset functionality.
 *   **Responsive Design:** The UI is designed to be responsive and work well on different screen sizes.
 *   **User Management:** Admins can manage user roles, edit user profiles, and delete users.
+*   **AI Assistant (Origen Advisor):** An integrated GPT-4 powered assistant that provides contextual help and guidance:
+    * Floating chat widget accessible from any page
+    * Context-aware responses based on current page content
+    * Access to contact and task details when viewing contact records
+    * Personalized responses using agent's name and role
+    * Real estate and HAR-focused guidance
+    * Markdown formatting for clear, structured responses
 
 ### Planned Features
 
@@ -206,6 +213,20 @@ The application is structured using Flask blueprints. Here's a breakdown of the 
 *   **`/test_password/<username>/<password>` (test\_password):**
     *   Debug route to test password verification.
 
+### AI Chat Blueprint (`routes/ai_chat.py`)
+
+*   **`/api/ai-chat` (chat):**
+    *   Handles AI chat interactions using GPT-4
+    *   Requires authentication
+    *   Processes:
+        - Current page context
+        - Agent information
+        - Contact details (when viewing a contact)
+        - Related tasks (when viewing a contact)
+    *   Returns formatted AI responses
+    *   Supports markdown formatting for responses
+    *   Debug logging of context and responses
+
 ## Forms
 
 The application uses Flask-WTF for form handling:
@@ -274,6 +295,46 @@ The templates include JavaScript for:
 *   Handling task modals.
 *   Updating task status and priority.
 *   Fetching task subtypes based on selected task type.
+
+## JavaScript Components
+
+### AI Chat Widget (`static/js/ai_chat.js`)
+
+*   **Features:**
+    *   Floating chat icon
+    *   Expandable chat interface
+    *   Real-time typing indicators
+    *   Message history within session
+    *   Markdown formatting support
+    *   Error handling and retry capability
+    *   Responsive design
+
+*   **Key Functions:**
+    *   `createChatIcon()`: Creates the floating chat button
+    *   `createChatBox()`: Builds the chat interface
+    *   `sendMessage()`: Handles message sending and receiving
+    *   `formatMessage()`: Processes markdown formatting
+    *   `showTypingIndicator()`: Shows AI thinking state
+    *   `addMessageToChat()`: Displays messages in the chat
+
+## Styling
+
+### AI Chat Styles (`static/css/ai_chat.css`)
+
+*   **Components:**
+    *   Chat icon styling
+    *   Chat box container
+    *   Message bubbles
+    *   Input area
+    *   Typing indicator
+    *   Responsive layouts
+    *   Animations and transitions
+
+*   **Theme Integration:**
+    *   Matches Origen Connect's color scheme
+    *   Consistent with overall UI design
+    *   Responsive breakpoints
+    *   Accessibility considerations
 
 ## Summary
 

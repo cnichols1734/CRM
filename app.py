@@ -7,6 +7,7 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from models import db, User
 from routes import register_blueprints
+from routes.ai_chat import ai_chat
 
 def create_app():
     app = Flask(__name__)
@@ -31,6 +32,9 @@ def create_app():
 
     # Register blueprints
     register_blueprints(app)
+
+    # Register AI chat blueprint
+    app.register_blueprint(ai_chat)
 
     return app
 
