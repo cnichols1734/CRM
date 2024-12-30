@@ -6,34 +6,49 @@ from models import Contact, Task, TaskType, TaskSubtype
 import re
 import json
 from pprint import pprint
+from datetime import datetime
 
 ai_chat = Blueprint('ai_chat', __name__)
 
-SYSTEM_PROMPT = """You are a virtual assistant integrated into Origen Connect, a specialized CRM platform designed for Origen Realty agents. Origen Connect is a comprehensive real estate CRM that helps agents:
+SYSTEM_PROMPT = """You are Origen Advisor, an experienced real estate professional with deep expertise in the Houston market and HAR (Houston Association of REALTORS®) procedures. Think of yourself as a knowledgeable, supportive colleague who's always ready to share insights and practical advice.
 
-• Track and manage client contacts with detailed profiles
-• Create and monitor tasks with specific types (calls, meetings, showings, etc.)
-• View a dynamic dashboard showing:
-  - Top contacts ranked by potential commission
-  - Upcoming tasks and deadlines
-  - Client interaction history
-  - Performance metrics and goals
+Your background includes:
+• 15+ years of real estate experience in Houston
+• Extensive knowledge of HAR procedures and best practices
+• Deep understanding of market trends and property valuation
+• Expert negotiation and client relationship skills
+• Experience with both residential and commercial properties
 
-Your primary goal is to assist Origen Realty agents with real estate–related questions, especially those concerning the Houston Association of REALTORS® (HAR). You have access to the agent's current view in the CRM, including contact details, tasks, and dashboard data when available.
+When interacting with agents:
+• Be conversational and friendly, like a trusted colleague
+• Share real-world examples and practical experiences
+• Provide actionable advice based on industry best practices
+• Focus on solving real estate challenges first, mentioning CRM features only when naturally relevant
+• Address agents by their first name to keep conversations personal
 
-When responding:
-• Address the agent by their first name to make the interaction personal
-• Reference relevant CRM features that could help with their query
-• Suggest specific actions they can take within Origen Connect
-• Provide practical guidance for real estate transactions, listing procedures, and client interactions
+Your expertise covers:
+• Market analysis and property valuation
+• Client relationship management and communication
+• Contract negotiations and transaction procedures
+• Marketing strategies and lead generation
+• HAR regulations and compliance
+• Property showing best practices
+• Closing procedures and documentation
+
+When giving advice:
+• Draw from real estate best practices and market knowledge
+• Share practical tips that have worked in similar situations
+• Consider both immediate needs and long-term strategy
+• Be supportive and encouraging
+• Suggest CRM features only when they naturally fit the conversation
 
 Format your responses using markdown-style formatting:
-- Use `code` for technical terms or specific values
+- Use `code` for specific values or technical terms
 - Use **bold** for emphasis
-- Use bullet points or numbered lists for steps or multiple items
-- Use paragraphs to separate different topics
+- Use bullet points or numbered lists for steps
+- Keep paragraphs concise and readable
 
-If a question falls outside the scope of real estate or Origen Connect's capabilities, politely decline to answer while suggesting relevant CRM features that might be helpful."""
+If a question falls outside your real estate expertise, politely acknowledge your limitations while redirecting to areas where you can provide valuable insights."""
 
 def get_contact_and_tasks(url):
     """Extract contact data and related tasks if viewing a contact page."""
@@ -95,40 +110,65 @@ def chat():
         contact_data = get_contact_and_tasks(current_url)
         
         # Prepare the context message with agent info
-        context_message = f"""Agent Information:
-- Name: {current_user.first_name} {current_user.last_name}
-- Email: {current_user.email}
-- Role: {current_user.role}
+        context_message = f"""
+# Agent Context
+- **Name**: {current_user.first_name} {current_user.last_name}
+- **Email**: {current_user.email}
+- **Role**: {current_user.role}
+- **Current View**: {current_url}
 
-Context: User is viewing page: {current_url}
-
-Page Content:
-{page_content[:2000]}  # Including first 2000 characters of page content
+# Page Context
+{page_content[:2000]}
 """
         
         if contact_data:
             context_message += f"""
-Additional Contact Information:
-- Name: {contact_data['contact']['name']}
-- Email: {contact_data['contact']['email']}
-- Phone: {contact_data['contact']['phone']}
-- Address: {contact_data['contact']['address']}
-- Notes: {contact_data['contact']['notes']}
-- Potential Commission: ${contact_data['contact']['potential_commission']}
+# Contact Details
+- **Full Name**: {contact_data['contact']['name']}
+- **Email**: {contact_data['contact']['email']}
+- **Phone**: {contact_data['contact']['phone']}
+- **Location**: {contact_data['contact']['address']}
+- **Potential Commission**: ${contact_data['contact']['potential_commission']}
 
-Related Tasks:
+# Contact Notes
+{contact_data['contact']['notes']}
+
+# Related Tasks ({len(contact_data['tasks'])} total)
 """
+            # Group tasks by status
+            tasks_by_status = {}
+            
+            # Sort tasks into status groups
             for task in contact_data['tasks']:
-                context_message += f"""
-• {task['type']} - {task['subtype']}
-  Subject: {task['subject']}
-  Description: {task['description']}
-  Status: {task['status']}
-  Priority: {task['priority']}
-  Due Date: {task['due_date']}
-  Completed: {task['completed_at'] or 'No'}
-  Outcome: {task['outcome'] or 'N/A'}
-  Property: {task['property_address'] or 'N/A'}
+                status = task['status'].capitalize()  # Normalize status case
+                if status not in tasks_by_status:
+                    tasks_by_status[status] = []
+                
+                # Check for overdue tasks
+                if task['due_date']:
+                    task_date = datetime.strptime(task['due_date'], "%Y-%m-%d %H:%M")
+                    if task_date < datetime.now() and status != 'Completed':
+                        if 'Overdue' not in tasks_by_status:
+                            tasks_by_status['Overdue'] = []
+                        tasks_by_status['Overdue'].append(task)
+                    else:
+                        tasks_by_status[status].append(task)
+                else:
+                    tasks_by_status[status].append(task)
+
+            # Add tasks to context message by status group
+            for status, tasks in tasks_by_status.items():
+                if tasks:  # Only show status groups that have tasks
+                    context_message += f"\n## {status} Tasks ({len(tasks)})\n"
+                    for task in tasks:
+                        context_message += f"""
+- **{task['type']} - {task['subtype']}**
+  - Subject: {task['subject']}
+  - Description: {task['description']}
+  - Priority: {task['priority']}
+  - Due: {task['due_date'] or 'Not set'}
+  - Property: {task['property_address'] or 'N/A'}
+  - Outcome: {task['outcome'] or 'Pending'}
 """
 
         # Initialize OpenAI client
@@ -138,9 +178,11 @@ Related Tasks:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"""
+# Current Context
 {context_message}
 
-User question: {user_message}
+# User Query
+{user_message}
 """}
         ]
 
@@ -167,7 +209,7 @@ User question: {user_message}
             model="gpt-4-1106-preview",
             messages=messages,
             temperature=0.7,
-            max_tokens=500
+            max_tokens=1000
         )
 
         # Print GPT's response
@@ -184,4 +226,4 @@ User question: {user_message}
         print(f"\nError in chat route: {str(e)}\n")
         return jsonify({
             "error": str(e)
-        }), 500 
+        }), 500
