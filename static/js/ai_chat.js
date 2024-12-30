@@ -162,23 +162,46 @@ class AIChatWidget {
     formatMessage(text) {
         // Convert markdown-style formatting
         let formatted = text
-            // Code blocks
-            .replace(/```([^`]+)```/g, '<pre><code>$1</code></pre>')
+            // Headers
+            .replace(/### (.*$)/gm, '<h3 class="ai-chat-h3">$1</h3>')
+            .replace(/## (.*$)/gm, '<h2 class="ai-chat-h2">$1</h2>')
+            .replace(/# (.*$)/gm, '<h1 class="ai-chat-h1">$1</h1>')
+            
+            // Code blocks with language support
+            .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+            
             // Inline code
             .replace(/`([^`]+)`/g, '<code>$1</code>')
-            // Bold
+            
+            // Bold and Italic
+            .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            // Italic
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            
             // Lists
             .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
+            .replace(/^\s*(\d+)\.\s+(.+)$/gm, '<li>$2</li>')
+            
+            // Links
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            
             // Paragraphs
-            .split('\n\n').map(p => `<p>${p}</p>`).join('');
+            .split('\n\n').map(p => {
+                if (!p.trim()) return '';
+                if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol')) {
+                    return p;
+                }
+                return `<p>${p.trim()}</p>`;
+            }).join('\n');
 
-        // Wrap lists in ul tags
-        if (formatted.includes('<li>')) {
-            formatted = '<ul>' + formatted.replace(/<\/li>\s*<p><li>/g, '</li><li>') + '</ul>';
-        }
+        // Wrap lists in ul/ol tags
+        formatted = formatted
+            .replace(/<li>.*?(<\/li>(\s*<li>.*?)*<\/li>)/gs, match => {
+                if (match.match(/^\s*\d+\./m)) {
+                    return '<ol>' + match + '</ol>';
+                }
+                return '<ul>' + match + '</ul>';
+            });
 
         return formatted;
     }
