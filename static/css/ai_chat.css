@@ -75,7 +75,6 @@
     border-radius: 12px;
     max-width: 85%;
     line-height: 1.5;
-    white-space: pre-line;
     font-size: 15px;
 }
 
@@ -98,41 +97,35 @@
 .ai-message .ai-chat-h3 {
     color: #2d3e50;
     font-weight: 600;
-    margin: 1.5em 0 0.75em;
+    margin: 1em 0 0.5em;
     line-height: 1.3;
-}
-
-.ai-message .ai-chat-h1 {
-    font-size: 1.5em;
-    border-bottom: 2px solid #cbd5e1;
-    padding-bottom: 0.3em;
-}
-
-.ai-message .ai-chat-h2 {
-    font-size: 1.3em;
-    border-bottom: 1px solid #cbd5e1;
-    padding-bottom: 0.2em;
-}
-
-.ai-message .ai-chat-h3 {
-    font-size: 1.1em;
-    color: #f97316;
 }
 
 /* Paragraphs */
 .ai-message p {
-    margin: 0.75em 0;
+    margin: 0.5em 0;
+}
+
+.ai-message p + p {
+    margin-top: 1em;
+}
+
+/* Message divider */
+.ai-message .message-divider {
+    border: none;
+    border-top: 1px solid #cbd5e1;
+    margin: 1em 0;
 }
 
 /* Lists */
 .ai-message ul,
 .ai-message ol {
-    margin: 0.75em 0;
+    margin: 0.5em 0;
     padding-left: 1.5em;
 }
 
 .ai-message li {
-    margin: 0.5em 0;
+    margin: 0.25em 0;
 }
 
 .ai-message ul li {

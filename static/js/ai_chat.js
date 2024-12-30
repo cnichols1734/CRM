@@ -185,14 +185,29 @@ class AIChatWidget {
             // Links
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
             
-            // Paragraphs
-            .split('\n\n').map(p => {
-                if (!p.trim()) return '';
-                if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol')) {
+            // First, normalize all newlines and remove extra spaces
+            .replace(/\r\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        // Handle special blocks (like ---)
+        formatted = formatted.replace(/^---$/gm, '<hr class="message-divider">');
+
+        // Split into paragraphs and process each
+        formatted = formatted
+            .split('\n\n')
+            .map(p => {
+                p = p.trim();
+                if (!p) return '';
+                if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || 
+                    p.startsWith('<ol') || p.startsWith('<hr')) {
                     return p;
                 }
-                return `<p>${p.trim()}</p>`;
-            }).join('\n');
+                // Handle single newlines within paragraphs
+                return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+            })
+            .filter(p => p) // Remove empty paragraphs
+            .join('');
 
         // Wrap lists in ul/ol tags
         formatted = formatted
