@@ -1,18 +1,20 @@
 <!-- Contact Modal -->
 <div id="contactModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[200]">
     <!-- Modal backdrop -->
-    <div id="contactModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[201]"></div>
+    <div id="contactModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 transition-all duration-300 ease-out z-[201]"></div>
     
     <div class="fixed inset-0 z-[202] overflow-y-auto">
         <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+            <div class="relative bg-white rounded-3xl shadow-2xl max-w-5xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
                 <!-- Modal header -->
-                <div class="flex items-center justify-between p-6 border-b">
+                <div class="flex items-center justify-between px-8 py-6">
                     <div class="flex items-center space-x-4">
-                        <div id="modalContactInitials" class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm"></div>
+                        <div id="modalContactInitials" class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-medium shadow-sm bg-gray-50"></div>
                         <div>
                             <h2 class="text-2xl font-semibold text-gray-900" id="modalContactName"></h2>
-                            <p class="text-sm text-gray-500 mt-0.5">Contact</p>
+                            <div id="modalContactGroups" class="flex flex-wrap gap-2 mt-2">
+                                <!-- Groups will be populated here -->
+                            </div>
                         </div>
                     </div>
                     <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -21,137 +23,129 @@
                 </div>
                 
                 <!-- Modal content -->
-                <div class="px-6 py-6 space-y-8">
-                    <!-- Primary Contact Information -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div class="space-y-6">
+                <div class="px-8 pb-8">
+                    <!-- Basic Information -->
+                    <div class="grid grid-cols-2 gap-8 mb-8">
+                        <!-- Contact Info -->
+                        <div class="bg-gray-100/75 rounded-2xl p-6 space-y-6">
                             <!-- Email -->
-                            <div>
-                                <div class="flex items-center space-x-2 mb-2">
+                            <div class="group">
+                                <div class="flex items-center space-x-3 mb-1.5">
                                     <i class="fas fa-envelope text-gray-400"></i>
-                                    <h3 class="text-sm font-medium text-gray-900">Email</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Email</h3>
                                 </div>
-                                <p id="modalContactEmail" class="text-gray-600"></p>
+                                <p id="modalContactEmail" class="text-base text-gray-900 pl-8"></p>
                             </div>
 
                             <!-- Phone -->
-                            <div>
-                                <div class="flex items-center space-x-2 mb-2">
+                            <div class="group">
+                                <div class="flex items-center space-x-3 mb-1.5">
                                     <i class="fas fa-phone text-gray-400"></i>
-                                    <h3 class="text-sm font-medium text-gray-900">Phone</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Phone</h3>
                                 </div>
-                                <p id="modalContactPhone" class="text-gray-600"></p>
+                                <p id="modalContactPhone" class="text-base text-gray-900 pl-8"></p>
                             </div>
                         </div>
 
-                        <div class="space-y-6">
-                            <!-- Potential Commission -->
-                            <div>
-                                <div class="flex items-center space-x-2 mb-2">
+                        <!-- Business Info -->
+                        <div class="bg-gray-100/75 rounded-2xl p-6 space-y-6">
+                            <!-- Commission -->
+                            <div class="group">
+                                <div class="flex items-center space-x-3 mb-1.5">
                                     <i class="fas fa-dollar-sign text-gray-400"></i>
-                                    <h3 class="text-sm font-medium text-gray-900">Potential Commission</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Potential Commission</h3>
                                 </div>
-                                <p id="modalContactCommission" class="text-gray-600"></p>
+                                <p id="modalContactCommission" class="text-xl font-semibold text-gray-900 pl-8"></p>
                             </div>
 
                             <!-- Created Date -->
-                            <div>
-                                <div class="flex items-center space-x-2 mb-2">
+                            <div class="group">
+                                <div class="flex items-center space-x-3 mb-1.5">
                                     <i class="fas fa-calendar text-gray-400"></i>
-                                    <h3 class="text-sm font-medium text-gray-900">Created</h3>
+                                    <h3 class="text-sm font-medium text-gray-500">Created</h3>
                                 </div>
-                                <p id="modalContactCreated" class="text-gray-600"></p>
+                                <p id="modalContactCreated" class="text-base text-gray-900 pl-8"></p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Last Contact Dates -->
-                    <div class="pt-2">
-                        <div class="flex items-center space-x-2 mb-3">
-                            <i class="fas fa-history text-gray-400"></i>
-                            <h3 class="text-sm font-medium text-gray-900">Last Contact Dates</h3>
-                        </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="space-y-3">
-                                    <!-- Last Email Date -->
-                                    <div>
-                                        <p class="text-sm text-gray-500">Last Email</p>
-                                        <p id="modalContactLastEmail" class="text-sm font-medium text-gray-900 mt-1"></p>
-                                    </div>
-                                    <!-- Last Text Date -->
-                                    <div>
-                                        <p class="text-sm text-gray-500">Last Text</p>
-                                        <p id="modalContactLastText" class="text-sm font-medium text-gray-900 mt-1"></p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="bg-gray-50 rounded-lg p-4">
-                                <div class="space-y-3">
-                                    <!-- Last Phone Call Date -->
-                                    <div>
-                                        <p class="text-sm text-gray-500">Last Phone Call</p>
-                                        <p id="modalContactLastPhoneCall" class="text-sm font-medium text-gray-900 mt-1"></p>
-                                    </div>
-                                    <!-- Last Contact Date -->
-                                    <div>
-                                        <p class="text-sm text-gray-500">Last Contact</p>
-                                        <p id="modalContactLastContact" class="text-sm font-medium text-gray-900 mt-1"></p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Address -->
-                    <div class="pt-2">
-                        <div class="flex items-center space-x-2 mb-3">
+                    <!-- Address Section -->
+                    <div class="mb-8">
+                        <div class="flex items-center space-x-3 mb-3">
                             <i class="fas fa-map-marker-alt text-gray-400"></i>
                             <h3 class="text-sm font-medium text-gray-900">Address</h3>
                         </div>
-                        <div class="bg-gray-50 rounded-xl p-4">
-                            <p id="modalContactAddress" class="text-gray-600"></p>
+                        <div class="bg-gray-100/75 rounded-2xl p-4 pl-8">
+                            <p id="modalContactAddress" class="text-gray-700"></p>
                         </div>
                     </div>
 
-                    <!-- Active Tasks -->
-                    <div class="pt-2">
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="flex items-center space-x-2">
-                                <i class="fas fa-tasks text-gray-400"></i>
-                                <h3 class="text-sm font-medium text-gray-900">Active Tasks</h3>
+                    <!-- Contact History & Tasks -->
+                    <div class="grid grid-cols-2 gap-8">
+                        <!-- Last Contact Dates -->
+                        <div>
+                            <div class="flex items-center space-x-3 mb-3">
+                                <i class="fas fa-history text-gray-400"></i>
+                                <h3 class="text-sm font-medium text-gray-900">Last Contact</h3>
+                            </div>
+                            <div class="bg-gray-100/75 rounded-2xl p-6 space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p class="text-sm text-gray-500 mb-1">Email</p>
+                                        <p id="modalContactLastEmail" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500 mb-1">Text</p>
+                                        <p id="modalContactLastText" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500 mb-1">Phone Call</p>
+                                        <p id="modalContactLastPhoneCall" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500 mb-1">Any Contact</p>
+                                        <p id="modalContactLastContact" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div id="modalContactTasks" class="space-y-2">
-                            <!-- Tasks will be populated here -->
+
+                        <!-- Active Tasks -->
+                        <div>
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center space-x-3">
+                                    <i class="fas fa-tasks text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Active Tasks</h3>
+                                </div>
+                            </div>
+                            <div class="bg-gray-100/75 rounded-2xl p-6">
+                                <div id="modalContactTasks" class="space-y-3">
+                                    <!-- Tasks will be populated here -->
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Groups -->
-                    <div class="pt-2">
-                        <div class="flex items-center space-x-2 mb-3">
-                            <i class="fas fa-tags text-gray-400"></i>
-                            <h3 class="text-sm font-medium text-gray-900">Groups</h3>
-                        </div>
-                        <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
-                    </div>
-
-                    <!-- Notes -->
-                    <div class="pt-2">
-                        <div class="flex items-center space-x-2 mb-3">
+                    <!-- Notes Section -->
+                    <div class="mt-8">
+                        <div class="flex items-center space-x-3 mb-3">
                             <i class="fas fa-sticky-note text-gray-400"></i>
                             <h3 class="text-sm font-medium text-gray-900">Notes</h3>
                         </div>
-                        <div class="bg-gray-50 rounded-xl p-4">
-                            <p id="modalContactNotes" class="text-gray-600 whitespace-pre-line"></p>
+                        <div class="bg-gray-100/75 rounded-2xl p-6">
+                            <p id="modalContactNotes" class="text-gray-700 whitespace-pre-line"></p>
                         </div>
                     </div>
                 </div>
                 
                 <!-- Modal footer -->
-                <div class="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-end">
+                <div class="px-8 py-4 border-t flex items-center justify-end space-x-4">
+                    <button onclick="closeContactModal()" 
+                            class="px-6 py-2.5 text-gray-700 hover:text-gray-900 font-medium text-sm transition-colors">
+                        Close
+                    </button>
                     <a id="modalContactFullView" href="#" 
-                       class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                       class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-150 text-sm font-medium shadow-sm hover:shadow">
                         <i class="fas fa-external-link-alt mr-2"></i>
                         Open Full View
                     </a>
@@ -160,6 +154,13 @@
         </div>
     </div>
 </div>
+
+<style>
+.group:hover i {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
+}
+</style>
 
 <!-- Contact Modal JavaScript -->
 <script>
@@ -201,7 +202,7 @@ function openContactModal(contactId) {
                 break;
             }
         }
-        initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
+        initialsDiv.className = `w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-medium shadow-sm ${colorClass}`;
         
         // Contact details
         document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
@@ -373,17 +374,24 @@ function openContactModal(contactId) {
 function closeContactModal() {
     const modal = document.getElementById('contactModal');
     const modalContent = modal.querySelector('.relative');
+    const modalBackdrop = document.getElementById('contactModalBackdrop');
     
     // Start the fade-out animation
     modal.classList.remove('opacity-100');
     modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
     modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
     
-    // After the animation completes, disable pointer events
+    // After the animation completes, disable pointer events and reset backdrop
     setTimeout(() => {
         document.body.style.overflow = '';
         modal.classList.remove('pointer-events-auto');
         modal.classList.add('pointer-events-none');
+        
+        // Force a reset of the backdrop blur state
+        modalBackdrop.style.display = 'none';
+        modalBackdrop.offsetHeight; // Force a reflow
+        modalBackdrop.style.display = '';
+        
         window.currentContactId = null;
     }, 300);
 }

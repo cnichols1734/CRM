@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytz
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
 
@@ -146,15 +147,39 @@ def dashboard():
 
     if current_user.role == 'admin' and show_all:
         upcoming_tasks = Task.query.filter(
-            Task.due_date.between(utc_now, utc_seven_days),
+            or_(
+                # Past due tasks
+                Task.due_date < utc_now,
+                # Upcoming tasks within 7 days
+                Task.due_date.between(utc_now, utc_seven_days)
+            ),
             Task.status != 'completed'
-        ).order_by(Task.due_date.asc()).limit(5).all()
+        ).order_by(
+            # Order past due first, then by due date
+            case(
+                (Task.due_date < utc_now, 0),
+                else_=1
+            ),
+            Task.due_date.asc()
+        ).limit(5).all()
     else:
         upcoming_tasks = Task.query.filter(
             Task.assigned_to_id == current_user.id,
-            Task.due_date.between(utc_now, utc_seven_days),
+            or_(
+                # Past due tasks
+                Task.due_date < utc_now,
+                # Upcoming tasks within 7 days
+                Task.due_date.between(utc_now, utc_seven_days)
+            ),
             Task.status != 'completed'
-        ).order_by(Task.due_date.asc()).limit(5).all()
+        ).order_by(
+            # Order past due first, then by due date
+            case(
+                (Task.due_date < utc_now, 0),
+                else_=1
+            ),
+            Task.due_date.asc()
+        ).limit(5).all()
 
     # Convert task due_dates to user's timezone
     for task in upcoming_tasks:
