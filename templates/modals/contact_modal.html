@@ -163,10 +163,11 @@
 
 <!-- Contact Modal JavaScript -->
 <script>
-let currentContactId = null;
+// Make currentContactId globally accessible
+window.currentContactId = null;
 
 function openContactModal(contactId) {
-    currentContactId = contactId;
+    window.currentContactId = contactId;
     
     fetch(`/contact/${contactId}`, {
         headers: {
@@ -383,7 +384,7 @@ function closeContactModal() {
         document.body.style.overflow = '';
         modal.classList.remove('pointer-events-auto');
         modal.classList.add('pointer-events-none');
-        currentContactId = null;
+        window.currentContactId = null;
     }, 300);
 }
 

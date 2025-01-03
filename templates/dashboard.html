@@ -72,7 +72,7 @@
                 <h3 class="text-lg font-medium text-gray-900">Contact Groups</h3>
                 <span class="text-sm text-gray-500">Distribution</span>
             </div>
-            <div id="groupChart" class="w-full h-64"></div>
+            <div id="groupChart" style="min-height: 300px;" class="w-full"></div>
             <div class="mt-4">
                 <div class="grid grid-cols-1 gap-2">
                     {% for group in group_stats %}
@@ -487,49 +487,46 @@
 <!-- ApexCharts -->
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
+// Initialize Group Distribution Chart
 document.addEventListener('DOMContentLoaded', function() {
-    const groupData = {{ group_stats|tojson }};
-    const labels = groupData.map(item => item.name);
-    const series = groupData.map(item => item.count);
-
-    const options = {
-        series: series,
+    var groupData = {{ group_stats|tojson|safe }};
+    var chartOptions = {
+        series: groupData.map(function(item) { return item.count; }),
         chart: {
-            type: 'donut',
-            height: 256,
-            sparkline: {
-                enabled: true
-            }
+            width: '100%',
+            height: 300,
+            type: 'donut'
         },
-        labels: labels,
+        labels: groupData.map(function(item) { return item.name; }),
         colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
         plotOptions: {
             pie: {
                 donut: {
-                    size: '75%',
-                    background: 'transparent'
+                    size: '75%'
                 }
             }
         },
-        stroke: {
-            width: 0
+        dataLabels: {
+            enabled: false
+        },
+        legend: {
+            show: false
         },
         tooltip: {
             enabled: true,
             y: {
                 formatter: function(value) {
-                    return value + ' contacts'
+                    return value + ' contacts';
                 }
             }
-        },
-        legend: {
-            show: false
         }
     };
 
-    const chart = new ApexCharts(document.querySelector("#groupChart"), options);
+    var chart = new ApexCharts(document.querySelector("#groupChart"), chartOptions);
     chart.render();
 });
+
+let currentTaskId = null;
 
 function quickUpdateStatus(taskId, completed) {
     fetch(`/tasks/${taskId}/quick-update`, {
@@ -547,9 +544,9 @@ function quickUpdateStatus(taskId, completed) {
             closeTaskModal();
         }
         
-        // Refresh the contact modal to update the task list
-        if (currentContactId) {
-            openContactModal(currentContactId);
+        // Refresh the contact modal if open
+        if (window.currentContactId) {
+            openContactModal(window.currentContactId);
         }
     })
     .catch(error => {
@@ -640,8 +637,6 @@ function deleteTask(taskId) {
         alert('Error deleting task');
     });
 }
-
-let currentTaskId = null;
 
 function openTaskModal(taskId) {
     currentTaskId = taskId;
@@ -826,8 +821,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
-
-let currentContactId = null;
 
 function openContactModal(contactId) {
     currentContactId = contactId;
