@@ -1,0 +1,409 @@
+<!-- Contact Modal -->
+<div id="contactModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[200]">
+    <!-- Modal backdrop -->
+    <div id="contactModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[201]"></div>
+    
+    <div class="fixed inset-0 z-[202] overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+                <!-- Modal header -->
+                <div class="flex items-center justify-between p-6 border-b">
+                    <div class="flex items-center space-x-4">
+                        <div id="modalContactInitials" class="w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm"></div>
+                        <div>
+                            <h2 class="text-2xl font-semibold text-gray-900" id="modalContactName"></h2>
+                            <p class="text-sm text-gray-500 mt-0.5">Contact</p>
+                        </div>
+                    </div>
+                    <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- Modal content -->
+                <div class="px-6 py-6 space-y-8">
+                    <!-- Primary Contact Information -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-6">
+                            <!-- Email -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-envelope text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Email</h3>
+                                </div>
+                                <p id="modalContactEmail" class="text-gray-600"></p>
+                            </div>
+
+                            <!-- Phone -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-phone text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Phone</h3>
+                                </div>
+                                <p id="modalContactPhone" class="text-gray-600"></p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-6">
+                            <!-- Potential Commission -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-dollar-sign text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Potential Commission</h3>
+                                </div>
+                                <p id="modalContactCommission" class="text-gray-600"></p>
+                            </div>
+
+                            <!-- Created Date -->
+                            <div>
+                                <div class="flex items-center space-x-2 mb-2">
+                                    <i class="fas fa-calendar text-gray-400"></i>
+                                    <h3 class="text-sm font-medium text-gray-900">Created</h3>
+                                </div>
+                                <p id="modalContactCreated" class="text-gray-600"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Last Contact Dates -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-history text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Last Contact Dates</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="space-y-3">
+                                    <!-- Last Email Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Email</p>
+                                        <p id="modalContactLastEmail" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                    <!-- Last Text Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Text</p>
+                                        <p id="modalContactLastText" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="space-y-3">
+                                    <!-- Last Phone Call Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Phone Call</p>
+                                        <p id="modalContactLastPhoneCall" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                    <!-- Last Contact Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Contact</p>
+                                        <p id="modalContactLastContact" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-map-marker-alt text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Address</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <p id="modalContactAddress" class="text-gray-600"></p>
+                        </div>
+                    </div>
+
+                    <!-- Active Tasks -->
+                    <div class="pt-2">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-tasks text-gray-400"></i>
+                                <h3 class="text-sm font-medium text-gray-900">Active Tasks</h3>
+                            </div>
+                        </div>
+                        <div id="modalContactTasks" class="space-y-2">
+                            <!-- Tasks will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Groups -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-tags text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Groups</h3>
+                        </div>
+                        <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-sticky-note text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Notes</h3>
+                        </div>
+                        <div class="bg-gray-50 rounded-xl p-4">
+                            <p id="modalContactNotes" class="text-gray-600 whitespace-pre-line"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Modal footer -->
+                <div class="px-6 py-4 border-t bg-gray-50 rounded-b-2xl flex items-center justify-end">
+                    <a id="modalContactFullView" href="#" 
+                       class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                        <i class="fas fa-external-link-alt mr-2"></i>
+                        Open Full View
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Contact Modal JavaScript -->
+<script>
+let currentContactId = null;
+
+function openContactModal(contactId) {
+    currentContactId = contactId;
+    
+    fetch(`/contact/${contactId}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(contact => {
+        // Update modal content
+        document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
+        document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
+        
+        // Set initials with color
+        const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
+        const initialsDiv = document.getElementById('modalContactInitials');
+        initialsDiv.textContent = initials;
+        
+        // Color based on first initial
+        const colorClasses = {
+            'ABCDE': 'bg-blue-100 text-blue-800',
+            'FGHIJ': 'bg-green-100 text-green-800',
+            'KLMNO': 'bg-yellow-100 text-yellow-800',
+            'PQRST': 'bg-red-100 text-red-800',
+            'UVWXYZ': 'bg-purple-100 text-purple-800'
+        };
+        
+        let colorClass = 'bg-gray-100 text-gray-800';
+        for (const [letters, className] of Object.entries(colorClasses)) {
+            if (letters.includes(initials[0].toUpperCase())) {
+                colorClass = className;
+                break;
+            }
+        }
+        initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
+        
+        // Contact details
+        document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
+        document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
+        
+        // Address
+        const addressParts = [];
+        if (contact.street_address) addressParts.push(contact.street_address);
+        if (contact.city) addressParts.push(contact.city);
+        if (contact.state) addressParts.push(contact.state);
+        if (contact.zip_code) addressParts.push(contact.zip_code);
+        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
+        
+        // Active Tasks
+        const tasksContainer = document.getElementById('modalContactTasks');
+        tasksContainer.innerHTML = '';
+        
+        if (contact.active_tasks && contact.active_tasks.length > 0) {
+            contact.active_tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'bg-white border rounded-lg p-3 hover:bg-gray-50';
+                
+                // Calculate due date text
+                const dueDate = new Date(task.due_date);
+                const now = new Date();
+                const diffTime = dueDate - now;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                let dueDateText = '';
+                if (diffDays < 0) {
+                    dueDateText = `${Math.abs(diffDays)}d overdue`;
+                } else if (diffDays === 0) {
+                    dueDateText = 'Due today';
+                } else if (diffDays === 1) {
+                    dueDateText = 'Due tomorrow';
+                } else {
+                    dueDateText = `Due in ${diffDays}d`;
+                }
+                
+                taskDiv.innerHTML = `
+                    <div class="flex items-start space-x-3">
+                        <div class="flex-shrink-0">
+                            <div class="w-6 h-6 rounded flex items-center justify-center 
+                                ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                  'bg-green-100 text-green-700'}">
+                                <i class="fas fa-flag text-xs"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center space-x-2">
+                                <a href="#" onclick="openTaskModal(${task.id}); return false;"
+                                   class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                    ${task.subject}
+                                </a>
+                            </div>
+                            <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    ${task.task_type.name}
+                                </span>
+                                <span class="${diffDays < 0 ? 'text-red-500' : 
+                                            diffDays === 0 ? 'text-orange-500' : 
+                                            diffDays <= 2 ? 'text-yellow-500' : ''}">
+                                    ${dueDateText}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <button onclick="event.stopPropagation(); quickUpdateStatus(${task.id}, true)" 
+                                    class="text-gray-400 hover:text-green-500 p-1">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                tasksContainer.appendChild(taskDiv);
+            });
+        } else {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-xl';
+            emptyState.textContent = 'No active tasks';
+            tasksContainer.appendChild(emptyState);
+        }
+        
+        // Groups
+        const groupsContainer = document.getElementById('modalContactGroups');
+        groupsContainer.innerHTML = '';
+        if (contact.groups && contact.groups.length > 0) {
+            contact.groups.forEach(group => {
+                const span = document.createElement('span');
+                span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
+                span.textContent = group.name;
+                groupsContainer.appendChild(span);
+            });
+        } else {
+            const span = document.createElement('span');
+            span.className = 'text-gray-500 italic';
+            span.textContent = 'No groups assigned';
+            groupsContainer.appendChild(span);
+        }
+        
+        // Notes
+        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
+        
+        // Commission
+        document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
+            `$${parseFloat(contact.potential_commission).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 
+            '$0.00';
+        
+        // Created date
+        const createdDate = new Date(contact.created_at);
+        document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        // Last Contact Dates
+        function formatDate(dateString) {
+            if (!dateString) return 'Never';
+            // Parse the date string and adjust for local timezone
+            const date = new Date(dateString + 'T12:00:00');
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        document.getElementById('modalContactLastEmail').textContent = formatDate(contact.last_email_date);
+        document.getElementById('modalContactLastText').textContent = formatDate(contact.last_text_date);
+        document.getElementById('modalContactLastPhoneCall').textContent = formatDate(contact.last_phone_call_date);
+        document.getElementById('modalContactLastContact').textContent = formatDate(contact.last_contact_date);
+        
+        // Show modal with animation
+        const modal = document.getElementById('contactModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Enable pointer events and show modal
+        document.body.style.overflow = 'hidden';
+        modal.classList.remove('pointer-events-none');
+        modal.classList.add('pointer-events-auto');
+        
+        // Add click outside handler
+        const handleClickOutside = (event) => {
+            if (!modalContent.contains(event.target)) {
+                closeContactModal();
+                document.removeEventListener('click', handleClickOutside);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', handleClickOutside);
+        }, 0);
+        
+        // Trigger reflow
+        modal.offsetHeight;
+        
+        // Add the fade-in classes
+        modal.classList.add('opacity-100');
+        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading contact details');
+    });
+}
+
+function closeContactModal() {
+    const modal = document.getElementById('contactModal');
+    const modalContent = modal.querySelector('.relative');
+    
+    // Start the fade-out animation
+    modal.classList.remove('opacity-100');
+    modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+    modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+    
+    // After the animation completes, disable pointer events
+    setTimeout(() => {
+        document.body.style.overflow = '';
+        modal.classList.remove('pointer-events-auto');
+        modal.classList.add('pointer-events-none');
+        currentContactId = null;
+    }, 300);
+}
+
+// Close modal when pressing Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeContactModal();
+    }
+});
+
+document.addEventListener('click', function(event) {
+    const modal = document.getElementById('contactModal');
+    const modalContent = modal.querySelector('.relative');
+    
+    if (!modal.classList.contains('pointer-events-none')) {
+        // Check if click is outside modal content
+        const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !modalContent.contains(event.target);
+        if (clickedOnBackdrop) {
+            closeContactModal();
+        }
+    }
+});
+</script> 
