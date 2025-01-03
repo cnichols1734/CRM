@@ -988,6 +988,13 @@ function clearSort() {
                                text-{% if current_sort == 'created_at' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
                         </div>
                     </th>
+                    <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
+                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('last_contact_date')">
+                            <span>LAST CONTACT</span>
+                            <i class="fas fa-sort{% if current_sort == 'last_contact_date' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
+                               text-{% if current_sort == 'last_contact_date' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                        </div>
+                    </th>
                 </tr>
             </thead>
             <tbody class="divide-y text-sm">
@@ -1092,6 +1099,13 @@ function clearSort() {
                     </td>
                     <td class="px-4 border-l whitespace-nowrap">
                         {{ contact.created_at.strftime('%b %d, %Y') }}
+                    </td>
+                    <td class="px-4 border-l whitespace-nowrap">
+                        {% if contact.last_contact_date %}
+                            {{ contact.last_contact_date.strftime('%b %d, %Y') }}
+                        {% else %}
+                            <span class="text-gray-400">Never</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
@@ -1247,6 +1261,44 @@ function hideImportStatus() {
                                     <h3 class="text-sm font-medium text-gray-900">Created</h3>
                                 </div>
                                 <p id="modalContactCreated" class="text-gray-600"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Last Contact Dates -->
+                    <div class="pt-2">
+                        <div class="flex items-center space-x-2 mb-3">
+                            <i class="fas fa-history text-gray-400"></i>
+                            <h3 class="text-sm font-medium text-gray-900">Last Contact Dates</h3>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="space-y-3">
+                                    <!-- Last Email Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Email</p>
+                                        <p id="modalContactLastEmail" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                    <!-- Last Text Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Text</p>
+                                        <p id="modalContactLastText" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <div class="space-y-3">
+                                    <!-- Last Phone Call Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Phone Call</p>
+                                        <p id="modalContactLastPhoneCall" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                    <!-- Last Contact Date -->
+                                    <div>
+                                        <p class="text-sm text-gray-500">Last Contact</p>
+                                        <p id="modalContactLastContact" class="text-sm font-medium text-gray-900 mt-1"></p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1464,6 +1516,23 @@ function openContactModal(contactId) {
             month: 'long',
             day: 'numeric'
         });
+
+        // Last Contact Dates
+        function formatDate(dateString) {
+            if (!dateString) return 'Never';
+            // Parse the date string and adjust for local timezone
+            const date = new Date(dateString + 'T12:00:00');
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        document.getElementById('modalContactLastEmail').textContent = formatDate(contact.last_email_date);
+        document.getElementById('modalContactLastText').textContent = formatDate(contact.last_text_date);
+        document.getElementById('modalContactLastPhoneCall').textContent = formatDate(contact.last_phone_call_date);
+        document.getElementById('modalContactLastContact').textContent = formatDate(contact.last_contact_date);
         
         // Show modal with animation
         const modal = document.getElementById('contactModal');

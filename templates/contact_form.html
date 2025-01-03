@@ -151,17 +151,51 @@
                     <!-- Potential Commission -->
                     <div>
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission ($)</h3>
-                        {{ form.potential_commission(
-                            class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300",
-                            type="number",
-                            step="0.01",
-                            min="0"
-                        ) }}
+                        {{ form.potential_commission(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
                         {% if form.potential_commission.errors %}
                             {% for error in form.potential_commission.errors %}
                                 <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                             {% endfor %}
                         {% endif %}
+                    </div>
+
+                    <!-- Contact Dates Section -->
+                    <div class="md:col-span-2">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Last Email Date -->
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Email Date</h3>
+                                {{ form.last_email_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                {% if form.last_email_date.errors %}
+                                    {% for error in form.last_email_date.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Text Date -->
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Text Date</h3>
+                                {{ form.last_text_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                {% if form.last_text_date.errors %}
+                                    {% for error in form.last_text_date.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Phone Call Date -->
+                            <div>
+                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Phone Call Date</h3>
+                                {{ form.last_phone_call_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                {% if form.last_phone_call_date.errors %}
+                                    {% for error in form.last_phone_call_date.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Notes -->

@@ -123,6 +123,47 @@
                                 </div>
                             </div>
 
+                            <!-- Contact Dates Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <!-- Last Email Date -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Email</label>
+                                        <input type="date" 
+                                               name="last_email_date" 
+                                               value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <!-- Last Text Date -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Text</label>
+                                        <input type="date" 
+                                               name="last_text_date" 
+                                               value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <!-- Last Phone Call Date -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Phone Call</label>
+                                        <input type="date" 
+                                               name="last_phone_call_date" 
+                                               value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}"
+                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                    </div>
+
+                                    <!-- Last Contact Date (Read-only) -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Contact</label>
+                                        <p class="px-3 py-2 text-gray-600">
+                                            {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Address Section -->
                             <div class="p-6">
                                 <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
@@ -217,6 +258,40 @@
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <h3 class="text-sm font-medium text-gray-600 mb-1">Created</h3>
                                         <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Contact Dates Section -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Email</h3>
+                                        <p class="text-gray-900">
+                                            {{ contact.last_email_date.strftime('%B %d, %Y') if contact.last_email_date else 'Never' }}
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Text</h3>
+                                        <p class="text-gray-900">
+                                            {{ contact.last_text_date.strftime('%B %d, %Y') if contact.last_text_date else 'Never' }}
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Phone Call</h3>
+                                        <p class="text-gray-900">
+                                            {{ contact.last_phone_call_date.strftime('%B %d, %Y') if contact.last_phone_call_date else 'Never' }}
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Contact</h3>
+                                        <p class="text-gray-900">
+                                            {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>

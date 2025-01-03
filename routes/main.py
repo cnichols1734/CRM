@@ -72,7 +72,8 @@ def index():
             'phone': [Contact.phone],
             'address': [Contact.street_address],
             'notes': [Contact.notes],
-            'created_at': [Contact.created_at]
+            'created_at': [Contact.created_at],
+            'last_contact_date': [Contact.last_contact_date]
         }
 
         if sort_by in sort_map:

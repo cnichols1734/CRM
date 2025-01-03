@@ -40,6 +40,10 @@ def view_contact(contact_id):
             'notes': contact.notes,
             'potential_commission': float(contact.potential_commission) if contact.potential_commission else None,
             'created_at': contact.created_at.isoformat(),
+            'last_email_date': contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date else None,
+            'last_text_date': contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date else None,
+            'last_phone_call_date': contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date else None,
+            'last_contact_date': contact.last_contact_date.strftime('%Y-%m-%d') if contact.last_contact_date else None,
             'groups': [{
                 'id': group.id,
                 'name': group.name
@@ -83,8 +87,14 @@ def create_contact():
             state=form.state.data,
             zip_code=form.zip_code.data,
             notes=form.notes.data,
-            potential_commission=form.potential_commission.data or 5000.00
+            potential_commission=form.potential_commission.data or 5000.00,
+            last_email_date=form.last_email_date.data,
+            last_text_date=form.last_text_date.data,
+            last_phone_call_date=form.last_phone_call_date.data
         )
+
+        # Update the last contact date
+        contact.update_last_contact_date()
 
         selected_groups = ContactGroup.query.filter(
             ContactGroup.id.in_(form.group_ids.data)
@@ -127,6 +137,20 @@ def edit_contact(contact_id):
         contact.zip_code = request.form.get('zip_code')
         contact.notes = request.form.get('notes')
         contact.potential_commission = float(request.form.get('potential_commission', 5000.00))
+
+        # Handle date fields
+        for date_field in ['last_email_date', 'last_text_date', 'last_phone_call_date']:
+            date_str = request.form.get(date_field)
+            if date_str:
+                try:
+                    setattr(contact, date_field, datetime.strptime(date_str, '%Y-%m-%d').date())
+                except ValueError:
+                    pass  # Skip invalid dates
+            else:
+                setattr(contact, date_field, None)
+
+        # Update the last contact date
+        contact.update_last_contact_date()
 
         selected_group_ids = request.form.getlist('group_ids')
         contact.groups = ContactGroup.query.filter(

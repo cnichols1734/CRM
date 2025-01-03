@@ -73,6 +73,12 @@ class Contact(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                           onupdate=datetime.utcnow)
     potential_commission = db.Column(db.Numeric(10, 2), nullable=False, default=5000.00)
+    
+    # New contact date tracking fields
+    last_email_date = db.Column(db.Date, nullable=True)
+    last_text_date = db.Column(db.Date, nullable=True)
+    last_phone_call_date = db.Column(db.Date, nullable=True)
+    last_contact_date = db.Column(db.Date, nullable=True)
 
     # Update the relationship to use backref
     owner = db.relationship('User', backref=db.backref('contacts', lazy=True))
@@ -80,6 +86,11 @@ class Contact(db.Model):
                            secondary=contact_groups,
                            back_populates='contacts',
                            lazy='joined')
+
+    def update_last_contact_date(self):
+        """Update the last_contact_date based on the most recent contact date"""
+        dates = [d for d in [self.last_email_date, self.last_text_date, self.last_phone_call_date] if d is not None]
+        self.last_contact_date = max(dates) if dates else None
 
     def __repr__(self):
         return f'<Contact {self.first_name} {self.last_name}>'
