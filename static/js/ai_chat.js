@@ -22,11 +22,11 @@ class AIChatWidget {
         chatBox.style.display = 'none';
         chatBox.innerHTML = `
             <div class="ai-chat-header">
-                <span>Origen Advisor</span>
+                <span>B.O.B. - Your Business Optimization Buddy</span>
                 <button class="ai-chat-close">&times;</button>
             </div>
             <div class="ai-chat-messages">
-                <div class="ai-message">Ask me anything about real estate</div>
+                <div class="ai-message">Hi, I'm BOB! 👋 Your Business Optimization Buddy. I'm here to assist you with any questions about real estate. How can I help you today?</div>
             </div>
             <div class="ai-chat-input">
                 <textarea placeholder="Type your question here..." id="ai-chat-textarea"></textarea>
@@ -41,7 +41,7 @@ class AIChatWidget {
         typingIndicator.id = 'typing-indicator';
         typingIndicator.innerHTML = `
             <div class="typing-indicator-content">
-                <div class="typing-indicator-text">Origen Advisor is thinking...</div>
+                <div class="typing-indicator-text">BOB is thinking...</div>
                 <div class="typing-indicator-dots">
                     <span></span>
                     <span></span>
