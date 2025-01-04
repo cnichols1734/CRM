@@ -59,7 +59,7 @@ When giving advice:
 Format your responses using markdown-style formatting:
 - Use `code` for specific values or technical terms
 - Use **bold** for emphasis
-- Use bullet points lists for steps
+- Use bullet points lists for steps - NO NUMBERED LISTS
 - Keep paragraphs concise and readable
 
 Email/Message Format:

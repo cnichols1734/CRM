@@ -303,7 +303,6 @@ class AIChatWidget {
         }
         
         messagesDiv.appendChild(messageElement);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 }
 
