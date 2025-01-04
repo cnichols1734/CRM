@@ -64,100 +64,8 @@
         </div>
     </div>
 
-    <!-- Charts and Tables Grid -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Group Distribution Chart -->
-        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-1">
-            <div class="flex items-center justify-between mb-6">
-                <h3 class="text-lg font-medium text-gray-900">Contact Groups</h3>
-                <span class="text-sm text-gray-500">Distribution</span>
-            </div>
-            <div id="groupChart" style="min-height: 300px;" class="w-full"></div>
-            <div class="mt-4">
-                <div class="grid grid-cols-1 gap-2">
-                    {% for group in group_stats %}
-                    <div class="flex items-center justify-between text-sm">
-                        <div class="flex items-center">
-                            <div class="w-2 h-2 rounded-full mr-2" style="background-color: {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}"></div>
-                            <span class="text-gray-600">{{ group.name }}</span>
-                        </div>
-                        <span class="font-medium text-gray-900">{{ group.count }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <!-- Top Contacts Table -->
-        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-2">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Top Contacts by Commission</h3>
-            <div class="overflow-x-auto">
-                <table class="min-w-full">
-                    <thead>
-                        <tr class="border-b border-gray-200">
-                            {% if current_user.role == 'admin' and show_all %}
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Owner</th>
-                            {% endif %}
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Contact</th>
-                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                            <th class="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Potential Commission</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        {% for contact in top_contacts %}
-                        <tr class="hover:bg-white transition-colors duration-150">
-                            {% if current_user.role == 'admin' and show_all %}
-                            <td class="px-6 py-4">
-                                <div class="flex items-center">
-                                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-100 text-gray-600 mr-2">
-                                        {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
-                                    </div>
-                                    <span class="text-sm text-gray-600">
-                                        {{ contact.owner.first_name }} {{ contact.owner.last_name }}
-                                    </span>
-                                </div>
-                            </td>
-                            {% endif %}
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex flex-col">
-                                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
-                                       class="text-blue-600 hover:text-blue-800">
-                                        {{ contact.first_name }} {{ contact.last_name }}
-                                    </a>
-                                    <div class="flex flex-wrap gap-1 mt-1">
-                                        {% for group in contact.groups[:2] %}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                                {{ group.name }}
-                                            </span>
-                                        {% endfor %}
-                                        {% if contact.groups|length > 2 %}
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                                +{{ contact.groups|length - 2 }}
-                                            </span>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">
-                                {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
-                            </td>
-                            <td class="px-6 py-4 text-sm text-gray-500">
-                                {{ contact.email or '--' }}
-                            </td>
-                            <td class="px-6 py-4 text-right text-sm font-medium text-gray-900">
-                                ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
     <!-- Upcoming Tasks Section -->
-    <div class="mt-6">
+    <div class="mb-6">
         <div class="bg-gray-50 rounded-lg shadow-md border border-gray-200">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -346,709 +254,312 @@
             {% endif %}
         </div>
     </div>
-</div>
 
-<!-- Task Modal -->
-<div id="taskModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[300]">
-    <!-- Modal backdrop -->
-    <div id="taskModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[301]"></div>
-    
-    <div class="fixed inset-0 z-[302] overflow-y-auto" onclick="closeTaskModal()">
-        <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
-            <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out" onclick="event.stopPropagation()">
-                <!-- Modal header -->
-                <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
-                    <div class="flex items-center space-x-4">
-                        <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
-                            <i class="fas fa-flag"></i>
+    <!-- Charts and Tables Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Group Distribution Chart -->
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-1">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-medium text-gray-900">Contact Groups</h3>
+                <span class="text-sm text-gray-500">Distribution</span>
+            </div>
+            <div id="groupChart" style="min-height: 300px;" class="w-full"></div>
+            <div class="mt-4">
+                <div class="grid grid-cols-1 gap-2">
+                    {% for group in group_stats %}
+                    <div class="flex items-center justify-between text-sm">
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 rounded-full mr-2" style="background-color: {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}"></div>
+                            <span class="text-gray-600">{{ group.name }}</span>
                         </div>
-                        <div>
-                            <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
-                            {% if current_user.role == 'admin' and show_all %}
-                            <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
-                                <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
-                                <span id="modalTaskOwner"></span>
-                            </div>
-                            {% endif %}
-                            <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
-                        </div>
+                        <span class="font-medium text-gray-900">{{ group.count }}</span>
                     </div>
-                    <button onclick="event.stopPropagation(); closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
-                        <i class="fas fa-times text-gray-400"></i>
-                    </button>
+                    {% endfor %}
                 </div>
-                
-                <!-- Modal content -->
-                <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
-                    <!-- Status and Priority -->
-                    <div class="flex flex-wrap gap-3">
-                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-tasks text-gray-400"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Status</p>
-                                    <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-flag text-gray-400"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Priority</p>
-                                    <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+        </div>
 
-                    <!-- Type and Contact -->
-                    <div class="flex flex-wrap gap-3">
-                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-tag text-gray-400"></i>
+        <!-- Top Contacts Table -->
+        <div class="bg-gray-50 rounded-lg shadow-md p-6 border border-gray-200 lg:col-span-2">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Top Contacts by Commission</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full">
+                    <thead>
+                        <tr class="border-b border-gray-200">
+                            {% if current_user.role == 'admin' and show_all %}
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Owner</th>
+                            {% endif %}
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Contact</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Potential Commission</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for contact in top_contacts %}
+                        <tr class="hover:bg-white transition-colors duration-150">
+                            {% if current_user.role == 'admin' and show_all %}
+                            <td class="px-6 py-4">
+                                <div class="flex items-center">
+                                    <div class="w-6 h-6 rounded-full flex items-center justify-center text-xs bg-gray-100 text-gray-600 mr-2">
+                                        {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+                                    </div>
+                                    <span class="text-sm text-gray-600">
+                                        {{ contact.owner.first_name }} {{ contact.owner.last_name }}
+                                    </span>
                                 </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Type</p>
-                                    <p id="modalTaskType" class="text-sm font-medium text-gray-900"></p>
-                                    <p id="modalTaskSubtype" class="text-xs text-gray-500 mt-0.5"></p>
+                            </td>
+                            {% endif %}
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex flex-col">
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
+                                       class="text-blue-600 hover:text-blue-800">
+                                        {{ contact.first_name }} {{ contact.last_name }}
+                                    </a>
+                                    <div class="flex flex-wrap gap-1 mt-1">
+                                        {% for group in contact.groups[:2] %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                {{ group.name }}
+                                            </span>
+                                        {% endfor %}
+                                        {% if contact.groups|length > 2 %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                                +{{ contact.groups|length - 2 }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                    <i class="fas fa-user text-gray-400"></i>
-                                </div>
-                                <div>
-                                    <p class="text-sm text-gray-500">Contact</p>
-                                    <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-500">
+                                {{ contact.email or '--' }}
+                            </td>
+                            <td class="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                                ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-                    <!-- Property Address -->
-                    <div id="modalTaskPropertyContainer" class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-home text-gray-400"></i>
+    <!-- Task Modal -->
+    <div id="taskModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out z-[300]">
+        <!-- Modal backdrop -->
+        <div id="taskModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 z-[301]"></div>
+        
+        <div class="fixed inset-0 z-[302] overflow-y-auto" onclick="closeTaskModal()">
+            <div class="flex min-h-full items-center justify-center p-4 sm:p-6">
+                <div class="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out" onclick="event.stopPropagation()">
+                    <!-- Modal header -->
+                    <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
+                        <div class="flex items-center space-x-4">
+                            <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
+                                <i class="fas fa-flag"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Property Address</p>
-                                <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
+                                <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
+                                {% if current_user.role == 'admin' and show_all %}
+                                <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
+                                    <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
+                                    <span id="modalTaskOwner"></span>
+                                </div>
+                                {% endif %}
+                                <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
                             </div>
                         </div>
+                        <button onclick="event.stopPropagation(); closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
+                            <i class="fas fa-times text-gray-400"></i>
+                        </button>
                     </div>
+                    
+                    <!-- Modal content -->
+                    <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
+                        <!-- Status and Priority -->
+                        <div class="flex flex-wrap gap-3">
+                            <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                        <i class="fas fa-tasks text-gray-400"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Status</p>
+                                        <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                        <i class="fas fa-flag text-gray-400"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Priority</p>
+                                        <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <!-- Description -->
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex items-start space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-align-left text-gray-400"></i>
+                        <!-- Type and Contact -->
+                        <div class="flex flex-wrap gap-3">
+                            <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                        <i class="fas fa-tag text-gray-400"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Type</p>
+                                        <p id="modalTaskType" class="text-sm font-medium text-gray-900"></p>
+                                        <p id="modalTaskSubtype" class="text-xs text-gray-500 mt-0.5"></p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="flex-1">
-                                <p class="text-sm text-gray-500">Description</p>
-                                <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
+                            <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                        <i class="fas fa-user text-gray-400"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-500">Contact</p>
+                                        <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Property Address -->
+                        <div id="modalTaskPropertyContainer" class="bg-gray-50 rounded-lg p-3">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-home text-gray-400"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-500">Property Address</p>
+                                    <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="bg-gray-50 rounded-lg p-3">
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
+                                    <i class="fas fa-align-left text-gray-400"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-500">Description</p>
+                                    <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Modal footer -->
-                <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
-                    <div class="flex flex-col md:flex-row md:justify-between gap-3">
-                        <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
-                            <button onclick="toggleTaskStatus()" 
-                                    class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
-                                <span id="modalTaskStatusButton"></span>
-                            </button>
+                    
+                    <!-- Modal footer -->
+                    <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
+                        <div class="flex flex-col md:flex-row md:justify-between gap-3">
+                            <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
+                                <button onclick="toggleTaskStatus()" 
+                                        class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
+                                    <span id="modalTaskStatusButton"></span>
+                                </button>
+                            </div>
+                            <a id="modalTaskFullView" href="#" 
+                               class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                                Open Full View
+                            </a>
                         </div>
-                        <a id="modalTaskFullView" href="#" 
-                           class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
-                            Open Full View
-                        </a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Contact Modal -->
-{% include 'modals/contact_modal.html' %}
+    <!-- Contact Modal -->
+    {% include 'modals/contact_modal.html' %}
 
-<!-- ApexCharts -->
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-<script>
-// Initialize Group Distribution Chart
-document.addEventListener('DOMContentLoaded', function() {
-    var groupData = {{ group_stats|tojson|safe }};
-    var chartOptions = {
-        series: groupData.map(function(item) { return item.count; }),
-        chart: {
-            width: '100%',
-            height: 300,
-            type: 'donut'
-        },
-        labels: groupData.map(function(item) { return item.name; }),
-        colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
-        plotOptions: {
-            pie: {
-                donut: {
-                    size: '75%'
+    <!-- ApexCharts -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script>
+    // Initialize Group Distribution Chart
+    document.addEventListener('DOMContentLoaded', function() {
+        var groupData = {{ group_stats|tojson|safe }};
+        var chartOptions = {
+            series: groupData.map(function(item) { return item.count; }),
+            chart: {
+                width: '100%',
+                height: 300,
+                type: 'donut'
+            },
+            labels: groupData.map(function(item) { return item.name; }),
+            colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '75%'
+                    }
                 }
-            }
-        },
-        dataLabels: {
-            enabled: false
-        },
-        legend: {
-            show: false
-        },
-        tooltip: {
-            enabled: true,
-            y: {
-                formatter: function(value) {
-                    return value + ' contacts';
+            },
+            dataLabels: {
+                enabled: false
+            },
+            legend: {
+                show: false
+            },
+            tooltip: {
+                enabled: true,
+                y: {
+                    formatter: function(value) {
+                        return value + ' contacts';
+                    }
                 }
-            }
-        }
-    };
-
-    var chart = new ApexCharts(document.querySelector("#groupChart"), chartOptions);
-    chart.render();
-});
-
-let currentTaskId = null;
-
-function quickUpdateStatus(taskId, completed) {
-    fetch(`/tasks/${taskId}/quick-update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `status=${completed ? 'completed' : 'pending'}`
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        
-        // If task modal is open, close it
-        if (currentTaskId) {
-            closeTaskModal();
-        }
-        
-        // Refresh the contact modal if open
-        if (window.currentContactId) {
-            openContactModal(window.currentContactId);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task status');
-    });
-}
-
-function quickUpdatePriority(taskId, priority) {
-    fetch(`/tasks/${taskId}/quick-update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `priority=${priority}`
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task priority');
-    });
-}
-
-function togglePriorityMenu(taskId) {
-    const button = event.currentTarget;
-    const menu = document.getElementById(`priority-menu-${taskId}`);
-    const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-    
-    // Close all other menus
-    allMenus.forEach(m => {
-        if (m.id !== `priority-menu-${taskId}`) {
-            m.classList.add('hidden');
-        }
-    });
-    
-    // Toggle this menu
-    menu.classList.toggle('hidden');
-    
-    if (!menu.classList.contains('hidden')) {
-        // Get button position
-        const rect = button.getBoundingClientRect();
-        
-        // Position menu below the button
-        menu.style.left = `${rect.left}px`;
-        menu.style.top = `${rect.bottom}px`;
-        
-        // Ensure menu doesn't go off screen
-        const menuRect = menu.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        if (menuRect.right > viewportWidth) {
-            menu.style.left = `${viewportWidth - menuRect.width - 10}px`;
-        }
-        
-        if (menuRect.bottom > viewportHeight) {
-            menu.style.top = `${rect.top - menuRect.height}px`;
-        }
-    }
-}
-
-// Close priority menus when clicking outside
-document.addEventListener('click', function(event) {
-    const isClickInsideMenu = event.target.closest('[id^="priority-menu-"]');
-    const isClickOnPriorityButton = event.target.closest('button[onclick^="togglePriorityMenu"]');
-    
-    if (!isClickInsideMenu && !isClickOnPriorityButton) {
-        const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-        allMenus.forEach(menu => menu.classList.add('hidden'));
-    }
-});
-
-function deleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-    
-    fetch(`/tasks/${taskId}/delete`, {
-        method: 'POST',
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error deleting task');
-    });
-}
-
-function openTaskModal(taskId) {
-    currentTaskId = taskId;
-    
-    // Get modal elements
-    const modal = document.getElementById('taskModal');
-    const modalContent = modal.querySelector('.relative');
-    
-    // Enable pointer events and show modal
-    modal.classList.remove('pointer-events-none');
-    modal.classList.add('pointer-events-auto');
-    
-    // Prevent contact modal from receiving click events while task modal is open
-    document.getElementById('contactModal').style.pointerEvents = 'none';
-    
-    // Fetch task details
-    fetch(`/tasks/${taskId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(task => {
-        // Update modal content
-        document.getElementById('modalTaskSubject').textContent = task.subject;
-        document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
-        
-        // Owner Info (for admin view)
-        const ownerInitials = document.getElementById('modalTaskOwnerInitials');
-        const ownerName = document.getElementById('modalTaskOwner');
-        if (ownerInitials && ownerName && task.assigned_to) {
-            ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
-            ownerName.textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
-        }
-        
-        // Priority Indicator
-        const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
-        priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-            task.priority === 'high' ? 'bg-red-100 text-red-700' :
-            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-            'bg-green-100 text-green-700'
-        }`;
-        
-        // Priority
-        const priorityText = document.getElementById('modalTaskPriority');
-        priorityText.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
-        
-        // Status
-        const statusText = document.getElementById('modalTaskStatus');
-        statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
-        statusText.className = `text-sm font-medium ${
-            task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
-        }`;
-        
-        // Due Date
-        const dueDate = new Date(task.due_date);
-        const now = new Date();
-        const diffTime = dueDate - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        let dueDateText = '';
-        if (diffDays < 0) {
-            dueDateText = `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`;
-        } else if (diffDays === 0) {
-            dueDateText = 'Due today';
-        } else if (diffDays === 1) {
-            dueDateText = 'Due tomorrow';
-        } else {
-            dueDateText = `Due in ${diffDays} days`;
-        }
-        
-        document.getElementById('modalTaskHeaderDueDate').textContent = dueDateText;
-        
-        // Type and Subtype
-        document.getElementById('modalTaskType').textContent = task.task_type.name;
-        document.getElementById('modalTaskSubtype').textContent = task.task_subtype.name;
-        
-        // Contact
-        const contactLink = document.getElementById('modalTaskContact');
-        contactLink.textContent = `${task.contact.first_name} ${task.contact.last_name}`;
-        contactLink.href = `/contact/${task.contact.id}`;
-        
-        // Property Address
-        const propertyContainer = document.getElementById('modalTaskPropertyContainer');
-        if (task.property_address) {
-            document.getElementById('modalTaskProperty').textContent = task.property_address;
-            propertyContainer.classList.remove('hidden');
-        } else {
-            propertyContainer.classList.add('hidden');
-        }
-        
-        // Description
-        document.getElementById('modalTaskDescription').textContent = task.description || 'No description provided';
-        
-        // Status Button
-        const statusButton = document.getElementById('modalTaskStatusButton');
-        statusButton.textContent = task.status === 'completed' ? 'Mark as Pending' : 'Mark as Complete';
-        
-        // Trigger reflow
-        modal.offsetHeight;
-        
-        // Add the fade-in classes
-        modal.classList.add('opacity-100');
-        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
-        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error loading task details');
-    });
-}
-
-function closeTaskModal() {
-    const modal = document.getElementById('taskModal');
-    const modalContent = modal.querySelector('.relative');
-    
-    // Start the fade-out animation
-    modal.classList.remove('opacity-100');
-    modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
-    modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
-    
-    // After the animation completes, disable pointer events
-    setTimeout(() => {
-        modal.classList.remove('pointer-events-auto');
-        modal.classList.add('pointer-events-none');
-        currentTaskId = null;
-        
-        // Re-enable contact modal pointer events
-        document.getElementById('contactModal').style.pointerEvents = '';
-    }, 300);
-}
-
-function toggleTaskStatus() {
-    if (!currentTaskId) return;
-    
-    const newStatus = document.getElementById('modalTaskStatus').textContent.toLowerCase() === 'completed' ? 'pending' : 'completed';
-    quickUpdateStatus(currentTaskId, newStatus === 'completed');
-}
-
-function deleteTaskFromModal() {
-    if (!currentTaskId) return;
-    
-    if (confirm('Are you sure you want to delete this task?')) {
-        deleteTask(currentTaskId);
-    }
-}
-
-// Close task modal when clicking outside or pressing Escape
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        if (currentTaskId) {
-            closeTaskModal();
-            event.stopPropagation(); // Prevent contact modal from closing
-        } else {
-            closeContactModal();
-        }
-    }
-});
-
-document.addEventListener('click', function(event) {
-    const contactModal = document.getElementById('contactModal');
-    const contactModalContent = contactModal.querySelector('.relative');
-    const taskModal = document.getElementById('taskModal');
-    
-    if (!contactModal.classList.contains('pointer-events-none') && 
-        !taskModal.classList.contains('pointer-events-auto')) { // Only handle contact modal clicks if task modal is closed
-        // Check if click is outside modal content
-        const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !contactModalContent.contains(event.target);
-        if (clickedOnBackdrop) {
-            closeContactModal();
-        }
-    }
-});
-
-// Update task links to use modal
-document.addEventListener('DOMContentLoaded', function() {
-    const taskLinks = document.querySelectorAll('[data-task-link]');
-    taskLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            openTaskModal(this.dataset.taskId);
-        });
-    });
-});
-
-function openContactModal(contactId) {
-    currentContactId = contactId;
-    
-    fetch(`/contact/${contactId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(response => response.json())
-    .then(contact => {
-        // Update modal content
-        document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
-        document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
-        
-        // Set initials with color
-        const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
-        const initialsDiv = document.getElementById('modalContactInitials');
-        initialsDiv.textContent = initials;
-        
-        // Color based on first initial
-        const colorClasses = {
-            'ABCDE': 'bg-blue-100 text-blue-800',
-            'FGHIJ': 'bg-green-100 text-green-800',
-            'KLMNO': 'bg-yellow-100 text-yellow-800',
-            'PQRST': 'bg-red-100 text-red-800',
-            'UVWXYZ': 'bg-purple-100 text-purple-800'
-        };
-        
-        let colorClass = 'bg-gray-100 text-gray-800';
-        for (const [letters, className] of Object.entries(colorClasses)) {
-            if (letters.includes(initials[0].toUpperCase())) {
-                colorClass = className;
-                break;
-            }
-        }
-        initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
-        
-        // Contact details
-        document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
-        document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
-        
-        // Address
-        const addressParts = [];
-        if (contact.street_address) addressParts.push(contact.street_address);
-        if (contact.city) addressParts.push(contact.city);
-        if (contact.state) addressParts.push(contact.state);
-        if (contact.zip_code) addressParts.push(contact.zip_code);
-        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
-        
-        // Active Tasks
-        const tasksContainer = document.getElementById('modalContactTasks');
-        tasksContainer.innerHTML = '';
-        
-        if (contact.active_tasks && contact.active_tasks.length > 0) {
-            contact.active_tasks.forEach(task => {
-                const taskDiv = document.createElement('div');
-                taskDiv.className = 'bg-white border rounded-lg p-3 hover:bg-gray-50';
-                
-                // Calculate due date text
-                const dueDate = new Date(task.due_date);
-                const now = new Date();
-                const diffTime = dueDate - now;
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                
-                let dueDateText = '';
-                if (diffDays < 0) {
-                    dueDateText = `${Math.abs(diffDays)}d overdue`;
-                } else if (diffDays === 0) {
-                    dueDateText = 'Due today';
-                } else if (diffDays === 1) {
-                    dueDateText = 'Due tomorrow';
-                } else {
-                    dueDateText = `Due in ${diffDays}d`;
-                }
-                
-                taskDiv.innerHTML = `
-                    <div class="flex items-start space-x-3">
-                        <div class="flex-shrink-0">
-                            <div class="w-6 h-6 rounded flex items-center justify-center 
-                                ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 
-                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
-                                  'bg-green-100 text-green-700'}">
-                                <i class="fas fa-flag text-xs"></i>
-                            </div>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center space-x-2">
-                                <a href="#" onclick="openTaskModal(${task.id}); return false;"
-                                   class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
-                                    ${task.subject}
-                                </a>
-                            </div>
-                            <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                                <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                    ${task.task_type.name}
-                                </span>
-                                <span class="${diffDays < 0 ? 'text-red-500' : 
-                                            diffDays === 0 ? 'text-orange-500' : 
-                                            diffDays <= 2 ? 'text-yellow-500' : ''}">
-                                    ${dueDateText}
-                                </span>
-                            </div>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <button onclick="event.stopPropagation(); quickUpdateStatus(${task.id}, true)" 
-                                    class="text-gray-400 hover:text-green-500 p-1">
-                                <i class="fas fa-check"></i>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                tasksContainer.appendChild(taskDiv);
-            });
-        } else {
-            const emptyState = document.createElement('div');
-            emptyState.className = 'text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-xl';
-            emptyState.textContent = 'No active tasks';
-            tasksContainer.appendChild(emptyState);
-        }
-        
-        // Groups
-        const groupsContainer = document.getElementById('modalContactGroups');
-        groupsContainer.innerHTML = '';
-        if (contact.groups && contact.groups.length > 0) {
-            contact.groups.forEach(group => {
-                const span = document.createElement('span');
-                span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
-                span.textContent = group.name;
-                groupsContainer.appendChild(span);
-            });
-        } else {
-            const span = document.createElement('span');
-            span.className = 'text-gray-500 italic';
-            span.textContent = 'No groups assigned';
-            groupsContainer.appendChild(span);
-        }
-        
-        // Notes
-        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
-        
-        // Commission
-        document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
-            `$${parseFloat(contact.potential_commission).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 
-            '$0.00';
-        
-        // Created date
-        const createdDate = new Date(contact.created_at);
-        document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-
-        // Last Contact Dates
-        function formatDate(dateString) {
-            if (!dateString) return 'Never';
-            // Parse the date string and adjust for local timezone
-            const date = new Date(dateString + 'T12:00:00');
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            });
-        }
-
-        document.getElementById('modalContactLastEmail').textContent = formatDate(contact.last_email_date);
-        document.getElementById('modalContactLastText').textContent = formatDate(contact.last_text_date);
-        document.getElementById('modalContactLastPhoneCall').textContent = formatDate(contact.last_phone_call_date);
-        document.getElementById('modalContactLastContact').textContent = formatDate(contact.last_contact_date);
-
-        // Show modal with animation
-        const modal = document.getElementById('contactModal');
-        const modalContent = modal.querySelector('.relative');
-        
-        // Enable pointer events and show modal
-        document.body.style.overflow = 'hidden';
-        modal.classList.remove('pointer-events-none');
-        modal.classList.add('pointer-events-auto');
-        
-        // Add click outside handler
-        const handleClickOutside = (event) => {
-            if (!modalContent.contains(event.target)) {
-                closeContactModal();
-                document.removeEventListener('click', handleClickOutside);
             }
         };
-        setTimeout(() => {
-            document.addEventListener('click', handleClickOutside);
-        }, 0);
-        
-        // Trigger reflow
-        modal.offsetHeight;
-        
-        // Add the fade-in classes
-        modal.classList.add('opacity-100');
-        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
-        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error loading contact details');
+
+        var chart = new ApexCharts(document.querySelector("#groupChart"), chartOptions);
+        chart.render();
     });
-}
 
-function closeContactModal() {
-    const modal = document.getElementById('contactModal');
-    const modalContent = modal.querySelector('.relative');
-    
-    // Start the fade-out animation
-    modal.classList.remove('opacity-100');
-    modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
-    modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
-    
-    // After the animation completes, disable pointer events
-    setTimeout(() => {
-        document.body.style.overflow = '';
-        modal.classList.remove('pointer-events-auto');
-        modal.classList.add('pointer-events-none');
-        currentContactId = null;
-    }, 300);
-}
+    let currentTaskId = null;
 
-function deleteContactFromModal() {
-    if (!currentContactId) return;
-    
-    if (confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
-        fetch(`/contacts/${currentContactId}/delete`, {
-            method: 'POST'
+    function quickUpdateStatus(taskId, completed) {
+        fetch(`/tasks/${taskId}/quick-update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `status=${completed ? 'completed' : 'pending'}`
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            
+            // If task modal is open, close it
+            if (currentTaskId) {
+                closeTaskModal();
+            }
+            
+            // Refresh the contact modal if open
+            if (window.currentContactId) {
+                openContactModal(window.currentContactId);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error updating task status');
+        });
+    }
+
+    function quickUpdatePriority(taskId, priority) {
+        fetch(`/tasks/${taskId}/quick-update`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `priority=${priority}`
         })
         .then(response => {
             if (!response.ok) throw new Error('Network response was not ok');
@@ -1056,22 +567,510 @@ function deleteContactFromModal() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error deleting contact');
+            alert('Error updating task priority');
         });
     }
-}
 
-// Update contact links to use modal
-document.addEventListener('DOMContentLoaded', function() {
-    // Update contact links in the contacts table
-    const contactLinks = document.querySelectorAll('a[href^="/contact/"]');
-    contactLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const contactId = this.getAttribute('href').split('/')[2];
-            openContactModal(contactId);
+    function togglePriorityMenu(taskId) {
+        const button = event.currentTarget;
+        const menu = document.getElementById(`priority-menu-${taskId}`);
+        const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
+        
+        // Close all other menus
+        allMenus.forEach(m => {
+            if (m.id !== `priority-menu-${taskId}`) {
+                m.classList.add('hidden');
+            }
+        });
+        
+        // Toggle this menu
+        menu.classList.toggle('hidden');
+        
+        if (!menu.classList.contains('hidden')) {
+            // Get button position
+            const rect = button.getBoundingClientRect();
+            
+            // Position menu below the button
+            menu.style.left = `${rect.left}px`;
+            menu.style.top = `${rect.bottom}px`;
+            
+            // Ensure menu doesn't go off screen
+            const menuRect = menu.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            
+            if (menuRect.right > viewportWidth) {
+                menu.style.left = `${viewportWidth - menuRect.width - 10}px`;
+            }
+            
+            if (menuRect.bottom > viewportHeight) {
+                menu.style.top = `${rect.top - menuRect.height}px`;
+            }
+        }
+    }
+
+    // Close priority menus when clicking outside
+    document.addEventListener('click', function(event) {
+        const isClickInsideMenu = event.target.closest('[id^="priority-menu-"]');
+        const isClickOnPriorityButton = event.target.closest('button[onclick^="togglePriorityMenu"]');
+        
+        if (!isClickInsideMenu && !isClickOnPriorityButton) {
+            const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
+            allMenus.forEach(menu => menu.classList.add('hidden'));
+        }
+    });
+
+    function deleteTask(taskId) {
+        if (!confirm('Are you sure you want to delete this task?')) return;
+        
+        fetch(`/tasks/${taskId}/delete`, {
+            method: 'POST',
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            window.location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error deleting task');
+        });
+    }
+
+    function openTaskModal(taskId) {
+        currentTaskId = taskId;
+        
+        // Get modal elements
+        const modal = document.getElementById('taskModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Enable pointer events and show modal
+        modal.classList.remove('pointer-events-none');
+        modal.classList.add('pointer-events-auto');
+        
+        // Prevent contact modal from receiving click events while task modal is open
+        document.getElementById('contactModal').style.pointerEvents = 'none';
+        
+        // Fetch task details
+        fetch(`/tasks/${taskId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(task => {
+            // Update modal content
+            document.getElementById('modalTaskSubject').textContent = task.subject;
+            document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
+            
+            // Owner Info (for admin view)
+            const ownerInitials = document.getElementById('modalTaskOwnerInitials');
+            const ownerName = document.getElementById('modalTaskOwner');
+            if (ownerInitials && ownerName && task.assigned_to) {
+                ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
+                ownerName.textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
+            }
+            
+            // Priority Indicator
+            const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
+            priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                task.priority === 'high' ? 'bg-red-100 text-red-700' :
+                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+            }`;
+            
+            // Priority
+            const priorityText = document.getElementById('modalTaskPriority');
+            priorityText.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
+            
+            // Status
+            const statusText = document.getElementById('modalTaskStatus');
+            statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
+            statusText.className = `text-sm font-medium ${
+                task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
+            }`;
+            
+            // Due Date
+            const dueDate = new Date(task.due_date);
+            const now = new Date();
+            const diffTime = dueDate - now;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            let dueDateText = '';
+            if (diffDays < 0) {
+                dueDateText = `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`;
+            } else if (diffDays === 0) {
+                dueDateText = 'Due today';
+            } else if (diffDays === 1) {
+                dueDateText = 'Due tomorrow';
+            } else {
+                dueDateText = `Due in ${diffDays} days`;
+            }
+            
+            document.getElementById('modalTaskHeaderDueDate').textContent = dueDateText;
+            
+            // Type and Subtype
+            document.getElementById('modalTaskType').textContent = task.task_type.name;
+            document.getElementById('modalTaskSubtype').textContent = task.task_subtype.name;
+            
+            // Contact
+            const contactLink = document.getElementById('modalTaskContact');
+            contactLink.textContent = `${task.contact.first_name} ${task.contact.last_name}`;
+            contactLink.href = `/contact/${task.contact.id}`;
+            
+            // Property Address
+            const propertyContainer = document.getElementById('modalTaskPropertyContainer');
+            if (task.property_address) {
+                document.getElementById('modalTaskProperty').textContent = task.property_address;
+                propertyContainer.classList.remove('hidden');
+            } else {
+                propertyContainer.classList.add('hidden');
+            }
+            
+            // Description
+            document.getElementById('modalTaskDescription').textContent = task.description || 'No description provided';
+            
+            // Status Button
+            const statusButton = document.getElementById('modalTaskStatusButton');
+            statusButton.textContent = task.status === 'completed' ? 'Mark as Pending' : 'Mark as Complete';
+            
+            // Trigger reflow
+            modal.offsetHeight;
+            
+            // Add the fade-in classes
+            modal.classList.add('opacity-100');
+            modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+            modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading task details');
+        });
+    }
+
+    function closeTaskModal() {
+        const modal = document.getElementById('taskModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Start the fade-out animation
+        modal.classList.remove('opacity-100');
+        modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+        modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+        
+        // After the animation completes, disable pointer events
+        setTimeout(() => {
+            modal.classList.remove('pointer-events-auto');
+            modal.classList.add('pointer-events-none');
+            currentTaskId = null;
+            
+            // Re-enable contact modal pointer events
+            document.getElementById('contactModal').style.pointerEvents = '';
+        }, 300);
+    }
+
+    function toggleTaskStatus() {
+        if (!currentTaskId) return;
+        
+        const newStatus = document.getElementById('modalTaskStatus').textContent.toLowerCase() === 'completed' ? 'pending' : 'completed';
+        quickUpdateStatus(currentTaskId, newStatus === 'completed');
+    }
+
+    function deleteTaskFromModal() {
+        if (!currentTaskId) return;
+        
+        if (confirm('Are you sure you want to delete this task?')) {
+            deleteTask(currentTaskId);
+        }
+    }
+
+    // Close task modal when clicking outside or pressing Escape
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            if (currentTaskId) {
+                closeTaskModal();
+                event.stopPropagation(); // Prevent contact modal from closing
+            } else {
+                closeContactModal();
+            }
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        const contactModal = document.getElementById('contactModal');
+        const contactModalContent = contactModal.querySelector('.relative');
+        const taskModal = document.getElementById('taskModal');
+        
+        if (!contactModal.classList.contains('pointer-events-none') && 
+            !taskModal.classList.contains('pointer-events-auto')) { // Only handle contact modal clicks if task modal is closed
+            // Check if click is outside modal content
+            const clickedOnBackdrop = event.target.closest('.fixed.inset-0') && !contactModalContent.contains(event.target);
+            if (clickedOnBackdrop) {
+                closeContactModal();
+            }
+        }
+    });
+
+    // Update task links to use modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const taskLinks = document.querySelectorAll('[data-task-link]');
+        taskLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                openTaskModal(this.dataset.taskId);
+            });
         });
     });
-});
-</script>
+
+    function openContactModal(contactId) {
+        currentContactId = contactId;
+        
+        fetch(`/contact/${contactId}`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(contact => {
+            // Update modal content
+            document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
+            document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
+            
+            // Set initials with color
+            const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
+            const initialsDiv = document.getElementById('modalContactInitials');
+            initialsDiv.textContent = initials;
+            
+            // Color based on first initial
+            const colorClasses = {
+                'ABCDE': 'bg-blue-100 text-blue-800',
+                'FGHIJ': 'bg-green-100 text-green-800',
+                'KLMNO': 'bg-yellow-100 text-yellow-800',
+                'PQRST': 'bg-red-100 text-red-800',
+                'UVWXYZ': 'bg-purple-100 text-purple-800'
+            };
+            
+            let colorClass = 'bg-gray-100 text-gray-800';
+            for (const [letters, className] of Object.entries(colorClasses)) {
+                if (letters.includes(initials[0].toUpperCase())) {
+                    colorClass = className;
+                    break;
+                }
+            }
+            initialsDiv.className = `w-14 h-14 rounded-full flex items-center justify-center text-xl font-medium shadow-sm ${colorClass}`;
+            
+            // Contact details
+            document.getElementById('modalContactEmail').textContent = contact.email || 'No email provided';
+            document.getElementById('modalContactPhone').textContent = contact.phone || 'No phone provided';
+            
+            // Address
+            const addressParts = [];
+            if (contact.street_address) addressParts.push(contact.street_address);
+            if (contact.city) addressParts.push(contact.city);
+            if (contact.state) addressParts.push(contact.state);
+            if (contact.zip_code) addressParts.push(contact.zip_code);
+            document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'No address provided';
+            
+            // Active Tasks
+            const tasksContainer = document.getElementById('modalContactTasks');
+            tasksContainer.innerHTML = '';
+            
+            if (contact.active_tasks && contact.active_tasks.length > 0) {
+                contact.active_tasks.forEach(task => {
+                    const taskDiv = document.createElement('div');
+                    taskDiv.className = 'bg-white border rounded-lg p-3 hover:bg-gray-50';
+                    
+                    // Calculate due date text
+                    const dueDate = new Date(task.due_date);
+                    const now = new Date();
+                    const diffTime = dueDate - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    let dueDateText = '';
+                    if (diffDays < 0) {
+                        dueDateText = `${Math.abs(diffDays)}d overdue`;
+                    } else if (diffDays === 0) {
+                        dueDateText = 'Due today';
+                    } else if (diffDays === 1) {
+                        dueDateText = 'Due tomorrow';
+                    } else {
+                        dueDateText = `Due in ${diffDays}d`;
+                    }
+                    
+                    taskDiv.innerHTML = `
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-6 h-6 rounded flex items-center justify-center 
+                                    ${task.priority === 'high' ? 'bg-red-100 text-red-700' : 
+                                      task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 
+                                      'bg-green-100 text-green-700'}">
+                                    <i class="fas fa-flag text-xs"></i>
+                                </div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center space-x-2">
+                                    <a href="#" onclick="openTaskModal(${task.id}); return false;"
+                                       class="text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                        ${task.subject}
+                                    </a>
+                                </div>
+                                <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        ${task.task_type.name}
+                                    </span>
+                                    <span class="${diffDays < 0 ? 'text-red-500' : 
+                                                diffDays === 0 ? 'text-orange-500' : 
+                                                diffDays <= 2 ? 'text-yellow-500' : ''}">
+                                        ${dueDateText}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex-shrink-0">
+                                <button onclick="event.stopPropagation(); quickUpdateStatus(${task.id}, true)" 
+                                        class="text-gray-400 hover:text-green-500 p-1">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    tasksContainer.appendChild(taskDiv);
+                });
+            } else {
+                const emptyState = document.createElement('div');
+                emptyState.className = 'text-center py-4 text-gray-500 text-sm bg-gray-50 rounded-xl';
+                emptyState.textContent = 'No active tasks';
+                tasksContainer.appendChild(emptyState);
+            }
+            
+            // Groups
+            const groupsContainer = document.getElementById('modalContactGroups');
+            groupsContainer.innerHTML = '';
+            if (contact.groups && contact.groups.length > 0) {
+                contact.groups.forEach(group => {
+                    const span = document.createElement('span');
+                    span.className = 'inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100';
+                    span.textContent = group.name;
+                    groupsContainer.appendChild(span);
+                });
+            } else {
+                const span = document.createElement('span');
+                span.className = 'text-gray-500 italic';
+                span.textContent = 'No groups assigned';
+                groupsContainer.appendChild(span);
+            }
+            
+            // Notes
+            document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes added';
+            
+            // Commission
+            document.getElementById('modalContactCommission').textContent = contact.potential_commission ? 
+                `$${parseFloat(contact.potential_commission).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}` : 
+                '$0.00';
+            
+            // Created date
+            const createdDate = new Date(contact.created_at);
+            document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+
+            // Last Contact Dates
+            function formatDate(dateString) {
+                if (!dateString) return 'Never';
+                // Parse the date string and adjust for local timezone
+                const date = new Date(dateString + 'T12:00:00');
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            }
+
+            document.getElementById('modalContactLastEmail').textContent = formatDate(contact.last_email_date);
+            document.getElementById('modalContactLastText').textContent = formatDate(contact.last_text_date);
+            document.getElementById('modalContactLastPhoneCall').textContent = formatDate(contact.last_phone_call_date);
+            document.getElementById('modalContactLastContact').textContent = formatDate(contact.last_contact_date);
+
+            // Show modal with animation
+            const modal = document.getElementById('contactModal');
+            const modalContent = modal.querySelector('.relative');
+            
+            // Enable pointer events and show modal
+            document.body.style.overflow = 'hidden';
+            modal.classList.remove('pointer-events-none');
+            modal.classList.add('pointer-events-auto');
+            
+            // Add click outside handler
+            const handleClickOutside = (event) => {
+                if (!modalContent.contains(event.target)) {
+                    closeContactModal();
+                    document.removeEventListener('click', handleClickOutside);
+                }
+            };
+            setTimeout(() => {
+                document.addEventListener('click', handleClickOutside);
+            }, 0);
+            
+            // Trigger reflow
+            modal.offsetHeight;
+            
+            // Add the fade-in classes
+            modal.classList.add('opacity-100');
+            modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+            modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading contact details');
+        });
+    }
+
+    function closeContactModal() {
+        const modal = document.getElementById('contactModal');
+        const modalContent = modal.querySelector('.relative');
+        
+        // Start the fade-out animation
+        modal.classList.remove('opacity-100');
+        modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+        modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+        
+        // After the animation completes, disable pointer events
+        setTimeout(() => {
+            document.body.style.overflow = '';
+            modal.classList.remove('pointer-events-auto');
+            modal.classList.add('pointer-events-none');
+            currentContactId = null;
+        }, 300);
+    }
+
+    function deleteContactFromModal() {
+        if (!currentContactId) return;
+        
+        if (confirm('Are you sure you want to delete this contact? This action cannot be undone.')) {
+            fetch(`/contacts/${currentContactId}/delete`, {
+                method: 'POST'
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting contact');
+            });
+        }
+    }
+
+    // Update contact links to use modal
+    document.addEventListener('DOMContentLoaded', function() {
+        // Update contact links in the contacts table
+        const contactLinks = document.querySelectorAll('a[href^="/contact/"]');
+        contactLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const contactId = this.getAttribute('href').split('/')[2];
+                openContactModal(contactId);
+            });
+        });
+    });
+    </script>
 {% endblock %}

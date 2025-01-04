@@ -11,7 +11,7 @@ class AIChatWidget {
     createChatIcon() {
         const icon = document.createElement('div');
         icon.className = 'ai-chat-icon';
-        icon.innerHTML = `<i class="fas fa-robot"></i>`;
+        icon.innerHTML = `<i class="fas fa-user-tie"></i>`;
         icon.addEventListener('click', () => this.toggleChat());
         document.body.appendChild(icon);
     }
