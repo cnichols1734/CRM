@@ -80,6 +80,13 @@ class Contact(db.Model):
     last_phone_call_date = db.Column(db.Date, nullable=True)
     last_contact_date = db.Column(db.Date, nullable=True)
 
+    # Client objective fields
+    current_objective = db.Column(db.Text, nullable=True)
+    move_timeline = db.Column(db.Text, nullable=True)
+    motivation = db.Column(db.Text, nullable=True)
+    financial_status = db.Column(db.Text, nullable=True)
+    additional_notes = db.Column(db.Text, nullable=True)
+
     # Update the relationship to use backref
     owner = db.relationship('User', backref=db.backref('contacts', lazy=True))
     groups = db.relationship('ContactGroup',

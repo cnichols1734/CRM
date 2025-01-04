@@ -198,6 +198,71 @@
                         </div>
                     </div>
 
+                    <!-- Client Objectives Section -->
+                    <div class="md:col-span-2">
+                        <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
+                        
+                        <!-- Current Objective -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.current_objective.label }}</h3>
+                            {{ form.current_objective(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="3") }}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.current_objective.description }}</p>
+                            {% if form.current_objective.errors %}
+                                {% for error in form.current_objective.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Move Timeline -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.move_timeline.label }}</h3>
+                            {{ form.move_timeline(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.move_timeline.description }}</p>
+                            {% if form.move_timeline.errors %}
+                                {% for error in form.move_timeline.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Motivation -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.motivation.label }}</h3>
+                            {{ form.motivation(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.motivation.description }}</p>
+                            {% if form.motivation.errors %}
+                                {% for error in form.motivation.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Financial Status -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.financial_status.label }}</h3>
+                            {{ form.financial_status(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="3") }}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.financial_status.description }}</p>
+                            {% if form.financial_status.errors %}
+                                {% for error in form.financial_status.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Additional Notes -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.additional_notes.label }}</h3>
+                            {{ form.additional_notes(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
+                            <p class="mt-1 text-sm text-gray-500">{{ form.additional_notes.description }}</p>
+                            {% if form.additional_notes.errors %}
+                                {% for error in form.additional_notes.errors %}
+                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <!-- Notes -->
                     <div class="md:col-span-2">
                         <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>

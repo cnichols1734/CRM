@@ -121,8 +121,7 @@
                             {% endif %}
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex flex-col">
-                                    <a href="#" 
-                                       onclick="openContactModal({{ contact.id }}); return false;"
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
                                        class="text-blue-600 hover:text-blue-800">
                                         {{ contact.first_name }} {{ contact.last_name }}
                                     </a>
@@ -141,7 +140,7 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">
-                                {{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}
+                                {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ contact.email or '--' }}

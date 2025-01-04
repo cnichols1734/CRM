@@ -44,6 +44,11 @@ def view_contact(contact_id):
             'last_text_date': contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date else None,
             'last_phone_call_date': contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date else None,
             'last_contact_date': contact.last_contact_date.strftime('%Y-%m-%d') if contact.last_contact_date else None,
+            'current_objective': contact.current_objective,
+            'move_timeline': contact.move_timeline,
+            'motivation': contact.motivation,
+            'financial_status': contact.financial_status,
+            'additional_notes': contact.additional_notes,
             'groups': [{
                 'id': group.id,
                 'name': group.name
@@ -90,7 +95,12 @@ def create_contact():
             potential_commission=form.potential_commission.data or 5000.00,
             last_email_date=form.last_email_date.data,
             last_text_date=form.last_text_date.data,
-            last_phone_call_date=form.last_phone_call_date.data
+            last_phone_call_date=form.last_phone_call_date.data,
+            current_objective=form.current_objective.data,
+            move_timeline=form.move_timeline.data,
+            motivation=form.motivation.data,
+            financial_status=form.financial_status.data,
+            additional_notes=form.additional_notes.data
         )
 
         # Update the last contact date
@@ -137,6 +147,13 @@ def edit_contact(contact_id):
         contact.zip_code = request.form.get('zip_code')
         contact.notes = request.form.get('notes')
         contact.potential_commission = float(request.form.get('potential_commission', 5000.00))
+
+        # Add new objective fields
+        contact.current_objective = request.form.get('current_objective')
+        contact.move_timeline = request.form.get('move_timeline')
+        contact.motivation = request.form.get('motivation')
+        contact.financial_status = request.form.get('financial_status')
+        contact.additional_notes = request.form.get('additional_notes')
 
         # Handle date fields
         for date_field in ['last_email_date', 'last_text_date', 'last_phone_call_date']:

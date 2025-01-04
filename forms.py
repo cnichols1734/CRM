@@ -39,6 +39,23 @@ class ContactForm(FlaskForm):
     last_text_date = DateField('Last Text Date', validators=[Optional()])
     last_phone_call_date = DateField('Last Phone Call Date', validators=[Optional()])
     
+    # Client objective fields
+    current_objective = TextAreaField('What does this person want right now?', 
+                                    description='Ex: They want to buy a home, sell a home, they\'re looking for acreage, They are not looking to make a move right now, but I want to stay in touch with them.',
+                                    validators=[Optional()])
+    move_timeline = TextAreaField('What is their timeline?',
+                                description='Ex: They want to move now, within the next 6 months, or within a year?',
+                                validators=[Optional()])
+    motivation = TextAreaField('Why do they want to move?',
+                             description='Ex: They are having a baby, want a larger home, moving for work, etc.',
+                             validators=[Optional()])
+    financial_status = TextAreaField('Have they shared any financial details with you?',
+                                   description='Ex: Their budget is $x, they have or have not been preapproved, they have $x for down payment, they have $x in home equity.',
+                                   validators=[Optional()])
+    additional_notes = TextAreaField('Any other details to share?',
+                                   description='Ex: No details at this time',
+                                   validators=[Optional()])
+    
     submit = SubmitField('Save Contact')
 
 class RequestResetForm(FlaskForm):

@@ -197,29 +197,60 @@
                             <!-- Groups Section -->
                             <div class="p-6">
                                 <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                    {% for group in all_groups %}
-                                        <label class="inline-flex items-center px-3 py-2 rounded-lg text-sm
-                                                    {% if group in contact.groups %}
-                                                        bg-blue-50 border-blue-200 text-blue-700
-                                                    {% else %}
-                                                        bg-gray-50 border-gray-200 text-gray-700
-                                                    {% endif %}
-                                                    hover:bg-gray-100 
-                                                    border
-                                                    cursor-pointer transition-colors duration-200">
-                                            <input type="checkbox" 
-                                                   name="group_ids" 
-                                                   value="{{ group.id }}"
-                                                   {% if group in contact.groups %}checked{% endif %}
-                                                   class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            {{ group.name }}
-                                        </label>
-                                    {% endfor %}
+                                <div class="bg-gray-50 rounded-lg p-3">
+                                    <div class="flex flex-wrap gap-2">
+                                        {% for group in contact.groups %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                                {{ group.name }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-gray-500 italic">No groups assigned</span>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Notes Section -->
+                            <!-- Client Details Section in Edit Form -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
+                                
+                                <!-- Current Objective -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">What does this person want right now?</h3>
+                                    <textarea name="current_objective" rows="3" 
+                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.current_objective }}</textarea>
+                                </div>
+
+                                <!-- Move Timeline -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">What is their timeline?</h3>
+                                    <textarea name="move_timeline" rows="2" 
+                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.move_timeline }}</textarea>
+                                </div>
+
+                                <!-- Motivation -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Why do they want to move?</h3>
+                                    <textarea name="motivation" rows="2" 
+                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.motivation }}</textarea>
+                                </div>
+
+                                <!-- Financial Status -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Have they shared any financial details with you?</h3>
+                                    <textarea name="financial_status" rows="3" 
+                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.financial_status }}</textarea>
+                                </div>
+
+                                <!-- Additional Notes -->
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Any other details to share?</h3>
+                                    <textarea name="additional_notes" rows="2" 
+                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.additional_notes }}</textarea>
+                                </div>
+                            </div>
+
+                            <!-- Notes Section in Edit Form -->
                             <div class="p-6">
                                 <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
                                 <textarea name="notes" rows="4" 
@@ -338,7 +369,52 @@
                                 </div>
                             </div>
 
-                            <!-- Notes Section -->
+                            <!-- Client Details Section in View Mode -->
+                            <div class="p-6">
+                                <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
+                                
+                                <!-- Current Objective -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600 mb-1">What does this person want right now?</h3>
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.current_objective or 'No current objective specified' }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Move Timeline -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600 mb-1">What is their timeline?</h3>
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.move_timeline or 'No timeline specified' }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Motivation -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Why do they want to move?</h3>
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.motivation or 'No motivation specified' }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Financial Status -->
+                                <div class="mb-4">
+                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Have they shared any financial details with you?</h3>
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.financial_status or 'No financial details shared' }}</p>
+                                    </div>
+                                </div>
+
+                                <!-- Additional Notes -->
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Any other details to share?</h3>
+                                    <div class="bg-gray-50 rounded-lg p-3">
+                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.additional_notes or 'No additional details shared' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Notes Section in View Mode -->
                             <div class="p-6">
                                 <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
                                 <div class="bg-gray-50 rounded-lg p-3">
