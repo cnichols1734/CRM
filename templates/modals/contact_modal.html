@@ -34,7 +34,15 @@
                                     <i class="fas fa-envelope text-gray-400"></i>
                                     <h3 class="text-sm font-medium text-gray-500">Email</h3>
                                 </div>
-                                <p id="modalContactEmail" class="text-base text-gray-900 pl-8"></p>
+                                <div class="flex items-center space-x-2 pl-8">
+                                    <p id="modalContactEmail" class="text-base text-gray-900"></p>
+                                    <button onclick="copyToClipboard('modalContactEmail')" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-all group/copy relative">
+                                        <i class="far fa-copy text-sm"></i>
+                                        <span class="absolute bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover/copy:opacity-100 transition-opacity -translate-y-full left-0 -mt-1 whitespace-nowrap">
+                                            Copy
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Phone -->
@@ -43,7 +51,15 @@
                                     <i class="fas fa-phone text-gray-400"></i>
                                     <h3 class="text-sm font-medium text-gray-500">Phone</h3>
                                 </div>
-                                <p id="modalContactPhone" class="text-base text-gray-900 pl-8"></p>
+                                <div class="flex items-center space-x-2 pl-8">
+                                    <p id="modalContactPhone" class="text-base text-gray-900"></p>
+                                    <button onclick="copyToClipboard('modalContactPhone')" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-all group/copy relative">
+                                        <i class="far fa-copy text-sm"></i>
+                                        <span class="absolute bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover/copy:opacity-100 transition-opacity -translate-y-full left-0 -mt-1 whitespace-nowrap">
+                                            Copy
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -76,7 +92,15 @@
                             <h3 class="text-sm font-medium text-gray-900">Address</h3>
                         </div>
                         <div class="bg-gray-100/75 rounded-2xl p-4 pl-8">
-                            <p id="modalContactAddress" class="text-gray-700"></p>
+                            <div class="flex items-center space-x-2">
+                                <p id="modalContactAddress" class="text-gray-700"></p>
+                                <button onclick="copyToClipboard('modalContactAddress')" class="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-all group/copy relative">
+                                    <i class="far fa-copy text-sm"></i>
+                                    <span class="absolute bg-gray-800 text-white text-xs py-1 px-2 rounded opacity-0 group-hover/copy:opacity-100 transition-opacity -translate-y-full left-0 -mt-1 whitespace-nowrap">
+                                        Copy
+                                    </span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -145,9 +169,9 @@
                         Close
                     </button>
                     <a id="modalContactFullView" href="#" 
-                       class="inline-flex items-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-150 text-sm font-medium shadow-sm hover:shadow">
-                        <i class="fas fa-external-link-alt mr-2"></i>
-                        Open Full View
+                       class="inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all duration-150 text-sm font-medium shadow-sm hover:shadow">
+                        <i class="fas fa-pencil-alt mr-2"></i>
+                        Edit
                     </a>
                 </div>
             </div>
@@ -179,7 +203,7 @@ function openContactModal(contactId) {
     .then(contact => {
         // Update modal content
         document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
-        document.getElementById('modalContactFullView').href = `/contact/${contact.id}`;
+        document.getElementById('modalContactFullView').href = `/contact/${contact.id}?edit=true`;
         
         // Set initials with color
         const initials = `${contact.first_name[0]}${contact.last_name[0]}`;
@@ -316,8 +340,8 @@ function openContactModal(contactId) {
         const createdDate = new Date(contact.created_at);
         document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
             year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            month: '2-digit',
+            day: '2-digit'
         });
 
         // Last Contact Dates
@@ -327,8 +351,8 @@ function openContactModal(contactId) {
             const date = new Date(dateString + 'T12:00:00');
             return date.toLocaleDateString('en-US', {
                 year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                month: '2-digit',
+                day: '2-digit'
             });
         }
 
@@ -415,4 +439,22 @@ document.addEventListener('click', function(event) {
         }
     }
 });
+
+function copyToClipboard(elementId) {
+    const text = document.getElementById(elementId).textContent;
+    if (!text || text === 'No email provided' || text === 'No phone provided') return;
+    
+    navigator.clipboard.writeText(text).then(() => {
+        // Show a brief success message
+        const button = document.querySelector(`#${elementId}`).nextElementSibling;
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+        
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+        }, 1500);
+    }).catch(err => {
+        console.error('Failed to copy text: ', err);
+    });
+}
 </script> 

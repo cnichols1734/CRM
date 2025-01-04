@@ -1352,8 +1352,8 @@ function openContactModal(contactId) {
         const createdDate = new Date(contact.created_at);
         document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
             year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            month: '2-digit',
+            day: '2-digit'
         });
 
         // Last Contact Dates
@@ -1363,8 +1363,8 @@ function openContactModal(contactId) {
             const date = new Date(dateString + 'T12:00:00');
             return date.toLocaleDateString('en-US', {
                 year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                month: '2-digit',
+                day: '2-digit'
             });
         }
 

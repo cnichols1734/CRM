@@ -121,11 +121,13 @@
 .ai-message ul,
 .ai-message ol {
     margin: 0.5em 0;
-    padding-left: 1.5em;
+    padding-left: 2em;
 }
 
 .ai-message li {
     margin: 0.25em 0;
+    line-height: 1.4;
+    padding-left: 0.25em;
 }
 
 .ai-message ul li {
@@ -134,6 +136,56 @@
 
 .ai-message ol li {
     list-style-type: decimal;
+}
+
+/* List levels */
+.ai-message .list-level-0 {
+    margin-top: 0.5em;
+}
+
+.ai-message .list-level-1 {
+    margin: 0.25em 0 0.25em 1em;
+}
+
+.ai-message .list-level-2 {
+    margin: 0.25em 0 0.25em 1em;
+}
+
+/* Spacing after headings */
+.ai-message .ai-chat-h3 + ol,
+.ai-message .ai-chat-h3 + ul {
+    margin-top: 0.5em;
+}
+
+/* Ensure proper list item spacing */
+.ai-message li + li {
+    margin-top: 0.25em;
+}
+
+/* Nested list items */
+.ai-message ol ol,
+.ai-message ul ul,
+.ai-message ol ul,
+.ai-message ul ol {
+    margin: 0.25em 0 0.25em 1.5em;
+}
+
+/* Nested lists */
+.ai-message .nested-list {
+    margin: 0.25em 0 0.25em 1em;
+    padding-left: 1.5em;
+}
+
+.ai-message .nested-list li {
+    margin: 0.1em 0;
+}
+
+.ai-message ul ul li {
+    list-style-type: circle;
+}
+
+.ai-message ul ul ul li {
+    list-style-type: square;
 }
 
 /* Code blocks */

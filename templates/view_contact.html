@@ -269,28 +269,28 @@
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <h3 class="text-sm font-medium text-gray-600 mb-1">Last Email</h3>
                                         <p class="text-gray-900">
-                                            {{ contact.last_email_date.strftime('%B %d, %Y') if contact.last_email_date else 'Never' }}
+                                            {{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date else 'Never' }}
                                         </p>
                                     </div>
 
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <h3 class="text-sm font-medium text-gray-600 mb-1">Last Text</h3>
                                         <p class="text-gray-900">
-                                            {{ contact.last_text_date.strftime('%B %d, %Y') if contact.last_text_date else 'Never' }}
+                                            {{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date else 'Never' }}
                                         </p>
                                     </div>
 
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <h3 class="text-sm font-medium text-gray-600 mb-1">Last Phone Call</h3>
                                         <p class="text-gray-900">
-                                            {{ contact.last_phone_call_date.strftime('%B %d, %Y') if contact.last_phone_call_date else 'Never' }}
+                                            {{ contact.last_phone_call_date.strftime('%m/%d/%Y') if contact.last_phone_call_date else 'Never' }}
                                         </p>
                                     </div>
 
                                     <div class="bg-gray-50 rounded-lg p-3">
                                         <h3 class="text-sm font-medium text-gray-600 mb-1">Last Contact</h3>
                                         <p class="text-gray-900">
-                                            {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
+                                            {{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}
                                         </p>
                                     </div>
                                 </div>

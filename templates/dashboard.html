@@ -141,7 +141,7 @@
                                 </div>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">
-                                {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
+                                {{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-500">
                                 {{ contact.email or '--' }}
@@ -971,8 +971,8 @@ function openContactModal(contactId) {
         const createdDate = new Date(contact.created_at);
         document.getElementById('modalContactCreated').textContent = createdDate.toLocaleDateString('en-US', {
             year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+            month: '2-digit',
+            day: '2-digit'
         });
 
         // Last Contact Dates
@@ -982,8 +982,8 @@ function openContactModal(contactId) {
             const date = new Date(dateString + 'T12:00:00');
             return date.toLocaleDateString('en-US', {
                 year: 'numeric',
-                month: 'long',
-                day: 'numeric'
+                month: '2-digit',
+                day: '2-digit'
             });
         }
 

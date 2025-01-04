@@ -178,10 +178,6 @@ class AIChatWidget {
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
             
-            // Lists
-            .replace(/^\s*[-*]\s+(.+)$/gm, '<li>$1</li>')
-            .replace(/^\s*(\d+)\.\s+(.+)$/gm, '<li>$2</li>')
-            
             // Links
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
             
@@ -193,30 +189,104 @@ class AIChatWidget {
         // Handle special blocks (like ---)
         formatted = formatted.replace(/^---$/gm, '<hr class="message-divider">');
 
-        // Split into paragraphs and process each
+        // Process lists and headings
+        let inList = false;
+        let currentListLevel = 0;
+        let currentListType = null;
+        let listItemCount = 0;
+
+        formatted = formatted.split('\n').map(line => {
+            // Check for headings with colons (like "Personalized Communication:")
+            const headingMatch = line.match(/^([^:]+):$/);
+            if (headingMatch) {
+                if (inList) {
+                    let closeTags = '';
+                    for (let i = currentListLevel; i >= 0; i--) {
+                        closeTags += '</li></ol>';
+                    }
+                    inList = false;
+                    currentListLevel = 0;
+                    return closeTags + `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
+                }
+                return `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
+            }
+
+            // Check for list items
+            const listMatch = line.match(/^(\s*)(\d+\.|\-|\*)\s+(.+)$/);
+            if (listMatch) {
+                const [, indent, marker, content] = listMatch;
+                const indentLevel = Math.floor(indent.length / 2);
+                const isOrdered = /\d+\./.test(marker);
+
+                if (!inList || indentLevel === 0) {
+                    // Start a new list
+                    inList = true;
+                    currentListLevel = indentLevel;
+                    currentListType = isOrdered ? 'ol' : 'ul';
+                    listItemCount = 1;
+                    return `<${currentListType} class="list-level-${indentLevel}"><li>${content}`;
+                } else {
+                    // Continue existing list
+                    if (indentLevel > currentListLevel) {
+                        // Start a nested list
+                        currentListLevel = indentLevel;
+                        listItemCount = 1;
+                        return `<${currentListType} class="list-level-${indentLevel}"><li>${content}`;
+                    } else if (indentLevel < currentListLevel) {
+                        // End nested list and start new item
+                        let closeTags = '';
+                        while (currentListLevel > indentLevel) {
+                            closeTags += `</li></${currentListType}>`;
+                            currentListLevel--;
+                        }
+                        listItemCount++;
+                        return closeTags + `</li><li>${content}`;
+                    } else {
+                        // Same level, new item
+                        listItemCount++;
+                        return `</li><li>${content}`;
+                    }
+                }
+            } else if (inList && line.trim() === '') {
+                // End list
+                let closeTags = '';
+                for (let i = currentListLevel; i >= 0; i--) {
+                    closeTags += `</li></${currentListType}>`;
+                }
+                inList = false;
+                currentListLevel = 0;
+                return closeTags;
+            } else if (inList) {
+                // Continue list item content
+                return ' ' + line.trim();
+            }
+            return line;
+        }).join('\n');
+
+        // Close any remaining lists
+        if (inList) {
+            let closeTags = '';
+            for (let i = currentListLevel; i >= 0; i--) {
+                closeTags += `</li></${currentListType}>`;
+            }
+            formatted += closeTags;
+        }
+
+        // Now handle paragraphs
         formatted = formatted
             .split('\n\n')
             .map(p => {
                 p = p.trim();
                 if (!p) return '';
-                if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || 
-                    p.startsWith('<ol') || p.startsWith('<hr')) {
+                if (p.startsWith('<h') || p.startsWith('<pre') || 
+                    p.startsWith('<ul') || p.startsWith('<ol') || 
+                    p.startsWith('<hr')) {
                     return p;
                 }
-                // Handle single newlines within paragraphs
                 return `<p>${p.replace(/\n/g, '<br>')}</p>`;
             })
-            .filter(p => p) // Remove empty paragraphs
-            .join('');
-
-        // Wrap lists in ul/ol tags
-        formatted = formatted
-            .replace(/<li>.*?(<\/li>(\s*<li>.*?)*<\/li>)/gs, match => {
-                if (match.match(/^\s*\d+\./m)) {
-                    return '<ol>' + match + '</ol>';
-                }
-                return '<ul>' + match + '</ul>';
-            });
+            .filter(p => p)
+            .join('\n');
 
         return formatted;
     }
