@@ -162,3 +162,28 @@ class Task(db.Model):
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_tasks')
     task_type = db.relationship('TaskType')
     task_subtype = db.relationship('TaskSubtype')
+
+class DailyTodoList(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    generated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    todo_content = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship to user
+    user = db.relationship('User', backref=db.backref('daily_todos', lazy=True))
+
+    @classmethod
+    def get_latest_for_user(cls, user_id):
+        """Get the most recent todo list for a user"""
+        return cls.query.filter_by(user_id=user_id).order_by(cls.generated_at.desc()).first()
+
+    @classmethod
+    def should_generate_new(cls, user_id):
+        """Check if we should generate a new todo list (>16 hours since last one)"""
+        latest = cls.get_latest_for_user(user_id)
+        if not latest:
+            return True
+        time_since_last = datetime.utcnow() - latest.generated_at
+        return time_since_last.total_seconds() > (16 * 3600)  # 16 hours in seconds

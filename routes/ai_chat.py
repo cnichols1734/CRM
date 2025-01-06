@@ -59,7 +59,13 @@ When giving advice:
 Format your responses using markdown-style formatting:
 - Use `code` for specific values or technical terms
 - Use **bold** for emphasis
-- Use bullet points lists for steps - NO NUMBERED LISTS
+- For lists:
+  - Use hyphens (-) for unordered lists
+  - Use numbers (1.) for ordered lists
+  - Indent sublists with 2 spaces per level
+  - Maximum of 3 nesting levels
+  - Keep list items concise
+  - Ensure proper spacing between list items
 - Keep paragraphs concise and readable
 
 Email/Message Format:

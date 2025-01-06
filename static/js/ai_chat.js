@@ -191,9 +191,8 @@ class AIChatWidget {
 
         // Process lists and headings
         let inList = false;
-        let currentListLevel = 0;
-        let currentListType = null;
-        let listItemCount = 0;
+        let listStack = []; // Stack to track nested lists
+        let currentIndentLevel = 0;
 
         formatted = formatted.split('\n').map(line => {
             // Check for headings with colons (like "Personalized Communication:")
@@ -201,11 +200,11 @@ class AIChatWidget {
             if (headingMatch) {
                 if (inList) {
                     let closeTags = '';
-                    for (let i = currentListLevel; i >= 0; i--) {
-                        closeTags += '</li></ol>';
+                    while (listStack.length > 0) {
+                        closeTags += `</li></${listStack.pop()}>`;
                     }
                     inList = false;
-                    currentListLevel = 0;
+                    currentIndentLevel = 0;
                     return closeTags + `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
                 }
                 return `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
@@ -217,44 +216,52 @@ class AIChatWidget {
                 const [, indent, marker, content] = listMatch;
                 const indentLevel = Math.floor(indent.length / 2);
                 const isOrdered = /\d+\./.test(marker);
+                const listType = isOrdered ? 'ol' : 'ul';
 
-                if (!inList || indentLevel === 0) {
+                if (!inList) {
                     // Start a new list
                     inList = true;
-                    currentListLevel = indentLevel;
-                    currentListType = isOrdered ? 'ol' : 'ul';
-                    listItemCount = 1;
-                    return `<${currentListType} class="list-level-${indentLevel}"><li>${content}`;
+                    currentIndentLevel = indentLevel;
+                    listStack.push(listType);
+                    return `<${listType} class="list-level-${indentLevel}"><li>${content}`;
                 } else {
-                    // Continue existing list
-                    if (indentLevel > currentListLevel) {
+                    if (indentLevel > currentIndentLevel) {
                         // Start a nested list
-                        currentListLevel = indentLevel;
-                        listItemCount = 1;
-                        return `<${currentListType} class="list-level-${indentLevel}"><li>${content}`;
-                    } else if (indentLevel < currentListLevel) {
-                        // End nested list and start new item
+                        currentIndentLevel = indentLevel;
+                        listStack.push(listType);
+                        return `<${listType} class="list-level-${indentLevel}"><li>${content}`;
+                    } else if (indentLevel < currentIndentLevel) {
+                        // End nested lists and start new item at correct level
                         let closeTags = '';
-                        while (currentListLevel > indentLevel) {
-                            closeTags += `</li></${currentListType}>`;
-                            currentListLevel--;
+                        while (currentIndentLevel > indentLevel) {
+                            closeTags += `</li></${listStack.pop()}>`;
+                            currentIndentLevel--;
                         }
-                        listItemCount++;
+                        // If the list type changes at the same level, close the old list and start a new one
+                        if (listStack.length > 0 && listStack[listStack.length - 1] !== listType) {
+                            closeTags += `</li></${listStack.pop()}>`;
+                            listStack.push(listType);
+                            return closeTags + `<${listType} class="list-level-${indentLevel}"><li>${content}`;
+                        }
                         return closeTags + `</li><li>${content}`;
                     } else {
-                        // Same level, new item
-                        listItemCount++;
+                        // Same level, check if list type changes
+                        if (listStack.length > 0 && listStack[listStack.length - 1] !== listType) {
+                            const closeTags = `</li></${listStack.pop()}>`;
+                            listStack.push(listType);
+                            return closeTags + `<${listType} class="list-level-${indentLevel}"><li>${content}`;
+                        }
                         return `</li><li>${content}`;
                     }
                 }
             } else if (inList && line.trim() === '') {
-                // End list
+                // End all open lists
                 let closeTags = '';
-                for (let i = currentListLevel; i >= 0; i--) {
-                    closeTags += `</li></${currentListType}>`;
+                while (listStack.length > 0) {
+                    closeTags += `</li></${listStack.pop()}>`;
                 }
                 inList = false;
-                currentListLevel = 0;
+                currentIndentLevel = 0;
                 return closeTags;
             } else if (inList) {
                 // Continue list item content
@@ -266,8 +273,8 @@ class AIChatWidget {
         // Close any remaining lists
         if (inList) {
             let closeTags = '';
-            for (let i = currentListLevel; i >= 0; i--) {
-                closeTags += `</li></${currentListType}>`;
+            while (listStack.length > 0) {
+                closeTags += `</li></${listStack.pop()}>`;
             }
             formatted += closeTags;
         }
