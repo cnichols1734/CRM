@@ -13,9 +13,13 @@ main_bp = Blueprint('main', __name__)
 @login_required
 def index():
     show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
-    sort_by = request.args.get('sort', 'created_at')
-    sort_dir = request.args.get('dir', 'desc')
+    sort_by = request.args.get('sort', 'name')
+    sort_dir = request.args.get('dir', 'asc')
     search_query = request.args.get('q', '').strip()
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
 
     if show_all:
         query = Contact.query
@@ -84,20 +88,27 @@ def index():
             else:
                 query = query.order_by(*[attr.desc() for attr in sort_attrs])
 
+    # Apply pagination
+    total_contacts = query.count()  # Get total count before pagination
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    contacts = pagination.items
+
     all_groups = ContactGroup.query.order_by(ContactGroup.name).all()
 
     all_owners = []
     if show_all:
         all_owners = User.query.order_by(User.first_name, User.last_name).all()
 
-    contacts = query.all()
     return render_template('index.html',
                          contacts=contacts,
+                         total_contacts=total_contacts,  # Pass total count to template
                          show_all=show_all,
                          current_sort=sort_by,
                          current_dir=sort_dir,
                          all_groups=all_groups,
-                         all_owners=all_owners)
+                         all_owners=all_owners,
+                         pagination=pagination,
+                         per_page=per_page)
 
 @main_bp.route('/dashboard')
 @login_required

@@ -47,7 +47,7 @@ function clearSort() {
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center space-x-2">
             <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Contacts</h1>
-            <span class="text-sm text-gray-500 translate-y-0.5 ml-2">{{ contacts|length }} record{% if contacts|length != 1 %}s{% endif %}</span>
+            <span class="text-sm text-gray-500 translate-y-0.5 ml-2">{{ total_contacts }} record{% if total_contacts != 1 %}s{% endif %}</span>
         </div>
         <div class="flex items-center space-x-3">
             <!-- Mobile Search Button -->
@@ -78,13 +78,17 @@ function clearSort() {
             </div>
 
             <!-- Import status message (hidden by default) -->
-            <div id="importStatus" class="hidden fixed top-4 right-4 max-w-sm bg-white shadow-lg rounded-lg pointer-events-auto p-4">
+            <div id="importStatus" class="hidden fixed top-4 left-1/2 -translate-x-1/2 max-w-xl w-full bg-white rounded-lg shadow-lg border p-4 z-50">
                 <div class="flex items-start">
                     <div class="flex-shrink-0">
                         <i id="statusIcon" class="fas fa-check-circle text-green-400"></i>
                     </div>
-                    <div class="ml-3 w-0 flex-1">
+                    <div class="ml-3 flex-1">
                         <p id="statusMessage" class="text-sm font-medium text-gray-900"></p>
+                        <div id="errorDetails" class="mt-2 space-y-1 hidden">
+                            <p class="text-sm text-gray-500">Error Details:</p>
+                            <ul id="errorList" class="text-sm text-red-600 list-disc list-inside max-h-40 overflow-y-auto"></ul>
+                        </div>
                     </div>
                     <div class="ml-4 flex-shrink-0 flex">
                         <button onclick="hideImportStatus()" class="bg-white rounded-md inline-flex text-gray-400 hover:text-gray-500">
@@ -1124,22 +1128,67 @@ function clearSort() {
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-4 pb-20 md:pb-4">
         <div class="flex items-center space-x-2">
+            {% if pagination.has_prev %}
+            <a href="{{ url_for('main.index', page=pagination.prev_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
+               class="px-2 py-1 text-gray-700 hover:text-gray-900">
+                <i class="fas fa-chevron-left"></i> Prev
+            </a>
+            {% else %}
             <button class="px-2 py-1 text-gray-500 disabled:opacity-50" disabled>
                 <i class="fas fa-chevron-left"></i> Prev
             </button>
-            <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded">1</span>
+            {% endif %}
+
+            {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                {% if page_num %}
+                    {% if page_num == pagination.page %}
+                    <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded">{{ page_num }}</span>
+                    {% else %}
+                    <a href="{{ url_for('main.index', page=page_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
+                       class="px-3 py-1 text-gray-700 hover:bg-gray-100 rounded">{{ page_num }}</a>
+                    {% endif %}
+                {% else %}
+                    <span class="px-2 text-gray-500">...</span>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for('main.index', page=pagination.next_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
+               class="px-2 py-1 text-gray-700 hover:text-gray-900">
+                Next <i class="fas fa-chevron-right"></i>
+            </a>
+            {% else %}
             <button class="px-2 py-1 text-gray-500 disabled:opacity-50" disabled>
                 Next <i class="fas fa-chevron-right"></i>
             </button>
+            {% endif %}
         </div>
         <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-500">25 per page</span>
-            <i class="fas fa-chevron-down text-gray-400"></i>
+            <select id="perPageSelect" 
+                    class="text-sm text-gray-700 border rounded px-2 py-1"
+                    onchange="changePerPage(this.value)">
+                <option value="25" {% if per_page == 25 %}selected{% endif %}>25 per page</option>
+                <option value="50" {% if per_page == 50 %}selected{% endif %}>50 per page</option>
+                <option value="100" {% if per_page == 100 %}selected{% endif %}>100 per page</option>
+            </select>
         </div>
     </div>
+
+<script>
+function changePerPage(value) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('per_page', value);
+    urlParams.set('page', 1); // Reset to first page when changing items per page
+    window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+}
+</script>
 </div>
 
 <script>
+function hideImportStatus() {
+    document.getElementById('importStatus').classList.add('hidden');
+}
+
 document.getElementById('csvFile').addEventListener('change', function(e) {
     if (e.target.files.length > 0) {
         const formData = new FormData();
@@ -1159,25 +1208,58 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
             document.getElementById('importButton').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('importLoading').classList.add('hidden');
             
-            // Show success message
+            // Show status message
             const statusIcon = document.getElementById('statusIcon');
             const statusMessage = document.getElementById('statusMessage');
+            const errorDetails = document.getElementById('errorDetails');
+            const errorList = document.getElementById('errorList');
+            
+            // Clear previous error details
+            errorList.innerHTML = '';
+            errorDetails.classList.add('hidden');
             
             if (data.status === 'success') {
                 statusIcon.className = 'fas fa-check-circle text-green-400';
-                statusMessage.textContent = `Successfully imported ${data.success_count} contacts. ${data.error_count} failed.`;
+                statusMessage.textContent = data.message || `Successfully imported ${data.success_count} contacts`;
+            } else if (data.status === 'partial_success') {
+                statusIcon.className = 'fas fa-exclamation-triangle text-yellow-400';
+                statusMessage.textContent = `Imported ${data.success_count} contacts with ${data.error_count} errors`;
+                
+                // Show error details
+                if (data.error_details && data.error_details.length > 0) {
+                    errorDetails.classList.remove('hidden');
+                    data.error_details.forEach(error => {
+                        const li = document.createElement('li');
+                        li.textContent = error;
+                        errorList.appendChild(li);
+                    });
+                }
             } else {
                 statusIcon.className = 'fas fa-exclamation-circle text-red-400';
                 statusMessage.textContent = data.message || 'Error importing contacts';
+                
+                // Show error details
+                if (data.error_details && data.error_details.length > 0) {
+                    errorDetails.classList.remove('hidden');
+                    data.error_details.forEach(error => {
+                        const li = document.createElement('li');
+                        li.textContent = error;
+                        errorList.appendChild(li);
+                    });
+                }
             }
             
             document.getElementById('importStatus').classList.remove('hidden');
             
-            // Auto-hide message after 5 seconds
-            setTimeout(hideImportStatus, 5000);
+            // Auto-hide message after 10 seconds for success only
+            if (data.status === 'success') {
+                setTimeout(hideImportStatus, 10000);
+            }
             
-            // Reload the contacts table
-            window.location.reload();
+            // Reload the contacts table only on success or partial success
+            if (data.status === 'success' || data.status === 'partial_success') {
+                window.location.reload();
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -1193,10 +1275,6 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
         });
     }
 });
-
-function hideImportStatus() {
-    document.getElementById('importStatus').classList.add('hidden');
-}
 </script>
 
 <!-- Contact Modal -->

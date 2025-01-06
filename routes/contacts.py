@@ -14,6 +14,25 @@ def get_user_timezone():
     """Helper function to get user's timezone"""
     return pytz.timezone('America/Chicago')
 
+def format_phone_number(phone):
+    """Format phone number to (XXX) XXX-XXXX format"""
+    if not phone:
+        return None
+        
+    # Remove any non-digit characters
+    digits = ''.join(filter(str.isdigit, phone))
+    
+    # Handle numbers with or without country code
+    if len(digits) == 11 and digits.startswith('1'):
+        digits = digits[1:]  # Remove leading 1
+    
+    # If we don't have exactly 10 digits, return None
+    if len(digits) != 10:
+        return None
+        
+    # Format as (XXX) XXX-XXXX
+    return f"({digits[0:3]}) {digits[3:6]}-{digits[6:]}"
+
 @contacts_bp.route('/contact/<int:contact_id>')
 @login_required
 def view_contact(contact_id):
@@ -86,7 +105,7 @@ def create_contact():
             first_name=form.first_name.data,
             last_name=form.last_name.data,
             email=form.email.data,
-            phone=form.phone.data,
+            phone=format_phone_number(form.phone.data),
             street_address=form.street_address.data,
             city=form.city.data,
             state=form.state.data,
@@ -140,7 +159,7 @@ def edit_contact(contact_id):
         contact.first_name = first_name
         contact.last_name = last_name
         contact.email = request.form.get('email')
-        contact.phone = request.form.get('phone')
+        contact.phone = format_phone_number(request.form.get('phone'))
         contact.street_address = request.form.get('street_address')
         contact.city = request.form.get('city')
         contact.state = request.form.get('state')
@@ -215,44 +234,154 @@ def import_contacts():
         return {'status': 'error', 'message': 'Please upload a CSV file'}, 400
 
     try:
-        stream = StringIO(file.stream.read().decode("UTF8"), newline=None)
+        # Read the CSV file
+        stream = StringIO(file.stream.read().decode("utf-8-sig"), newline=None)
         csv_data = csv.DictReader(stream)
+        
+        # Define the expected columns for both formats
+        our_format_columns = ['first_name', 'last_name', 'email', 'phone', 'street_address', 'city', 'state', 'zip_code', 'notes', 'groups']
+        alt_format_columns = ['First Name', 'Last Name', 'Email 1', 'Phone Number 1', 'Mailing Address', 'Mailing City', 'Mailing State/Province', 'Mailing Postal Code', 'Groups']
+        
+        # Clean up any BOM characters from fieldnames
+        if csv_data.fieldnames and csv_data.fieldnames[0].startswith('\ufeff'):
+            csv_data.fieldnames[0] = csv_data.fieldnames[0].replace('\ufeff', '')
+        
+        # Detect format based on columns
+        is_alt_format = any(col in csv_data.fieldnames for col in alt_format_columns)
+        
+        if is_alt_format:
+            # Convert to our format using the transformation logic
+            column_mapping = {
+                'First Name': 'first_name',
+                'Last Name': 'last_name',
+                'Email 1': 'email',
+                'Phone Number 1': 'phone',
+                'Mailing Address': 'street_address',
+                'Mailing City': 'city',
+                'Mailing State/Province': 'state',
+                'Mailing Postal Code': 'zip_code',
+                'Groups': 'groups'
+            }
+            
+            # Transform the data
+            transformed_data = []
+            for row in csv_data:
+                transformed_row = {}
+                # Map the columns
+                for old_col, new_col in column_mapping.items():
+                    transformed_row[new_col] = row.get(old_col, '').strip()
+                
+                # Handle groups delimiter
+                if 'groups' in transformed_row:
+                    transformed_row['groups'] = transformed_row['groups'].replace(',', ';')
+                
+                # Combine additional columns into notes
+                additional_notes = []
+                for col in row.keys():
+                    if col not in column_mapping and row[col]:
+                        additional_notes.append(f"{col}: {row[col]}")
+                
+                transformed_row['notes'] = '; '.join(additional_notes)
+                transformed_data.append(transformed_row)
+            
+            # Replace csv_data with transformed data
+            csv_data = transformed_data
+        
+        # Validate required columns for our format
+        required_columns = ['first_name', 'last_name', 'phone']
+        if not is_alt_format:  # Only check if not in alt format since we just transformed it
+            missing_columns = [col for col in required_columns if col not in (csv_data.fieldnames or [])]
+            if missing_columns:
+                return {
+                    'status': 'error',
+                    'message': f'Missing required columns: {", ".join(missing_columns)}'
+                }, 400
 
         success_count = 0
         error_count = 0
+        error_details = []
 
-        for row in csv_data:
+        for row_num, row in enumerate(csv_data, start=1):
             try:
+                # Validate required fields
+                if not row['first_name'].strip() or not row['last_name'].strip():
+                    error_details.append(f"Row {row_num}: First name and last name are required")
+                    error_count += 1
+                    continue
+
+                # Handle phone number
+                phone = row['phone'].strip() if row.get('phone') else None
+                if phone:
+                    # Remove any non-digit characters first
+                    phone = ''.join(filter(str.isdigit, phone))
+                    if not phone:
+                        error_details.append(f"Row {row_num}: Invalid phone number format")
+                        error_count += 1
+                        continue
+                    
+                    # Format the phone number
+                    formatted_phone = format_phone_number(phone)
+                    if not formatted_phone:
+                        error_details.append(f"Row {row_num}: Invalid phone number length")
+                        error_count += 1
+                        continue
+                else:
+                    formatted_phone = None
+
                 contact = Contact(
                     user_id=current_user.id,
                     first_name=row['first_name'].strip(),
                     last_name=row['last_name'].strip(),
-                    email=row['email'].strip() if row['email'] else None,
-                    phone=row['phone'].strip() if row['phone'] else None,
-                    street_address=row['street_address'].strip() if row['street_address'] else None,
-                    city=row['city'].strip() if row['city'] else None,
-                    state=row['state'].strip() if row['state'] else None,
-                    zip_code=row['zip_code'].strip() if row['zip_code'] else None,
-                    notes=row['notes'].strip() if row['notes'] else None
+                    email=row.get('email', '').strip() or None,
+                    phone=formatted_phone,
+                    street_address=row.get('street_address', '').strip() or None,
+                    city=row.get('city', '').strip() or None,
+                    state=row.get('state', '').strip() or None,
+                    zip_code=row.get('zip_code', '').strip() or None,
+                    notes=row.get('notes', '').strip() or None
                 )
 
-                if 'groups' in row and row['groups']:
-                    group_names = [name.strip() for name in row['groups'].split(';')]
-                    groups = ContactGroup.query.filter(ContactGroup.name.in_(group_names)).all()
-                    contact.groups = groups
+                if row.get('groups'):
+                    group_names = [name.strip() for name in row['groups'].split(';') if name.strip()]
+                    if group_names:
+                        groups = ContactGroup.query.filter(ContactGroup.name.in_(group_names)).all()
+                        if len(groups) < len(group_names):
+                            missing_groups = set(group_names) - set(g.name for g in groups)
+                            error_details.append(f"Row {row_num}: Some groups not found: {', '.join(missing_groups)}")
+                        contact.groups = groups
 
                 db.session.add(contact)
                 success_count += 1
 
-            except Exception:
+            except Exception as e:
                 error_count += 1
+                error_details.append(f"Row {row_num}: {str(e)}")
                 continue
 
-        db.session.commit()
+        if success_count > 0:
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                return {
+                    'status': 'error',
+                    'message': f'Database error: {str(e)}',
+                    'error_details': error_details
+                }, 500
+        
+        # If we have any errors, include them in the response
+        if error_count > 0:
+            return {
+                'status': 'partial_success' if success_count > 0 else 'error',
+                'success_count': success_count,
+                'error_count': error_count,
+                'error_details': error_details
+            }
+        
         return {
             'status': 'success',
             'success_count': success_count,
-            'error_count': error_count
+            'message': f'Successfully imported {success_count} contacts'
         }
 
     except Exception as e:
