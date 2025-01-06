@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/manage_groups.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-medium text-gray-900">Manage Contact Groups</h2>
+                <button onclick="showAddGroupModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Add Group
+                </button>
+            </div>
+        </div>
+
+        <!-- Group Categories -->
+        <div class="px-4 py-5 sm:p-6">
+            {% for category in categories %}
+            <div class="mb-8">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">{{ category }}</h3>
+                <div class="space-y-3" id="category-{{ category|lower }}">
+                    {% for group in groups if group.category == category %}
+                    <div class="group-item flex items-center justify-between bg-gray-50 p-4 rounded-lg" data-id="{{ group.id }}">
+                        <div class="flex items-center space-x-3">
+                            <span class="cursor-move text-gray-400">
+                                <i class="fas fa-grip-vertical"></i>
+                            </span>
+                            <span class="group-name">{{ group.name }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="editGroup('{{ group.id }}', '{{ group.name }}', '{{ group.category }}')" 
+                                    class="text-blue-600 hover:text-blue-800">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteGroup('{{ group.id }}')" 
+                                    class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Group Modal -->
+<div id="addGroupModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-4 py-5 border-b border-gray-200 sm:px-6 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Add New Group</h3>
+                <button onclick="hideAddGroupModal()" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="addGroupForm" class="px-4 py-5 sm:p-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="groupName" class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" name="name" id="groupName" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="groupCategory" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select name="category" id="groupCategory" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for category in categories %}
+                            <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end space-x-3">
+                    <button type="button" onclick="hideAddGroupModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Add Group
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Group Modal -->
+<div id="editGroupModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-4 py-5 border-b border-gray-200 sm:px-6 flex justify-between items-center">
+                <h3 class="text-lg font-medium text-gray-900">Edit Group</h3>
+                <button onclick="hideEditGroupModal()" class="text-gray-400 hover:text-gray-500">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="editGroupForm" class="px-4 py-5 sm:p-6">
+                <input type="hidden" id="editGroupId">
+                <div class="space-y-4">
+                    <div>
+                        <label for="editGroupName" class="block text-sm font-medium text-gray-700">Name</label>
+                        <input type="text" name="name" id="editGroupName" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="editGroupCategory" class="block text-sm font-medium text-gray-700">Category</label>
+                        <select name="category" id="editGroupCategory" required
+                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                            {% for category in categories %}
+                            <option value="{{ category }}">{{ category }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-5 flex justify-end space-x-3">
+                    <button type="button" onclick="hideEditGroupModal()"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize Sortable after both DOM and scripts are loaded
+window.addEventListener('load', function() {
+    const categoryElements = document.querySelectorAll('[id^="category-"]');
+    categoryElements.forEach(function(el) {
+        new Sortable(el, {
+            animation: 150,
+            handle: '.cursor-move',
+            onEnd: function() {
+                const category = el.id.replace('category-', '');
+                window.updateGroupOrder(category);
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

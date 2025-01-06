@@ -98,6 +98,7 @@
             }
         })();
     </script>
+    {% block head_scripts %}{% endblock %}
 </head>
 <body class="h-screen flex flex-col bg-[#2d3e50]">
 
@@ -179,6 +180,11 @@
                class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                 <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
                 Manage Users
+            </a>
+            <a href="{{ url_for('admin.manage_groups') }}"
+               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
+                Manage Groups
             </a>
             {% endif %}
 
@@ -351,6 +357,11 @@
                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
                             Manage Users
+                        </a>
+                        <a href="{{ url_for('admin.manage_groups') }}"
+                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
+                            Manage Groups
                         </a>
                         {% endif %}
 
