@@ -5,6 +5,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const activeTodoList = document.getElementById('activeTodoList');
     const completedTodoList = document.getElementById('completedTodoList');
     const todoItemTemplate = document.getElementById('todoItemTemplate');
+    const activeTodoCount = document.getElementById('activeTodoCount');
+    const completedTodoCount = document.getElementById('completedTodoCount');
+
+    // Function to update task counts
+    function updateTaskCounts() {
+        const activeCount = activeTodoList.children.length;
+        const completedCount = completedTodoList.children.length;
+        
+        activeTodoCount.textContent = `${activeCount} ${activeCount === 1 ? 'task' : 'tasks'}`;
+        completedTodoCount.textContent = `${completedCount} ${completedCount === 1 ? 'completed' : 'completed'}`;
+        
+        // Add empty state message if no tasks
+        if (activeCount === 0) {
+            const emptyState = document.createElement('li');
+            emptyState.className = 'text-center py-8 text-gray-500 italic bg-gray-50/50 rounded-lg';
+            emptyState.textContent = 'No active tasks. Add one above!';
+            activeTodoList.appendChild(emptyState);
+        } else {
+            const emptyState = activeTodoList.querySelector('.text-center.py-8');
+            if (emptyState) {
+                emptyState.remove();
+            }
+        }
+        
+        if (completedCount === 0) {
+            const emptyState = document.createElement('li');
+            emptyState.className = 'text-center py-8 text-gray-500 italic bg-gray-50/50 rounded-lg';
+            emptyState.textContent = 'No completed tasks yet';
+            completedTodoList.appendChild(emptyState);
+        } else {
+            const emptyState = completedTodoList.querySelector('.text-center.py-8');
+            if (emptyState) {
+                emptyState.remove();
+            }
+        }
+    }
 
     // Initialize SortableJS for both lists
     const activeListSortable = new Sortable(activeTodoList, {
@@ -16,6 +52,7 @@ document.addEventListener('DOMContentLoaded', function() {
         handle: '.drag-handle',
         onEnd: function(evt) {
             saveTodoOrder();
+            updateTaskCounts();
         }
     });
 
@@ -28,6 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         handle: '.drag-handle',
         onEnd: function(evt) {
             saveTodoOrder();
+            updateTaskCounts();
         }
     });
 
@@ -59,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 todoItem.style.opacity = '1';
                 todoItem.style.transform = 'translateX(0)';
                 saveTodoOrder();
+                updateTaskCounts();
             }, 300);
         });
 
@@ -69,6 +108,7 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => {
                 todoItem.remove();
                 saveTodoOrder();
+                updateTaskCounts();
             }, 300);
         });
 
@@ -149,11 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         activeTodoList.querySelectorAll('.todo-text').forEach(todo => {
-            todos.active.push(todo.textContent);
+            if (!todo.closest('.text-center')) {  // Skip empty state message
+                todos.active.push(todo.textContent);
+            }
         });
 
         completedTodoList.querySelectorAll('.todo-text').forEach(todo => {
-            todos.completed.push(todo.textContent);
+            if (!todo.closest('.text-center')) {  // Skip empty state message
+                todos.completed.push(todo.textContent);
+            }
         });
 
         fetch('/api/user_todos/save', {
@@ -182,6 +226,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 todos.completed.forEach(todo => {
                     completedTodoList.appendChild(createTodoElement(todo, true));
                 });
+
+                // Update counts after loading
+                updateTaskCounts();
             });
     }
 
@@ -193,6 +240,7 @@ document.addEventListener('DOMContentLoaded', function() {
             activeTodoList.appendChild(todoElement);
             newTodoInput.value = '';
             saveTodoOrder();
+            updateTaskCounts();
         }
     }
 
