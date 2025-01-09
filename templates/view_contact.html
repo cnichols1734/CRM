@@ -11,6 +11,16 @@
                     Back
                 </a>
                 <div class="flex items-center space-x-3">
+                    <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[140px] justify-center">
+                        <i class="fas fa-arrow-left mr-2"></i>
+                        <span class="text-gray-700">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
+                    </a>
+                    <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}" 
+                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[140px] justify-center">
+                        <span class="text-gray-700">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
+                        <i class="fas fa-arrow-right ml-2"></i>
+                    </a>
                     <button id="editButton" onclick="toggleEditMode()" 
                             class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                         <i class="fas fa-pencil-alt mr-2"></i>

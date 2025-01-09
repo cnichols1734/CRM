@@ -40,6 +40,30 @@ def view_contact(contact_id):
     if not current_user.role == 'admin' and contact.user_id != current_user.id:
         abort(403)
 
+    # Get the next contact in alphabetical order
+    next_contact = Contact.query.filter(
+        Contact.user_id == contact.user_id,
+        Contact.first_name > contact.first_name
+    ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
+
+    # If no next contact (we're at the end), get the first contact
+    if not next_contact:
+        next_contact = Contact.query.filter(
+            Contact.user_id == contact.user_id
+        ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
+
+    # Get the previous contact in alphabetical order
+    prev_contact = Contact.query.filter(
+        Contact.user_id == contact.user_id,
+        Contact.first_name < contact.first_name
+    ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
+
+    # If no previous contact (we're at the start), get the last contact
+    if not prev_contact:
+        prev_contact = Contact.query.filter(
+            Contact.user_id == contact.user_id
+        ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
+
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         # Get active tasks for the contact
@@ -90,6 +114,8 @@ def view_contact(contact_id):
     return render_template('view_contact.html', 
                          contact=contact, 
                          all_groups=all_groups,
+                         next_contact=next_contact,
+                         prev_contact=prev_contact,
                          now=now)
 
 
