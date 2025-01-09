@@ -457,7 +457,7 @@
                     <div class="p-4 border-b border-gray-100">
                         <div class="flex items-center justify-between">
                             <h2 class="text-lg font-semibold text-gray-900">Related Tasks</h2>
-                            <a href="{{ url_for('tasks.create_task', contact_id=contact.id) }}" 
+                            <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" 
                                class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 <i class="fas fa-plus mr-1"></i>
                                 New Task

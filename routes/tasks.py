@@ -118,6 +118,12 @@ def create_task():
             db.session.commit()
 
             flash('Task created successfully!', 'success')
+            
+            # Handle return navigation
+            return_to = request.form.get('return_to')
+            if return_to == 'contact':
+                contact_id = request.form.get('return_contact_id')
+                return redirect(url_for('contacts.view_contact', contact_id=contact_id))
             return redirect(url_for('tasks.tasks'))
 
         except Exception as e:

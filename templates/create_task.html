@@ -28,7 +28,8 @@
                                 class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300">
                             <option value="">Select a contact</option>
                             {% for contact in contacts %}
-                            <option value="{{ contact.id }}">
+                            <option value="{{ contact.id }}"
+                                    {% if contact.id == request.args.get('contact_id')|int %}selected{% endif %}>
                                 {{ contact.first_name }} {{ contact.last_name }}
                             </option>
                             {% endfor %}
@@ -121,7 +122,9 @@
 
                 <!-- Submit Button -->
                 <div class="mt-6 flex justify-end space-x-4">
-                    <a href="{{ url_for('tasks.tasks') }}" 
+                    <input type="hidden" name="return_to" value="{{ request.args.get('return_to', '') }}">
+                    <input type="hidden" name="return_contact_id" value="{{ request.args.get('contact_id', '') }}">
+                    <a href="{% if request.args.get('return_to') == 'contact' %}{{ url_for('contacts.view_contact', contact_id=request.args.get('contact_id')) }}{% else %}{{ url_for('tasks.tasks') }}{% endif %}" 
                        class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
                         Cancel
                     </a>
