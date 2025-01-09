@@ -6,10 +6,10 @@
     <div class="bg-white border-b sticky top-0 z-10">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-4 flex items-center justify-between">
-                <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-900">
+                <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-900">
                     <i class="fas fa-arrow-left mr-2"></i>
                     Back
-                </button>
+                </a>
                 <div class="flex items-center space-x-3">
                     <button id="editButton" onclick="toggleEditMode()" 
                             class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
