@@ -7,9 +7,14 @@ from flask_login import LoginManager
 from flask_mail import Mail
 from flask_migrate import Migrate
 from models import db, User
-from routes import register_blueprints
+from routes.main import main_bp
+from routes.auth import auth_bp
+from routes.tasks import tasks_bp
+from routes.contacts import contacts_bp
 from routes.ai_chat import ai_chat
 from routes.daily_todo import daily_todo
+from routes.user_todo import bp as user_todo_bp
+from routes.admin import admin_bp
 
 def create_app():
     app = Flask(__name__)
@@ -35,11 +40,14 @@ def create_app():
         return User.query.get(int(user_id))
 
     # Register blueprints
-    register_blueprints(app)
-
-    # Register AI chat blueprint
-    app.register_blueprint(ai_chat)
+    app.register_blueprint(main_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(tasks_bp)
+    app.register_blueprint(contacts_bp)
     app.register_blueprint(daily_todo)
+    app.register_blueprint(ai_chat)
+    app.register_blueprint(user_todo_bp)
+    app.register_blueprint(admin_bp)
 
     return app
 

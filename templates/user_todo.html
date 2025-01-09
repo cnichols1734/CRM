@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}My Todo List{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <h1 class="text-2xl font-semibold text-gray-900 mb-8">My Todo List</h1>
+
+        <!-- Active Todos Section -->
+        <div class="bg-white shadow rounded-lg mb-8">
+            <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Active</h2>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <!-- New Todo Input -->
+                <div class="flex items-center space-x-3 mb-6">
+                    <div class="flex-1">
+                        <input type="text" id="newTodoInput" 
+                               class="block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 hover:border-gray-300 transition-colors duration-200" 
+                               placeholder="Add a new todo...">
+                    </div>
+                    <button id="addTodoBtn" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors duration-200">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul id="activeTodoList" class="space-y-3">
+                    <!-- Active todos will be inserted here -->
+                </ul>
+            </div>
+        </div>
+
+        <!-- Completed Todos Section -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+                <h2 class="text-lg font-medium text-gray-900">Completed</h2>
+            </div>
+            <div class="px-4 py-5 sm:p-6">
+                <ul id="completedTodoList" class="space-y-3">
+                    <!-- Completed todos will be inserted here -->
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Todo Item Template -->
+<template id="todoItemTemplate">
+    <li class="todo-item group bg-white border rounded-md shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div class="px-4 py-4 sm:px-6 flex items-center justify-between">
+            <div class="flex items-center flex-1 min-w-0">
+                <div class="flex-shrink-0 flex items-center space-x-2">
+                    <span class="drag-handle cursor-move text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-grip-vertical"></i>
+                    </span>
+                    <input type="checkbox" class="todo-checkbox h-4 w-4 text-orange-600 focus:ring-orange-500 border-gray-300 rounded cursor-pointer">
+                </div>
+                <div class="ml-3 flex-1 relative group">
+                    <!-- Normal Text View -->
+                    <p class="todo-text text-sm font-medium text-gray-900 break-words py-2 px-3 rounded-md hover:bg-gray-50 cursor-pointer">
+                        <!-- Text will be inserted here -->
+                    </p>
+                    <!-- Edit Input (hidden by default) -->
+                    <div class="todo-edit-container hidden absolute inset-0 flex items-center">
+                        <input type="text" 
+                               class="todo-edit-input block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-900 focus:bg-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 hover:border-gray-300 transition-colors duration-200" 
+                               placeholder="Edit todo...">
+                    </div>
+                    <!-- Edit hint (visible on hover) -->
+                    <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        Double-click to edit
+                    </span>
+                </div>
+            </div>
+            <div class="ml-4 flex-shrink-0">
+                <button class="delete-todo text-gray-400 hover:text-red-500 transition-colors duration-200">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    </li>
+</template>
+
+{% endblock %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/user_todo.js') }}" defer></script>
+{% endblock %} 

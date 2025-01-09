@@ -187,3 +187,20 @@ class DailyTodoList(db.Model):
             return True
         time_since_last = datetime.utcnow() - latest.generated_at
         return time_since_last.total_seconds() > (16 * 3600)  # 16 hours in seconds
+
+class UserTodo(db.Model):
+    __tablename__ = 'user_todos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    text = db.Column(db.String(500), nullable=False)
+    completed = db.Column(db.Boolean, default=False, nullable=False)
+    order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationship
+    user = db.relationship('User', backref=db.backref('todos', lazy=True, cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<UserTodo {self.text[:20]}...>'
