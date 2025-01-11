@@ -234,10 +234,10 @@ def chat():
 
         # Call GPT-4 Turbo
         response = client.chat.completions.create(
-            model="gpt-4-1106-preview",
+            model="gpt-4o-2024-11-20",
             messages=messages,
-            temperature=0.7,
-            max_tokens=1000
+            temperature=0.8,
+            max_tokens=2000
         )
 
         # Print GPT's response

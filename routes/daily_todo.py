@@ -231,11 +231,12 @@ def generate_todo():
         # Call GPT with the data
         try:
             response = client.chat.completions.create(
-                model="gpt-4-turbo-preview",
+                model="gpt-4o-2024-11-20",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": f"Generate a daily to-do list based on this CRM data: {todo_data}"}
                 ],
+                temperature=0.7,
                 response_format={"type": "json_object"}
             )
         except Exception as e:
