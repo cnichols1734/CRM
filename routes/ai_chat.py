@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, url_for
+from flask import Blueprint, jsonify, request, url_for, session
 from flask_login import login_required, current_user
 import openai
 from config import Config
@@ -133,6 +133,11 @@ def chat():
         user_message = data.get('message')
         page_content = data.get('pageContent')
         current_url = data.get('currentUrl')
+        clear_history = data.get('clearHistory', False)
+
+        # Initialize or clear session history if requested
+        if clear_history or 'chat_history' not in session:
+            session['chat_history'] = []
 
         # Get contact and task data if viewing a contact
         contact_data = get_contact_and_tasks(current_url)
@@ -202,17 +207,25 @@ def chat():
         # Initialize OpenAI client
         client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
         
-        # Prepare the messages
+        # Prepare the messages with history
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"""
+            {"role": "system", "content": SYSTEM_PROMPT}
+        ]
+        
+        # Add conversation history
+        messages.extend(session['chat_history'])
+        
+        # Add current context and user message
+        messages.append({
+            "role": "user",
+            "content": f"""
 # Current Context
 {context_message}
 
 # User Query
 {user_message}
-"""}
-        ]
+"""
+        })
 
         # Debug printing
         print("\n" + "="*50)
@@ -221,33 +234,45 @@ def chat():
         print("\nSystem Prompt:")
         print("-"*50)
         print(SYSTEM_PROMPT)
-        print("\nContext and User Message:")
+        print("\nConversation History:")
         print("-"*50)
-        print(messages[1]["content"])
+        for msg in session['chat_history']:
+            print(f"{msg['role'].upper()}: {msg['content']}\n")
+        print("\nCurrent Context and User Message:")
+        print("-"*50)
+        print(messages[-1]["content"])
         print("="*50 + "\n")
-
-        if contact_data:
-            print("\nDetailed Contact Data:")
-            print("-"*50)
-            pprint(contact_data)
-            print("="*50 + "\n")
 
         # Call GPT-4 Turbo
         response = client.chat.completions.create(
-            model="gpt-4o-2024-11-20",
+            model="gpt-4-1106-preview",
             messages=messages,
             temperature=0.8,
             max_tokens=2000
         )
 
-        # Print GPT's response
-        print("\nGPT Response:")
-        print("-"*50)
-        print(response.choices[0].message.content)
-        print("="*50 + "\n")
+        # Get the assistant's response
+        assistant_response = response.choices[0].message.content
+
+        # Update session history with the new exchange
+        session['chat_history'].append({
+            "role": "user",
+            "content": user_message
+        })
+        session['chat_history'].append({
+            "role": "assistant",
+            "content": assistant_response
+        })
+
+        # Keep only the last 10 exchanges (20 messages) to prevent session bloat
+        if len(session['chat_history']) > 20:
+            session['chat_history'] = session['chat_history'][-20:]
+
+        # Make sure to save the session
+        session.modified = True
 
         return jsonify({
-            "response": response.choices[0].message.content
+            "response": assistant_response
         })
 
     except Exception as e:
@@ -255,3 +280,11 @@ def chat():
         return jsonify({
             "error": str(e)
         }), 500
+
+@ai_chat.route('/api/ai-chat/clear', methods=['POST'])
+@login_required
+def clear_chat():
+    """Clear the chat history from the session"""
+    if 'chat_history' in session:
+        session.pop('chat_history')
+    return jsonify({"status": "success"})

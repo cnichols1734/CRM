@@ -65,10 +65,42 @@ class AIChatWidget {
         });
     }
 
-    toggleChat() {
+    async toggleChat() {
         const chatBox = document.querySelector('.ai-chat-box');
         this.isOpen = !this.isOpen;
         chatBox.style.display = this.isOpen ? 'flex' : 'none';
+        
+        // Clear chat history when closing
+        if (!this.isOpen) {
+            // Clear visual messages
+            const messagesDiv = document.querySelector('.ai-chat-messages');
+            // Keep only the initial greeting message and recreate the typing indicator
+            messagesDiv.innerHTML = `
+                <div class="ai-message">Hi, I'm BOB! 👋 Your Business Optimization Buddy. I'm here to assist you with any questions about real estate. How can I help you today?</div>
+                <div class="typing-indicator" id="typing-indicator" style="display: none;">
+                    <div class="typing-indicator-content">
+                        <div class="typing-indicator-text">BOB is thinking...</div>
+                        <div class="typing-indicator-dots">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Clear server-side history
+            try {
+                await fetch('/api/ai-chat/clear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+            } catch (error) {
+                console.error('Error clearing chat history:', error);
+            }
+        }
     }
 
     showTypingIndicator() {
@@ -130,7 +162,8 @@ class AIChatWidget {
                 body: JSON.stringify({
                     message: message,
                     pageContent: document.body.innerText,
-                    currentUrl: window.location.href
+                    currentUrl: window.location.href,
+                    clearHistory: false  // Add this flag
                 })
             });
 
