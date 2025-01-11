@@ -49,7 +49,7 @@ class AIChatWidget {
                 </div>
             </div>
         `;
-        
+
         // Add typing indicator to messages container
         const messagesContainer = chatBox.querySelector('.ai-chat-messages');
         messagesContainer.appendChild(typingIndicator);
@@ -76,15 +76,15 @@ class AIChatWidget {
         if (indicator) {
             // Remove the indicator from its current position
             indicator.remove();
-            
+
             // Add it to the end of the messages container
             const messagesDiv = document.querySelector('.ai-chat-messages');
             messagesDiv.appendChild(indicator);
-            
+
             // Show the indicator
             this.isTyping = true;
             indicator.style.display = 'flex';
-            
+
             // Scroll to show the typing indicator
             setTimeout(() => {
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -104,7 +104,7 @@ class AIChatWidget {
         const textarea = document.getElementById('ai-chat-textarea');
         const sendButton = document.getElementById('ai-send-button');
         const message = textarea.value.trim();
-        
+
         if (!message || this.isTyping) return;
 
         // Disable input while processing
@@ -139,10 +139,10 @@ class AIChatWidget {
             }
 
             const data = await response.json();
-            
+
             // Artificial delay to ensure typing indicator is visible
             await new Promise(resolve => setTimeout(resolve, 1000));
-            
+
             // Hide typing indicator and show response
             this.hideTypingIndicator();
             this.addMessageToChat('ai', data.response);
@@ -166,21 +166,21 @@ class AIChatWidget {
             .replace(/### (.*$)/gm, '<h3 class="ai-chat-h3">$1</h3>')
             .replace(/## (.*$)/gm, '<h2 class="ai-chat-h2">$1</h2>')
             .replace(/# (.*$)/gm, '<h1 class="ai-chat-h1">$1</h1>')
-            
+
             // Code blocks with language support
             .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
-            
+
             // Inline code
             .replace(/`([^`]+)`/g, '<code>$1</code>')
-            
+
             // Bold and Italic
             .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
             .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            
+
             // Links
             .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-            
+
             // First, normalize all newlines and remove extra spaces
             .replace(/\r\n/g, '\n')
             .replace(/\n{3,}/g, '\n\n')
@@ -285,8 +285,8 @@ class AIChatWidget {
             .map(p => {
                 p = p.trim();
                 if (!p) return '';
-                if (p.startsWith('<h') || p.startsWith('<pre') || 
-                    p.startsWith('<ul') || p.startsWith('<ol') || 
+                if (p.startsWith('<h') || p.startsWith('<pre') ||
+                    p.startsWith('<ul') || p.startsWith('<ol') ||
                     p.startsWith('<hr')) {
                     return p;
                 }
@@ -302,13 +302,13 @@ class AIChatWidget {
         const messagesDiv = document.querySelector('.ai-chat-messages');
         const messageElement = document.createElement('div');
         messageElement.className = `${sender}-message`;
-        
+
         if (sender === 'ai') {
             messageElement.innerHTML = this.formatMessage(message);
         } else {
             messageElement.textContent = message;
         }
-        
+
         messagesDiv.appendChild(messageElement);
     }
 }
@@ -316,4 +316,4 @@ class AIChatWidget {
 // Initialize the chat widget when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     new AIChatWidget();
-}); 
+});
