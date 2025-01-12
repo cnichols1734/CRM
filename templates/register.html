@@ -31,7 +31,12 @@
                         <label class="label">
                             <span class="label-text">Email address</span>
                         </label>
-                        {{ form.email(class="input input-bordered w-full") }}
+                        {{ form.email(class="input input-bordered w-full", placeholder="name@origenrealty.com") }}
+                        <label class="label">
+                            <span class="label-text-alt text-base-content/70">
+                                <i class="fas fa-building mr-1"></i>Registration is limited to Origen Realty email addresses
+                            </span>
+                        </label>
                         {% if form.email.errors %}
                             {% for error in form.email.errors %}
                                 <label class="label">
@@ -112,4 +117,43 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const emailInput = document.querySelector('input[name="email"]');
+    const emailContainer = emailInput.closest('.form-control');
+    
+    form.addEventListener('submit', function(e) {
+        const email = emailInput.value.trim();
+        if (!email.toLowerCase().endsWith('@origenrealty.com')) {
+            e.preventDefault();
+            
+            // Remove any existing error message
+            const existingError = emailContainer.querySelector('.label-text-alt.text-error');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Add new error message
+            const errorLabel = document.createElement('label');
+            errorLabel.className = 'label';
+            errorLabel.innerHTML = '<span class="label-text-alt text-error">Only @Origenrealty.com email addresses are allowed</span>';
+            emailContainer.appendChild(errorLabel);
+            
+            // Add error styling to input
+            emailInput.classList.add('input-error');
+        }
+    });
+    
+    // Clear error when user starts typing
+    emailInput.addEventListener('input', function() {
+        const existingError = emailContainer.querySelector('.label-text-alt.text-error');
+        if (existingError) {
+            existingError.remove();
+            emailInput.classList.remove('input-error');
+        }
+    });
+});
+</script>
 {% endblock %}
