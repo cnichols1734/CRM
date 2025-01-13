@@ -15,7 +15,7 @@
                 <div class="h-10 w-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg flex items-center justify-center transform -rotate-6">
                     <i class="fas fa-check-double text-white text-xl"></i>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">My Todos</h1>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">My To Do's</h1>
             </div>
             <div class="text-sm text-gray-500 flex items-center space-x-2 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200/50">
                 <i class="fas fa-info-circle text-orange-500"></i>
@@ -31,9 +31,9 @@
                     <span class="h-8 w-8 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center shadow-sm">
                         <i class="fas fa-list-check text-orange-600"></i>
                     </span>
-                    <h2 class="text-xl font-semibold text-gray-900">Active Todos</h2>
+                    <h2 class="text-xl font-semibold text-gray-900">Active To Do's</h2>
                 </div>
-                <span class="text-sm font-medium px-3 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100" id="activeTodoCount">0 todos</span>
+                <span class="text-sm font-medium px-3 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100" id="activeTodoCount">0 to do's</span>
             </div>
             <div class="px-6 py-6">
                 <!-- New Todo Input -->
@@ -41,14 +41,14 @@
                     <div class="flex-1 relative">
                         <input type="text" id="newTodoInput" 
                                class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 pl-12 pr-4 py-3 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-gray-300 transition-all duration-200 shadow-sm" 
-                               placeholder="Add a new todo...">
+                               placeholder="Add a new to do...">
                         <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors duration-200">
                             <i class="fas fa-plus-circle"></i>
                         </span>
                     </div>
                     <button id="addTodoBtn" 
                             class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 focus:outline-none focus:ring-0 transition-all duration-200 transform hover:scale-105 hover:shadow active:scale-95">
-                        Add Todo
+                        Add To Do
                     </button>
                 </div>
                 <ul id="activeTodoList" class="space-y-4">
@@ -103,7 +103,7 @@
                     <div class="todo-edit-container hidden absolute inset-0 flex items-center">
                         <input type="text" 
                                class="todo-edit-input block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-900 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-gray-300 transition-all duration-200 shadow-sm" 
-                               placeholder="Edit todo...">
+                               placeholder="Edit to do...">
                     </div>
                     <!-- Edit hint (visible on hover) -->
                     <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">

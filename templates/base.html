@@ -300,11 +300,11 @@
                     <div class="flex justify-center w-[24px]">
                         <i class="fas fa-check-square"></i>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Todo List</span>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">To Do List</span>
                 </div>
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Todo List
+                To Do List
             </div>
         </div>
 
@@ -436,7 +436,7 @@
         <a href="{{ url_for('user_todo.user_todo') }}"
            class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'user_todo.user_todo' %}active{% endif %}">
             <i class="fas fa-check-square text-lg"></i>
-            <span class="text-xs mt-0.5">Todo List</span>
+            <span class="text-xs mt-0.5">To Do List</span>
         </a>
     </nav>
 </div>
