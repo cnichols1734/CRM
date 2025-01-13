@@ -87,12 +87,12 @@
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
                 <div>
-                    <h3 class="text-lg font-medium text-gray-900">Upcoming Tasks</h3>
-                    <p class="text-sm text-gray-500 mt-1">Tasks due in the next 7 days</p>
+                    <h3 class="text-lg font-medium text-gray-900">Upcoming Client Tasks</h3>
+                    <p class="text-sm text-gray-500 mt-1">Client tasks due in the next 7 days</p>
                 </div>
                 <a href="{{ url_for('tasks.tasks') }}" 
                    class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                    View all tasks
+                    View all client tasks
                     <i class="fas fa-arrow-right ml-2"></i>
                 </a>
             </div>
@@ -254,11 +254,11 @@
                 </div>
                 {% else %}
                 <div class="px-6 py-8 text-center">
-                    <div class="text-gray-500">No upcoming tasks</div>
+                    <div class="text-gray-500">No upcoming client tasks</div>
                     <a href="{{ url_for('tasks.create_task') }}" 
                        class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                         <i class="fas fa-plus mr-2"></i>
-                        Create a new task
+                        Create a new client task
                     </a>
                 </div>
                 {% endif %}
@@ -656,11 +656,11 @@ function handleTaskComplete(event, taskId) {
             if (taskListContainer && taskListContainer.children.length === 0) {
                 taskListContainer.innerHTML = `
                     <div class="px-6 py-8 text-center">
-                        <div class="text-gray-500">No upcoming tasks</div>
+                        <div class="text-gray-500">No upcoming client tasks</div>
                         <a href="/tasks/new" 
                            class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                             <i class="fas fa-plus mr-2"></i>
-                            Create a new task
+                            Create a new client task
                         </a>
                     </div>
                 `;

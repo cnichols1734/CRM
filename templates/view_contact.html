@@ -466,11 +466,11 @@
                 <div class="bg-white rounded-2xl shadow-sm border overflow-hidden sticky top-24">
                     <div class="p-4 border-b border-gray-100">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-semibold text-gray-900">Related Tasks</h2>
+                            <h2 class="text-lg font-semibold text-gray-900">Related Client Tasks</h2>
                             <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" 
                                class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                 <i class="fas fa-plus mr-1"></i>
-                                New Task
+                                New Client Task
                             </a>
                         </div>
                     </div>
@@ -481,12 +481,12 @@
                             <button onclick="switchTaskView('pending')" 
                                     id="pendingTasksTab"
                                     class="flex-1 py-2 px-4 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
-                                Active Tasks
+                                Active Client Tasks
                             </button>
                             <button onclick="switchTaskView('completed')" 
                                     id="completedTasksTab"
                                     class="flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                Completed
+                                Completed Client Tasks
                             </button>
                         </div>
                     </div>

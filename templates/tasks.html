@@ -1,18 +1,18 @@
 {% extends "base.html" %}
 
-{% block mobile_title %}Tasks{% endblock %}
+{% block mobile_title %}Client Tasks{% endblock %}
 
 {% block content %}
 <div class="p-6">
     <!-- Header Section -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex items-center space-x-2">
-            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Tasks</h1>
+            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Client Tasks</h1>
             <span class="text-sm text-gray-500 translate-y-0.5 ml-2">
                 {% if show_all %}
-                Viewing all tasks
+                Viewing all client tasks
                 {% else %}
-                Your tasks
+                Your client tasks
                 {% endif %}
             </span>
         </div>
@@ -23,8 +23,8 @@
             <div class="relative hidden md:block">
                 <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
                         class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="my" {% if not show_all %}selected{% endif %}>My Tasks</option>
-                    <option value="all" {% if show_all %}selected{% endif %}>All Tasks</option>
+                    <option value="my" {% if not show_all %}selected{% endif %}>My Client Tasks</option>
+                    <option value="all" {% if show_all %}selected{% endif %}>All Client Tasks</option>
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
                     <i class="fas fa-chevron-down text-xs"></i>
@@ -34,7 +34,7 @@
             
             <a href="{{ url_for('tasks.create_task') }}" 
                class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
-                <span class="hidden md:inline">Create task</span>
+                <span class="hidden md:inline">Create client task</span>
                 <i class="fas fa-plus md:hidden"></i>
             </a>
         </div>
@@ -204,7 +204,7 @@
                                 </a>
                                 <button onclick="deleteTask({{ task.id }})"
                                         class="p-1 rounded-full hover:bg-gray-200"
-                                        title="Delete Task">
+                                        title="Delete Client Task">
                                     <i class="fas fa-trash text-gray-400 hover:text-red-500"></i>
                                 </button>
                             </div>
@@ -216,11 +216,11 @@
         </div>
         {% else %}
         <div class="px-6 py-8 text-center">
-            <div class="text-gray-500">No tasks found</div>
+            <div class="text-gray-500">No client tasks found</div>
             <a href="{{ url_for('tasks.create_task') }}" 
                class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
                 <i class="fas fa-plus mr-2"></i>
-                Create a new task
+                Create a new client task
             </a>
         </div>
         {% endif %}
