@@ -84,11 +84,11 @@ function displayTodoList(todoData) {
         const followUpsList = document.getElementById('followUps');
         followUpsList.innerHTML = todo.follow_ups
             .map(followUp => {
-                // Style email and phone numbers as links
+                // Style email as links and phone numbers as bold
                 const styledFollowUp = followUp
-                    .replace(/\(Email: (.*?)\)/, '<a href="mailto:$1" class="text-indigo-600 hover:text-indigo-800">$1</a>')
-                    .replace(/\(Phone: (.*?)\)/, '<a href="tel:$1" class="text-indigo-600 hover:text-indigo-800">$1</a>')
-                    .replace(/\(Added: (.*?)\)/, '<span class="text-gray-500">(Added: $1)</span>');
+                    .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, '<a href="mailto:$1" class="text-indigo-600 hover:text-indigo-800">$1</a>')
+                    .replace(/\((\d{3} \d{3}-\d{4})\)/g, '<span class="font-medium">$1</span>')
+                    .replace(/\(Added: (.*?)\)/g, '<span class="text-gray-500">(Added: $1)</span>');
                 return `<li class="mb-3">${styledFollowUp}</li>`;
             })
             .join('');
