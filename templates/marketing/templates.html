@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}SendGrid Templates{% endblock %}
+
+{% block content %}
+<div class="p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-semibold text-gray-800">SendGrid Templates</h1>
+        <button id="refreshTemplates" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+            <i class="fas fa-sync-alt"></i>
+            <span>Refresh Templates</span>
+        </button>
+    </div>
+
+    <div class="bg-white rounded-lg shadow">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Name</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Subject</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Template ID</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Version</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Last Modified</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for template in templates %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ template.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ template.subject }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <code class="bg-gray-100 px-2 py-1 rounded text-gray-800">{{ template.sendgrid_id }}</code>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ template.version }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <button onclick="toggleStatus('{{ template.sendgrid_id }}', {{ (1 if template.is_active else 0)|tojson }})" 
+                                    class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if template.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} cursor-pointer hover:opacity-75">
+                                {{ 'Active' if template.is_active else 'Inactive' }}
+                            </button>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {% if template.last_modified %}
+                                {{ template.last_modified.strftime('%Y-%m-%d %H:%M') }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <button onclick="previewTemplate('{{ template.sendgrid_id }}')"
+                                    class="inline-flex items-center px-3 py-1 border border-blue-600 text-blue-600 hover:bg-blue-50 rounded-md text-sm transition-colors">
+                                <i class="fas fa-eye mr-2"></i> Preview
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg w-11/12 max-w-7xl h-[90vh]">
+        <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">Template Preview</h3>
+            <button onclick="closePreviewModal()" class="text-gray-400 hover:text-gray-500">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="p-4 h-[calc(90vh-5rem)]">
+            <iframe id="previewFrame" class="w-full h-full border-0"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- Move script here temporarily -->
+<script>
+// Immediate execution
+(function() {
+    console.log('Script executing');
+    const button = document.getElementById('refreshTemplates');
+    console.log('Found button:', button);
+    
+    if (button) {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const icon = this.querySelector('i');
+            this.disabled = true;
+            icon.classList.add('fa-spin');
+            
+            fetch('/marketing/templates/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                window.location.reload();
+            })
+            .catch(error => {
+                alert('Error refreshing templates: ' + error);
+            })
+            .finally(() => {
+                this.disabled = false;
+                icon.classList.remove('fa-spin');
+            });
+        });
+    } else {
+        console.error('Refresh button not found');
+    }
+})();
+
+// Toggle status function
+function toggleStatus(templateId, currentStatus) {
+    fetch(`/marketing/templates/${templateId}/toggle-status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_active: !currentStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) throw new Error(data.error);
+        window.location.reload();
+    })
+    .catch(error => {
+        alert('Error toggling status: ' + error);
+    });
+}
+
+// Preview functions
+function previewTemplate(templateId) {
+    console.log('Previewing template:', templateId);
+    fetch(`/marketing/templates/preview/${templateId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to get preview URL');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.preview_url) {
+                throw new Error('No preview URL returned');
+            }
+            const previewFrame = document.getElementById('previewFrame');
+            previewFrame.src = data.preview_url;
+            document.getElementById('previewModal').classList.remove('hidden');
+        })
+        .catch(error => {
+            console.error('Preview error:', error);
+            alert('Error loading preview: ' + error.message);
+        });
+}
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.add('hidden');
+    document.getElementById('previewFrame').src = '';
+}
+
+// Close modal when clicking outside
+document.getElementById('previewModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePreviewModal();
+    }
+});
+</script>
+{% endblock %} 

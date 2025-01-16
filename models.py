@@ -204,3 +204,21 @@ class UserTodo(db.Model):
 
     def __repr__(self):
         return f'<UserTodo {self.text[:20]}...>'
+
+class SendGridTemplate(db.Model):
+    __tablename__ = 'sendgrid_template'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    sendgrid_id = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    subject = db.Column(db.String(200))
+    version = db.Column(db.String(50))
+    active_version_id = db.Column(db.String(100))
+    preview_url = db.Column(db.String(500))
+    is_active = db.Column(db.Boolean, default=True)
+    last_modified = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SendGridTemplate {self.name}>'

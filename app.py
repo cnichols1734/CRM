@@ -15,6 +15,7 @@ from routes.ai_chat import ai_chat
 from routes.daily_todo import daily_todo
 from routes.user_todo import bp as user_todo_bp
 from routes.admin import admin_bp
+from routes.marketing import marketing
 
 def create_app():
     app = Flask(__name__)
@@ -48,6 +49,7 @@ def create_app():
     app.register_blueprint(ai_chat)
     app.register_blueprint(user_todo_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(marketing)
 
     return app
 
@@ -56,4 +58,4 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5005, debug=False)
+    app.run(host='0.0.0.0', port=5005, debug=True)
