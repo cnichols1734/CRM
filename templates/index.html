@@ -58,7 +58,15 @@ function clearSort() {
                 <i class="fas fa-search"></i>
             </button>
 
-            <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden md:block" enctype="multipart/form-data">
+            <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden md:flex items-center space-x-2" enctype="multipart/form-data">
+                {% if current_user.role == 'admin' %}
+                <select id="importUserId" name="user_id" class="text-sm border rounded px-2 py-1">
+                    <option value="">Select user</option>
+                    {% for owner in all_owners %}
+                        <option value="{{ owner.id }}">{{ owner.first_name }} {{ owner.last_name }}</option>
+                    {% endfor %}
+                </select>
+                {% endif %}
                 <input type="file" id="csvFile" name="file" accept=".csv" class="hidden">
             </form>
             
@@ -1187,12 +1195,21 @@ function changePerPage(value) {
 <script>
 function hideImportStatus() {
     document.getElementById('importStatus').classList.add('hidden');
+    // If last import succeeded or partially succeeded, refresh after manual close
+    if (window.lastImportShouldReload) {
+        window.location.reload();
+    }
 }
 
 document.getElementById('csvFile').addEventListener('change', function(e) {
     if (e.target.files.length > 0) {
         const formData = new FormData();
         formData.append('file', e.target.files[0]);
+        // If admin selected a user, include it
+        const userSelect = document.getElementById('importUserId');
+        if (userSelect && userSelect.value) {
+            formData.append('user_id', userSelect.value);
+        }
         
         // Show loading state
         document.getElementById('importButton').classList.add('opacity-50', 'cursor-not-allowed');
@@ -1214,9 +1231,8 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
             const errorDetails = document.getElementById('errorDetails');
             const errorList = document.getElementById('errorList');
             
-            // Clear previous error details
+            // Clear previous details
             errorList.innerHTML = '';
-            errorDetails.classList.add('hidden');
             
             if (data.status === 'success') {
                 statusIcon.className = 'fas fa-check-circle text-green-400';
@@ -1225,9 +1241,8 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
                 statusIcon.className = 'fas fa-exclamation-triangle text-yellow-400';
                 statusMessage.textContent = `Imported ${data.success_count} contacts with ${data.error_count} errors`;
                 
-                // Show error details
+                // Append error detail lines (after counters below)
                 if (data.error_details && data.error_details.length > 0) {
-                    errorDetails.classList.remove('hidden');
                     data.error_details.forEach(error => {
                         const li = document.createElement('li');
                         li.textContent = error;
@@ -1238,9 +1253,8 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
                 statusIcon.className = 'fas fa-exclamation-circle text-red-400';
                 statusMessage.textContent = data.message || 'Error importing contacts';
                 
-                // Show error details
+                // Append error detail lines (after counters below)
                 if (data.error_details && data.error_details.length > 0) {
-                    errorDetails.classList.remove('hidden');
                     data.error_details.forEach(error => {
                         const li = document.createElement('li');
                         li.textContent = error;
@@ -1248,18 +1262,25 @@ document.getElementById('csvFile').addEventListener('change', function(e) {
                     });
                 }
             }
+            // Always show counters/details and require manual close
+            const counters = [
+                { label: 'Imported', value: (data.success_count || 0) },
+                { label: 'Skipped duplicates', value: (data.duplicates_skipped || 0) },
+                { label: 'Invalid phone (ignored)', value: (data.invalid_phone_count || 0) },
+                { label: 'Missing both names (skipped)', value: (data.missing_name_count || 0) },
+                { label: 'Row errors', value: (data.error_count || 0) },
+            ];
+            counters.forEach(c => {
+                const li = document.createElement('li');
+                li.textContent = `${c.label}: ${c.value}`;
+                errorList.appendChild(li);
+            });
+            errorDetails.classList.remove('hidden');
             
             document.getElementById('importStatus').classList.remove('hidden');
             
-            // Auto-hide message after 10 seconds for success only
-            if (data.status === 'success') {
-                setTimeout(hideImportStatus, 10000);
-            }
-            
-            // Reload the contacts table only on success or partial success
-            if (data.status === 'success' || data.status === 'partial_success') {
-                window.location.reload();
-            }
+            // Mark whether we should reload after user manually closes the toast
+            window.lastImportShouldReload = (data.status === 'success' || data.status === 'partial_success');
         })
         .catch(error => {
             console.error('Error:', error);

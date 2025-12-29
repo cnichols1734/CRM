@@ -1,12 +1,22 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, TextAreaField, SelectMultipleField, DecimalField, DateField
-from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional
+from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, Regexp
 
 class RegistrationForm(FlaskForm):
     username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
     email = StringField('Email', validators=[DataRequired(), Email()])
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
+    phone = StringField('Phone Number', validators=[Optional(), Length(max=20)])
+    license_number = StringField(
+        'License Number',
+        validators=[
+            Optional(),
+            Length(max=16, message='License number must be 16 digits or fewer'),
+            Regexp(r'^\d*$', message='License number must contain digits only')
+        ]
+    )
+    licensed_supervisor = StringField('Licensed Supervisor of Associate', validators=[Optional(), Length(max=120)])
     password = PasswordField('Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm Password',
                                    validators=[DataRequired(), EqualTo('password')])

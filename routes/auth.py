@@ -248,6 +248,9 @@ def register():
             email=form.email.data,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
+            phone=form.phone.data,
+            license_number=form.license_number.data,
+            licensed_supervisor=form.licensed_supervisor.data,
             role='agent'
         )
         user.set_password(form.password.data)
@@ -306,6 +309,8 @@ def update_profile():
             current_user.first_name = request.form.get('first_name')
             current_user.last_name = request.form.get('last_name')
             current_user.phone = request.form.get('phone')
+            current_user.license_number = request.form.get('license_number')
+            current_user.licensed_supervisor = request.form.get('licensed_supervisor')
 
             # Update password if provided
             new_password = request.form.get('new_password')
@@ -410,6 +415,9 @@ def edit_user(user_id):
             user.first_name = request.form.get('first_name')
             user.last_name = request.form.get('last_name')
             user.email = request.form.get('email')
+            user.phone = request.form.get('phone')
+            user.license_number = request.form.get('license_number')
+            user.licensed_supervisor = request.form.get('licensed_supervisor')
             
             # Update password if provided
             new_password = request.form.get('new_password')

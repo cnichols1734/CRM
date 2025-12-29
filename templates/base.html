@@ -43,6 +43,10 @@
             margin-left: 0.75rem;
             font-size: 0.875rem;
         }
+        /* Hide Agent Resources chevron when sidebar is collapsed */
+        html:not(.sidebar-expanded) #agentResourcesChevron {
+            display: none;
+        }
         @media (max-width: 768px) {
             .mobile-nav {
                 backdrop-filter: blur(10px);
@@ -104,7 +108,9 @@
 
 <!-- Top Header - Hidden on Mobile -->
 <header class="text-white h-14 items-center justify-between hidden md:flex">
-    <div class="pl-4 company-name">origen connect</div>
+    <div class="pl-4">
+        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-24 w-auto object-contain mt-2.5" />
+    </div>
     <div class="flex items-center space-x-4 pr-4 relative">
         {% if current_user.is_authenticated %}
             <i class="fas fa-bell h-5 w-5"></i>
@@ -120,7 +126,7 @@
 
 <!-- Mobile Header -->
 <header class="text-white h-14 flex items-center justify-between px-4 md:hidden">
-    <h1 class="company-name">{% block mobile_title %}origen connect{% endblock %}</h1>
+    <h1 class="company-name">{% block mobile_title %}<img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-24 w-auto object-contain mt-2.5" />{% endblock %}</h1>
     <div class="flex items-center space-x-4">
         {% if current_user.is_authenticated %}
             <i class="fas fa-bell h-5 w-5"></i>
@@ -325,6 +331,33 @@
             </a>
             <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
                 Marketing
+            </div>
+        </div>
+
+        <!-- Agent Resources Accordion -->
+        <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
+            <button
+                id="agentResourcesBtn"
+                type="button"
+                class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white"
+                aria-controls="agentResourcesPanel"
+                aria-expanded="false"
+            >
+                <div class="w-full flex items-center relative pr-6">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Resources</span>
+                    <i id="agentResourcesChevron" aria-hidden="true" class="fas fa-chevron-down transition-transform duration-200 absolute right-2"></i>
+                </div>
+            </button>
+            <div
+                id="agentResourcesPanel"
+                role="region"
+                aria-labelledby="agentResourcesBtn"
+                class="hidden mt-2 ml-3 pl-3 border-l border-gray-700"
+            >
+                <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
             </div>
         </div>
 
@@ -668,6 +701,7 @@
 <!-- Include JavaScript files -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
+<script src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
 
 </body>
 </html>

@@ -96,7 +96,7 @@ def index():
     all_groups = ContactGroup.query.order_by(ContactGroup.name).all()
 
     all_owners = []
-    if show_all:
+    if current_user.role == 'admin':
         all_owners = User.query.order_by(User.first_name, User.last_name).all()
 
     return render_template('index.html',

@@ -47,8 +47,64 @@ function displayTodoList(todoData) {
         // Parse the JSON content if it's a string
         const todo = typeof todoData === 'string' ? JSON.parse(todoData) : todoData;
 
-        // Update summary
-        document.getElementById('todoSummary').textContent = todo.summary;
+        // Update summary and extract any bracketed marketing ideas accidentally placed in summary
+        const summaryEl = document.getElementById('todoSummary');
+        const rawSummary = typeof todo.summary === 'string' ? todo.summary : '';
+        const extractedFromSummary = [];
+        const remainingSummary = rawSummary
+            .split(/\r?\n/)
+            .filter(line => {
+                const m = line.match(/^\s*\[([^\]]+)\]\s*(.+)$/);
+                if (m) {
+                    extractedFromSummary.push(`[${m[1]}] ${m[2]}`);
+                    return false;
+                }
+                return true;
+            })
+            .join(' ')
+            .trim();
+        summaryEl.textContent = remainingSummary || rawSummary;
+
+        // Update marketing ideas (if present)
+        const marketingIdeasList = document.getElementById('marketingIdeas');
+        const marketingIdeasContainer = document.getElementById('marketingIdeasContainer');
+        if (marketingIdeasList && marketingIdeasContainer) {
+            const combinedIdeas = [
+                ...(Array.isArray(todo.marketing_ideas) ? todo.marketing_ideas : []),
+                ...extractedFromSummary
+            ];
+            if (combinedIdeas.length > 0) {
+                marketingIdeasList.innerHTML = combinedIdeas
+                    .map(rawIdea => {
+                        const idea = String(rawIdea || '').replace(/^\s*[•\-\*]\s+/, '');
+                        const bracketMatch = idea.match(/^\s*\[([^\]]+)\]\s*(.+)$/);
+                        const colonMatch = idea.match(/^\s*([^:]+):\s*(.+)$/);
+                        let channelLabel = null;
+                        let body = idea;
+                        if (bracketMatch) {
+                            channelLabel = bracketMatch[1];
+                            body = bracketMatch[2];
+                        } else if (colonMatch) {
+                            channelLabel = colonMatch[1];
+                            body = colonMatch[2];
+                        }
+                        const bodyEscaped = String(body)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;');
+                        const channelLabelEscaped = channelLabel ? String(channelLabel)
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;') : '';
+                        const channelHtml = channelLabel ? `<span class="font-semibold text-gray-900">${channelLabelEscaped.trim()}:</span> ` : '';
+                        return `<li class="mb-1">${channelHtml}${bodyEscaped}</li>`;
+                    })
+                    .join('');
+                marketingIdeasContainer.classList.remove('hidden');
+            } else {
+                marketingIdeasContainer.classList.add('hidden');
+            }
+        }
 
         // Update priority tasks with new format
         const priorityTasksList = document.getElementById('priorityTasks');

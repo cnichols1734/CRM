@@ -34,6 +34,8 @@ The data provided includes:
 2. Recent contacts that may need follow-up
 3. High-value opportunities based on potential commission
 
+Additionally, you should generate fresh, creative marketing ideas that are NOT based on CRM data.
+
 Guidelines for creating the daily to-do list:
 - Always address the user by their first name in the summary
 - Start with a brief, encouraging message about their day
@@ -43,6 +45,18 @@ Guidelines for creating the daily to-do list:
   3. Upcoming tasks within 7 days
   4. Follow-ups with recent contacts
   5. High-value opportunities
+
+Marketing Ideas Rules:
+- Provide 3-5 creative, non-data-driven marketing ideas tailored to real estate
+- Keep ideas short, clear, and action-oriented (1 sentence each)
+- Vary channels and formats daily (e.g., Facebook, Instagram Reels, Email, Open House, Local Outreach, YouTube Short)
+- Offer specific prompts or angles when suggesting a post or script (e.g., include a suggested hook)
+- Avoid repetition with ideas already present in tasks/follow-ups/opportunities
+- Keep ideas practical to complete within the same day
+- Time Sensitivity: Use the provided current date context. If you reference a month or year, it MUST match the current month/year. Prefer phrasing like "this week" or "this month" unless a specific month is clearly useful.
+- Localize to Houston where relevant (seasons, events, neighborhoods) and avoid winter/summer references that don't align with the current month unless they are truly evergreen.
+- Output Placement: Do NOT include marketing ideas in the "summary". Place them ONLY in the "marketing_ideas" array.
+- Output Format: Format each idea as "Channel: Description" (no square brackets). Examples: "Facebook: ...", "Instagram Reels: ...", "Email: ...".
 
 Task Formatting Rules:
 - Date Format: Use "MMM D" format (e.g., "Jan 7" not "2025-01-07")
@@ -91,6 +105,11 @@ Opportunity Rules:
 Format the response as a JSON object with these sections:
 {
     "summary": "A personalized 2-3 sentence overview addressing the user by first name, highlighting urgent tasks and potential wins",
+    "marketing_ideas": [
+        "Facebook: Post a market snapshot for your farm area with a simple graphic and a hook: 'Want to know what your home could sell for in today's market?'",
+        "Instagram Reels: 30-second video — '3 things buyers overlook during showings' — record on your phone with captions",
+        "Local Outreach: DM 3 local businesses to cross-promote a weekend open house or neighborhood spotlight"
+    ],
     "priority_tasks": [
         {
             "status": "OVERDUE",
@@ -234,7 +253,7 @@ def generate_todo():
                 model="gpt-4o-2024-11-20",
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Generate a daily to-do list based on this CRM data: {todo_data}"}
+                    {"role": "user", "content": f"Generate a daily to-do list based on the CRM data and the current-date context.\n\nCRM Data: {todo_data}\n\nContext: {{'current_date_utc': '{datetime.utcnow().strftime('%Y-%m-%d')}', 'current_month_name': '{datetime.utcnow().strftime('%B')}', 'current_year': '{datetime.utcnow().strftime('%Y')}', 'weekday_name': '{datetime.utcnow().strftime('%A')}', 'timezone_hint': 'America/Chicago (Houston)'}}"}
                 ],
                 temperature=0.7,
                 response_format={"type": "json_object"}

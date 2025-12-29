@@ -24,6 +24,10 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default='agent')
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    # New optional profile fields
+    phone = db.Column(db.String(20))
+    license_number = db.Column(db.String(16))
+    licensed_supervisor = db.Column(db.String(120))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

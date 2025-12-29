@@ -76,6 +76,48 @@
 
                     <div class="form-control">
                         <label class="label">
+                            <span class="label-text">Phone Number</span>
+                        </label>
+                        {{ form.phone(class="input input-bordered w-full", placeholder="(555) 123-4567") }}
+                        {% if form.phone.errors %}
+                            {% for error in form.phone.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">License Number</span>
+                        </label>
+                        {{ form.license_number(class="input input-bordered w-full", maxlength="16") }}
+                        {% if form.license_number.errors %}
+                            {% for error in form.license_number.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">Licensed Supervisor of Associate</span>
+                        </label>
+                        {{ form.licensed_supervisor(class="input input-bordered w-full") }}
+                        {% if form.licensed_supervisor.errors %}
+                            {% for error in form.licensed_supervisor.errors %}
+                                <label class="label">
+                                    <span class="label-text-alt text-error">{{ error }}</span>
+                                </label>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
                             <span class="label-text">Password</span>
                         </label>
                         {{ form.password(class="input input-bordered w-full") }}

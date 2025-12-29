@@ -1,6 +1,6 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup
+from models import db, Contact, ContactGroup, User
 from forms import ContactForm
 import csv
 from io import StringIO
@@ -249,6 +249,20 @@ def delete_contact(contact_id):
 @contacts_bp.route('/import-contacts', methods=['POST'])
 @login_required
 def import_contacts():
+    # Determine target user id (admins may upload on behalf of another user)
+    target_user_id = current_user.id
+    if current_user.role == 'admin':
+        requested_user_id = request.form.get('user_id')
+        if requested_user_id:
+            try:
+                requested_user_id_int = int(requested_user_id)
+                target_user = User.query.get(requested_user_id_int)
+                if not target_user:
+                    return {'status': 'error', 'message': 'Selected user not found'}, 400
+                target_user_id = target_user.id
+            except ValueError:
+                return {'status': 'error', 'message': 'Invalid user id provided'}, 400
+
     if 'file' not in request.files:
         return {'status': 'error', 'message': 'No file uploaded'}, 400
 
@@ -326,45 +340,82 @@ def import_contacts():
         success_count = 0
         error_count = 0
         error_details = []
+        duplicates_skipped = 0
+        invalid_phone_count = 0
+        missing_name_count = 0
 
         for row_num, row in enumerate(csv_data, start=1):
             try:
-                # Validate required fields
-                if not row['first_name'].strip() or not row['last_name'].strip():
-                    error_details.append(f"Row {row_num}: First name and last name are required")
+                # Validate required fields (allow at least one of first or last)
+                first_name_val = row['first_name'].strip() if row.get('first_name') else ''
+                last_name_val = row['last_name'].strip() if row.get('last_name') else ''
+                if not first_name_val and not last_name_val:
+                    error_details.append(f"Row {row_num}: Missing both first and last name")
                     error_count += 1
+                    missing_name_count += 1
+                    current_app.logger.warning(f"Import skipped row {row_num}: missing both first and last name")
                     continue
 
                 # Handle phone number
                 phone = row['phone'].strip() if row.get('phone') else None
+                formatted_phone = None
                 if phone:
                     # Remove any non-digit characters first
-                    phone = ''.join(filter(str.isdigit, phone))
-                    if not phone:
-                        error_details.append(f"Row {row_num}: Invalid phone number format")
-                        error_count += 1
+                    digits_only = ''.join(filter(str.isdigit, phone))
+                    # Handle numbers with a leading country code '1'
+                    if len(digits_only) == 11 and digits_only.startswith('1'):
+                        digits_only = digits_only[1:]
+                    if len(digits_only) == 10:
+                        formatted_phone = format_phone_number(digits_only)
+                    else:
+                        # Treat invalid phone as missing instead of failing the row
+                        invalid_phone_count += 1
+                        current_app.logger.info(f"Import row {row_num}: phone invalid or wrong length; treating as missing")
+
+                # Dedupe by email or formatted phone (per target user)
+                candidate_email = (row.get('email') or '').strip() or None
+                candidate_email_lower = candidate_email.lower() if candidate_email else None
+                if candidate_email_lower:
+                    dup = Contact.query\
+                        .filter(Contact.user_id == target_user_id)\
+                        .filter(func.lower(Contact.email) == candidate_email_lower)\
+                        .first()
+                    if dup:
+                        duplicates_skipped += 1
+                        current_app.logger.info(f"Duplicate skipped at row {row_num}: email matches existing contact id={dup.id}")
                         continue
-                    
-                    # Format the phone number
-                    formatted_phone = format_phone_number(phone)
-                    if not formatted_phone:
-                        error_details.append(f"Row {row_num}: Invalid phone number length")
-                        error_count += 1
+                if formatted_phone:
+                    dup_phone = Contact.query\
+                        .filter(Contact.user_id == target_user_id, Contact.phone == formatted_phone)\
+                        .first()
+                    if dup_phone:
+                        duplicates_skipped += 1
+                        current_app.logger.info(f"Duplicate skipped at row {row_num}: phone matches existing contact id={dup_phone.id}")
                         continue
-                else:
-                    formatted_phone = None
+                # If neither email nor phone, dedupe by first+last name (case-insensitive)
+                if not candidate_email_lower and not formatted_phone:
+                    if first_name_val or last_name_val:
+                        dup_name = Contact.query\
+                            .filter(Contact.user_id == target_user_id)\
+                            .filter(func.lower(Contact.first_name) == first_name_val.lower())\
+                            .filter(func.lower(Contact.last_name) == last_name_val.lower())\
+                            .first()
+                        if dup_name:
+                            duplicates_skipped += 1
+                            current_app.logger.info(f"Duplicate skipped at row {row_num}: name matches existing contact id={dup_name.id}")
+                            continue
 
                 contact = Contact(
-                    user_id=current_user.id,
-                    first_name=row['first_name'].strip(),
-                    last_name=row['last_name'].strip(),
-                    email=row.get('email', '').strip() or None,
+                    user_id=target_user_id,
+                    first_name=first_name_val or '',
+                    last_name=last_name_val or '',
+                    email=candidate_email,
                     phone=formatted_phone,
-                    street_address=row.get('street_address', '').strip() or None,
-                    city=row.get('city', '').strip() or None,
-                    state=row.get('state', '').strip() or None,
-                    zip_code=row.get('zip_code', '').strip() or None,
-                    notes=row.get('notes', '').strip() or None
+                    street_address=(row.get('street_address', '') or '').strip() or None,
+                    city=(row.get('city', '') or '').strip() or None,
+                    state=(row.get('state', '') or '').strip() or None,
+                    zip_code=(row.get('zip_code', '') or '').strip() or None,
+                    notes=(row.get('notes', '') or '').strip() or None
                 )
 
                 if row.get('groups'):
@@ -392,7 +443,10 @@ def import_contacts():
                 return {
                     'status': 'error',
                     'message': f'Database error: {str(e)}',
-                    'error_details': error_details
+                    'error_details': error_details,
+                    'duplicates_skipped': duplicates_skipped,
+                    'invalid_phone_count': invalid_phone_count,
+                    'missing_name_count': missing_name_count
                 }, 500
         
         # If we have any errors, include them in the response
@@ -401,13 +455,19 @@ def import_contacts():
                 'status': 'partial_success' if success_count > 0 else 'error',
                 'success_count': success_count,
                 'error_count': error_count,
-                'error_details': error_details
+                'error_details': error_details,
+                'duplicates_skipped': duplicates_skipped,
+                'invalid_phone_count': invalid_phone_count,
+                'missing_name_count': missing_name_count
             }
         
         return {
             'status': 'success',
             'success_count': success_count,
-            'message': f'Successfully imported {success_count} contacts'
+            'message': f'Successfully imported {success_count} contacts',
+            'duplicates_skipped': duplicates_skipped,
+            'invalid_phone_count': invalid_phone_count,
+            'missing_name_count': missing_name_count
         }
 
     except Exception as e:
