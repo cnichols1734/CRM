@@ -25,11 +25,16 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env with your actual API keys and configuration
+# Note: DATABASE_URL is automatically set based on FLASK_ENV
 ```
 
 5. Initialize the database:
 ```bash
-python init_db.py
+# For development
+python manage_db.py init
+
+# For production (on PythonAnywhere)
+FLASK_ENV=production python manage_db.py init
 ```
 
 6. Run the application:
@@ -61,20 +66,57 @@ The application uses the following environment variables (configured in `.env`):
 - Email integration
 - Admin panel for user management
 
-## Database Migrations
+## Database Management
 
-The application uses Flask-Migrate for database migrations:
+The application supports separate databases for development and production environments.
+
+### Database Configuration
+
+- **Development:** Uses `instance/crm_dev.db` (local SQLite)
+- **Production:** Uses `instance/crm_prod.db` on PythonAnywhere or MySQL
+
+The database is automatically selected based on the `FLASK_ENV` environment variable.
+
+### Database Operations
+
+Use the `manage_db.py` script for all database operations:
 
 ```bash
+# Initialize a new database
+python manage_db.py init
+
+# Set up migrations (first time only)
+python manage_db.py setup
+
 # Create a new migration
-flask db migrate -m "Description of changes"
+python manage_db.py migrate "add new feature"
 
-# Apply migrations
-flask db upgrade
+# Upgrade database to latest migration
+python manage_db.py upgrade
 
-# Rollback
-flask db downgrade
+# Check migration status
+python manage_db.py status
+
+# Backup database (SQLite only)
+python manage_db.py backup
 ```
+
+### Environment-Specific Operations
+
+```bash
+# Development database operations
+python manage_db.py <command>
+
+# Production database operations (on PythonAnywhere)
+FLASK_ENV=production python manage_db.py <command>
+```
+
+### Important Notes
+
+- **Never commit database files** - they're automatically excluded by `.gitignore`
+- **Backup before migrations** - use `python manage_db.py backup`
+- **Test migrations locally first** - before applying to production
+- **Use different databases** - development and production should be separate
 
 ## PythonAnywhere Deployment
 
@@ -98,12 +140,14 @@ pip install -r requirements.txt
 ```bash
 cp .env.example .env
 # Edit .env with your production API keys and settings
-# Make sure DATABASE_URL points to your PythonAnywhere database
+# Set FLASK_ENV=production for production database
 ```
 
 4. **Initialize database:**
 ```bash
-python init_db.py
+# Set production environment and initialize database
+export FLASK_ENV=production
+python manage_db.py init
 ```
 
 ### Web App Configuration

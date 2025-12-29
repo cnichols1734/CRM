@@ -20,10 +20,14 @@ source venv/bin/activate
 echo "Installing dependencies..."
 pip install -r requirements.txt
 
+# Backup database before migrations
+echo "Creating database backup..."
+export FLASK_ENV=production
+python manage_db.py backup
+
 # Run database migrations if needed
 echo "Checking for database migrations..."
-export FLASK_APP=app.py
-flask db upgrade
+python manage_db.py upgrade
 
 # Restart the web app by touching the WSGI file
 echo "Restarting web application..."

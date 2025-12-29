@@ -6,7 +6,15 @@ class Config:
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
 
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///crm.db')
+
+    # Database configuration - supports multiple environments
+    if FLASK_ENV == 'production':
+        # Production: Use PythonAnywhere MySQL or specified database
+        SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:////home/yourusername/CRM/instance/crm_prod.db')
+    else:
+        # Development: Use local SQLite database
+        SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///instance/crm_dev.db')
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
 
