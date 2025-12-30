@@ -123,11 +123,11 @@ class SendGridService:
                     html_content = html_content.replace('{{' + key + '}}', value)
                 
                 # Create a data URL for the preview
+                # Note: We don't store this in the database since it's too large for the varchar column
+                # and is dynamically generated each time anyway
                 import base64
                 preview_url = f"data:text/html;base64,{base64.b64encode(html_content.encode('utf-8')).decode('utf-8')}"
                 
-                template.preview_url = preview_url
-                db.session.commit()
                 current_app.logger.info(f"Created preview URL for template: {template.name}")
                 return preview_url
             else:
