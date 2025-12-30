@@ -1,0 +1,61 @@
+# CRM Project - Cursor AI Rules
+
+## Project Overview
+This is a Flask-based CRM application for Origen Realty real estate agents.
+- **Framework**: Flask with SQLAlchemy
+- **Database**: Supabase PostgreSQL (connection string in `.env`)
+- **Hosting**: PythonAnywhere (www.origentechnolog.com)
+- **Repo**: https://github.com/cnichols1734/CRM
+
+## Local Development
+- **Port**: 5007
+- **Start command**: `python3 app.py` (from project root)
+- **Local URL**: http://127.0.0.1:5007
+
+## Testing Credentials
+Test credentials are stored in the `.env` file:
+- `TEST_USERNAME` - email for login
+- `TEST_PASSWORD` - password for login
+
+When testing features locally, read the `.env` file to get these credentials, then use the browser tools to:
+1. Navigate to http://127.0.0.1:5007
+2. Login with the test credentials
+3. Test the feature
+
+## AI Features
+All AI features use a centralized service with GPT-5.1 fallback chain:
+- **Service file**: `services/ai_service.py`
+- **Model hierarchy**: GPT-5.1 → GPT-5-mini → GPT-4o
+
+AI feature routes (each has its own custom prompt):
+- `routes/action_plan.py` - 2026 Lead Generation Action Plan
+- `routes/daily_todo.py` - AI-generated daily task list
+- `routes/ai_chat.py` - B.O.B. (Business Optimization Buddy) chat assistant
+
+## Deployment Workflow
+After pushing changes to GitHub:
+1. SSH into PythonAnywhere or use Bash console
+2. Run: `cd ~/mysite && git pull origin main`
+3. If new packages: `pip install -r requirements.txt --user`
+4. Go to Web tab and click "Reload"
+
+## Key Files
+- `app.py` - Main Flask application
+- `models.py` - SQLAlchemy database models
+- `config.py` - Configuration (reads from .env)
+- `.env` - Environment variables (gitignored, contains secrets)
+- `services/` - Shared services (AI, SendGrid)
+- `routes/` - Flask blueprints/routes
+- `templates/` - Jinja2 HTML templates
+- `static/` - CSS, JS, images
+
+## Database
+- **Production**: Supabase PostgreSQL
+- **Local test DB**: `instance/crm.db` (SQLite, for quick testing only)
+- **Production data backup**: `instance/crm (1).db`
+
+## Important Notes
+- Always test locally before pushing to production
+- The `.env` file is gitignored - never commit secrets
+- PythonAnywhere has its own `.env` file at `~/mysite/.env`
+
