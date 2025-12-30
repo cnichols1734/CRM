@@ -3,11 +3,9 @@ Centralized AI Service for all OpenAI interactions.
 Provides consistent model selection with fallback chain across all features.
 
 Model Hierarchy:
-1. Primary: GPT-4o (most capable, widely available)
-2. Fallback: GPT-4o-mini (faster, cost-effective)
-3. Legacy: GPT-3.5-turbo (broad compatibility)
-
-All models use the Chat Completions API for maximum compatibility.
+1. Primary: GPT-5.1 (Responses API with reasoning)
+2. Fallback: GPT-5-mini (Responses API with reasoning)
+3. Legacy: GPT-4o (Chat Completions API)
 
 Usage:
     from services.ai_service import generate_ai_response
@@ -27,10 +25,10 @@ from config import Config
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Model configuration - using Chat Completions API compatible models
-PRIMARY_MODEL = "gpt-4o"
-FALLBACK_MODEL = "gpt-4o-mini"
-LEGACY_MODEL = "gpt-3.5-turbo"
+# Model configuration - change these to update all AI features at once
+PRIMARY_MODEL = "gpt-5.1"
+FALLBACK_MODEL = "gpt-5-mini"
+LEGACY_MODEL = "gpt-4o"
 
 # Errors that should trigger fallback (model not available, rate limited, etc.)
 FALLBACK_ERROR_CODES = [401, 403, 404, 429]
@@ -43,8 +41,19 @@ def _should_fallback(error):
     return False
 
 
+def _call_responses_api(client, model, system_prompt, user_prompt, reasoning_effort="medium"):
+    """Call the OpenAI Responses API (for GPT-5.x models)."""
+    response = client.responses.create(
+        model=model,
+        instructions=system_prompt,
+        input=user_prompt,
+        reasoning={"effort": reasoning_effort}
+    )
+    return response.output_text
+
+
 def _call_chat_completions_api(client, model, system_prompt, user_prompt, temperature=0.7, json_mode=False):
-    """Call the OpenAI Chat Completions API."""
+    """Call the OpenAI Chat Completions API (for GPT-4.x and legacy models)."""
     kwargs = {
         "model": model,
         "messages": [
@@ -86,9 +95,9 @@ def generate_ai_response(
     Args:
         system_prompt: The system instructions for the AI
         user_prompt: The user's input/question
-        temperature: Creativity level (0.0-1.0)
-        json_mode: If True, request JSON response format
-        reasoning_effort: (unused, kept for backwards compatibility)
+        temperature: Creativity level (0.0-1.0), used for legacy model
+        json_mode: If True, request JSON response format (legacy model only)
+        reasoning_effort: Reasoning effort for GPT-5.x models ("low", "medium", "high")
         api_key: Optional API key override (uses Config.OPENAI_API_KEY if not provided)
     
     Returns:
@@ -111,10 +120,10 @@ def generate_ai_response(
     masked_key = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "***"
     logger.info(f"AI Service using API key: {masked_key}")
     
-    # ===== TRY PRIMARY MODEL (GPT-4o) =====
+    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
     try:
         logger.info(f"[1/3] Attempting primary model: {PRIMARY_MODEL}")
-        result = _call_chat_completions_api(client, PRIMARY_MODEL, system_prompt, user_prompt, temperature, json_mode)
+        result = _call_responses_api(client, PRIMARY_MODEL, system_prompt, user_prompt, reasoning_effort)
         logger.info(f"SUCCESS: Generated response with {PRIMARY_MODEL}")
         return result
         
@@ -128,10 +137,10 @@ def generate_ai_response(
             logger.error(f"FATAL: {PRIMARY_MODEL} failed with unrecoverable error: {str(e)}")
             raise
     
-    # ===== TRY FALLBACK MODEL (GPT-4o-mini) =====
+    # ===== TRY FALLBACK MODEL (GPT-5-mini) =====
     try:
         logger.info(f"[2/3] Attempting fallback model: {FALLBACK_MODEL}")
-        result = _call_chat_completions_api(client, FALLBACK_MODEL, system_prompt, user_prompt, temperature, json_mode)
+        result = _call_responses_api(client, FALLBACK_MODEL, system_prompt, user_prompt, reasoning_effort)
         logger.info(f"SUCCESS: Generated response with {FALLBACK_MODEL}")
         return result
         
@@ -145,9 +154,9 @@ def generate_ai_response(
             logger.error(f"FATAL: {FALLBACK_MODEL} failed with unrecoverable error: {str(e)}")
             raise
     
-    # ===== TRY LEGACY MODEL (GPT-3.5-turbo) =====
+    # ===== TRY LEGACY MODEL (GPT-4o) =====
     try:
-        logger.info(f"[3/3] Attempting legacy model: {LEGACY_MODEL}")
+        logger.info(f"[3/3] Attempting legacy model: {LEGACY_MODEL} (using Chat Completions API)")
         result = _call_chat_completions_api(client, LEGACY_MODEL, system_prompt, user_prompt, temperature, json_mode)
         logger.info(f"SUCCESS: Generated response with legacy model {LEGACY_MODEL}")
         return result
@@ -185,10 +194,20 @@ def generate_chat_response(
     # Initialize client
     client = openai.OpenAI(api_key=key)
     
-    # ===== TRY PRIMARY MODEL (GPT-4o) =====
+    # Extract system prompt and build user context for Responses API
+    system_prompt = ""
+    conversation_context = ""
+    
+    for msg in messages:
+        if msg['role'] == 'system':
+            system_prompt = msg['content']
+        else:
+            conversation_context += f"\n{msg['role'].upper()}: {msg['content']}\n"
+    
+    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
     try:
         logger.info(f"[1/3] Chat: Attempting primary model: {PRIMARY_MODEL}")
-        result = _call_chat_completions_with_history(client, PRIMARY_MODEL, messages, temperature, max_tokens)
+        result = _call_responses_api(client, PRIMARY_MODEL, system_prompt, conversation_context, "medium")
         logger.info(f"SUCCESS: Chat response generated with {PRIMARY_MODEL}")
         return result
         
@@ -201,10 +220,10 @@ def generate_chat_response(
         else:
             raise
     
-    # ===== TRY FALLBACK MODEL (GPT-4o-mini) =====
+    # ===== TRY FALLBACK MODEL (GPT-5-mini) =====
     try:
         logger.info(f"[2/3] Chat: Attempting fallback model: {FALLBACK_MODEL}")
-        result = _call_chat_completions_with_history(client, FALLBACK_MODEL, messages, temperature, max_tokens)
+        result = _call_responses_api(client, FALLBACK_MODEL, system_prompt, conversation_context, "medium")
         logger.info(f"SUCCESS: Chat response generated with {FALLBACK_MODEL}")
         return result
         
@@ -217,7 +236,7 @@ def generate_chat_response(
         else:
             raise
     
-    # ===== TRY LEGACY MODEL (GPT-3.5-turbo) =====
+    # ===== TRY LEGACY MODEL (GPT-4o) =====
     try:
         logger.info(f"[3/3] Chat: Attempting legacy model: {LEGACY_MODEL}")
         result = _call_chat_completions_with_history(client, LEGACY_MODEL, messages, temperature, max_tokens)
