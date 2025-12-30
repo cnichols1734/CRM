@@ -62,11 +62,14 @@ Format your responses using markdown-style formatting:
 - For lists:
   - Use hyphens (-) for unordered lists
   - Use numbers (1.) for ordered lists
-  - Indent sublists with 2 spaces per level
-  - Maximum of 3 nesting levels
-  - Keep list items concise
-  - Ensure proper spacing between list items
+  - Indent sublists with exactly 2 spaces
+  - Maximum of 2 nesting levels
+  - Keep list items concise (1-2 sentences max)
+  - Do NOT add blank lines between list items
+  - Do NOT add blank lines between a main bullet and its sub-bullet
 - Keep paragraphs concise and readable
+- NEVER add multiple consecutive blank lines
+- Use a single blank line only between major sections
 
 Email/Message Format:
 - Get to the point quickly

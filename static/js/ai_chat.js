@@ -193,8 +193,18 @@ class AIChatWidget {
     }
 
     formatMessage(text) {
-        // Convert markdown-style formatting
+        // First, aggressively normalize whitespace
         let formatted = text
+            .replace(/\r\n/g, '\n')           // Normalize line endings
+            .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to 2
+            .replace(/[ \t]+$/gm, '')         // Remove trailing whitespace from lines
+            .replace(/^[ \t]+/gm, (match) => { // Preserve only leading spaces for indentation
+                return match.replace(/\t/g, '  '); // Convert tabs to 2 spaces
+            })
+            .trim();
+
+        // Convert markdown-style formatting
+        formatted = formatted
             // Headers
             .replace(/### (.*$)/gm, '<h3 class="ai-chat-h3">$1</h3>')
             .replace(/## (.*$)/gm, '<h2 class="ai-chat-h2">$1</h2>')
@@ -212,121 +222,114 @@ class AIChatWidget {
             .replace(/\*([^*]+)\*/g, '<em>$1</em>')
 
             // Links
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-
-            // First, normalize all newlines and remove extra spaces
-            .replace(/\r\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
         // Handle special blocks (like ---)
         formatted = formatted.replace(/^---$/gm, '<hr class="message-divider">');
 
-        // Process lists and headings
-        let inList = false;
-        let listStack = []; // Stack to track nested lists
-        let currentIndentLevel = 0;
+        // Process lists - simplified and cleaner approach
+        let lines = formatted.split('\n');
+        let result = [];
+        let listStack = []; // Stack of {type: 'ul'|'ol', indent: number}
 
-        formatted = formatted.split('\n').map(line => {
-            // Check for headings with colons (like "Personalized Communication:")
-            const headingMatch = line.match(/^([^:]+):$/);
-            if (headingMatch) {
-                if (inList) {
-                    let closeTags = '';
-                    while (listStack.length > 0) {
-                        closeTags += `</li></${listStack.pop()}>`;
-                    }
-                    inList = false;
-                    currentIndentLevel = 0;
-                    return closeTags + `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
+        for (let i = 0; i < lines.length; i++) {
+            let line = lines[i];
+
+            // Check for headings with colons (like "Suggested touch:")
+            const headingMatch = line.match(/^\*\*([^*]+)\*\*$/);
+            if (headingMatch && !line.match(/^\s*[\-\*\d]/)) {
+                // Close all open lists before heading
+                while (listStack.length > 0) {
+                    result.push(`</li></${listStack.pop().type}>`);
                 }
-                return `<h3 class="ai-chat-h3">${headingMatch[1]}</h3>`;
+                result.push(`<strong>${headingMatch[1]}</strong>`);
+                continue;
             }
 
-            // Check for list items
-            const listMatch = line.match(/^(\s*)(\d+\.|\-|\*)\s+(.+)$/);
+            // Check for list items (-, *, or 1.)
+            const listMatch = line.match(/^(\s*)([\-\*]|\d+\.)\s+(.+)$/);
             if (listMatch) {
                 const [, indent, marker, content] = listMatch;
                 const indentLevel = Math.floor(indent.length / 2);
                 const isOrdered = /\d+\./.test(marker);
                 const listType = isOrdered ? 'ol' : 'ul';
 
-                if (!inList) {
-                    // Start a new list
-                    inList = true;
-                    currentIndentLevel = indentLevel;
-                    listStack.push(listType);
-                    return `<${listType} class="list-level-${indentLevel}"><li>${content}`;
-                } else {
-                    if (indentLevel > currentIndentLevel) {
-                        // Start a nested list
-                        currentIndentLevel = indentLevel;
-                        listStack.push(listType);
-                        return `<${listType} class="list-level-${indentLevel}"><li>${content}`;
-                    } else if (indentLevel < currentIndentLevel) {
-                        // End nested lists and start new item at correct level
-                        let closeTags = '';
-                        while (currentIndentLevel > indentLevel) {
-                            closeTags += `</li></${listStack.pop()}>`;
-                            currentIndentLevel--;
-                        }
-                        // If the list type changes at the same level, close the old list and start a new one
-                        if (listStack.length > 0 && listStack[listStack.length - 1] !== listType) {
-                            closeTags += `</li></${listStack.pop()}>`;
-                            listStack.push(listType);
-                            return closeTags + `<${listType} class="list-level-${indentLevel}"><li>${content}`;
-                        }
-                        return closeTags + `</li><li>${content}`;
-                    } else {
-                        // Same level, check if list type changes
-                        if (listStack.length > 0 && listStack[listStack.length - 1] !== listType) {
-                            const closeTags = `</li></${listStack.pop()}>`;
-                            listStack.push(listType);
-                            return closeTags + `<${listType} class="list-level-${indentLevel}"><li>${content}`;
-                        }
-                        return `</li><li>${content}`;
-                    }
+                // Close lists that are deeper than current indent
+                while (listStack.length > 0 && listStack[listStack.length - 1].indent > indentLevel) {
+                    const closed = listStack.pop();
+                    result.push(`</li></${closed.type}>`);
                 }
-            } else if (inList && line.trim() === '') {
-                // End all open lists
-                let closeTags = '';
-                while (listStack.length > 0) {
-                    closeTags += `</li></${listStack.pop()}>`;
-                }
-                inList = false;
-                currentIndentLevel = 0;
-                return closeTags;
-            } else if (inList) {
-                // Continue list item content
-                return ' ' + line.trim();
-            }
-            return line;
-        }).join('\n');
 
-        // Close any remaining lists
-        if (inList) {
-            let closeTags = '';
-            while (listStack.length > 0) {
-                closeTags += `</li></${listStack.pop()}>`;
+                // Check if we're at the same level but need to handle list type change or same list continuation
+                if (listStack.length > 0 && listStack[listStack.length - 1].indent === indentLevel) {
+                    // Same indent level
+                    if (listStack[listStack.length - 1].type === listType) {
+                        // Same list type - just close prev item and add new one
+                        result.push('</li>');
+                        result.push(`<li>${content}`);
+                    } else {
+                        // Different list type - close old list, start new one
+                        const closed = listStack.pop();
+                        result.push(`</li></${closed.type}>`);
+                        result.push(`<${listType}>`);
+                        listStack.push({type: listType, indent: indentLevel});
+                        result.push(`<li>${content}`);
+                    }
+                } else if (listStack.length === 0 || listStack[listStack.length - 1].indent < indentLevel) {
+                    // Starting a new (possibly nested) list
+                    result.push(`<${listType}>`);
+                    listStack.push({type: listType, indent: indentLevel});
+                    result.push(`<li>${content}`);
+                }
+                continue;
             }
-            formatted += closeTags;
+
+            // Empty line - close all lists
+            if (line.trim() === '') {
+                while (listStack.length > 0) {
+                    const closed = listStack.pop();
+                    result.push(`</li></${closed.type}>`);
+                }
+                result.push('');
+                continue;
+            }
+
+            // Regular line - if in a list, append to current item; otherwise add as-is
+            if (listStack.length > 0) {
+                result.push('<br>' + line.trim());
+            } else {
+                result.push(line);
+            }
         }
 
-        // Now handle paragraphs
+        // Close any remaining lists
+        while (listStack.length > 0) {
+            const closed = listStack.pop();
+            result.push(`</li></${closed.type}>`);
+        }
+
+        formatted = result.join('\n');
+
+        // Now handle paragraphs - wrap non-HTML content
         formatted = formatted
             .split('\n\n')
             .map(p => {
                 p = p.trim();
                 if (!p) return '';
+                // Don't wrap if already has block-level HTML
                 if (p.startsWith('<h') || p.startsWith('<pre') ||
                     p.startsWith('<ul') || p.startsWith('<ol') ||
-                    p.startsWith('<hr')) {
+                    p.startsWith('<hr') || p.startsWith('<li') ||
+                    p.startsWith('</')) {
                     return p;
                 }
                 return `<p>${p.replace(/\n/g, '<br>')}</p>`;
             })
             .filter(p => p)
             .join('\n');
+
+        // Clean up any stray newlines in the output
+        formatted = formatted.replace(/\n+/g, '');
 
         return formatted;
     }
