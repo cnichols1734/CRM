@@ -292,43 +292,214 @@ document.addEventListener('DOMContentLoaded', function() {
                 .replace(/\n/g, '<br>');
         }
 
-        // Style the rendered markdown
-        styleRenderedPlan();
+        // Enhance the rendered content
+        enhancePlanDisplay();
     }
 
     /**
-     * Apply styles to the rendered plan
+     * Enhance the plan display with professional styling
      */
-    function styleRenderedPlan() {
+    function enhancePlanDisplay() {
         if (!planContent) return;
 
-        // Style headers
-        planContent.querySelectorAll('h1, h2').forEach(h => {
-            h.classList.add('text-xl', 'font-bold', 'text-gray-900', 'mt-6', 'mb-3', 'border-b', 'border-gray-200', 'pb-2');
+        // Define section mappings with icons and colors
+        const sectionConfig = {
+            'Your Three Lead-Gen Pillars': { icon: 'fa-bullseye', class: 'section-pillars', color: '#f97316' },
+            'High-Level Strategy Overview': { icon: 'fa-compass', class: 'section-overview', color: '#6366f1' },
+            'Monthly Action Plan': { icon: 'fa-calendar-alt', class: 'section-monthly', color: '#f97316' },
+            'Weekly Action Plan': { icon: 'fa-calendar-week', class: 'section-weekly', color: '#10b981' },
+            'Optional High-Impact Bonus Ideas': { icon: 'fa-lightbulb', class: 'section-bonus', color: '#8b5cf6' },
+            'Your Next Steps This Week': { icon: 'fa-rocket', class: 'section-next', color: '#0ea5e9' }
+        };
+
+        // Build table of contents
+        const toc = document.createElement('div');
+        toc.className = 'plan-toc';
+        toc.innerHTML = `
+            <div class="plan-toc-title">Quick Navigation</div>
+            <div class="plan-toc-links" id="tocLinks"></div>
+        `;
+
+        // Get all H2 elements
+        const h2Elements = planContent.querySelectorAll('h2');
+        let tocLinks = [];
+
+        h2Elements.forEach((h2, index) => {
+            const title = h2.textContent.trim();
+            const sectionId = `section-${index}`;
+            
+            // Find matching config
+            let config = null;
+            for (const [key, val] of Object.entries(sectionConfig)) {
+                if (title.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(title.toLowerCase().substring(0, 15))) {
+                    config = val;
+                    break;
+                }
+            }
+            
+            // Default config if no match
+            if (!config) {
+                config = { icon: 'fa-bookmark', class: 'section-default', color: '#64748b' };
+            }
+
+            // Create section wrapper
+            const section = document.createElement('div');
+            section.className = `plan-section ${config.class}`;
+            section.id = sectionId;
+
+            // Create section header
+            const header = document.createElement('div');
+            header.className = 'plan-section-header';
+            header.innerHTML = `
+                <div class="plan-section-icon">
+                    <i class="fas ${config.icon}"></i>
+                </div>
+                <h2 class="plan-section-title">${title}</h2>
+                <i class="fas fa-chevron-down plan-section-toggle"></i>
+            `;
+
+            // Create section content
+            const content = document.createElement('div');
+            content.className = 'plan-section-content';
+
+            // Collect all content until next H2 or end
+            let nextElement = h2.nextElementSibling;
+            while (nextElement && nextElement.tagName !== 'H2') {
+                const clone = nextElement.cloneNode(true);
+                content.appendChild(clone);
+                nextElement = nextElement.nextElementSibling;
+            }
+
+            // Enhance H3 subsections with pillar colors
+            content.querySelectorAll('h3').forEach(h3 => {
+                const h3Text = h3.textContent.toLowerCase();
+                let pillarClass = '';
+                if (h3Text.includes('pillar 1') || h3Text.includes('pillar #1')) pillarClass = 'pillar-1-sub';
+                else if (h3Text.includes('pillar 2') || h3Text.includes('pillar #2')) pillarClass = 'pillar-2-sub';
+                else if (h3Text.includes('pillar 3') || h3Text.includes('pillar #3')) pillarClass = 'pillar-3-sub';
+                
+                // Wrap h3 and following content in subsection
+                const subsection = document.createElement('div');
+                subsection.className = `plan-subsection ${pillarClass}`;
+                
+                let nextEl = h3.nextElementSibling;
+                const elementsToWrap = [h3.cloneNode(true)];
+                
+                while (nextEl && nextEl.tagName !== 'H3' && nextEl.tagName !== 'H2') {
+                    elementsToWrap.push(nextEl.cloneNode(true));
+                    nextEl = nextEl.nextElementSibling;
+                }
+                
+                elementsToWrap.forEach(el => subsection.appendChild(el));
+                
+                // Replace original h3 with subsection
+                h3.parentNode.insertBefore(subsection, h3);
+                
+                // Remove original elements
+                let toRemove = h3.nextElementSibling;
+                while (toRemove && toRemove !== subsection && toRemove.tagName !== 'H3' && toRemove.tagName !== 'H2') {
+                    const next = toRemove.nextElementSibling;
+                    toRemove.remove();
+                    toRemove = next;
+                }
+                h3.remove();
+            });
+
+            section.appendChild(header);
+            section.appendChild(content);
+
+            // Add click handler for collapse
+            header.addEventListener('click', () => {
+                section.classList.toggle('collapsed');
+            });
+
+            // Replace H2 with section
+            h2.parentNode.insertBefore(section, h2);
+            
+            // Remove original H2 and its content (already cloned)
+            let toRemove = h2.nextElementSibling;
+            while (toRemove && toRemove.tagName !== 'H2' && !toRemove.classList.contains('plan-section')) {
+                const next = toRemove.nextElementSibling;
+                toRemove.remove();
+                toRemove = next;
+            }
+            h2.remove();
+
+            // Add to TOC
+            tocLinks.push(`<a href="#${sectionId}" class="plan-toc-link"><i class="fas ${config.icon}"></i>${title.substring(0, 20)}${title.length > 20 ? '...' : ''}</a>`);
         });
 
-        planContent.querySelectorAll('h3').forEach(h => {
-            h.classList.add('text-lg', 'font-semibold', 'text-gray-800', 'mt-4', 'mb-2');
+        // Insert TOC at the top (after H1 if exists)
+        const h1 = planContent.querySelector('h1');
+        if (h1) {
+            toc.querySelector('#tocLinks').innerHTML = tocLinks.join('');
+            h1.insertAdjacentElement('afterend', toc);
+        } else {
+            toc.querySelector('#tocLinks').innerHTML = tocLinks.join('');
+            planContent.insertBefore(toc, planContent.firstChild);
+        }
+
+        // Enhance pillar cards if they exist (look for the pillars section)
+        enhancePillarCards();
+        
+        // Smooth scroll for TOC links
+        toc.querySelectorAll('.plan-toc-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                const target = document.getElementById(targetId);
+                if (target) {
+                    // Expand if collapsed
+                    if (target.classList.contains('collapsed')) {
+                        target.classList.remove('collapsed');
+                    }
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    }
+
+    /**
+     * Enhance pillar cards with visual styling
+     */
+    function enhancePillarCards() {
+        if (!planContent) return;
+
+        // Find the pillars section and convert bullet points to cards
+        const pillarSection = planContent.querySelector('.section-pillars .plan-section-content');
+        if (!pillarSection) return;
+
+        const ul = pillarSection.querySelector('ul');
+        if (!ul) return;
+
+        const items = ul.querySelectorAll('li');
+        if (items.length === 0) return;
+
+        // Create pillar grid
+        const grid = document.createElement('div');
+        grid.className = 'pillar-grid';
+
+        items.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = `pillar-card pillar-${index + 1}`;
+            
+            // Parse the content - usually "**Pillar Name** — description"
+            const html = item.innerHTML;
+            const strongMatch = html.match(/<strong>(.*?)<\/strong>/);
+            const title = strongMatch ? strongMatch[1] : `Pillar ${index + 1}`;
+            const desc = html.replace(/<strong>.*?<\/strong>/, '').replace(/^[\s—–-]+/, '').trim();
+            
+            card.innerHTML = `
+                <div class="pillar-card-number">${index + 1}</div>
+                <div class="pillar-card-title">${title}</div>
+                <div class="pillar-card-desc">${desc}</div>
+            `;
+            
+            grid.appendChild(card);
         });
 
-        // Style lists
-        planContent.querySelectorAll('ul').forEach(ul => {
-            ul.classList.add('list-disc', 'list-inside', 'space-y-1', 'text-gray-700', 'ml-4');
-        });
-
-        planContent.querySelectorAll('ol').forEach(ol => {
-            ol.classList.add('list-decimal', 'list-inside', 'space-y-1', 'text-gray-700', 'ml-4');
-        });
-
-        // Style paragraphs
-        planContent.querySelectorAll('p').forEach(p => {
-            p.classList.add('text-gray-700', 'mb-3');
-        });
-
-        // Style strong/bold
-        planContent.querySelectorAll('strong').forEach(s => {
-            s.classList.add('text-gray-900');
-        });
+        // Replace ul with grid
+        ul.parentNode.replaceChild(grid, ul);
     }
 
     /**

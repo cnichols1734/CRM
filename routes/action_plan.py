@@ -100,74 +100,99 @@ BAD examples (NEVER suggest these):
 - NO referral reward programs
 - NO seminars or workshops
 
-### 6. Present the Final Output in This Structure
+### 6. Present the Final Output in This EXACT Structure
+
+CRITICAL FORMATTING RULES:
+- Use proper markdown headers: # for main title, ## for sections, ### for subsections
+- Each section MUST have its own ## header
+- Use bullet points (-) for unordered lists
+- Use numbered lists (1. 2. 3.) for sequential steps
+- Keep bullet points concise - one clear action per bullet
+- Include specific numbers/quantities in EVERY task item
+- Do NOT use nested bullet points deeper than 2 levels
+- Separate sections with --- horizontal rules
+- Keep pillar subsection names EXACTLY as shown (### Pillar 1, ### Pillar 2, etc.)
+
+EXACT OUTPUT FORMAT:
 
 # 2026 Lead Generation Plan for [Agent Name]
 
 ## Your Three Lead-Gen Pillars
-- **Pillar #1 Name** — short explanation
-- **Pillar #2 Name** — short explanation
-- **Pillar #3 Name** — short explanation
+- **Pillar #1: [Name]** — one sentence explanation
+- **Pillar #2: [Name]** — one sentence explanation
+- **Pillar #3: [Name]** — one sentence explanation
 
 ---
 
 ## High-Level Strategy Overview
 
 ### Pillar 1: [Name]
-- Why this was chosen
-- What this produces
-- How the agent should approach it
+Why this was chosen, what this produces, and how to approach it. Keep this to 2-3 sentences max.
 
 ### Pillar 2: [Name]
-- Same structure
+Why this was chosen, what this produces, and how to approach it. Keep this to 2-3 sentences max.
 
 ### Pillar 3: [Name]
-- Same structure
+Why this was chosen, what this produces, and how to approach it. Keep this to 2-3 sentences max.
 
 ---
 
 ## Monthly Action Plan
 
 ### Pillar 1 Monthly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number (e.g., "Send 200 postcards on the 1st of each month")
+- Task with specific number
+- Task with specific number
 
 ### Pillar 2 Monthly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number
+- Task with specific number
+- Task with specific number
 
 ### Pillar 3 Monthly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number
+- Task with specific number
+- Task with specific number
 
 ---
 
 ## Weekly Action Plan
 
 ### Pillar 1 Weekly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number (e.g., "Make 10 SOI calls each week")
+- Task with specific number
+- Task with specific number
 
 ### Pillar 2 Weekly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number
+- Task with specific number
+- Task with specific number
 
 ### Pillar 3 Weekly Tasks
-- Specific bullet list with exact numbers and frequencies
+- Task with specific number
+- Task with specific number
+- Task with specific number
 
 ---
 
 ## Optional High-Impact Bonus Ideas
 
-### Pillar 1
-- 2-3 creative ideas (remember: NO live videos, NO surveys, NO referral programs, NO seminars)
+### Pillar 1 Bonus Ideas
+- Creative idea (remember: NO live videos, NO surveys, NO referral programs, NO seminars)
+- Creative idea
 
-### Pillar 2
-- 2-3 creative ideas
+### Pillar 2 Bonus Ideas
+- Creative idea
+- Creative idea
 
-### Pillar 3
-- 2-3 creative ideas
+### Pillar 3 Bonus Ideas
+- Creative idea
+- Creative idea
 
 ---
 
 ## Your Next Steps This Week
 
-Provide a concise checklist the agent can start immediately:
 1. Add all monthly recurring tasks to your calendar for the entire year
 2. Add all weekly recurring tasks to your calendar
 3. Clean and prepare your CRM

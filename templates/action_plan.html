@@ -11,6 +11,11 @@
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideDown {
+        from { opacity: 0; max-height: 0; }
+        to { opacity: 1; max-height: 2000px; }
+    }
     .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
     .animate-fade-in-up-delay-1 { animation: fadeInUp 0.6s ease-out 0.1s forwards; opacity: 0; }
     .animate-fade-in-up-delay-2 { animation: fadeInUp 0.6s ease-out 0.2s forwards; opacity: 0; }
@@ -21,15 +26,267 @@
     .premium-radio-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
     .premium-radio-card:has(:checked) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2); }
     
-    /* Prose styling for plan content */
-    #planContent h1 { font-size: 1.75rem; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f97316; }
-    #planContent h2 { font-size: 1.35rem; font-weight: 600; color: #1f2937; margin-top: 2rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; }
-    #planContent h3 { font-size: 1.1rem; font-weight: 600; color: #374151; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-    #planContent p { color: #4b5563; line-height: 1.7; margin-bottom: 1rem; }
-    #planContent ul, #planContent ol { margin-left: 1.5rem; margin-bottom: 1rem; color: #4b5563; }
-    #planContent li { margin-bottom: 0.5rem; line-height: 1.6; }
-    #planContent strong { color: #111827; font-weight: 600; }
-    #planContent hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+    /* ===== PREMIUM ACTION PLAN STYLING ===== */
+    
+    /* Table of Contents */
+    .plan-toc {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .plan-toc-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 1rem;
+    }
+    .plan-toc-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .plan-toc-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #475569;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .plan-toc-link:hover {
+        background: #f97316;
+        color: white;
+        border-color: #f97316;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    .plan-toc-link i { margin-right: 0.5rem; font-size: 0.75rem; }
+    
+    /* Main Title */
+    #planContent h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 0.5rem 0;
+        padding: 0;
+        border: none;
+        line-height: 1.2;
+    }
+    
+    /* Section Cards (H2) */
+    .plan-section {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        margin: 1.5rem 0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: box-shadow 0.3s, transform 0.3s;
+    }
+    .plan-section:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    .plan-section-header {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        user-select: none;
+    }
+    .plan-section-header:hover { background: linear-gradient(135deg, #f1f5f9 0%, #f8fafc 100%); }
+    .plan-section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    .plan-section-icon i { color: white; font-size: 1rem; }
+    .plan-section-title {
+        flex: 1;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    .plan-section-toggle {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        transition: transform 0.3s;
+    }
+    .plan-section.collapsed .plan-section-toggle { transform: rotate(-90deg); }
+    .plan-section-content {
+        padding: 1.5rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .plan-section.collapsed .plan-section-content {
+        max-height: 0;
+        padding: 0 1.5rem;
+        opacity: 0;
+    }
+    
+    /* Pillar Cards */
+    .pillar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .pillar-card {
+        border-radius: 12px;
+        padding: 1.25rem;
+        border-left: 4px solid;
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .pillar-card.pillar-1 { border-color: #f97316; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
+    .pillar-card.pillar-2 { border-color: #6366f1; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); }
+    .pillar-card.pillar-3 { border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+    .pillar-card-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.75rem;
+    }
+    .pillar-1 .pillar-card-number { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .pillar-2 .pillar-card-number { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+    .pillar-3 .pillar-card-number { background: linear-gradient(135deg, #10b981, #059669); }
+    .pillar-card-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
+    .pillar-card-desc { font-size: 0.875rem; color: #64748b; line-height: 1.5; }
+    
+    /* Section-specific colors */
+    .section-overview .plan-section-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+    .section-monthly .plan-section-icon { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .section-weekly .plan-section-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .section-bonus .plan-section-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .section-next .plan-section-icon { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+    
+    /* Subsection styling (H3) */
+    .plan-subsection {
+        margin: 1.25rem 0;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border-radius: 10px;
+        border-left: 3px solid #cbd5e1;
+    }
+    .plan-subsection.pillar-1-sub { border-color: #f97316; background: linear-gradient(90deg, #fff7ed 0%, #fafafa 100%); }
+    .plan-subsection.pillar-2-sub { border-color: #6366f1; background: linear-gradient(90deg, #eef2ff 0%, #fafafa 100%); }
+    .plan-subsection.pillar-3-sub { border-color: #10b981; background: linear-gradient(90deg, #ecfdf5 0%, #fafafa 100%); }
+    
+    #planContent h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0 0 0.75rem 0;
+        display: flex;
+        align-items: center;
+    }
+    #planContent h3::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #94a3b8;
+        margin-right: 0.75rem;
+    }
+    
+    /* Lists */
+    #planContent ul, #planContent ol {
+        margin: 0.75rem 0;
+        padding-left: 0;
+        list-style: none;
+    }
+    #planContent li {
+        position: relative;
+        padding: 0.5rem 0.75rem 0.5rem 2rem;
+        margin: 0.25rem 0;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.925rem;
+        color: #475569;
+        line-height: 1.5;
+        transition: all 0.2s;
+    }
+    #planContent li:hover {
+        border-color: #cbd5e1;
+        background: #fafafa;
+    }
+    #planContent li::before {
+        content: '✓';
+        position: absolute;
+        left: 0.75rem;
+        color: #10b981;
+        font-weight: 700;
+        font-size: 0.875rem;
+    }
+    #planContent ol li { counter-increment: item; }
+    #planContent ol li::before {
+        content: counter(item);
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        left: 0.5rem;
+        top: 0.6rem;
+    }
+    
+    /* Paragraphs */
+    #planContent p {
+        color: #64748b;
+        line-height: 1.7;
+        margin: 0.75rem 0;
+        font-size: 0.95rem;
+    }
+    #planContent strong {
+        color: #1e293b;
+        font-weight: 600;
+    }
+    
+    /* Horizontal rules - visual separators */
+    #planContent hr {
+        border: none;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent);
+        margin: 2rem 0;
+    }
+    
+    /* Raw H2 styling (before JS enhancement) */
+    #planContent h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 1.5rem 0 1rem 0;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 10px;
+        border-left: 4px solid #f97316;
+    }
 </style>
 {% endblock %}
 
