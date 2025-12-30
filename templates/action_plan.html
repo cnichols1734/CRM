@@ -1,0 +1,677 @@
+{% extends "base.html" %}
+
+{% block title %}OG Action Plan{% endblock %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{{ url_for('static', filename='js/action_plan.js') }}" defer></script>
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    .animate-fade-in-up-delay-1 { animation: fadeInUp 0.6s ease-out 0.1s forwards; opacity: 0; }
+    .animate-fade-in-up-delay-2 { animation: fadeInUp 0.6s ease-out 0.2s forwards; opacity: 0; }
+    
+    /* Premium form styling */
+    .premium-input:focus { box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15); }
+    .premium-radio-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+    .premium-radio-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .premium-radio-card:has(:checked) { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2); }
+    
+    /* Prose styling for plan content */
+    #planContent h1 { font-size: 1.75rem; font-weight: 700; color: #111827; margin-top: 0; margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 2px solid #f97316; }
+    #planContent h2 { font-size: 1.35rem; font-weight: 600; color: #1f2937; margin-top: 2rem; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; }
+    #planContent h3 { font-size: 1.1rem; font-weight: 600; color: #374151; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    #planContent p { color: #4b5563; line-height: 1.7; margin-bottom: 1rem; }
+    #planContent ul, #planContent ol { margin-left: 1.5rem; margin-bottom: 1rem; color: #4b5563; }
+    #planContent li { margin-bottom: 0.5rem; line-height: 1.6; }
+    #planContent strong { color: #111827; font-weight: 600; }
+    #planContent hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        
+        <!-- Minimal Back Button -->
+        <button onclick="history.back()" class="group flex items-center text-slate-500 hover:text-slate-800 mb-8 transition-colors duration-200">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-slate-200 group-hover:border-slate-300 group-hover:shadow mr-2 transition-all duration-200">
+                <i class="fas fa-arrow-left text-xs"></i>
+            </span>
+            <span class="text-sm font-medium">Back</span>
+        </button>
+
+        <!-- Hero Header -->
+        <div class="animate-fade-in-up mb-10">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-orange-500 rounded-2xl blur-lg opacity-30 animate-pulse"></div>
+                    <div class="relative h-14 w-14 bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 rounded-2xl shadow-lg flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                        <i class="fas fa-rocket text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+                        The OG Agent Action Plan
+                    </h1>
+                    <p class="text-slate-500 mt-1 font-medium">Your Personalized 2026 Lead Generation Roadmap</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Introduction Section (shown when no plan exists) -->
+        <div id="introSection" class="{% if existing_plan %}hidden{% endif %} mb-10 animate-fade-in-up-delay-1">
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e293b] via-[#2d3e50] to-[#1e3a5f] shadow-2xl">
+                <div class="absolute inset-0 overflow-hidden">
+                    <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-orange-500/20 to-transparent rounded-full blur-3xl -mr-48 -mt-48"></div>
+                    <div class="absolute bottom-0 left-0 w-64 h-64 bg-gradient-to-tr from-blue-500/10 to-transparent rounded-full blur-2xl -ml-32 -mb-32"></div>
+                    <div class="absolute inset-0 opacity-5" style="background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0); background-size: 24px 24px;"></div>
+                </div>
+                
+                <div class="relative z-10 p-8 md:p-10 lg:p-12">
+                    <div class="max-w-3xl">
+                        <p class="text-xl md:text-2xl text-white/90 font-light leading-relaxed mb-6">
+                            The OG Agent Action Plan is your personalized roadmap for building a 
+                            <span class="text-orange-400 font-medium">focused, sustainable business.</span>
+                        </p>
+                        
+                        <p class="text-slate-300 text-lg leading-relaxed mb-8">
+                            You'll answer a short questionnaire about your strengths, schedule, and lead-generation preferences. From there, AI builds a clear plan designed specifically for you — not what you "should" do, but what you'll <strong class="text-orange-400 font-semibold">actually follow through on</strong>.
+                        </p>
+
+                        <div class="grid md:grid-cols-2 gap-4 mb-8">
+                            <div class="flex items-start space-x-4 bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-bullseye text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold mb-1">3 Core Pillars</h4>
+                                    <p class="text-slate-400 text-sm leading-relaxed">Narrow your focus to no more than three lead-generation strategies</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4 bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-compass text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold mb-1">Clear Strategy</h4>
+                                    <p class="text-slate-400 text-sm leading-relaxed">Get a high-level game plan for the entire year</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4 bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-calendar-check text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold mb-1">Monthly + Weekly Actions</h4>
+                                    <p class="text-slate-400 text-sm leading-relaxed">Concrete tasks broken down into manageable steps</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start space-x-4 bg-white/5 rounded-xl p-4 backdrop-blur-sm border border-white/10">
+                                <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-tasks text-white text-sm"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-white font-semibold mb-1">Calendar-Ready</h4>
+                                    <p class="text-slate-400 text-sm leading-relaxed">Specific tasks you can plug directly into your schedule</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-white/10 pt-6">
+                            <p class="text-slate-300 text-lg">
+                                This isn't about doing more.<br>
+                                <span class="text-white font-semibold">It's about doing the right things consistently — with clarity, confidence, and momentum.</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan Display (shown when plan exists) -->
+        <div id="planDisplay" class="{% if not existing_plan %}hidden{% endif %} animate-fade-in-up">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <i class="fas fa-check text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Your 2026 Action Plan</h2>
+                                <p class="text-emerald-100 text-sm">Personalized strategy ready to execute</p>
+                            </div>
+                        </div>
+                        <button id="retakeBtn" class="inline-flex items-center px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-sm font-medium text-white backdrop-blur-sm transition-all duration-200">
+                            <i class="fas fa-redo mr-2 text-xs"></i>
+                            Retake Questionnaire
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="planContent" class="px-6 md:px-10 py-8 md:py-10">
+                    {% if existing_plan %}
+                    {{ existing_plan.ai_generated_plan | safe }}
+                    {% endif %}
+                </div>
+                
+                {% if existing_plan %}
+                <div class="px-6 md:px-10 py-4 bg-slate-50 border-t border-slate-100 flex items-center text-sm text-slate-500">
+                    <i class="fas fa-clock mr-2 text-slate-400"></i>
+                    Last updated: {{ existing_plan.updated_at.strftime('%B %d, %Y at %I:%M %p') if existing_plan.updated_at else 'N/A' }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Questionnaire Form (shown when no plan exists) -->
+        <div id="questionnaireForm" class="{% if existing_plan %}hidden{% endif %} animate-fade-in-up-delay-2">
+            
+            <!-- Step Progress Indicator -->
+            <div class="mb-8">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-semibold text-slate-700">Step</span>
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-orange-500 text-white text-sm font-bold" id="currentStep">1</span>
+                        <span class="text-sm text-slate-500">of 6</span>
+                    </div>
+                    <span id="sectionTitle" class="text-sm font-medium text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">Your Natural Tendencies</span>
+                </div>
+                
+                <div class="relative">
+                    <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div id="progressBar" class="bg-gradient-to-r from-orange-500 via-orange-500 to-amber-500 h-2 rounded-full transition-all duration-500 ease-out" style="width: 16.67%"></div>
+                    </div>
+                    <div class="absolute top-1/2 left-0 right-0 -translate-y-1/2 flex justify-between px-0">
+                        {% for i in range(6) %}
+                        <div class="w-3 h-3 rounded-full bg-slate-300 border-2 border-white shadow-sm step-dot" data-step="{{ i + 1 }}"></div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Card -->
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+                
+                <form id="actionPlanForm">
+                    <!-- Step 1: Natural Tendencies -->
+                    <div class="form-step" data-step="1">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">1</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Your Natural Tendencies</h2>
+                                    <p class="text-sm text-slate-500">Let's understand how you naturally connect with people</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <!-- Q1: Name -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-2">
+                                    What's your name? <span class="text-orange-500">*</span>
+                                </label>
+                                <input type="text" name="name" required
+                                    class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200"
+                                    placeholder="Enter your name">
+                            </div>
+
+                            <!-- Q2: Communication Preference (CHECKBOX) -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Do you prefer talking to people…? <span class="text-orange-500">*</span>
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Select all that apply.</p>
+                                <div class="space-y-3">
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="communication_preference" value="In person" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">In person</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="communication_preference" value="On the phone" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">On the phone</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="communication_preference" value="Through text/email" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Through text/email</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="communication_preference" value="Through social media" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Through social media</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="communication_preference" value="Tasks without direct conversations" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">I prefer tasks that don't require direct conversations</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Q3: Stranger Comfort -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    How comfortable are you initiating conversations with strangers? <span class="text-orange-500">*</span>
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Be honest — there's no wrong answer here.</p>
+                                <div class="space-y-3">
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="radio" name="stranger_comfort" value="Very comfortable" required class="h-4 w-4 text-orange-600 focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Very comfortable</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="radio" name="stranger_comfort" value="Somewhat comfortable" class="h-4 w-4 text-orange-600 focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Somewhat comfortable</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="radio" name="stranger_comfort" value="Only with warm leads" class="h-4 w-4 text-orange-600 focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Only with warm leads</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="radio" name="stranger_comfort" value="Not comfortable" class="h-4 w-4 text-orange-600 focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">Not comfortable</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Q4: Self Description (CHECKBOX) -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which phrase sounds most like you? <span class="text-orange-500">*</span>
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Select all that resonate with you.</p>
+                                <div class="space-y-3">
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="self_description" value="I thrive at events or meeting people out and about" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">I thrive at events or meeting people out and about.</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="self_description" value="I'm great one-on-one with people I already know" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">I'm great one-on-one with people I already know.</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="self_description" value="I'm strongest behind a screen — social media, email, writing" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">I'm strongest behind a screen — social media, email, writing.</span>
+                                    </label>
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="self_description" value="I like structured tasks I can repeat every day without overthinking" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">I like structured tasks I can repeat every day without overthinking.</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Time & Consistency -->
+                    <div class="form-step hidden" data-step="2">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">2</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Time & Consistency</h2>
+                                    <p class="text-sm text-slate-500">Let's be realistic about your schedule</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <!-- Q5: Weekly Time -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    How much time per week can you realistically commit to lead generation? <span class="text-orange-500">*</span>
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Not dream time. Real, realistic time.</p>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    <label class="premium-radio-card flex flex-col items-center justify-center p-5 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 text-center">
+                                        <input type="radio" name="weekly_time" value="2–4 hours" required class="sr-only">
+                                        <span class="text-2xl font-bold text-slate-800">2-4</span>
+                                        <span class="text-sm text-slate-500">hours/week</span>
+                                    </label>
+                                    <label class="premium-radio-card flex flex-col items-center justify-center p-5 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 text-center">
+                                        <input type="radio" name="weekly_time" value="5–7 hours" class="sr-only">
+                                        <span class="text-2xl font-bold text-slate-800">5-7</span>
+                                        <span class="text-sm text-slate-500">hours/week</span>
+                                    </label>
+                                    <label class="premium-radio-card flex flex-col items-center justify-center p-5 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 text-center">
+                                        <input type="radio" name="weekly_time" value="8–10 hours" class="sr-only">
+                                        <span class="text-2xl font-bold text-slate-800">8-10</span>
+                                        <span class="text-sm text-slate-500">hours/week</span>
+                                    </label>
+                                    <label class="premium-radio-card flex flex-col items-center justify-center p-5 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 text-center">
+                                        <input type="radio" name="weekly_time" value="10+ hours" class="sr-only">
+                                        <span class="text-2xl font-bold text-slate-800">10+</span>
+                                        <span class="text-sm text-slate-500">hours/week</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Q6: Lead Gen Style (CHECKBOX) -->
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which style of lead gen best fits your lifestyle? <span class="text-orange-500">*</span>
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Select all that apply.</p>
+                                <div class="space-y-3">
+                                    <label class="premium-radio-card flex items-start p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="leadgen_style" value="Daily quick tasks (calls, texts, follow-ups)" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500 mt-0.5">
+                                        <div class="ml-4">
+                                            <span class="text-slate-800 font-medium">Daily quick tasks</span>
+                                            <p class="text-sm text-slate-500 mt-0.5">Calls, texts, follow-ups</p>
+                                        </div>
+                                    </label>
+                                    <label class="premium-radio-card flex items-start p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="leadgen_style" value="Weekly batches (postcards, blogging, newsletters)" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500 mt-0.5">
+                                        <div class="ml-4">
+                                            <span class="text-slate-800 font-medium">Weekly batches</span>
+                                            <p class="text-sm text-slate-500 mt-0.5">Postcards, blogging, newsletters</p>
+                                        </div>
+                                    </label>
+                                    <label class="premium-radio-card flex items-start p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="leadgen_style" value="Face-to-face interactions (lunches, pop-bys, open houses)" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500 mt-0.5">
+                                        <div class="ml-4">
+                                            <span class="text-slate-800 font-medium">Face-to-face interactions</span>
+                                            <p class="text-sm text-slate-500 mt-0.5">Lunches, pop-bys, open houses</p>
+                                        </div>
+                                    </label>
+                                    <label class="premium-radio-card flex items-start p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="leadgen_style" value="High-leverage digital activities (ads, social media, online events)" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500 mt-0.5">
+                                        <div class="ml-4">
+                                            <span class="text-slate-800 font-medium">High-leverage digital activities</span>
+                                            <p class="text-sm text-slate-500 mt-0.5">Ads, social media, online events</p>
+                                        </div>
+                                    </label>
+                                    <label class="premium-radio-card flex items-start p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="leadgen_style" value="Data-driven strategies (CMAs, farming, records searches)" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500 mt-0.5">
+                                        <div class="ml-4">
+                                            <span class="text-slate-800 font-medium">Data-driven strategies</span>
+                                            <p class="text-sm text-slate-500 mt-0.5">CMAs, farming, records searches</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: What You Actually Enjoy -->
+                    <div class="form-step hidden" data-step="3">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">3</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">What You Actually Enjoy</h2>
+                                    <p class="text-sm text-slate-500">Select activities that don't feel heavy or dreadful</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which activities do you genuinely LIKE or would be willing to try?
+                                </label>
+                                <p class="text-sm text-slate-500 mb-4">Select all that apply. Be honest with yourself.</p>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {% set activities = [
+                                        ("Postcards / door hangers", "Postcards / door hangers"),
+                                        ("Sphere of influence calls / texts / coffees / lunches", "Sphere calls / texts / coffees"),
+                                        ("Lead follow-up system (daily/weekly follow-up)", "Lead follow-up system"),
+                                        ("Letters + CMAs to targeted homeowners", "Letters + CMAs"),
+                                        ("Social media posting (Reels, posts, stories, etc.)", "Social media posting"),
+                                        ("Blogging / long-form content", "Blogging / long-form content"),
+                                        ("Asking for testimonials & posting them", "Testimonials"),
+                                        ("FSBO outreach", "FSBO outreach"),
+                                        ("Expired / withdrawn outreach", "Expired / withdrawn"),
+                                        ("Open houses", "Open houses"),
+                                        ("Client pop-bys", "Client pop-bys"),
+                                        ("Drip campaigns & automation (email or text)", "Drip campaigns & automation"),
+                                        ("Hosting or attending community events", "Community events"),
+                                        ("Monthly neighborhood CMAs or market updates", "Monthly CMAs"),
+                                        ("Renter-to-buyer campaigns", "Renter-to-buyer campaigns"),
+                                        ("Niche campaigns (divorce, foreclosure, REO, probate, etc.)", "Niche campaigns"),
+                                        ("Email newsletters", "Email newsletters"),
+                                        ("Relocation-focused outreach (HR directors, companies, etc.)", "Relocation outreach"),
+                                        ("Apartment or home rental farming", "Rental farming"),
+                                        ("Online open houses / virtual tours", "Virtual tours"),
+                                        ("Partnerships with schools, teachers, or PTOs", "School partnerships"),
+                                        ("Partner interviews (lenders, inspectors, contractors, etc.)", "Partner interviews"),
+                                        ("Facebook/Instagram ads", "FB/IG ads"),
+                                        ("'Buyer needs' letters or posts", "Buyer needs posts"),
+                                        ("Garage sale & estate sale prospecting", "Estate sale prospecting")
+                                    ] %}
+                                    {% for value, label in activities %}
+                                    <label class="premium-radio-card flex items-center p-3 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="enjoyed_activities" value="{{ value }}" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-3 text-slate-700 text-sm font-medium">{{ label }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-4">
+                                    <label class="block text-sm font-medium text-slate-600 mb-2">Other activities you enjoy:</label>
+                                    <input type="text" name="enjoyed_activities_other"
+                                        class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200"
+                                        placeholder="Describe any other activities...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Your Strengths -->
+                    <div class="form-step hidden" data-step="4">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">4</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Your Strengths</h2>
+                                    <p class="text-sm text-slate-500">What comes naturally to you</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-4">Which of these describe you best?</label>
+                                <div class="space-y-2">
+                                    {% set strengths = [
+                                        "I'm great at staying in touch with people",
+                                        "I'm consistent when I have a clear plan",
+                                        "I'm strong on social media",
+                                        "I'm good on the phone",
+                                        "I love delivering value or education",
+                                        "I'm comfortable networking in public",
+                                        "I like using templates and systems",
+                                        "I'm data-driven",
+                                        "I'd rather follow up with warm leads than generate cold ones"
+                                    ] %}
+                                    {% for strength in strengths %}
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="strengths" value="{{ strength }}" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">{{ strength }}.</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which lead-gen activities have worked for you in the past?
+                                </label>
+                                <p class="text-sm text-slate-500 mb-3">List any activities that have produced a client, referral, or meaningful conversation.</p>
+                                <textarea name="past_successes" rows="4"
+                                    class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200 resize-none"
+                                    placeholder="Describe what has worked for you before..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Lead Source Reality Check -->
+                    <div class="form-step hidden" data-step="5">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">5</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Lead Source Reality Check</h2>
+                                    <p class="text-sm text-slate-500">Let's get real about what you'll actually do</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which activities feel like "high effort but not dreadful"?
+                                </label>
+                                <p class="text-sm text-slate-500 mb-3">List the ones you'd work hard at if you knew they'd pay off.</p>
+                                <textarea name="high_effort_activities" rows="4"
+                                    class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200 resize-none"
+                                    placeholder="Activities that require effort but you're willing to do..."></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    Which activities feel like "high dread, low likelihood you'll stay consistent"?
+                                </label>
+                                <p class="text-sm text-slate-500 mb-3">Be honest. These are the ones we'll avoid as core pillars.</p>
+                                <textarea name="high_dread_activities" rows="4"
+                                    class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200 resize-none"
+                                    placeholder="Activities you dread or won't stay consistent with..."></textarea>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-4">
+                                    Which types of clients do you MOST want to work with in 2026?
+                                </label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    {% set clients = [
+                                        "Move-up buyers / sellers",
+                                        "First-time buyers",
+                                        "Listings (sellers who need to sell to buy)",
+                                        "Investors",
+                                        "Renters who want to become owners",
+                                        "Relocation clients",
+                                        "Luxury clients",
+                                        "Niche (divorce, probate, foreclosure, REO, etc.)",
+                                        "New construction buyers",
+                                        "Past clients & sphere referrals"
+                                    ] %}
+                                    {% for client in clients %}
+                                    <label class="premium-radio-card flex items-center p-3 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="target_clients" value="{{ client }}" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-3 text-slate-700 text-sm font-medium">{{ client }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-4">
+                                    <input type="text" name="target_clients_other"
+                                        class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200"
+                                        placeholder="Other client types...">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 6: Success -->
+                    <div class="form-step hidden" data-step="6">
+                        <div class="px-6 md:px-8 py-6 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md">
+                                    <span class="text-white font-bold">6</span>
+                                </div>
+                                <div>
+                                    <h2 class="text-xl font-bold text-slate-800">Your Success</h2>
+                                    <p class="text-sm text-slate-500">Define what winning looks like for you</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="px-6 md:px-8 py-8 space-y-8">
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-4">
+                                    What does "success" look like for you by June 30, 2026?
+                                </label>
+                                <div class="space-y-2">
+                                    {% set metrics = [
+                                        "A certain number of closings",
+                                        "A certain number of signed buyer/listing agreements",
+                                        "A certain number of conversations per week",
+                                        "A certain number of new people added to my database",
+                                        "A certain amount of GCI (commission income)",
+                                        "Improving my confidence and consistency in lead gen"
+                                    ] %}
+                                    {% for metric in metrics %}
+                                    <label class="premium-radio-card flex items-center p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 cursor-pointer has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50">
+                                        <input type="checkbox" name="success_metrics" value="{{ metric }}" class="h-4 w-4 text-orange-600 rounded focus:ring-orange-500">
+                                        <span class="ml-4 text-slate-700 font-medium">{{ metric }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-4">
+                                    <input type="text" name="success_metrics_other"
+                                        class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200"
+                                        placeholder="Other success metrics...">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-slate-700 mb-1">
+                                    What is your personal goal by the end of 2026?
+                                </label>
+                                <p class="text-sm text-slate-500 mb-3">Units closed, GCI, lifestyle goal, or something like "I want my pipeline to feel steady."</p>
+                                <textarea name="personal_goal" rows="4"
+                                    class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none transition-all duration-200 resize-none"
+                                    placeholder="Share your personal goal for 2026..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="px-6 md:px-8 py-5 border-t border-slate-100 flex justify-between items-center bg-gradient-to-r from-slate-50 to-white">
+                        <button type="button" id="prevBtn" class="hidden group inline-flex items-center px-5 py-3 border border-slate-300 rounded-xl text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 focus:outline-none transition-all duration-200 shadow-sm">
+                            <i class="fas fa-arrow-left mr-2 text-slate-400 group-hover:text-slate-600 transition-colors"></i>
+                            Previous
+                        </button>
+                        <div class="flex-1"></div>
+                        <button type="button" id="nextBtn" class="group inline-flex items-center px-6 py-3 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 transform hover:-translate-y-0.5">
+                            Continue
+                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                        <button type="submit" id="submitBtn" class="hidden group inline-flex items-center px-6 py-3 border border-transparent rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 focus:outline-none shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-200 transform hover:-translate-y-0.5">
+                            <i class="fas fa-rocket mr-2"></i>
+                            Generate My Action Plan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Premium Loading Overlay -->
+        <div id="loadingOverlay" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50">
+            <div class="bg-white rounded-2xl p-10 max-w-md mx-4 text-center shadow-2xl border border-slate-200">
+                <div class="relative mb-6">
+                    <div class="w-20 h-20 mx-auto">
+                        <div class="absolute inset-0 rounded-full border-4 border-orange-100"></div>
+                        <div class="absolute inset-0 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
+                        <div class="absolute inset-3 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
+                            <i class="fas fa-rocket text-white text-lg"></i>
+                        </div>
+                    </div>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">Building Your Action Plan</h3>
+                <p class="text-slate-500 mb-4">Our AI is analyzing your responses and creating a personalized 2026 lead generation strategy tailored just for you.</p>
+                <div class="flex items-center justify-center space-x-1 text-sm text-slate-400">
+                    <div class="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style="animation-delay: 0s;"></div>
+                    <div class="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
+                    <div class="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style="animation-delay: 0.4s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

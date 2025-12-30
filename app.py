@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file before any other imports
+
 import warnings
 from sqlalchemy.exc import SAWarning
 warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .* will copy column .*')
@@ -16,6 +19,7 @@ from routes.daily_todo import daily_todo
 from routes.user_todo import bp as user_todo_bp
 from routes.admin import admin_bp
 from routes.marketing import marketing
+from routes.action_plan import action_plan_bp
 
 def create_app():
     app = Flask(__name__)
@@ -50,6 +54,7 @@ def create_app():
     app.register_blueprint(user_todo_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(marketing)
+    app.register_blueprint(action_plan_bp)
 
     return app
 
@@ -58,4 +63,4 @@ app = create_app()
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5005, debug=True)
+    app.run(host='0.0.0.0', port=5007, debug=True)
