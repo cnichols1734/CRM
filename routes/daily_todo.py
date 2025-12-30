@@ -1,15 +1,12 @@
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
-from openai import OpenAI
 from config import Config
 from models import db, Contact, Task, DailyTodoList, User
 from sqlalchemy import desc
 from datetime import datetime, timedelta
+from services.ai_service import generate_ai_response
 
 daily_todo = Blueprint('daily_todo', __name__)
-
-# Initialize OpenAI client
-client = OpenAI(api_key=Config.OPENAI_API_KEY)
 
 SYSTEM_PROMPT = """You are B.O.B. (Business Optimization Buddy), an experienced real estate professional assistant. Your task is to create a personalized, actionable daily to-do list based on the CRM data provided.
 
@@ -247,23 +244,19 @@ def generate_todo():
             print("Error gathering todo data:", str(e))
             return jsonify({"error": f"Error gathering todo data: {str(e)}"}), 500
 
-        # Call GPT with the data
+        # Call AI with the data (using centralized AI service with fallback chain)
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-2024-11-20",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"Generate a daily to-do list based on the CRM data and the current-date context.\n\nCRM Data: {todo_data}\n\nContext: {{'current_date_utc': '{datetime.utcnow().strftime('%Y-%m-%d')}', 'current_month_name': '{datetime.utcnow().strftime('%B')}', 'current_year': '{datetime.utcnow().strftime('%Y')}', 'weekday_name': '{datetime.utcnow().strftime('%A')}', 'timezone_hint': 'America/Chicago (Houston)'}}"}
-                ],
+            user_prompt = f"Generate a daily to-do list based on the CRM data and the current-date context.\n\nCRM Data: {todo_data}\n\nContext: {{'current_date_utc': '{datetime.utcnow().strftime('%Y-%m-%d')}', 'current_month_name': '{datetime.utcnow().strftime('%B')}', 'current_year': '{datetime.utcnow().strftime('%Y')}', 'weekday_name': '{datetime.utcnow().strftime('%A')}', 'timezone_hint': 'America/Chicago (Houston)'}}"
+            
+            todo_content = generate_ai_response(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=user_prompt,
                 temperature=0.7,
-                response_format={"type": "json_object"}
+                json_mode=True
             )
         except Exception as e:
-            print("Error calling OpenAI API:", str(e))
-            return jsonify({"error": f"Error calling OpenAI API: {str(e)}"}), 500
-
-        # Parse GPT response
-        todo_content = response.choices[0].message.content
+            print("Error calling AI service:", str(e))
+            return jsonify({"error": f"Error calling AI service: {str(e)}"}), 500
         
         # Create new todo list in database
         try:

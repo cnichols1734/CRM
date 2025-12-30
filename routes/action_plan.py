@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from models import db, ActionPlan
 from config import Config
-import openai
+from services.ai_service import generate_ai_response
 import json
 import logging
 
@@ -284,100 +284,6 @@ def action_plan():
     return render_template('action_plan.html', existing_plan=existing_plan)
 
 
-def generate_action_plan_with_fallback(api_key, system_prompt, user_prompt):
-    """
-    Generate action plan using GPT-5.1 with fallback to GPT-5-mini, then GPT-4o (legacy).
-    Uses the new Responses API for GPT-5 models, Chat Completions for GPT-4o.
-    """
-    # Validate API key
-    if not api_key:
-        logger.error("OpenAI API key is not configured!")
-        raise ValueError("OpenAI API key is not configured")
-    
-    # Log masked API key for debugging
-    masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "***"
-    logger.info(f"Using OpenAI API key: {masked_key}")
-    
-    # Initialize client with explicit API key
-    client = openai.OpenAI(api_key=api_key)
-    
-    # Model hierarchy: Primary → Fallback → Legacy
-    PRIMARY_MODEL = "gpt-5.1"
-    FALLBACK_MODEL = "gpt-5-mini"
-    LEGACY_MODEL = "gpt-4o"
-    
-    # Errors that should trigger fallback
-    FALLBACK_ERROR_CODES = [401, 403, 404, 429]
-    
-    def should_fallback(error):
-        """Check if error should trigger fallback."""
-        if hasattr(error, 'status_code'):
-            return error.status_code in FALLBACK_ERROR_CODES
-        return False
-    
-    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
-    try:
-        logger.info(f"[1/3] Attempting primary model: {PRIMARY_MODEL}")
-        ai_response = client.responses.create(
-            model=PRIMARY_MODEL,
-            instructions=system_prompt,
-            input=user_prompt,
-            reasoning={"effort": "medium"}
-        )
-        logger.info(f"SUCCESS: Generated action plan with {PRIMARY_MODEL}")
-        return ai_response.output_text
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with {type(e).__name__}. Error: {str(e)}")
-        
-    except openai.APIError as e:
-        if should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with status {e.status_code}. Error: {str(e)}")
-        else:
-            logger.error(f"FATAL: {PRIMARY_MODEL} failed with unrecoverable error: {str(e)}")
-            raise
-    
-    # ===== TRY FALLBACK MODEL (GPT-5-mini) =====
-    try:
-        logger.info(f"[2/3] Attempting fallback model: {FALLBACK_MODEL}")
-        ai_response = client.responses.create(
-            model=FALLBACK_MODEL,
-            instructions=system_prompt,
-            input=user_prompt,
-            reasoning={"effort": "medium"}
-        )
-        logger.info(f"SUCCESS: Generated action plan with {FALLBACK_MODEL}")
-        return ai_response.output_text
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with {type(e).__name__}. Error: {str(e)}")
-        
-    except openai.APIError as e:
-        if should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with status {e.status_code}. Error: {str(e)}")
-        else:
-            logger.error(f"FATAL: {FALLBACK_MODEL} failed with unrecoverable error: {str(e)}")
-            raise
-    
-    # ===== TRY LEGACY MODEL (GPT-4o) =====
-    try:
-        logger.info(f"[3/3] Attempting legacy model: {LEGACY_MODEL} (using Chat Completions API)")
-        ai_response = client.chat.completions.create(
-            model=LEGACY_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt}
-            ],
-            temperature=0.7
-        )
-        logger.info(f"SUCCESS: Generated action plan with legacy model {LEGACY_MODEL}")
-        return ai_response.choices[0].message.content
-        
-    except Exception as legacy_error:
-        logger.error(f"FATAL: All models failed. Legacy model {LEGACY_MODEL} error: {str(legacy_error)}")
-        raise
-
-
 @action_plan_bp.route('/api/action-plan/submit', methods=['POST'])
 @login_required
 def submit_action_plan():
@@ -392,21 +298,15 @@ def submit_action_plan():
         # Format responses for OpenAI
         formatted_responses = format_responses_for_ai(responses)
         
-        # Get API key from config (validate it's not None or empty)
-        api_key = Config.OPENAI_API_KEY
-        if not api_key:
-            logger.error("OPENAI_API_KEY environment variable is not set!")
-            return jsonify({'error': 'OpenAI API key is not configured. Please check your .env file.'}), 500
-        
         # User prompt for the AI
         user_prompt = f"Create a personalized 2026 Lead Generation Plan of Action for this agent based on their questionnaire responses:\n\n{formatted_responses}"
         
-        # Generate the action plan with fallback mechanism
-        # Passes API key directly to ensure it's not truncated or malformed
-        generated_plan = generate_action_plan_with_fallback(
-            api_key=api_key,
+        # Generate the action plan using centralized AI service with fallback mechanism
+        generated_plan = generate_ai_response(
             system_prompt=ACTION_PLAN_SYSTEM_PROMPT,
-            user_prompt=user_prompt
+            user_prompt=user_prompt,
+            temperature=0.7,
+            reasoning_effort="medium"
         )
         
         # Check if plan exists and update, or create new

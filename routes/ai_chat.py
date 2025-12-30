@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request, url_for, session
 from flask_login import login_required, current_user
-import openai
 from config import Config
 from models import Contact, Task, TaskType, TaskSubtype
+from services.ai_service import generate_chat_response
 import re
 import json
 from pprint import pprint
@@ -204,9 +204,6 @@ def chat():
   - Outcome: {task['outcome'] or 'Pending'}
 """
 
-        # Initialize OpenAI client
-        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-        
         # Prepare the messages with history
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT}
@@ -229,7 +226,7 @@ def chat():
 
         # Debug printing
         print("\n" + "="*50)
-        print("SENDING TO GPT:")
+        print("SENDING TO AI (using centralized AI service with fallback chain):")
         print("="*50)
         print("\nSystem Prompt:")
         print("-"*50)
@@ -243,16 +240,12 @@ def chat():
         print(messages[-1]["content"])
         print("="*50 + "\n")
 
-        # Call GPT-4 Turbo
-        response = client.chat.completions.create(
-            model="gpt-4-1106-preview",
+        # Call AI using centralized service (GPT-5.1 → GPT-5-mini → GPT-4o fallback)
+        assistant_response = generate_chat_response(
             messages=messages,
             temperature=0.8,
             max_tokens=2000
         )
-
-        # Get the assistant's response
-        assistant_response = response.choices[0].message.content
 
         # Update session history with the new exchange
         session['chat_history'].append({
