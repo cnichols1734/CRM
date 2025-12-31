@@ -125,6 +125,27 @@
                                 {{ update.excerpt | unescape }}
                             </p>
                             
+                            <!-- Engagement Stats -->
+                            <div class="flex items-center gap-4 mb-4">
+                                {% if engagement_data[update.id].total_reactions > 0 %}
+                                <div class="flex items-center gap-1 text-sm text-slate-500">
+                                    {% for reaction_type, count in engagement_data[update.id].reaction_counts.items() %}
+                                    {% if count > 0 %}
+                                    <span class="text-base">{{ reaction_emojis[reaction_type] }}</span>
+                                    {% endif %}
+                                    {% endfor %}
+                                    <span class="ml-1 font-medium">{{ engagement_data[update.id].total_reactions }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if engagement_data[update.id].comment_count > 0 %}
+                                <div class="flex items-center gap-1.5 text-sm text-slate-500">
+                                    <i class="fas fa-comment text-slate-400"></i>
+                                    <span class="font-medium">{{ engagement_data[update.id].comment_count }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
                             <span class="inline-flex items-center text-blue-600 font-medium text-sm group-hover:text-blue-700">
                                 Read more
                                 <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i>

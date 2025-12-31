@@ -267,5 +267,89 @@ class CompanyUpdate(db.Model):
     # Relationship to get author details
     author = db.relationship('User', backref=db.backref('company_updates', lazy=True))
     
+    # Relationships for engagement features
+    reactions = db.relationship('CompanyUpdateReaction', backref='update', lazy='dynamic', cascade='all, delete-orphan')
+    comments = db.relationship('CompanyUpdateComment', backref='update', lazy='dynamic', cascade='all, delete-orphan', order_by='CompanyUpdateComment.created_at')
+    views = db.relationship('CompanyUpdateView', backref='update', lazy='dynamic', cascade='all, delete-orphan')
+    
+    def get_reaction_counts(self):
+        """Get count of each reaction type."""
+        from sqlalchemy import func
+        results = db.session.query(
+            CompanyUpdateReaction.reaction_type,
+            func.count(CompanyUpdateReaction.id)
+        ).filter(CompanyUpdateReaction.update_id == self.id).group_by(CompanyUpdateReaction.reaction_type).all()
+        return {r[0]: r[1] for r in results}
+    
+    def get_user_reactions(self, user_id):
+        """Get list of reaction types the user has made on this update."""
+        return [r.reaction_type for r in self.reactions.filter_by(user_id=user_id).all()]
+    
     def __repr__(self):
         return f'<CompanyUpdate {self.title[:30]}>'
+
+
+class CompanyUpdateReaction(db.Model):
+    """Emoji reactions on company updates (thumbs up, heart, etc.)."""
+    __tablename__ = 'company_update_reactions'
+    
+    # Available reaction types
+    REACTION_TYPES = ['thumbs_up', 'heart', 'raised_hands', 'fire', 'clap']
+    REACTION_EMOJIS = {
+        'thumbs_up': '👍',
+        'heart': '❤️',
+        'raised_hands': '🙌',
+        'fire': '🔥',
+        'clap': '👏'
+    }
+    
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    reaction_type = db.Column(db.String(20), nullable=False)  # thumbs_up, heart, raised_hands, fire, clap
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint: one reaction type per user per update
+    __table_args__ = (db.UniqueConstraint('update_id', 'user_id', 'reaction_type', name='unique_user_reaction'),)
+    
+    # Relationship to user
+    user = db.relationship('User', backref=db.backref('update_reactions', lazy=True))
+    
+    def __repr__(self):
+        return f'<Reaction {self.reaction_type} by user {self.user_id}>'
+
+
+class CompanyUpdateComment(db.Model):
+    """Comments on company updates."""
+    __tablename__ = 'company_update_comments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship to user
+    user = db.relationship('User', backref=db.backref('update_comments', lazy=True))
+    
+    def __repr__(self):
+        return f'<Comment by user {self.user_id} on update {self.update_id}>'
+
+
+class CompanyUpdateView(db.Model):
+    """Track which users have viewed each company update (for admin analytics)."""
+    __tablename__ = 'company_update_views'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
+    viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Unique constraint: one view record per user per update
+    __table_args__ = (db.UniqueConstraint('update_id', 'user_id', name='unique_user_view'),)
+    
+    # Relationship to user
+    user = db.relationship('User', backref=db.backref('update_views', lazy=True))
+    
+    def __repr__(self):
+        return f'<View by user {self.user_id} on update {self.update_id}>'
