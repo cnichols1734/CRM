@@ -254,11 +254,10 @@ class CRMTestSuite:
             # Select at least one group (required by form validation)
             group_checkboxes = self.page.locator('input[name="group_ids"]')
             group_count = group_checkboxes.count()
+            self.log(f"(found {group_count} groups)", "ok")
             if group_count > 0:
                 group_checkboxes.first.check()
-                self.log("", "ok")
             else:
-                self.log("", "fail")
                 raise Exception("No contact groups found in database - cannot create contact without a group")
             
             # Submit form (uses button, not input)
