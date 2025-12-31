@@ -1,0 +1,630 @@
+{% extends "base.html" %}
+
+{% block title %}Action Plan - {{ user.first_name }} {{ user.last_name }}{% endblock %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="{{ url_for('static', filename='js/action_plan.js') }}" defer></script>
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    
+    /* ===== PREMIUM ACTION PLAN STYLING ===== */
+    
+    /* Table of Contents */
+    .plan-toc {
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .plan-toc-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 1rem;
+    }
+    .plan-toc-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .plan-toc-link {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #475569;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .plan-toc-link:hover {
+        background: #f97316;
+        color: white;
+        border-color: #f97316;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    .plan-toc-link i { margin-right: 0.5rem; font-size: 0.75rem; }
+    
+    /* Main Title */
+    #planContent h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0 0 0.5rem 0;
+        padding: 0;
+        border: none;
+        line-height: 1.2;
+    }
+    
+    /* Section Cards (H2) */
+    .plan-section {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        margin: 1.5rem 0;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: box-shadow 0.3s, transform 0.3s;
+    }
+    .plan-section:hover {
+        box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+    }
+    .plan-section-header {
+        display: flex;
+        align-items: center;
+        padding: 1.25rem 1.5rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        user-select: none;
+    }
+    .plan-section-header:hover { background: linear-gradient(135deg, #f1f5f9 0%, #f8fafc 100%); }
+    .plan-section-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        flex-shrink: 0;
+    }
+    .plan-section-icon i { color: white; font-size: 1rem; }
+    .plan-section-title {
+        flex: 1;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+    }
+    .plan-section-toggle {
+        color: #94a3b8;
+        font-size: 0.875rem;
+        transition: transform 0.3s;
+    }
+    .plan-section.collapsed .plan-section-toggle { transform: rotate(-90deg); }
+    .plan-section-content {
+        padding: 1.5rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    .plan-section.collapsed .plan-section-content {
+        max-height: 0;
+        padding: 0 1.5rem;
+        opacity: 0;
+    }
+    
+    /* Pillar Cards */
+    .pillar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+    .pillar-card {
+        border-radius: 12px;
+        padding: 1.25rem;
+        border-left: 4px solid;
+        background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .pillar-card.pillar-1 { border-color: #f97316; background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
+    .pillar-card.pillar-2 { border-color: #6366f1; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); }
+    .pillar-card.pillar-3 { border-color: #10b981; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); }
+    .pillar-card-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.75rem;
+    }
+    .pillar-1 .pillar-card-number { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .pillar-2 .pillar-card-number { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+    .pillar-3 .pillar-card-number { background: linear-gradient(135deg, #10b981, #059669); }
+    .pillar-card-title { font-size: 1rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem; }
+    .pillar-card-desc { font-size: 0.875rem; color: #64748b; line-height: 1.5; }
+    
+    /* Section-specific colors */
+    .section-overview .plan-section-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+    .section-monthly .plan-section-icon { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .section-weekly .plan-section-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .section-bonus .plan-section-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .section-next .plan-section-icon { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+    
+    /* Subsection styling (H3) */
+    .plan-subsection {
+        margin: 1.25rem 0;
+        padding: 1rem 1.25rem;
+        background: #f8fafc;
+        border-radius: 10px;
+        border-left: 3px solid #cbd5e1;
+    }
+    .plan-subsection.pillar-1-sub { border-color: #f97316; background: linear-gradient(90deg, #fff7ed 0%, #fafafa 100%); }
+    .plan-subsection.pillar-2-sub { border-color: #6366f1; background: linear-gradient(90deg, #eef2ff 0%, #fafafa 100%); }
+    .plan-subsection.pillar-3-sub { border-color: #10b981; background: linear-gradient(90deg, #ecfdf5 0%, #fafafa 100%); }
+    
+    #planContent h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0 0 0.75rem 0;
+        display: flex;
+        align-items: center;
+    }
+    #planContent h3::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #94a3b8;
+        margin-right: 0.75rem;
+    }
+    
+    /* Lists */
+    #planContent ul, #planContent ol {
+        margin: 0.75rem 0;
+        padding-left: 0;
+        list-style: none;
+    }
+    #planContent li {
+        position: relative;
+        padding: 0.5rem 0.75rem 0.5rem 2rem;
+        margin: 0.25rem 0;
+        background: white;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        font-size: 0.925rem;
+        color: #475569;
+        line-height: 1.5;
+        transition: all 0.2s;
+    }
+    #planContent li:hover {
+        border-color: #cbd5e1;
+        background: #fafafa;
+    }
+    #planContent li::before {
+        content: '✓';
+        position: absolute;
+        left: 0.75rem;
+        color: #10b981;
+        font-weight: 700;
+        font-size: 0.875rem;
+    }
+    #planContent ol li { counter-increment: item; }
+    #planContent ol li::before {
+        content: counter(item);
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 700;
+        left: 0.5rem;
+        top: 0.6rem;
+    }
+    
+    /* Paragraphs */
+    #planContent p {
+        color: #64748b;
+        line-height: 1.7;
+        margin: 0.75rem 0;
+        font-size: 0.95rem;
+    }
+    #planContent strong {
+        color: #1e293b;
+        font-weight: 600;
+    }
+    
+    /* Horizontal rules - visual separators */
+    #planContent hr {
+        border: none;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e2e8f0 20%, #e2e8f0 80%, transparent);
+        margin: 2rem 0;
+    }
+    
+    /* Raw H2 styling (before JS enhancement) */
+    #planContent h2 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 1.5rem 0 1rem 0;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        border-radius: 10px;
+        border-left: 4px solid #f97316;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        
+        <!-- Back Button -->
+        <a href="{{ url_for('auth.manage_users') }}" class="group flex items-center text-slate-500 hover:text-slate-800 mb-8 transition-colors duration-200">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-white shadow-sm border border-slate-200 group-hover:border-slate-300 group-hover:shadow mr-2 transition-all duration-200">
+                <i class="fas fa-arrow-left text-xs"></i>
+            </span>
+            <span class="text-sm font-medium">Back to Manage Users</span>
+        </a>
+
+        <!-- Admin Notice Banner -->
+        <div class="animate-fade-in-up mb-6">
+            <div class="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 flex items-center">
+                <div class="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                    <i class="fas fa-shield-alt text-purple-600 text-sm"></i>
+                </div>
+                <div>
+                    <span class="text-purple-800 font-medium text-sm">Admin View</span>
+                    <span class="text-purple-600 text-sm ml-1">— Viewing action plan for <strong>{{ user.first_name }} {{ user.last_name }}</strong> ({{ user.email }})</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero Header -->
+        <div class="animate-fade-in-up mb-10">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-orange-500 rounded-2xl blur-lg opacity-30"></div>
+                    <div class="relative h-14 w-14 bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 rounded-2xl shadow-lg flex items-center justify-center transform -rotate-3">
+                        <i class="fas fa-rocket text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+                        {{ user.first_name }}'s Action Plan
+                    </h1>
+                    <p class="text-slate-500 mt-1 font-medium">2026 Lead Generation Roadmap</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Questionnaire Responses Section -->
+        {% if plan.questionnaire_responses %}
+        <div class="animate-fade-in-up mb-8">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+                <div class="bg-gradient-to-r from-indigo-500 to-purple-500 px-6 py-5 cursor-pointer" onclick="toggleQuestionnaire()">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <i class="fas fa-clipboard-list text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">Questionnaire Responses</h2>
+                                <p class="text-indigo-100 text-sm">Data submitted by {{ user.first_name }}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-white/70 text-sm hidden sm:block">Click to expand/collapse</span>
+                            <i id="questionnaireToggleIcon" class="fas fa-chevron-down text-white transition-transform duration-300"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="questionnaireContent" class="px-6 md:px-10 py-8 hidden">
+                    {% set responses = plan.questionnaire_responses %}
+                    
+                    <!-- Section 1: Natural Tendencies -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-user text-orange-600 text-sm"></i>
+                            </span>
+                            Section 1: Natural Tendencies
+                        </h3>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Name</p>
+                                <p class="text-slate-800 font-medium">{{ responses.get('name', 'Not provided') }}</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Communication Preference</p>
+                                {% if responses.get('communication_preference') is iterable and responses.get('communication_preference') is not string %}
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    {% for pref in responses.get('communication_preference', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">{{ pref }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-800 font-medium">{{ responses.get('communication_preference', 'Not provided') }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Comfort with Strangers</p>
+                                <p class="text-slate-800 font-medium">{{ responses.get('stranger_comfort', 'Not provided') }}</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Self Description</p>
+                                {% if responses.get('self_description') is iterable and responses.get('self_description') is not string %}
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    {% for desc in responses.get('self_description', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">{{ desc }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-800 font-medium">{{ responses.get('self_description', 'Not provided') }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Time & Consistency -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-clock text-blue-600 text-sm"></i>
+                            </span>
+                            Section 2: Time & Consistency
+                        </h3>
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Weekly Time Commitment</p>
+                                <p class="text-slate-800 font-medium">{{ responses.get('weekly_time', 'Not provided') }}</p>
+                            </div>
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Preferred Lead Gen Style</p>
+                                {% if responses.get('leadgen_style') is iterable and responses.get('leadgen_style') is not string %}
+                                <div class="flex flex-wrap gap-2 mt-1">
+                                    {% for style in responses.get('leadgen_style', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">{{ style }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-800 font-medium">{{ responses.get('leadgen_style', 'Not provided') }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Activities They Enjoy -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-heart text-green-600 text-sm"></i>
+                            </span>
+                            Section 3: Activities They Enjoy
+                        </h3>
+                        <div class="bg-slate-50 rounded-xl p-4">
+                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Enjoyed Activities</p>
+                            {% if responses.get('enjoyed_activities') %}
+                            <div class="flex flex-wrap gap-2">
+                                {% for activity in responses.get('enjoyed_activities', []) %}
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">{{ activity }}</span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-slate-600">None selected</p>
+                            {% endif %}
+                            {% if responses.get('enjoyed_activities_other') %}
+                            <p class="mt-3 text-sm text-slate-600"><strong>Other:</strong> {{ responses.get('enjoyed_activities_other') }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Section 4: Strengths -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-star text-yellow-600 text-sm"></i>
+                            </span>
+                            Section 4: Strengths
+                        </h3>
+                        <div class="grid gap-4">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Self-Identified Strengths</p>
+                                {% if responses.get('strengths') %}
+                                <div class="flex flex-wrap gap-2">
+                                    {% for strength in responses.get('strengths', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">{{ strength }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-600">None selected</p>
+                                {% endif %}
+                            </div>
+                            {% if responses.get('past_successes') %}
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Past Successes</p>
+                                <p class="text-slate-700">{{ responses.get('past_successes') }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Section 5: Lead Source Reality Check -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-balance-scale text-red-600 text-sm"></i>
+                            </span>
+                            Section 5: Lead Source Reality Check
+                        </h3>
+                        <div class="grid gap-4">
+                            {% if responses.get('high_effort_activities') %}
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">High Effort But Not Dreadful</p>
+                                <p class="text-slate-700">{{ responses.get('high_effort_activities') }}</p>
+                            </div>
+                            {% endif %}
+                            {% if responses.get('high_dread_activities') %}
+                            <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+                                <p class="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">High Dread Activities (Avoid)</p>
+                                <p class="text-slate-700">{{ responses.get('high_dread_activities') }}</p>
+                            </div>
+                            {% endif %}
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Target Client Types</p>
+                                {% if responses.get('target_clients') %}
+                                <div class="flex flex-wrap gap-2">
+                                    {% for client in responses.get('target_clients', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">{{ client }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-600">None selected</p>
+                                {% endif %}
+                                {% if responses.get('target_clients_other') %}
+                                <p class="mt-3 text-sm text-slate-600"><strong>Other:</strong> {{ responses.get('target_clients_other') }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 6: Success Goals -->
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                            <span class="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center mr-3">
+                                <i class="fas fa-trophy text-teal-600 text-sm"></i>
+                            </span>
+                            Section 6: Success Goals
+                        </h3>
+                        <div class="grid gap-4">
+                            <div class="bg-slate-50 rounded-xl p-4">
+                                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Success Metrics (by June 30, 2026)</p>
+                                {% if responses.get('success_metrics') %}
+                                <div class="flex flex-wrap gap-2">
+                                    {% for metric in responses.get('success_metrics', []) %}
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">{{ metric }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <p class="text-slate-600">None selected</p>
+                                {% endif %}
+                                {% if responses.get('success_metrics_other') %}
+                                <p class="mt-3 text-sm text-slate-600"><strong>Other:</strong> {{ responses.get('success_metrics_other') }}</p>
+                                {% endif %}
+                            </div>
+                            {% if responses.get('personal_goal') %}
+                            <div class="bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl p-4 border border-teal-100">
+                                <p class="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">Personal Goal for End of 2026</p>
+                                <p class="text-slate-700 font-medium">{{ responses.get('personal_goal') }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Plan Display -->
+        <div class="animate-fade-in-up">
+            <div class="bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+                <div class="bg-gradient-to-r from-emerald-500 to-green-500 px-6 py-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                                <i class="fas fa-check text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-white">2026 Action Plan</h2>
+                                <p class="text-emerald-100 text-sm">Completed by {{ user.first_name }} {{ user.last_name }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="planContent" class="px-6 md:px-10 py-8 md:py-10">
+                    {{ plan.ai_generated_plan | safe }}
+                </div>
+                
+                <div class="px-6 md:px-10 py-4 bg-slate-50 border-t border-slate-100 flex items-center text-sm text-slate-500">
+                    <i class="fas fa-clock mr-2 text-slate-400"></i>
+                    Completed: <span id="lastUpdated" data-utc="{{ plan.updated_at.isoformat() if plan.updated_at else '' }}" class="ml-1">{{ plan.updated_at.strftime('%B %d, %Y at %I:%M %p') if plan.updated_at else 'N/A' }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toggle questionnaire section
+function toggleQuestionnaire() {
+    const content = document.getElementById('questionnaireContent');
+    const icon = document.getElementById('questionnaireToggleIcon');
+    
+    if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        icon.style.transform = 'rotate(180deg)';
+    } else {
+        content.classList.add('hidden');
+        icon.style.transform = 'rotate(0deg)';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('lastUpdated');
+    if (el && el.dataset.utc) {
+        try {
+            let utcString = el.dataset.utc;
+            if (!utcString.endsWith('Z') && !utcString.includes('+') && !utcString.includes('-', 10)) {
+                utcString += 'Z';
+            }
+            const utcDate = new Date(utcString);
+            
+            const options = {
+                timeZone: 'America/Chicago',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            };
+            
+            const formatted = utcDate.toLocaleString('en-US', options);
+            const parts = formatted.split(', ');
+            if (parts.length >= 3) {
+                el.textContent = parts[0] + ', ' + parts[1] + ' at ' + parts[2];
+            } else {
+                el.textContent = formatted;
+            }
+        } catch (e) {
+            console.error('Error converting timestamp:', e);
+        }
+    }
+});
+</script>
+{% endblock %}
+

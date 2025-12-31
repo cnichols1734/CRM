@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import User, db, Contact
+from models import User, db, Contact, ActionPlan
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 from flask_mail import Message
 from functools import wraps
@@ -383,7 +383,27 @@ def reset_password(token):
 @admin_required
 def manage_users():
     users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('manage_users.html', users=users, format_datetime=format_datetime_cst)
+    # Get action plan status for each user
+    action_plan_status = {}
+    for user in users:
+        plan = ActionPlan.get_for_user(user.id)
+        action_plan_status[user.id] = plan is not None and plan.ai_generated_plan is not None
+    return render_template('manage_users.html', users=users, format_datetime=format_datetime_cst, action_plan_status=action_plan_status)
+
+@auth_bp.route('/user/<int:user_id>/action-plan')
+@login_required
+@admin_required
+def view_user_action_plan(user_id):
+    """Admin-only route to view a specific user's action plan."""
+    user = User.query.get_or_404(user_id)
+    plan = ActionPlan.get_for_user(user_id)
+    
+    if not plan or not plan.ai_generated_plan:
+        flash('This user has not completed an action plan.', 'error')
+        return redirect(url_for('auth.manage_users'))
+    
+    return render_template('admin_view_action_plan.html', user=user, plan=plan)
+
 
 @auth_bp.route('/user/<int:user_id>/role', methods=['POST'])
 @login_required
