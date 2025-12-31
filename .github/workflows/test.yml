@@ -1,0 +1,63 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [main]
+  # Also allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    env:
+      # Test credentials - set these as GitHub Secrets
+      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      # Database URL for tests (uses Supabase)
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      # Optional: OpenAI key if AI features are tested
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Flask environment
+      FLASK_ENV: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium
+
+      - name: Start Flask app
+        run: |
+          python app.py &
+          # Wait for server to start
+          sleep 5
+          # Verify server is running
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5006/login
+
+      - name: Run integration tests
+        run: python tests/run_tests.py --base-url http://127.0.0.1:5006
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-failure-logs
+          path: |
+            tests/*.png
+            tests/*.log
+
