@@ -3,128 +3,195 @@
 {% block mobile_title %}Client Tasks{% endblock %}
 
 {% block content %}
-<div class="p-6">
-    <!-- Header Section -->
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center space-x-2">
-            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Client Tasks</h1>
-            <span class="text-sm text-gray-500 translate-y-0.5 ml-2">
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-2 { 
+        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
+        opacity: 0; 
+    }
+    
+    /* Premium task card styling */
+    .task-card {
+        transition: all 0.2s ease-out;
+    }
+    .task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Priority colors */
+    .priority-high { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-left: 4px solid #ef4444; }
+    .priority-medium { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 4px solid #f59e0b; }
+    .priority-low { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; }
+    
+    /* Filter pill styling */
+    .filter-pill {
+        transition: all 0.2s ease-out;
+    }
+    .filter-pill:hover {
+        background: rgba(249, 115, 22, 0.1);
+    }
+    .filter-pill.active {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-6 max-w-6xl mx-auto">
+        <!-- Premium Header Section -->
+        <div class="mb-8 animate-fade-in-up">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg">
+                            <i class="fas fa-tasks text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent hidden md:block">
+                                Client Tasks
+                            </h1>
+                            <p class="text-sm text-slate-500">
                 {% if show_all %}
                 Viewing all client tasks
                 {% else %}
                 Your client tasks
                 {% endif %}
-            </span>
+                            </p>
+                        </div>
+                    </div>
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex space-x-3">
+                <div class="flex items-center gap-3">
             {% if current_user.role == 'admin' %}
             <div class="relative hidden md:block">
                 <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
-                        class="appearance-none bg-white border border-gray-300 rounded-md pl-3 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                class="appearance-none bg-white border-2 border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 hover:border-slate-300 transition-all cursor-pointer">
                     <option value="my" {% if not show_all %}selected{% endif %}>My Client Tasks</option>
                     <option value="all" {% if show_all %}selected{% endif %}>All Client Tasks</option>
                 </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
                     <i class="fas fa-chevron-down text-xs"></i>
                 </div>
             </div>
             {% endif %}
             
             <a href="{{ url_for('tasks.create_task') }}" 
-               class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
-                <span class="hidden md:inline">Create client task</span>
-                <i class="fas fa-plus md:hidden"></i>
-            </a>
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all">
+                        <i class="fas fa-plus"></i>
+                        <span class="hidden md:inline">Create Task</span>
+                    </a>
+                </div>
         </div>
     </div>
 
-    <!-- Task Filters -->
-    <div class="border-b mb-4">
-        <div class="flex space-x-6">
+        <!-- Premium Filter Pills -->
+        <div class="mb-6 animate-fade-in-up-delay-1">
+            <div class="flex flex-wrap gap-2">
             <a href="?status=pending{% if show_all %}&view=all{% endif %}" 
-               class="px-4 py-2 text-sm {% if current_status == 'pending' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
-                Active
+                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'pending' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
+                    <i class="fas fa-clock mr-2"></i>Active
             </a>
             <a href="?status=completed{% if show_all %}&view=all{% endif %}" 
-               class="px-4 py-2 text-sm {% if current_status == 'completed' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
-                Completed
+                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'completed' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
+                    <i class="fas fa-check mr-2"></i>Completed
             </a>
             <a href="?status=all{% if show_all %}&view=all{% endif %}" 
-               class="px-4 py-2 text-sm {% if current_status == 'all' %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}">
-                All
+                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'all' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
+                    <i class="fas fa-list mr-2"></i>All
             </a>
         </div>
     </div>
 
     <!-- Task List -->
-    <div class="bg-white shadow rounded-lg">
+        <div class="animate-fade-in-up-delay-2">
         {% if tasks %}
-        <div class="divide-y divide-gray-200">
+            <div class="space-y-3">
             {% for task in tasks %}
-            <div class="group hover:bg-gray-50">
-                <div class="p-4">
-                    <div class="flex items-start">
-                        <!-- Left Side: Priority and Status -->
-                        <div class="flex items-center space-x-3">
+                <div class="task-card bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden
+                    {% if task.priority == 'high' %}priority-high{% elif task.priority == 'medium' %}priority-medium{% else %}priority-low{% endif %}">
+                    <div class="p-5">
+                        <div class="flex items-start gap-4">
                             <!-- Status Checkbox -->
-                            <div class="flex items-center">
+                            <div class="flex-shrink-0 pt-1">
+                                <label class="relative flex items-center cursor-pointer">
                                 <input type="checkbox"
                                        {% if task.status == 'completed' %}checked{% endif %}
                                        onchange="quickUpdateStatus({{ task.id }}, this.checked)"
-                                       class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                           class="peer sr-only">
+                                    <div class="w-6 h-6 rounded-lg border-2 border-slate-300 peer-checked:bg-gradient-to-br peer-checked:from-green-400 peer-checked:to-green-600 peer-checked:border-green-500 flex items-center justify-center transition-all">
+                                        <i class="fas fa-check text-white text-xs opacity-0 peer-checked:opacity-100"></i>
+                                    </div>
+                                </label>
                             </div>
-                            <!-- Priority -->
-                            <div class="relative">
+                            
+                            <!-- Priority Flag -->
+                            <div class="flex-shrink-0">
                                 <button onclick="togglePriorityMenu({{ task.id }})"
-                                        class="w-8 h-8 rounded-lg flex items-center justify-center {% if task.priority == 'high' %}bg-red-100 text-red-700{% elif task.priority == 'medium' %}bg-yellow-100 text-yellow-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                        class="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105
+                                            {% if task.priority == 'high' %}bg-red-100 text-red-600 hover:bg-red-200
+                                            {% elif task.priority == 'medium' %}bg-amber-100 text-amber-600 hover:bg-amber-200
+                                            {% else %}bg-green-100 text-green-600 hover:bg-green-200{% endif %}">
                                     <i class="fas fa-flag"></i>
                                 </button>
                                 <div id="priority-menu-{{ task.id }}"
-                                     class="hidden fixed mt-1 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[100]">
-                                    <div class="py-1" role="menu">
+                                     class="hidden fixed mt-2 w-36 rounded-xl shadow-xl bg-white ring-1 ring-black/5 z-[100] overflow-hidden">
+                                    <div class="py-1">
                                         <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
-                                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full">
-                                            <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-red-50 w-full transition-colors">
+                                            <span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
                                             High
                                         </button>
                                         <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
-                                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full">
-                                            <span class="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>
+                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 w-full transition-colors">
+                                            <span class="w-3 h-3 rounded-full bg-amber-500 mr-3"></span>
                                             Medium
                                         </button>
                                         <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
-                                                class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 w-full">
-                                            <span class="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-green-50 w-full transition-colors">
+                                            <span class="w-3 h-3 rounded-full bg-green-500 mr-3"></span>
                                             Low
                                         </button>
-                                    </div>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Task Info (Middle) -->
-                        <div class="flex-1 min-w-0 ml-4">
-                            <div class="flex items-center space-x-3">
-                                <a href="#" 
-                                   onclick="openTaskModal({{ task.id }}); return false;"
-                                   class="text-sm font-medium text-blue-600 hover:text-blue-800">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center flex-wrap gap-2 mb-2">
+                                    <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks" 
+                                       class="text-lg font-semibold text-slate-800 hover:text-orange-600 transition-colors">
                                     {{ task.subject }}
                                 </a>
-                                <div class="flex items-center space-x-2">
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
                                         {{ task.task_type.name }}
                                     </span>
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-500">
                                         {{ task.task_subtype.name }}
                                     </span>
-                                </div>
                             </div>
 
                             {% if current_user.role == 'admin' and show_all %}
-                            <div class="flex items-center text-gray-500 text-sm mt-0.5">
-                                <div class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5">
+                                <div class="flex items-center text-slate-500 text-sm mb-2">
+                                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-medium mr-2">
                                     {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
                                 </div>
                                 <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
@@ -132,24 +199,18 @@
                             {% endif %}
 
                             <!-- Task Details -->
-                            <div class="mt-1 flex items-center space-x-4 text-sm text-gray-500">
+                                <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
                                 <!-- Due Date with Color Coding -->
                                 {% set task_date = task.due_date.date() %}
                                 {% set current_date = now.date() %}
                                 {% set days_until_due = (task_date - current_date).days %}
-                                <div class="flex items-center">
-                                    <i class="far fa-calendar-alt mr-1.5 
-                                        {% if days_until_due < 0 %}
-                                            text-red-500
-                                        {% elif days_until_due == 0 %}
-                                            text-orange-500
-                                        {% elif days_until_due <= 2 %}
-                                            text-yellow-500
-                                        {% else %}
-                                            text-gray-400
-                                        {% endif %}">
-                                    </i>
-                                    <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-500{% endif %}">
+                                    <div class="flex items-center gap-1.5
+                                        {% if days_until_due < 0 %}text-red-600
+                                        {% elif days_until_due == 0 %}text-orange-600
+                                        {% elif days_until_due <= 2 %}text-amber-600
+                                        {% else %}text-slate-500{% endif %}">
+                                        <i class="far fa-calendar-alt"></i>
+                                        <span class="font-medium">
                                         {% if days_until_due < 0 %}
                                             Overdue by {{ days_until_due|abs }} day{{ 's' if days_until_due|abs != 1 }}
                                         {% elif days_until_due == 0 %}
@@ -159,282 +220,109 @@
                                         {% else %}
                                             Due in {{ days_until_due }} days
                                         {% endif %}
-                                        ({{ task.due_date.strftime('%m/%d/%y') }}{% if task.scheduled_time %} @ {{ task.scheduled_time.strftime('%I:%M %p') }}{% endif %})
                                     </span>
+                                        <span class="text-slate-400">({{ task.due_date.strftime('%m/%d/%y') }}{% if task.scheduled_time %} @ {{ task.scheduled_time.strftime('%I:%M %p') }}{% endif %})</span>
                                 </div>
 
                                 <!-- Contact -->
                                 {% if task.contact %}
-                                <div class="flex items-center">
-                                    <i class="far fa-user mr-1.5 text-gray-400"></i>
-                                    <a href="#" 
-                                       onclick="openContactModal({{ task.contact.id }}); return false;"
-                                       class="hover:text-blue-600">
+                                    <div class="flex items-center gap-1.5">
+                                        <i class="far fa-user text-slate-400"></i>
+                                        <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                                           class="hover:text-orange-600 transition-colors">
                                         {{ task.contact.first_name }} {{ task.contact.last_name }}
                                     </a>
                                 </div>
                                 {% endif %}
 
-                                <!-- Property Address (if exists) -->
+                                    <!-- Property Address -->
                                 {% if task.property_address %}
-                                <div class="flex items-center">
-                                    <i class="far fa-building mr-1.5 text-gray-400"></i>
-                                    {{ task.property_address }}
-                                </div>
-                                {% endif %}
-
-                                <!-- Scheduled Time -->
-                                {% if task.scheduled_time %}
-                                <div class="flex items-center">
-                                    <i class="far fa-clock mr-1.5 text-gray-400"></i>
-                                    {{ task.scheduled_time.strftime('%I:%M %p') }}
+                                    <div class="flex items-center gap-1.5">
+                                        <i class="far fa-building text-slate-400"></i>
+                                        <span>{{ task.property_address }}</span>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Right Side: Quick Actions -->
-                        <div class="flex items-center space-x-4 ml-4">
-                            <!-- Quick Actions (visible on hover) -->
-                            <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center space-x-2">
-                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
-                                   class="p-1 rounded-full hover:bg-gray-200"
+                            <!-- Quick Actions -->
+                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
+                                   class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all"
                                    title="View Details">
-                                    <i class="fas fa-eye text-gray-400 hover:text-gray-600"></i>
+                                    <i class="fas fa-eye"></i>
                                 </a>
                                 <button onclick="deleteTask({{ task.id }})"
-                                        class="p-1 rounded-full hover:bg-gray-200"
-                                        title="Delete Client Task">
-                                    <i class="fas fa-trash text-gray-400 hover:text-red-500"></i>
+                                        class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                        title="Delete Task">
+                                    <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
+                {% endfor %}
         </div>
         {% else %}
-        <div class="px-6 py-8 text-center">
-            <div class="text-gray-500">No client tasks found</div>
-            <a href="{{ url_for('tasks.create_task') }}" 
-               class="mt-2 inline-flex items-center text-sm text-blue-600 hover:text-blue-800">
-                <i class="fas fa-plus mr-2"></i>
-                Create a new client task
-            </a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Task Modal -->
-<div id="taskModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-0 md:p-4">
-        <div class="relative bg-white w-full md:rounded-lg shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
-            <!-- Modal header -->
-            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
-                <div class="flex items-center space-x-4">
-                    <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
-                        <i class="fas fa-flag"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
-                        {% if current_user.role == 'admin' and show_all %}
-                        <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
-                            <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
-                            <span id="modalTaskOwner"></span>
-                        </div>
-                        {% endif %}
-                        <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
-                    </div>
+            <!-- Empty State -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                    <i class="fas fa-tasks text-slate-400 text-2xl"></i>
                 </div>
-                <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times text-gray-400"></i>
-                </button>
+                <h3 class="text-lg font-semibold text-slate-800 mb-2">No client tasks found</h3>
+                <p class="text-slate-500 mb-6">Get started by creating your first task</p>
+                <a href="{{ url_for('tasks.create_task') }}" 
+                   class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all">
+                    <i class="fas fa-plus"></i>
+                    Create a new task
+                </a>
             </div>
-            
-            <!-- Modal content -->
-            <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
-                <!-- Status and Priority -->
-                <div class="flex flex-wrap gap-3">
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-tasks text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Status</p>
-                                <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-flag text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Priority</p>
-                                <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Due Date and Scheduled Time -->
-                <div class="flex flex-wrap gap-3">
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-calendar text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Due Date</p>
-                                <p id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></p>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="modalTaskScheduledContainer" class="hidden bg-gray-50 rounded-lg p-3 flex-1">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-clock text-gray-400"></i>
-                            </div>
-                            <div>
-                                <p class="text-sm text-gray-500">Scheduled Time</p>
-                                <p id="modalTaskScheduledTime" class="text-sm font-medium text-gray-900"></p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Task Type and Subtype -->
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-tag text-gray-400"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Task Type</p>
-                            <div class="flex items-center space-x-2 mt-1">
-                                <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
-                                <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Contact -->
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-user text-gray-400"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Contact</p>
-                            <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-building text-gray-400"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500">Property Address</p>
-                            <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Description -->
-                <div class="bg-gray-50 rounded-lg p-3">
-                    <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-align-left text-gray-400"></i>
-                        </div>
-                        <div class="flex-1">
-                            <p class="text-sm text-gray-500">Description</p>
-                            <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Modal footer -->
-            <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
-                <div class="flex flex-col md:flex-row md:justify-between gap-3">
-                    <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
-                        <button onclick="toggleTaskStatus()" 
-                                class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
-                            <span id="modalTaskStatusButton"></span>
-                        </button>
-                    </div>
-                    <a id="modalTaskFullView" href="#" 
-                       class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
-                        Open Full View
-                    </a>
-                </div>
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Contact Modal -->
-<div id="contactModal" class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
+<!-- Contact Modal (kept for contact quick view from task list) -->
+<div id="contactModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-lg shadow-xl max-w-4xl w-full">
+        <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
             <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                <div class="flex items-center space-x-4">
-                    <div id="modalContactInitials" class="w-10 h-10 rounded-full flex items-center justify-center text-lg font-medium"></div>
-                    <h3 class="text-lg font-medium text-gray-900" id="modalContactName"></h3>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
+                <div class="flex items-center gap-4">
+                    <div id="modalContactInitials" class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold"></div>
+                    <h3 class="text-lg font-semibold text-slate-800" id="modalContactName"></h3>
                 </div>
-                <button onclick="closeContactModal()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100">
+                <button onclick="closeContactModal()" class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <!-- Modal content -->
-            <div class="px-6 py-4 space-y-4">
-                <!-- Contact Information -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Email -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                        <p id="modalContactEmail" class="text-gray-900"></p>
+            <div class="px-6 py-5 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-1">Email</h4>
+                        <p id="modalContactEmail" class="text-slate-800"></p>
                     </div>
-
-                    <!-- Phone -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
-                        <p id="modalContactPhone" class="text-gray-900"></p>
+                    <div class="bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-1">Phone</h4>
+                        <p id="modalContactPhone" class="text-slate-800"></p>
                     </div>
-
-                    <!-- Address -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Address</h3>
-                        <p id="modalContactAddress" class="text-gray-900"></p>
+                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-1">Address</h4>
+                        <p id="modalContactAddress" class="text-slate-800"></p>
                     </div>
-
-                    <!-- Groups -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-2">Groups</h3>
+                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-2">Groups</h4>
                         <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
                     </div>
-
-                    <!-- Notes -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
-                        <p id="modalContactNotes" class="text-gray-900 whitespace-pre-line bg-gray-50 rounded-md p-4"></p>
+                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-1">Notes</h4>
+                        <p id="modalContactNotes" class="text-slate-800 whitespace-pre-line"></p>
                     </div>
-
-                    <!-- Potential Commission -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission</h3>
-                        <p id="modalContactCommission" class="text-gray-900"></p>
+                    <div class="bg-slate-50 rounded-xl p-4">
+                        <h4 class="text-sm font-medium text-slate-500 mb-1">Potential Commission</h4>
+                        <p id="modalContactCommission" class="text-slate-800"></p>
                     </div>
                 </div>
             </div>
@@ -453,7 +341,6 @@ function quickUpdateStatus(taskId, completed) {
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
-        // Optionally refresh the page or update the UI
         window.location.reload();
     })
     .catch(error => {
@@ -496,12 +383,9 @@ function togglePriorityMenu(taskId) {
     menu.classList.toggle('hidden');
     
     if (!menu.classList.contains('hidden')) {
-        // Get button position
         const rect = button.getBoundingClientRect();
-        
-        // Position menu below the button
         menu.style.left = `${rect.left}px`;
-        menu.style.top = `${rect.bottom}px`;
+        menu.style.top = `${rect.bottom + 4}px`;
         
         // Ensure menu doesn't go off screen
         const menuRect = menu.getBoundingClientRect();
@@ -513,7 +397,7 @@ function togglePriorityMenu(taskId) {
         }
         
         if (menuRect.bottom > viewportHeight) {
-            menu.style.top = `${rect.top - menuRect.height}px`;
+            menu.style.top = `${rect.top - menuRect.height - 4}px`;
         }
     }
 }
@@ -545,183 +429,7 @@ function deleteTask(taskId) {
     });
 }
 
-let currentTaskId = null;
-
-function openTaskModal(taskId) {
-    currentTaskId = taskId;
-    
-    // Fetch task details
-    fetch(`/tasks/${taskId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-        .then(response => response.json())
-        .then(task => {
-            // Update modal content
-            document.getElementById('modalTaskSubject').textContent = task.subject;
-            document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
-            
-            // Owner Info (for admin view)
-            {% if current_user.role == 'admin' and show_all %}
-            const ownerInitials = document.getElementById('modalTaskOwnerInitials');
-            ownerInitials.textContent = `${task.assigned_to.first_name[0]}${task.assigned_to.last_name[0]}`;
-            document.getElementById('modalTaskOwner').textContent = `${task.assigned_to.first_name} ${task.assigned_to.last_name}`;
-            {% endif %}
-            
-            // Priority Indicator
-            const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
-            priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-                task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
-            }`;
-            
-            // Priority
-            const priorityText = document.getElementById('modalTaskPriority');
-            priorityText.textContent = task.priority.charAt(0).toUpperCase() + task.priority.slice(1);
-            
-            // Status
-            const statusText = document.getElementById('modalTaskStatus');
-            statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
-            statusText.className = `text-sm font-medium ${
-                task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
-            }`;
-            
-            // Due Date
-            const dueDate = new Date(task.due_date);
-            const now = new Date();
-            const diffTime = dueDate - now;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            let dueDateText = '';
-            if (diffDays < 0) {
-                dueDateText = `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) !== 1 ? 's' : ''}`;
-            } else if (diffDays === 0) {
-                dueDateText = 'Due today';
-            } else if (diffDays === 1) {
-                dueDateText = 'Due tomorrow';
-            } else {
-                dueDateText = `Due in ${diffDays} days`;
-            }
-            
-            const options = { weekday: 'short', month: 'short', day: 'numeric' };
-            const formattedDate = dueDate.toLocaleDateString('en-US', options);
-            document.getElementById('modalTaskHeaderDueDate').textContent = `${dueDateText}`;
-            document.getElementById('modalTaskDueDate').textContent = formattedDate;
-            
-            // Scheduled Time
-            const scheduledContainer = document.getElementById('modalTaskScheduledContainer');
-            const scheduledTimeText = document.getElementById('modalTaskScheduledTime');
-            if (task.scheduled_time) {
-                const scheduledTime = new Date(task.scheduled_time);
-                scheduledTimeText.textContent = scheduledTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-                scheduledContainer.classList.remove('hidden');
-            } else {
-                scheduledContainer.classList.add('hidden');
-            }
-            
-            // Type and Subtype
-            document.getElementById('modalTaskType').textContent = task.task_type.name;
-            document.getElementById('modalTaskSubtype').textContent = task.task_subtype.name;
-            
-            // Contact
-            const contactLink = document.getElementById('modalTaskContact');
-            contactLink.textContent = `${task.contact.first_name} ${task.contact.last_name}`;
-            contactLink.href = `/contacts/${task.contact.id}`;
-            
-            // Property Address
-            const propertyContainer = document.getElementById('modalTaskPropertyContainer');
-            if (task.property_address) {
-                document.getElementById('modalTaskProperty').textContent = task.property_address;
-                propertyContainer.classList.remove('hidden');
-            } else {
-                propertyContainer.classList.add('hidden');
-            }
-            
-            // Description
-            document.getElementById('modalTaskDescription').textContent = task.description || 'No description provided';
-            
-            // Status Button
-            const statusButton = document.getElementById('modalTaskStatusButton');
-            statusButton.textContent = task.status === 'completed' ? 'Mark as Pending' : 'Mark as Complete';
-            
-            // Show modal
-            document.getElementById('taskModal').classList.remove('hidden');
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error loading task details');
-        });
-}
-
-function closeTaskModal() {
-    document.getElementById('taskModal').classList.add('hidden');
-    currentTaskId = null;
-}
-
-function toggleTaskStatus() {
-    if (!currentTaskId) return;
-    
-    const newStatus = document.getElementById('modalTaskStatus').textContent.toLowerCase() === 'completed' ? 'pending' : 'completed';
-    
-    quickUpdateStatus(currentTaskId, newStatus === 'completed');
-}
-
-function deleteTaskFromModal() {
-    if (!currentTaskId) return;
-    
-    if (confirm('Are you sure you want to delete this task?')) {
-        deleteTask(currentTaskId);
-    }
-}
-
-// Close modal when clicking outside or pressing Escape
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeTaskModal();
-    }
-});
-
-document.addEventListener('click', function(event) {
-    const modal = document.getElementById('taskModal');
-    const modalContent = modal.querySelector('.relative');
-    
-    if (!modal.classList.contains('hidden') && 
-        !modalContent.contains(event.target)) {
-        closeTaskModal();
-    }
-});
-
-// Handle clicks on the modal backdrop
-const taskModal = document.getElementById('taskModal');
-taskModal.addEventListener('mousedown', function(event) {
-    // Only close if clicking directly on the backdrop (the outermost div)
-    // and not on any of its children
-    if (event.target === taskModal) {
-        closeTaskModal();
-    }
-});
-
-// Remove the old event listeners that might interfere
-document.querySelector('#taskModal .relative').removeEventListener('click', function(event) {
-    event.stopPropagation();
-});
-
-// Update task links to use modal
-document.addEventListener('DOMContentLoaded', function() {
-    const taskLinks = document.querySelectorAll('a[href^="/tasks/"][href$="/edit"]');
-    taskLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const taskId = this.getAttribute('href').split('/')[2];
-            openTaskModal(taskId);
-        });
-    });
-});
-
 function openContactModal(contactId) {
-    // Fetch contact details
     fetch(`/contact/${contactId}`, {
         headers: {
             'X-Requested-With': 'XMLHttpRequest'
@@ -729,13 +437,11 @@ function openContactModal(contactId) {
     })
     .then(response => response.json())
     .then(contact => {
-        // Update modal content
         document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
         document.getElementById('modalContactInitials').textContent = `${contact.first_name[0]}${contact.last_name[0]}`;
         document.getElementById('modalContactEmail').textContent = contact.email || 'Not provided';
         document.getElementById('modalContactPhone').textContent = contact.phone || 'Not provided';
         
-        // Address - Updated to match view_task.html implementation
         const addressParts = [];
         if (contact.street_address) addressParts.push(contact.street_address);
         if (contact.city) addressParts.push(contact.city);
@@ -746,24 +452,19 @@ function openContactModal(contactId) {
         document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes';
         document.getElementById('modalContactCommission').textContent = contact.potential_commission ? `$${contact.potential_commission}` : 'Not set';
 
-        // Update groups
         const groupsContainer = document.getElementById('modalContactGroups');
         groupsContainer.innerHTML = '';
         if (contact.groups && contact.groups.length > 0) {
             contact.groups.forEach(group => {
                 const badge = document.createElement('span');
-                badge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800';
+                badge.className = 'inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium bg-orange-100 text-orange-800';
                 badge.textContent = group.name;
                 groupsContainer.appendChild(badge);
             });
         } else {
-            const noGroups = document.createElement('span');
-            noGroups.className = 'text-gray-500 text-sm';
-            noGroups.textContent = 'No groups';
-            groupsContainer.appendChild(noGroups);
+            groupsContainer.innerHTML = '<span class="text-slate-400 text-sm">No groups</span>';
         }
 
-        // Show modal
         document.getElementById('contactModal').classList.remove('hidden');
     })
     .catch(error => {
@@ -775,5 +476,18 @@ function openContactModal(contactId) {
 function closeContactModal() {
     document.getElementById('contactModal').classList.add('hidden');
 }
+
+// Close modal on escape or outside click
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeContactModal();
+    }
+});
+
+document.getElementById('contactModal').addEventListener('click', function(event) {
+    if (event.target === this) {
+        closeContactModal();
+    }
+});
 </script>
 {% endblock %} 

@@ -252,7 +252,7 @@
                                     <!-- Task Info (Middle) -->
                                     <div class="flex-1 min-w-0 ml-4">
                                         <div class="flex items-center flex-wrap gap-2">
-                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
+                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
                                                class="text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors">
                                                 {{ task.subject }}
                                             </a>
@@ -321,7 +321,7 @@
                                     <!-- Right Side: Quick Actions -->
                                     <div class="flex items-center space-x-2 ml-4">
                                         <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">
-                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
+                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
                                                class="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
                                                title="View Details">
                                                 <i class="fas fa-eye"></i>
