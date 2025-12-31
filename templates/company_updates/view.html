@@ -243,7 +243,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2 mb-1">
                                     <span class="font-semibold text-slate-800">{{ comment.user.first_name }} {{ comment.user.last_name }}</span>
-                                    <span class="text-xs text-slate-400">{{ comment.created_at.strftime('%b %d, %Y at %I:%M %p') }}</span>
+                                    <span class="text-xs text-slate-400">{{ (comment.created_at | to_central).strftime('%b %d, %Y at %I:%M %p') }}</span>
                                 </div>
                                 <p class="text-slate-600 whitespace-pre-wrap">{{ comment.content }}</p>
                                 {% if comment.user_id == current_user.id or current_user.role == 'admin' %}
@@ -281,7 +281,7 @@
                         </div>
                         <div class="min-w-0">
                             <p class="text-sm font-medium text-slate-700 truncate">{{ view.user.first_name }} {{ view.user.last_name }}</p>
-                            <p class="text-xs text-slate-400">{{ view.viewed_at.strftime('%b %d, %I:%M %p') }}</p>
+                            <p class="text-xs text-slate-400">{{ (view.viewed_at | to_central).strftime('%b %d, %I:%M %p') }}</p>
                         </div>
                     </div>
                     {% endfor %}

@@ -3,8 +3,13 @@ load_dotenv()  # Load .env file before any other imports
 
 import warnings
 import html
+import pytz
+from datetime import datetime
 from sqlalchemy.exc import SAWarning
 warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .* will copy column .*')
+
+# Timezone for display (Central Time)
+CENTRAL_TZ = pytz.timezone('America/Chicago')
 
 from flask import Flask, render_template
 from flask_login import LoginManager
@@ -38,6 +43,17 @@ def create_app():
     # Add custom filters for templates
     app.jinja_env.filters['abs'] = abs
     app.jinja_env.filters['unescape'] = html.unescape
+    
+    def to_central_time(dt):
+        """Convert UTC datetime to Central Time for display."""
+        if dt is None:
+            return None
+        # Assume dt is naive UTC, make it aware
+        utc_dt = pytz.utc.localize(dt)
+        # Convert to Central Time
+        return utc_dt.astimezone(CENTRAL_TZ)
+    
+    app.jinja_env.filters['to_central'] = to_central_time
 
     # Initialize Flask-Mail
     mail = Mail()
