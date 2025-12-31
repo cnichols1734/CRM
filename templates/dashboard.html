@@ -126,7 +126,7 @@
                         <div class="flex items-center gap-2 text-white min-w-0">
                             <span class="font-semibold truncate">{{ latest_update.title }}</span>
                             <span class="hidden sm:inline text-white/70">—</span>
-                            <span class="hidden sm:inline text-white/80 text-sm truncate">{{ latest_update.excerpt[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
+                            <span class="hidden sm:inline text-white/80 text-sm truncate">{{ (latest_update.excerpt | unescape)[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
                         </div>
                     </div>
                     

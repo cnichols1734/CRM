@@ -8,6 +8,7 @@ from flask_login import login_required, current_user
 from models import db, CompanyUpdate
 from datetime import datetime
 import re
+import html
 
 company_updates_bp = Blueprint('company_updates', __name__)
 
@@ -26,6 +27,8 @@ def generate_excerpt(content, max_length=200):
     """Generate a plain text excerpt from HTML content."""
     # Remove HTML tags
     text = re.sub(r'<[^>]+>', '', content)
+    # Decode HTML entities (like &nbsp; &amp; etc.)
+    text = html.unescape(text)
     # Normalize whitespace
     text = ' '.join(text.split())
     # Truncate
