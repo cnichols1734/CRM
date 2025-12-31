@@ -252,21 +252,32 @@ class CRMTestSuite:
             self.page.fill('input[name="zip_code"]', "78701")
             
             # Select at least one group (required by form validation)
-            first_group_checkbox = self.page.locator('input[name="group_ids"]').first
-            if first_group_checkbox.count() > 0:
-                first_group_checkbox.check()
-            self.log("", "ok")
+            group_checkboxes = self.page.locator('input[name="group_ids"]')
+            group_count = group_checkboxes.count()
+            if group_count > 0:
+                group_checkboxes.first.check()
+                self.log("", "ok")
+            else:
+                self.log("", "fail")
+                raise Exception("No contact groups found in database - cannot create contact without a group")
             
             # Submit form (uses button, not input)
             self.log("Submitting form...", "step")
             self.page.click('button[type="submit"]')
             self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_timeout(2000)
+            
+            # Check if we were redirected (success) or stayed on form (validation failed)
+            current_url = self.page.url
+            if '/contacts/create' in current_url:
+                # Still on form - validation failed
+                body_text = self.page.locator("body").inner_text()
+                self.log("", "fail")
+                raise Exception(f"Form submission failed - still on create page. Check for validation errors.")
             self.log("", "ok")
             
             # Verify success - should redirect to index with flash message
             self.log("Verifying contact created...", "step")
-            # Wait for redirect to complete
-            self.page.wait_for_timeout(2000)
             
             # Check if we got the success flash message or are on index page
             body_text = self.page.locator("body").inner_text()
