@@ -771,14 +771,17 @@ class CRMTestSuite:
             except Exception as e:
                 print(f" {Colors.RED}ERROR: {e}{Colors.END}")
         
-        # Delete contacts
+        # Delete contacts (with force=true to cascade delete associated data)
         for contact_id in self.cleanup_registry['contacts']:
             try:
                 self.log(f"  → Deleting contact ID: {contact_id}...", "step")
                 response = self.page.evaluate(f'''
                     async () => {{
+                        const formData = new FormData();
+                        formData.append('force', 'true');
                         const response = await fetch('/contacts/{contact_id}/delete', {{
-                            method: 'POST'
+                            method: 'POST',
+                            body: formData
                         }});
                         return {{ status: response.status, ok: response.ok }};
                     }}
