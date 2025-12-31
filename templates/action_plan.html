@@ -928,8 +928,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('lastUpdated');
     if (el && el.dataset.utc) {
         try {
-            // Parse the UTC datetime
-            const utcDate = new Date(el.dataset.utc);
+            // Parse the UTC datetime - add 'Z' to ensure it's treated as UTC
+            let utcString = el.dataset.utc;
+            // If the string doesn't end with 'Z', add it to indicate UTC
+            if (!utcString.endsWith('Z') && !utcString.includes('+') && !utcString.includes('-', 10)) {
+                utcString += 'Z';
+            }
+            const utcDate = new Date(utcString);
             
             // Convert to Central Time and format
             const options = {
