@@ -420,7 +420,7 @@
                 {% if existing_plan %}
                 <div class="px-6 md:px-10 py-4 bg-slate-50 border-t border-slate-100 flex items-center text-sm text-slate-500">
                     <i class="fas fa-clock mr-2 text-slate-400"></i>
-                    Last updated: {{ existing_plan.updated_at.strftime('%B %d, %Y at %I:%M %p') if existing_plan.updated_at else 'N/A' }}
+                    Last updated: <span id="lastUpdated" data-utc="{{ existing_plan.updated_at.isoformat() if existing_plan.updated_at else '' }}">{{ existing_plan.updated_at.strftime('%B %d, %Y at %I:%M %p') if existing_plan.updated_at else 'N/A' }}</span>
                 </div>
                 {% endif %}
             </div>
@@ -927,17 +927,35 @@
 document.addEventListener('DOMContentLoaded', function() {
     const el = document.getElementById('lastUpdated');
     if (el && el.dataset.utc) {
-        const utcDate = new Date(el.dataset.utc + 'Z'); // Add Z to ensure it is treated as UTC
-        const formatted = utcDate.toLocaleString('en-US', {
-            timeZone: 'America/Chicago',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-        el.textContent = formatted.replace(',', ' at');
+        try {
+            // Parse the UTC datetime
+            const utcDate = new Date(el.dataset.utc);
+            
+            // Convert to Central Time and format
+            const options = {
+                timeZone: 'America/Chicago',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            };
+            
+            const formatted = utcDate.toLocaleString('en-US', options);
+            
+            // Replace the comma between date and time with " at "
+            // Format is typically "Month Day, Year, Hour:Minute AM/PM"
+            const parts = formatted.split(', ');
+            if (parts.length >= 3) {
+                el.textContent = parts[0] + ', ' + parts[1] + ' at ' + parts[2];
+            } else {
+                el.textContent = formatted;
+            }
+        } catch (e) {
+            console.error('Error converting timestamp:', e);
+            // Keep the original fallback text if conversion fails
+        }
     }
 });
 </script>
