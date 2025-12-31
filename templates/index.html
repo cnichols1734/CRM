@@ -4,6 +4,98 @@
 {% block mobile_title %}Contacts{% endblock %}
 
 {% block content %}
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-2 { 
+        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
+        opacity: 0; 
+    }
+    
+    /* Premium table styling */
+    .premium-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .premium-table thead th {
+        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+        color: #475569;
+    }
+    .premium-table tbody tr {
+        transition: all 0.15s ease-out;
+    }
+    .premium-table tbody tr:hover {
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.03));
+    }
+    
+    /* Premium filter pill styling */
+    .filter-pill {
+        transition: all 0.2s ease-out;
+    }
+    .filter-pill:hover:not(.active) {
+        background-color: #f1f5f9;
+    }
+    .filter-pill.active {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
+    }
+    
+    /* Premium search input */
+    .premium-search {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+    }
+    .premium-search:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+    
+    /* Premium button styling */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Mobile card styling */
+    .mobile-contact-card {
+        background: white;
+        border-radius: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: all 0.2s ease-out;
+    }
+    .mobile-contact-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+</style>
+
 <script>
 function sortTable(column) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -42,12 +134,22 @@ function clearSort() {
 }
 </script>
 
-<div class="p-6">
+<!-- Premium gradient background - full width -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+<div class="p-4 md:p-6">
     <!-- Header Section -->
-    <div class="flex justify-between items-center mb-6">
-        <div class="flex items-center space-x-2">
-            <h1 class="text-2xl font-semibold text-gray-900 hidden md:block">Contacts</h1>
-            <span class="text-sm text-gray-500 translate-y-0.5 ml-2">{{ total_contacts }} record{% if total_contacts != 1 %}s{% endif %}</span>
+    <div class="flex justify-between items-center mb-6 animate-fade-in-up">
+        <div class="flex items-center space-x-3">
+            <!-- Animated Icon -->
+            <div class="hidden md:flex w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg">
+                <i class="fas fa-address-book text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-orange-600 bg-clip-text text-transparent hidden md:block">
+                    Contacts
+                </h1>
+                <span class="text-sm text-slate-500">{{ total_contacts }} record{% if total_contacts != 1 %}s{% endif %}</span>
+            </div>
         </div>
         <div class="flex items-center space-x-3">
             <!-- Mobile Search Button -->
@@ -135,19 +237,19 @@ function clearSort() {
         </div>
     </div>
 
-    <!-- Filter Tabs -->
-    <div class="border-b mb-4">
-        <div class="flex space-x-6">
+    <!-- Filter Tabs - Premium Pills -->
+    <div class="mb-6 animate-fade-in-up-delay-1">
+        <div class="inline-flex items-center p-1 bg-slate-100 rounded-xl">
             {% if current_user.role == 'admin' %}
                 <button 
-                    class="px-4 py-2 text-sm {% if show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                    class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if show_all %}active{% else %}text-slate-600{% endif %}"
                     onclick="window.location.href='{{ url_for('main.index', view='all') }}';"
                 >
                     All contacts
                 </button>
             {% endif %}
             <button 
-                class="px-4 py-2 text-sm {% if not show_all %}text-blue-600 border-b-2 border-blue-600{% else %}text-gray-600 hover:text-gray-800{% endif %}"
+                class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if not show_all %}active{% else %}text-slate-600{% endif %}"
                 onclick="window.location.href = '{{ url_for('main.index', view='my') }}';"
             >
                 My contacts
@@ -155,31 +257,32 @@ function clearSort() {
         </div>
     </div>
 
-    <!-- Desktop Search Bar -->
-    <div class="mb-4 items-center justify-between hidden md:flex">
+    <!-- Desktop Search Bar - Premium Styling -->
+    <div class="mb-4 items-center justify-between hidden md:flex animate-fade-in-up-delay-2">
         <div class="relative">
             <input
                 type="text"
                 id="searchInput"
                 placeholder="Search name, phone, email..."
-                class="w-64 pl-8 pr-8 py-2 border rounded text-sm"
+                class="premium-search w-72 pl-10 pr-10 py-2.5 text-sm"
                 value="{{ request.args.get('q', '') }}"
                 autocomplete="off"
             >
-            <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
             <button 
                 id="clearSearch" 
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hidden"
                 type="button"
             >
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="flex items-center space-x-3">
-            {% if current_sort != 'created_at' or current_dir != 'desc' %}
+            {# Fix: Show Clear Sort only when actively sorting (not default name/asc) #}
+            {% if current_sort != 'name' or current_dir != 'asc' %}
                 <button 
                     onclick="clearSort()" 
-                    class="text-sm px-3 py-1.5 border rounded text-blue-600 hover:bg-blue-50 flex items-center space-x-1"
+                    class="premium-btn text-sm px-4 py-2 border-2 border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center space-x-2"
                 >
                     <i class="fas fa-times-circle"></i>
                     <span>Clear sort</span>
@@ -187,19 +290,16 @@ function clearSort() {
             {% endif %}
             <button 
                 onclick="toggleFilters()"
-                class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50 flex items-center space-x-1"
+                class="premium-btn text-sm px-4 py-2 border-2 border-slate-200 text-slate-700 bg-white hover:bg-slate-50 flex items-center space-x-2"
             >
-                <i class="fas fa-filter"></i>
+                <i class="fas fa-filter text-slate-400"></i>
                 <span>Filters</span>
-                <span id="activeFiltersCount" class="hidden ml-1 bg-blue-100 text-blue-800 text-xs px-1.5 rounded-full"></span>
+                <span id="activeFiltersCount" class="hidden ml-1 bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium"></span>
             </button>
             <a href="{{ url_for('contacts.export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}" 
-               class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
-                Export
+               class="premium-btn text-sm px-4 py-2 border-2 border-slate-200 text-slate-700 bg-white hover:bg-slate-50">
+                <i class="fas fa-download mr-2 text-slate-400"></i>Export
             </a>
-            <button class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
-                Edit columns
-            </button>
         </div>
     </div>
 
@@ -242,19 +342,22 @@ function clearSort() {
         }
     </style>
 
-    <div id="filterPanel" class="mb-6 bg-white border rounded-lg shadow-sm">
-        <div class="p-4">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg font-medium text-gray-900">Filters</h3>
+    <div id="filterPanel" class="mb-6 bg-white border-2 border-slate-200 rounded-2xl shadow-lg overflow-hidden">
+        <div class="p-5">
+            <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center space-x-3">
-                    <button 
-                        onclick="clearAllFilters()" 
-                        class="px-3 py-1.5 text-sm border border-red-200 text-red-600 rounded hover:bg-red-50 flex items-center space-x-1"
-                    >
-                        <i class="fas fa-times-circle"></i>
-                        <span>Clear all filters</span>
-                    </button>
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                        <i class="fas fa-sliders-h text-white"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">Filters</h3>
                 </div>
+                <button 
+                    onclick="clearAllFilters()" 
+                    class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center space-x-2"
+                >
+                    <i class="fas fa-times-circle"></i>
+                    <span>Clear all</span>
+                </button>
             </div>
             
             <form id="filterForm" class="space-y-6" onsubmit="applyFilters(event)">
@@ -311,15 +414,15 @@ function clearSort() {
                 </div>
 
                 <!-- Combined Active Filters and Apply Button Section -->
-                <div class="flex items-center justify-end pt-4 border-t">
+                <div class="flex items-center justify-end pt-5 border-t border-slate-200">
                     <div id="activeFilters" class="flex-grow mr-auto">
                         <div class="flex flex-wrap gap-2" id="activeFilterTags"></div>
                     </div>
                     <button 
                         type="submit"
-                        class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex-shrink-0"
+                        class="premium-btn bg-gradient-to-r from-orange-500 to-orange-600 text-white px-6 py-2.5 font-medium shadow-lg hover:shadow-xl flex-shrink-0"
                     >
-                        Apply Filters
+                        <i class="fas fa-check mr-2"></i>Apply Filters
                     </button>
                 </div>
             </form>
@@ -855,10 +958,10 @@ function clearSort() {
     });
     </script>
 
-    <!-- Mobile Card View -->
-    <div class="md:hidden space-y-4 pb-20">
+    <!-- Mobile Card View - Premium Styling -->
+    <div class="md:hidden space-y-3 pb-20">
         {% for contact in contacts %}
-        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="mobile-contact-card border border-slate-200 overflow-hidden">
             <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="block">
                 <div class="p-4">
                     <div class="flex items-center justify-between mb-3">
@@ -937,150 +1040,151 @@ function clearSort() {
         {% endfor %}
     </div>
 
-    <!-- Desktop Table View -->
-    <div class="border rounded-lg overflow-hidden hidden md:block">
-        <table class="w-full">
-            <thead class="bg-gray-100 text-sm border-b">
+    <!-- Desktop Table View - Premium Styling with Full Width -->
+    <div class="border-2 border-slate-200 rounded-2xl overflow-hidden hidden md:block shadow-lg bg-white">
+        <table class="premium-table w-full">
+            <thead class="text-sm border-b-2 border-slate-200">
                 <tr>
-                    <th class="w-8 px-4 py-3">
-                        <input type="checkbox" class="rounded">
+                    <th class="w-8 px-4 py-4">
+                        <input type="checkbox" class="rounded border-slate-300">
                     </th>
                     {% if current_user.role == 'admin' and show_all %}
-                    <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('owner')">
+                    <th class="w-48 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('owner')">
                             <span>OWNER</span>
                             <i class="fas fa-sort{% if current_sort == 'owner' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'owner' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'owner' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
                     {% endif %}
-                    <th class="w-64 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('name')">
+                    <th class="w-64 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('name')">
                             <span>NAME</span>
                             <i class="fas fa-sort{% if current_sort == 'name' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'name' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'name' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('email')">
+                    <th class="w-48 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('email')">
                             <span>EMAIL</span>
                             <i class="fas fa-sort{% if current_sort == 'email' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'email' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'email' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('phone')">
+                    <th class="w-40 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('phone')">
                             <span>PHONE</span>
                             <i class="fas fa-sort{% if current_sort == 'phone' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'phone' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'phone' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-64 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1">
+                    <th class="w-64 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2">
                             <span>GROUPS</span>
-                            <i class="fas fa-sort text-gray-400 hover:text-gray-600 cursor-pointer"></i>
                         </div>
                     </th>
-                    <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('address')">
+                    <th class="w-48 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('address')">
                             <span>ADDRESS</span>
                             <i class="fas fa-sort{% if current_sort == 'address' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'address' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'address' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-48 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('potential_commission')">
-                            <span>POTENTIAL COMM</span>
+                    <th class="w-48 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('potential_commission')">
+                            <span>COMMISSION</span>
                             <i class="fas fa-sort{% if current_sort == 'potential_commission' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'potential_commission' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'potential_commission' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('created_at')">
-                            <span>CREATE DATE</span>
+                    <th class="w-40 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('created_at')">
+                            <span>CREATED</span>
                             <i class="fas fa-sort{% if current_sort == 'created_at' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'created_at' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'created_at' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
-                    <th class="w-40 px-4 py-3 font-medium text-gray-600 border-l text-sm">
-                        <div class="flex items-center space-x-1 cursor-pointer" onclick="sortTable('last_contact_date')">
+                    <th class="w-40 px-4 py-4 border-l border-slate-200">
+                        <div class="flex items-center space-x-2 cursor-pointer hover:text-orange-600 transition-colors" onclick="sortTable('last_contact_date')">
                             <span>LAST CONTACT</span>
                             <i class="fas fa-sort{% if current_sort == 'last_contact_date' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} 
-                               text-{% if current_sort == 'last_contact_date' %}gray-800{% else %}gray-400{% endif %} hover:text-gray-600"></i>
+                               {% if current_sort == 'last_contact_date' %}text-orange-500{% else %}text-slate-400{% endif %}"></i>
                         </div>
                     </th>
                 </tr>
             </thead>
-            <tbody class="divide-y text-sm">
+            <tbody class="divide-y divide-slate-100 text-sm">
                 {% for contact in contacts %}
-                <tr class="hover:bg-gray-50 h-16 cursor-pointer" onclick="window.location.href='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">
+                <tr class="h-14 cursor-pointer bg-white" onclick="window.location.href='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">
                     <td class="px-4" onclick="event.stopPropagation()">
-                        <input type="checkbox" class="rounded">
+                        <input type="checkbox" class="rounded border-slate-300">
                     </td>
                     {% if current_user.role == 'admin' and show_all %}
-                    <td class="px-4 border-l">
+                    <td class="px-4 border-l border-slate-100">
                         <div class="flex items-center">
-                            <div class="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs mr-2 flex-shrink-0">
+                            <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs mr-2 flex-shrink-0 font-medium text-slate-600">
                                 {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
                             </div>
-                            <span class="text-gray-600 text-sm">
+                            <span class="text-slate-600 text-sm">
                                 {{ contact.owner.first_name }} {{ contact.owner.last_name }}
                             </span>
                         </div>
                     </td>
                     {% endif %}
-                    <td class="px-4 border-l">
+                    <td class="px-4 border-l border-slate-100">
                         <div class="flex items-center">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm mr-2 flex-shrink-0 text-gray-600
-                                {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                                {% set colors = {
-                                    'A': 'bg-blue-100', 'B': 'bg-rose-100', 'C': 'bg-green-100', 
-                                    'D': 'bg-amber-100', 'E': 'bg-purple-100', 'F': 'bg-pink-100',
-                                    'G': 'bg-indigo-100', 'H': 'bg-teal-100', 'I': 'bg-orange-100',
-                                    'J': 'bg-cyan-100', 'K': 'bg-lime-100', 'L': 'bg-emerald-100',
-                                    'M': 'bg-sky-100', 'N': 'bg-violet-100', 'O': 'bg-fuchsia-100',
-                                    'P': 'bg-red-100', 'Q': 'bg-yellow-100', 'R': 'bg-blue-200',
-                                    'S': 'bg-rose-200', 'T': 'bg-green-200', 'U': 'bg-amber-200',
-                                    'V': 'bg-purple-200', 'W': 'bg-pink-200', 'X': 'bg-indigo-200',
-                                    'Y': 'bg-teal-200', 'Z': 'bg-orange-200'
-                                } %}
-                                {{ colors[initials[0]] or 'bg-gray-100' }}"
-                            >
+                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                            {% set colors = {
+                                'A': 'from-blue-400 to-blue-500', 'B': 'from-rose-400 to-rose-500', 
+                                'C': 'from-green-400 to-green-500', 'D': 'from-amber-400 to-amber-500',
+                                'E': 'from-purple-400 to-purple-500', 'F': 'from-pink-400 to-pink-500',
+                                'G': 'from-indigo-400 to-indigo-500', 'H': 'from-teal-400 to-teal-500',
+                                'I': 'from-orange-400 to-orange-500', 'J': 'from-cyan-400 to-cyan-500',
+                                'K': 'from-lime-400 to-lime-500', 'L': 'from-emerald-400 to-emerald-500',
+                                'M': 'from-sky-400 to-sky-500', 'N': 'from-violet-400 to-violet-500',
+                                'O': 'from-fuchsia-400 to-fuchsia-500', 'P': 'from-red-400 to-red-500',
+                                'Q': 'from-yellow-400 to-yellow-500', 'R': 'from-blue-500 to-blue-600',
+                                'S': 'from-rose-500 to-rose-600', 'T': 'from-green-500 to-green-600',
+                                'U': 'from-amber-500 to-amber-600', 'V': 'from-purple-500 to-purple-600',
+                                'W': 'from-pink-500 to-pink-600', 'X': 'from-indigo-500 to-indigo-600',
+                                'Y': 'from-teal-500 to-teal-600', 'Z': 'from-orange-500 to-orange-600'
+                            } %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br {{ colors[initials[0]] or 'from-slate-400 to-slate-500' }} flex items-center justify-center text-sm mr-3 flex-shrink-0 text-white font-medium shadow-sm">
                                 {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                             </div>
-                            <span class="text-gray-900 text-sm overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[180px]">
+                            <span class="text-slate-800 font-medium text-sm overflow-hidden overflow-ellipsis whitespace-nowrap max-w-[180px]">
                                 {{ contact.first_name }} {{ contact.last_name }}
                             </span>
                         </div>
                     </td>
-                    <td class="px-4 border-l">
-                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-gray-900">
+                    <td class="px-4 border-l border-slate-100">
+                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-slate-700">
                             {{ contact.email or '--' }}
                         </div>
                     </td>
-                    <td class="px-4 border-l">
-                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap">
+                    <td class="px-4 border-l border-slate-100">
+                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-slate-600">
                             {{ contact.phone or '--' }}
                         </div>
                     </td>
-                    <td class="px-4 border-l relative">
+                    <td class="px-4 border-l border-slate-100 relative">
                         <div class="flex flex-wrap gap-1 max-h-12 overflow-hidden relative">
                             {% for group in contact.groups[:2] %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-slate-100 to-slate-50 text-slate-600 border border-slate-200 whitespace-nowrap">
                                     {{ group.name }}
                                 </span>
                             {% else %}
-                                --
+                                <span class="text-slate-400">--</span>
                             {% endfor %}
                             {% if contact.groups|length > 2 %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                    +{{ contact.groups|length - 2 }} more
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-50 text-orange-600 border border-orange-200">
+                                    +{{ contact.groups|length - 2 }}
                                 </span>
                             {% endif %}
                         </div>
                     </td>
-                    <td class="px-4 border-l relative group">
-                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap">
+                    <td class="px-4 border-l border-slate-100 relative group">
+                        <div class="overflow-hidden overflow-ellipsis whitespace-nowrap text-slate-600">
                             {% set address_parts = [] %}
                             {% if contact.street_address %}
                                 {% set _ = address_parts.append(contact.street_address) %}
@@ -1097,35 +1201,41 @@ function clearSort() {
                             {{ address_parts|join(', ') or '--' }}
                         </div>
                         {% if address_parts|length > 0 %}
-                            <div class="hidden group-hover:block absolute z-10 bg-gray-800 text-white text-sm rounded p-2 -mt-2 ml-2">
+                            <div class="hidden group-hover:block absolute z-10 bg-slate-800 text-white text-sm rounded-lg p-3 -mt-2 ml-2 shadow-lg">
                                 {{ address_parts|join(', ') }}
                             </div>
                         {% endif %}
                     </td>
-                    <td class="px-4 border-l">
-                        <div class="text-right">
+                    <td class="px-4 border-l border-slate-100">
+                        <div class="text-right font-medium">
                             {% if contact.potential_commission is not none %}
-                                ${{ "{:,.2f}".format(contact.potential_commission|float) }}
+                                <span class="text-green-600">${{ "{:,.2f}".format(contact.potential_commission|float) }}</span>
                             {% else %}
-                                $0.00
+                                <span class="text-slate-400">$0.00</span>
                             {% endif %}
                         </div>
                     </td>
-                    <td class="px-4 border-l whitespace-nowrap">
+                    <td class="px-4 border-l border-slate-100 whitespace-nowrap text-slate-600">
                         {{ contact.created_at.strftime('%b %d, %Y') }}
                     </td>
-                    <td class="px-4 border-l whitespace-nowrap">
+                    <td class="px-4 border-l border-slate-100 whitespace-nowrap">
                         {% if contact.last_contact_date %}
-                            {{ contact.last_contact_date.strftime('%b %d, %Y') }}
+                            <span class="text-slate-600">{{ contact.last_contact_date.strftime('%b %d, %Y') }}</span>
                         {% else %}
-                            <span class="text-gray-400">Never</span>
+                            <span class="text-slate-400 italic">Never</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="{{ '9' if current_user.role == 'admin' and show_all else '8' }}" class="px-4 py-8 text-center text-gray-500 text-sm">
-                        No contacts found. Click "Create contact" to add one.
+                    <td colspan="{{ '10' if current_user.role == 'admin' and show_all else '9' }}" class="px-4 py-12 text-center">
+                        <div class="flex flex-col items-center">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center mb-4">
+                                <i class="fas fa-users text-2xl text-slate-400"></i>
+                            </div>
+                            <p class="text-slate-600 font-medium mb-1">No contacts found</p>
+                            <p class="text-slate-400 text-sm">Click "Create contact" to add your first one</p>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -1133,47 +1243,49 @@ function clearSort() {
         </table>
     </div>
 
-    <!-- Pagination -->
-    <div class="flex items-center justify-between mt-4 pb-20 md:pb-4">
-        <div class="flex items-center space-x-2">
+    <!-- Pagination - Premium Styling -->
+    <div class="flex items-center justify-between mt-6 pb-20 md:pb-6">
+        <div class="flex items-center space-x-1">
             {% if pagination.has_prev %}
             <a href="{{ url_for('main.index', page=pagination.prev_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
-               class="px-2 py-1 text-gray-700 hover:text-gray-900">
-                <i class="fas fa-chevron-left"></i> Prev
+               class="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium">
+                <i class="fas fa-chevron-left mr-1"></i> Prev
             </a>
             {% else %}
-            <button class="px-2 py-1 text-gray-500 disabled:opacity-50" disabled>
-                <i class="fas fa-chevron-left"></i> Prev
+            <button class="px-4 py-2 text-slate-400 cursor-not-allowed" disabled>
+                <i class="fas fa-chevron-left mr-1"></i> Prev
             </button>
             {% endif %}
 
+            <div class="hidden md:flex items-center space-x-1">
             {% for page_num in pagination.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
                 {% if page_num %}
                     {% if page_num == pagination.page %}
-                    <span class="px-3 py-1 bg-blue-50 text-blue-600 rounded">{{ page_num }}</span>
+                    <span class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium shadow-sm">{{ page_num }}</span>
                     {% else %}
                     <a href="{{ url_for('main.index', page=page_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
-                       class="px-3 py-1 text-gray-700 hover:bg-gray-100 rounded">{{ page_num }}</a>
+                       class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium">{{ page_num }}</a>
                     {% endif %}
                 {% else %}
-                    <span class="px-2 text-gray-500">...</span>
+                    <span class="px-2 text-slate-400">...</span>
                 {% endif %}
             {% endfor %}
+            </div>
 
             {% if pagination.has_next %}
             <a href="{{ url_for('main.index', page=pagination.next_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q')) }}" 
-               class="px-2 py-1 text-gray-700 hover:text-gray-900">
-                Next <i class="fas fa-chevron-right"></i>
+               class="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium">
+                Next <i class="fas fa-chevron-right ml-1"></i>
             </a>
             {% else %}
-            <button class="px-2 py-1 text-gray-500 disabled:opacity-50" disabled>
-                Next <i class="fas fa-chevron-right"></i>
+            <button class="px-4 py-2 text-slate-400 cursor-not-allowed" disabled>
+                Next <i class="fas fa-chevron-right ml-1"></i>
             </button>
             {% endif %}
         </div>
         <div class="flex items-center space-x-2">
             <select id="perPageSelect" 
-                    class="text-sm text-gray-700 border rounded px-2 py-1"
+                    class="text-sm text-slate-600 border-2 border-slate-200 rounded-lg px-3 py-2 bg-white focus:border-orange-400 focus:outline-none transition-colors"
                     onchange="changePerPage(this.value)">
                 <option value="25" {% if per_page == 25 %}selected{% endif %}>25 per page</option>
                 <option value="50" {% if per_page == 50 %}selected{% endif %}>50 per page</option>
@@ -1954,4 +2066,6 @@ function quickUpdateStatus(taskId, completed) {
 }
 </script>
 
+</div>
+</div>
 {% endblock %}
