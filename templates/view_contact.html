@@ -356,42 +356,42 @@
                                     <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
                                 </div>
                                 <div class="space-y-6">
-                                    <!-- Current Objective -->
+                                <!-- Current Objective -->
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-2">What does this person want right now?</label>
-                                        <textarea name="current_objective" rows="3" 
+                                    <textarea name="current_objective" rows="3" 
                                                   class="premium-input resize-y">{{ contact.current_objective or '' }}</textarea>
                                         <p class="mt-2 text-sm text-slate-500">Ex: They want to buy a home, sell a home, they're looking for acreage, They are not looking to make a move right now, but I want to stay in touch with them.</p>
-                                    </div>
+                                </div>
 
-                                    <!-- Move Timeline -->
+                                <!-- Move Timeline -->
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-2">What is their timeline?</label>
-                                        <textarea name="move_timeline" rows="2" 
+                                    <textarea name="move_timeline" rows="2" 
                                                   class="premium-input resize-y">{{ contact.move_timeline or '' }}</textarea>
                                         <p class="mt-2 text-sm text-slate-500">Ex: They want to move now, within the next 6 months, or within a year?</p>
-                                    </div>
+                                </div>
 
-                                    <!-- Motivation -->
+                                <!-- Motivation -->
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-2">Why do they want to move?</label>
-                                        <textarea name="motivation" rows="2" 
+                                    <textarea name="motivation" rows="2" 
                                                   class="premium-input resize-y">{{ contact.motivation or '' }}</textarea>
                                         <p class="mt-2 text-sm text-slate-500">Ex: They are having a baby, want a larger home, moving for work, etc.</p>
-                                    </div>
+                                </div>
 
-                                    <!-- Financial Status -->
+                                <!-- Financial Status -->
                                     <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-2">Have they shared any financial details with you?</label>
-                                        <textarea name="financial_status" rows="3" 
+                                    <textarea name="financial_status" rows="3" 
                                                   class="premium-input resize-y">{{ contact.financial_status or '' }}</textarea>
                                         <p class="mt-2 text-sm text-slate-500">Ex: Their budget is $x, they have or have not been preapproved, they have $x for down payment, they have $x in home equity.</p>
-                                    </div>
+                                </div>
 
-                                    <!-- Additional Notes -->
-                                    <div>
+                                <!-- Additional Notes -->
+                                <div>
                                         <label class="block text-sm font-medium text-slate-700 mb-2">Any other details to share?</label>
-                                        <textarea name="additional_notes" rows="2" 
+                                    <textarea name="additional_notes" rows="2" 
                                                   class="premium-input resize-y">{{ contact.additional_notes or '' }}</textarea>
                                         <p class="mt-2 text-sm text-slate-500">Ex: No details at this time</p>
                                     </div>
@@ -552,40 +552,40 @@
                                     <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
                                 </div>
                                 <div class="space-y-4">
-                                    <!-- Current Objective -->
+                                <!-- Current Objective -->
                                     <div>
                                         <h3 class="text-sm font-medium text-slate-500 mb-2">What does this person want right now?</h3>
                                         <div class="info-box">
                                             <p class="text-slate-900 whitespace-pre-line">{{ contact.current_objective or 'No current objective specified' }}</p>
-                                        </div>
                                     </div>
+                                </div>
 
-                                    <!-- Move Timeline -->
+                                <!-- Move Timeline -->
                                     <div>
                                         <h3 class="text-sm font-medium text-slate-500 mb-2">What is their timeline?</h3>
                                         <div class="info-box">
                                             <p class="text-slate-900 whitespace-pre-line">{{ contact.move_timeline or 'No timeline specified' }}</p>
-                                        </div>
                                     </div>
+                                </div>
 
-                                    <!-- Motivation -->
+                                <!-- Motivation -->
                                     <div>
                                         <h3 class="text-sm font-medium text-slate-500 mb-2">Why do they want to move?</h3>
                                         <div class="info-box">
                                             <p class="text-slate-900 whitespace-pre-line">{{ contact.motivation or 'No motivation specified' }}</p>
-                                        </div>
                                     </div>
+                                </div>
 
-                                    <!-- Financial Status -->
+                                <!-- Financial Status -->
                                     <div>
                                         <h3 class="text-sm font-medium text-slate-500 mb-2">Have they shared any financial details with you?</h3>
                                         <div class="info-box">
                                             <p class="text-slate-900 whitespace-pre-line">{{ contact.financial_status or 'No financial details shared' }}</p>
-                                        </div>
                                     </div>
+                                </div>
 
-                                    <!-- Additional Notes -->
-                                    <div>
+                                <!-- Additional Notes -->
+                                <div>
                                         <h3 class="text-sm font-medium text-slate-500 mb-2">Any other details to share?</h3>
                                         <div class="info-box">
                                             <p class="text-slate-900 whitespace-pre-line">{{ contact.additional_notes or 'No additional details shared' }}</p>
@@ -1161,7 +1161,7 @@ function openTaskModal(taskId) {
         .then(task => {
             // Update modal content
             document.getElementById('modalTaskSubject').textContent = task.subject;
-            document.getElementById('modalTaskFullView').href = `/tasks/${task.id}`;
+            document.getElementById('modalTaskFullView').href = `/tasks/${task.id}?ref=contact&contact_id={{ contact.id }}`;
             
             // Owner Info (for admin view)
             if (modalConfig.isAdmin && modalConfig.showAll) {
