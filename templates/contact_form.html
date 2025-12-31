@@ -1,172 +1,300 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="p-6 max-w-4xl mx-auto">
-    <!-- Toast Message Container -->
-    <div id="toast-message" class="fixed top-4 left-1/2 transform -translate-x-1/2 hidden opacity-0 transition-opacity duration-300">
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md">
-            <div class="flex items-center">
-                <div class="py-1">
-                    <svg class="h-6 w-6 text-red-500 mr-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                </div>
-                <div>
-                    <p class="font-bold">Error</p>
-                    <p>Please select at least one group.</p>
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-2 { 
+        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-3 { 
+        animation: fadeInUp 0.6s ease-out 0.3s forwards; 
+        opacity: 0; 
+    }
+    
+    /* Premium input styling */
+    .premium-input {
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        font-size: 1rem;
+        transition: all 0.2s ease-out;
+    }
+    .premium-input:hover {
+        border-color: #cbd5e1;
+    }
+    .premium-input:focus {
+        outline: none;
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+    
+    /* Ensure textareas are full width */
+    textarea.premium-input {
+        min-height: 80px;
+        resize: vertical;
+    }
+    
+    /* Premium card hover effect */
+    .premium-card {
+        transition: all 0.3s ease;
+    }
+    .premium-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-6 max-w-4xl mx-auto">
+        <!-- Toast Message Container -->
+        <div id="toast-message" class="fixed top-4 left-1/2 transform -translate-x-1/2 hidden opacity-0 transition-opacity duration-300 z-50">
+            <div class="bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-xl shadow-lg backdrop-blur-sm">
+                <div class="flex items-center">
+                    <div class="py-1">
+                        <svg class="h-6 w-6 text-red-500 mr-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-bold">Error</p>
+                        <p>Please select at least one group.</p>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- Back button and header -->
-    <div class="flex items-center mb-6">
-        <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-900">
-            <i class="fas fa-arrow-left mr-2"></i>
-            Back
-        </button>
-    </div>
+        
+        <!-- Back button -->
+        <div class="flex items-center mb-6 animate-fade-in-up">
+            <button onclick="history.back()" class="flex items-center text-slate-600 hover:text-orange-600 transition-colors duration-200 group">
+                <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center mr-2 group-hover:border-orange-300 group-hover:shadow-md transition-all duration-200">
+                    <i class="fas fa-arrow-left text-sm"></i>
+                </div>
+                <span class="font-medium">Back</span>
+            </button>
+        </div>
 
-    <!-- Contact Header -->
-    <div class="mb-8">
-        <h1 class="text-2xl font-semibold">Create New Contact</h1>
-    </div>
+        <!-- Premium Header Section -->
+        <div class="mb-8 animate-fade-in-up-delay-1">
+            <div class="flex items-center gap-4">
+                <!-- Animated Icon -->
+                <div class="relative">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center shadow-lg">
+                        <i class="fas fa-user-plus text-2xl text-white"></i>
+                    </div>
+                    <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-orange-400 to-amber-400 blur-xl opacity-40 animate-pulse"></div>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                        Create New Contact
+                    </h1>
+                    <p class="text-slate-500 mt-1">Add a new contact to your CRM</p>
+                </div>
+            </div>
+        </div>
 
-    <!-- Contact Form -->
-    <div class="bg-white rounded-lg border shadow-sm">
-        <div class="p-6">
-            <form method="POST" action="{{ url_for('contacts.create_contact') }}" class="space-y-6">
-                {{ form.hidden_tag() }}
+        <!-- Contact Form Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden premium-card animate-fade-in-up-delay-2">
+            <div class="p-8">
+                <form method="POST" action="{{ url_for('contacts.create_contact') }}" class="space-y-8">
+                    {{ form.hidden_tag() }}
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- First Name -->
+                    <!-- Basic Information Section -->
                     <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">First Name</h3>
-                        {{ form.first_name(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.first_name.errors %}
-                            {% for error in form.first_name.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- First Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">First Name</label>
+                                {{ form.first_name(class="premium-input") }}
+                                {% if form.first_name.errors %}
+                                    {% for error in form.first_name.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Last Name -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Last Name</label>
+                                {{ form.last_name(class="premium-input") }}
+                                {% if form.last_name.errors %}
+                                    {% for error in form.last_name.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Email -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                                {{ form.email(class="premium-input") }}
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Phone -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Phone</label>
+                                {{ form.phone(id="phone", class="premium-input") }}
+                                {% if form.phone.errors %}
+                                    {% for error in form.phone.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Last Name -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Last Name</h3>
-                        {{ form.last_name(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.last_name.errors %}
-                            {% for error in form.last_name.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                    <!-- Address Section -->
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                                <i class="fas fa-map-marker-alt text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Address</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Street Address -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Street Address</label>
+                                {{ form.street_address(class="premium-input") }}
+                                {% if form.street_address.errors %}
+                                    {% for error in form.street_address.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <!-- Email -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Email</h3>
-                        {{ form.email(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.email.errors %}
-                            {% for error in form.email.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                            <!-- City -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">City</label>
+                                {{ form.city(class="premium-input") }}
+                                {% if form.city.errors %}
+                                    {% for error in form.city.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <!-- Phone -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Phone</h3>
-                        {{ form.phone(id="phone", class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.phone.errors %}
-                            {% for error in form.phone.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                            <!-- State -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">State</label>
+                                {{ form.state(class="premium-input") }}
+                                {% if form.state.errors %}
+                                    {% for error in form.state.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <!-- Street Address -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Street Address</h3>
-                        {{ form.street_address(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.street_address.errors %}
-                            {% for error in form.street_address.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <!-- City -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">City</h3>
-                        {{ form.city(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.city.errors %}
-                            {% for error in form.city.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <!-- State -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">State</h3>
-                        {{ form.state(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.state.errors %}
-                            {% for error in form.state.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <!-- ZIP Code -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">ZIP Code</h3>
-                        {{ form.zip_code(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.zip_code.errors %}
-                            {% for error in form.zip_code.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                            <!-- ZIP Code -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">ZIP Code</label>
+                                {{ form.zip_code(class="premium-input") }}
+                                {% if form.zip_code.errors %}
+                                    {% for error in form.zip_code.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Groups Section -->
-                    <div class="md:col-span-2 groups-section">
-                        <h3 class="text-sm font-medium text-gray-500 mb-3">Groups</h3>
-                        <div class="border rounded-lg p-6 bg-white">
-                            <div class="grid grid-cols-2 gap-3">
+                    <div class="pt-6 border-t border-slate-100 groups-section">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                                <i class="fas fa-users text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
+                            <span class="text-sm text-slate-500">(Select at least one)</span>
+                        </div>
+                        <div class="bg-slate-50/50 rounded-xl p-6 border border-slate-100">
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
                                 {% for group in form.group_ids.choices %}
-                                    <label class="inline-flex items-center px-4 py-2.5 rounded-lg text-sm
-                                                bg-gray-50 hover:bg-gray-100
-                                                border border-gray-200
-                                                cursor-pointer transition-colors duration-200">
+                                    <label class="relative flex items-center px-4 py-3 rounded-xl text-sm
+                                                bg-white hover:bg-orange-50
+                                                border-2 border-slate-200 hover:border-orange-300
+                                                cursor-pointer transition-all duration-200
+                                                has-[:checked]:bg-orange-50 has-[:checked]:border-orange-400">
                                         <input type="checkbox"
                                                name="group_ids"
                                                value="{{ group[0] }}"
-                                               class="form-checkbox h-4 w-4 mr-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                        <span class="text-gray-700">{{ group[1] }}</span>
+                                               class="form-checkbox h-4 w-4 mr-3 rounded border-slate-300 text-orange-500 focus:ring-orange-400">
+                                        <span class="text-slate-700 font-medium">{{ group[1] }}</span>
                                     </label>
                                 {% endfor %}
                             </div>
                         </div>
                     </div>
 
-                    <!-- Potential Commission -->
-                    <div>
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Potential Commission ($)</h3>
-                        {{ form.potential_commission(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300") }}
-                        {% if form.potential_commission.errors %}
-                            {% for error in form.potential_commission.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                    <!-- Business Details Section -->
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                                <i class="fas fa-dollar-sign text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Business Details</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Potential Commission -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Potential Commission ($)</label>
+                                {{ form.potential_commission(class="premium-input") }}
+                                {% if form.potential_commission.errors %}
+                                    {% for error in form.potential_commission.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Contact Dates Section -->
-                    <div class="md:col-span-2">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                                <i class="fas fa-calendar-alt text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Last Contact Dates</h2>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <!-- Last Email Date -->
                             <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Email Date</h3>
-                                {{ form.last_email_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Last Email Date</label>
+                                {{ form.last_email_date(class="premium-input", type="date") }}
                                 {% if form.last_email_date.errors %}
                                     {% for error in form.last_email_date.errors %}
                                         <p class="mt-2 text-sm text-red-600">{{ error }}</p>
@@ -176,8 +304,8 @@
 
                             <!-- Last Text Date -->
                             <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Text Date</h3>
-                                {{ form.last_text_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Last Text Date</label>
+                                {{ form.last_text_date(class="premium-input", type="date") }}
                                 {% if form.last_text_date.errors %}
                                     {% for error in form.last_text_date.errors %}
                                         <p class="mt-2 text-sm text-red-600">{{ error }}</p>
@@ -187,8 +315,8 @@
 
                             <!-- Last Phone Call Date -->
                             <div>
-                                <h3 class="text-sm font-medium text-gray-500 mb-1">Last Phone Call Date</h3>
-                                {{ form.last_phone_call_date(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", type="date") }}
+                                <label class="block text-sm font-medium text-slate-700 mb-2">Last Phone Call Date</label>
+                                {{ form.last_phone_call_date(class="premium-input", type="date") }}
                                 {% if form.last_phone_call_date.errors %}
                                     {% for error in form.last_phone_call_date.errors %}
                                         <p class="mt-2 text-sm text-red-600">{{ error }}</p>
@@ -198,91 +326,115 @@
                         </div>
                     </div>
 
-                    <!-- Client Objectives Section -->
-                    <div class="md:col-span-2">
-                        <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
-                        
-                        <!-- Current Objective -->
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.current_objective.label }}</h3>
-                            {{ form.current_objective(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="3") }}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.current_objective.description }}</p>
-                            {% if form.current_objective.errors %}
-                                {% for error in form.current_objective.errors %}
-                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
+                    <!-- Client Details Section -->
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                                <i class="fas fa-clipboard-list text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
                         </div>
+                        <div class="space-y-6">
+                            <!-- Current Objective -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.current_objective.label }}</label>
+                                {{ form.current_objective(class="premium-input resize-y", rows="3") }}
+                                <p class="mt-2 text-sm text-slate-500">{{ form.current_objective.description }}</p>
+                                {% if form.current_objective.errors %}
+                                    {% for error in form.current_objective.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                        <!-- Move Timeline -->
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.move_timeline.label }}</h3>
-                            {{ form.move_timeline(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.move_timeline.description }}</p>
-                            {% if form.move_timeline.errors %}
-                                {% for error in form.move_timeline.errors %}
-                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
+                            <!-- Move Timeline -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.move_timeline.label }}</label>
+                                {{ form.move_timeline(class="premium-input resize-y", rows="2") }}
+                                <p class="mt-2 text-sm text-slate-500">{{ form.move_timeline.description }}</p>
+                                {% if form.move_timeline.errors %}
+                                    {% for error in form.move_timeline.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Motivation -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.motivation.label }}</label>
+                                {{ form.motivation(class="premium-input resize-y", rows="2") }}
+                                <p class="mt-2 text-sm text-slate-500">{{ form.motivation.description }}</p>
+                                {% if form.motivation.errors %}
+                                    {% for error in form.motivation.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Financial Status -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.financial_status.label }}</label>
+                                {{ form.financial_status(class="premium-input resize-y", rows="3") }}
+                                <p class="mt-2 text-sm text-slate-500">{{ form.financial_status.description }}</p>
+                                {% if form.financial_status.errors %}
+                                    {% for error in form.financial_status.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Additional Notes -->
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700 mb-2">{{ form.additional_notes.label }}</label>
+                                {{ form.additional_notes(class="premium-input resize-y", rows="2") }}
+                                <p class="mt-2 text-sm text-slate-500">{{ form.additional_notes.description }}</p>
+                                {% if form.additional_notes.errors %}
+                                    {% for error in form.additional_notes.errors %}
+                                        <p class="mt-2 text-sm text-red-600">{{ error }}</p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                         </div>
+                    </div>
 
-                        <!-- Motivation -->
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.motivation.label }}</h3>
-                            {{ form.motivation(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.motivation.description }}</p>
-                            {% if form.motivation.errors %}
-                                {% for error in form.motivation.errors %}
-                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
+                    <!-- Notes Section -->
+                    <div class="pt-6 border-t border-slate-100">
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
+                                <i class="fas fa-sticky-note text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Notes</h2>
                         </div>
-
-                        <!-- Financial Status -->
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.financial_status.label }}</h3>
-                            {{ form.financial_status(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="3") }}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.financial_status.description }}</p>
-                            {% if form.financial_status.errors %}
-                                {% for error in form.financial_status.errors %}
-                                    <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-
-                        <!-- Additional Notes -->
-                        <div class="mb-4">
-                            <h3 class="text-sm font-medium text-gray-500 mb-1">{{ form.additional_notes.label }}</h3>
-                            {{ form.additional_notes(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="2") }}
-                            <p class="mt-1 text-sm text-gray-500">{{ form.additional_notes.description }}</p>
-                            {% if form.additional_notes.errors %}
-                                {% for error in form.additional_notes.errors %}
+                        <div>
+                            {{ form.notes(class="premium-input resize-y", rows="4") }}
+                            {% if form.notes.errors %}
+                                {% for error in form.notes.errors %}
                                     <p class="mt-2 text-sm text-red-600">{{ error }}</p>
                                 {% endfor %}
                             {% endif %}
                         </div>
                     </div>
 
-                    <!-- Notes -->
-                    <div class="md:col-span-2">
-                        <h3 class="text-sm font-medium text-gray-500 mb-1">Notes</h3>
-                        {{ form.notes(class="mt-1 block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300", rows="4") }}
-                        {% if form.notes.errors %}
-                            {% for error in form.notes.errors %}
-                                <p class="mt-2 text-sm text-red-600">{{ error }}</p>
-                            {% endfor %}
-                        {% endif %}
+                    <!-- Submit Buttons -->
+                    <div class="pt-8 border-t border-slate-100 flex justify-end space-x-4">
+                        <a href="{{ url_for('main.index') }}" 
+                           class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-medium 
+                                  hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
+                            Cancel
+                        </a>
+                        <button type="submit"
+                                class="relative px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 
+                                       text-white font-semibold shadow-lg shadow-orange-500/25
+                                       hover:from-orange-600 hover:to-amber-600 hover:shadow-orange-500/40
+                                       transition-all duration-200 transform hover:-translate-y-0.5">
+                            <span class="flex items-center gap-2">
+                                <i class="fas fa-check"></i>
+                                Create Contact
+                            </span>
+                        </button>
                     </div>
-                </div>
-
-                <!-- Submit Button -->
-                <div class="mt-6 flex justify-end space-x-4">
-                    <a href="{{ url_for('main.index') }}" class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-                        Cancel
-                    </a>
-                    {{ form.submit(class="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700") }}
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
 </div>
