@@ -275,6 +275,9 @@ def login():
 
         if user and user.check_password(form.password.data):
             login_user(user)
+            # Update last_login timestamp at the moment of login
+            user.last_login = datetime.utcnow()
+            db.session.commit()
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('main.dashboard'))
         else:
