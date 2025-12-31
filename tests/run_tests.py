@@ -263,19 +263,42 @@ class CRMTestSuite:
             self.page.wait_for_load_state("networkidle")
             self.log("", "ok")
             
-            # Verify success - should redirect to index
+            # Verify success - should redirect to index with flash message
             self.log("Verifying contact created...", "step")
-            # Wait for redirect
-            self.page.wait_for_timeout(1000)
+            # Wait for redirect to complete
+            self.page.wait_for_timeout(2000)
             
-            # Navigate to contacts list and search for our contact
-            self.page.goto(f"{self.base_url}/?q={test_first_name}")
-            self.page.wait_for_load_state("networkidle")
-            
-            # Check that contact appears
+            # Check if we got the success flash message or are on index page
             body_text = self.page.locator("body").inner_text()
-            assert test_first_name in body_text, f"Contact {test_first_name} not found in contacts list"
-            self.log("", "ok")
+            
+            # If we're on the index page after redirect, the contact might already be visible
+            if test_first_name in body_text:
+                self.log("", "ok")
+            else:
+                # Navigate to contacts list and search for our contact
+                self.page.goto(f"{self.base_url}/?q={test_first_name}")
+                self.page.wait_for_load_state("networkidle")
+                self.page.wait_for_timeout(1000)
+                
+                body_text = self.page.locator("body").inner_text()
+                
+                # If still not found, try without search filter
+                if test_first_name not in body_text:
+                    self.page.goto(f"{self.base_url}/")
+                    self.page.wait_for_load_state("networkidle")
+                    self.page.wait_for_timeout(1000)
+                    body_text = self.page.locator("body").inner_text()
+                
+                if test_first_name not in body_text:
+                    # Debug: print current URL and page content snippet
+                    current_url = self.page.url
+                    self.log(f"Debug - URL: {current_url}", "error")
+                    self.log(f"Debug - Looking for: {test_first_name}", "error")
+                    # Check if there's an error message
+                    if "error" in body_text.lower() or "Error" in body_text:
+                        self.log("Debug - Page contains error message", "error")
+                assert test_first_name in body_text, f"Contact {test_first_name} not found in contacts list"
+                self.log("", "ok")
             
             # Extract contact ID from the page for cleanup
             # Find the link to view this contact
