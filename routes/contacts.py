@@ -231,19 +231,49 @@ def edit_contact(contact_id):
 @contacts_bp.route('/contacts/<int:contact_id>/delete', methods=['POST'])
 @login_required
 def delete_contact(contact_id):
+    from models import Task, Interaction
+    
     contact = Contact.query.get_or_404(contact_id)
 
     if not current_user.role == 'admin' and contact.user_id != current_user.id:
         abort(403)
 
+    # Check for associated data
+    task_count = Task.query.filter_by(contact_id=contact_id).count()
+    interaction_count = Interaction.query.filter_by(contact_id=contact_id).count()
+    
+    # Check if force delete was requested
+    force_delete = request.form.get('force', 'false').lower() == 'true'
+    
+    if (task_count > 0 or interaction_count > 0) and not force_delete:
+        # Return informative error with counts
+        associated_items = []
+        if task_count > 0:
+            associated_items.append(f"{task_count} task{'s' if task_count > 1 else ''}")
+        if interaction_count > 0:
+            associated_items.append(f"{interaction_count} interaction{'s' if interaction_count > 1 else ''}")
+        
+        return {
+            'status': 'error',
+            'message': f"Cannot delete contact - has {' and '.join(associated_items)} associated. Delete these first or use force delete.",
+            'has_associated_data': True,
+            'task_count': task_count,
+            'interaction_count': interaction_count
+        }, 400
+
     try:
+        # If force delete, remove associated data first
+        if force_delete:
+            Task.query.filter_by(contact_id=contact_id).delete()
+            Interaction.query.filter_by(contact_id=contact_id).delete()
+        
         db.session.delete(contact)
         db.session.commit()
         flash('Contact deleted successfully!', 'success')
         return {'status': 'success'}, 200
     except Exception as e:
         db.session.rollback()
-        return {'status': 'error', 'message': 'Error deleting contact'}, 500
+        return {'status': 'error', 'message': f'Error deleting contact: {str(e)}'}, 500
 
 
 @contacts_bp.route('/import-contacts', methods=['POST'])
