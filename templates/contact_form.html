@@ -29,10 +29,32 @@
     
     /* Premium input styling */
     .premium-input {
-        @apply mt-1 block w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 
-               transition-all duration-200 ease-out
-               focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100
-               hover:border-slate-300;
+        display: block;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        font-size: 1rem;
+        transition: all 0.2s ease-out;
+    }
+    .premium-input:hover {
+        border-color: #cbd5e1;
+    }
+    .premium-input:focus {
+        outline: none;
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+    
+    /* Ensure textareas are full width */
+    textarea.premium-input {
+        min-height: 80px;
+        resize: vertical;
     }
     
     /* Premium card hover effect */
