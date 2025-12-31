@@ -254,11 +254,15 @@ class CRMTestSuite:
             # Select at least one group (required by form validation)
             group_checkboxes = self.page.locator('input[name="group_ids"]')
             group_count = group_checkboxes.count()
-            self.log(f"(found {group_count} groups)", "ok")
+            print(f" (found {group_count} groups)")  # Debug output
             if group_count > 0:
                 group_checkboxes.first.check()
+                # Verify checkbox is checked
+                is_checked = group_checkboxes.first.is_checked()
+                print(f"  → Group checkbox checked: {is_checked}")
             else:
                 raise Exception("No contact groups found in database - cannot create contact without a group")
+            self.log("", "ok")
             
             # Submit form (uses button, not input)
             self.log("Submitting form...", "step")
@@ -269,10 +273,19 @@ class CRMTestSuite:
             # Check if we were redirected (success) or stayed on form (validation failed)
             current_url = self.page.url
             if '/contacts/create' in current_url:
-                # Still on form - validation failed
+                # Still on form - validation failed, take screenshot
+                screenshot_path = "tests/contact_form_failure.png"
+                self.page.screenshot(path=screenshot_path)
+                print(f"  → Screenshot saved to {screenshot_path}")
+                
+                # Check for error messages on page
                 body_text = self.page.locator("body").inner_text()
+                if "error" in body_text.lower():
+                    error_lines = [line for line in body_text.split('\n') if 'error' in line.lower()]
+                    print(f"  → Errors found: {error_lines[:3]}")
+                
                 self.log("", "fail")
-                raise Exception(f"Form submission failed - still on create page. Check for validation errors.")
+                raise Exception(f"Form submission failed - still on create page. URL: {current_url}")
             self.log("", "ok")
             
             # Verify success - should redirect to index with flash message
