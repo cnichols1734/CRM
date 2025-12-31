@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load .env file before any other imports
 
 import warnings
+import html
 from sqlalchemy.exc import SAWarning
 warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .* will copy column .*')
 
@@ -34,8 +35,9 @@ def create_app():
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
 
-    # Add abs filter for templates
+    # Add custom filters for templates
     app.jinja_env.filters['abs'] = abs
+    app.jinja_env.filters['unescape'] = html.unescape
 
     # Initialize Flask-Mail
     mail = Mail()
