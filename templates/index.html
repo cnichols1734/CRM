@@ -145,7 +145,7 @@ function clearSort() {
                 <i class="fas fa-address-book text-white text-xl"></i>
             </div>
             <div>
-                <h1 class="text-2xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-orange-600 bg-clip-text text-transparent hidden md:block">
+                <h1 class="text-2xl font-bold text-slate-800 hidden md:block">
                     Contacts
                 </h1>
                 <span class="text-sm text-slate-500">{{ total_contacts }} record{% if total_contacts != 1 %}s{% endif %}</span>
@@ -155,14 +155,14 @@ function clearSort() {
             <!-- Mobile Search Button -->
             <button 
                 onclick="toggleMobileSearch()"
-                class="md:hidden text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50"
+                class="md:hidden text-sm font-medium px-3 py-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 transition-all duration-200"
             >
                 <i class="fas fa-search"></i>
             </button>
 
             <form action="{{ url_for('contacts.import_contacts') }}" method="POST" id="importForm" class="hidden md:flex items-center space-x-2" enctype="multipart/form-data">
                 {% if current_user.role == 'admin' %}
-                <select id="importUserId" name="user_id" class="text-sm border rounded px-2 py-1">
+                <select id="importUserId" name="user_id" class="text-sm font-medium px-4 py-2 bg-slate-100 border-0 rounded-lg text-slate-600 hover:bg-slate-200 focus:ring-2 focus:ring-orange-300 focus:outline-none transition-all duration-200 cursor-pointer">
                     <option value="">Select user</option>
                     {% for owner in all_owners %}
                         <option value="{{ owner.id }}">{{ owner.first_name }} {{ owner.last_name }}</option>
@@ -176,7 +176,7 @@ function clearSort() {
             <div class="relative hidden md:block">
                 <button onclick="document.getElementById('csvFile').click()" 
                         id="importButton"
-                        class="text-sm px-3 py-1.5 border rounded text-gray-700 hover:bg-gray-50">
+                        class="text-sm font-medium px-4 py-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 transition-all duration-200">
                     Import
                 </button>
                 <!-- Loading spinner (hidden by default) -->
@@ -209,7 +209,7 @@ function clearSort() {
                 </div>
             </div>
 
-            <a href="{{ url_for('contacts.create_contact') }}" class="text-sm px-3 py-1.5 bg-orange-500 text-white rounded hover:bg-orange-600">
+            <a href="{{ url_for('contacts.create_contact') }}" class="text-sm font-medium px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200">
                 <span class="hidden md:inline">Create contact</span>
                 <i class="fas fa-plus md:hidden"></i>
             </a>
