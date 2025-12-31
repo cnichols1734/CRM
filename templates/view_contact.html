@@ -1,38 +1,93 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-full bg-gray-50">
-    <!-- Back button and header -->
-    <div class="bg-white border-b sticky top-0 z-10">
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-2 { 
+        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-3 { 
+        animation: fadeInUp 0.6s ease-out 0.3s forwards; 
+        opacity: 0; 
+    }
+    
+    /* Premium input styling */
+    .premium-input {
+        @apply block w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 
+               transition-all duration-200 ease-out
+               focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100
+               hover:border-slate-300;
+    }
+    
+    /* Premium card hover effect */
+    .premium-card {
+        transition: all 0.3s ease;
+    }
+    .premium-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Premium info box */
+    .info-box {
+        @apply bg-slate-50/80 rounded-xl p-4 border border-slate-100;
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <!-- Premium sticky header -->
+    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-4 flex items-center justify-between">
-                <a href="{{ url_for('main.index') }}" class="flex items-center text-gray-600 hover:text-gray-900">
-                    <i class="fas fa-arrow-left mr-2"></i>
-                    Back
+                <a href="{{ url_for('main.index') }}" class="flex items-center text-slate-600 hover:text-orange-600 transition-colors duration-200 group">
+                    <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center mr-2 group-hover:border-orange-300 group-hover:shadow-md transition-all duration-200">
+                        <i class="fas fa-arrow-left text-sm"></i>
+                    </div>
+                    <span class="font-medium">Back</span>
                 </a>
                 <div class="flex items-center space-x-3">
+                    <!-- Previous/Next Navigation -->
                     <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}" 
-                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[140px] justify-center">
-                        <i class="fas fa-arrow-left mr-2"></i>
-                        <span class="text-gray-700">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
+                       class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
+                        <i class="fas fa-arrow-left mr-2 text-slate-400"></i>
+                        <span class="text-slate-700 truncate">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
                     </a>
                     <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}" 
-                       class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors min-w-[140px] justify-center">
-                        <span class="text-gray-700">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
-                        <i class="fas fa-arrow-right ml-2"></i>
+                       class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
+                        <span class="text-slate-700 truncate">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
+                        <i class="fas fa-arrow-right ml-2 text-slate-400"></i>
                     </a>
+                    
+                    <!-- Edit/Save/Cancel Buttons -->
                     <button id="editButton" onclick="toggleEditMode()" 
-                            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
                         <i class="fas fa-pencil-alt mr-2"></i>
                         Edit Contact
                     </button>
                     <button id="saveButton" onclick="saveContact()" 
-                            class="hidden inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                            class="hidden inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600 transition-all duration-200">
                         <i class="fas fa-check mr-2"></i>
                         Save Changes
                     </button>
                     <button id="cancelButton" onclick="cancelEdit()" 
-                            class="hidden inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                            class="hidden inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-200">
                         Cancel
                     </button>
                 </div>
@@ -44,40 +99,55 @@
         <div class="flex flex-col lg:flex-row gap-6">
             <!-- Main Content -->
             <div class="flex-1">
-                <!-- Contact Header -->
-                <div class="bg-white rounded-2xl shadow-sm border p-6 mb-4">
+                <!-- Contact Header Card -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6 mb-6 premium-card animate-fade-in-up">
                     <div class="flex items-center">
-                        <div class="w-16 h-16 rounded-xl flex items-center justify-center text-xl font-semibold mr-5
+                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-semibold mr-5 shadow-lg
                             {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
                             {% set colors = {
-                                'A': 'bg-blue-100 text-blue-800', 'B': 'bg-rose-100 text-rose-800', 
-                                'C': 'bg-green-100 text-green-800', 'D': 'bg-amber-100 text-amber-800',
-                                'E': 'bg-purple-100 text-purple-800', 'F': 'bg-pink-100 text-pink-800',
-                                'G': 'bg-indigo-100 text-indigo-800', 'H': 'bg-teal-100 text-teal-800',
-                                'I': 'bg-orange-100 text-orange-800', 'J': 'bg-cyan-100 text-cyan-800'
+                                'A': 'bg-gradient-to-br from-blue-400 to-blue-600 text-white', 
+                                'B': 'bg-gradient-to-br from-rose-400 to-rose-600 text-white', 
+                                'C': 'bg-gradient-to-br from-green-400 to-green-600 text-white', 
+                                'D': 'bg-gradient-to-br from-amber-400 to-amber-600 text-white',
+                                'E': 'bg-gradient-to-br from-purple-400 to-purple-600 text-white', 
+                                'F': 'bg-gradient-to-br from-pink-400 to-pink-600 text-white',
+                                'G': 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white', 
+                                'H': 'bg-gradient-to-br from-teal-400 to-teal-600 text-white',
+                                'I': 'bg-gradient-to-br from-orange-400 to-orange-600 text-white', 
+                                'J': 'bg-gradient-to-br from-cyan-400 to-cyan-600 text-white',
+                                'K': 'bg-gradient-to-br from-lime-400 to-lime-600 text-white',
+                                'L': 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white',
+                                'M': 'bg-gradient-to-br from-violet-400 to-violet-600 text-white',
+                                'N': 'bg-gradient-to-br from-fuchsia-400 to-fuchsia-600 text-white',
+                                'O': 'bg-gradient-to-br from-sky-400 to-sky-600 text-white',
+                                'P': 'bg-gradient-to-br from-red-400 to-red-600 text-white',
+                                'Q': 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white',
+                                'R': 'bg-gradient-to-br from-slate-400 to-slate-600 text-white',
+                                'S': 'bg-gradient-to-br from-stone-400 to-stone-600 text-white',
+                                'T': 'bg-gradient-to-br from-zinc-400 to-zinc-600 text-white'
                             } %}
-                            {{ colors[initials[0]] or 'bg-gray-100 text-gray-800' }}">
+                            {{ colors[initials[0]] or 'bg-gradient-to-br from-slate-400 to-slate-600 text-white' }}">
                             {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                         </div>
                         <div class="flex-1">
-                            <div id="viewContactName" class="text-2xl font-semibold text-gray-900 mb-1">
+                            <div id="viewContactName" class="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
                                 {{ contact.first_name }} {{ contact.last_name }}
                             </div>
                             <div id="editContactName" class="hidden space-x-3 mb-3">
                                 <input type="text" 
                                        name="first_name" 
                                        value="{{ contact.first_name }}"
-                                       class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
+                                       class="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-xl font-semibold focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 hover:border-slate-300 transition-all duration-200"
                                        placeholder="First Name">
                                 <input type="text" 
                                        name="last_name" 
                                        value="{{ contact.last_name }}"
-                                       class="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 text-xl font-semibold focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors"
+                                       class="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-xl font-semibold focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 hover:border-slate-300 transition-all duration-200"
                                        placeholder="Last Name">
                             </div>
                             {% if current_user.role == 'admin' %}
-                            <div class="flex items-center text-gray-600 mb-2">
-                                <div class="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-2">
+                            <div class="flex items-center text-slate-500 mb-3">
+                                <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs mr-2 font-medium">
                                     {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
                                 </div>
                                 <span class="text-sm">
@@ -87,7 +157,7 @@
                             {% endif %}
                             <div class="flex flex-wrap gap-2">
                                 {% for group in contact.groups %}
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200">
                                         {{ group.name }}
                                     </span>
                                 {% endfor %}
@@ -96,78 +166,89 @@
                     </div>
                 </div>
 
-                <!-- Contact Information -->
-                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden">
+                <!-- Contact Information Card -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-1">
+                    <!-- Edit Form (Hidden by default) -->
                     <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST" id="editContactForm" class="hidden">
-                        <div class="divide-y divide-gray-100">
+                        <div class="divide-y divide-slate-100">
                             <!-- Basic Information Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-user text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
                                         <input type="email" name="email" value="{{ contact.email }}" 
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Phone</label>
                                         <input type="tel" name="phone" value="{{ contact.phone }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Potential Commission ($)</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Potential Commission ($)</label>
                                         <input type="number" 
                                                name="potential_commission" 
                                                value="{{ contact.potential_commission }}"
                                                step="0.01"
                                                min="0"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Created</label>
-                                        <p class="px-3 py-2 text-gray-600">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Created</label>
+                                        <p class="px-4 py-3 text-slate-600 bg-slate-50 rounded-xl">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Contact Dates Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-calendar-alt text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Last Contact Dates</h2>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <!-- Last Email Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Email</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Email</label>
                                         <input type="date" 
                                                name="last_email_date" 
                                                value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <!-- Last Text Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Text</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Text</label>
                                         <input type="date" 
                                                name="last_text_date" 
                                                value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <!-- Last Phone Call Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Phone Call</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Phone Call</label>
                                         <input type="date" 
                                                name="last_phone_call_date" 
                                                value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <!-- Last Contact Date (Read-only) -->
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Contact</label>
-                                        <p class="px-3 py-2 text-gray-600">
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Contact</label>
+                                        <p class="px-4 py-3 text-slate-600 bg-slate-50 rounded-xl">
                                             {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
                                         </p>
                                     </div>
@@ -176,54 +257,63 @@
 
                             <!-- Address Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                                        <i class="fas fa-map-marker-alt text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Address</h2>
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Street Address</label>
                                         <input type="text" name="street_address" value="{{ contact.street_address }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">City</label>
                                         <input type="text" name="city" value="{{ contact.city }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">State</label>
                                         <input type="text" name="state" value="{{ contact.state }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
 
                                     <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP Code</label>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">ZIP Code</label>
                                         <input type="text" name="zip_code" value="{{ contact.zip_code }}"
-                                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors">
+                                               class="premium-input">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Groups Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                                        <i class="fas fa-users text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {% for group in all_groups %}
-                                        <label class="inline-flex items-center px-3 py-2 rounded-lg text-sm
+                                        <label class="relative flex items-center px-4 py-3 rounded-xl text-sm
                                                     {% if group in contact.groups %}
-                                                        bg-blue-50 border-blue-200 text-blue-700
+                                                        bg-orange-50 border-2 border-orange-400 text-orange-700
                                                     {% else %}
-                                                        bg-gray-50 border-gray-200 text-gray-700
+                                                        bg-white border-2 border-slate-200 text-slate-700
                                                     {% endif %}
-                                                    hover:bg-gray-100 
-                                                    border
-                                                    cursor-pointer transition-colors duration-200">
+                                                    hover:bg-orange-50 hover:border-orange-300
+                                                    cursor-pointer transition-all duration-200">
                                             <input type="checkbox" 
                                                    name="group_ids" 
                                                    value="{{ group.id }}"
                                                    {% if group in contact.groups %}checked{% endif %}
-                                                   class="form-checkbox h-4 w-4 mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                                            {{ group.name }}
+                                                   class="form-checkbox h-4 w-4 mr-3 rounded border-slate-300 text-orange-500 focus:ring-orange-400">
+                                            <span class="font-medium">{{ group.name }}</span>
                                         </label>
                                     {% endfor %}
                                 </div>
@@ -231,77 +321,94 @@
 
                             <!-- Client Details Section in Edit Form -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
-                                
-                                <!-- Current Objective -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">What does this person want right now?</h3>
-                                    <textarea name="current_objective" rows="3" 
-                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.current_objective or '' }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Ex: They want to buy a home, sell a home, they're looking for acreage, They are not looking to make a move right now, but I want to stay in touch with them.</p>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                                        <i class="fas fa-clipboard-list text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
                                 </div>
+                                <div class="space-y-6">
+                                    <!-- Current Objective -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">What does this person want right now?</label>
+                                        <textarea name="current_objective" rows="3" 
+                                                  class="premium-input resize-y">{{ contact.current_objective or '' }}</textarea>
+                                        <p class="mt-2 text-sm text-slate-500">Ex: They want to buy a home, sell a home, they're looking for acreage, They are not looking to make a move right now, but I want to stay in touch with them.</p>
+                                    </div>
 
-                                <!-- Move Timeline -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">What is their timeline?</h3>
-                                    <textarea name="move_timeline" rows="2" 
-                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.move_timeline or '' }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Ex: They want to move now, within the next 6 months, or within a year?</p>
-                                </div>
+                                    <!-- Move Timeline -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">What is their timeline?</label>
+                                        <textarea name="move_timeline" rows="2" 
+                                                  class="premium-input resize-y">{{ contact.move_timeline or '' }}</textarea>
+                                        <p class="mt-2 text-sm text-slate-500">Ex: They want to move now, within the next 6 months, or within a year?</p>
+                                    </div>
 
-                                <!-- Motivation -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Why do they want to move?</h3>
-                                    <textarea name="motivation" rows="2" 
-                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.motivation or '' }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Ex: They are having a baby, want a larger home, moving for work, etc.</p>
-                                </div>
+                                    <!-- Motivation -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Why do they want to move?</label>
+                                        <textarea name="motivation" rows="2" 
+                                                  class="premium-input resize-y">{{ contact.motivation or '' }}</textarea>
+                                        <p class="mt-2 text-sm text-slate-500">Ex: They are having a baby, want a larger home, moving for work, etc.</p>
+                                    </div>
 
-                                <!-- Financial Status -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Have they shared any financial details with you?</h3>
-                                    <textarea name="financial_status" rows="3" 
-                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.financial_status or '' }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Ex: Their budget is $x, they have or have not been preapproved, they have $x for down payment, they have $x in home equity.</p>
-                                </div>
+                                    <!-- Financial Status -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Have they shared any financial details with you?</label>
+                                        <textarea name="financial_status" rows="3" 
+                                                  class="premium-input resize-y">{{ contact.financial_status or '' }}</textarea>
+                                        <p class="mt-2 text-sm text-slate-500">Ex: Their budget is $x, they have or have not been preapproved, they have $x for down payment, they have $x in home equity.</p>
+                                    </div>
 
-                                <!-- Additional Notes -->
-                                <div>
-                                    <h3 class="text-sm font-medium text-gray-500 mb-1">Any other details to share?</h3>
-                                    <textarea name="additional_notes" rows="2" 
-                                              class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.additional_notes or '' }}</textarea>
-                                    <p class="mt-1 text-sm text-gray-500">Ex: No details at this time</p>
+                                    <!-- Additional Notes -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-slate-700 mb-2">Any other details to share?</label>
+                                        <textarea name="additional_notes" rows="2" 
+                                                  class="premium-input resize-y">{{ contact.additional_notes or '' }}</textarea>
+                                        <p class="mt-2 text-sm text-slate-500">Ex: No details at this time</p>
+                                    </div>
                                 </div>
                             </div>
 
                             <!-- Notes Section in Edit Form -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
+                                        <i class="fas fa-sticky-note text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Notes</h2>
+                                </div>
                                 <textarea name="notes" rows="4" 
-                                          class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 hover:border-gray-300 transition-colors resize-y">{{ contact.notes }}</textarea>
+                                          class="premium-input resize-y">{{ contact.notes }}</textarea>
                             </div>
                         </div>
                     </form>
 
+                    <!-- View Mode (Default) -->
                     <div id="viewContactInfo">
-                        <div class="divide-y divide-gray-100">
+                        <div class="divide-y divide-slate-100">
                             <!-- Basic Information Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Basic Information</h2>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-user text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Email</h3>
-                                        <p class="text-gray-900">{{ contact.email or 'No email provided' }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Email</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.email or 'No email provided' }}</p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Phone</h3>
-                                        <p class="text-gray-900">{{ contact.phone or 'No phone provided' }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Phone</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.phone or 'No phone provided' }}</p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Potential Commission</h3>
-                                        <p class="text-gray-900">
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Potential Commission</h3>
+                                        <p class="text-slate-900 font-semibold text-lg">
                                             {% if contact.potential_commission is not none %}
                                                 ${{ "{:,.2f}".format(contact.potential_commission|float) }}
                                             {% else %}
@@ -310,41 +417,46 @@
                                         </p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Created</h3>
-                                        <p class="text-gray-900">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Created</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Contact Dates Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Last Contact Dates</h2>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                                        <i class="fas fa-calendar-alt text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Last Contact Dates</h2>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Email</h3>
-                                        <p class="text-gray-900">
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Last Email</h3>
+                                        <p class="text-slate-900 font-medium">
                                             {{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date else 'Never' }}
                                         </p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Text</h3>
-                                        <p class="text-gray-900">
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Last Text</h3>
+                                        <p class="text-slate-900 font-medium">
                                             {{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date else 'Never' }}
                                         </p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Phone Call</h3>
-                                        <p class="text-gray-900">
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Last Phone Call</h3>
+                                        <p class="text-slate-900 font-medium">
                                             {{ contact.last_phone_call_date.strftime('%m/%d/%Y') if contact.last_phone_call_date else 'Never' }}
                                         </p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Last Contact</h3>
-                                        <p class="text-gray-900">
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Last Contact</h3>
+                                        <p class="text-slate-900 font-medium">
                                             {{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}
                                         </p>
                                     </div>
@@ -353,41 +465,51 @@
 
                             <!-- Address Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Address</h2>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                                        <i class="fas fa-map-marker-alt text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Address</h2>
+                                </div>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="md:col-span-2 bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">Street Address</h3>
-                                        <p class="text-gray-900">{{ contact.street_address or 'No street address provided' }}</p>
+                                    <div class="md:col-span-2 info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Street Address</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.street_address or 'No street address provided' }}</p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">City</h3>
-                                        <p class="text-gray-900">{{ contact.city or 'No city provided' }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">City</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.city or 'No city provided' }}</p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">State</h3>
-                                        <p class="text-gray-900">{{ contact.state or 'No state provided' }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">State</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.state or 'No state provided' }}</p>
                                     </div>
 
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <h3 class="text-sm font-medium text-gray-600 mb-1">ZIP Code</h3>
-                                        <p class="text-gray-900">{{ contact.zip_code or 'No ZIP code provided' }}</p>
+                                    <div class="info-box">
+                                        <h3 class="text-sm font-medium text-slate-500 mb-1">ZIP Code</h3>
+                                        <p class="text-slate-900 font-medium">{{ contact.zip_code or 'No ZIP code provided' }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Groups Section -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Groups</h2>
-                                <div class="bg-gray-50 rounded-lg p-3">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
+                                        <i class="fas fa-users text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
+                                </div>
+                                <div class="info-box">
                                     <div class="flex flex-wrap gap-2">
                                         {% for group in contact.groups %}
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                                            <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200">
                                                 {{ group.name }}
                                             </span>
                                         {% else %}
-                                            <span class="text-gray-500 italic">No groups assigned</span>
+                                            <span class="text-slate-500 italic">No groups assigned</span>
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -395,54 +517,65 @@
 
                             <!-- Client Details Section in View Mode -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Client Details</h2>
-                                
-                                <!-- Current Objective -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-600 mb-1">What does this person want right now?</h3>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.current_objective or 'No current objective specified' }}</p>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                                        <i class="fas fa-clipboard-list text-white text-sm"></i>
                                     </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
                                 </div>
-
-                                <!-- Move Timeline -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-600 mb-1">What is their timeline?</h3>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.move_timeline or 'No timeline specified' }}</p>
+                                <div class="space-y-4">
+                                    <!-- Current Objective -->
+                                    <div>
+                                        <h3 class="text-sm font-medium text-slate-500 mb-2">What does this person want right now?</h3>
+                                        <div class="info-box">
+                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.current_objective or 'No current objective specified' }}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <!-- Motivation -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Why do they want to move?</h3>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.motivation or 'No motivation specified' }}</p>
+                                    <!-- Move Timeline -->
+                                    <div>
+                                        <h3 class="text-sm font-medium text-slate-500 mb-2">What is their timeline?</h3>
+                                        <div class="info-box">
+                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.move_timeline or 'No timeline specified' }}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <!-- Financial Status -->
-                                <div class="mb-4">
-                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Have they shared any financial details with you?</h3>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.financial_status or 'No financial details shared' }}</p>
+                                    <!-- Motivation -->
+                                    <div>
+                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Why do they want to move?</h3>
+                                        <div class="info-box">
+                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.motivation or 'No motivation specified' }}</p>
+                                        </div>
                                     </div>
-                                </div>
 
-                                <!-- Additional Notes -->
-                                <div>
-                                    <h3 class="text-sm font-medium text-gray-600 mb-1">Any other details to share?</h3>
-                                    <div class="bg-gray-50 rounded-lg p-3">
-                                        <p class="text-gray-900 whitespace-pre-line">{{ contact.additional_notes or 'No additional details shared' }}</p>
+                                    <!-- Financial Status -->
+                                    <div>
+                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Have they shared any financial details with you?</h3>
+                                        <div class="info-box">
+                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.financial_status or 'No financial details shared' }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Additional Notes -->
+                                    <div>
+                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Any other details to share?</h3>
+                                        <div class="info-box">
+                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.additional_notes or 'No additional details shared' }}</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Notes Section in View Mode -->
                             <div class="p-6">
-                                <h2 class="text-base font-semibold text-gray-900 mb-4">Notes</h2>
-                                <div class="bg-gray-50 rounded-lg p-3">
-                                    <p class="text-gray-900 whitespace-pre-line">{{ contact.notes or 'No notes added' }}</p>
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
+                                        <i class="fas fa-sticky-note text-white text-sm"></i>
+                                    </div>
+                                    <h2 class="text-lg font-semibold text-slate-800">Notes</h2>
+                                </div>
+                                <div class="info-box">
+                                    <p class="text-slate-900 whitespace-pre-line">{{ contact.notes or 'No notes added' }}</p>
                                 </div>
                             </div>
                         </div>
@@ -450,10 +583,10 @@
                 </div>
 
                 <!-- Delete Contact Button -->
-                <div class="mt-4 flex justify-end">
+                <div class="mt-6 flex justify-end animate-fade-in-up-delay-2">
                     <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST" id="deleteContactForm">
                         <button onclick="deleteContact()" 
-                                class="inline-flex items-center px-4 py-2 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                                class="inline-flex items-center px-4 py-2 bg-white border-2 border-red-200 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200">
                             <i class="fas fa-trash-alt mr-2"></i>
                             Delete Contact
                         </button>
@@ -462,43 +595,48 @@
             </div>
 
             <!-- Side Container - Related Tasks -->
-            <div class="lg:w-96">
-                <div class="bg-white rounded-2xl shadow-sm border overflow-hidden sticky top-24">
-                    <div class="p-4 border-b border-gray-100">
+            <div class="lg:w-96 animate-fade-in-up-delay-3">
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden sticky top-24 premium-card">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                         <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-semibold text-gray-900">Related Client Tasks</h2>
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                                    <i class="fas fa-tasks text-white text-sm"></i>
+                                </div>
+                                <h2 class="text-lg font-semibold text-slate-800">Related Tasks</h2>
+                            </div>
                             <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" 
-                               class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <i class="fas fa-plus mr-1"></i>
-                                New Client Task
+                               class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
+                                <i class="fas fa-plus mr-1.5"></i>
+                                New Task
                             </a>
                         </div>
                     </div>
 
                     <!-- Task Filter Tabs -->
-                    <div class="border-b border-gray-100">
+                    <div class="border-b border-slate-100 px-2">
                         <div class="flex">
                             <button onclick="switchTaskView('pending')" 
                                     id="pendingTasksTab"
-                                    class="flex-1 py-2 px-4 text-sm font-medium text-blue-600 border-b-2 border-blue-600">
-                                Active Client Tasks
+                                    class="flex-1 py-3 px-4 text-sm font-medium text-orange-600 border-b-2 border-orange-500 transition-all duration-200">
+                                Active Tasks
                             </button>
                             <button onclick="switchTaskView('completed')" 
                                     id="completedTasksTab"
-                                    class="flex-1 py-2 px-4 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                Completed Client Tasks
+                                    class="flex-1 py-3 px-4 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition-all duration-200">
+                                Completed
                             </button>
                         </div>
                     </div>
 
                     <!-- Task Lists -->
-                    <div id="pendingTasks" class="divide-y divide-gray-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                    <div id="pendingTasks" class="divide-y divide-slate-100 max-h-[calc(100vh-300px)] overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto', 'pending')|sort(attribute='due_date') %}
-                        <div class="p-4 hover:bg-gray-50">
+                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
                             <div class="flex items-start space-x-3">
                                 <!-- Priority Indicator -->
                                 <div class="flex-shrink-0">
-                                    <div class="w-6 h-6 rounded flex items-center justify-center {% if task.priority == 'high' %}bg-red-100 text-red-700{% elif task.priority == 'medium' %}bg-yellow-100 text-yellow-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                    <div class="w-7 h-7 rounded-lg flex items-center justify-center shadow-sm {% if task.priority == 'high' %}bg-gradient-to-br from-red-400 to-red-500 text-white{% elif task.priority == 'medium' %}bg-gradient-to-br from-yellow-400 to-amber-500 text-white{% else %}bg-gradient-to-br from-green-400 to-emerald-500 text-white{% endif %}">
                                         <i class="fas fa-flag text-xs"></i>
                                     </div>
                                 </div>
@@ -508,18 +646,18 @@
                                     <div class="flex items-center space-x-2">
                                         <a href="#" 
                                            data-task-id="{{ task.id }}"
-                                           class="task-link text-sm font-medium text-blue-600 hover:text-blue-800 truncate">
+                                           class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate transition-colors duration-150">
                                             {{ task.subject }}
                                         </a>
                                     </div>
-                                    <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <div class="mt-1 flex items-center space-x-2 text-xs text-slate-500">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                                             {{ task.task_type.name }}
                                         </span>
                                         {% set task_date = task.due_date.date() %}
                                         {% set current_date = now.date() %}
                                         {% set days_until_due = (task_date - current_date).days %}
-                                        <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-500{% endif %}">
+                                        <span class="font-medium {% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-600{% endif %}">
                                             {% if days_until_due < 0 %}
                                                 {{ days_until_due|abs }}d overdue
                                             {% elif days_until_due == 0 %}
@@ -536,26 +674,29 @@
                                 <!-- Quick Actions -->
                                 <div class="flex-shrink-0">
                                     <button onclick="quickUpdateStatus({{ task.id }}, true)" 
-                                            class="text-gray-400 hover:text-green-500 p-1">
-                                        <i class="fas fa-check"></i>
+                                            class="w-7 h-7 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all duration-150">
+                                        <i class="fas fa-check text-sm"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
                         {% else %}
-                        <div class="p-6 text-center text-gray-500 text-sm">
-                            No active tasks
+                        <div class="p-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-check-circle text-slate-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-500 text-sm">No active tasks</p>
                         </div>
                         {% endfor %}
                     </div>
 
-                    <div id="completedTasks" class="hidden divide-y divide-gray-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                    <div id="completedTasks" class="hidden divide-y divide-slate-100 max-h-[calc(100vh-300px)] overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto', 'completed')|sort(attribute='completed_at', reverse=true) %}
-                        <div class="p-4 hover:bg-gray-50">
+                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
                             <div class="flex items-start space-x-3">
                                 <!-- Completed Indicator -->
                                 <div class="flex-shrink-0">
-                                    <div class="w-6 h-6 rounded-full flex items-center justify-center bg-green-100 text-green-700">
+                                    <div class="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm">
                                         <i class="fas fa-check text-xs"></i>
                                     </div>
                                 </div>
@@ -565,12 +706,12 @@
                                     <div class="flex items-center space-x-2">
                                         <a href="#" 
                                            data-task-id="{{ task.id }}"
-                                           class="task-link text-sm font-medium text-gray-600 hover:text-gray-800 truncate">
+                                           class="task-link text-sm font-medium text-slate-600 hover:text-slate-800 truncate transition-colors duration-150">
                                             {{ task.subject }}
                                         </a>
                                     </div>
-                                    <div class="mt-1 flex items-center space-x-2 text-xs text-gray-500">
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    <div class="mt-1 flex items-center space-x-2 text-xs text-slate-500">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                                             {{ task.task_type.name }}
                                         </span>
                                         <span>
@@ -586,15 +727,18 @@
                                 <!-- Quick Actions -->
                                 <div class="flex-shrink-0">
                                     <button onclick="quickUpdateStatus({{ task.id }}, false)" 
-                                            class="text-gray-400 hover:text-yellow-500 p-1">
-                                        <i class="fas fa-undo"></i>
+                                            class="w-7 h-7 rounded-lg text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 flex items-center justify-center transition-all duration-150">
+                                        <i class="fas fa-undo text-sm"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
                         {% else %}
-                        <div class="p-6 text-center text-gray-500 text-sm">
-                            No completed tasks
+                        <div class="p-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-clipboard-list text-slate-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-500 text-sm">No completed tasks</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -608,54 +752,54 @@
 <div id="taskModal" 
      data-is-admin="{{ 'true' if current_user.role == 'admin' else 'false' }}"
      data-show-all="{{ 'true' if show_all else 'false' }}"
-     class="hidden fixed inset-0 bg-gray-500 bg-opacity-75 z-[200] overflow-y-auto">
+     class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-0 md:p-4">
-        <div class="relative bg-white w-full md:rounded-lg shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
+        <div class="relative bg-white w-full md:rounded-2xl shadow-2xl md:max-w-4xl min-h-screen md:min-h-0">
             <!-- Modal header -->
-            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 md:px-6 md:py-4 border-b border-gray-200 bg-gray-50 md:rounded-t-lg">
+            <div class="sticky top-0 z-10 flex items-center justify-between px-4 py-4 md:px-6 md:py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white md:rounded-t-2xl">
                 <div class="flex items-center space-x-4">
-                    <div id="modalTaskPriorityIndicator" class="w-10 h-10 rounded-lg flex items-center justify-center text-lg">
+                    <div id="modalTaskPriorityIndicator" class="w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-sm">
                         <i class="fas fa-flag"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-medium text-gray-900" id="modalTaskSubject"></h3>
+                        <h3 class="text-lg font-semibold text-slate-900" id="modalTaskSubject"></h3>
                         {% if current_user.role == 'admin' and show_all %}
-                        <div class="flex items-center text-gray-500 text-sm mt-0.5 mb-1">
-                            <div id="modalTaskOwnerInitials" class="w-4 h-4 rounded-full bg-gray-100 flex items-center justify-center text-xs mr-1.5"></div>
+                        <div class="flex items-center text-slate-500 text-sm mt-0.5 mb-1">
+                            <div id="modalTaskOwnerInitials" class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs mr-2 font-medium"></div>
                             <span id="modalTaskOwner"></span>
                         </div>
                         {% endif %}
-                        <p class="text-sm text-gray-500" id="modalTaskHeaderDueDate"></p>
+                        <p class="text-sm text-slate-500" id="modalTaskHeaderDueDate"></p>
                     </div>
                 </div>
-                <button onclick="closeTaskModal()" class="p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times text-gray-400"></i>
+                <button onclick="closeTaskModal()" class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors duration-150">
+                    <i class="fas fa-times text-slate-400"></i>
                 </button>
             </div>
             
             <!-- Modal content -->
-            <div class="px-4 py-4 md:px-6 space-y-6" id="modalTaskContent">
+            <div class="px-4 py-4 md:px-6 space-y-4" id="modalTaskContent">
                 <!-- Status and Priority -->
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-tasks text-gray-400"></i>
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                <i class="fas fa-tasks text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Status</p>
-                                <p id="modalTaskStatus" class="text-sm font-medium text-gray-900"></p>
+                                <p class="text-sm text-slate-500">Status</p>
+                                <p id="modalTaskStatus" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-flag text-gray-400"></i>
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                <i class="fas fa-flag text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Priority</p>
-                                <p id="modalTaskPriority" class="text-sm font-medium text-gray-900"></p>
+                                <p class="text-sm text-slate-500">Priority</p>
+                                <p id="modalTaskPriority" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
@@ -663,97 +807,97 @@
 
                 <!-- Due Date and Scheduled Time -->
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-gray-50 rounded-lg p-3 flex-1">
+                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-calendar text-gray-400"></i>
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                <i class="fas fa-calendar text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Due Date</p>
-                                <p id="modalTaskDueDate" class="text-sm font-medium text-gray-900"></p>
+                                <p class="text-sm text-slate-500">Due Date</p>
+                                <p id="modalTaskDueDate" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
-                    <div id="modalTaskScheduledContainer" class="hidden bg-gray-50 rounded-lg p-3 flex-1">
+                    <div id="modalTaskScheduledContainer" class="hidden bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
-                            <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                                <i class="fas fa-clock text-gray-400"></i>
+                            <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                <i class="fas fa-clock text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-500">Scheduled Time</p>
-                                <p id="modalTaskScheduledTime" class="text-sm font-medium text-gray-900"></p>
+                                <p class="text-sm text-slate-500">Scheduled Time</p>
+                                <p id="modalTaskScheduledTime" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Task Type and Subtype -->
-                <div class="bg-gray-50 rounded-lg p-3">
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-tag text-gray-400"></i>
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            <i class="fas fa-tag text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500">Task Type</p>
+                            <p class="text-sm text-slate-500">Task Type</p>
                             <div class="flex items-center space-x-2 mt-1">
-                                <span id="modalTaskType" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"></span>
-                                <span id="modalTaskSubtype" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-50 text-gray-600"></span>
+                                <span id="modalTaskType" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-200 text-slate-800"></span>
+                                <span id="modalTaskSubtype" class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600"></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Contact -->
-                <div class="bg-gray-50 rounded-lg p-3">
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-user text-gray-400"></i>
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            <i class="fas fa-user text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500">Contact</p>
-                            <a id="modalTaskContact" href="#" class="text-sm font-medium text-blue-600 hover:text-blue-800"></a>
+                            <p class="text-sm text-slate-500">Contact</p>
+                            <a id="modalTaskContact" href="#" class="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors duration-150"></a>
                         </div>
                     </div>
                 </div>
 
                 <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden bg-gray-50 rounded-lg p-3">
+                <div id="modalTaskPropertyContainer" class="hidden bg-slate-50 rounded-xl p-4 border border-slate-100">
                     <div class="flex items-center space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-building text-gray-400"></i>
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            <i class="fas fa-building text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-gray-500">Property Address</p>
-                            <p id="modalTaskProperty" class="text-sm font-medium text-gray-900"></p>
+                            <p class="text-sm text-slate-500">Property Address</p>
+                            <p id="modalTaskProperty" class="text-sm font-semibold text-slate-900"></p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Description -->
-                <div class="bg-gray-50 rounded-lg p-3">
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
                     <div class="flex items-start space-x-3">
-                        <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-white border">
-                            <i class="fas fa-align-left text-gray-400"></i>
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            <i class="fas fa-align-left text-slate-400"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="text-sm text-gray-500">Description</p>
-                            <p id="modalTaskDescription" class="mt-1 text-sm text-gray-900 whitespace-pre-line"></p>
+                            <p class="text-sm text-slate-500">Description</p>
+                            <p id="modalTaskDescription" class="mt-1 text-sm text-slate-900 whitespace-pre-line"></p>
                         </div>
                     </div>
                 </div>
             </div>
             
             <!-- Modal footer -->
-            <div class="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 md:rounded-b-lg">
+            <div class="sticky bottom-0 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 md:rounded-b-2xl">
                 <div class="flex flex-col md:flex-row md:justify-between gap-3">
                     <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
                         <button onclick="toggleTaskStatus()" 
-                                class="flex-1 md:flex-none text-center px-4 py-2 border rounded-lg bg-white hover:bg-gray-50 transition-colors duration-150 text-sm font-medium">
+                                class="flex-1 md:flex-none text-center px-5 py-2.5 border-2 border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all duration-150 text-sm font-medium">
                             <span id="modalTaskStatusButton"></span>
                         </button>
                     </div>
                     <a id="modalTaskFullView" href="#" 
-                       class="flex-1 md:flex-none text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-150 text-sm font-medium">
+                       class="flex-1 md:flex-none text-center px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-150 text-sm font-semibold shadow-lg shadow-orange-500/25">
                         Open Full View
                     </a>
                 </div>
@@ -940,17 +1084,17 @@ function switchTaskView(view) {
     const completedList = document.getElementById('completedTasks');
 
     if (view === 'pending') {
-        pendingTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-        pendingTab.classList.remove('text-gray-500');
-        completedTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-        completedTab.classList.add('text-gray-500');
+        pendingTab.classList.add('text-orange-600', 'border-b-2', 'border-orange-500');
+        pendingTab.classList.remove('text-slate-500');
+        completedTab.classList.remove('text-orange-600', 'border-b-2', 'border-orange-500');
+        completedTab.classList.add('text-slate-500');
         pendingList.classList.remove('hidden');
         completedList.classList.add('hidden');
     } else {
-        completedTab.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-        completedTab.classList.remove('text-gray-500');
-        pendingTab.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-        pendingTab.classList.add('text-gray-500');
+        completedTab.classList.add('text-orange-600', 'border-b-2', 'border-orange-500');
+        completedTab.classList.remove('text-slate-500');
+        pendingTab.classList.remove('text-orange-600', 'border-b-2', 'border-orange-500');
+        pendingTab.classList.add('text-slate-500');
         completedList.classList.remove('hidden');
         pendingList.classList.add('hidden');
     }
@@ -1000,10 +1144,10 @@ function openTaskModal(taskId) {
             
             // Priority Indicator
             const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
-            priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
-                task.priority === 'high' ? 'bg-red-100 text-red-700' :
-                task.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-green-100 text-green-700'
+            priorityIndicator.className = `w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-sm ${
+                task.priority === 'high' ? 'bg-gradient-to-br from-red-400 to-red-500 text-white' :
+                task.priority === 'medium' ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
+                'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
             }`;
             
             // Priority
@@ -1013,8 +1157,8 @@ function openTaskModal(taskId) {
             // Status
             const statusText = document.getElementById('modalTaskStatus');
             statusText.textContent = task.status.charAt(0).toUpperCase() + task.status.slice(1);
-            statusText.className = `text-sm font-medium ${
-                task.status === 'completed' ? 'text-green-700' : 'text-yellow-700'
+            statusText.className = `text-sm font-semibold ${
+                task.status === 'completed' ? 'text-green-600' : 'text-yellow-600'
             }`;
             
             // Due Date
