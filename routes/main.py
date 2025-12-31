@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from models import Contact, ContactGroup, Task, User
+from models import Contact, ContactGroup, Task, User, CompanyUpdate
 from datetime import datetime, timedelta, timezone
 import pytz
 from sqlalchemy import func
@@ -200,6 +200,9 @@ def dashboard():
         if task.scheduled_time:
             task.scheduled_time = task.scheduled_time.replace(tzinfo=timezone.utc).astimezone(user_tz)
 
+    # Get latest company update for dashboard teaser
+    latest_update = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).first()
+
     return render_template('dashboard.html',
                          show_all=show_all,
                          total_commission=total_commission,
@@ -208,6 +211,7 @@ def dashboard():
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
+                         latest_update=latest_update,
                          now=now)
 
 @main_bp.route('/marketing')

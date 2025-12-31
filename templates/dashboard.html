@@ -89,7 +89,7 @@
                 <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300 -z-10"></div>
                 
-                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-3">
                     <svg class="w-5 h-5 transform group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
@@ -100,6 +100,45 @@
                 </div>
             </button>
         </div>
+
+        <!-- Latest Update Notification Banner -->
+        {% if latest_update %}
+        <a href="{{ url_for('company_updates.view_update', update_id=latest_update.id) }}" 
+           class="animate-fade-in-up block mb-6 group">
+            <div class="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]">
+                <!-- Animated background shimmer -->
+                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                
+                <div class="relative px-4 py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <!-- Pulsing dot -->
+                        <div class="relative flex-shrink-0">
+                            <div class="w-2.5 h-2.5 bg-white rounded-full"></div>
+                            <div class="absolute inset-0 w-2.5 h-2.5 bg-white rounded-full animate-ping opacity-75"></div>
+                        </div>
+                        
+                        <!-- Badge -->
+                        <span class="flex-shrink-0 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs font-semibold">
+                            NEW
+                        </span>
+                        
+                        <!-- Content -->
+                        <div class="flex items-center gap-2 text-white min-w-0">
+                            <span class="font-semibold truncate">{{ latest_update.title }}</span>
+                            <span class="hidden sm:inline text-white/70">—</span>
+                            <span class="hidden sm:inline text-white/80 text-sm truncate">{{ latest_update.excerpt[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Arrow -->
+                    <div class="flex-shrink-0 flex items-center gap-2 text-white/90 group-hover:text-white transition-colors">
+                        <span class="hidden md:inline text-sm font-medium">Read Update</span>
+                        <i class="fas fa-arrow-right transform group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endif %}
 
         <!-- Filter Tabs (Only show for admin) -->
         {% if current_user.role == 'admin' %}

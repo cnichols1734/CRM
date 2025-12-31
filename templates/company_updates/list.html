@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Company Updates - Origen Connect{% endblock %}
+
+{% block head_scripts %}
+<style>
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-glow {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.5; }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-pulse-glow {
+        animation: pulse-glow 2s ease-in-out infinite;
+    }
+    .premium-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .premium-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.1);
+    }
+    .update-card:hover .update-title {
+        color: #f97316;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        
+        <!-- Header -->
+        <div class="animate-fade-in-up mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl blur-lg opacity-30 animate-pulse-glow"></div>
+                    <div class="relative h-14 w-14 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-600 rounded-2xl shadow-lg flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                        <i class="fas fa-newspaper text-white text-2xl"></i>
+                    </div>
+                </div>
+                <div>
+                    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
+                        Company Updates
+                    </h1>
+                    <p class="text-slate-500 mt-1 font-medium">News, announcements, and important updates</p>
+                </div>
+            </div>
+            
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('company_updates.create_update') }}"
+               class="group relative overflow-hidden px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 via-blue-600 to-indigo-600 hover:from-blue-600 hover:via-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95 inline-flex items-center">
+                <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
+                <i class="fas fa-plus mr-2"></i>
+                <span class="font-medium">New Update</span>
+            </a>
+            {% endif %}
+        </div>
+
+        <!-- Updates List -->
+        <div class="space-y-4 animate-fade-in-up-delay-1">
+            {% if updates %}
+                {% for update in updates %}
+                <div class="update-card premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                    <div class="p-6">
+                        <!-- Header row with meta and admin actions -->
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-4 text-sm">
+                                <span class="text-slate-500 font-medium">
+                                    <i class="far fa-calendar-alt mr-1.5 text-slate-400"></i>
+                                    {{ update.created_at.strftime('%B %d, %Y') }}
+                                </span>
+                                {% if update.author %}
+                                <span class="text-slate-400">
+                                    <i class="far fa-user mr-1.5"></i>
+                                    {{ update.author.first_name }} {{ update.author.last_name }}
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if current_user.role == 'admin' %}
+                            <div class="flex items-center space-x-1">
+                                <a href="{{ url_for('company_updates.edit_update', update_id=update.id) }}"
+                                   class="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-all"
+                                   title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form action="{{ url_for('company_updates.delete_update', update_id=update.id) }}" 
+                                      method="POST" 
+                                      onsubmit="return confirm('Are you sure you want to delete this update?');"
+                                      class="inline">
+                                    <button type="submit"
+                                            class="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+                                            title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Main content area - clickable -->
+                        <a href="{{ url_for('company_updates.view_update', update_id=update.id) }}" class="block group">
+                            {% if update.cover_image_url %}
+                            <div class="w-full h-48 rounded-xl overflow-hidden bg-slate-100 mb-4">
+                                <img src="{{ update.cover_image_url }}" alt="{{ update.title }}" 
+                                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                            </div>
+                            {% endif %}
+                            
+                            <h2 class="update-title text-xl font-bold text-slate-800 mb-2 group-hover:text-blue-600 transition-colors duration-200">
+                                {{ update.title }}
+                            </h2>
+                            
+                            <p class="text-slate-600 leading-relaxed mb-4">
+                                {{ update.excerpt }}
+                            </p>
+                            
+                            <span class="inline-flex items-center text-blue-600 font-medium text-sm group-hover:text-blue-700">
+                                Read more
+                                <i class="fas fa-arrow-right ml-2 transition-transform group-hover:translate-x-1"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <!-- Empty State -->
+                <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-12 text-center">
+                    <div class="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <i class="fas fa-newspaper text-slate-400 text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800 mb-2">No updates yet</h3>
+                    <p class="text-slate-500 mb-6">Company updates and announcements will appear here.</p>
+                    {% if current_user.role == 'admin' %}
+                    <a href="{{ url_for('company_updates.create_update') }}"
+                       class="inline-flex items-center px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300">
+                        <i class="fas fa-plus mr-2"></i>
+                        Create First Update
+                    </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

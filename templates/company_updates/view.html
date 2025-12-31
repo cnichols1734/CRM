@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}{{ update.title }} - Company Updates{% endblock %}
+
+{% block head_scripts %}
+<style>
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    
+    /* Rich text content styling */
+    .update-content {
+        font-size: 1.1rem;
+        line-height: 1.8;
+        color: #334155;
+    }
+    .update-content h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 1.5rem 0 1rem;
+        color: #1e293b;
+    }
+    .update-content h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 1.25rem 0 0.75rem;
+        color: #1e293b;
+    }
+    .update-content h3 {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 1rem 0 0.5rem;
+        color: #1e293b;
+    }
+    .update-content p {
+        margin-bottom: 1rem;
+    }
+    .update-content ul, .update-content ol {
+        margin: 1rem 0;
+        padding-left: 1.5rem;
+    }
+    .update-content li {
+        margin-bottom: 0.5rem;
+    }
+    .update-content ul li {
+        list-style-type: disc;
+    }
+    .update-content ol li {
+        list-style-type: decimal;
+    }
+    .update-content a {
+        color: #3b82f6;
+        text-decoration: underline;
+    }
+    .update-content a:hover {
+        color: #2563eb;
+    }
+    .update-content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.75rem;
+        margin: 1.5rem 0;
+    }
+    .update-content blockquote {
+        border-left: 4px solid #3b82f6;
+        padding-left: 1rem;
+        margin: 1.5rem 0;
+        font-style: italic;
+        color: #64748b;
+    }
+    .update-content strong {
+        font-weight: 600;
+        color: #1e293b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+        
+        <!-- Back Button and Admin Actions -->
+        <div class="animate-fade-in-up mb-6 flex justify-between items-center">
+            <a href="{{ url_for('company_updates.list_updates') }}"
+               class="inline-flex items-center text-slate-600 hover:text-slate-900 font-medium transition-colors">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Updates
+            </a>
+            
+            {% if current_user.role == 'admin' %}
+            <div class="flex items-center space-x-2">
+                <a href="{{ url_for('company_updates.edit_update', update_id=update.id) }}"
+                   class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium transition-all">
+                    <i class="fas fa-edit mr-2"></i>
+                    Edit
+                </a>
+                <form action="{{ url_for('company_updates.delete_update', update_id=update.id) }}" 
+                      method="POST" 
+                      onsubmit="return confirm('Are you sure you want to delete this update?');"
+                      class="inline">
+                    <button type="submit"
+                            class="inline-flex items-center px-4 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-medium transition-all">
+                        <i class="fas fa-trash mr-2"></i>
+                        Delete
+                    </button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Article -->
+        <article class="animate-fade-in-up-delay-1 bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+            <!-- Cover Image -->
+            {% if update.cover_image_url %}
+            <div class="w-full h-64 md:h-80 bg-slate-100">
+                <img src="{{ update.cover_image_url }}" alt="{{ update.title }}" 
+                     class="w-full h-full object-cover">
+            </div>
+            {% endif %}
+            
+            <!-- Content -->
+            <div class="p-6 md:p-10">
+                <!-- Meta -->
+                <div class="flex flex-wrap items-center gap-4 mb-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium">
+                        <i class="far fa-calendar-alt mr-1.5"></i>
+                        {{ update.created_at.strftime('%B %d, %Y') }}
+                    </span>
+                    {% if update.author %}
+                    <span class="text-slate-500 text-sm">
+                        By <strong class="text-slate-700">{{ update.author.first_name }} {{ update.author.last_name }}</strong>
+                    </span>
+                    {% endif %}
+                    {% if update.updated_at and update.updated_at > update.created_at %}
+                    <span class="text-slate-400 text-sm">
+                        Updated {{ update.updated_at.strftime('%B %d, %Y') }}
+                    </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Title -->
+                <h1 class="text-3xl md:text-4xl font-bold text-slate-900 mb-6 leading-tight">
+                    {{ update.title }}
+                </h1>
+                
+                <!-- Content -->
+                <div class="update-content">
+                    {{ update.content | safe }}
+                </div>
+            </div>
+        </article>
+
+        <!-- Navigation -->
+        <div class="mt-8 flex justify-between items-center">
+            {% if prev_update %}
+            <a href="{{ url_for('company_updates.view_update', update_id=prev_update.id) }}"
+               class="group flex items-center text-slate-600 hover:text-blue-600 transition-colors">
+                <i class="fas fa-arrow-left mr-2 group-hover:-translate-x-1 transition-transform"></i>
+                <span class="font-medium">Previous</span>
+            </a>
+            {% else %}
+            <div></div>
+            {% endif %}
+            
+            {% if next_update %}
+            <a href="{{ url_for('company_updates.view_update', update_id=next_update.id) }}"
+               class="group flex items-center text-slate-600 hover:text-blue-600 transition-colors">
+                <span class="font-medium">Next</span>
+                <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+            </a>
+            {% else %}
+            <div></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+

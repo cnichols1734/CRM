@@ -349,6 +349,21 @@
             </div>
         </div>
 
+        <!-- Company Updates Icon with Tooltip -->
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('company_updates.list_updates') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-newspaper"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Updates</span>
+                </div>
+            </a>
+            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                Company Updates
+            </div>
+        </div>
+
         <!-- Agent Resources Accordion -->
         <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
             <button
@@ -499,7 +514,12 @@
         <a href="{{ url_for('action_plan.action_plan') }}"
            class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'action_plan.action_plan' %}active{% endif %}">
             <i class="fas fa-rocket text-lg"></i>
-            <span class="text-xs mt-0.5">Action Plan</span>
+            <span class="text-xs mt-0.5">Plan</span>
+        </a>
+        <a href="{{ url_for('company_updates.list_updates') }}"
+           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint and request.endpoint.startswith('company_updates.') %}active{% endif %}">
+            <i class="fas fa-newspaper text-lg"></i>
+            <span class="text-xs mt-0.5">Updates</span>
         </a>
     </nav>
 </div>
