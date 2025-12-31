@@ -8,9 +8,9 @@ This is a Flask-based CRM application for Origen Realty real estate agents.
 - **Repo**: https://github.com/cnichols1734/CRM
 
 ## Local Development
-- **Port**: 5007
+- **Port**: 5011
 - **Start command**: `python3 app.py` (from project root)
-- **Local URL**: http://127.0.0.1:5007
+- **Local URL**: http://127.0.0.1:5011
 
 ## Testing Credentials
 Test credentials are stored in the `.env` file:
@@ -18,7 +18,7 @@ Test credentials are stored in the `.env` file:
 - `TEST_PASSWORD` - password for login
 
 When testing features locally, read the `.env` file to get these credentials, then use the browser tools to:
-1. Navigate to http://127.0.0.1:5007
+1. Navigate to http://127.0.0.1:5011
 2. Login with the test credentials
 3. Test the feature
 

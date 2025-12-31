@@ -7,7 +7,7 @@ Run with: python tests/run_tests.py
 
 Options:
     --headed    Run with browser visible (default: headless)
-    --base-url  Override base URL (default: http://127.0.0.1:5007)
+    --base-url  Override base URL (default: http://127.0.0.1:5011)
     --slow      Add delays between actions for debugging
 """
 
@@ -864,8 +864,8 @@ Examples:
     
     parser.add_argument(
         '--base-url',
-        default=os.getenv('BASE_URL', 'http://127.0.0.1:5006'),
-        help='Base URL for the CRM application (default: http://127.0.0.1:5006)'
+        default=os.getenv('BASE_URL', 'http://127.0.0.1:5011'),
+        help='Base URL for the CRM application (default: http://127.0.0.1:5011)'
     )
     
     parser.add_argument(
