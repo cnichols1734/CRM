@@ -912,7 +912,7 @@
         <div id="loadingOverlay" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50">
             <div class="bg-white rounded-2xl p-10 max-w-md mx-4 text-center shadow-2xl border border-slate-200">
                 <h3 class="text-xl font-bold text-slate-800 mb-2">Building Your Action Plan</h3>
-                <p class="text-slate-500 mb-4">Our AI is analyzing your responses and creating a personalized 2026 lead generation strategy tailored just for you.</p>
+                <p class="text-slate-500 mb-4">B.O.B. is generating your plan based on your responses and creating a personalized 2026 lead generation strategy tailored just for you.</p>
                 <div class="flex items-center justify-center space-x-1 text-sm text-slate-400">
                     <div class="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style="animation-delay: 0s;"></div>
                     <div class="w-2 h-2 bg-orange-500 rounded-full animate-bounce" style="animation-delay: 0.2s;"></div>
@@ -922,4 +922,23 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('lastUpdated');
+    if (el && el.dataset.utc) {
+        const utcDate = new Date(el.dataset.utc + 'Z'); // Add Z to ensure it is treated as UTC
+        const formatted = utcDate.toLocaleString('en-US', {
+            timeZone: 'America/Chicago',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+        el.textContent = formatted.replace(',', ' at');
+    }
+});
+</script>
 {% endblock %}
