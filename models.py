@@ -249,3 +249,23 @@ class ActionPlan(db.Model):
     def get_for_user(cls, user_id):
         """Get the action plan for a specific user."""
         return cls.query.filter_by(user_id=user_id).first()
+
+
+class CompanyUpdate(db.Model):
+    """Company-wide updates/announcements visible to all users."""
+    __tablename__ = 'company_updates'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    content = db.Column(db.Text, nullable=False)  # HTML from Quill.js
+    excerpt = db.Column(db.String(500))  # Short preview text
+    cover_image_url = db.Column(db.String(500))  # External URL
+    author_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationship to get author details
+    author = db.relationship('User', backref=db.backref('company_updates', lazy=True))
+    
+    def __repr__(self):
+        return f'<CompanyUpdate {self.title[:30]}>'
