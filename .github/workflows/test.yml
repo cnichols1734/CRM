@@ -47,10 +47,10 @@ jobs:
           # Wait for server to start
           sleep 5
           # Verify server is running
-          curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5006/login
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5011/login
 
       - name: Run integration tests
-        run: python tests/run_tests.py --base-url http://127.0.0.1:5006
+        run: python tests/run_tests.py --base-url http://127.0.0.1:5011
 
       - name: Upload test artifacts on failure
         if: failure()
