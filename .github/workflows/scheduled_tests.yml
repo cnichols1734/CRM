@@ -1,0 +1,70 @@
+name: Scheduled Integration Tests
+
+on:
+  # Run every hour to catch issues in main
+  schedule:
+    - cron: '0 * * * *'  # Every hour at minute 0
+  # Also allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    env:
+      # Test credentials - set these as GitHub Secrets
+      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
+      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
+      # Database URL for tests (uses Supabase)
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      # Optional: OpenAI key if AI features are tested
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Flask environment
+      FLASK_ENV: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium
+
+      - name: Start Flask app
+        run: |
+          python app.py &
+          # Wait for server to start
+          sleep 5
+          # Verify server is running
+          curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5011/login
+
+      - name: Run scheduled integration tests
+        run: python tests/run_scheduled_tests.py --base-url http://127.0.0.1:5011
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scheduled-test-failure-logs
+          path: |
+            tests/*.png
+            tests/*.log
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::warning::Scheduled tests failed on main branch! Check the logs for details."
+          # You can add Slack/Discord/email notification here later
+
