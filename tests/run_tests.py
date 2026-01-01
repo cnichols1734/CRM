@@ -7,7 +7,7 @@ Run with: python tests/run_tests.py
 
 Options:
     --headed    Run with browser visible (default: headless)
-    --base-url  Override base URL (default: http://127.0.0.1:5007)
+    --base-url  Override base URL (default: http://127.0.0.1:5011)
     --slow      Add delays between actions for debugging
 """
 
@@ -142,9 +142,9 @@ class CRMTestSuite:
         )
         self.page = self.context.new_page()
         
-        # Set reasonable timeouts
-        self.page.set_default_timeout(10000)
-        self.page.set_default_navigation_timeout(15000)
+        # Set reasonable timeouts (longer for CI environments)
+        self.page.set_default_timeout(15000)
+        self.page.set_default_navigation_timeout(30000)
     
     def teardown(self):
         """Clean up Playwright resources."""
@@ -705,7 +705,7 @@ class CRMTestSuite:
         try:
             self.log("Navigating to contacts list...", "step")
             self.page.goto(f"{self.base_url}/")
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("load")
             self.log("", "ok")
             
             self.log("Verifying contacts page...", "step")
@@ -730,7 +730,7 @@ class CRMTestSuite:
         try:
             self.log("Navigating to tasks list...", "step")
             self.page.goto(f"{self.base_url}/tasks")
-            self.page.wait_for_load_state("networkidle")
+            self.page.wait_for_load_state("load")
             self.log("", "ok")
             
             self.log("Verifying tasks page...", "step")
@@ -864,8 +864,8 @@ Examples:
     
     parser.add_argument(
         '--base-url',
-        default=os.getenv('BASE_URL', 'http://127.0.0.1:5006'),
-        help='Base URL for the CRM application (default: http://127.0.0.1:5006)'
+        default=os.getenv('BASE_URL', 'http://127.0.0.1:5011'),
+        help='Base URL for the CRM application (default: http://127.0.0.1:5011)'
     )
     
     parser.add_argument(
