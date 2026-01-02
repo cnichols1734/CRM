@@ -78,8 +78,9 @@
                 </div>
             </div>
             
+            {% if show_dashboard_joke %}
             <!-- Joke of the Day (inline) -->
-            <div id="joke-container" class="hidden md:flex flex-1 justify-center">
+            <div id="joke-container" class="hidden md:flex flex-1 justify-center" data-enabled="true">
                 <div class="relative group inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 rounded-xl shadow-md border border-amber-200/60 hover:shadow-lg transition-all duration-300">
                     <div class="absolute inset-0 bg-gradient-to-r from-amber-100/50 via-orange-100/50 to-yellow-100/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     <div class="relative flex items-center">
@@ -90,6 +91,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             
             <button 
                 onclick="showDailyTodoModal()"
