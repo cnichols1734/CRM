@@ -1,5 +1,38 @@
+// Joke of the Day - Fetch from external APIs
+async function fetchDadJoke() {
+    const response = await fetch('https://icanhazdadjoke.com/', {
+        headers: { 'Accept': 'application/json' }
+    });
+    const data = await response.json();
+    return data.joke;
+}
+
+async function fetchJokeAPI() {
+    const response = await fetch('https://v2.jokeapi.dev/joke/Pun,Misc?type=single&blacklistFlags=nsfw,religious,political,racist,sexist,explicit');
+    const data = await response.json();
+    if (data.error) throw new Error('JokeAPI error');
+    return data.joke;
+}
+
+async function displayRandomJoke() {
+    const jokeText = document.getElementById('joke-text');
+    if (!jokeText) return; // Not on dashboard page
+    
+    try {
+        // Randomly pick which API to use
+        const useIcanhazdadjoke = Math.random() < 0.5;
+        const joke = useIcanhazdadjoke ? await fetchDadJoke() : await fetchJokeAPI();
+        jokeText.textContent = joke;
+    } catch (error) {
+        // Fallback if APIs fail
+        jokeText.textContent = "Why did the real estate agent bring a ladder? To reach new heights in sales!";
+    }
+}
+
 // Dashboard Todo List Management
 document.addEventListener('DOMContentLoaded', function() {
+    // Load joke of the day
+    displayRandomJoke();
     // Elements
     const newTodoInput = document.getElementById('dashboardNewTodoInput');
     const addTodoBtn = document.getElementById('dashboardAddTodoBtn');
