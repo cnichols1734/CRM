@@ -12,6 +12,10 @@ This is a Flask-based CRM application for Origen Realty real estate agents.
 - **Start command**: `python3 app.py` (from project root)
 - **Local URL**: http://127.0.0.1:5011
 
+## Testing Rules
+Never auto test UI tests unless I specifically ask for it  
+- Once a feature is complete ask me if I am ready to push a PR for it before pushing it
+
 ## Testing Credentials
 Test credentials are stored in the `.env` file:
 - `TEST_USERNAME` - email for login
@@ -54,8 +58,36 @@ After pushing changes to GitHub:
 - **Local test DB**: `instance/crm.db` (SQLite, for quick testing only)
 - **Production data backup**: `instance/crm (1).db`
 
+## PR & Commit Rules
+Always use the PR workflow - commit changes to a branch and push for review in GitHub.
+
+### Branch & Commit Naming Convention
+Use conventional commit prefixes for branches and commit messages:
+
+| Prefix | Use For |
+|--------|---------|
+| `feat:` | New features (e.g., `feat: add contact import wizard`) |
+| `fix:` | Bug fixes (e.g., `fix: resolve login redirect loop`) |
+| `chore:` | Maintenance, dependencies, configs (e.g., `chore: update requirements.txt`) |
+| `refactor:` | Code restructuring without behavior change (e.g., `refactor: extract base.html inline JS`) |
+| `docs:` | Documentation only (e.g., `docs: update README with deploy steps`) |
+| `style:` | Formatting, CSS, no logic change (e.g., `style: fix button alignment on mobile`) |
+| `test:` | Adding or updating tests (e.g., `test: add scheduled integration tests`) |
+| `perf:` | Performance improvements (e.g., `perf: optimize contact list query`) |
+
+### Branch Naming
+Use the same prefix with kebab-case description:
+- `feat/contact-import-wizard`
+- `fix/login-redirect-loop`
+- `chore/update-dependencies`
+- `refactor/base-js`
+
+### PR Workflow
+1. Create feature branch with appropriate prefix
+2. Make commits with conventional prefixes
+3. Push branch to origin
+4. User reviews and creates PR via GitHub UI (one-click merge)
+
 ## Important Notes
-- Always test locally before pushing to production
 - The `.env` file is gitignored - never commit secrets
 - PythonAnywhere has its own `.env` file at `~/mysite/.env`
-
