@@ -83,10 +83,17 @@ Use the same prefix with kebab-case description:
 - `refactor/base-js`
 
 ### PR Workflow
-1. Create feature branch with appropriate prefix
-2. Make commits with conventional prefixes
-3. Push branch to origin
-4. User reviews and creates PR via GitHub UI (one-click merge)
+**IMPORTANT: Before starting ANY new feature or fix:**
+1. Ensure you are on `main` branch
+2. Run `git pull origin main` to sync with remote
+3. Only then create the feature branch and begin work
+
+**Steps:**
+1. Sync with main: `git checkout main && git pull origin main`
+2. Create feature branch with appropriate prefix
+3. Make commits with conventional prefixes
+4. Push branch to origin
+5. User reviews and creates PR via GitHub UI (one-click merge)
 
 ## Important Notes
 - The `.env` file is gitignored - never commit secrets
