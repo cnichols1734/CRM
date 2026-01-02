@@ -4,7 +4,7 @@
 
 FEATURE_FLAGS = {
     # Dashboard joke of the day - fetches from external joke APIs
-    'SHOW_DASHBOARD_JOKE': True,
+    'SHOW_DASHBOARD_JOKE': False,
 }
 
 
