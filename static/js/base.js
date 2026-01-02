@@ -74,6 +74,8 @@ document.addEventListener('DOMContentLoaded', function() {
     applyInitialState();
 
     function toggleSidebar() {
+        if (!sidebar || !mainContent) return;
+        
         isExpanded = !isExpanded;
         localStorage.setItem('sidebarExpanded', isExpanded);
 
