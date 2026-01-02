@@ -64,21 +64,16 @@
 
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
+    <div class="p-4 md:p-6">
         
         <!-- Premium Header -->
         <div class="animate-fade-in-up mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div class="flex items-center space-x-4">
-                <div class="relative">
-                    <div class="absolute inset-0 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl blur-lg opacity-30 animate-pulse-glow"></div>
-                    <div class="relative h-14 w-14 bg-gradient-to-br from-orange-500 via-orange-500 to-amber-500 rounded-2xl shadow-lg flex items-center justify-center transform -rotate-3 hover:rotate-0 transition-transform duration-300">
-                        <i class="fas fa-chart-line text-white text-2xl"></i>
-                    </div>
+                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fas fa-chart-line text-white text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent tracking-tight">
-                        Dashboard
-                    </h1>
+                    <h1 class="text-2xl font-bold text-slate-800">Dashboard</h1>
                     <p class="text-slate-500 mt-1 font-medium">Welcome back, {{ current_user.first_name }}</p>
                 </div>
             </div>
@@ -163,59 +158,50 @@
         <!-- Key Metrics Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fade-in-up-delay-1">
             <!-- Total Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-green-500/5 rounded-full -mr-16 -mt-16"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                <i class="fas fa-dollar-sign text-white"></i>
-                            </div>
-                            <h3 class="text-sm font-semibold text-slate-600">Total Potential Commission</h3>
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-dollar-sign text-white"></i>
                         </div>
-                        <span class="bg-emerald-100 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">All time</span>
+                        <h3 class="text-sm font-semibold text-slate-600">Total Potential Commission</h3>
                     </div>
-                    <div class="flex items-baseline">
-                        <span class="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">${{ "{:,.0f}".format(total_commission) }}</span>
-                    </div>
+                    <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">All time</span>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-emerald-600">${{ "{:,.0f}".format(total_commission) }}</span>
                 </div>
             </div>
 
             <!-- Total Contacts Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-indigo-500/5 rounded-full -mr-16 -mt-16"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                <i class="fas fa-users text-white"></i>
-                            </div>
-                            <h3 class="text-sm font-semibold text-slate-600">Total Contacts</h3>
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-users text-white"></i>
                         </div>
-                        <span class="bg-blue-100 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">Active</span>
+                        <h3 class="text-sm font-semibold text-slate-600">Total Contacts</h3>
                     </div>
-                    <div class="flex items-baseline">
-                        <span class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{{ total_contacts }}</span>
-                    </div>
+                    <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">Active</span>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-blue-600">{{ total_contacts }}</span>
                 </div>
             </div>
 
             <!-- Average Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-500/10 to-violet-500/5 rounded-full -mr-16 -mt-16"></div>
-                <div class="relative">
-                    <div class="flex items-center justify-between mb-4">
-                        <div class="flex items-center space-x-3">
-                            <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
-                                <i class="fas fa-chart-bar text-white"></i>
-                            </div>
-                            <h3 class="text-sm font-semibold text-slate-600">Average Commission</h3>
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-bar text-white"></i>
                         </div>
-                        <span class="bg-purple-100 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full">Per contact</span>
+                        <h3 class="text-sm font-semibold text-slate-600">Average Commission</h3>
                     </div>
-                    <div class="flex items-baseline">
-                        <span class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-violet-600 bg-clip-text text-transparent">${{ "{:,.0f}".format(avg_commission) }}</span>
-                    </div>
+                    <span class="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full">Per contact</span>
+                </div>
+                <div class="flex items-baseline">
+                    <span class="text-3xl font-bold text-purple-600">${{ "{:,.0f}".format(avg_commission) }}</span>
                 </div>
             </div>
         </div>
@@ -223,11 +209,11 @@
         <!-- Upcoming Tasks and Todos Section -->
         <div class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up-delay-2">
             <!-- Upcoming Tasks Section -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
                 <!-- Header -->
                 <div class="px-6 py-5 section-header border-b border-slate-100 flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+                        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
                             <i class="fas fa-tasks text-white"></i>
                         </div>
                         <div>
@@ -394,11 +380,11 @@
             </div>
 
             <!-- Active Todos Section -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
                 <!-- Header -->
                 <div class="px-6 py-5 section-header border-b border-slate-100 flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
+                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
                             <i class="fas fa-check-square text-white"></i>
                         </div>
                         <div>
@@ -442,10 +428,10 @@
         <!-- Charts and Tables Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up-delay-3">
             <!-- Group Distribution Chart -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 lg:col-span-1 overflow-hidden">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 lg:col-span-1 overflow-hidden">
                 <div class="flex items-center justify-between mb-6">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-md">
                             <i class="fas fa-pie-chart text-white"></i>
                         </div>
                         <h3 class="text-lg font-bold text-slate-800">Contact Groups</h3>
@@ -469,9 +455,9 @@
             </div>
 
             <!-- Top Contacts Table -->
-            <div class="premium-card bg-white rounded-2xl shadow-xl border border-slate-200/60 p-6 lg:col-span-2 overflow-hidden">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 lg:col-span-2 overflow-hidden">
                 <div class="flex items-center space-x-3 mb-6">
-                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
                         <i class="fas fa-trophy text-white"></i>
                     </div>
                     <h3 class="text-lg font-bold text-slate-800">Top Contacts by Commission</h3>
