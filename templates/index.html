@@ -144,13 +144,7 @@
         urlParams.delete('sort');
         urlParams.delete('dir');
 
-        // Preserve the view parameter if it exists
-        const view = urlParams.get('view');
-        const newUrl = view
-            ? `${window.location.pathname}?view=${view}`
-            : window.location.pathname;
-
-        window.location.href = newUrl;
+        window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
     }
 </script>
 
