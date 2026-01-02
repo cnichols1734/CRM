@@ -308,7 +308,13 @@
                     <span id="activeFiltersCount"
                         class="hidden ml-1 bg-orange-100 text-orange-700 text-xs px-2 py-0.5 rounded-full font-medium"></span>
                 </button>
-                <a href="{{ url_for('contacts.export_contacts', view=request.args.get('view'), q=request.args.get('q')) }}"
+                <a href="{{ url_for('contacts.export_contacts',
+                                     view=request.args.get('view'),
+                                     q=request.args.get('q'),
+                                     owners=request.args.get('owners'),
+                                     groups=request.args.get('groups'),
+                                     zips=request.args.get('zips'),
+                                     commission=request.args.get('commission')) }}"
                     class="premium-btn text-sm px-4 py-2 border-2 border-slate-200 text-slate-700 bg-white hover:bg-slate-50">
                     <i class="fas fa-download mr-2 text-slate-400"></i>Export
                 </a>
