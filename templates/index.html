@@ -136,12 +136,6 @@
         urlParams.set('sort', column);
         urlParams.set('dir', newDir);
 
-        // Preserve the view parameter if it exists
-        const view = urlParams.get('view');
-        if (view) {
-            urlParams.set('view', view);
-        }
-
         window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
     }
 
