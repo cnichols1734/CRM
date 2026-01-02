@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from models import Contact, ContactGroup, Task, User, CompanyUpdate
+from feature_flags import is_enabled
 from datetime import datetime, timedelta, timezone
 import pytz
 from sqlalchemy import func
@@ -212,7 +213,8 @@ def dashboard():
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
                          latest_update=latest_update,
-                         now=now)
+                         now=now,
+                         show_dashboard_joke=is_enabled('SHOW_DASHBOARD_JOKE'))
 
 @main_bp.route('/marketing')
 @login_required

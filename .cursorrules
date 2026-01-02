@@ -47,11 +47,18 @@ After pushing changes to GitHub:
 - `app.py` - Main Flask application
 - `models.py` - SQLAlchemy database models
 - `config.py` - Configuration (reads from .env)
+- `feature_flags.py` - Feature toggles (deploys with code via git)
 - `.env` - Environment variables (gitignored, contains secrets)
 - `services/` - Shared services (AI, SendGrid)
 - `routes/` - Flask blueprints/routes
 - `templates/` - Jinja2 HTML templates
 - `static/` - CSS, JS, images
+
+## Feature Flags
+Toggle features on/off in `feature_flags.py`. Changes deploy with git pull - no need to edit .env on server.
+
+Current flags:
+- `SHOW_DASHBOARD_JOKE` - Dashboard joke of the day (fetches from external APIs)
 
 ## Database
 - **Production**: Supabase PostgreSQL
