@@ -118,7 +118,7 @@
                 </div>
                 {% endif %}
                 
-                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}#intake" 
+                <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}" 
                    class="btn btn-outline btn-sm w-full">
                     <i class="fas fa-clipboard-list mr-2"></i>
                     {% if transaction.intake_data %}Edit Questionnaire{% else %}Start Questionnaire{% endif %}
