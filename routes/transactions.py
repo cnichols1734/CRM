@@ -39,6 +39,7 @@ def list_transactions():
     # Get filter params
     status_filter = request.args.get('status', '')
     type_filter = request.args.get('type', '')
+    search_query = request.args.get('q', '').strip()
     
     # Base query - transactions created by current user
     query = Transaction.query.filter_by(created_by_id=current_user.id)
@@ -49,8 +50,52 @@ def list_transactions():
     if type_filter:
         query = query.filter_by(transaction_type_id=int(type_filter))
     
+    # Apply search filter (address or contact name)
+    if search_query:
+        search_term = f'%{search_query}%'
+        # Get transaction IDs that match participant names
+        matching_participant_tx_ids = db.session.query(TransactionParticipant.transaction_id).join(
+            Contact, TransactionParticipant.contact_id == Contact.id
+        ).filter(
+            db.or_(
+                Contact.first_name.ilike(search_term),
+                Contact.last_name.ilike(search_term),
+                db.func.concat(Contact.first_name, ' ', Contact.last_name).ilike(search_term)
+            )
+        ).distinct().all()
+        matching_tx_ids = [tx_id for (tx_id,) in matching_participant_tx_ids]
+        
+        # Also check participant name field (for external parties)
+        external_match_ids = db.session.query(TransactionParticipant.transaction_id).filter(
+            TransactionParticipant.name.ilike(search_term)
+        ).distinct().all()
+        matching_tx_ids.extend([tx_id for (tx_id,) in external_match_ids])
+        
+        # Filter by address OR matching participant
+        query = query.filter(
+            db.or_(
+                Transaction.street_address.ilike(search_term),
+                Transaction.city.ilike(search_term),
+                Transaction.id.in_(matching_tx_ids) if matching_tx_ids else False
+            )
+        )
+    
     # Order by most recent first
     transactions = query.order_by(Transaction.created_at.desc()).all()
+    
+    # Build a dict of primary contacts for each transaction
+    transaction_contacts = {}
+    for tx in transactions:
+        # Get the primary client participant (seller, buyer, etc.)
+        primary_participant = tx.participants.filter_by(is_primary=True).filter(
+            TransactionParticipant.role.in_(['seller', 'buyer', 'landlord', 'tenant', 'referral_client'])
+        ).first()
+        if primary_participant:
+            transaction_contacts[tx.id] = {
+                'name': primary_participant.display_name,
+                'email': primary_participant.display_email,
+                'contact_id': primary_participant.contact_id
+            }
     
     # Get transaction types for filter dropdown
     transaction_types = TransactionType.query.filter_by(is_active=True)\
@@ -60,8 +105,10 @@ def list_transactions():
         'transactions/list.html',
         transactions=transactions,
         transaction_types=transaction_types,
+        transaction_contacts=transaction_contacts,
         status_filter=status_filter,
-        type_filter=type_filter
+        type_filter=type_filter,
+        search_query=search_query
     )
 
 
@@ -234,6 +281,36 @@ def edit_transaction(id):
         transaction=transaction,
         transaction_types=transaction_types
     )
+
+
+@transactions_bp.route('/<int:id>/delete', methods=['POST'])
+@login_required
+@transactions_required
+def delete_transaction(id):
+    """Delete a transaction and all related data."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    try:
+        # Get transaction address for flash message
+        address = transaction.street_address
+        
+        # Delete the transaction - cascade will handle:
+        # - TransactionParticipants (cascade='all, delete-orphan')
+        # - TransactionDocuments (cascade='all, delete-orphan')
+        #   - DocumentSignatures (cascade='all, delete-orphan' via TransactionDocument)
+        db.session.delete(transaction)
+        db.session.commit()
+        
+        flash(f'Transaction for "{address}" has been deleted.', 'success')
+        return redirect(url_for('transactions.list_transactions'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting transaction: {str(e)}', 'error')
+        return redirect(url_for('transactions.view_transaction', id=id))
 
 
 @transactions_bp.route('/<int:id>', methods=['POST'])

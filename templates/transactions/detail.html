@@ -3,436 +3,765 @@
 {% block title %}{{ transaction.street_address }} - TechnolOG{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6 max-w-5xl">
-    <!-- Header -->
-    <div class="mb-6">
-        <a href="{{ url_for('transactions.list_transactions') }}" class="text-gray-500 hover:text-gray-700 text-sm">
-            <i class="fas fa-arrow-left mr-1"></i>Back to Transactions
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Status dropdown styling */
+    .status-dropdown {
+        position: relative;
+    }
+
+    .status-dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        margin-top: 0.5rem;
+        background: white;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+        border: 1px solid #e2e8f0;
+        z-index: 50;
+        min-width: 180px;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease-out;
+    }
+
+    .status-dropdown:hover .status-dropdown-menu,
+    .status-dropdown-menu:hover {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    /* Type badge styles */
+    .type-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .type-seller { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+    .type-buyer { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+    .type-landlord { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+    .type-tenant { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .type-referral { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+
+    /* Status badge styles */
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+    }
+
+    .status-draft { background: #f1f5f9; color: #64748b; }
+    .status-draft:hover { background: #e2e8f0; }
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-active:hover { background: #bbf7d0; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-pending:hover { background: #fde68a; }
+    .status-under_contract { background: #dbeafe; color: #1e40af; }
+    .status-under_contract:hover { background: #bfdbfe; }
+    .status-closed { background: #e0e7ff; color: #3730a3; }
+    .status-closed:hover { background: #c7d2fe; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+    .status-cancelled:hover { background: #fecaca; }
+
+    /* Document row */
+    .doc-row {
+        transition: all 0.2s ease-out;
+    }
+    .doc-row:hover {
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.06), rgba(249, 115, 22, 0.03));
+    }
+
+    /* Participant card */
+    .participant-card {
+        transition: all 0.2s ease-out;
+    }
+    .participant-card:hover {
+        background: #f8fafc;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+        backdrop-filter: blur(4px);
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Info row */
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+    .info-value {
+        color: #1e293b;
+        font-weight: 500;
+        font-size: 0.875rem;
+        text-align: right;
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6 max-w-7xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.list_transactions') }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transactions
         </a>
         
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">{{ transaction.street_address }}</h1>
-                <p class="text-gray-500">
-                    {% if transaction.city %}{{ transaction.city }}, {% endif %}
-                    {{ transaction.state }} {{ transaction.zip_code }}
-                    {% if transaction.county %} &middot; {{ transaction.county }} County{% endif %}
-                </p>
+        <!-- Header Section -->
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 animate-fade-in-up">
+            <div class="flex items-start space-x-4">
+                <!-- Property Icon -->
+                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
+                    <i class="fas fa-home text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800">{{ transaction.street_address }}</h1>
+                    <p class="text-slate-500 mt-1">
+                        {% if transaction.city %}{{ transaction.city }}, {% endif %}{{ transaction.state }} {{ transaction.zip_code }}
+                        {% if transaction.county %}<span class="text-slate-400 mx-2">&middot;</span>{{ transaction.county }} County{% endif %}
+                    </p>
+                </div>
             </div>
-            <div class="flex gap-2">
-                <span class="badge 
-                    {% if transaction.transaction_type.name == 'seller' %}badge-primary
-                    {% elif transaction.transaction_type.name == 'buyer' %}badge-secondary
-                    {% elif transaction.transaction_type.name == 'landlord' %}badge-accent
-                    {% elif transaction.transaction_type.name == 'tenant' %}badge-info
-                    {% else %}badge-ghost{% endif %} badge-lg">
+            
+            <!-- Badges & Actions -->
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Type Badge -->
+                <span class="type-badge type-{{ transaction.transaction_type.name }}">
                     {{ transaction.transaction_type.display_name }}
                 </span>
-                <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="badge 
-                        {% if transaction.status == 'draft' %}badge-ghost
-                        {% elif transaction.status == 'active' %}badge-success
-                        {% elif transaction.status == 'pending' %}badge-warning
-                        {% elif transaction.status == 'under_contract' %}badge-info
-                        {% elif transaction.status == 'closed' %}badge-primary
-                        {% elif transaction.status == 'cancelled' %}badge-error{% endif %} 
-                        badge-lg cursor-pointer gap-1">
+                
+                <!-- Status Dropdown -->
+                <div class="status-dropdown">
+                    <span class="status-badge status-{{ transaction.status }} flex items-center gap-2">
                         {{ transaction.status|replace('_', ' ')|title }}
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-white rounded-lg w-52 mt-1">
+                        <i class="fas fa-chevron-down text-xs opacity-50"></i>
+                    </span>
+                    <div class="status-dropdown-menu p-2">
                         {% for status in ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled'] %}
-                        <li>
-                            <a href="#" onclick="updateStatus('{{ status }}'); return false;"
-                               class="{% if transaction.status == status %}font-bold{% endif %}">
-                                {{ status|replace('_', ' ')|title }}
-                            </a>
-                        </li>
+                        <button onclick="updateStatus('{{ status }}')"
+                                class="w-full text-left px-4 py-2 text-sm rounded-lg hover:bg-slate-100 transition-colors {% if transaction.status == status %}font-bold text-orange-600{% endif %}">
+                            {{ status|replace('_', ' ')|title }}
+                            {% if transaction.status == status %}<i class="fas fa-check ml-2 text-orange-500"></i>{% endif %}
+                        </button>
                         {% endfor %}
-                    </ul>
+                    </div>
+                </div>
+
+                <!-- Delete Button -->
+                <button onclick="confirmDelete()" 
+                        class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="hidden sm:inline">Delete</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Main Info -->
+            <div class="lg:col-span-2 space-y-6">
+                <!-- Property Details Card -->
+                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                <i class="fas fa-info-circle text-white"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
+                        </div>
+                        <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}" 
+                           class="text-sm text-slate-500 hover:text-orange-600 transition-colors">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </a>
+                    </div>
+                    
+                    <div class="space-y-0">
+                        <div class="info-row">
+                            <span class="info-label">Full Address</span>
+                            <span class="info-value">{{ transaction.full_address }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Transaction Type</span>
+                            <span class="info-value">{{ transaction.transaction_type.display_name }}</span>
+                        </div>
+                        {% if transaction.ownership_status %}
+                        <div class="info-row">
+                            <span class="info-label">Ownership Status</span>
+                            <span class="info-value">{{ transaction.ownership_status|replace('_', ' ')|title }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">Current Status</span>
+                            <span class="info-value">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-{{ transaction.status }}">
+                                    {{ transaction.status|replace('_', ' ')|title }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created</span>
+                            <span class="info-value">{{ transaction.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% if transaction.updated_at and transaction.updated_at != transaction.created_at %}
+                        <div class="info-row">
+                            <span class="info-label">Last Updated</span>
+                            <span class="info-value">{{ transaction.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if transaction.expected_close_date %}
+                        <div class="info-row">
+                            <span class="info-label">Expected Close Date</span>
+                            <span class="info-value">{{ transaction.expected_close_date.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% endif %}
+                        {% if transaction.actual_close_date %}
+                        <div class="info-row">
+                            <span class="info-label">Actual Close Date</span>
+                            <span class="info-value text-green-600 font-semibold">{{ transaction.actual_close_date.strftime('%B %d, %Y') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Property Questionnaire Card (for Seller Conventional) -->
+                {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
+                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                                <i class="fas fa-clipboard-list text-white"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">Property Questionnaire</h2>
+                        </div>
+                        {% if transaction.intake_data %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                            <i class="fas fa-check mr-1.5"></i>Completed
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                            <i class="fas fa-clock mr-1.5"></i>Not Started
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if transaction.intake_data %}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+                        {% for key, value in transaction.intake_data.items() %}
+                        <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
+                            <span class="text-slate-600 text-sm">{{ key|replace('_', ' ')|title }}</span>
+                            <span class="font-medium text-slate-800 text-sm">
+                                {% if value == true %}
+                                <span class="text-green-600"><i class="fas fa-check-circle"></i> Yes</span>
+                                {% elif value == false %}
+                                <span class="text-slate-400"><i class="fas fa-times-circle"></i> No</span>
+                                {% else %}
+                                {{ value|title if value else '—' }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}" 
+                       class="w-full inline-flex items-center justify-center px-4 py-3 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 hover:border-orange-300 transition-all text-sm font-medium">
+                        <i class="fas fa-clipboard-list mr-2"></i>
+                        {% if transaction.intake_data %}Edit Questionnaire{% else %}Start Questionnaire{% endif %}
+                    </a>
+                </div>
+                {% endif %}
+
+                <!-- Documents Card -->
+                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                                <i class="fas fa-file-alt text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-800">Documents</h2>
+                                <p class="text-xs text-slate-500">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
+                            </div>
+                        </div>
+                        <button onclick="showAddDocumentModal()" 
+                                class="text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
+                            <i class="fas fa-plus mr-2"></i>Add
+                        </button>
+                    </div>
+                    
+                    {% if documents %}
+                    <div class="space-y-2">
+                        {% for doc in documents %}
+                        <div class="doc-row flex items-center justify-between p-4 rounded-xl border border-slate-100">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-xl flex items-center justify-center
+                                    {% if doc.status == 'signed' %}bg-green-100
+                                    {% elif doc.status == 'sent' %}bg-blue-100
+                                    {% elif doc.status == 'filled' %}bg-purple-100
+                                    {% else %}bg-slate-100{% endif %}">
+                                    {% if doc.status == 'signed' %}
+                                    <i class="fas fa-file-signature text-green-600 text-lg"></i>
+                                    {% elif doc.status == 'sent' %}
+                                    <i class="fas fa-paper-plane text-blue-600 text-lg"></i>
+                                    {% elif doc.status == 'filled' %}
+                                    <i class="fas fa-file-check text-purple-600 text-lg"></i>
+                                    {% else %}
+                                    <i class="fas fa-file-alt text-slate-400 text-lg"></i>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <div class="font-medium text-slate-800">{{ doc.template_name }}</div>
+                                    {% if doc.included_reason %}
+                                    <div class="text-xs text-slate-500 mt-0.5">
+                                        <i class="fas fa-info-circle mr-1 text-slate-400"></i>{{ doc.included_reason }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                    {% if doc.status == 'signed' %}bg-green-100 text-green-700
+                                    {% elif doc.status == 'sent' %}bg-blue-100 text-blue-700
+                                    {% elif doc.status == 'filled' %}bg-purple-100 text-purple-700
+                                    {% elif doc.status == 'generated' %}bg-indigo-100 text-indigo-700
+                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ doc.status|title }}
+                                </span>
+                                
+                                <!-- Action buttons based on status -->
+                                <div class="flex items-center gap-1">
+                                    {% if doc.status == 'pending' %}
+                                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
+                                       class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                                       title="Fill Form">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% elif doc.status == 'filled' %}
+                                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
+                                       class="p-2 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-all"
+                                       title="Edit Form">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button onclick="sendForSignature({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
+                                            title="Send for Signature">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                    {% elif doc.status == 'sent' %}
+                                    <button onclick="checkSignatureStatus({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                                            title="Check Status">
+                                        <i class="fas fa-clock"></i>
+                                    </button>
+                                    <button onclick="simulateSignature({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all"
+                                            title="Simulate Sign (Test)">
+                                        <i class="fas fa-magic"></i>
+                                    </button>
+                                    {% elif doc.status == 'signed' %}
+                                    <button onclick="downloadDocument({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
+                                            title="Download">
+                                        <i class="fas fa-download"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button onclick="removeDocument({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                            title="Remove">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Bulk Actions -->
+                    <div class="mt-5 pt-5 border-t border-slate-100 flex flex-wrap gap-3">
+                        <button onclick="fillAllForms()" class="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium">
+                            <i class="fas fa-edit mr-2 text-slate-400"></i>Fill All Forms
+                        </button>
+                        <button onclick="generateAllPDFs()" class="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium">
+                            <i class="fas fa-file-pdf mr-2 text-slate-400"></i>Generate All PDFs
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-12">
+                        <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-folder-open text-2xl text-slate-400"></i>
+                        </div>
+                        <h3 class="text-slate-800 font-medium mb-1">No documents yet</h3>
+                        <p class="text-slate-500 text-sm mb-4">
+                            {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
+                            Complete the questionnaire to generate the document package.
+                            {% else %}
+                            Click "Add" to start building your document package.
+                            {% endif %}
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Right Column - Participants & Actions -->
+            <div class="space-y-6">
+                <!-- Participants Card -->
+                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                    <div class="flex justify-between items-center mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
+                                <i class="fas fa-users text-white"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">Participants</h2>
+                        </div>
+                        <button onclick="showAddParticipantModal()" 
+                                class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 transition-all flex items-center justify-center">
+                            <i class="fas fa-plus text-sm"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        {% for participant in participants %}
+                        <div class="participant-card flex items-start gap-3 p-3 rounded-xl group">
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center flex-shrink-0">
+                                <span class="text-indigo-600 font-semibold text-sm">
+                                    {{ participant.display_name[:2]|upper }}
+                                </span>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-medium text-slate-800 truncate">{{ participant.display_name }}</span>
+                                    {% if participant.is_primary %}
+                                    <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Primary</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-sm text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
+                                {% if participant.display_email %}
+                                <div class="text-xs text-slate-400 truncate mt-0.5">{{ participant.display_email }}</div>
+                                {% endif %}
+                                {% if participant.company %}
+                                <div class="text-xs text-slate-400 truncate">{{ participant.company }}</div>
+                                {% endif %}
+                            </div>
+                            <button onclick="removeParticipant({{ participant.id }})"
+                                    class="opacity-0 group-hover:opacity-100 p-2 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if not participants %}
+                        <div class="text-center py-6">
+                            <p class="text-slate-500 text-sm">No participants added yet.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Transaction Timeline Card -->
+                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                    <div class="flex items-center gap-3 mb-5">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                            <i class="fas fa-history text-white"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-slate-800">Timeline</h2>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <div class="w-2 h-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-800">Transaction Created</div>
+                                <div class="text-xs text-slate-500">{{ transaction.created_at.strftime('%b %d, %Y at %I:%M %p') }}</div>
+                            </div>
+                        </div>
+                        {% if transaction.intake_data %}
+                        <div class="flex gap-3">
+                            <div class="w-2 h-2 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-800">Questionnaire Completed</div>
+                                <div class="text-xs text-slate-500">Property details gathered</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if documents|length > 0 %}
+                        <div class="flex gap-3">
+                            <div class="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-800">{{ documents|length }} Document{% if documents|length != 1 %}s{% endif %} Added</div>
+                                <div class="text-xs text-slate-500">Document package created</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if transaction.status == 'closed' and transaction.actual_close_date %}
+                        <div class="flex gap-3">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 mt-2 flex-shrink-0"></div>
+                            <div>
+                                <div class="text-sm font-medium text-slate-800">Transaction Closed</div>
+                                <div class="text-xs text-slate-500">{{ transaction.actual_close_date.strftime('%b %d, %Y') }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Main Content -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column - Main Info -->
-        <div class="lg:col-span-2 space-y-6">
-            <!-- Transaction Details Card -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Transaction Details</h2>
-                    <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}" 
-                       class="btn btn-sm btn-ghost">
-                        <i class="fas fa-edit mr-1"></i>Edit
-                    </a>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-500">Type</span>
-                        <p class="font-medium">{{ transaction.transaction_type.display_name }}</p>
-                    </div>
-                    {% if transaction.ownership_status %}
-                    <div>
-                        <span class="text-gray-500">Ownership</span>
-                        <p class="font-medium">{{ transaction.ownership_status|replace('_', ' ')|title }}</p>
-                    </div>
-                    {% endif %}
-                    <div>
-                        <span class="text-gray-500">Created</span>
-                        <p class="font-medium">{{ transaction.created_at.strftime('%b %d, %Y') }}</p>
-                    </div>
-                    {% if transaction.expected_close_date %}
-                    <div>
-                        <span class="text-gray-500">Expected Close</span>
-                        <p class="font-medium">{{ transaction.expected_close_date.strftime('%b %d, %Y') }}</p>
-                    </div>
-                    {% endif %}
-                </div>
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeDeleteModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10">
+            <div class="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
             </div>
-
-            <!-- Intake Section (Seller Conventional) -->
-            {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Property Questionnaire</h2>
-                    {% if transaction.intake_data %}
-                    <span class="badge badge-success">Completed</span>
-                    {% else %}
-                    <span class="badge badge-warning">Not Started</span>
-                    {% endif %}
-                </div>
-                
-                {% if transaction.intake_data %}
-                <div class="grid grid-cols-2 gap-3 text-sm mb-4">
-                    {% for key, value in transaction.intake_data.items() %}
-                    <div class="flex justify-between p-2 bg-gray-50 rounded">
-                        <span class="text-gray-600">{{ key|replace('_', ' ')|title }}</span>
-                        <span class="font-medium">
-                            {% if value == true %}Yes{% elif value == false %}No{% else %}{{ value|title }}{% endif %}
-                        </span>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                
-                <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}" 
-                   class="btn btn-outline btn-sm w-full">
-                    <i class="fas fa-clipboard-list mr-2"></i>
-                    {% if transaction.intake_data %}Edit Questionnaire{% else %}Start Questionnaire{% endif %}
-                </a>
-            </div>
-            {% endif %}
-
-            <!-- Documents Section -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Documents ({{ documents|length if documents else 0 }})</h2>
-                    <button class="btn btn-sm btn-ghost" onclick="showAddDocumentModal()">
-                        <i class="fas fa-plus mr-1"></i>Add Document
+            <h3 class="text-xl font-bold text-slate-800 text-center mb-2">Delete Transaction?</h3>
+            <p class="text-slate-500 text-center mb-2">Are you sure you want to delete:</p>
+            <p class="font-semibold text-slate-800 text-center mb-4">{{ transaction.street_address }}</p>
+            <p class="text-sm text-red-600 text-center mb-6">
+                <i class="fas fa-warning mr-1"></i>
+                This will permanently delete all documents, participants, and signatures.
+            </p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" 
+                        class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                    Cancel
+                </button>
+                <form action="{{ url_for('transactions.delete_transaction', id=transaction.id) }}" method="POST" class="flex-1">
+                    <button type="submit" 
+                            class="w-full px-4 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>Delete
                     </button>
-                </div>
-                
-                {% if documents %}
-                <div class="space-y-3">
-                    {% for doc in documents %}
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white rounded flex items-center justify-center shadow-sm">
-                                {% if doc.status == 'signed' %}
-                                <i class="fas fa-file-signature text-green-500"></i>
-                                {% elif doc.status == 'sent' %}
-                                <i class="fas fa-paper-plane text-blue-500"></i>
-                                {% elif doc.status == 'generated' %}
-                                <i class="fas fa-file-pdf text-red-500"></i>
-                                {% else %}
-                                <i class="fas fa-file-alt text-gray-400"></i>
-                                {% endif %}
-                            </div>
-                            <div>
-                                <div class="font-medium text-gray-800">{{ doc.template_name }}</div>
-                                {% if doc.included_reason %}
-                                <div class="text-xs text-gray-500"><i class="fas fa-info-circle mr-1"></i>{{ doc.included_reason }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="badge 
-                                {% if doc.status == 'signed' %}badge-success
-                                {% elif doc.status == 'sent' %}badge-info
-                                {% elif doc.status == 'generated' %}badge-primary
-                                {% elif doc.status == 'filled' %}badge-secondary
-                                {% else %}badge-ghost{% endif %} badge-sm">
-                                {{ doc.status|title }}
-                            </span>
-                            
-                            <!-- Document Actions Dropdown -->
-                            <div class="dropdown dropdown-end">
-                                <label tabindex="0" class="btn btn-ghost btn-sm">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </label>
-                                <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-white rounded-lg w-48 mt-1 z-10">
-                                    {% if doc.status == 'pending' %}
-                                    <li>
-                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" class="text-blue-600">
-                                            <i class="fas fa-edit w-5"></i>Fill Form
-                                        </a>
-                                    </li>
-                                    {% elif doc.status == 'filled' %}
-                                    <li>
-                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}">
-                                            <i class="fas fa-edit w-5"></i>Edit Form
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" onclick="sendForSignature({{ doc.id }}); return false;" class="text-green-600">
-                                            <i class="fas fa-paper-plane w-5"></i>Send for Signature
-                                        </a>
-                                    </li>
-                                    {% elif doc.status == 'generated' %}
-                                    <li>
-                                        <a href="#" onclick="previewDocument({{ doc.id }}); return false;">
-                                            <i class="fas fa-eye w-5"></i>Preview
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" onclick="sendForSignature({{ doc.id }}); return false;" class="text-green-600">
-                                            <i class="fas fa-paper-plane w-5"></i>Send for Signature
-                                        </a>
-                                    </li>
-                                    {% elif doc.status == 'sent' %}
-                                    <li>
-                                        <a href="#" onclick="checkSignatureStatus({{ doc.id }}); return false;">
-                                            <i class="fas fa-clock w-5"></i>Check Status
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" onclick="simulateSignature({{ doc.id }}); return false;" class="text-orange-500">
-                                            <i class="fas fa-magic w-5"></i>Simulate Sign (Test)
-                                        </a>
-                                    </li>
-                                    {% elif doc.status == 'signed' %}
-                                    <li>
-                                        <a href="#" onclick="downloadDocument({{ doc.id }}); return false;">
-                                            <i class="fas fa-download w-5"></i>Download
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a href="#" onclick="viewSignedDocument({{ doc.id }}); return false;">
-                                            <i class="fas fa-eye w-5"></i>View Signed
-                                        </a>
-                                    </li>
-                                    {% endif %}
-                                    <li class="border-t mt-1 pt-1">
-                                        <a href="#" onclick="removeDocument({{ doc.id }}); return false;" class="text-red-500">
-                                            <i class="fas fa-trash w-5"></i>Remove
-                                        </a>
-                                    </li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                
-                <!-- Bulk Actions -->
-                {% if documents %}
-                <div class="mt-4 pt-4 border-t flex gap-2">
-                    <button class="btn btn-sm btn-outline flex-1" onclick="fillAllForms()">
-                        <i class="fas fa-edit mr-1"></i>Fill All Forms
-                    </button>
-                    <button class="btn btn-sm btn-outline flex-1" onclick="generateAllPDFs()">
-                        <i class="fas fa-file-pdf mr-1"></i>Generate All PDFs
-                    </button>
-                </div>
-                {% endif %}
-                {% else %}
-                <div class="text-center py-8 text-gray-500">
-                    <i class="fas fa-folder-open text-3xl mb-2"></i>
-                    <p>No documents yet.</p>
-                    {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
-                    <p class="text-sm">Complete the questionnaire to generate the document package.</p>
-                    {% else %}
-                    <p class="text-sm">Click "Add Document" to get started.</p>
-                    {% endif %}
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Right Column - Participants -->
-        <div class="space-y-6">
-            <!-- Participants Card -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Participants</h2>
-                    <button class="btn btn-sm btn-ghost" onclick="showAddParticipantModal()">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                </div>
-                
-                <div class="space-y-4">
-                    {% for participant in participants %}
-                    <div class="flex items-start gap-3 group">
-                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <span class="text-blue-600 font-medium text-sm">
-                                {{ participant.display_name[:2]|upper }}
-                            </span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="font-medium text-gray-800 truncate">{{ participant.display_name }}</span>
-                                {% if participant.is_primary %}
-                                <span class="badge badge-xs badge-primary">Primary</span>
-                                {% endif %}
-                            </div>
-                            <div class="text-sm text-gray-500">{{ participant.role|replace('_', ' ')|title }}</div>
-                            {% if participant.display_email %}
-                            <div class="text-xs text-gray-400 truncate">{{ participant.display_email }}</div>
-                            {% endif %}
-                        </div>
-                        <button class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 text-red-500"
-                                onclick="removeParticipant({{ participant.id }})">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    {% endfor %}
-                    
-                    {% if not participants %}
-                    <p class="text-gray-500 text-sm">No participants added yet.</p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
-                <div class="space-y-2">
-                    <button class="btn btn-outline btn-block justify-start" disabled>
-                        <i class="fas fa-file-signature mr-2"></i>Send for Signature
-                    </button>
-                    <button class="btn btn-outline btn-block justify-start" disabled>
-                        <i class="fas fa-download mr-2"></i>Download All Docs
-                    </button>
-                </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Add Participant Modal -->
-<dialog id="addParticipantModal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">Add Participant</h3>
-        <form id="addParticipantForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                    <select name="role" required class="select select-bordered w-full">
-                        <option value="">Select role...</option>
-                        <option value="seller">Seller</option>
-                        <option value="co_seller">Co-Seller</option>
-                        <option value="buyer">Buyer</option>
-                        <option value="co_buyer">Co-Buyer</option>
-                        <option value="listing_agent">Listing Agent</option>
-                        <option value="buyers_agent">Buyer's Agent</option>
-                        <option value="title_company">Title Company</option>
-                        <option value="lender">Lender</option>
-                        <option value="transaction_coordinator">Transaction Coordinator</option>
-                    </select>
+<div id="addParticipantModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeParticipantModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10">
+            <h3 class="text-xl font-bold text-slate-800 mb-5">Add Participant</h3>
+            <form id="addParticipantForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Role *</label>
+                        <select name="role" required class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                            <option value="">Select role...</option>
+                            <option value="seller">Seller</option>
+                            <option value="co_seller">Co-Seller</option>
+                            <option value="buyer">Buyer</option>
+                            <option value="co_buyer">Co-Buyer</option>
+                            <option value="listing_agent">Listing Agent</option>
+                            <option value="buyers_agent">Buyer's Agent</option>
+                            <option value="title_company">Title Company</option>
+                            <option value="lender">Lender</option>
+                            <option value="transaction_coordinator">Transaction Coordinator</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Name *</label>
+                        <input type="text" name="name" required class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+                        <input type="email" name="email" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
+                        <input type="tel" name="phone" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Company</label>
+                        <input type="text" name="company" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                    <input type="text" name="name" required class="input input-bordered w-full">
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeParticipantModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
+                        Add Participant
+                    </button>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" name="email" class="input input-bordered w-full">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input type="tel" name="phone" class="input input-bordered w-full">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
-                    <input type="text" name="company" class="input input-bordered w-full">
-                </div>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="document.getElementById('addParticipantModal').close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Participant</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+</div>
 
 <!-- Add Document Modal -->
-<dialog id="addDocumentModal" class="modal">
-    <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4">Add Document</h3>
-        <form id="addDocumentForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Document *</label>
-                    <select name="template_slug" required class="select select-bordered w-full" id="docTemplateSelect">
-                        <option value="">Choose a document...</option>
-                        <optgroup label="Listing Documents">
-                            <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
-                            <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
-                            <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
-                        </optgroup>
-                        <optgroup label="Addenda">
-                            <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
-                            <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
-                            <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
-                            <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
-                            <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
-                        </optgroup>
-                        <optgroup label="Other Documents">
-                            <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
-                            <option value="sellers-net" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
-                            <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
-                            <option value="custom" data-name="">Custom Document</option>
-                        </optgroup>
-                    </select>
+<div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeDocumentModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+            <h3 class="text-xl font-bold text-slate-800 mb-5">Add Document</h3>
+            <form id="addDocumentForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Document *</label>
+                        <select name="template_slug" required id="docTemplateSelect" 
+                                class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                            <option value="">Choose a document...</option>
+                            <optgroup label="Listing Documents">
+                                <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
+                                <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
+                                <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
+                            </optgroup>
+                            <optgroup label="Addenda">
+                                <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
+                                <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
+                                <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
+                                <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
+                                <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
+                            </optgroup>
+                            <optgroup label="Other Documents">
+                                <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
+                                <option value="sellers-net" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
+                                <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
+                                <option value="custom" data-name="">Custom Document</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div id="customDocNameField" class="hidden">
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Document Name *</label>
+                        <input type="text" name="custom_name" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="Enter document name">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Reason for Adding (optional)</label>
+                        <input type="text" name="reason" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="e.g., Client requested">
+                    </div>
                 </div>
-                
-                <div id="customDocNameField" class="hidden">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Document Name *</label>
-                    <input type="text" name="custom_name" class="input input-bordered w-full" placeholder="Enter document name">
+                <div class="flex gap-3 mt-6">
+                    <button type="button" onclick="closeDocumentModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
+                        Add Document
+                    </button>
                 </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Adding (optional)</label>
-                    <input type="text" name="reason" class="input input-bordered w-full" placeholder="e.g., Client requested">
-                </div>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="document.getElementById('addDocumentModal').close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add Document</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+</div>
 
-<!-- Coming Soon Toast -->
-<div id="comingSoonToast" class="toast toast-end hidden">
-    <div class="alert alert-info">
-        <i class="fas fa-info-circle"></i>
-        <span id="toastMessage">Coming soon!</span>
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+        <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
+        <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
 </div>
 
 <script>
 const transactionId = {{ transaction.id }};
+
+// =============================================================================
+// MODAL MANAGEMENT
+// =============================================================================
+
+function confirmDelete() {
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+}
+
+function showAddParticipantModal() {
+    document.getElementById('addParticipantModal').classList.remove('hidden');
+}
+
+function closeParticipantModal() {
+    document.getElementById('addParticipantModal').classList.add('hidden');
+}
+
+function showAddDocumentModal() {
+    document.getElementById('addDocumentModal').classList.remove('hidden');
+    document.getElementById('addDocumentForm').reset();
+    document.getElementById('customDocNameField').classList.add('hidden');
+}
+
+function closeDocumentModal() {
+    document.getElementById('addDocumentModal').classList.add('hidden');
+}
+
+// Close modals on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDeleteModal();
+        closeParticipantModal();
+        closeDocumentModal();
+    }
+});
 
 // =============================================================================
 // STATUS MANAGEMENT
@@ -441,9 +770,7 @@ const transactionId = {{ transaction.id }};
 function updateStatus(newStatus) {
     fetch(`/transactions/${transactionId}/status`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
     })
     .then(res => res.json())
@@ -451,7 +778,7 @@ function updateStatus(newStatus) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error updating status: ' + data.error);
+            showToast('Error updating status: ' + data.error, 'error');
         }
     });
 }
@@ -459,10 +786,6 @@ function updateStatus(newStatus) {
 // =============================================================================
 // PARTICIPANT MANAGEMENT
 // =============================================================================
-
-function showAddParticipantModal() {
-    document.getElementById('addParticipantModal').showModal();
-}
 
 document.getElementById('addParticipantForm').addEventListener('submit', function(e) {
     e.preventDefault();
@@ -477,7 +800,7 @@ document.getElementById('addParticipantForm').addEventListener('submit', functio
         if (data.success) {
             location.reload();
         } else {
-            alert('Error adding participant: ' + data.error);
+            showToast('Error adding participant: ' + data.error, 'error');
         }
     });
 });
@@ -493,7 +816,7 @@ function removeParticipant(participantId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error removing participant: ' + data.error);
+            showToast('Error removing participant: ' + data.error, 'error');
         }
     });
 }
@@ -502,13 +825,6 @@ function removeParticipant(participantId) {
 // DOCUMENT MANAGEMENT
 // =============================================================================
 
-function showAddDocumentModal() {
-    document.getElementById('addDocumentModal').showModal();
-    document.getElementById('addDocumentForm').reset();
-    document.getElementById('customDocNameField').classList.add('hidden');
-}
-
-// Show/hide custom name field based on selection
 document.getElementById('docTemplateSelect').addEventListener('change', function() {
     const customField = document.getElementById('customDocNameField');
     if (this.value === 'custom') {
@@ -524,12 +840,10 @@ document.getElementById('addDocumentForm').addEventListener('submit', function(e
     e.preventDefault();
     const formData = new FormData(this);
     
-    // Get the template name from the selected option
     const select = document.getElementById('docTemplateSelect');
     const selectedOption = select.options[select.selectedIndex];
     let templateName = selectedOption.dataset.name;
     
-    // Use custom name if selected
     if (formData.get('template_slug') === 'custom') {
         templateName = formData.get('custom_name');
     }
@@ -545,13 +859,13 @@ document.getElementById('addDocumentForm').addEventListener('submit', function(e
         if (data.success) {
             location.reload();
         } else {
-            alert('Error adding document: ' + data.error);
+            showToast('Error adding document: ' + data.error, 'error');
         }
     });
 });
 
 function removeDocument(docId) {
-    if (!confirm('Remove this document from the package?')) return;
+    if (!confirm('Remove this document?')) return;
     
     fetch(`/transactions/${transactionId}/documents/${docId}`, {
         method: 'DELETE'
@@ -561,7 +875,7 @@ function removeDocument(docId) {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error removing document: ' + data.error);
+            showToast('Error removing document: ' + data.error, 'error');
         }
     });
 }
@@ -571,33 +885,29 @@ function removeDocument(docId) {
 // =============================================================================
 
 function showToast(message, type = 'info') {
-    const toast = document.getElementById('comingSoonToast');
-    const alert = toast.querySelector('.alert');
+    const toast = document.getElementById('toast');
+    const icon = document.getElementById('toastIcon');
     document.getElementById('toastMessage').textContent = message;
     
-    // Update alert type
-    alert.className = 'alert';
-    if (type === 'success') alert.classList.add('alert-success');
-    else if (type === 'error') alert.classList.add('alert-error');
-    else if (type === 'warning') alert.classList.add('alert-warning');
-    else alert.classList.add('alert-info');
+    icon.className = 'fas';
+    if (type === 'success') {
+        icon.classList.add('fa-check-circle', 'text-green-500');
+    } else if (type === 'error') {
+        icon.classList.add('fa-exclamation-circle', 'text-red-500');
+    } else if (type === 'warning') {
+        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+    } else {
+        icon.classList.add('fa-info-circle', 'text-blue-500');
+    }
     
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
 }
 
-function generatePDF(docId) {
-    showToast('PDF generation will be available after DocuSeal integration. For now, documents are sent directly for signature.');
-}
-
-function previewDocument(docId) {
-    showToast('Document preview coming soon! The signed PDF will be available after signing.');
-}
-
 function sendForSignature(docId) {
-    if (!confirm('Send this document for signature? An email will be sent to all signers.')) return;
+    if (!confirm('Send this document for signature?')) return;
     
-    showToast('Sending document for signature...', 'info');
+    showToast('Sending document...', 'info');
     
     fetch(`/transactions/${transactionId}/documents/${docId}/send`, {
         method: 'POST',
@@ -606,16 +916,13 @@ function sendForSignature(docId) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            showToast(`Document sent to ${data.submitters} signer(s)!` + 
-                      (data.mock_mode ? ' (Mock Mode)' : ''), 'success');
+            showToast(`Document sent to ${data.submitters} signer(s)!`, 'success');
             setTimeout(() => location.reload(), 2000);
         } else {
             showToast('Error: ' + data.error, 'error');
         }
     })
-    .catch(err => {
-        showToast('Error sending document: ' + err.message, 'error');
-    });
+    .catch(err => showToast('Error: ' + err.message, 'error'));
 }
 
 function checkSignatureStatus(docId) {
@@ -625,19 +932,15 @@ function checkSignatureStatus(docId) {
         if (data.success) {
             const signers = data.signers || [];
             const statuses = signers.map(s => s.status).join(', ');
-            showToast(`Status: ${data.overall_status}. Signers: ${statuses}` + 
-                      (data.mock_mode ? ' (Mock Mode)' : ''), 'info');
+            showToast(`Status: ${data.overall_status}. Signers: ${statuses}`, 'info');
         } else {
             showToast('Error: ' + data.error, 'error');
         }
-    })
-    .catch(err => {
-        showToast('Error checking status: ' + err.message, 'error');
     });
 }
 
 function simulateSignature(docId) {
-    if (!confirm('Simulate signature completion? (Mock mode only)')) return;
+    if (!confirm('Simulate signature completion?')) return;
     
     fetch(`/transactions/${transactionId}/documents/${docId}/simulate-sign`, {
         method: 'POST',
@@ -646,14 +949,11 @@ function simulateSignature(docId) {
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            showToast('Signature simulated! Document is now signed.', 'success');
+            showToast('Signature simulated!', 'success');
             setTimeout(() => location.reload(), 1500);
         } else {
             showToast('Error: ' + data.error, 'error');
         }
-    })
-    .catch(err => {
-        showToast('Error simulating: ' + err.message, 'error');
     });
 }
 
@@ -662,27 +962,18 @@ function downloadDocument(docId) {
     .then(res => res.json())
     .then(data => {
         if (data.success && data.documents && data.documents.length > 0) {
-            // In real mode, this would open the actual PDF
             if (data.mock_mode) {
-                showToast('Download URL: ' + data.documents[0].url + ' (Mock Mode)', 'info');
+                showToast('Download URL: ' + data.documents[0].url, 'info');
             } else {
                 window.open(data.documents[0].url, '_blank');
             }
         } else {
-            showToast('Error: ' + (data.error || 'No documents available'), 'error');
+            showToast('Error: ' + (data.error || 'No documents'), 'error');
         }
-    })
-    .catch(err => {
-        showToast('Error downloading: ' + err.message, 'error');
     });
 }
 
-function viewSignedDocument(docId) {
-    downloadDocument(docId);  // Same functionality
-}
-
 function fillAllForms() {
-    // Navigate to first pending document form
     const firstPending = document.querySelector('a[href*="/documents/"][href*="/form"]');
     if (firstPending) {
         window.location.href = firstPending.href;
@@ -692,8 +983,7 @@ function fillAllForms() {
 }
 
 function generateAllPDFs() {
-    showToast('In the real integration, this will generate all PDFs via DocuSeal. For now, fill and send documents individually.');
+    showToast('PDF generation coming soon with DocuSeal integration.', 'info');
 }
 </script>
 {% endblock %}
-
