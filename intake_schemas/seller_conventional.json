@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "seller",
+  "ownership_status": "conventional",
+  "title": "Property Questionnaire",
+  "description": "Answer these questions to determine which documents are required for this listing.",
+  "sections": [
+    {
+      "id": "property_details",
+      "title": "Property Details",
+      "questions": [
+        {
+          "id": "built_before_1978",
+          "type": "boolean",
+          "label": "Was the property built before 1978?",
+          "help_text": "Lead-based paint disclosure is required for properties built before 1978.",
+          "required": true
+        },
+        {
+          "id": "has_hoa",
+          "type": "boolean",
+          "label": "Is the property subject to an owner's association?",
+          "help_text": "This includes HOAs, POAs, and any mandatory membership associations.",
+          "required": true
+        },
+        {
+          "id": "special_districts",
+          "type": "boolean",
+          "label": "Is the property located in any special districts (MUD, PID, etc.)?",
+          "help_text": "Municipal Utility Districts, Public Improvement Districts, or similar.",
+          "required": true
+        },
+        {
+          "id": "flood_hazard",
+          "type": "boolean",
+          "label": "Is the property in a Flood Hazard Area?",
+          "help_text": "Check FEMA flood maps if unsure.",
+          "required": true
+        },
+        {
+          "id": "referral_fee",
+          "type": "boolean",
+          "label": "Will another party get a referral fee from you for this transaction?",
+          "help_text": "If you're paying a referral fee to another agent or broker.",
+          "required": true
+        },
+        {
+          "id": "has_survey",
+          "type": "select",
+          "label": "Does your seller have a copy of their survey?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not Sure"}
+          ],
+          "help_text": "A T-47.1 affidavit may be required if no survey is available.",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "listing-agreement",
+      "name": "Residential Real Estate Listing Agreement",
+      "always": true,
+      "reason": "Required for all seller transactions"
+    },
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required for all seller transactions"
+    },
+    {
+      "slug": "sellers-disclosure",
+      "name": "Seller's Disclosure Notice",
+      "always": true,
+      "reason": "Required for all seller transactions"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Required for all seller transactions"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Addendum for Seller's Disclosure of Information on Lead-Based Paint",
+      "condition": {"field": "built_before_1978", "equals": true},
+      "reason": "Property built before 1978"
+    },
+    {
+      "slug": "hoa-addendum",
+      "name": "Addendum for Property Subject to Mandatory Membership in Owners' Association",
+      "condition": {"field": "has_hoa", "equals": true},
+      "reason": "Property subject to owner's association"
+    },
+    {
+      "slug": "water-district",
+      "name": "Information About On-Site Sewer Facility",
+      "condition": {"field": "special_districts", "equals": true},
+      "reason": "Property in special district (MUD, PID, etc.)"
+    },
+    {
+      "slug": "flood-hazard",
+      "name": "Information About Special Flood Hazard Areas",
+      "condition": {"field": "flood_hazard", "equals": true},
+      "reason": "Property in flood hazard area"
+    },
+    {
+      "slug": "referral-agreement",
+      "name": "Referral Agreement",
+      "condition": {"field": "referral_fee", "equals": true},
+      "reason": "Referral fee will be paid"
+    },
+    {
+      "slug": "t47-affidavit",
+      "name": "T-47.1 Residential Real Property Affidavit",
+      "condition": {"field": "has_survey", "in": ["no", "not_sure"]},
+      "reason": "Seller does not have survey or is unsure"
+    }
+  ]
+}
+

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Property Questionnaire - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" class="text-gray-500 hover:text-gray-700 text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Transaction
+        </a>
+        <h1 class="text-2xl font-bold text-gray-800 mt-2">{{ schema.title }}</h1>
+        <p class="text-gray-500">{{ transaction.street_address }}</p>
+        <p class="text-sm text-gray-400 mt-1">{{ schema.description }}</p>
+    </div>
+
+    <!-- Questionnaire Form -->
+    <form id="intakeForm" method="POST" action="{{ url_for('transactions.save_intake', id=transaction.id) }}">
+        {% for section in schema.sections %}
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ section.title }}</h2>
+            
+            <div class="space-y-6">
+                {% for question in section.questions %}
+                <div class="question-item" data-question-id="{{ question.id }}">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        {{ question.label }}
+                        {% if question.required %}<span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    
+                    {% if question.help_text %}
+                    <p class="text-xs text-gray-500 mb-2">{{ question.help_text }}</p>
+                    {% endif %}
+                    
+                    {% if question.type == 'boolean' %}
+                    <!-- Yes/No Toggle -->
+                    <div class="flex gap-3">
+                        <label class="cursor-pointer flex-1">
+                            <input type="radio" name="{{ question.id }}" value="true" 
+                                   class="hidden peer"
+                                   {% if intake_data.get(question.id) == true %}checked{% endif %}>
+                            <div class="p-3 border-2 rounded-lg text-center transition-all
+                                        peer-checked:border-green-500 peer-checked:bg-green-50
+                                        hover:border-gray-300">
+                                <i class="fas fa-check text-green-500 mr-1"></i> Yes
+                            </div>
+                        </label>
+                        <label class="cursor-pointer flex-1">
+                            <input type="radio" name="{{ question.id }}" value="false" 
+                                   class="hidden peer"
+                                   {% if intake_data.get(question.id) == false %}checked{% endif %}>
+                            <div class="p-3 border-2 rounded-lg text-center transition-all
+                                        peer-checked:border-red-500 peer-checked:bg-red-50
+                                        hover:border-gray-300">
+                                <i class="fas fa-times text-red-500 mr-1"></i> No
+                            </div>
+                        </label>
+                    </div>
+                    
+                    {% elif question.type == 'select' %}
+                    <!-- Select Dropdown or Radio Buttons -->
+                    <div class="flex flex-wrap gap-2">
+                        {% for option in question.options %}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="{{ question.id }}" value="{{ option.value }}" 
+                                   class="hidden peer"
+                                   {% if intake_data.get(question.id) == option.value %}checked{% endif %}>
+                            <div class="px-4 py-2 border-2 rounded-lg text-center transition-all
+                                        peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                        hover:border-gray-300">
+                                {{ option.label }}
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    {% elif question.type == 'text' %}
+                    <!-- Text Input -->
+                    <input type="text" name="{{ question.id }}" 
+                           value="{{ intake_data.get(question.id, '') }}"
+                           class="input input-bordered w-full">
+                    
+                    {% elif question.type == 'textarea' %}
+                    <!-- Textarea -->
+                    <textarea name="{{ question.id }}" 
+                              class="textarea textarea-bordered w-full" rows="3">{{ intake_data.get(question.id, '') }}</textarea>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <!-- Actions -->
+        <div class="flex justify-between items-center">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="btn btn-ghost">
+                Cancel
+            </a>
+            <div class="flex gap-3">
+                <button type="submit" name="action" value="save" class="btn btn-outline">
+                    <i class="fas fa-save mr-2"></i>Save Draft
+                </button>
+                <button type="button" onclick="saveAndGenerate()" class="btn btn-primary">
+                    <i class="fas fa-file-alt mr-2"></i>Save & Generate Documents
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function saveAndGenerate() {
+    const form = document.getElementById('intakeForm');
+    const formData = new FormData(form);
+    
+    // First save the intake data
+    fetch('{{ url_for("transactions.save_intake", id=transaction.id) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // Then generate the document package
+            const generateForm = document.createElement('form');
+            generateForm.method = 'POST';
+            generateForm.action = '{{ url_for("transactions.generate_document_package", id=transaction.id) }}';
+            document.body.appendChild(generateForm);
+            generateForm.submit();
+        } else {
+            alert('Error saving questionnaire. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving questionnaire. Please try again.');
+    });
+}
+
+// Auto-save on change (optional - for better UX)
+let saveTimeout;
+document.querySelectorAll('input, textarea, select').forEach(el => {
+    el.addEventListener('change', () => {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+            // Could implement auto-save here
+            console.log('Answer changed');
+        }, 1000);
+    });
+});
+</script>
+{% endblock %}
+

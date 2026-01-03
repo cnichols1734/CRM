@@ -407,3 +407,155 @@ def update_status(id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+# =============================================================================
+# INTAKE QUESTIONNAIRE
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/intake')
+@login_required
+@transactions_required
+def intake_questionnaire(id):
+    """Show the intake questionnaire for a transaction."""
+    from services.intake_service import get_intake_schema
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get the intake schema based on transaction type and ownership status
+    schema = get_intake_schema(
+        transaction.transaction_type.name,
+        transaction.ownership_status
+    )
+    
+    if not schema:
+        flash('No intake questionnaire available for this transaction type.', 'error')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    return render_template(
+        'transactions/intake.html',
+        transaction=transaction,
+        schema=schema,
+        intake_data=transaction.intake_data or {}
+    )
+
+
+@transactions_bp.route('/<int:id>/intake', methods=['POST'])
+@login_required
+@transactions_required
+def save_intake(id):
+    """Save intake questionnaire answers."""
+    from services.intake_service import get_intake_schema, validate_intake_data
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get the schema
+    schema = get_intake_schema(
+        transaction.transaction_type.name,
+        transaction.ownership_status
+    )
+    
+    if not schema:
+        return jsonify({'success': False, 'error': 'Schema not found'}), 404
+    
+    # Parse the incoming data
+    data = request.get_json() if request.is_json else None
+    
+    if data is None:
+        # Handle form submission
+        intake_data = {}
+        for section in schema.get('sections', []):
+            for question in section.get('questions', []):
+                field_id = question['id']
+                value = request.form.get(field_id)
+                
+                # Convert boolean fields
+                if question['type'] == 'boolean':
+                    intake_data[field_id] = value == 'true' or value == 'yes'
+                else:
+                    intake_data[field_id] = value
+    else:
+        intake_data = data.get('intake_data', {})
+    
+    try:
+        # Save the intake data
+        transaction.intake_data = intake_data
+        db.session.commit()
+        
+        if request.is_json:
+            return jsonify({'success': True, 'intake_data': intake_data})
+        else:
+            flash('Questionnaire saved successfully!', 'success')
+            return redirect(url_for('transactions.view_transaction', id=id))
+            
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        else:
+            flash(f'Error saving questionnaire: {str(e)}', 'error')
+            return redirect(url_for('transactions.intake_questionnaire', id=id))
+
+
+@transactions_bp.route('/<int:id>/intake/generate-package', methods=['POST'])
+@login_required
+@transactions_required
+def generate_document_package(id):
+    """Generate the document package based on intake answers."""
+    from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get the schema
+    schema = get_intake_schema(
+        transaction.transaction_type.name,
+        transaction.ownership_status
+    )
+    
+    if not schema:
+        flash('Schema not found for this transaction type.', 'error')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    # Validate that all required questions are answered
+    is_valid, missing = validate_intake_data(schema, transaction.intake_data or {})
+    
+    if not is_valid:
+        flash(f'Please answer all required questions before generating the document package.', 'error')
+        return redirect(url_for('transactions.intake_questionnaire', id=id))
+    
+    # Evaluate document rules
+    required_docs = evaluate_document_rules(schema, transaction.intake_data)
+    
+    try:
+        # Clear existing documents (in case regenerating)
+        TransactionDocument.query.filter_by(transaction_id=transaction.id).delete()
+        
+        # Create TransactionDocument records for each required doc
+        for doc in required_docs:
+            tx_doc = TransactionDocument(
+                transaction_id=transaction.id,
+                template_slug=doc['slug'],
+                template_name=doc['name'],
+                included_reason=doc['reason'] if not doc.get('always') else None,
+                status='pending'
+            )
+            db.session.add(tx_doc)
+        
+        db.session.commit()
+        
+        flash(f'Document package generated with {len(required_docs)} documents!', 'success')
+        return redirect(url_for('transactions.view_transaction', id=id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error generating document package: {str(e)}', 'error')
+        return redirect(url_for('transactions.view_transaction', id=id))
+
