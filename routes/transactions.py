@@ -318,6 +318,8 @@ def delete_transaction(id):
 @transactions_required
 def update_transaction(id):
     """Update a transaction."""
+    from datetime import datetime as dt
+    
     transaction = Transaction.query.get_or_404(id)
     
     if transaction.created_by_id != current_user.id:
@@ -326,18 +328,26 @@ def update_transaction(id):
     try:
         # Update fields
         transaction.street_address = request.form.get('street_address', transaction.street_address)
-        transaction.city = request.form.get('city', transaction.city)
+        transaction.city = request.form.get('city') or None
         transaction.state = request.form.get('state', transaction.state)
-        transaction.zip_code = request.form.get('zip_code', transaction.zip_code)
-        transaction.county = request.form.get('county', transaction.county)
-        transaction.ownership_status = request.form.get('ownership_status', transaction.ownership_status)
+        transaction.zip_code = request.form.get('zip_code') or None
+        transaction.county = request.form.get('county') or None
+        transaction.ownership_status = request.form.get('ownership_status') or None
         transaction.status = request.form.get('status', transaction.status)
         
         # Parse expected close date if provided
         expected_close = request.form.get('expected_close_date')
         if expected_close:
-            from datetime import datetime
-            transaction.expected_close_date = datetime.strptime(expected_close, '%Y-%m-%d').date()
+            transaction.expected_close_date = dt.strptime(expected_close, '%Y-%m-%d').date()
+        else:
+            transaction.expected_close_date = None
+        
+        # Parse actual close date if provided
+        actual_close = request.form.get('actual_close_date')
+        if actual_close:
+            transaction.actual_close_date = dt.strptime(actual_close, '%Y-%m-%d').date()
+        else:
+            transaction.actual_close_date = None
         
         db.session.commit()
         flash('Transaction updated successfully!', 'success')

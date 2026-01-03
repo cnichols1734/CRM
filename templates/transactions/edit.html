@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Transaction - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background-color: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-input:focus {
+        outline: none;
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .premium-input:disabled {
+        background-color: #f1f5f9;
+        color: #94a3b8;
+        cursor: not-allowed;
+    }
+
+    /* Premium select styling */
+    .premium-select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background-color: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        transition: all 0.2s ease-out;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.75rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+        padding-right: 2.5rem;
+    }
+
+    .premium-select:focus {
+        outline: none;
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    /* Premium button styling */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Label styling */
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label-required::after {
+        content: " *";
+        color: #ef4444;
+    }
+
+    /* Form group */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Helper text */
+    .form-helper {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.375rem;
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6 max-w-3xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
+        </a>
+        
+        <!-- Header Section -->
+        <div class="flex items-start space-x-4 mb-6 animate-fade-in-up">
+            <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
+                <i class="fas fa-edit text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Edit Transaction</h1>
+                <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <form action="{{ url_for('transactions.update_transaction', id=transaction.id) }}" method="POST" class="animate-fade-in-up-delay-1">
+            <!-- Property Details Card -->
+            <div class="premium-card p-6 mb-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                        <i class="fas fa-home text-white"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Street Address -->
+                    <div class="form-group md:col-span-2">
+                        <label class="form-label form-label-required">Street Address</label>
+                        <input type="text" 
+                               name="street_address" 
+                               value="{{ transaction.street_address }}"
+                               class="premium-input"
+                               required
+                               placeholder="123 Main Street">
+                    </div>
+
+                    <!-- City -->
+                    <div class="form-group">
+                        <label class="form-label">City</label>
+                        <input type="text" 
+                               name="city" 
+                               value="{{ transaction.city or '' }}"
+                               class="premium-input"
+                               placeholder="Houston">
+                    </div>
+
+                    <!-- State -->
+                    <div class="form-group">
+                        <label class="form-label">State</label>
+                        <select name="state" class="premium-select">
+                            <option value="TX" {% if transaction.state == 'TX' %}selected{% endif %}>Texas</option>
+                            <option value="AL" {% if transaction.state == 'AL' %}selected{% endif %}>Alabama</option>
+                            <option value="AK" {% if transaction.state == 'AK' %}selected{% endif %}>Alaska</option>
+                            <option value="AZ" {% if transaction.state == 'AZ' %}selected{% endif %}>Arizona</option>
+                            <option value="AR" {% if transaction.state == 'AR' %}selected{% endif %}>Arkansas</option>
+                            <option value="CA" {% if transaction.state == 'CA' %}selected{% endif %}>California</option>
+                            <option value="CO" {% if transaction.state == 'CO' %}selected{% endif %}>Colorado</option>
+                            <option value="CT" {% if transaction.state == 'CT' %}selected{% endif %}>Connecticut</option>
+                            <option value="DE" {% if transaction.state == 'DE' %}selected{% endif %}>Delaware</option>
+                            <option value="FL" {% if transaction.state == 'FL' %}selected{% endif %}>Florida</option>
+                            <option value="GA" {% if transaction.state == 'GA' %}selected{% endif %}>Georgia</option>
+                            <option value="HI" {% if transaction.state == 'HI' %}selected{% endif %}>Hawaii</option>
+                            <option value="ID" {% if transaction.state == 'ID' %}selected{% endif %}>Idaho</option>
+                            <option value="IL" {% if transaction.state == 'IL' %}selected{% endif %}>Illinois</option>
+                            <option value="IN" {% if transaction.state == 'IN' %}selected{% endif %}>Indiana</option>
+                            <option value="IA" {% if transaction.state == 'IA' %}selected{% endif %}>Iowa</option>
+                            <option value="KS" {% if transaction.state == 'KS' %}selected{% endif %}>Kansas</option>
+                            <option value="KY" {% if transaction.state == 'KY' %}selected{% endif %}>Kentucky</option>
+                            <option value="LA" {% if transaction.state == 'LA' %}selected{% endif %}>Louisiana</option>
+                            <option value="ME" {% if transaction.state == 'ME' %}selected{% endif %}>Maine</option>
+                            <option value="MD" {% if transaction.state == 'MD' %}selected{% endif %}>Maryland</option>
+                            <option value="MA" {% if transaction.state == 'MA' %}selected{% endif %}>Massachusetts</option>
+                            <option value="MI" {% if transaction.state == 'MI' %}selected{% endif %}>Michigan</option>
+                            <option value="MN" {% if transaction.state == 'MN' %}selected{% endif %}>Minnesota</option>
+                            <option value="MS" {% if transaction.state == 'MS' %}selected{% endif %}>Mississippi</option>
+                            <option value="MO" {% if transaction.state == 'MO' %}selected{% endif %}>Missouri</option>
+                            <option value="MT" {% if transaction.state == 'MT' %}selected{% endif %}>Montana</option>
+                            <option value="NE" {% if transaction.state == 'NE' %}selected{% endif %}>Nebraska</option>
+                            <option value="NV" {% if transaction.state == 'NV' %}selected{% endif %}>Nevada</option>
+                            <option value="NH" {% if transaction.state == 'NH' %}selected{% endif %}>New Hampshire</option>
+                            <option value="NJ" {% if transaction.state == 'NJ' %}selected{% endif %}>New Jersey</option>
+                            <option value="NM" {% if transaction.state == 'NM' %}selected{% endif %}>New Mexico</option>
+                            <option value="NY" {% if transaction.state == 'NY' %}selected{% endif %}>New York</option>
+                            <option value="NC" {% if transaction.state == 'NC' %}selected{% endif %}>North Carolina</option>
+                            <option value="ND" {% if transaction.state == 'ND' %}selected{% endif %}>North Dakota</option>
+                            <option value="OH" {% if transaction.state == 'OH' %}selected{% endif %}>Ohio</option>
+                            <option value="OK" {% if transaction.state == 'OK' %}selected{% endif %}>Oklahoma</option>
+                            <option value="OR" {% if transaction.state == 'OR' %}selected{% endif %}>Oregon</option>
+                            <option value="PA" {% if transaction.state == 'PA' %}selected{% endif %}>Pennsylvania</option>
+                            <option value="RI" {% if transaction.state == 'RI' %}selected{% endif %}>Rhode Island</option>
+                            <option value="SC" {% if transaction.state == 'SC' %}selected{% endif %}>South Carolina</option>
+                            <option value="SD" {% if transaction.state == 'SD' %}selected{% endif %}>South Dakota</option>
+                            <option value="TN" {% if transaction.state == 'TN' %}selected{% endif %}>Tennessee</option>
+                            <option value="UT" {% if transaction.state == 'UT' %}selected{% endif %}>Utah</option>
+                            <option value="VT" {% if transaction.state == 'VT' %}selected{% endif %}>Vermont</option>
+                            <option value="VA" {% if transaction.state == 'VA' %}selected{% endif %}>Virginia</option>
+                            <option value="WA" {% if transaction.state == 'WA' %}selected{% endif %}>Washington</option>
+                            <option value="WV" {% if transaction.state == 'WV' %}selected{% endif %}>West Virginia</option>
+                            <option value="WI" {% if transaction.state == 'WI' %}selected{% endif %}>Wisconsin</option>
+                            <option value="WY" {% if transaction.state == 'WY' %}selected{% endif %}>Wyoming</option>
+                        </select>
+                    </div>
+
+                    <!-- ZIP Code -->
+                    <div class="form-group">
+                        <label class="form-label">ZIP Code</label>
+                        <input type="text" 
+                               name="zip_code" 
+                               value="{{ transaction.zip_code or '' }}"
+                               class="premium-input"
+                               placeholder="77002"
+                               maxlength="10">
+                    </div>
+
+                    <!-- County -->
+                    <div class="form-group">
+                        <label class="form-label">County</label>
+                        <input type="text" 
+                               name="county" 
+                               value="{{ transaction.county or '' }}"
+                               class="premium-input"
+                               placeholder="Harris">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transaction Details Card -->
+            <div class="premium-card p-6 mb-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                        <i class="fas fa-file-contract text-white"></i>
+                    </div>
+                    <h2 class="text-lg font-bold text-slate-800">Transaction Details</h2>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Transaction Type (Read-only) -->
+                    <div class="form-group">
+                        <label class="form-label">Transaction Type</label>
+                        <input type="text" 
+                               value="{{ transaction.transaction_type.display_name }}"
+                               class="premium-input"
+                               disabled>
+                        <p class="form-helper">Transaction type cannot be changed after creation.</p>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="premium-select">
+                            <option value="draft" {% if transaction.status == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="active" {% if transaction.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="pending" {% if transaction.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="under_contract" {% if transaction.status == 'under_contract' %}selected{% endif %}>Under Contract</option>
+                            <option value="closed" {% if transaction.status == 'closed' %}selected{% endif %}>Closed</option>
+                            <option value="cancelled" {% if transaction.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        </select>
+                    </div>
+
+                    <!-- Ownership Status (for Seller transactions) -->
+                    {% if transaction.transaction_type.name == 'seller' %}
+                    <div class="form-group">
+                        <label class="form-label">Ownership Status</label>
+                        <select name="ownership_status" class="premium-select">
+                            <option value="">Select...</option>
+                            <option value="conventional" {% if transaction.ownership_status == 'conventional' %}selected{% endif %}>Conventional</option>
+                            <option value="builder" {% if transaction.ownership_status == 'builder' %}selected{% endif %}>Builder</option>
+                            <option value="reo" {% if transaction.ownership_status == 'reo' %}selected{% endif %}>REO (Bank Owned)</option>
+                            <option value="short_sale" {% if transaction.ownership_status == 'short_sale' %}selected{% endif %}>Short Sale</option>
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <!-- Expected Close Date -->
+                    <div class="form-group">
+                        <label class="form-label">Expected Close Date</label>
+                        <input type="date" 
+                               name="expected_close_date" 
+                               value="{{ transaction.expected_close_date.strftime('%Y-%m-%d') if transaction.expected_close_date else '' }}"
+                               class="premium-input">
+                    </div>
+
+                    <!-- Actual Close Date (show only if status is closed) -->
+                    <div class="form-group">
+                        <label class="form-label">Actual Close Date</label>
+                        <input type="date" 
+                               name="actual_close_date" 
+                               value="{{ transaction.actual_close_date.strftime('%Y-%m-%d') if transaction.actual_close_date else '' }}"
+                               class="premium-input">
+                        <p class="form-helper">Set when the transaction officially closes.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex flex-col sm:flex-row gap-3 justify-end">
+                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+                   class="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors text-center">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all">
+                    <i class="fas fa-save mr-2"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
