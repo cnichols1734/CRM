@@ -1,6 +1,11 @@
 // AI Chat Widget
 class AIChatWidget {
     constructor() {
+        // Don't initialize on mobile devices
+        if (window.innerWidth < 768) {
+            return;
+        }
+        
         this.isOpen = false;
         this.createChatIcon();
         this.createChatBox();

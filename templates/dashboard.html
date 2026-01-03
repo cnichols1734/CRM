@@ -60,6 +60,18 @@
     .task-item:hover {
         background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
     }
+    
+    /* Mobile-specific styles */
+    @media (max-width: 767px) {
+        .mobile-task-item {
+            flex-direction: column;
+            align-items: flex-start !important;
+        }
+        .mobile-task-item .task-meta {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -68,15 +80,27 @@
     <div class="p-4 md:p-6">
         
         <!-- Premium Header -->
-        <div class="animate-fade-in-up mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <i class="fas fa-chart-line text-white text-xl"></i>
+        <div class="animate-fade-in-up mb-6 md:mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3 md:space-x-4">
+                    <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                        <i class="fas fa-chart-line text-white text-lg md:text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl md:text-2xl font-bold text-slate-800">Dashboard</h1>
+                        <p class="text-slate-500 text-sm md:text-base font-medium">Welcome back, {{ current_user.first_name }}</p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-800">Dashboard</h1>
-                    <p class="text-slate-500 mt-1 font-medium">Welcome back, {{ current_user.first_name }}</p>
-                </div>
+                
+                <!-- Mobile Daily Todo Button -->
+                <button 
+                    onclick="showDailyTodoModal()"
+                    class="md:hidden group relative overflow-hidden p-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </button>
             </div>
             
             {% if show_dashboard_joke %}
@@ -94,9 +118,10 @@
             </div>
             {% endif %}
             
+            <!-- Desktop Daily Todo Button -->
             <button 
                 onclick="showDailyTodoModal()"
-                class="group relative overflow-hidden px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95"
+                class="hidden md:block group relative overflow-hidden px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95"
             >
                 <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
                 <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300 -z-10"></div>
@@ -173,74 +198,75 @@
         {% endif %}
 
         <!-- Key Metrics Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 animate-fade-in-up-delay-1">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8 animate-fade-in-up-delay-1">
             <!-- Total Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
-                <div class="flex items-center justify-between mb-4">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+                <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-dollar-sign text-white"></i>
+                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-dollar-sign text-white text-sm md:text-base"></i>
                         </div>
-                        <h3 class="text-sm font-semibold text-slate-600">Total Potential Commission</h3>
+                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Potential Commission</h3>
                     </div>
-                    <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">All time</span>
+                    <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">All time</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-3xl font-bold text-emerald-600">${{ "{:,.0f}".format(total_commission) }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-emerald-600">${{ "{:,.0f}".format(total_commission) }}</span>
                 </div>
             </div>
 
             <!-- Total Contacts Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
-                <div class="flex items-center justify-between mb-4">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+                <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-users text-white"></i>
+                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-users text-white text-sm md:text-base"></i>
                         </div>
-                        <h3 class="text-sm font-semibold text-slate-600">Total Contacts</h3>
+                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Contacts</h3>
                     </div>
-                    <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2.5 py-1 rounded-full">Active</span>
+                    <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Active</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-3xl font-bold text-blue-600">{{ total_contacts }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-blue-600">{{ total_contacts }}</span>
                 </div>
             </div>
 
             <!-- Average Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
-                <div class="flex items-center justify-between mb-4">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+                <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
-                            <i class="fas fa-chart-bar text-white"></i>
+                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-chart-bar text-white text-sm md:text-base"></i>
                         </div>
-                        <h3 class="text-sm font-semibold text-slate-600">Average Commission</h3>
+                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Average Commission</h3>
                     </div>
-                    <span class="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full">Per contact</span>
+                    <span class="bg-purple-50 text-purple-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Per contact</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-3xl font-bold text-purple-600">${{ "{:,.0f}".format(avg_commission) }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-purple-600">${{ "{:,.0f}".format(avg_commission) }}</span>
                 </div>
             </div>
         </div>
 
         <!-- Upcoming Tasks and Todos Section -->
-        <div class="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up-delay-2">
+        <div class="mb-6 md:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 animate-fade-in-up-delay-2">
             <!-- Upcoming Tasks Section -->
             <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
                 <!-- Header -->
-                <div class="px-6 py-5 section-header border-b border-slate-100 flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md">
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100 flex items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
                             <i class="fas fa-tasks text-white"></i>
                         </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-800">Upcoming Client Tasks</h3>
-                            <p class="text-sm text-slate-500">Client tasks due in the next 7 days</p>
+                        <div class="min-w-0">
+                            <h3 class="text-base md:text-lg font-bold text-slate-800">Upcoming Client Tasks</h3>
+                            <p class="text-xs md:text-sm text-slate-500 hidden sm:block">Client tasks due in the next 7 days</p>
                         </div>
                     </div>
                     <a href="{{ url_for('tasks.tasks') }}" 
-                       class="group inline-flex items-center px-4 py-2 bg-slate-50 hover:bg-orange-50 text-sm font-medium text-slate-600 hover:text-orange-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-orange-200">
-                        View all
+                       class="group inline-flex items-center px-3 md:px-4 py-2 bg-slate-50 hover:bg-orange-50 text-sm font-medium text-slate-600 hover:text-orange-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-orange-200 flex-shrink-0">
+                        <span class="hidden sm:inline">View all</span>
+                        <span class="sm:hidden">All</span>
                         <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </a>
                 </div>
@@ -250,7 +276,12 @@
                     {% if upcoming_tasks %}
                     <div class="divide-y divide-slate-100">
                         {% for task in upcoming_tasks %}
-                        <div class="task-item group transition-all duration-200">
+                        {% set task_date = task.due_date.date() %}
+                        {% set current_date = now.date() %}
+                        {% set days_until_due = (task_date - current_date).days %}
+                        
+                        <!-- Desktop Task View -->
+                        <div class="task-item group transition-all duration-200 hidden md:block">
                             <div class="p-4">
                                 <div class="flex items-start">
                                     <!-- Left Side: Priority and Status -->
@@ -320,9 +351,6 @@
                                         <!-- Task Details -->
                                         <div class="mt-2 flex items-center flex-wrap gap-3 text-sm text-slate-500">
                                             <!-- Due Date with Color Coding -->
-                                            {% set task_date = task.due_date.date() %}
-                                            {% set current_date = now.date() %}
-                                            {% set days_until_due = (task_date - current_date).days %}
                                             <div class="flex items-center px-2.5 py-1 rounded-lg {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-orange-50 text-orange-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-50 text-slate-600{% endif %}">
                                                 <i class="far fa-calendar-alt mr-1.5"></i>
                                                 <span class="font-medium">
@@ -378,6 +406,56 @@
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Mobile Task View -->
+                        <div class="task-item md:hidden p-4">
+                            <div class="flex items-start gap-3">
+                                <!-- Checkbox -->
+                                <input type="checkbox"
+                                    class="mt-1 h-5 w-5 text-orange-500 rounded-lg border-2 border-slate-300 focus:ring-orange-500 cursor-pointer flex-shrink-0"
+                                    {% if task.status == 'completed' %}checked{% endif %}
+                                    onchange="updateTaskStatus({{ task.id }}, this.checked)">
+                                
+                                <!-- Task Content -->
+                                <div class="flex-1 min-w-0">
+                                    <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
+                                       class="block font-semibold text-slate-800 mb-1">
+                                        {{ task.subject }}
+                                    </a>
+                                    
+                                    <!-- Due date badge -->
+                                    <div class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium mb-2 {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-orange-50 text-orange-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                        <i class="far fa-calendar-alt mr-1"></i>
+                                        {% if days_until_due < 0 %}Overdue{% elif days_until_due == 0 %}Today{% elif days_until_due == 1 %}Tomorrow{% else %}{{ days_until_due }}d{% endif %}
+                                    </div>
+                                    
+                                    <!-- Meta info row -->
+                                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                        <!-- Priority indicator -->
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full {% if task.priority == 'high' %}bg-red-50 text-red-600{% elif task.priority == 'medium' %}bg-yellow-50 text-yellow-600{% else %}bg-green-50 text-green-600{% endif %}">
+                                            <i class="fas fa-flag mr-1 text-[10px]"></i>{{ task.priority|capitalize }}
+                                        </span>
+                                        
+                                        <!-- Type -->
+                                        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                            {{ task.task_type.name }}
+                                        </span>
+                                        
+                                        {% if task.contact %}
+                                        <span class="flex items-center">
+                                            <i class="far fa-user mr-1"></i>{{ task.contact.first_name }} {{ task.contact.last_name }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- View arrow -->
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
+                                   class="flex-shrink-0 p-2 text-slate-400">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                            </div>
+                        </div>
                         {% endfor %}
                     </div>
                     {% else %}
@@ -399,38 +477,39 @@
             <!-- Active Todos Section -->
             <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
                 <!-- Header -->
-                <div class="px-6 py-5 section-header border-b border-slate-100 flex items-center justify-between">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md">
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100 flex items-center justify-between gap-3">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
                             <i class="fas fa-check-square text-white"></i>
                         </div>
-                        <div>
-                            <h3 class="text-lg font-bold text-slate-800">Active To Do's</h3>
-                            <p class="text-sm text-slate-500">Your current to do list</p>
+                        <div class="min-w-0">
+                            <h3 class="text-base md:text-lg font-bold text-slate-800">Active To Do's</h3>
+                            <p class="text-xs md:text-sm text-slate-500 hidden sm:block">Your current to do list</p>
                         </div>
                     </div>
                     <a href="{{ url_for('user_todo.user_todo') }}" 
-                       class="group inline-flex items-center px-4 py-2 bg-slate-50 hover:bg-violet-50 text-sm font-medium text-slate-600 hover:text-violet-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-violet-200">
-                        View all
+                       class="group inline-flex items-center px-3 md:px-4 py-2 bg-slate-50 hover:bg-violet-50 text-sm font-medium text-slate-600 hover:text-violet-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-violet-200 flex-shrink-0">
+                        <span class="hidden sm:inline">View all</span>
+                        <span class="sm:hidden">All</span>
                         <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                     </a>
                 </div>
 
                 <!-- Todo List -->
                 <div class="overflow-y-auto" style="max-height: 420px;">
-                    <div class="px-6 py-6">
+                    <div class="px-4 md:px-6 py-4 md:py-6">
                         <!-- New Todo Input -->
-                        <div class="flex items-center space-x-3 mb-6 group">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 group">
                             <div class="flex-1 relative">
                                 <input type="text" id="dashboardNewTodoInput" 
-                                       class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 pl-12 pr-4 py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200" 
+                                       class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 pl-12 pr-4 py-3 md:py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200" 
                                        placeholder="Add a new to do...">
                                 <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors duration-200">
                                     <i class="fas fa-plus-circle text-lg"></i>
                                 </span>
                             </div>
                             <button id="dashboardAddTodoBtn" 
-                                    class="group relative overflow-hidden px-6 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-sm font-semibold text-white focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5">
+                                    class="group relative overflow-hidden px-6 py-3 md:py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-sm font-semibold text-white focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5">
                                 <span class="relative z-10">Add To Do</span>
                             </button>
                         </div>
@@ -443,17 +522,17 @@
         </div>
 
         <!-- Charts and Tables Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in-up-delay-3">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 animate-fade-in-up-delay-3">
             <!-- Group Distribution Chart -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 lg:col-span-1 overflow-hidden">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-md">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6 lg:col-span-1 overflow-hidden">
+                <div class="flex items-center justify-between mb-4 md:mb-6 gap-2">
+                    <div class="flex items-center space-x-3 min-w-0">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
                             <i class="fas fa-pie-chart text-white"></i>
                         </div>
-                        <h3 class="text-lg font-bold text-slate-800">Contact Groups</h3>
+                        <h3 class="text-base md:text-lg font-bold text-slate-800">Contact Groups</h3>
                     </div>
-                    <span class="text-sm font-medium text-slate-500 bg-slate-100 px-3 py-1 rounded-full">Distribution</span>
+                    <span class="text-xs md:text-sm font-medium text-slate-500 bg-slate-100 px-2 md:px-3 py-1 rounded-full flex-shrink-0">Distribution</span>
                 </div>
                 <div id="groupChart" style="min-height: 250px;" class="w-full"></div>
                 <div class="mt-4 pt-4 border-t border-slate-100 overflow-y-auto" style="max-height: 200px;">
@@ -472,14 +551,16 @@
             </div>
 
             <!-- Top Contacts Table -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 lg:col-span-2 overflow-hidden">
-                <div class="flex items-center space-x-3 mb-6">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6 lg:col-span-2 overflow-hidden">
+                <div class="flex items-center space-x-3 mb-4 md:mb-6">
                     <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
                         <i class="fas fa-trophy text-white"></i>
                     </div>
                     <h3 class="text-lg font-bold text-slate-800">Top Contacts by Commission</h3>
                 </div>
-                <div class="overflow-x-auto">
+                
+                <!-- Desktop Table (hidden on mobile) -->
+                <div class="hidden md:block overflow-x-auto">
                     <table class="min-w-full">
                         <thead>
                             <tr class="border-b-2 border-slate-100">
@@ -542,6 +623,42 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                
+                <!-- Mobile Cards (hidden on desktop) -->
+                <div class="md:hidden space-y-3">
+                    {% for contact in top_contacts %}
+                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
+                       class="block bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-emerald-700 font-semibold mr-3">
+                                    {{ contact.first_name[0] }}{{ contact.last_name[0] }}
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-slate-800">{{ contact.first_name }} {{ contact.last_name }}</div>
+                                    {% if current_user.role == 'admin' and show_all %}
+                                    <div class="text-xs text-slate-500">{{ contact.owner.first_name }} {{ contact.owner.last_name }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                    ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span class="flex items-center">
+                                <i class="far fa-calendar-alt mr-1"></i>
+                                {{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never contacted' }}
+                            </span>
+                            {% for group in contact.groups[:2] %}
+                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">{{ group.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </a>
+                    {% endfor %}
                 </div>
             </div>
         </div>
