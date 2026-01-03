@@ -3,165 +3,382 @@
 {% block title %}New Transaction - TechnolOG{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6 max-w-3xl">
-    <!-- Header -->
-    <div class="mb-6">
-        <a href="{{ url_for('transactions.list_transactions') }}" class="text-gray-500 hover:text-gray-700 text-sm">
-            <i class="fas fa-arrow-left mr-1"></i>Back to Transactions
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
+    }
+
+    .animate-fade-in-up-delay-3 {
+        animation: fadeInUp 0.6s ease-out 0.3s forwards;
+        opacity: 0;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .premium-input:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+
+    /* Type card styling */
+    .type-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        transition: all 0.2s ease-out;
+        background: white;
+    }
+
+    .type-card:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    .type-card.selected {
+        border-color: #f97316;
+        background: linear-gradient(to bottom, rgba(249, 115, 22, 0.05), rgba(249, 115, 22, 0.1));
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .type-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.625rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .type-seller .type-icon { background: linear-gradient(135deg, #f97316, #ea580c); }
+    .type-buyer .type-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+    .type-landlord .type-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .type-tenant .type-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .type-default .type-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+
+    /* Ownership card styling */
+    .ownership-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        transition: all 0.2s ease-out;
+        background: white;
+    }
+
+    .ownership-card:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    .ownership-card.selected {
+        border-color: #f97316;
+        background: linear-gradient(to bottom, rgba(249, 115, 22, 0.05), rgba(249, 115, 22, 0.1));
+    }
+
+    /* Contact chip */
+    .contact-chip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(to right, #f8fafc, #f1f5f9);
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        transition: all 0.2s ease-out;
+    }
+
+    .contact-chip:hover {
+        background: linear-gradient(to right, #f1f5f9, #e2e8f0);
+    }
+
+    /* Search results dropdown */
+    .search-results {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+        overflow: hidden;
+    }
+
+    .search-result-item {
+        padding: 0.75rem 1rem;
+        transition: all 0.15s ease-out;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .search-result-item:last-child {
+        border-bottom: none;
+    }
+
+    .search-result-item:hover {
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.05), rgba(249, 115, 22, 0.1));
+    }
+
+    /* Step number */
+    .step-number {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6 max-w-3xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.list_transactions') }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transactions
         </a>
-        <h1 class="text-2xl font-bold text-gray-800 mt-2">Create New Transaction</h1>
-    </div>
-
-    <!-- Form -->
-    <form method="POST" action="{{ url_for('transactions.create_transaction') }}" class="space-y-6">
-        <!-- Step 1: Select Contacts -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">1</span>
-                Select Client(s)
-            </h2>
-            
-            <!-- Contact Search -->
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Search Contacts</label>
-                <input type="text" 
-                       id="contactSearch" 
-                       placeholder="Type to search contacts..."
-                       class="input input-bordered w-full"
-                       autocomplete="off">
-                <div id="contactSearchResults" class="mt-2 bg-white border rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+        
+        <!-- Header Section -->
+        <div class="flex items-center space-x-4 mb-6 animate-fade-in-up">
+            <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
+                <i class="fas fa-plus text-white text-xl"></i>
             </div>
-
-            <!-- Selected Contacts -->
-            <div id="selectedContacts" class="space-y-2">
-                <p class="text-sm text-gray-500" id="noContactsMessage">No contacts selected yet.</p>
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Create New Transaction</h1>
+                <p class="text-slate-500 mt-1">Set up a new real estate transaction</p>
             </div>
         </div>
 
-        <!-- Step 2: Transaction Type -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">2</span>
-                Transaction Type
-            </h2>
-            
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {% for tt in transaction_types %}
-                <label class="cursor-pointer">
-                    <input type="radio" name="transaction_type_id" value="{{ tt.id }}" 
-                           class="hidden peer" required>
-                    <div class="p-4 border-2 rounded-lg text-center transition-all
-                                peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                hover:border-gray-300">
-                        <div class="text-2xl mb-1">
-                            {% if tt.name == 'seller' %}🏠
-                            {% elif tt.name == 'buyer' %}🔑
-                            {% elif tt.name == 'landlord' %}🏢
-                            {% elif tt.name == 'tenant' %}📋
-                            {% else %}🤝{% endif %}
+        <!-- Form -->
+        <form method="POST" action="{{ url_for('transactions.create_transaction') }}">
+            <!-- Step 1: Select Contacts -->
+            <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-1">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="step-number">1</div>
+                    <h2 class="text-lg font-bold text-slate-800">Select Client(s)</h2>
+                </div>
+                
+                <!-- Contact Search -->
+                <div class="mb-4 relative">
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Search Contacts</label>
+                    <div class="relative">
+                        <input type="text" 
+                               id="contactSearch" 
+                               placeholder="Type to search contacts..."
+                               class="premium-input w-full"
+                               style="padding-left: 2.5rem;"
+                               autocomplete="off">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    </div>
+                    <div id="contactSearchResults" class="search-results mt-2 hidden max-h-48 overflow-y-auto absolute left-0 right-0 z-10"></div>
+                </div>
+
+                <!-- Selected Contacts -->
+                <div id="selectedContacts" class="space-y-2">
+                    <p class="text-sm text-slate-500 flex items-center gap-2" id="noContactsMessage">
+                        <i class="fas fa-info-circle text-slate-400"></i>
+                        No contacts selected yet.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Step 2: Transaction Type -->
+            <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-2">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="step-number">2</div>
+                    <h2 class="text-lg font-bold text-slate-800">Transaction Type</h2>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {% for tt in transaction_types %}
+                    <label class="cursor-pointer">
+                        <input type="radio" name="transaction_type_id" value="{{ tt.id }}" 
+                               class="hidden peer" required>
+                        <div class="type-card peer-checked:selected p-4 text-center
+                                    {% if tt.name == 'seller' %}type-seller
+                                    {% elif tt.name == 'buyer' %}type-buyer
+                                    {% elif tt.name == 'landlord' %}type-landlord
+                                    {% elif tt.name == 'tenant' %}type-tenant
+                                    {% else %}type-default{% endif %}">
+                            <div class="type-icon mx-auto">
+                                {% if tt.name == 'seller' %}
+                                <i class="fas fa-home text-white"></i>
+                                {% elif tt.name == 'buyer' %}
+                                <i class="fas fa-key text-white"></i>
+                                {% elif tt.name == 'landlord' %}
+                                <i class="fas fa-building text-white"></i>
+                                {% elif tt.name == 'tenant' %}
+                                <i class="fas fa-file-signature text-white"></i>
+                                {% else %}
+                                <i class="fas fa-handshake text-white"></i>
+                                {% endif %}
+                            </div>
+                            <div class="font-semibold text-slate-800 text-sm">{{ tt.display_name }}</div>
                         </div>
-                        <div class="font-medium text-gray-800">{{ tt.display_name }}</div>
-                    </div>
-                </label>
-                {% endfor %}
+                    </label>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
 
-        <!-- Step 3: Property Address -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">3</span>
-                Property Address
-            </h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
-                    <input type="text" name="street_address" required
-                           class="input input-bordered w-full"
-                           placeholder="123 Main St">
+            <!-- Step 3: Property Address -->
+            <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-3">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="step-number">3</div>
+                    <h2 class="text-lg font-bold text-slate-800">Property Address</h2>
                 </div>
                 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div class="col-span-2 sm:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
-                        <input type="text" name="city"
-                               class="input input-bordered w-full"
-                               placeholder="Austin">
-                    </div>
+                <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
-                        <input type="text" name="state" value="TX"
-                               class="input input-bordered w-full">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Street Address <span class="text-red-500">*</span></label>
+                        <input type="text" name="street_address" required
+                               class="premium-input w-full"
+                               placeholder="123 Main St">
                     </div>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="col-span-2 sm:col-span-2">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">City</label>
+                            <input type="text" name="city"
+                                   class="premium-input w-full"
+                                   placeholder="Austin">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">State</label>
+                            <input type="text" name="state" value="TX"
+                                   class="premium-input w-full">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-2">ZIP</label>
+                            <input type="text" name="zip_code"
+                                   class="premium-input w-full"
+                                   placeholder="78701">
+                        </div>
+                    </div>
+                    
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
-                        <input type="text" name="zip_code"
-                               class="input input-bordered w-full"
-                               placeholder="78701">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">County</label>
+                        <input type="text" name="county"
+                               class="premium-input w-full"
+                               placeholder="Travis">
                     </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Ownership Status (Seller Only) -->
+            <div id="ownershipSection" class="premium-card p-6 mb-6 hidden animate-fade-in-up">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="step-number">4</div>
+                    <h2 class="text-lg font-bold text-slate-800">Ownership Status</h2>
                 </div>
                 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">County</label>
-                    <input type="text" name="county"
-                           class="input input-bordered w-full"
-                           placeholder="Travis">
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ownership_status" value="conventional" class="hidden peer">
+                        <div class="ownership-card peer-checked:selected p-4 text-center">
+                            <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-home text-slate-600"></i>
+                            </div>
+                            <div class="font-semibold text-slate-800 text-sm">Conventional / Resale</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ownership_status" value="builder" class="hidden peer">
+                        <div class="ownership-card peer-checked:selected p-4 text-center">
+                            <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-hard-hat text-slate-600"></i>
+                            </div>
+                            <div class="font-semibold text-slate-800 text-sm">Builder / New Construction</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ownership_status" value="reo" class="hidden peer">
+                        <div class="ownership-card peer-checked:selected p-4 text-center">
+                            <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-bank text-slate-600"></i>
+                            </div>
+                            <div class="font-semibold text-slate-800 text-sm">REO / Foreclosure</div>
+                        </div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="radio" name="ownership_status" value="short_sale" class="hidden peer">
+                        <div class="ownership-card peer-checked:selected p-4 text-center">
+                            <div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-hand-holding-usd text-slate-600"></i>
+                            </div>
+                            <div class="font-semibold text-slate-800 text-sm">Short Sale</div>
+                        </div>
+                    </label>
                 </div>
             </div>
-        </div>
 
-        <!-- Step 4: Ownership Status (Seller Only) -->
-        <div id="ownershipSection" class="bg-white rounded-lg shadow-sm p-6 hidden">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">
-                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">4</span>
-                Ownership Status
-            </h2>
-            
-            <div class="grid grid-cols-2 gap-3">
-                <label class="cursor-pointer">
-                    <input type="radio" name="ownership_status" value="conventional" class="hidden peer">
-                    <div class="p-3 border-2 rounded-lg text-center transition-all
-                                peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                hover:border-gray-300">
-                        <div class="font-medium text-gray-800">Conventional / Resale</div>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="ownership_status" value="builder" class="hidden peer">
-                    <div class="p-3 border-2 rounded-lg text-center transition-all
-                                peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                hover:border-gray-300">
-                        <div class="font-medium text-gray-800">Builder / New Construction</div>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="ownership_status" value="reo" class="hidden peer">
-                    <div class="p-3 border-2 rounded-lg text-center transition-all
-                                peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                hover:border-gray-300">
-                        <div class="font-medium text-gray-800">REO / Foreclosure</div>
-                    </div>
-                </label>
-                <label class="cursor-pointer">
-                    <input type="radio" name="ownership_status" value="short_sale" class="hidden peer">
-                    <div class="p-3 border-2 rounded-lg text-center transition-all
-                                peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                hover:border-gray-300">
-                        <div class="font-medium text-gray-800">Short Sale</div>
-                    </div>
-                </label>
+            <!-- Submit Actions -->
+            <div class="flex flex-col sm:flex-row justify-end gap-3 animate-fade-in-up-delay-3">
+                <a href="{{ url_for('transactions.list_transactions') }}" 
+                   class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 text-center">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="premium-btn px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md flex items-center justify-center gap-2">
+                    <i class="fas fa-plus"></i>
+                    Create Transaction
+                </button>
             </div>
-        </div>
-
-        <!-- Submit -->
-        <div class="flex justify-end gap-3">
-            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-ghost">Cancel</a>
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-plus mr-2"></i>Create Transaction
-            </button>
-        </div>
-    </form>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -190,17 +407,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(res => res.json())
                 .then(contacts => {
                     if (contacts.length === 0) {
-                        searchResults.innerHTML = '<div class="p-3 text-gray-500">No contacts found</div>';
+                        searchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">No contacts found</div>';
                     } else {
-                        searchResults.innerHTML = contacts
-                            .filter(c => !selectedContactIds.has(c.id))
-                            .map(c => `
-                                <div class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0"
-                                     data-contact='${JSON.stringify(c)}'>
-                                    <div class="font-medium">${c.name}</div>
-                                    <div class="text-sm text-gray-500">${c.email || 'No email'}</div>
+                        const filtered = contacts.filter(c => !selectedContactIds.has(c.id));
+                        if (filtered.length === 0) {
+                            searchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">All matching contacts already selected</div>';
+                        } else {
+                            searchResults.innerHTML = filtered.map(c => `
+                                <div class="search-result-item" data-contact='${JSON.stringify(c)}'>
+                                    <div class="font-medium text-slate-800">${c.name}</div>
+                                    <div class="text-sm text-slate-500">${c.email || 'No email'}</div>
                                 </div>
-                            `).join('') || '<div class="p-3 text-gray-500">All matching contacts already selected</div>';
+                            `).join('');
+                        }
                     }
                     searchResults.classList.remove('hidden');
                 });
@@ -232,15 +451,20 @@ document.addEventListener('DOMContentLoaded', function() {
         noContactsMessage.classList.add('hidden');
         
         const contactEl = document.createElement('div');
-        contactEl.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+        contactEl.className = 'contact-chip';
         contactEl.dataset.contactId = contact.id;
         contactEl.innerHTML = `
             <input type="hidden" name="contact_ids" value="${contact.id}">
-            <div>
-                <div class="font-medium text-gray-800">${contact.name}</div>
-                <div class="text-sm text-gray-500">${contact.email || ''} ${contact.phone || ''}</div>
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center flex-shrink-0">
+                    <span class="text-indigo-600 font-semibold text-sm">${contact.name.substring(0, 2).toUpperCase()}</span>
+                </div>
+                <div>
+                    <div class="font-medium text-slate-800">${contact.name}</div>
+                    <div class="text-sm text-slate-500">${contact.email || ''} ${contact.phone || ''}</div>
+                </div>
             </div>
-            <button type="button" class="btn btn-ghost btn-sm text-red-500 remove-contact">
+            <button type="button" class="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all remove-contact">
                 <i class="fas fa-times"></i>
             </button>
         `;
@@ -266,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('input[name="transaction_type_id"]').forEach(radio => {
         radio.addEventListener('change', function() {
             // Find the transaction type name by looking at the label text
-            const label = this.closest('label').querySelector('.font-medium').textContent.trim();
+            const label = this.closest('label').querySelector('.font-semibold').textContent.trim();
             if (label.includes('Seller')) {
                 ownershipSection.classList.remove('hidden');
             } else {
@@ -274,7 +498,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+
+    // Update visual selection state for type cards
+    document.querySelectorAll('input[name="transaction_type_id"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.type-card').forEach(card => card.classList.remove('selected'));
+            this.closest('label').querySelector('.type-card').classList.add('selected');
+        });
+    });
+
+    // Update visual selection state for ownership cards
+    document.querySelectorAll('input[name="ownership_status"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            document.querySelectorAll('.ownership-card').forEach(card => card.classList.remove('selected'));
+            this.closest('label').querySelector('.ownership-card').classList.add('selected');
+        });
+    });
 });
 </script>
 {% endblock %}
-

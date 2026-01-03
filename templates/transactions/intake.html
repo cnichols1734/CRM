@@ -3,116 +3,359 @@
 {% block title %}Property Questionnaire - {{ transaction.street_address }} - TechnolOG{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6 max-w-3xl">
-    <!-- Header -->
-    <div class="mb-6">
-        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" class="text-gray-500 hover:text-gray-700 text-sm">
-            <i class="fas fa-arrow-left mr-1"></i>Back to Transaction
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+        width: 100%;
+    }
+
+    .premium-input:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+
+    /* Premium textarea */
+    .premium-textarea {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        width: 100%;
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .premium-textarea:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    /* Yes/No toggle cards - compact professional style */
+    .toggle-card {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.5rem;
+        transition: all 0.15s ease-out;
+        background: white;
+        padding: 0.5rem 1.25rem;
+        text-align: center;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .toggle-card:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    .toggle-card.selected-yes {
+        border-color: #22c55e;
+        background: #f0fdf4;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+    }
+
+    .toggle-card.selected-yes .toggle-icon {
+        color: #16a34a;
+    }
+
+    .toggle-card.selected-yes .toggle-text {
+        color: #166534;
+        font-weight: 600;
+    }
+
+    .toggle-card.selected-no {
+        border-color: #f87171;
+        background: #fef2f2;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    .toggle-card.selected-no .toggle-icon {
+        color: #dc2626;
+    }
+
+    .toggle-card.selected-no .toggle-text {
+        color: #991b1b;
+        font-weight: 600;
+    }
+
+    /* Option pill cards */
+    .option-pill {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        transition: all 0.2s ease-out;
+        background: white;
+        padding: 0.625rem 1rem;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .option-pill:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+
+    .option-pill.selected {
+        border-color: #f97316;
+        background: linear-gradient(to bottom, rgba(249, 115, 22, 0.05), rgba(249, 115, 22, 0.1));
+        color: #c2410c;
+        font-weight: 500;
+    }
+
+    /* Question item styling */
+    .question-item {
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .question-item:last-child {
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+
+    /* Section icon */
+    .section-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.625rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Progress indicator */
+    .progress-bar {
+        height: 4px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(to right, #f97316, #ea580c);
+        transition: width 0.3s ease-out;
+    }
+</style>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6 max-w-3xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
         </a>
-        <h1 class="text-2xl font-bold text-gray-800 mt-2">{{ schema.title }}</h1>
-        <p class="text-gray-500">{{ transaction.street_address }}</p>
-        <p class="text-sm text-gray-400 mt-1">{{ schema.description }}</p>
-    </div>
+        
+        <!-- Header Section -->
+        <div class="flex items-start space-x-4 mb-6 animate-fade-in-up">
+            <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 items-center justify-center shadow-lg flex-shrink-0">
+                <i class="fas fa-clipboard-list text-white text-xl"></i>
+            </div>
+            <div class="flex-1">
+                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">{{ schema.title }}</h1>
+                <p class="text-slate-600 mt-1">{{ transaction.street_address }}</p>
+                <p class="text-sm text-slate-500 mt-1">{{ schema.description }}</p>
+            </div>
+        </div>
 
-    <!-- Questionnaire Form -->
-    <form id="intakeForm" method="POST" action="{{ url_for('transactions.save_intake', id=transaction.id) }}">
-        {% for section in schema.sections %}
-        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">{{ section.title }}</h2>
-            
-            <div class="space-y-6">
-                {% for question in section.questions %}
-                <div class="question-item" data-question-id="{{ question.id }}">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        {{ question.label }}
-                        {% if question.required %}<span class="text-red-500">*</span>{% endif %}
-                    </label>
-                    
-                    {% if question.help_text %}
-                    <p class="text-xs text-gray-500 mb-2">{{ question.help_text }}</p>
-                    {% endif %}
-                    
-                    {% if question.type == 'boolean' %}
-                    <!-- Yes/No Toggle -->
-                    <div class="flex gap-3">
-                        <label class="cursor-pointer flex-1">
-                            <input type="radio" name="{{ question.id }}" value="true" 
-                                   class="hidden peer"
-                                   {% if intake_data.get(question.id) == true %}checked{% endif %}>
-                            <div class="p-3 border-2 rounded-lg text-center transition-all
-                                        peer-checked:border-green-500 peer-checked:bg-green-50
-                                        hover:border-gray-300">
-                                <i class="fas fa-check text-green-500 mr-1"></i> Yes
-                            </div>
-                        </label>
-                        <label class="cursor-pointer flex-1">
-                            <input type="radio" name="{{ question.id }}" value="false" 
-                                   class="hidden peer"
-                                   {% if intake_data.get(question.id) == false %}checked{% endif %}>
-                            <div class="p-3 border-2 rounded-lg text-center transition-all
-                                        peer-checked:border-red-500 peer-checked:bg-red-50
-                                        hover:border-gray-300">
-                                <i class="fas fa-times text-red-500 mr-1"></i> No
-                            </div>
-                        </label>
+        <!-- Progress Bar -->
+        <div class="premium-card p-4 mb-6 animate-fade-in-up">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-slate-700">Questionnaire Progress</span>
+                <span class="text-sm text-slate-500" id="progressText">0% Complete</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressBarFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Questionnaire Form -->
+        <form id="intakeForm" method="POST" action="{{ url_for('transactions.save_intake', id=transaction.id) }}">
+            {% for section in schema.sections %}
+            <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-1">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="section-icon bg-gradient-to-br 
+                        {% if loop.index == 1 %}from-blue-500 to-blue-600
+                        {% elif loop.index == 2 %}from-emerald-500 to-emerald-600
+                        {% elif loop.index == 3 %}from-purple-500 to-purple-600
+                        {% elif loop.index == 4 %}from-amber-500 to-amber-600
+                        {% else %}from-slate-500 to-slate-600{% endif %}">
+                        <i class="fas 
+                            {% if loop.index == 1 %}fa-home
+                            {% elif loop.index == 2 %}fa-shield-alt
+                            {% elif loop.index == 3 %}fa-tools
+                            {% elif loop.index == 4 %}fa-file-contract
+                            {% else %}fa-list{% endif %} text-white text-sm"></i>
                     </div>
-                    
-                    {% elif question.type == 'select' %}
-                    <!-- Select Dropdown or Radio Buttons -->
-                    <div class="flex flex-wrap gap-2">
-                        {% for option in question.options %}
-                        <label class="cursor-pointer">
-                            <input type="radio" name="{{ question.id }}" value="{{ option.value }}" 
-                                   class="hidden peer"
-                                   {% if intake_data.get(question.id) == option.value %}checked{% endif %}>
-                            <div class="px-4 py-2 border-2 rounded-lg text-center transition-all
-                                        peer-checked:border-blue-500 peer-checked:bg-blue-50
-                                        hover:border-gray-300">
-                                {{ option.label }}
-                            </div>
-                        </label>
-                        {% endfor %}
-                    </div>
-                    
-                    {% elif question.type == 'text' %}
-                    <!-- Text Input -->
-                    <input type="text" name="{{ question.id }}" 
-                           value="{{ intake_data.get(question.id, '') }}"
-                           class="input input-bordered w-full">
-                    
-                    {% elif question.type == 'textarea' %}
-                    <!-- Textarea -->
-                    <textarea name="{{ question.id }}" 
-                              class="textarea textarea-bordered w-full" rows="3">{{ intake_data.get(question.id, '') }}</textarea>
-                    {% endif %}
+                    <h2 class="text-lg font-bold text-slate-800">{{ section.title }}</h2>
                 </div>
-                {% endfor %}
+                
+                <div class="space-y-6">
+                    {% for question in section.questions %}
+                    <div class="question-item" data-question-id="{{ question.id }}">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">
+                            {{ question.label }}
+                            {% if question.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+                        </label>
+                        
+                        {% if question.help_text %}
+                        <p class="text-xs text-slate-500 mb-3 flex items-start gap-2">
+                            <i class="fas fa-info-circle text-slate-400 mt-0.5"></i>
+                            {{ question.help_text }}
+                        </p>
+                        {% endif %}
+                        
+                        {% if question.type == 'boolean' %}
+                        <!-- Yes/No Toggle -->
+                        <div class="inline-flex gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="{{ question.id }}" value="true" 
+                                       class="hidden toggle-input"
+                                       {% if intake_data.get(question.id) == true %}checked{% endif %}>
+                                <div class="toggle-card flex items-center justify-center gap-1.5 {% if intake_data.get(question.id) == true %}selected-yes{% endif %}">
+                                    <i class="fas fa-check toggle-icon text-slate-400 text-xs"></i>
+                                    <span class="toggle-text text-slate-600">Yes</span>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="{{ question.id }}" value="false" 
+                                       class="hidden toggle-input"
+                                       {% if intake_data.get(question.id) == false %}checked{% endif %}>
+                                <div class="toggle-card flex items-center justify-center gap-1.5 {% if intake_data.get(question.id) == false %}selected-no{% endif %}">
+                                    <i class="fas fa-times toggle-icon text-slate-400 text-xs"></i>
+                                    <span class="toggle-text text-slate-600">No</span>
+                                </div>
+                            </label>
+                        </div>
+                        
+                        {% elif question.type == 'select' %}
+                        <!-- Select Options -->
+                        <div class="flex flex-wrap gap-2">
+                            {% for option in question.options %}
+                            <label class="cursor-pointer">
+                                <input type="radio" name="{{ question.id }}" value="{{ option.value }}" 
+                                       class="hidden peer"
+                                       {% if intake_data.get(question.id) == option.value %}checked{% endif %}>
+                                <div class="option-pill peer-checked:selected">
+                                    {{ option.label }}
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        
+                        {% elif question.type == 'text' %}
+                        <!-- Text Input -->
+                        <input type="text" name="{{ question.id }}" 
+                               value="{{ intake_data.get(question.id, '') }}"
+                               class="premium-input">
+                        
+                        {% elif question.type == 'textarea' %}
+                        <!-- Textarea -->
+                        <textarea name="{{ question.id }}" 
+                                  class="premium-textarea" rows="3">{{ intake_data.get(question.id, '') }}</textarea>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
-        </div>
-        {% endfor %}
+            {% endfor %}
 
-        <!-- Actions -->
-        <div class="flex justify-between items-center">
-            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-               class="btn btn-ghost">
-                Cancel
-            </a>
-            <div class="flex gap-3">
-                <button type="submit" name="action" value="save" class="btn btn-outline">
-                    <i class="fas fa-save mr-2"></i>Save Draft
-                </button>
-                <button type="button" onclick="saveAndGenerate()" class="btn btn-primary">
-                    <i class="fas fa-file-alt mr-2"></i>Save & Generate Documents
-                </button>
+            <!-- Actions -->
+            <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 animate-fade-in-up-delay-2">
+                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+                   class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 text-center order-3 sm:order-1">
+                    Cancel
+                </a>
+                <div class="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
+                    <button type="submit" name="action" value="save" 
+                            class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2">
+                        <i class="fas fa-save text-slate-500"></i>
+                        Save Draft
+                    </button>
+                    <button type="button" onclick="saveAndGenerate()" 
+                            class="premium-btn px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md flex items-center justify-center gap-2">
+                        <i class="fas fa-file-alt"></i>
+                        Save & Generate Documents
+                    </button>
+                </div>
             </div>
-        </div>
-    </form>
+        </form>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+        <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
+        <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
+    </div>
 </div>
 
 <script>
 function saveAndGenerate() {
     const form = document.getElementById('intakeForm');
     const formData = new FormData(form);
+    
+    showToast('Saving questionnaire...', 'info');
     
     // First save the intake data
     fetch('{{ url_for("transactions.save_intake", id=transaction.id) }}', {
@@ -121,6 +364,7 @@ function saveAndGenerate() {
     })
     .then(response => {
         if (response.ok) {
+            showToast('Generating documents...', 'success');
             // Then generate the document package
             const generateForm = document.createElement('form');
             generateForm.method = 'POST';
@@ -128,26 +372,113 @@ function saveAndGenerate() {
             document.body.appendChild(generateForm);
             generateForm.submit();
         } else {
-            alert('Error saving questionnaire. Please try again.');
+            showToast('Error saving questionnaire. Please try again.', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error saving questionnaire. Please try again.');
+        showToast('Error saving questionnaire. Please try again.', 'error');
     });
 }
 
-// Auto-save on change (optional - for better UX)
-let saveTimeout;
-document.querySelectorAll('input, textarea, select').forEach(el => {
-    el.addEventListener('change', () => {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            // Could implement auto-save here
-            console.log('Answer changed');
-        }, 1000);
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const icon = document.getElementById('toastIcon');
+    document.getElementById('toastMessage').textContent = message;
+    
+    icon.className = 'fas';
+    if (type === 'success') {
+        icon.classList.add('fa-check-circle', 'text-green-500');
+    } else if (type === 'error') {
+        icon.classList.add('fa-exclamation-circle', 'text-red-500');
+    } else if (type === 'warning') {
+        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+    } else {
+        icon.classList.add('fa-info-circle', 'text-blue-500');
+    }
+    
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+// Progress tracking and visual feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('intakeForm');
+    const questions = form.querySelectorAll('.question-item');
+    const progressBar = document.getElementById('progressBarFill');
+    const progressText = document.getElementById('progressText');
+    
+    function updateProgress() {
+        let answered = 0;
+        let total = questions.length;
+        
+        questions.forEach(q => {
+            const inputs = q.querySelectorAll('input, textarea');
+            let hasValue = false;
+            inputs.forEach(input => {
+                if (input.type === 'radio' && input.checked) hasValue = true;
+                if ((input.type === 'text' || input.tagName === 'TEXTAREA') && input.value.trim()) hasValue = true;
+            });
+            if (hasValue) answered++;
+        });
+        
+        const percent = Math.round((answered / total) * 100);
+        progressBar.style.width = percent + '%';
+        progressText.textContent = percent + '% Complete';
+    }
+    
+    // Update progress on any input change
+    form.querySelectorAll('input, textarea').forEach(el => {
+        el.addEventListener('change', updateProgress);
+        el.addEventListener('input', updateProgress);
+    });
+    
+    // Initial progress calculation
+    updateProgress();
+    
+    // Handle toggle (Yes/No) selection
+    document.querySelectorAll('.toggle-input').forEach(input => {
+        input.addEventListener('change', function() {
+            const container = this.closest('.question-item');
+            
+            // Clear all toggle states in this question
+            container.querySelectorAll('.toggle-card').forEach(card => {
+                card.classList.remove('selected-yes', 'selected-no');
+            });
+            
+            // Apply the selected state
+            const card = this.closest('label').querySelector('.toggle-card');
+            if (this.value === 'true') {
+                card.classList.add('selected-yes');
+            } else {
+                card.classList.add('selected-no');
+            }
+        });
+    });
+    
+    // Handle option pill selection
+    document.querySelectorAll('.option-pill').forEach(pill => {
+        const input = pill.closest('label').querySelector('input');
+        if (input && input.checked) {
+            pill.classList.add('selected');
+        }
+    });
+    
+    document.querySelectorAll('input[type="radio"]:not(.toggle-input)').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const container = this.closest('.question-item');
+            
+            // Update option pills
+            container.querySelectorAll('.option-pill').forEach(pill => {
+                pill.classList.remove('selected');
+            });
+            
+            const pill = this.closest('label')?.querySelector('.option-pill');
+            if (pill) {
+                pill.classList.add('selected');
+            }
+        });
     });
 });
 </script>
 {% endblock %}
-

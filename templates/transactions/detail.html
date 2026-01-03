@@ -163,10 +163,19 @@
 <div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
     <div class="p-4 md:p-6 max-w-7xl mx-auto">
         <!-- Back Link -->
+        {% set ref = request.args.get('ref') %}
+        {% set contact_id = request.args.get('contact_id') %}
+        {% if ref == 'contact' and contact_id %}
+        <a href="{{ url_for('contacts.view_contact', contact_id=contact_id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Contact
+        </a>
+        {% else %}
         <a href="{{ url_for('transactions.list_transactions') }}" 
            class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
             <i class="fas fa-arrow-left mr-2"></i>Back to Transactions
         </a>
+        {% endif %}
         
         <!-- Header Section -->
         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 animate-fade-in-up relative z-50">

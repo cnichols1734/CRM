@@ -622,9 +622,98 @@
                 </div>
             </div>
 
-            <!-- Side Container - Related Tasks -->
-            <div class="lg:w-96 animate-fade-in-up-delay-3">
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden sticky top-24 premium-card">
+            <!-- Side Container - Related Tasks & Transactions -->
+            <div class="lg:w-96 space-y-6 animate-fade-in-up-delay-3">
+                <!-- Related Transactions Card -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                                    <i class="fas fa-file-contract text-white text-sm"></i>
+                                </div>
+                                <h2 class="text-lg font-semibold text-slate-800">Related Transactions</h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                        {% for tx in related_transactions %}
+                        <a href="{{ url_for('transactions.view_transaction', id=tx.id, ref='contact', contact_id=contact.id) }}" 
+                           class="block p-4 hover:bg-slate-50 transition-colors duration-150 group">
+                            <div class="flex items-start space-x-3">
+                                <!-- Type Indicator -->
+                                <div class="flex-shrink-0">
+                                    <div class="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm
+                                        {% if tx.transaction_type.name == 'seller' %}bg-gradient-to-br from-orange-400 to-orange-500
+                                        {% elif tx.transaction_type.name == 'buyer' %}bg-gradient-to-br from-purple-400 to-purple-500
+                                        {% elif tx.transaction_type.name == 'landlord' %}bg-gradient-to-br from-cyan-400 to-cyan-500
+                                        {% elif tx.transaction_type.name == 'tenant' %}bg-gradient-to-br from-green-400 to-green-500
+                                        {% else %}bg-gradient-to-br from-indigo-400 to-indigo-500{% endif %} text-white">
+                                        {% if tx.transaction_type.name == 'seller' %}
+                                        <i class="fas fa-home text-xs"></i>
+                                        {% elif tx.transaction_type.name == 'buyer' %}
+                                        <i class="fas fa-key text-xs"></i>
+                                        {% elif tx.transaction_type.name == 'landlord' %}
+                                        <i class="fas fa-building text-xs"></i>
+                                        {% elif tx.transaction_type.name == 'tenant' %}
+                                        <i class="fas fa-file-signature text-xs"></i>
+                                        {% else %}
+                                        <i class="fas fa-handshake text-xs"></i>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <!-- Transaction Content -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center space-x-2">
+                                        <span class="text-sm font-medium text-slate-800 group-hover:text-orange-600 truncate transition-colors duration-150">
+                                            {{ tx.street_address }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 flex items-center flex-wrap gap-2 text-xs">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            {% if tx.transaction_type.name == 'seller' %}bg-orange-100 text-orange-700
+                                            {% elif tx.transaction_type.name == 'buyer' %}bg-purple-100 text-purple-700
+                                            {% elif tx.transaction_type.name == 'landlord' %}bg-cyan-100 text-cyan-700
+                                            {% elif tx.transaction_type.name == 'tenant' %}bg-green-100 text-green-700
+                                            {% else %}bg-indigo-100 text-indigo-700{% endif %}">
+                                            {{ tx.transaction_type.display_name }}
+                                        </span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            {% if tx.status == 'draft' %}bg-slate-100 text-slate-600
+                                            {% elif tx.status == 'active' %}bg-green-100 text-green-700
+                                            {% elif tx.status == 'pending' %}bg-amber-100 text-amber-700
+                                            {% elif tx.status == 'under_contract' %}bg-blue-100 text-blue-700
+                                            {% elif tx.status == 'closed' %}bg-indigo-100 text-indigo-700
+                                            {% else %}bg-red-100 text-red-700{% endif %}">
+                                            {{ tx.status|replace('_', ' ')|title }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-1 text-xs text-slate-500">
+                                        {{ tx.created_at.strftime('%b %d, %Y') }}
+                                    </div>
+                                </div>
+
+                                <!-- Arrow -->
+                                <div class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                    <i class="fas fa-chevron-right text-slate-400 text-sm"></i>
+                                </div>
+                            </div>
+                        </a>
+                        {% else %}
+                        <div class="p-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-file-contract text-slate-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-500 text-sm">No transactions</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Related Tasks Card -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
                     <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-3">
@@ -658,7 +747,7 @@
                     </div>
 
                     <!-- Task Lists -->
-                    <div id="pendingTasks" class="divide-y divide-slate-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                    <div id="pendingTasks" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto', 'pending')|sort(attribute='due_date') %}
                         <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
                             <div class="flex items-start space-x-3">
@@ -718,7 +807,7 @@
                         {% endfor %}
                     </div>
 
-                    <div id="completedTasks" class="hidden divide-y divide-slate-100 max-h-[calc(100vh-300px)] overflow-y-auto">
+                    <div id="completedTasks" class="hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto', 'completed')|sort(attribute='completed_at', reverse=true) %}
                         <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
                             <div class="flex items-start space-x-3">
