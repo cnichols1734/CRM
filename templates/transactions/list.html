@@ -3,128 +3,385 @@
 {% block title %}Transactions - TechnolOG{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6 max-w-6xl">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800">Transactions</h1>
-            <p class="text-gray-500 text-sm mt-1">Manage your real estate transactions</p>
-        </div>
-        <a href="{{ url_for('transactions.new_transaction') }}" 
-           class="btn btn-primary">
-            <i class="fas fa-plus mr-2"></i>New Transaction
-        </a>
-    </div>
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 
-    <!-- Filters -->
-    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-        <form method="GET" class="flex flex-wrap gap-4 items-end">
-            <div class="flex-1 min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select name="status" class="select select-bordered w-full">
-                    <option value="">All Statuses</option>
-                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
-                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
-                    <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
-                    <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
-                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
-                </select>
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
+    }
+
+    /* Premium table styling */
+    .premium-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .premium-table thead th {
+        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+        color: #475569;
+    }
+
+    .premium-table tbody tr {
+        transition: all 0.15s ease-out;
+    }
+
+    .premium-table tbody tr:hover {
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.03));
+    }
+
+    /* Clickable row styling */
+    .premium-table tbody tr.clickable-row {
+        cursor: pointer;
+    }
+
+    /* Premium filter pill styling */
+    .filter-pill {
+        transition: all 0.2s ease-out;
+    }
+
+    .filter-pill:hover:not(.active) {
+        background-color: #f1f5f9;
+    }
+
+    .filter-pill.active {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
+    }
+
+    /* Premium button styling */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Premium search input */
+    .premium-search {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-search:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    /* Status badge styles */
+    .status-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .status-draft { background: #f1f5f9; color: #64748b; }
+    .status-active { background: #dcfce7; color: #166534; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-under_contract { background: #dbeafe; color: #1e40af; }
+    .status-closed { background: #e0e7ff; color: #3730a3; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+    /* Type badge styles */
+    .type-badge {
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .type-seller { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
+    .type-buyer { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+    .type-landlord { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
+    .type-tenant { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .type-referral { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+
+</style>
+
+<!-- Premium gradient background - full width -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6">
+        <!-- Header Section -->
+        <div class="flex justify-between items-center mb-6 animate-fade-in-up">
+            <div class="flex items-center space-x-3">
+                <!-- Animated Icon -->
+                <div class="hidden md:flex w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg">
+                    <i class="fas fa-file-contract text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800 hidden md:block">Transactions</h1>
+                    <span class="text-sm text-slate-500">{{ transactions|length }} transaction{% if transactions|length != 1 %}s{% endif %}</span>
+                </div>
             </div>
-            <div class="flex-1 min-w-[150px]">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select name="type" class="select select-bordered w-full">
-                    <option value="">All Types</option>
-                    {% for tt in transaction_types %}
-                    <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
-                        {{ tt.display_name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn btn-ghost">
-                <i class="fas fa-filter mr-2"></i>Filter
-            </button>
-            {% if status_filter or type_filter %}
-            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-ghost text-gray-500">
-                <i class="fas fa-times mr-1"></i>Clear
+            <a href="{{ url_for('transactions.new_transaction') }}"
+               class="text-sm font-medium px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200 premium-btn">
+                <i class="fas fa-plus mr-2"></i>
+                <span class="hidden md:inline">New Transaction</span>
             </a>
+        </div>
+
+        <!-- Search and Filters Bar -->
+        <div class="mb-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 animate-fade-in-up-delay-1">
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-md">
+                <form method="GET" id="searchForm">
+                    <!-- Preserve filter params -->
+                    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                    {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
+                    <input type="text" 
+                           id="searchInput" 
+                           name="q"
+                           placeholder="Search address or contact name..."
+                           class="premium-search w-full pl-11 pr-10 py-2.5 text-sm" 
+                           value="{{ search_query }}"
+                           autocomplete="off">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                    {% if search_query %}
+                    <button type="button" 
+                            onclick="clearSearch()"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+
+            <!-- Filter Dropdowns -->
+            <div class="flex flex-wrap items-center gap-3">
+                <form method="GET" id="filterForm" class="flex flex-wrap items-center gap-3">
+                    <!-- Preserve search param -->
+                    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+                    
+                    <select name="type" 
+                            onchange="this.form.submit()"
+                            class="px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors cursor-pointer">
+                        <option value="">All Types</option>
+                        {% for tt in transaction_types %}
+                        <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
+                            {{ tt.display_name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <select name="status" 
+                            onchange="this.form.submit()"
+                            class="px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors cursor-pointer">
+                        <option value="">All Statuses</option>
+                        <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                        <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
+                        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                    </select>
+                </form>
+
+                {% if status_filter or type_filter or search_query %}
+                <a href="{{ url_for('transactions.list_transactions') }}" 
+                   class="premium-btn text-sm px-4 py-2.5 border-2 border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center space-x-2">
+                    <i class="fas fa-times-circle"></i>
+                    <span class="hidden sm:inline">Clear All</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Active Filters Display -->
+        {% if search_query or status_filter or type_filter %}
+        <div class="mb-4 flex flex-wrap items-center gap-2 animate-fade-in-up-delay-1">
+            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active:</span>
+            {% if search_query %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-700 border border-orange-200">
+                <i class="fas fa-search mr-2 text-orange-500"></i>
+                "{{ search_query }}"
+                <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter) }}" 
+                   class="ml-2 text-orange-500 hover:text-orange-700">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
             {% endif %}
-        </form>
-    </div>
+            {% if type_filter %}
+            {% for tt in transaction_types %}
+            {% if tt.id|string == type_filter %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700 border border-purple-200">
+                <i class="fas fa-tag mr-2 text-purple-500"></i>
+                {{ tt.display_name }}
+                <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query) }}" 
+                   class="ml-2 text-purple-500 hover:text-purple-700">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+            {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% if status_filter %}
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 border border-blue-200">
+                <i class="fas fa-circle mr-2 text-blue-500"></i>
+                {{ status_filter|replace('_', ' ')|title }}
+                <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query) }}" 
+                   class="ml-2 text-blue-500 hover:text-blue-700">
+                    <i class="fas fa-times"></i>
+                </a>
+            </span>
+            {% endif %}
+        </div>
+        {% endif %}
 
-    <!-- Transactions Table -->
-    {% if transactions %}
-    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="table w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="text-left">Property</th>
-                        <th class="text-left">Type</th>
-                        <th class="text-left">Status</th>
-                        <th class="text-left">Created</th>
-                        <th class="text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for tx in transactions %}
-                    <tr class="hover:bg-gray-50">
-                        <td>
-                            <div class="font-medium text-gray-900">{{ tx.street_address }}</div>
-                            <div class="text-sm text-gray-500">
-                                {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
-                            </div>
-                        </td>
-                        <td>
-                            <span class="badge 
-                                {% if tx.transaction_type.name == 'seller' %}badge-primary
-                                {% elif tx.transaction_type.name == 'buyer' %}badge-secondary
-                                {% elif tx.transaction_type.name == 'landlord' %}badge-accent
-                                {% elif tx.transaction_type.name == 'tenant' %}badge-info
-                                {% else %}badge-ghost{% endif %}">
-                                {{ tx.transaction_type.display_name }}
-                            </span>
-                        </td>
-                        <td>
-                            <span class="badge 
-                                {% if tx.status == 'draft' %}badge-ghost
-                                {% elif tx.status == 'active' %}badge-success
-                                {% elif tx.status == 'pending' %}badge-warning
-                                {% elif tx.status == 'under_contract' %}badge-info
-                                {% elif tx.status == 'closed' %}badge-primary
-                                {% elif tx.status == 'cancelled' %}badge-error{% endif %}">
-                                {{ tx.status|replace('_', ' ')|title }}
-                            </span>
-                        </td>
-                        <td class="text-gray-500 text-sm">
-                            {{ tx.created_at.strftime('%b %d, %Y') }}
-                        </td>
-                        <td class="text-right">
-                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                               class="btn btn-sm btn-ghost">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <!-- Transactions Table -->
+        {% if transactions %}
+        <div class="animate-fade-in-up-delay-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="premium-table w-full">
+                        <thead class="text-sm border-b-2 border-slate-200">
+                            <tr>
+                                <th class="px-6 py-4 text-left">Property</th>
+                                <th class="px-4 py-4 text-left border-l border-slate-200">Contact</th>
+                                <th class="px-4 py-4 text-left border-l border-slate-200">Type</th>
+                                <th class="px-4 py-4 text-left border-l border-slate-200">Status</th>
+                                <th class="px-4 py-4 text-left border-l border-slate-200">Created</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            {% for tx in transactions %}
+                            <tr class="group clickable-row" data-href="{{ url_for('transactions.view_transaction', id=tx.id) }}">
+                                <td class="px-6 py-4">
+                                    <div class="font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">{{ tx.street_address }}</div>
+                                    <div class="text-sm text-slate-500">
+                                        {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
+                                    </div>
+                                </td>
+                                <td class="px-4 py-4 border-l border-slate-100">
+                                    {% if transaction_contacts.get(tx.id) %}
+                                        {% set contact = transaction_contacts[tx.id] %}
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
+                                                <i class="fas fa-user text-slate-500 text-xs"></i>
+                                            </div>
+                                            <div>
+                                                <div class="font-medium text-slate-800">{{ contact.name }}</div>
+                                                {% if contact.email %}
+                                                <div class="text-xs text-slate-500">{{ contact.email }}</div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <span class="text-slate-400 text-sm">No contact</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-4 border-l border-slate-100">
+                                    <span class="type-badge type-{{ tx.transaction_type.name }}">
+                                        {{ tx.transaction_type.display_name }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 border-l border-slate-100">
+                                    <span class="status-badge status-{{ tx.status }}">
+                                        {{ tx.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-4 text-slate-500 text-sm border-l border-slate-100">
+                                    {{ tx.created_at.strftime('%b %d, %Y') }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
-        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-folder-open text-2xl text-gray-400"></i>
+        {% else %}
+        <!-- Empty State -->
+        <div class="animate-fade-in-up-delay-2">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
+                <div class="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-folder-open text-3xl text-slate-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800 mb-2">No transactions yet</h3>
+                <p class="text-slate-500 mb-6 max-w-md mx-auto">Get started by creating your first transaction to manage your real estate deals.</p>
+                <a href="{{ url_for('transactions.new_transaction') }}" 
+                   class="inline-flex items-center text-sm font-medium px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all duration-200">
+                    <i class="fas fa-plus mr-2"></i>New Transaction
+                </a>
+            </div>
         </div>
-        <h3 class="text-lg font-medium text-gray-900 mb-2">No transactions yet</h3>
-        <p class="text-gray-500 mb-6">Get started by creating your first transaction.</p>
-        <a href="{{ url_for('transactions.new_transaction') }}" class="btn btn-primary">
-            <i class="fas fa-plus mr-2"></i>New Transaction
-        </a>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
-{% endblock %}
 
+<script>
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    const searchForm = document.getElementById('searchForm');
+    let searchTimeout;
+
+    if (searchInput) {
+        // Debounced search on typing
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                if (this.value.length >= 2 || this.value.length === 0) {
+                    searchForm.submit();
+                }
+            }, 500);
+        });
+
+        // Submit on Enter
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                clearTimeout(searchTimeout);
+                searchForm.submit();
+            }
+        });
+    }
+
+    function clearSearch() {
+        const urlParams = new URLSearchParams(window.location.search);
+        urlParams.delete('q');
+        const newUrl = urlParams.toString() 
+            ? `${window.location.pathname}?${urlParams.toString()}`
+            : window.location.pathname;
+        window.location.href = newUrl;
+    }
+
+    // Make table rows clickable
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function() {
+            window.location.href = this.dataset.href;
+        });
+    });
+</script>
+{% endblock %}
