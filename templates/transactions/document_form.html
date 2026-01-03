@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.template_name }} - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-4xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" class="text-gray-500 hover:text-gray-700 text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Transaction
+        </a>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ document.template_name }}</h1>
+                <p class="text-gray-500">{{ transaction.street_address }}</p>
+            </div>
+            <div class="flex gap-2">
+                <span class="badge badge-{{ 'secondary' if document.status == 'filled' else 'ghost' }} badge-lg">
+                    {{ document.status|title }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Form -->
+    <form id="documentForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+        <!-- Property Information Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-home text-blue-500 mr-2"></i>Property Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                    <input type="text" name="field_property_address" 
+                           value="{{ prefill_data.get('property_address', '') }}"
+                           class="input input-bordered w-full" readonly>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <input type="text" name="field_property_city" 
+                           value="{{ prefill_data.get('property_city', '') }}"
+                           class="input input-bordered w-full" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                        <input type="text" name="field_property_state" 
+                               value="{{ prefill_data.get('property_state', 'TX') }}"
+                               class="input input-bordered w-full" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                        <input type="text" name="field_property_zip" 
+                               value="{{ prefill_data.get('property_zip', '') }}"
+                               class="input input-bordered w-full" readonly>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">County</label>
+                    <input type="text" name="field_property_county" 
+                           value="{{ prefill_data.get('property_county', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Legal Description</label>
+                    <input type="text" name="field_legal_description" 
+                           value="{{ prefill_data.get('legal_description', '') }}"
+                           class="input input-bordered w-full" placeholder="Lot/Block/Survey">
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Information Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-user text-green-500 mr-2"></i>Seller Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Seller Name</label>
+                    <input type="text" name="field_seller_name" 
+                           value="{{ prefill_data.get('seller_name', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Co-Seller Name</label>
+                    <input type="text" name="field_co_seller_name" 
+                           value="{{ prefill_data.get('co_seller_name', '') }}"
+                           class="input input-bordered w-full" placeholder="If applicable">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Seller Email</label>
+                    <input type="email" name="field_seller_email" 
+                           value="{{ prefill_data.get('seller_email', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Seller Phone</label>
+                    <input type="tel" name="field_seller_phone" 
+                           value="{{ prefill_data.get('seller_phone', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Seller Mailing Address</label>
+                    <input type="text" name="field_seller_mailing_address" 
+                           value="{{ prefill_data.get('seller_mailing_address', '') }}"
+                           class="input input-bordered w-full" placeholder="If different from property">
+                </div>
+            </div>
+        </div>
+
+        <!-- Agent/Broker Information Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-briefcase text-purple-500 mr-2"></i>Agent/Broker Information
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Listing Agent</label>
+                    <input type="text" name="field_agent_name" 
+                           value="{{ prefill_data.get('agent_name', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent License #</label>
+                    <input type="text" name="field_agent_license" 
+                           value="{{ prefill_data.get('agent_license', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent Email</label>
+                    <input type="email" name="field_agent_email" 
+                           value="{{ prefill_data.get('agent_email', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Agent Phone</label>
+                    <input type="tel" name="field_agent_phone" 
+                           value="{{ prefill_data.get('agent_phone', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Broker Name</label>
+                    <input type="text" name="field_broker_name" 
+                           value="{{ prefill_data.get('broker_name', 'Origen Realty') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Broker License #</label>
+                    <input type="text" name="field_broker_license" 
+                           value="{{ prefill_data.get('broker_license', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+            </div>
+        </div>
+
+        <!-- Listing Terms Section (for Listing Agreement) -->
+        {% if 'listing' in document.template_slug.lower() %}
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-file-contract text-orange-500 mr-2"></i>Listing Terms
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">List Price</label>
+                    <div class="relative">
+                        <span class="absolute left-3 top-3 text-gray-500">$</span>
+                        <input type="text" name="field_list_price" 
+                               value="{{ prefill_data.get('list_price', '') }}"
+                               class="input input-bordered w-full pl-7" placeholder="0.00">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Commission Rate</label>
+                    <div class="relative">
+                        <input type="text" name="field_commission_rate" 
+                               value="{{ prefill_data.get('commission_rate', '') }}"
+                               class="input input-bordered w-full pr-7" placeholder="6">
+                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Listing Start Date</label>
+                    <input type="date" name="field_listing_start_date" 
+                           value="{{ prefill_data.get('listing_start_date', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Listing End Date</label>
+                    <input type="date" name="field_listing_end_date" 
+                           value="{{ prefill_data.get('listing_end_date', '') }}"
+                           class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buyer's Agent Commission</label>
+                    <div class="relative">
+                        <input type="text" name="field_buyers_agent_commission" 
+                               value="{{ prefill_data.get('buyers_agent_commission', '') }}"
+                               class="input input-bordered w-full pr-7" placeholder="3">
+                        <span class="absolute right-3 top-3 text-gray-500">%</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">MLS #</label>
+                    <input type="text" name="field_mls_number" 
+                           value="{{ prefill_data.get('mls_number', '') }}"
+                           class="input input-bordered w-full" placeholder="Will be assigned">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Additional Notes Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-sticky-note text-yellow-500 mr-2"></i>Additional Notes
+            </h2>
+            <div>
+                <textarea name="field_notes" 
+                          class="textarea textarea-bordered w-full" rows="4"
+                          placeholder="Any additional notes or special conditions...">{{ prefill_data.get('notes', '') }}</textarea>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white rounded-lg shadow-sm p-4">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="btn btn-ghost w-full sm:w-auto">
+                Cancel
+            </a>
+            <div class="flex gap-2 w-full sm:w-auto">
+                <button type="submit" name="action" value="save" class="btn btn-outline flex-1 sm:flex-none">
+                    <i class="fas fa-save mr-2"></i>Save Draft
+                </button>
+                <button type="button" onclick="saveAndPreview()" class="btn btn-primary flex-1 sm:flex-none">
+                    <i class="fas fa-eye mr-2"></i>Save & Preview
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Coming Soon Toast -->
+<div id="comingSoonToast" class="toast toast-end hidden">
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <span>PDF preview coming soon with DocuSeal integration!</span>
+    </div>
+</div>
+
+<script>
+function saveAndPreview() {
+    // Save the form first
+    const form = document.getElementById('documentForm');
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            // Show coming soon toast for preview
+            const toast = document.getElementById('comingSoonToast');
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                // Redirect back to transaction
+                window.location.href = "{{ url_for('transactions.view_transaction', id=transaction.id) }}";
+            }, 2000);
+        } else {
+            alert('Error saving form. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving form. Please try again.');
+    });
+}
+
+// Auto-format currency fields
+document.querySelectorAll('input[name*="price"], input[name*="commission"]').forEach(input => {
+    input.addEventListener('blur', function() {
+        const value = this.value.replace(/[^0-9.]/g, '');
+        if (value && !isNaN(value)) {
+            // Don't format percentage fields
+            if (!this.name.includes('rate') && !this.name.includes('commission')) {
+                this.value = parseFloat(value).toLocaleString('en-US', {
+                    minimumFractionDigits: 0,
+                    maximumFractionDigits: 0
+                });
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+

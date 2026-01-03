@@ -559,3 +559,208 @@ def generate_document_package(id):
         flash(f'Error generating document package: {str(e)}', 'error')
         return redirect(url_for('transactions.view_transaction', id=id))
 
+
+# =============================================================================
+# DOCUMENT MANAGEMENT
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents', methods=['POST'])
+@login_required
+@transactions_required
+def add_document(id):
+    """Add a document to a transaction."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        template_slug = request.form.get('template_slug')
+        template_name = request.form.get('template_name')
+        reason = request.form.get('reason', 'Manually added')
+        
+        if not template_slug or not template_name:
+            return jsonify({'success': False, 'error': 'Document type is required'}), 400
+        
+        # Check if document already exists
+        existing = TransactionDocument.query.filter_by(
+            transaction_id=transaction.id,
+            template_slug=template_slug
+        ).first()
+        
+        if existing:
+            return jsonify({'success': False, 'error': 'This document already exists in the package'}), 400
+        
+        doc = TransactionDocument(
+            transaction_id=transaction.id,
+            template_slug=template_slug,
+            template_name=template_name,
+            included_reason=reason,
+            status='pending'
+        )
+        db.session.add(doc)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
+@login_required
+@transactions_required
+def remove_document(id, doc_id):
+    """Remove a document from a transaction."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    try:
+        db.session.delete(doc)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/form')
+@login_required
+@transactions_required
+def document_form(id, doc_id):
+    """Display the form for filling out a document."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        abort(404)
+    
+    # Get participants for the form
+    participants = transaction.participants.all()
+    
+    # Prefill data from transaction and intake
+    prefill_data = build_prefill_data(transaction, participants)
+    
+    # Merge with any existing field data
+    if doc.field_data:
+        prefill_data.update(doc.field_data)
+    
+    return render_template(
+        'transactions/document_form.html',
+        transaction=transaction,
+        document=doc,
+        participants=participants,
+        prefill_data=prefill_data
+    )
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/form', methods=['POST'])
+@login_required
+@transactions_required
+def save_document_form(id, doc_id):
+    """Save the document form data."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        abort(404)
+    
+    try:
+        # Get form data
+        if request.is_json:
+            field_data = request.get_json().get('field_data', {})
+        else:
+            # Convert form data to dict
+            field_data = {}
+            for key in request.form:
+                if key.startswith('field_'):
+                    field_data[key[6:]] = request.form.get(key)
+        
+        # Save field data
+        doc.field_data = field_data
+        doc.status = 'filled'
+        db.session.commit()
+        
+        if request.is_json:
+            return jsonify({'success': True, 'status': doc.status})
+        else:
+            flash('Document form saved successfully!', 'success')
+            return redirect(url_for('transactions.view_transaction', id=id))
+            
+    except Exception as e:
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'success': False, 'error': str(e)}), 500
+        else:
+            flash(f'Error saving form: {str(e)}', 'error')
+            return redirect(url_for('transactions.document_form', id=id, doc_id=doc_id))
+
+
+def build_prefill_data(transaction, participants):
+    """Build prefill data from transaction and participants."""
+    data = {
+        # Property info
+        'property_address': transaction.street_address or '',
+        'property_city': transaction.city or '',
+        'property_state': transaction.state or 'TX',
+        'property_zip': transaction.zip_code or '',
+        'property_county': transaction.county or '',
+        'property_full_address': f"{transaction.street_address or ''}, {transaction.city or ''}, {transaction.state or 'TX'} {transaction.zip_code or ''}".strip(', '),
+    }
+    
+    # Helper to get phone from participant (check contact first, then direct phone field)
+    def get_phone(participant):
+        if participant.contact_id and participant.contact:
+            return participant.contact.phone or ''
+        return participant.phone or ''
+    
+    # Add seller info (primary seller participant)
+    seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+    if seller:
+        data['seller_name'] = seller.display_name
+        data['seller_email'] = seller.display_email or ''
+        data['seller_phone'] = get_phone(seller)
+    
+    # Add co-seller info
+    co_sellers = [p for p in participants if p.role == 'co_seller']
+    if co_sellers:
+        data['co_seller_name'] = co_sellers[0].display_name
+        data['co_seller_email'] = co_sellers[0].display_email or ''
+    
+    # Add listing agent info
+    agent = next((p for p in participants if p.role == 'listing_agent'), None)
+    if agent:
+        data['agent_name'] = agent.display_name
+        data['agent_email'] = agent.display_email or ''
+        data['agent_phone'] = get_phone(agent)
+    
+    # Add intake data if available
+    if transaction.intake_data:
+        for key, value in transaction.intake_data.items():
+            data[f'intake_{key}'] = value
+    
+    return data
+
