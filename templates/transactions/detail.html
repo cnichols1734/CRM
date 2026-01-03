@@ -31,6 +31,8 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         transition: all 0.2s ease-out;
+        position: relative;
+        z-index: 1;
     }
 
     .premium-card:hover {
@@ -167,7 +169,7 @@
         </a>
         
         <!-- Header Section -->
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 animate-fade-in-up">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 animate-fade-in-up relative z-50">
             <div class="flex items-start space-x-4">
                 <!-- Property Icon -->
                 <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
