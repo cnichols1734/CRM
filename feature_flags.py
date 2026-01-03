@@ -13,7 +13,7 @@ FEATURE_FLAGS = {
 
 def is_enabled(flag_name: str) -> bool:
     """Check if a feature flag is enabled."""
-    return FEATURE_FLAGS.get(flag_name, False)
+    return FEATURE_FLAGS.get(flag_name, True)
 
 
 def can_access_transactions(user) -> bool:

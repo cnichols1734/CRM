@@ -36,12 +36,83 @@ AI feature routes (each has its own custom prompt):
 - `routes/daily_todo.py` - AI-generated daily task list
 - `routes/ai_chat.py` - B.O.B. (Business Optimization Buddy) chat assistant
 
+## Transaction & Document Management System
+
+### Overview
+Complete transaction management and e-signature workflow for real estate deals. Currently supports Seller Conventional transactions with DocuSeal integration for e-signatures.
+
+### Key Files
+| File | Purpose |
+|------|---------|
+| `routes/transactions.py` | All transaction routes (CRUD, intake, documents, e-signature) |
+| `services/docuseal_service.py` | DocuSeal API integration (mock mode available) |
+| `services/intake_service.py` | Schema loading, document rules engine |
+| `intake_schemas/seller_conventional.json` | Questionnaire + document rules for seller transactions |
+| `templates/transactions/` | List, create, detail, intake, document_form templates |
+| `seller_docs/` | PDF templates for seller conventional workflow |
+
+### Database Models (in `models.py`)
+- **TransactionType**: Lookup table (Seller Representation, Buyer Representation, Dual Agency)
+- **Transaction**: Main transaction record with address, status, intake_data (JSON)
+- **TransactionParticipant**: Links contacts/users to transactions with roles (seller, buyer, listing_agent, etc.)
+- **TransactionDocument**: Documents in transaction package with status lifecycle
+- **DocumentSignature**: Individual signer records for e-signature tracking
+
+### Document Status Lifecycle
+```
+pending → filled → sent → signed
+```
+
+Each status has different available actions in the UI dropdown.
+
+### Schema-Driven Architecture
+Intake questionnaires and document rules are defined in JSON schemas:
+- `intake_schemas/seller_conventional.json` - Questions + document rules
+- Schema defines: questions, options, document rules (always/conditional)
+- Rules engine evaluates answers to determine required documents
+
+### DocuSeal Integration
+**Current State**: Mock mode for full E2E testing
+**Service**: `services/docuseal_service.py`
+
+Key functions:
+- `create_submission()` - Send document for signature
+- `get_submission()` / `get_submission_status()` - Check status
+- `build_submitters_from_participants()` - Map transaction participants to signers
+- `_mock_simulate_signing()` - Test helper for E2E flow
+
+**To enable real DocuSeal:**
+1. Add `DOCUSEAL_API_KEY` to `.env`
+2. Set `DOCUSEAL_MOCK_MODE=False` in `.env`
+3. Upload PDF templates to DocuSeal console
+4. Update `TEMPLATE_MAP` in `docuseal_service.py` with template IDs
+
+### Feature Flag
+`TRANSACTIONS_ENABLED` in `feature_flags.py` controls access.
+Currently requires: flag enabled AND user.role == 'admin'
+
+### Adding New Transaction Types
+1. Create new schema file: `intake_schemas/{type}_{ownership}.json`
+2. Define questions with `id`, `label`, `type`, `options`
+3. Define document rules with `slug`, `name`, `condition` (always/conditional)
+4. Add TransactionType record to database
+5. Update create form to include new type option
+
+### Document Form Prefilling
+`build_prefill_data()` in `routes/transactions.py` gathers data from:
+- Transaction (address, property info)
+- Primary seller participant
+- Listing agent participant
+- Current user (agent info)
+- Intake answers
+
 ## Deployment Workflow
 After pushing changes to GitHub:
 1. SSH into PythonAnywhere or use Bash console
 2. Run: `cd ~/mysite && git pull origin main`
 3. If new packages: `pip install -r requirements.txt --user`
-4. Go to Web tab and click "Reload"
+4. If database migrations: `flask db upgrade`
+5. Go to Web tab and click "Reload"
 
 ## Key Files
 - `app.py` - Main Flask application
@@ -49,21 +120,25 @@ After pushing changes to GitHub:
 - `config.py` - Configuration (reads from .env)
 - `feature_flags.py` - Feature toggles (deploys with code via git)
 - `.env` - Environment variables (gitignored, contains secrets)
-- `services/` - Shared services (AI, SendGrid)
+- `services/` - Shared services (AI, SendGrid, DocuSeal, Intake)
 - `routes/` - Flask blueprints/routes
 - `templates/` - Jinja2 HTML templates
 - `static/` - CSS, JS, images
+- `intake_schemas/` - JSON schemas for transaction questionnaires
+- `seller_docs/` - PDF templates for seller document workflow
 
 ## Feature Flags
 Toggle features on/off in `feature_flags.py`. Changes deploy with git pull - no need to edit .env on server.
 
 Current flags:
 - `SHOW_DASHBOARD_JOKE` - Dashboard joke of the day (fetches from external APIs)
+- `TRANSACTIONS_ENABLED` - Transaction management module (admin-only when enabled)
 
 ## Database
 - **Production**: Supabase PostgreSQL
 - **Local test DB**: `instance/crm.db` (SQLite, for quick testing only)
 - **Production data backup**: `instance/crm (1).db`
+- **Migrations**: Use Flask-Migrate (`flask db migrate`, `flask db upgrade`)
 
 ## PR & Commit Rules
 Always use the PR workflow - commit changes to a branch and push for review in GitHub.
@@ -105,3 +180,5 @@ Use the same prefix with kebab-case description:
 ## Important Notes
 - The `.env` file is gitignored - never commit secrets
 - PythonAnywhere has its own `.env` file at `~/mysite/.env`
+- Transaction management is currently admin-only via feature flag
+- DocuSeal is in mock mode - set `DOCUSEAL_MOCK_MODE=False` for production
