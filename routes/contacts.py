@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant
 from forms import ContactForm
 import csv
 from io import StringIO
@@ -111,12 +111,18 @@ def view_contact(contact_id):
     user_tz = get_user_timezone()
     now = datetime.now(user_tz)
 
+    # Get related transactions via TransactionParticipant
+    related_transactions = Transaction.query.join(TransactionParticipant).filter(
+        TransactionParticipant.contact_id == contact.id
+    ).order_by(Transaction.created_at.desc()).all()
+
     return render_template('view_contact.html', 
                          contact=contact, 
                          all_groups=all_groups,
                          next_contact=next_contact,
                          prev_contact=prev_contact,
-                         now=now)
+                         now=now,
+                         related_transactions=related_transactions)
 
 
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
