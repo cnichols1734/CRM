@@ -187,8 +187,8 @@
                                         </a>
                                     </li>
                                     <li>
-                                        <a href="#" onclick="generatePDF({{ doc.id }}); return false;" class="text-purple-600">
-                                            <i class="fas fa-file-pdf w-5"></i>Generate PDF
+                                        <a href="#" onclick="sendForSignature({{ doc.id }}); return false;" class="text-green-600">
+                                            <i class="fas fa-paper-plane w-5"></i>Send for Signature
                                         </a>
                                     </li>
                                     {% elif doc.status == 'generated' %}
@@ -206,6 +206,11 @@
                                     <li>
                                         <a href="#" onclick="checkSignatureStatus({{ doc.id }}); return false;">
                                             <i class="fas fa-clock w-5"></i>Check Status
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" onclick="simulateSignature({{ doc.id }}); return false;" class="text-orange-500">
+                                            <i class="fas fa-magic w-5"></i>Simulate Sign (Test)
                                         </a>
                                     </li>
                                     {% elif doc.status == 'signed' %}
@@ -562,38 +567,118 @@ function removeDocument(docId) {
 }
 
 // =============================================================================
-// DOCUMENT ACTIONS (Mock for now)
+// DOCUMENT ACTIONS
 // =============================================================================
 
-function showToast(message) {
+function showToast(message, type = 'info') {
     const toast = document.getElementById('comingSoonToast');
+    const alert = toast.querySelector('.alert');
     document.getElementById('toastMessage').textContent = message;
+    
+    // Update alert type
+    alert.className = 'alert';
+    if (type === 'success') alert.classList.add('alert-success');
+    else if (type === 'error') alert.classList.add('alert-error');
+    else if (type === 'warning') alert.classList.add('alert-warning');
+    else alert.classList.add('alert-info');
+    
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 3000);
+    setTimeout(() => toast.classList.add('hidden'), 4000);
 }
 
 function generatePDF(docId) {
-    showToast('PDF generation coming soon! Will integrate with DocuSeal.');
+    showToast('PDF generation will be available after DocuSeal integration. For now, documents are sent directly for signature.');
 }
 
 function previewDocument(docId) {
-    showToast('Document preview coming soon!');
+    showToast('Document preview coming soon! The signed PDF will be available after signing.');
 }
 
 function sendForSignature(docId) {
-    showToast('DocuSeal e-signature integration coming soon!');
+    if (!confirm('Send this document for signature? An email will be sent to all signers.')) return;
+    
+    showToast('Sending document for signature...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Document sent to ${data.submitters} signer(s)!` + 
+                      (data.mock_mode ? ' (Mock Mode)' : ''), 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error sending document: ' + err.message, 'error');
+    });
 }
 
 function checkSignatureStatus(docId) {
-    showToast('Signature status check coming soon!');
+    fetch(`/transactions/${transactionId}/documents/${docId}/status`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const signers = data.signers || [];
+            const statuses = signers.map(s => s.status).join(', ');
+            showToast(`Status: ${data.overall_status}. Signers: ${statuses}` + 
+                      (data.mock_mode ? ' (Mock Mode)' : ''), 'info');
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error checking status: ' + err.message, 'error');
+    });
+}
+
+function simulateSignature(docId) {
+    if (!confirm('Simulate signature completion? (Mock mode only)')) return;
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/simulate-sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Signature simulated! Document is now signed.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error simulating: ' + err.message, 'error');
+    });
 }
 
 function downloadDocument(docId) {
-    showToast('Document download coming soon!');
+    fetch(`/transactions/${transactionId}/documents/${docId}/download`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.documents && data.documents.length > 0) {
+            // In real mode, this would open the actual PDF
+            if (data.mock_mode) {
+                showToast('Download URL: ' + data.documents[0].url + ' (Mock Mode)', 'info');
+            } else {
+                window.open(data.documents[0].url, '_blank');
+            }
+        } else {
+            showToast('Error: ' + (data.error || 'No documents available'), 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error downloading: ' + err.message, 'error');
+    });
 }
 
 function viewSignedDocument(docId) {
-    showToast('View signed document coming soon!');
+    downloadDocument(docId);  // Same functionality
 }
 
 function fillAllForms() {
@@ -602,12 +687,12 @@ function fillAllForms() {
     if (firstPending) {
         window.location.href = firstPending.href;
     } else {
-        showToast('All forms have been filled!');
+        showToast('All forms have been filled!', 'success');
     }
 }
 
 function generateAllPDFs() {
-    showToast('Batch PDF generation coming soon!');
+    showToast('In the real integration, this will generate all PDFs via DocuSeal. For now, fill and send documents individually.');
 }
 </script>
 {% endblock %}

@@ -527,8 +527,8 @@ class TransactionDocument(db.Model):
     included_reason = db.Column(db.String(500))
     
     # DocuSeal integration fields (nullable, for future use)
-    docuseal_template_id = db.Column(db.Integer)  # DocuSeal template ID
-    docuseal_submission_id = db.Column(db.Integer)  # DocuSeal submission ID when sent
+    docuseal_template_id = db.Column(db.String(100))  # DocuSeal template ID
+    docuseal_submission_id = db.Column(db.String(100))  # DocuSeal submission ID when sent
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

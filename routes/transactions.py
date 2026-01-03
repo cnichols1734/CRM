@@ -764,3 +764,322 @@ def build_prefill_data(transaction, participants):
     
     return data
 
+
+# =============================================================================
+# E-SIGNATURE (DocuSeal Integration)
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/send', methods=['POST'])
+@login_required
+@transactions_required
+def send_for_signature(id, doc_id):
+    """Send a document for e-signature via DocuSeal."""
+    from services.docuseal_service import (
+        create_submission, build_submitters_from_participants, 
+        DOCUSEAL_MOCK_MODE
+    )
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    # Check document is ready to send (must be filled)
+    if doc.status not in ['filled', 'generated']:
+        return jsonify({
+            'success': False, 
+            'error': 'Please fill out the document form before sending for signature'
+        }), 400
+    
+    try:
+        # Get participants for signing
+        participants = transaction.participants.all()
+        submitters = build_submitters_from_participants(participants, transaction)
+        
+        if not submitters:
+            return jsonify({
+                'success': False,
+                'error': 'No signers found. Add participants with email addresses.'
+            }), 400
+        
+        # Create submission in DocuSeal
+        submission = create_submission(
+            template_slug=doc.template_slug,
+            submitters=submitters,
+            field_values=doc.field_data or {},
+            send_email=True,
+            message={
+                'subject': f'Document Ready for Signature: {doc.template_name}',
+                'body': f'Please sign the {doc.template_name} for {transaction.street_address}. Click here to sign: {{{{submitter.link}}}}'
+            }
+        )
+        
+        # Update document with DocuSeal submission info
+        doc.docuseal_submission_id = submission['id']
+        doc.sent_at = db.func.now()
+        doc.status = 'sent'
+        
+        # Create signature records for each submitter
+        for i, sub in enumerate(submission.get('submitters', [])):
+            # Find matching participant
+            participant = next(
+                (p for p in participants if p.display_email == sub.get('email')),
+                None
+            )
+            
+            signature = DocumentSignature(
+                document_id=doc.id,
+                participant_id=participant.id if participant else None,
+                signer_email=sub.get('email'),
+                signer_name=sub.get('name', ''),
+                signer_role=sub.get('role', 'Signer'),
+                status='sent',
+                sign_order=i + 1,
+                docuseal_submitter_slug=sub.get('slug'),
+                sent_at=db.func.now()
+            )
+            db.session.add(signature)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document sent for signature!',
+            'submission_id': submission['id'],
+            'submitters': len(submitters),
+            'mock_mode': DOCUSEAL_MOCK_MODE
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/status')
+@login_required
+@transactions_required
+def check_signature_status(id, doc_id):
+    """Check the signature status of a document."""
+    from services.docuseal_service import get_submission, DOCUSEAL_MOCK_MODE
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if not doc.docuseal_submission_id:
+        return jsonify({
+            'success': False,
+            'error': 'Document has not been sent for signature'
+        }), 400
+    
+    try:
+        # Get submission status from DocuSeal
+        submission = get_submission(doc.docuseal_submission_id)
+        
+        # Get signature records
+        signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
+        
+        signer_status = []
+        for sig in signatures:
+            # Find matching submitter in DocuSeal response
+            submitter_info = next(
+                (s for s in submission.get('submitters', []) 
+                 if s.get('slug') == sig.docuseal_submitter_slug),
+                {}
+            )
+            
+            signer_status.append({
+                'id': sig.id,
+                'participant_id': sig.participant_id,
+                'status': submitter_info.get('status', 'pending'),
+                'viewed_at': submitter_info.get('viewed_at'),
+                'signed_at': submitter_info.get('signed_at')
+            })
+        
+        return jsonify({
+            'success': True,
+            'submission_id': doc.docuseal_submission_id,
+            'overall_status': submission.get('status', 'pending'),
+            'signers': signer_status,
+            'mock_mode': DOCUSEAL_MOCK_MODE
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/simulate-sign', methods=['POST'])
+@login_required
+@transactions_required
+def simulate_signature(id, doc_id):
+    """
+    Simulate signing completion for testing (mock mode only).
+    This allows testing the full flow without real DocuSeal.
+    """
+    from services.docuseal_service import (
+        _mock_simulate_signing, DOCUSEAL_MOCK_MODE
+    )
+    
+    if not DOCUSEAL_MOCK_MODE:
+        return jsonify({
+            'success': False,
+            'error': 'Simulation only available in mock mode'
+        }), 400
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if not doc.docuseal_submission_id:
+        return jsonify({
+            'success': False,
+            'error': 'Document has not been sent for signature'
+        }), 400
+    
+    try:
+        # Simulate the signing
+        _mock_simulate_signing(doc.docuseal_submission_id, 'completed')
+        
+        # Update document status
+        doc.status = 'signed'
+        doc.signed_at = db.func.now()
+        
+        # Update signature records
+        signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
+        for sig in signatures:
+            sig.signed_at = db.func.now()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Signature simulated successfully!',
+            'new_status': 'signed'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/download')
+@login_required
+@transactions_required
+def download_signed_document(id, doc_id):
+    """Get the download URL for a signed document."""
+    from services.docuseal_service import get_signed_document_urls, DOCUSEAL_MOCK_MODE
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if doc.status != 'signed':
+        return jsonify({
+            'success': False,
+            'error': 'Document has not been signed yet'
+        }), 400
+    
+    try:
+        documents = get_signed_document_urls(doc.docuseal_submission_id)
+        
+        return jsonify({
+            'success': True,
+            'documents': documents,
+            'mock_mode': DOCUSEAL_MOCK_MODE
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# WEBHOOK ENDPOINT
+# =============================================================================
+
+@transactions_bp.route('/webhook/docuseal', methods=['POST'])
+def docuseal_webhook():
+    """
+    Receive webhooks from DocuSeal for signature events.
+    
+    Configure this URL in DocuSeal: https://yourdomain.com/transactions/webhook/docuseal
+    
+    Events:
+    - form.viewed: Signer opened the document
+    - form.started: Signer began filling
+    - form.completed: All signers finished
+    """
+    from services.docuseal_service import process_webhook
+    
+    try:
+        payload = request.get_json()
+        
+        if not payload:
+            return jsonify({'error': 'No payload'}), 400
+        
+        # Process the webhook
+        result = process_webhook(payload)
+        event_type = result.get('event_type')
+        submission_id = result.get('submission_id')
+        
+        # Find the document by submission ID
+        doc = TransactionDocument.query.filter_by(
+            docuseal_submission_id=str(submission_id)
+        ).first()
+        
+        if not doc:
+            # Log but don't error - might be from a different source
+            return jsonify({'received': True, 'matched': False})
+        
+        # Update based on event type
+        if event_type == 'form.viewed':
+            # Update signature record
+            pass  # Optionally track viewed_at
+            
+        elif event_type == 'form.started':
+            # Signer started filling
+            pass
+            
+        elif event_type == 'form.completed':
+            # All signers finished!
+            doc.status = 'signed'
+            doc.signed_at = db.func.now()
+            
+            # Update all signature records
+            signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
+            for sig in signatures:
+                sig.signed_at = db.func.now()
+            
+            db.session.commit()
+        
+        return jsonify({
+            'received': True,
+            'event': event_type,
+            'document_id': doc.id if doc else None
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
