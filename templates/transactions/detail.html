@@ -1,0 +1,347 @@
+{% extends "base.html" %}
+
+{% block title %}{{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{{ url_for('transactions.list_transactions') }}" class="text-gray-500 hover:text-gray-700 text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Transactions
+        </a>
+        
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mt-2 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">{{ transaction.street_address }}</h1>
+                <p class="text-gray-500">
+                    {% if transaction.city %}{{ transaction.city }}, {% endif %}
+                    {{ transaction.state }} {{ transaction.zip_code }}
+                    {% if transaction.county %} &middot; {{ transaction.county }} County{% endif %}
+                </p>
+            </div>
+            <div class="flex gap-2">
+                <span class="badge 
+                    {% if transaction.transaction_type.name == 'seller' %}badge-primary
+                    {% elif transaction.transaction_type.name == 'buyer' %}badge-secondary
+                    {% elif transaction.transaction_type.name == 'landlord' %}badge-accent
+                    {% elif transaction.transaction_type.name == 'tenant' %}badge-info
+                    {% else %}badge-ghost{% endif %} badge-lg">
+                    {{ transaction.transaction_type.display_name }}
+                </span>
+                <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="badge 
+                        {% if transaction.status == 'draft' %}badge-ghost
+                        {% elif transaction.status == 'active' %}badge-success
+                        {% elif transaction.status == 'pending' %}badge-warning
+                        {% elif transaction.status == 'under_contract' %}badge-info
+                        {% elif transaction.status == 'closed' %}badge-primary
+                        {% elif transaction.status == 'cancelled' %}badge-error{% endif %} 
+                        badge-lg cursor-pointer gap-1">
+                        {{ transaction.status|replace('_', ' ')|title }}
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </label>
+                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-white rounded-lg w-52 mt-1">
+                        {% for status in ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled'] %}
+                        <li>
+                            <a href="#" onclick="updateStatus('{{ status }}'); return false;"
+                               class="{% if transaction.status == status %}font-bold{% endif %}">
+                                {{ status|replace('_', ' ')|title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left Column - Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Transaction Details Card -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">Transaction Details</h2>
+                    <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}" 
+                       class="btn btn-sm btn-ghost">
+                        <i class="fas fa-edit mr-1"></i>Edit
+                    </a>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-500">Type</span>
+                        <p class="font-medium">{{ transaction.transaction_type.display_name }}</p>
+                    </div>
+                    {% if transaction.ownership_status %}
+                    <div>
+                        <span class="text-gray-500">Ownership</span>
+                        <p class="font-medium">{{ transaction.ownership_status|replace('_', ' ')|title }}</p>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <span class="text-gray-500">Created</span>
+                        <p class="font-medium">{{ transaction.created_at.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    {% if transaction.expected_close_date %}
+                    <div>
+                        <span class="text-gray-500">Expected Close</span>
+                        <p class="font-medium">{{ transaction.expected_close_date.strftime('%b %d, %Y') }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Intake Section (Seller Conventional) -->
+            {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">Property Questionnaire</h2>
+                    {% if transaction.intake_data %}
+                    <span class="badge badge-success">Completed</span>
+                    {% else %}
+                    <span class="badge badge-warning">Not Started</span>
+                    {% endif %}
+                </div>
+                
+                {% if transaction.intake_data %}
+                <div class="grid grid-cols-2 gap-3 text-sm mb-4">
+                    {% for key, value in transaction.intake_data.items() %}
+                    <div class="flex justify-between p-2 bg-gray-50 rounded">
+                        <span class="text-gray-600">{{ key|replace('_', ' ')|title }}</span>
+                        <span class="font-medium">
+                            {% if value == true %}Yes{% elif value == false %}No{% else %}{{ value|title }}{% endif %}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}#intake" 
+                   class="btn btn-outline btn-sm w-full">
+                    <i class="fas fa-clipboard-list mr-2"></i>
+                    {% if transaction.intake_data %}Edit Questionnaire{% else %}Start Questionnaire{% endif %}
+                </a>
+            </div>
+            {% endif %}
+
+            <!-- Documents Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">Documents</h2>
+                    <button class="btn btn-sm btn-ghost" disabled>
+                        <i class="fas fa-plus mr-1"></i>Add Document
+                    </button>
+                </div>
+                
+                {% if documents %}
+                <div class="space-y-3">
+                    {% for doc in documents %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-white rounded flex items-center justify-center">
+                                <i class="fas fa-file-pdf text-red-500"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-800">{{ doc.template_name }}</div>
+                                {% if doc.included_reason %}
+                                <div class="text-xs text-gray-500">{{ doc.included_reason }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="badge 
+                                {% if doc.status == 'signed' %}badge-success
+                                {% elif doc.status == 'sent' %}badge-info
+                                {% elif doc.status == 'generated' %}badge-primary
+                                {% else %}badge-ghost{% endif %} badge-sm">
+                                {{ doc.status|title }}
+                            </span>
+                            <button class="btn btn-ghost btn-sm" disabled>
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8 text-gray-500">
+                    <i class="fas fa-folder-open text-3xl mb-2"></i>
+                    <p>No documents yet.</p>
+                    <p class="text-sm">Complete the questionnaire to generate the document package.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Column - Participants -->
+        <div class="space-y-6">
+            <!-- Participants Card -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold text-gray-800">Participants</h2>
+                    <button class="btn btn-sm btn-ghost" onclick="showAddParticipantModal()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-4">
+                    {% for participant in participants %}
+                    <div class="flex items-start gap-3 group">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-blue-600 font-medium text-sm">
+                                {{ participant.display_name[:2]|upper }}
+                            </span>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-gray-800 truncate">{{ participant.display_name }}</span>
+                                {% if participant.is_primary %}
+                                <span class="badge badge-xs badge-primary">Primary</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-sm text-gray-500">{{ participant.role|replace('_', ' ')|title }}</div>
+                            {% if participant.display_email %}
+                            <div class="text-xs text-gray-400 truncate">{{ participant.display_email }}</div>
+                            {% endif %}
+                        </div>
+                        <button class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 text-red-500"
+                                onclick="removeParticipant({{ participant.id }})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if not participants %}
+                    <p class="text-gray-500 text-sm">No participants added yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Quick Actions</h2>
+                <div class="space-y-2">
+                    <button class="btn btn-outline btn-block justify-start" disabled>
+                        <i class="fas fa-file-signature mr-2"></i>Send for Signature
+                    </button>
+                    <button class="btn btn-outline btn-block justify-start" disabled>
+                        <i class="fas fa-download mr-2"></i>Download All Docs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Participant Modal -->
+<dialog id="addParticipantModal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Add Participant</h3>
+        <form id="addParticipantForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
+                    <select name="role" required class="select select-bordered w-full">
+                        <option value="">Select role...</option>
+                        <option value="seller">Seller</option>
+                        <option value="co_seller">Co-Seller</option>
+                        <option value="buyer">Buyer</option>
+                        <option value="co_buyer">Co-Buyer</option>
+                        <option value="listing_agent">Listing Agent</option>
+                        <option value="buyers_agent">Buyer's Agent</option>
+                        <option value="title_company">Title Company</option>
+                        <option value="lender">Lender</option>
+                        <option value="transaction_coordinator">Transaction Coordinator</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input type="text" name="name" required class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" name="email" class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="tel" name="phone" class="input input-bordered w-full">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                    <input type="text" name="company" class="input input-bordered w-full">
+                </div>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('addParticipantModal').close()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Participant</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<script>
+const transactionId = {{ transaction.id }};
+
+function updateStatus(newStatus) {
+    fetch(`/transactions/${transactionId}/status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error updating status: ' + data.error);
+        }
+    });
+}
+
+function showAddParticipantModal() {
+    document.getElementById('addParticipantModal').showModal();
+}
+
+document.getElementById('addParticipantForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch(`/transactions/${transactionId}/participants`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error adding participant: ' + data.error);
+        }
+    });
+});
+
+function removeParticipant(participantId) {
+    if (!confirm('Remove this participant?')) return;
+    
+    fetch(`/transactions/${transactionId}/participants/${participantId}`, {
+        method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error removing participant: ' + data.error);
+        }
+    });
+}
+</script>
+{% endblock %}
+

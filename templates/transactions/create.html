@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}New Transaction - TechnolOG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-3xl">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{{ url_for('transactions.list_transactions') }}" class="text-gray-500 hover:text-gray-700 text-sm">
+            <i class="fas fa-arrow-left mr-1"></i>Back to Transactions
+        </a>
+        <h1 class="text-2xl font-bold text-gray-800 mt-2">Create New Transaction</h1>
+    </div>
+
+    <!-- Form -->
+    <form method="POST" action="{{ url_for('transactions.create_transaction') }}" class="space-y-6">
+        <!-- Step 1: Select Contacts -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">1</span>
+                Select Client(s)
+            </h2>
+            
+            <!-- Contact Search -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search Contacts</label>
+                <input type="text" 
+                       id="contactSearch" 
+                       placeholder="Type to search contacts..."
+                       class="input input-bordered w-full"
+                       autocomplete="off">
+                <div id="contactSearchResults" class="mt-2 bg-white border rounded-lg shadow-lg hidden max-h-48 overflow-y-auto"></div>
+            </div>
+
+            <!-- Selected Contacts -->
+            <div id="selectedContacts" class="space-y-2">
+                <p class="text-sm text-gray-500" id="noContactsMessage">No contacts selected yet.</p>
+            </div>
+        </div>
+
+        <!-- Step 2: Transaction Type -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">2</span>
+                Transaction Type
+            </h2>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {% for tt in transaction_types %}
+                <label class="cursor-pointer">
+                    <input type="radio" name="transaction_type_id" value="{{ tt.id }}" 
+                           class="hidden peer" required>
+                    <div class="p-4 border-2 rounded-lg text-center transition-all
+                                peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                hover:border-gray-300">
+                        <div class="text-2xl mb-1">
+                            {% if tt.name == 'seller' %}🏠
+                            {% elif tt.name == 'buyer' %}🔑
+                            {% elif tt.name == 'landlord' %}🏢
+                            {% elif tt.name == 'tenant' %}📋
+                            {% else %}🤝{% endif %}
+                        </div>
+                        <div class="font-medium text-gray-800">{{ tt.display_name }}</div>
+                    </div>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Step 3: Property Address -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">3</span>
+                Property Address
+            </h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Street Address *</label>
+                    <input type="text" name="street_address" required
+                           class="input input-bordered w-full"
+                           placeholder="123 Main St">
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="col-span-2 sm:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">City</label>
+                        <input type="text" name="city"
+                               class="input input-bordered w-full"
+                               placeholder="Austin">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">State</label>
+                        <input type="text" name="state" value="TX"
+                               class="input input-bordered w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
+                        <input type="text" name="zip_code"
+                               class="input input-bordered w-full"
+                               placeholder="78701">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">County</label>
+                    <input type="text" name="county"
+                           class="input input-bordered w-full"
+                           placeholder="Travis">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Ownership Status (Seller Only) -->
+        <div id="ownershipSection" class="bg-white rounded-lg shadow-sm p-6 hidden">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100 text-blue-600 text-sm font-bold mr-2">4</span>
+                Ownership Status
+            </h2>
+            
+            <div class="grid grid-cols-2 gap-3">
+                <label class="cursor-pointer">
+                    <input type="radio" name="ownership_status" value="conventional" class="hidden peer">
+                    <div class="p-3 border-2 rounded-lg text-center transition-all
+                                peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                hover:border-gray-300">
+                        <div class="font-medium text-gray-800">Conventional / Resale</div>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="ownership_status" value="builder" class="hidden peer">
+                    <div class="p-3 border-2 rounded-lg text-center transition-all
+                                peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                hover:border-gray-300">
+                        <div class="font-medium text-gray-800">Builder / New Construction</div>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="ownership_status" value="reo" class="hidden peer">
+                    <div class="p-3 border-2 rounded-lg text-center transition-all
+                                peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                hover:border-gray-300">
+                        <div class="font-medium text-gray-800">REO / Foreclosure</div>
+                    </div>
+                </label>
+                <label class="cursor-pointer">
+                    <input type="radio" name="ownership_status" value="short_sale" class="hidden peer">
+                    <div class="p-3 border-2 rounded-lg text-center transition-all
+                                peer-checked:border-blue-500 peer-checked:bg-blue-50
+                                hover:border-gray-300">
+                        <div class="font-medium text-gray-800">Short Sale</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="flex justify-end gap-3">
+            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-ghost">Cancel</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-plus mr-2"></i>Create Transaction
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contactSearch = document.getElementById('contactSearch');
+    const searchResults = document.getElementById('contactSearchResults');
+    const selectedContacts = document.getElementById('selectedContacts');
+    const noContactsMessage = document.getElementById('noContactsMessage');
+    const ownershipSection = document.getElementById('ownershipSection');
+    
+    let selectedContactIds = new Set();
+    let searchTimeout;
+
+    // Contact search
+    contactSearch.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.classList.add('hidden');
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`/transactions/api/contacts/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(contacts => {
+                    if (contacts.length === 0) {
+                        searchResults.innerHTML = '<div class="p-3 text-gray-500">No contacts found</div>';
+                    } else {
+                        searchResults.innerHTML = contacts
+                            .filter(c => !selectedContactIds.has(c.id))
+                            .map(c => `
+                                <div class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0"
+                                     data-contact='${JSON.stringify(c)}'>
+                                    <div class="font-medium">${c.name}</div>
+                                    <div class="text-sm text-gray-500">${c.email || 'No email'}</div>
+                                </div>
+                            `).join('') || '<div class="p-3 text-gray-500">All matching contacts already selected</div>';
+                    }
+                    searchResults.classList.remove('hidden');
+                });
+        }, 300);
+    });
+
+    // Handle contact selection
+    searchResults.addEventListener('click', function(e) {
+        const contactEl = e.target.closest('[data-contact]');
+        if (contactEl) {
+            const contact = JSON.parse(contactEl.dataset.contact);
+            addContact(contact);
+            contactSearch.value = '';
+            searchResults.classList.add('hidden');
+        }
+    });
+
+    // Close search results on outside click
+    document.addEventListener('click', function(e) {
+        if (!contactSearch.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.add('hidden');
+        }
+    });
+
+    function addContact(contact) {
+        if (selectedContactIds.has(contact.id)) return;
+        
+        selectedContactIds.add(contact.id);
+        noContactsMessage.classList.add('hidden');
+        
+        const contactEl = document.createElement('div');
+        contactEl.className = 'flex items-center justify-between p-3 bg-gray-50 rounded-lg';
+        contactEl.dataset.contactId = contact.id;
+        contactEl.innerHTML = `
+            <input type="hidden" name="contact_ids" value="${contact.id}">
+            <div>
+                <div class="font-medium text-gray-800">${contact.name}</div>
+                <div class="text-sm text-gray-500">${contact.email || ''} ${contact.phone || ''}</div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm text-red-500 remove-contact">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        selectedContacts.appendChild(contactEl);
+    }
+
+    // Remove contact
+    selectedContacts.addEventListener('click', function(e) {
+        const removeBtn = e.target.closest('.remove-contact');
+        if (removeBtn) {
+            const contactEl = removeBtn.closest('[data-contact-id]');
+            const contactId = parseInt(contactEl.dataset.contactId);
+            selectedContactIds.delete(contactId);
+            contactEl.remove();
+            
+            if (selectedContactIds.size === 0) {
+                noContactsMessage.classList.remove('hidden');
+            }
+        }
+    });
+
+    // Show/hide ownership section based on transaction type
+    document.querySelectorAll('input[name="transaction_type_id"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Find the transaction type name by looking at the label text
+            const label = this.closest('label').querySelector('.font-medium').textContent.trim();
+            if (label.includes('Seller')) {
+                ownershipSection.classList.remove('hidden');
+            } else {
+                ownershipSection.classList.add('hidden');
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
+
