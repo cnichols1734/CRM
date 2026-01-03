@@ -40,6 +40,7 @@
     /* Status dropdown styling */
     .status-dropdown {
         position: relative;
+        z-index: 100;
     }
 
     .status-dropdown-menu {
@@ -51,7 +52,7 @@
         border-radius: 0.75rem;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         border: 1px solid #e2e8f0;
-        z-index: 50;
+        z-index: 100;
         min-width: 180px;
         opacity: 0;
         visibility: hidden;
@@ -59,8 +60,7 @@
         transition: all 0.2s ease-out;
     }
 
-    .status-dropdown:hover .status-dropdown-menu,
-    .status-dropdown-menu:hover {
+    .status-dropdown-menu.show {
         opacity: 1;
         visibility: visible;
         transform: translateY(0);
@@ -190,12 +190,12 @@
                 </span>
                 
                 <!-- Status Dropdown -->
-                <div class="status-dropdown">
-                    <span class="status-badge status-{{ transaction.status }} flex items-center gap-2">
+                <div class="status-dropdown" id="statusDropdown">
+                    <button onclick="toggleStatusDropdown(event)" class="status-badge status-{{ transaction.status }} flex items-center gap-2">
                         {{ transaction.status|replace('_', ' ')|title }}
                         <i class="fas fa-chevron-down text-xs opacity-50"></i>
-                    </span>
-                    <div class="status-dropdown-menu p-2">
+                    </button>
+                    <div class="status-dropdown-menu p-2" id="statusDropdownMenu">
                         {% for status in ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled'] %}
                         <button onclick="updateStatus('{{ status }}')"
                                 class="w-full text-left px-4 py-2 text-sm rounded-lg hover:bg-slate-100 transition-colors {% if transaction.status == status %}font-bold text-orange-600{% endif %}">
@@ -723,6 +723,25 @@
 
 <script>
 const transactionId = {{ transaction.id }};
+
+// =============================================================================
+// STATUS DROPDOWN
+// =============================================================================
+
+function toggleStatusDropdown(event) {
+    event.stopPropagation();
+    const menu = document.getElementById('statusDropdownMenu');
+    menu.classList.toggle('show');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    const dropdown = document.getElementById('statusDropdown');
+    const menu = document.getElementById('statusDropdownMenu');
+    if (dropdown && !dropdown.contains(event.target)) {
+        menu.classList.remove('show');
+    }
+});
 
 // =============================================================================
 // MODAL MANAGEMENT
