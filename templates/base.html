@@ -50,39 +50,12 @@
             display: none;
         }
         @media (max-width: 768px) {
-            .mobile-nav {
-                backdrop-filter: blur(10px);
-                -webkit-backdrop-filter: blur(10px);
-                transition: opacity 0.15s ease;
-            }
-            .mobile-nav-link {
-                transition: color 0.2s ease;
-            }
-            .mobile-nav-link.active {
-                color: #f97316;
-            }
             .content-wrapper {
                 min-height: calc(100vh - 3.5rem);
                 transition: opacity 0.15s ease;
             }
             .content-wrapper.loading {
                 opacity: 0.5;
-            }
-            /* Updated page transition styles */
-            .page-transition {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 3.5rem; /* Height of mobile nav bar */
-                background-color: rgba(255, 255, 255, 0.1);
-                pointer-events: none;
-                opacity: 0;
-                transition: opacity 0.2s ease;
-                z-index: 100;
-            }
-            .page-transition.active {
-                opacity: 1;
             }
         }
     </style>
@@ -127,20 +100,28 @@
 </header>
 
 <!-- Mobile Header -->
-<header class="text-white h-14 flex items-center justify-between px-4 md:hidden">
-    <h1 class="company-name">{% block mobile_title %}<img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-24 w-auto object-contain mt-2.5" />{% endblock %}</h1>
-    <div class="flex items-center space-x-4">
+<header class="text-white h-14 flex items-center justify-between px-2 md:hidden">
+    <div class="flex items-center">
         {% if current_user.is_authenticated %}
-            <i class="fas fa-bell h-5 w-5"></i>
-            <div class="relative">
-                <button
-                    id="mobileUserIcon"
-                    onclick="toggleMobileUserMenu()"
-                    class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold"
-                >
-                    {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
-                </button>
-            </div>
+        <button
+            id="mobileMenuToggle"
+            onclick="toggleMobileNavMenu()"
+            class="w-10 h-10 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg transition-colors flex-shrink-0"
+        >
+            <i class="fas fa-bars text-xl"></i>
+        </button>
+        {% endif %}
+        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-10 w-auto object-contain" />
+    </div>
+    <div class="flex items-center space-x-3">
+        {% if current_user.is_authenticated %}
+            <button
+                id="mobileUserIcon"
+                onclick="toggleMobileUserMenu()"
+                class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold"
+            >
+                {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+            </button>
         {% else %}
             <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
                 <i class="fas fa-sign-in-alt h-5 w-5"></i>
@@ -225,6 +206,63 @@
                 Logout
             </a>
         </div>
+    </div>
+</div>
+
+<!-- Mobile Navigation Menu (Slides in from left) -->
+<div id="mobileNavMenu"
+     class="fixed inset-0 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileNavMenu()"></div>
+    
+    <!-- Menu Panel -->
+    <div class="absolute left-0 top-0 bottom-0 w-72 bg-[#2d3e50] shadow-xl">
+        <!-- Header -->
+        <div class="h-14 flex items-center justify-between px-4 border-b border-[#3d4d63]">
+            <span class="text-white font-semibold">Menu</span>
+            <button onclick="toggleMobileNavMenu()" class="w-8 h-8 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <!-- Navigation Links -->
+        <nav class="py-4">
+            <a href="{{ url_for('main.dashboard') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-chart-line w-6 mr-3"></i>
+                Dashboard
+            </a>
+            <a href="{{ url_for('main.index') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-address-book w-6 mr-3"></i>
+                Contacts
+            </a>
+            <a href="{{ url_for('tasks.tasks') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-tasks w-6 mr-3"></i>
+                Client Tasks
+            </a>
+            <a href="{{ url_for('user_todo.user_todo') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-check-square w-6 mr-3"></i>
+                To Do List
+            </a>
+            <a href="{{ url_for('main.marketing') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-bullhorn w-6 mr-3"></i>
+                Marketing
+            </a>
+            <a href="{{ url_for('action_plan.action_plan') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-rocket w-6 mr-3"></i>
+                OG Action Plan
+            </a>
+            <a href="{{ url_for('company_updates.list_updates') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-newspaper w-6 mr-3"></i>
+                Company Updates
+            </a>
+        </nav>
     </div>
 </div>
 {% endif %}
@@ -398,10 +436,10 @@
 
         <!-- User Icon and Dropdown -->
         {% if current_user.is_authenticated %}
-            <div class="relative group w-full flex justify-center">
+            <div class="relative w-full flex justify-center">
                 <button
                     id="userIcon"
-                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200"
+                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200 cursor-pointer"
                 >
                     {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
                 </button>
@@ -485,45 +523,12 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] pb-14 md:pb-0 transition-all duration-300" id="mainContent">
+    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300" id="mainContent">
         <div class="content-wrapper">
             {% block content %}{% endblock %}
         </div>
     </main>
 
-    <!-- Mobile Navigation Bar -->
-    <nav class="mobile-nav fixed bottom-0 left-0 right-0 h-14 bg-[#2d3e50] bg-opacity-90 flex items-center justify-around z-50 md:hidden">
-        <a href="{{ url_for('main.dashboard') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.dashboard' %}active{% endif %}">
-            <i class="fas fa-chart-line text-lg"></i>
-            <span class="text-xs mt-0.5">Dashboard</span>
-        </a>
-        <a href="{{ url_for('main.index') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'main.index' %}active{% endif %}">
-            <i class="fas fa-address-book text-lg"></i>
-            <span class="text-xs mt-0.5">Contacts</span>
-        </a>
-        <a href="{{ url_for('tasks.tasks') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'tasks.tasks' %}active{% endif %}">
-            <i class="fas fa-tasks text-lg"></i>
-            <span class="text-xs mt-0.5">Tasks</span>
-        </a>
-        <a href="{{ url_for('user_todo.user_todo') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'user_todo.user_todo' %}active{% endif %}">
-            <i class="fas fa-check-square text-lg"></i>
-            <span class="text-xs mt-0.5">To Do</span>
-        </a>
-        <a href="{{ url_for('action_plan.action_plan') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint == 'action_plan.action_plan' %}active{% endif %}">
-            <i class="fas fa-rocket text-lg"></i>
-            <span class="text-xs mt-0.5">Plan</span>
-        </a>
-        <a href="{{ url_for('company_updates.list_updates') }}"
-           class="mobile-nav-link flex flex-col items-center text-white hover:text-orange-500 {% if request.endpoint and request.endpoint.startswith('company_updates.') %}active{% endif %}">
-            <i class="fas fa-newspaper text-lg"></i>
-            <span class="text-xs mt-0.5">Updates</span>
-        </a>
-    </nav>
 </div>
 
 <!-- Add this right after the body tag -->

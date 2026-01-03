@@ -17,7 +17,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const pageTransition = document.querySelector('.page-transition');
     const mobileNav = document.querySelector('.mobile-nav');
 
-    let userDropdownTimeout;
     let tooltipTimeouts = new Map();
     let isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
 
@@ -130,43 +129,53 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 4000);
     });
 
-    // User dropdown functionality
+    // User dropdown functionality - click-based
     if (userIcon && userDropdown) {
-        userIcon.parentElement.addEventListener('mouseenter', () => {
-            clearTimeout(userDropdownTimeout);
-            userDropdown.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                userDropdown.classList.add('opacity-100');
-            });
-        });
-
-        userIcon.parentElement.addEventListener('mouseleave', (e) => {
-            if (!e.relatedTarget || !userDropdown.contains(e.relatedTarget)) {
-                userDropdownTimeout = setTimeout(() => {
-                    if (!userDropdown.matches(':hover')) {
-                        userDropdown.classList.remove('opacity-100');
-                        setTimeout(() => {
-                            userDropdown.classList.add('hidden');
-                        }, 300);
-                    }
-                }, 200);
+        userIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = !userDropdown.classList.contains('hidden');
+            
+            if (isVisible) {
+                closeUserDropdown();
+            } else {
+                openUserDropdown();
             }
         });
 
-        userDropdown.addEventListener('mouseenter', () => {
-            clearTimeout(userDropdownTimeout);
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!userDropdown.classList.contains('hidden') && 
+                !userDropdown.contains(e.target) && 
+                !userIcon.contains(e.target)) {
+                closeUserDropdown();
+            }
         });
 
-        userDropdown.addEventListener('mouseleave', () => {
-            userDropdownTimeout = setTimeout(() => {
-                if (!userIcon.matches(':hover')) {
-                    userDropdown.classList.remove('opacity-100');
-                    setTimeout(() => {
-                        userDropdown.classList.add('hidden');
-                    }, 300);
-                }
-            }, 200);
+        // Close dropdown on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !userDropdown.classList.contains('hidden')) {
+                closeUserDropdown();
+                userIcon.focus();
+            }
         });
+    }
+
+    function openUserDropdown() {
+        if (!userDropdown || !userIcon) return;
+        userDropdown.classList.remove('hidden');
+        userIcon.setAttribute('aria-expanded', 'true');
+        requestAnimationFrame(() => {
+            userDropdown.classList.add('opacity-100');
+        });
+    }
+
+    function closeUserDropdown() {
+        if (!userDropdown || !userIcon) return;
+        userDropdown.classList.remove('opacity-100');
+        userIcon.setAttribute('aria-expanded', 'false');
+        setTimeout(() => {
+            userDropdown.classList.add('hidden');
+        }, 200);
     }
 
     // Tooltip functionality
@@ -245,5 +254,27 @@ function hideMobileMenu(menu) {
     menu.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
     menu.classList.add('-translate-y-full', 'opacity-0', 'pointer-events-none');
     document.body.style.overflow = '';
+}
+
+/**
+ * Toggle mobile navigation menu visibility
+ */
+function toggleMobileNavMenu() {
+    const menu = document.getElementById('mobileNavMenu');
+    if (!menu) return;
+
+    const isHidden = menu.classList.contains('-translate-x-full');
+
+    if (isHidden) {
+        // Show menu
+        menu.classList.remove('-translate-x-full');
+        menu.classList.add('translate-x-0');
+        document.body.style.overflow = 'hidden';
+    } else {
+        // Hide menu
+        menu.classList.remove('translate-x-0');
+        menu.classList.add('-translate-x-full');
+        document.body.style.overflow = '';
+    }
 }
 
