@@ -129,8 +129,8 @@
             <!-- Documents Section -->
             <div class="bg-white rounded-lg shadow-sm p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold text-gray-800">Documents</h2>
-                    <button class="btn btn-sm btn-ghost" disabled>
+                    <h2 class="text-lg font-semibold text-gray-800">Documents ({{ documents|length if documents else 0 }})</h2>
+                    <button class="btn btn-sm btn-ghost" onclick="showAddDocumentModal()">
                         <i class="fas fa-plus mr-1"></i>Add Document
                     </button>
                 </div>
@@ -138,15 +138,23 @@
                 {% if documents %}
                 <div class="space-y-3">
                     {% for doc in documents %}
-                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-white rounded flex items-center justify-center">
+                            <div class="w-10 h-10 bg-white rounded flex items-center justify-center shadow-sm">
+                                {% if doc.status == 'signed' %}
+                                <i class="fas fa-file-signature text-green-500"></i>
+                                {% elif doc.status == 'sent' %}
+                                <i class="fas fa-paper-plane text-blue-500"></i>
+                                {% elif doc.status == 'generated' %}
                                 <i class="fas fa-file-pdf text-red-500"></i>
+                                {% else %}
+                                <i class="fas fa-file-alt text-gray-400"></i>
+                                {% endif %}
                             </div>
                             <div>
                                 <div class="font-medium text-gray-800">{{ doc.template_name }}</div>
                                 {% if doc.included_reason %}
-                                <div class="text-xs text-gray-500">{{ doc.included_reason }}</div>
+                                <div class="text-xs text-gray-500"><i class="fas fa-info-circle mr-1"></i>{{ doc.included_reason }}</div>
                                 {% endif %}
                             </div>
                         </div>
@@ -155,21 +163,100 @@
                                 {% if doc.status == 'signed' %}badge-success
                                 {% elif doc.status == 'sent' %}badge-info
                                 {% elif doc.status == 'generated' %}badge-primary
+                                {% elif doc.status == 'filled' %}badge-secondary
                                 {% else %}badge-ghost{% endif %} badge-sm">
                                 {{ doc.status|title }}
                             </span>
-                            <button class="btn btn-ghost btn-sm" disabled>
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
+                            
+                            <!-- Document Actions Dropdown -->
+                            <div class="dropdown dropdown-end">
+                                <label tabindex="0" class="btn btn-ghost btn-sm">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </label>
+                                <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-white rounded-lg w-48 mt-1 z-10">
+                                    {% if doc.status == 'pending' %}
+                                    <li>
+                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" class="text-blue-600">
+                                            <i class="fas fa-edit w-5"></i>Fill Form
+                                        </a>
+                                    </li>
+                                    {% elif doc.status == 'filled' %}
+                                    <li>
+                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}">
+                                            <i class="fas fa-edit w-5"></i>Edit Form
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" onclick="sendForSignature({{ doc.id }}); return false;" class="text-green-600">
+                                            <i class="fas fa-paper-plane w-5"></i>Send for Signature
+                                        </a>
+                                    </li>
+                                    {% elif doc.status == 'generated' %}
+                                    <li>
+                                        <a href="#" onclick="previewDocument({{ doc.id }}); return false;">
+                                            <i class="fas fa-eye w-5"></i>Preview
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" onclick="sendForSignature({{ doc.id }}); return false;" class="text-green-600">
+                                            <i class="fas fa-paper-plane w-5"></i>Send for Signature
+                                        </a>
+                                    </li>
+                                    {% elif doc.status == 'sent' %}
+                                    <li>
+                                        <a href="#" onclick="checkSignatureStatus({{ doc.id }}); return false;">
+                                            <i class="fas fa-clock w-5"></i>Check Status
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" onclick="simulateSignature({{ doc.id }}); return false;" class="text-orange-500">
+                                            <i class="fas fa-magic w-5"></i>Simulate Sign (Test)
+                                        </a>
+                                    </li>
+                                    {% elif doc.status == 'signed' %}
+                                    <li>
+                                        <a href="#" onclick="downloadDocument({{ doc.id }}); return false;">
+                                            <i class="fas fa-download w-5"></i>Download
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="#" onclick="viewSignedDocument({{ doc.id }}); return false;">
+                                            <i class="fas fa-eye w-5"></i>View Signed
+                                        </a>
+                                    </li>
+                                    {% endif %}
+                                    <li class="border-t mt-1 pt-1">
+                                        <a href="#" onclick="removeDocument({{ doc.id }}); return false;" class="text-red-500">
+                                            <i class="fas fa-trash w-5"></i>Remove
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
+                
+                <!-- Bulk Actions -->
+                {% if documents %}
+                <div class="mt-4 pt-4 border-t flex gap-2">
+                    <button class="btn btn-sm btn-outline flex-1" onclick="fillAllForms()">
+                        <i class="fas fa-edit mr-1"></i>Fill All Forms
+                    </button>
+                    <button class="btn btn-sm btn-outline flex-1" onclick="generateAllPDFs()">
+                        <i class="fas fa-file-pdf mr-1"></i>Generate All PDFs
+                    </button>
+                </div>
+                {% endif %}
                 {% else %}
                 <div class="text-center py-8 text-gray-500">
                     <i class="fas fa-folder-open text-3xl mb-2"></i>
                     <p>No documents yet.</p>
+                    {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
                     <p class="text-sm">Complete the questionnaire to generate the document package.</p>
+                    {% else %}
+                    <p class="text-sm">Click "Add Document" to get started.</p>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -284,8 +371,72 @@
     </form>
 </dialog>
 
+<!-- Add Document Modal -->
+<dialog id="addDocumentModal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4">Add Document</h3>
+        <form id="addDocumentForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Select Document *</label>
+                    <select name="template_slug" required class="select select-bordered w-full" id="docTemplateSelect">
+                        <option value="">Choose a document...</option>
+                        <optgroup label="Listing Documents">
+                            <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
+                            <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
+                            <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
+                        </optgroup>
+                        <optgroup label="Addenda">
+                            <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
+                            <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
+                            <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
+                            <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
+                            <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
+                        </optgroup>
+                        <optgroup label="Other Documents">
+                            <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
+                            <option value="sellers-net" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
+                            <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
+                            <option value="custom" data-name="">Custom Document</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div id="customDocNameField" class="hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Document Name *</label>
+                    <input type="text" name="custom_name" class="input input-bordered w-full" placeholder="Enter document name">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Reason for Adding (optional)</label>
+                    <input type="text" name="reason" class="input input-bordered w-full" placeholder="e.g., Client requested">
+                </div>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="document.getElementById('addDocumentModal').close()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Document</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Coming Soon Toast -->
+<div id="comingSoonToast" class="toast toast-end hidden">
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage">Coming soon!</span>
+    </div>
+</div>
+
 <script>
 const transactionId = {{ transaction.id }};
+
+// =============================================================================
+// STATUS MANAGEMENT
+// =============================================================================
 
 function updateStatus(newStatus) {
     fetch(`/transactions/${transactionId}/status`, {
@@ -304,6 +455,10 @@ function updateStatus(newStatus) {
         }
     });
 }
+
+// =============================================================================
+// PARTICIPANT MANAGEMENT
+// =============================================================================
 
 function showAddParticipantModal() {
     document.getElementById('addParticipantModal').showModal();
@@ -341,6 +496,203 @@ function removeParticipant(participantId) {
             alert('Error removing participant: ' + data.error);
         }
     });
+}
+
+// =============================================================================
+// DOCUMENT MANAGEMENT
+// =============================================================================
+
+function showAddDocumentModal() {
+    document.getElementById('addDocumentModal').showModal();
+    document.getElementById('addDocumentForm').reset();
+    document.getElementById('customDocNameField').classList.add('hidden');
+}
+
+// Show/hide custom name field based on selection
+document.getElementById('docTemplateSelect').addEventListener('change', function() {
+    const customField = document.getElementById('customDocNameField');
+    if (this.value === 'custom') {
+        customField.classList.remove('hidden');
+        customField.querySelector('input').required = true;
+    } else {
+        customField.classList.add('hidden');
+        customField.querySelector('input').required = false;
+    }
+});
+
+document.getElementById('addDocumentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    // Get the template name from the selected option
+    const select = document.getElementById('docTemplateSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    let templateName = selectedOption.dataset.name;
+    
+    // Use custom name if selected
+    if (formData.get('template_slug') === 'custom') {
+        templateName = formData.get('custom_name');
+    }
+    
+    formData.append('template_name', templateName);
+    
+    fetch(`/transactions/${transactionId}/documents`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error adding document: ' + data.error);
+        }
+    });
+});
+
+function removeDocument(docId) {
+    if (!confirm('Remove this document from the package?')) return;
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}`, {
+        method: 'DELETE'
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error removing document: ' + data.error);
+        }
+    });
+}
+
+// =============================================================================
+// DOCUMENT ACTIONS
+// =============================================================================
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('comingSoonToast');
+    const alert = toast.querySelector('.alert');
+    document.getElementById('toastMessage').textContent = message;
+    
+    // Update alert type
+    alert.className = 'alert';
+    if (type === 'success') alert.classList.add('alert-success');
+    else if (type === 'error') alert.classList.add('alert-error');
+    else if (type === 'warning') alert.classList.add('alert-warning');
+    else alert.classList.add('alert-info');
+    
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+function generatePDF(docId) {
+    showToast('PDF generation will be available after DocuSeal integration. For now, documents are sent directly for signature.');
+}
+
+function previewDocument(docId) {
+    showToast('Document preview coming soon! The signed PDF will be available after signing.');
+}
+
+function sendForSignature(docId) {
+    if (!confirm('Send this document for signature? An email will be sent to all signers.')) return;
+    
+    showToast('Sending document for signature...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Document sent to ${data.submitters} signer(s)!` + 
+                      (data.mock_mode ? ' (Mock Mode)' : ''), 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error sending document: ' + err.message, 'error');
+    });
+}
+
+function checkSignatureStatus(docId) {
+    fetch(`/transactions/${transactionId}/documents/${docId}/status`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const signers = data.signers || [];
+            const statuses = signers.map(s => s.status).join(', ');
+            showToast(`Status: ${data.overall_status}. Signers: ${statuses}` + 
+                      (data.mock_mode ? ' (Mock Mode)' : ''), 'info');
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error checking status: ' + err.message, 'error');
+    });
+}
+
+function simulateSignature(docId) {
+    if (!confirm('Simulate signature completion? (Mock mode only)')) return;
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/simulate-sign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Signature simulated! Document is now signed.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error simulating: ' + err.message, 'error');
+    });
+}
+
+function downloadDocument(docId) {
+    fetch(`/transactions/${transactionId}/documents/${docId}/download`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.documents && data.documents.length > 0) {
+            // In real mode, this would open the actual PDF
+            if (data.mock_mode) {
+                showToast('Download URL: ' + data.documents[0].url + ' (Mock Mode)', 'info');
+            } else {
+                window.open(data.documents[0].url, '_blank');
+            }
+        } else {
+            showToast('Error: ' + (data.error || 'No documents available'), 'error');
+        }
+    })
+    .catch(err => {
+        showToast('Error downloading: ' + err.message, 'error');
+    });
+}
+
+function viewSignedDocument(docId) {
+    downloadDocument(docId);  // Same functionality
+}
+
+function fillAllForms() {
+    // Navigate to first pending document form
+    const firstPending = document.querySelector('a[href*="/documents/"][href*="/form"]');
+    if (firstPending) {
+        window.location.href = firstPending.href;
+    } else {
+        showToast('All forms have been filled!', 'success');
+    }
+}
+
+function generateAllPDFs() {
+    showToast('In the real integration, this will generate all PDFs via DocuSeal. For now, fill and send documents individually.');
 }
 </script>
 {% endblock %}
