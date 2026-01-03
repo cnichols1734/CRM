@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - TechnolOG{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-6xl">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Transactions</h1>
+            <p class="text-gray-500 text-sm mt-1">Manage your real estate transactions</p>
+        </div>
+        <a href="{{ url_for('transactions.new_transaction') }}" 
+           class="btn btn-primary">
+            <i class="fas fa-plus mr-2"></i>New Transaction
+        </a>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <form method="GET" class="flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select name="status" class="select select-bordered w-full">
+                    <option value="">All Statuses</option>
+                    <option value="draft" {% if status_filter == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
+                    <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="flex-1 min-w-[150px]">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select name="type" class="select select-bordered w-full">
+                    <option value="">All Types</option>
+                    {% for tt in transaction_types %}
+                    <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
+                        {{ tt.display_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-ghost">
+                <i class="fas fa-filter mr-2"></i>Filter
+            </button>
+            {% if status_filter or type_filter %}
+            <a href="{{ url_for('transactions.list_transactions') }}" class="btn btn-ghost text-gray-500">
+                <i class="fas fa-times mr-1"></i>Clear
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Transactions Table -->
+    {% if transactions %}
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="table w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="text-left">Property</th>
+                        <th class="text-left">Type</th>
+                        <th class="text-left">Status</th>
+                        <th class="text-left">Created</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    <tr class="hover:bg-gray-50">
+                        <td>
+                            <div class="font-medium text-gray-900">{{ tx.street_address }}</div>
+                            <div class="text-sm text-gray-500">
+                                {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if tx.transaction_type.name == 'seller' %}badge-primary
+                                {% elif tx.transaction_type.name == 'buyer' %}badge-secondary
+                                {% elif tx.transaction_type.name == 'landlord' %}badge-accent
+                                {% elif tx.transaction_type.name == 'tenant' %}badge-info
+                                {% else %}badge-ghost{% endif %}">
+                                {{ tx.transaction_type.display_name }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge 
+                                {% if tx.status == 'draft' %}badge-ghost
+                                {% elif tx.status == 'active' %}badge-success
+                                {% elif tx.status == 'pending' %}badge-warning
+                                {% elif tx.status == 'under_contract' %}badge-info
+                                {% elif tx.status == 'closed' %}badge-primary
+                                {% elif tx.status == 'cancelled' %}badge-error{% endif %}">
+                                {{ tx.status|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td class="text-gray-500 text-sm">
+                            {{ tx.created_at.strftime('%b %d, %Y') }}
+                        </td>
+                        <td class="text-right">
+                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
+                               class="btn btn-sm btn-ghost">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white rounded-lg shadow-sm p-12 text-center">
+        <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-folder-open text-2xl text-gray-400"></i>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">No transactions yet</h3>
+        <p class="text-gray-500 mb-6">Get started by creating your first transaction.</p>
+        <a href="{{ url_for('transactions.new_transaction') }}" class="btn btn-primary">
+            <i class="fas fa-plus mr-2"></i>New Transaction
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

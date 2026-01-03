@@ -353,3 +353,231 @@ class CompanyUpdateView(db.Model):
     
     def __repr__(self):
         return f'<View by user {self.user_id} on update {self.update_id}>'
+
+
+# =============================================================================
+# TRANSACTION MANAGEMENT MODELS
+# =============================================================================
+
+class TransactionType(db.Model):
+    """
+    Lookup table for transaction types.
+    Values: seller, buyer, landlord, tenant, referral
+    """
+    __tablename__ = 'transaction_types'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., 'seller'
+    display_name = db.Column(db.String(100), nullable=False)  # e.g., 'Seller Representation'
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    sort_order = db.Column(db.Integer, default=0)
+    
+    # Relationships
+    transactions = db.relationship('Transaction', backref='transaction_type', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<TransactionType {self.name}>'
+
+
+class Transaction(db.Model):
+    """
+    Represents a real estate transaction (listing, purchase, lease, referral).
+    Can have multiple participants (sellers, buyers, agents, etc.).
+    """
+    __tablename__ = 'transactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Who created/owns this transaction
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Transaction type (seller, buyer, landlord, tenant, referral)
+    transaction_type_id = db.Column(db.Integer, db.ForeignKey('transaction_types.id'), nullable=False)
+    
+    # Property details
+    street_address = db.Column(db.String(200), nullable=False)
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50), default='TX')
+    zip_code = db.Column(db.String(20))
+    county = db.Column(db.String(100))
+    
+    # Seller-specific: ownership status (only relevant for seller transactions)
+    # Values: conventional, builder, reo, short_sale
+    ownership_status = db.Column(db.String(50))
+    
+    # Transaction status
+    # Values: draft, active, pending, under_contract, closed, cancelled
+    status = db.Column(db.String(50), default='draft')
+    
+    # Key dates
+    expected_close_date = db.Column(db.Date)
+    actual_close_date = db.Column(db.Date)
+    
+    # Intake questionnaire answers (JSON)
+    intake_data = db.Column(db.JSON, default={})
+    
+    # Flexible extra data for additional fields
+    extra_data = db.Column(db.JSON, default={})
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    created_by = db.relationship('User', backref=db.backref('created_transactions', lazy='dynamic'))
+    participants = db.relationship('TransactionParticipant', backref='transaction', 
+                                   cascade='all, delete-orphan', lazy='dynamic')
+    documents = db.relationship('TransactionDocument', backref='transaction',
+                               cascade='all, delete-orphan', lazy='dynamic')
+    
+    @property
+    def full_address(self):
+        """Return formatted full address."""
+        parts = [self.street_address]
+        if self.city:
+            parts.append(self.city)
+        if self.state:
+            parts.append(self.state)
+        if self.zip_code:
+            parts.append(self.zip_code)
+        return ', '.join(parts)
+    
+    def __repr__(self):
+        return f'<Transaction {self.id}: {self.street_address}>'
+
+
+class TransactionParticipant(db.Model):
+    """
+    Links contacts/users to transactions with specific roles.
+    Supports multiple participants per transaction (e.g., multiple sellers).
+    """
+    __tablename__ = 'transaction_participants'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
+    
+    # Can link to existing contact or user (both optional for external parties)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    
+    # Role in the transaction
+    # Values: seller, co_seller, buyer, co_buyer, listing_agent, buyers_agent, 
+    #         title_company, lender, transaction_coordinator
+    role = db.Column(db.String(50), nullable=False)
+    
+    # For external parties not in contacts/users
+    name = db.Column(db.String(200))
+    email = db.Column(db.String(200))
+    phone = db.Column(db.String(20))
+    company = db.Column(db.String(200))
+    
+    # Is this the primary contact for this role?
+    is_primary = db.Column(db.Boolean, default=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    contact = db.relationship('Contact', backref=db.backref('transaction_participations', lazy='dynamic'))
+    user = db.relationship('User', backref=db.backref('transaction_participations', lazy='dynamic'))
+    
+    @property
+    def display_name(self):
+        """Get the display name from contact, user, or name field."""
+        if self.contact:
+            return f"{self.contact.first_name} {self.contact.last_name}"
+        if self.user:
+            return f"{self.user.first_name} {self.user.last_name}"
+        return self.name or "Unknown"
+    
+    @property
+    def display_email(self):
+        """Get email from contact, user, or email field."""
+        if self.contact and self.contact.email:
+            return self.contact.email
+        if self.user and self.user.email:
+            return self.user.email
+        return self.email
+    
+    def __repr__(self):
+        return f'<TransactionParticipant {self.role}: {self.display_name}>'
+
+
+class TransactionDocument(db.Model):
+    """
+    A document instance within a transaction.
+    Tracks status from draft through signed.
+    """
+    __tablename__ = 'transaction_documents'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
+    
+    # Document template info
+    template_slug = db.Column(db.String(100), nullable=False)  # e.g., 'listing-agreement'
+    template_name = db.Column(db.String(200), nullable=False)  # e.g., 'Listing Agreement'
+    
+    # Status: pending, draft, filled, generated, sent, partially_signed, signed, voided
+    status = db.Column(db.String(50), default='pending')
+    
+    # The actual field data filled in by the agent
+    field_data = db.Column(db.JSON, default={})
+    
+    # Why this document was included in the package (for conditional docs)
+    included_reason = db.Column(db.String(500))
+    
+    # DocuSeal integration fields (nullable, for future use)
+    docuseal_template_id = db.Column(db.Integer)  # DocuSeal template ID
+    docuseal_submission_id = db.Column(db.Integer)  # DocuSeal submission ID when sent
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    sent_at = db.Column(db.DateTime)  # When sent for signature
+    signed_at = db.Column(db.DateTime)  # When all signatures complete
+    
+    # Relationships
+    signatures = db.relationship('DocumentSignature', backref='document',
+                                cascade='all, delete-orphan', lazy='dynamic')
+    
+    def __repr__(self):
+        return f'<TransactionDocument {self.template_name} ({self.status})>'
+
+
+class DocumentSignature(db.Model):
+    """
+    Tracks each signer on a document.
+    Links to TransactionParticipant for prefill and tracking.
+    """
+    __tablename__ = 'document_signatures'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'), nullable=False)
+    
+    # Link to transaction participant (optional)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id'), nullable=True)
+    
+    # Signer info (can be populated from participant or entered manually)
+    signer_email = db.Column(db.String(200), nullable=False)
+    signer_name = db.Column(db.String(200), nullable=False)
+    signer_role = db.Column(db.String(50), nullable=False)  # e.g., 'seller', 'listing_agent'
+    
+    # Status: pending, sent, viewed, signed, declined
+    status = db.Column(db.String(50), default='pending')
+    
+    # Signing order (for sequential signing)
+    sign_order = db.Column(db.Integer, default=1)
+    
+    # DocuSeal integration fields (nullable)
+    docuseal_submitter_slug = db.Column(db.String(200))  # For embedded signing
+    
+    # Timestamps
+    sent_at = db.Column(db.DateTime)
+    viewed_at = db.Column(db.DateTime)
+    signed_at = db.Column(db.DateTime)
+    
+    # Relationships
+    participant = db.relationship('TransactionParticipant')
+    
+    def __repr__(self):
+        return f'<DocumentSignature {self.signer_name} ({self.status})>'

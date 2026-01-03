@@ -237,6 +237,13 @@
                 <i class="fas fa-address-book w-6 mr-3"></i>
                 Contacts
             </a>
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('transactions.list_transactions') }}"
+               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                <i class="fas fa-file-contract w-6 mr-3"></i>
+                Transactions
+            </a>
+            {% endif %}
             <a href="{{ url_for('tasks.tasks') }}"
                class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
                 <i class="fas fa-tasks w-6 mr-3"></i>
@@ -328,6 +335,23 @@
                 Contacts
             </div>
         </div>
+
+        <!-- Transactions Icon with Tooltip (Admin Only) -->
+        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+        <div class="relative group mb-8 w-full px-3">
+            <a href="{{ url_for('transactions.list_transactions') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}text-orange-500{% else %}text-white{% endif %}">
+                <div class="w-full flex items-center">
+                    <div class="flex justify-center w-[24px]">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Transactions</span>
+                </div>
+            </a>
+            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                Transactions
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Tasks Icon with Tooltip -->
         <div class="relative group mb-8 w-full px-3">
