@@ -7,7 +7,7 @@ FEATURE_FLAGS = {
     'SHOW_DASHBOARD_JOKE': False,
     
     # Transaction Management - admin-only until ready for agents
-    'TRANSACTIONS_ENABLED': False,
+    'TRANSACTIONS_ENABLED': True,
 }
 
 
