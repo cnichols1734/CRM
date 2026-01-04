@@ -507,12 +507,12 @@
                         <div class="flex justify-between items-center p-3 bg-slate-50 rounded-xl">
                             <span class="text-slate-600 text-sm">{{ intake_labels.get(key, key|replace('_', ' ')|title) }}</span>
                             <span class="font-medium text-slate-800 text-sm">
-                                {% if value == true %}
+                                {% if value == true or value == 'yes' %}
                                 <span class="text-green-600"><i class="fas fa-check-circle"></i> Yes</span>
-                                {% elif value == false %}
+                                {% elif value == false or value == 'no' %}
                                 <span class="text-slate-400"><i class="fas fa-times-circle"></i> No</span>
                                 {% else %}
-                                {{ value|title if value else '—' }}
+                                {{ value|replace('_', ' ')|title if value else '—' }}
                                 {% endif %}
                             </span>
                         </div>
