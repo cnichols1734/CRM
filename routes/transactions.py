@@ -469,6 +469,41 @@ def search_contacts():
     } for c in contacts])
 
 
+@transactions_bp.route('/api/<int:id>/signers')
+@login_required
+@transactions_required
+def get_signers(id):
+    """Get list of signers for a transaction document."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'signers': [], 'error': 'Unauthorized'}), 403
+    
+    participants = transaction.participants.all()
+    signers = []
+    
+    # Add sellers
+    for p in participants:
+        if p.role in ['seller', 'co_seller'] and p.display_email:
+            signers.append({
+                'name': p.display_name,
+                'email': p.display_email,
+                'role': 'Seller' if p.role == 'seller' else 'Co-Seller'
+            })
+    
+    # Add listing agent (current user)
+    for p in participants:
+        if p.role == 'listing_agent':
+            signers.append({
+                'name': p.display_name,
+                'email': p.display_email or current_user.email,
+                'role': 'Listing Agent'
+            })
+            break
+    
+    return jsonify({'signers': signers})
+
+
 @transactions_bp.route('/<int:id>/status', methods=['POST'])
 @login_required
 @transactions_required
@@ -922,6 +957,133 @@ def build_prefill_data(transaction, participants):
 
 
 # =============================================================================
+# DOCUMENT PREVIEW
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/preview')
+@login_required
+@transactions_required
+def document_preview(id, doc_id):
+    """
+    Preview a filled document before sending for signature.
+    
+    Creates a DocuSeal submission with send_email=false for the agent to review
+    the document with pre-filled values. This is a "preview" submission that
+    gets replaced when the agent confirms and sends.
+    """
+    from services.docuseal_service import (
+        create_submission, build_docuseal_fields, get_template_id,
+        DOCUSEAL_MOCK_MODE, DOCUSEAL_API_URL
+    )
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        abort(404)
+    
+    # Document must be filled to preview
+    if doc.status not in ['filled', 'generated', 'draft']:
+        flash('Please fill out the document form first.', 'error')
+        return redirect(url_for('transactions.document_form', id=id, doc_id=doc_id))
+    
+    # Check if template is configured in DocuSeal
+    template_id = get_template_id(doc.template_slug)
+    if not template_id and not DOCUSEAL_MOCK_MODE:
+        flash('This document template is not yet configured for e-signature.', 'error')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    try:
+        # Build agent data for pre-filling broker fields
+        agent_data = {
+            'name': f"{current_user.first_name} {current_user.last_name}",
+            'email': current_user.email,
+            'license_number': getattr(current_user, 'license_number', '') or '',
+            'phone': getattr(current_user, 'phone', '') or ''
+        }
+        
+        # Build fields for each submitter separately - DocuSeal requires each 
+        # submitter to only receive fields that belong to them
+        broker_fields = build_docuseal_fields(
+            doc.field_data or {},
+            doc.template_slug,
+            agent_data,
+            submitter_role='Broker'
+        )
+        
+        seller_fields = build_docuseal_fields(
+            doc.field_data or {},
+            doc.template_slug,
+            agent_data=None,  # No agent data for seller fields
+            submitter_role='Seller'
+        )
+        
+        # Create a preview submission with just the agent as "Broker" 
+        # to let them view the document without sending to actual signers
+        preview_submitters = [{
+            'role': 'Broker',
+            'email': current_user.email,
+            'name': f"{current_user.first_name} {current_user.last_name}",
+            'fields': broker_fields
+        }]
+        
+        # Also add a Seller submitter if the template requires one
+        # (DocuSeal may require all roles to be filled)
+        participants = transaction.participants.all()
+        seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+        if seller and seller.display_email:
+            preview_submitters.append({
+                'role': 'Seller',
+                'email': seller.display_email,
+                'name': seller.display_name,
+                'fields': seller_fields  # Only seller-specific fields
+            })
+        
+        # Create submission with send_email=false for preview
+        submission = create_submission(
+            template_slug=doc.template_slug,
+            submitters=preview_submitters,
+            field_values=None,  # Already in submitters.fields
+            send_email=False,  # Don't send emails - this is just for preview
+            message=None
+        )
+        
+        # Find the agent's submitter slug for embedding
+        agent_submitter = next(
+            (s for s in submission.get('submitters', []) if s.get('role') == 'Broker'),
+            submission.get('submitters', [{}])[0] if submission.get('submitters') else {}
+        )
+        
+        embed_slug = agent_submitter.get('slug', '')
+        embed_src = agent_submitter.get('embed_src', f"https://docuseal.com/s/{embed_slug}")
+        
+        # Store preview submission ID so we can archive it later
+        doc.docuseal_submission_id = submission.get('id')
+        doc.status = 'generated'  # Mark as generated/ready for review
+        db.session.commit()
+        
+        return render_template(
+            'transactions/document_preview.html',
+            transaction=transaction,
+            document=doc,
+            embed_src=embed_src,
+            embed_slug=embed_slug,
+            submission_id=submission.get('id'),
+            mock_mode=DOCUSEAL_MOCK_MODE
+        )
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        flash(f'Error creating preview: {str(e)}', 'error')
+        return redirect(url_for('transactions.document_form', id=id, doc_id=doc_id))
+
+
+# =============================================================================
 # E-SIGNATURE (DocuSeal Integration)
 # =============================================================================
 
@@ -932,7 +1094,7 @@ def send_for_signature(id, doc_id):
     """Send a document for e-signature via DocuSeal."""
     from services.docuseal_service import (
         create_submission, build_submitters_from_participants, 
-        DOCUSEAL_MOCK_MODE
+        build_docuseal_fields, DOCUSEAL_MOCK_MODE
     )
     
     transaction = Transaction.query.get_or_404(id)
@@ -945,7 +1107,7 @@ def send_for_signature(id, doc_id):
     if doc.transaction_id != transaction.id:
         return jsonify({'success': False, 'error': 'Document not found'}), 404
     
-    # Check document is ready to send (must be filled)
+    # Check document is ready to send (must be filled or generated/previewed)
     if doc.status not in ['filled', 'generated']:
         return jsonify({
             'success': False, 
@@ -953,6 +1115,14 @@ def send_for_signature(id, doc_id):
         }), 400
     
     try:
+        # Build agent data for pre-filling broker fields
+        agent_data = {
+            'name': f"{current_user.first_name} {current_user.last_name}",
+            'email': current_user.email,
+            'license_number': getattr(current_user, 'license_number', '') or '',
+            'phone': getattr(current_user, 'phone', '') or ''
+        }
+        
         # Get participants for signing
         participants = transaction.participants.all()
         submitters = build_submitters_from_participants(participants, transaction)
@@ -963,15 +1133,35 @@ def send_for_signature(id, doc_id):
                 'error': 'No signers found. Add participants with email addresses.'
             }), 400
         
-        # Create submission in DocuSeal
+        # Add pre-filled fields to each submitter based on their role
+        # DocuSeal requires each submitter to only receive fields that belong to them
+        for submitter in submitters:
+            role = submitter.get('role', '')
+            if role == 'Broker':
+                submitter['fields'] = build_docuseal_fields(
+                    doc.field_data or {},
+                    doc.template_slug,
+                    agent_data,
+                    submitter_role='Broker'
+                )
+            else:
+                # Seller, Co-Seller, etc. get seller fields
+                submitter['fields'] = build_docuseal_fields(
+                    doc.field_data or {},
+                    doc.template_slug,
+                    agent_data=None,
+                    submitter_role='Seller'
+                )
+        
+        # Create submission in DocuSeal with send_email=True
         submission = create_submission(
             template_slug=doc.template_slug,
             submitters=submitters,
-            field_values=doc.field_data or {},
-            send_email=True,
+            field_values=None,  # Fields are in submitters now
+            send_email=True,  # Actually send the emails
             message={
                 'subject': f'Document Ready for Signature: {doc.template_name}',
-                'body': f'Please sign the {doc.template_name} for {transaction.street_address}. Click here to sign: {{{{submitter.link}}}}'
+                'body': f'Please sign the {doc.template_name} for {transaction.street_address}.\n\nClick here to sign: {{{{submitter.link}}}}'
             }
         )
         
@@ -1075,6 +1265,105 @@ def check_signature_status(id, doc_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/void', methods=['POST'])
+@login_required
+@transactions_required
+def void_document(id, doc_id):
+    """
+    Void a sent document and reset it to 'filled' status so it can be re-sent.
+    This clears the DocuSeal submission and allows the agent to preview/send again.
+    """
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if doc.status not in ['sent', 'generated']:
+        return jsonify({
+            'success': False,
+            'error': f'Cannot void document in "{doc.status}" status. Only sent or generated documents can be voided.'
+        }), 400
+    
+    try:
+        # Clear DocuSeal submission info
+        doc.docuseal_submission_id = None
+        doc.sent_at = None
+        doc.status = 'filled'  # Reset to filled so they can preview again
+        
+        # Delete any signature records
+        DocumentSignature.query.filter_by(document_id=doc.id).delete()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document voided. You can now edit and resend.',
+            'new_status': 'filled'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/resend', methods=['POST'])
+@login_required
+@transactions_required
+def resend_signature_request(id, doc_id):
+    """
+    Resend signature request emails to submitters who haven't signed yet.
+    This uses the existing DocuSeal submission without creating a new one.
+    """
+    from services.docuseal_service import resend_signature_emails, DOCUSEAL_MOCK_MODE
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if doc.status != 'sent':
+        return jsonify({
+            'success': False,
+            'error': f'Cannot resend document in "{doc.status}" status. Document must be in "sent" status.'
+        }), 400
+    
+    if not doc.docuseal_submission_id:
+        return jsonify({
+            'success': False,
+            'error': 'Document has not been sent for signature'
+        }), 400
+    
+    try:
+        # Resend emails to pending submitters
+        result = resend_signature_emails(
+            submission_id=doc.docuseal_submission_id,
+            message={
+                'subject': f'Reminder: Please Sign - {doc.template_name}',
+                'body': f'This is a reminder to sign the {doc.template_name} for {transaction.street_address}. Click here to sign: {{{{submitter.link}}}}'
+            }
+        )
+        
+        return jsonify({
+            'success': True,
+            'resent_count': result.get('resent_count', 0),
+            'message': result.get('message', 'Emails resent'),
+            'mock_mode': DOCUSEAL_MOCK_MODE
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/simulate-sign', methods=['POST'])
 @login_required
 @transactions_required
@@ -1169,6 +1458,97 @@ def download_signed_document(id, doc_id):
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# WEBHOOK ENDPOINT
+# =============================================================================
+
+# =============================================================================
+# DOCUSEAL ADMIN/DEBUG ENDPOINTS
+# =============================================================================
+
+@transactions_bp.route('/admin/docuseal/template/<int:template_id>')
+@login_required
+@transactions_required
+def view_docuseal_template(template_id):
+    """
+    Admin endpoint to view DocuSeal template fields.
+    Useful for creating field mappings between CRM form and DocuSeal.
+    """
+    from services.docuseal_service import get_template, DOCUSEAL_MODE, DOCUSEAL_MOCK_MODE
+    
+    try:
+        template = get_template(template_id)
+        
+        # Extract key information for mapping
+        fields = template.get('fields', [])
+        submitters = template.get('submitters', [])
+        
+        # Group fields by submitter
+        fields_by_submitter = {}
+        for submitter in submitters:
+            submitter_uuid = submitter.get('uuid')
+            submitter_fields = [f for f in fields if f.get('submitter_uuid') == submitter_uuid]
+            fields_by_submitter[submitter.get('name')] = submitter_fields
+        
+        return jsonify({
+            'success': True,
+            'mode': DOCUSEAL_MODE,
+            'mock_mode': DOCUSEAL_MOCK_MODE,
+            'template': {
+                'id': template.get('id'),
+                'name': template.get('name'),
+                'slug': template.get('slug'),
+            },
+            'submitters': submitters,
+            'fields': fields,
+            'fields_by_submitter': fields_by_submitter,
+            'field_names': [f.get('name') for f in fields],
+            'total_fields': len(fields)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'mode': DOCUSEAL_MODE,
+            'mock_mode': DOCUSEAL_MOCK_MODE
+        }), 500
+
+
+@transactions_bp.route('/admin/docuseal/status')
+@login_required
+@transactions_required
+def docuseal_status():
+    """Check DocuSeal configuration status."""
+    from services.docuseal_service import (
+        DOCUSEAL_MODE, DOCUSEAL_MOCK_MODE, DOCUSEAL_API_KEY, 
+        TEMPLATE_MAP, list_templates
+    )
+    
+    # Check which templates are configured
+    configured_templates = {k: v for k, v in TEMPLATE_MAP.items() if v is not None}
+    
+    # Try to list templates from DocuSeal
+    try:
+        if not DOCUSEAL_MOCK_MODE:
+            available_templates = list_templates(limit=10)
+            available = [{'id': t.get('id'), 'name': t.get('name')} for t in available_templates]
+        else:
+            available = 'Mock mode - no API call made'
+    except Exception as e:
+        available = f'Error: {str(e)}'
+    
+    return jsonify({
+        'success': True,
+        'mode': DOCUSEAL_MODE,
+        'mock_mode': DOCUSEAL_MOCK_MODE,
+        'api_key_set': bool(DOCUSEAL_API_KEY),
+        'api_key_preview': f"{DOCUSEAL_API_KEY[:8]}..." if DOCUSEAL_API_KEY else None,
+        'configured_templates': configured_templates,
+        'available_templates': available
+    })
 
 
 # =============================================================================
