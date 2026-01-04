@@ -448,6 +448,16 @@
                                             <i class="fas fa-clock w-5"></i>
                                             <span class="ml-2">Check Status</span>
                                         </button>
+                                        <button onclick="resendDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
+                                            <i class="fas fa-envelope w-5"></i>
+                                            <span class="ml-2">Resend Email</span>
+                                        </button>
+                                        <button onclick="voidDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors">
+                                            <i class="fas fa-undo w-5"></i>
+                                            <span class="ml-2">Void & Re-edit</span>
+                                        </button>
                                         <button onclick="simulateSignature({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 transition-colors">
                                             <i class="fas fa-magic w-5"></i>
@@ -1034,6 +1044,47 @@ function checkSignatureStatus(docId) {
             showToast('Error: ' + data.error, 'error');
         }
     });
+}
+
+function voidDocument(docId) {
+    if (!confirm('Void this document? This will clear the current signature request and allow you to edit and resend.')) return;
+    
+    showToast('Voiding document...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/void`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Document voided! You can now edit and resend.', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function resendDocument(docId) {
+    if (!confirm('Resend signature request emails to signers who haven\'t completed signing?')) return;
+    
+    showToast('Resending emails...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/resend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast(`Reminder emails sent to ${data.resent_count} signer(s)!`, 'success');
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => showToast('Error: ' + err.message, 'error'));
 }
 
 function simulateSignature(docId) {

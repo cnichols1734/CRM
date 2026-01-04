@@ -13,3 +13,4 @@ sendgrid==6.10.0
 requests==2.31.0
 psycopg2-binary>=2.9.9
 itsdangerous>=2.1.2
+PyYAML>=6.0

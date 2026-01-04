@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Preview: {{ document.template_name }} - {{ transaction.street_address }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Back button and title -->
+                <div class="flex items-center gap-4">
+                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
+                       class="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:inline">Back to Form</span>
+                    </a>
+                    <div class="h-6 w-px bg-slate-200"></div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-800">{{ document.template_name }}</h1>
+                        <p class="text-xs text-slate-500">{{ transaction.street_address }}</p>
+                    </div>
+                </div>
+                
+                <!-- Action buttons -->
+                <div class="flex items-center gap-3">
+                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
+                       class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2">
+                        <i class="fas fa-edit"></i>
+                        Edit Form
+                    </a>
+                    <button onclick="confirmAndSend()" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                        <i class="fas fa-paper-plane"></i>
+                        Send for Signature
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview info banner -->
+    <div class="bg-blue-50 border-b border-blue-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex items-center gap-3 text-blue-800">
+                <i class="fas fa-eye text-blue-500"></i>
+                <p class="text-sm">
+                    <strong>Preview Mode:</strong> 
+                    Review the document below. When ready, click "Send for Signature" to email it to signers.
+                    {% if mock_mode %}
+                    <span class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Test Mode</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DocuSeal Embed Container -->
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <!-- Document preview header -->
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
+                            <i class="fas fa-file-signature text-orange-600"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-slate-800">{{ document.template_name }}</h2>
+                            <p class="text-xs text-slate-500">Scroll through to review all pages</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-slate-500">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Fields are pre-filled from your form</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DocuSeal Form Embed -->
+            <div id="docuseal-container" class="relative" style="min-height: 800px;">
+                {% if mock_mode %}
+                <!-- Mock mode placeholder -->
+                <div class="absolute inset-0 flex items-center justify-center bg-slate-50">
+                    <div class="text-center p-8">
+                        <div class="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-file-alt text-4xl text-amber-500"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">Mock Preview Mode</h3>
+                        <p class="text-slate-600 max-w-md mb-6">
+                            DocuSeal is running in test mode. In production, the actual document would be displayed here 
+                            with all your filled-in data.
+                        </p>
+                        <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-sm mx-auto text-left">
+                            <h4 class="font-medium text-slate-700 mb-3">Document Summary:</h4>
+                            <ul class="space-y-2 text-sm text-slate-600">
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    Form data saved
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-check-circle text-green-500"></i>
+                                    Ready for signature
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-user text-blue-500"></i>
+                                    Template: {{ document.template_name }}
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <!-- Real DocuSeal embed -->
+                <script src="https://cdn.docuseal.com/js/form.js"></script>
+                <docuseal-form
+                    id="docusealPreviewForm"
+                    data-src="{{ embed_src }}"
+                    data-preview="true">
+                    <style>
+                        /* Hide the submit button for preview - agent shouldn't complete here */
+                        .submit-form-button { display: none !important; }
+                        .completed-form { display: none !important; }
+                        /* Make the form read-only looking */
+                        .form-container { pointer-events: auto; }
+                    </style>
+                </docuseal-form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Floating action bar for mobile -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 sm:hidden z-50">
+        <div class="flex gap-3">
+            <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
+               class="flex-1 px-4 py-3 text-center text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                <i class="fas fa-edit mr-2"></i>Edit
+            </a>
+            <button onclick="confirmAndSend()" 
+                    class="flex-1 px-4 py-3 text-center text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all">
+                <i class="fas fa-paper-plane mr-2"></i>Send
+            </button>
+        </div>
+    </div>
+    
+    <!-- Add padding for mobile action bar -->
+    <div class="h-20 sm:hidden"></div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="sendModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative animate-fade-in-up">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-paper-plane text-2xl text-orange-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">Send for Signature?</h3>
+                <p class="text-slate-600 mt-2">
+                    This will send the document to all signers via email. They will receive a link to review and sign.
+                </p>
+            </div>
+            
+            <!-- Signers list -->
+            <div class="bg-slate-50 rounded-xl p-4 mb-6">
+                <h4 class="text-sm font-medium text-slate-700 mb-3">Signers:</h4>
+                <div id="signersList" class="space-y-2">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="closeModal()" 
+                        class="flex-1 px-4 py-3 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button onclick="sendForSignature()" 
+                        id="confirmSendBtn"
+                        class="flex-1 px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all flex items-center justify-center gap-2">
+                    <i class="fas fa-paper-plane"></i>
+                    Send Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up {
+    animation: fade-in-up 0.3s ease-out forwards;
+}
+</style>
+
+<script>
+const transactionId = {{ transaction.id }};
+const documentId = {{ document.id }};
+
+function confirmAndSend() {
+    // Show modal with signer info
+    const modal = document.getElementById('sendModal');
+    const signersList = document.getElementById('signersList');
+    
+    // Fetch signers from transaction participants
+    fetch(`/transactions/api/${transactionId}/signers`)
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.signers && data.signers.length > 0) {
+                signersList.innerHTML = data.signers.map(s => `
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                            <i class="fas fa-user text-slate-500"></i>
+                        </div>
+                        <div>
+                            <div class="font-medium text-slate-800">${s.name}</div>
+                            <div class="text-slate-500">${s.email} • ${s.role}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                signersList.innerHTML = `
+                    <div class="text-sm text-amber-600">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        No signers found. Add participants with email addresses.
+                    </div>
+                `;
+            }
+        })
+        .catch(() => {
+            signersList.innerHTML = `
+                <div class="text-sm text-slate-500">
+                    Loading signers...
+                </div>
+            `;
+        });
+    
+    modal.classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('sendModal').classList.add('hidden');
+}
+
+function sendForSignature() {
+    const btn = document.getElementById('confirmSendBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    
+    fetch(`/transactions/${transactionId}/documents/${documentId}/send`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(resp => resp.json())
+    .then(data => {
+        if (data.success) {
+            // Show success and redirect
+            closeModal();
+            showToast('Document sent for signature!', 'success');
+            setTimeout(() => {
+                window.location.href = `/transactions/${transactionId}`;
+            }, 1500);
+        } else {
+            showToast(data.error || 'Failed to send document', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Now';
+        }
+    })
+    .catch(err => {
+        showToast('Network error. Please try again.', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send Now';
+    });
+}
+
+function showToast(message, type) {
+    // Simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-24 sm:bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 ${
+        type === 'success' ? 'bg-green-600 text-white' : 
+        type === 'error' ? 'bg-red-600 text-white' : 
+        'bg-slate-800 text-white'
+    }`;
+    toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'all 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}
+

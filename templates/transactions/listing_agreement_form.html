@@ -1296,7 +1296,7 @@
                 Cancel
             </a>
             <div class="w-px h-8 bg-slate-200"></div>
-            <button type="submit" form="listingAgreementForm" name="action" value="save" 
+            <button type="submit" form="listingAgreementForm" name="submit_action" value="save" 
                     class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
                 <i class="fas fa-save text-slate-500"></i>
                 Save Draft
@@ -1588,10 +1588,11 @@ function saveAndPreview() {
     })
     .then(response => {
         if (response.ok) {
-            showToast('Document saved successfully!', 'success');
+            showToast('Opening preview...', 'success');
             setTimeout(() => {
-                window.location.href = "{{ url_for('transactions.view_transaction', id=transaction.id) }}";
-            }, 1500);
+                // Redirect to preview page instead of transaction view
+                window.location.href = "{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}";
+            }, 500);
         } else {
             showToast('Error saving form. Please try again.', 'error');
         }

@@ -1,0 +1,233 @@
+# =============================================================================
+# LISTING AGREEMENT - DocuSeal Field Mapping
+# =============================================================================
+# This file maps CRM form fields to DocuSeal template fields.
+#
+# Template ID: 2468023
+# DocuSeal Template: "listing agreement"
+# Total DocuSeal Fields: 130
+#
+# Submitters (signers):
+#   - Seller (uuid: c8a354a2-cb65-4f46-98f0-3852299989ef)
+#   - Broker (uuid: 02ee5cd7-ccec-46ee-820a-6c6d91247cb9)
+#
+# HOW TO UPDATE:
+#   1. View fields at: /transactions/admin/docuseal/template/2468023
+#   2. Match your CRM form field to the DocuSeal field name
+#   3. Run a test submission to verify
+# =============================================================================
+
+template_id: 2468023
+template_name: "Listing Agreement"
+template_slug: "listing-agreement"
+
+# =============================================================================
+# FIELD MAPPINGS
+# Format: crm_field: docuseal_field
+# NOTE: CRM form saves fields WITHOUT the 'field_' prefix
+# =============================================================================
+field_mappings:
+
+  # ---------------------------------------------------------------------------
+  # SECTION 1: PARTIES - Seller Information
+  # ---------------------------------------------------------------------------
+  seller_legal_name: "Seller name"
+  seller_phone: "Seller phone"
+  seller_email: "Seller email/fax"
+  # NOTE: DocuSeal also has:
+  #   - "Seller company" - for LLC/Trust owners
+  #   - "Seller address" - seller's mailing address
+  #   - "City, State, Zip" - seller's city/state/zip
+  #   - "Seller alternate email/fax" - secondary contact
+
+  # ---------------------------------------------------------------------------
+  # SECTION 1: PARTIES - Property Address
+  # ---------------------------------------------------------------------------
+  property_address: "Property address/zip"
+  property_city: "City"
+  property_county: "County"
+  # NOTE: DocuSeal has "Property name" - for named estates/farms
+
+  # ---------------------------------------------------------------------------
+  # SECTION 2: PROPERTY DETAILS - Legal Description
+  # ---------------------------------------------------------------------------
+  legal_lot: "Lot number"
+  legal_block: "Block number"
+  legal_subdivision: "Subdivision"
+  # NOTE: DocuSeal has "Additional description" - for metes & bounds
+
+  # ---------------------------------------------------------------------------
+  # SECTION 2: PROPERTY DETAILS - Exclusions & HOA
+  # ---------------------------------------------------------------------------
+  exclusions: "Items to remove"
+  has_hoa: "Hoa membership"  # Radio: "yes" or "no"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 3: LISTING PRICE
+  # ---------------------------------------------------------------------------
+  list_price: "Listing price"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 4: LISTING TERM
+  # ---------------------------------------------------------------------------
+  listing_start_date: "Listing start date"
+  listing_end_date: "Listing end date"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 5: BROKER COMPENSATION
+  # ---------------------------------------------------------------------------
+  offer_buyer_agent_comp: "Broker comp method"  # Radio: "percent" or "flat"
+  total_commission_percent: "Commission percent"
+  total_commission_flat: "Flat fee amount"
+  buyer_agent_percent: "Compensation percent"
+  buyer_agent_flat: "Compensation flat fee"
+  
+  # Section 5B uses same DocuSeal fields as Section 5A
+  listing_only_percent: "Commission percent"
+  listing_only_flat: "Flat fee amount"
+  
+  authorize_buyer_expense_disclosure: "Disclosure auth"  # Radio: "yes" or "no"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 6: PROTECTION PERIOD
+  # NOTE: These fields may be unnamed in DocuSeal - needs verification
+  # ---------------------------------------------------------------------------
+  # protection_period_days: ???
+  # compensation_county: ???
+
+  # ---------------------------------------------------------------------------
+  # SECTION 7: MLS & MARKETING
+  # NOTE: These are BROKER fields - moved to broker_form_fields section below
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # SECTION 8: ACCESS & SHOWINGS  
+  # NOTE: These are BROKER fields - moved to broker_form_fields section below
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # SECTION 9: INTERMEDIARY
+  # NOTE: These are BROKER fields - moved to broker_form_fields section below
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
+  # SECTION 10: INTERNET DISPLAY
+  # NOTE: DocuSeal uses different option values - needs transformation
+  # ---------------------------------------------------------------------------
+  # internet_display: "Online display"  # Options: "No listing", "Hide address"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 11: FINANCING OPTIONS
+  # NOTE: DocuSeal uses single radio, our form uses checkboxes - needs special handling
+  # ---------------------------------------------------------------------------
+  # financing_*: "Financing options"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 12: SELLER REPRESENTATIONS
+  # ---------------------------------------------------------------------------
+  liens_explanation: "Known liens"
+  delinquencies_explanation: "Other encumbrances"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 13: SPECIAL PROVISIONS
+  # ---------------------------------------------------------------------------
+  special_provisions: "Special provisions text"
+
+  # ---------------------------------------------------------------------------
+  # SECTION 14: FIRPTA
+  # ---------------------------------------------------------------------------
+  is_foreign_seller: "Foreign status"  # Radio: "yes" or "no"
+
+
+# =============================================================================
+# VALUE TRANSFORMS
+# These fields require value transformation before sending to DocuSeal
+# =============================================================================
+transforms:
+
+  # Radio button mappings (our value -> DocuSeal value)
+  radio_mappings:
+    has_hoa:
+      "yes": "yes"
+      "no": "no"
+    authorize_buyer_expense_disclosure:
+      "yes": "yes"
+      "no": "no"
+    authorize_lockbox:
+      "yes": "yes"
+      "no": "no"
+    authorize_intermediary:
+      "yes": "yes"
+      "no": "no"
+    is_foreign_seller:
+      "yes": "yes"
+      "no": "no"
+      "not_sure": "yes"  # Treat "not sure" as yes for FIRPTA purposes
+    enter_mls:
+      "yes": "yes"
+      "no": "no"
+      "delayed": "delay"  # Map our 'delayed' to DocuSeal's 'delay'
+    offer_buyer_agent_comp:
+      "yes": "percent"
+      "no": "flat"
+
+  # Currency fields - will have commas/$ stripped
+  currency_fields:
+    - list_price
+    - total_commission_flat
+    - buyer_agent_flat
+    - listing_only_flat
+
+  # Date fields - will be converted to MM/DD/YYYY
+  date_fields:
+    - listing_start_date
+    - listing_end_date
+
+
+# =============================================================================
+# BROKER FORM FIELDS
+# These are form fields that belong to the BROKER submitter (not Seller)
+# Format: crm_field: docuseal_field
+# =============================================================================
+broker_form_fields:
+  # Section 7: MLS & Marketing
+  enter_mls: "Mls filing"  # Radio: "yes", "early", "delay", "no"
+  mls_delay_days: "Delay days"
+  mls_delay_reason: "Purpose of delay"
+  
+  # Section 8: Access & Showings
+  authorize_lockbox: "Keybox auth"  # Radio: "yes" or "no"
+  
+  # Section 9: Intermediary
+  authorize_intermediary: "Intermediary"  # Radio: "yes" or "no"
+
+
+# =============================================================================
+# BROKER/AGENT FIELDS
+# These are auto-populated from the logged-in agent, not the form
+# =============================================================================
+agent_fields:
+  - docuseal_field: "Broker printed name"
+    source: "agent.name"
+  - docuseal_field: "Broker associate printed name"
+    source: "agent.name"
+  - docuseal_field: "Broker license number"
+    source: "agent.license_number"
+  - docuseal_field: "Broker associate license"
+    source: "agent.license_number"
+  - docuseal_field: "Broker email/fax"
+    source: "agent.email"
+  # Optional: Broker address if we have it
+  # - docuseal_field: "Broker address line"
+  #   source: "brokerage.address"
+
+
+# =============================================================================
+# COMPUTED FIELDS
+# Fields that combine or transform multiple form values
+# =============================================================================
+computed_fields:
+  # Combine address + zip for the full property address field
+  - docuseal_field: "Property address/zip"
+    template: "{property_address}, {property_zip}"
+
