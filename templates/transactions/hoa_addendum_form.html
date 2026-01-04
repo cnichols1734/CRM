@@ -1,0 +1,914 @@
+{% extends "base.html" %}
+
+{% block title %}HOA Addendum - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse-soft {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.3s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Section styling */
+    .form-section {
+        border-left: 4px solid transparent;
+        transition: all 0.3s ease-out;
+    }
+
+    .form-section:hover {
+        border-left-color: #8b5cf6;
+    }
+
+    .form-section.active {
+        border-left-color: #8b5cf6;
+        background: linear-gradient(to right, rgba(139, 92, 246, 0.02), transparent);
+    }
+
+    /* Section header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .section-number {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .section-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+    }
+
+    .premium-input:focus {
+        border-color: #8b5cf6;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        outline: none;
+    }
+
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .premium-input[readonly] {
+        background-color: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    .premium-input[readonly]:focus {
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+
+    /* Premium select */
+    .premium-select {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        padding-right: 2.5rem;
+    }
+
+    .premium-select:focus {
+        border-color: #8b5cf6;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        outline: none;
+    }
+
+    /* Premium textarea */
+    .premium-textarea {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .premium-textarea:focus {
+        border-color: #8b5cf6;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        outline: none;
+    }
+
+    /* Form label */
+    .form-label {
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label-required::after {
+        content: ' *';
+        color: #ef4444;
+    }
+
+    /* Help text - always visible */
+    .help-text {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+        line-height: 1.5;
+    }
+
+    /* Important callout - always visible helper */
+    .callout-info {
+        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+        border: 1px solid #a78bfa;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .callout-info i {
+        color: #7c3aed;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .callout-info p {
+        font-size: 0.875rem;
+        color: #5b21b6;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .callout-warning {
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        border: 1px solid #fcd34d;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .callout-warning i {
+        color: #f59e0b;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .callout-warning p {
+        font-size: 0.875rem;
+        color: #92400e;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* Radio/Checkbox card styling */
+    .option-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+        background: #f8fafc;
+    }
+
+    .option-card:hover {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+    }
+
+    .option-card.selected {
+        border-color: #8b5cf6;
+        background: linear-gradient(135deg, #f5f3ff, #ede9fe);
+    }
+
+    .option-card input[type="radio"],
+    .option-card input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.875rem;
+        accent-color: #8b5cf6;
+        flex-shrink: 0;
+    }
+
+    .option-label {
+        font-weight: 500;
+        color: #1e293b;
+    }
+
+    .option-description {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Conditional section */
+    .conditional-section {
+        display: none;
+        padding-left: 1.5rem;
+        margin-top: 1rem;
+        border-left: 3px solid #e2e8f0;
+        animation: fadeInUp 0.3s ease-out;
+    }
+
+    .conditional-section.show {
+        display: block;
+    }
+
+    /* Input with prefix/suffix */
+    .input-group {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+    }
+
+    .input-prefix,
+    .input-suffix {
+        display: flex;
+        align-items: center;
+        padding: 0 1rem;
+        background: #e2e8f0;
+        color: #64748b;
+        font-weight: 500;
+        font-size: 0.9375rem;
+        border: 2px solid #e2e8f0;
+    }
+
+    .input-prefix {
+        border-right: none;
+        border-radius: 0.625rem 0 0 0.625rem;
+    }
+
+    .input-suffix {
+        border-left: none;
+        border-radius: 0 0.625rem 0.625rem 0;
+    }
+
+    .input-group .premium-input {
+        border-radius: 0;
+    }
+
+    .input-group .premium-input:first-child {
+        border-radius: 0.625rem 0 0 0.625rem;
+    }
+
+    .input-group .premium-input:last-child {
+        border-radius: 0 0.625rem 0.625rem 0;
+    }
+
+    .input-group .premium-input:only-child {
+        border-radius: 0.625rem;
+    }
+
+    /* Progress indicator */
+    .progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e2e8f0;
+        z-index: 1000;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+        transition: width 0.3s ease-out;
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Status badge */
+    .status-badge {
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .status-pending { background: #f1f5f9; color: #64748b; }
+    .status-filled { background: #dbeafe; color: #1e40af; }
+    .status-sent { background: #fef3c7; color: #92400e; }
+    .status-signed { background: #dcfce7; color: #166534; }
+
+    /* Floating action bar */
+    .floating-action-bar {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 0.875rem 1.25rem;
+        border-radius: 1rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    /* Add padding at bottom of form so last section isn't hidden */
+    .form-bottom-spacer {
+        height: 100px;
+    }
+</style>
+
+<!-- Progress Bar -->
+<div class="progress-bar">
+    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-violet-50/30">
+    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-violet-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
+        </a>
+        
+        <!-- Header Section -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 animate-fade-in-up">
+            <div class="flex items-start space-x-4">
+                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-violet-600 items-center justify-center shadow-lg flex-shrink-0">
+                    <i class="fas fa-building text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800">HOA Addendum</h1>
+                    <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
+                    <p class="text-xs text-slate-400 mt-1">TXR Form • Property Subject to Mandatory HOA</p>
+                </div>
+            </div>
+            <span class="status-badge status-{{ document.status }}">
+                {{ document.status|title }}
+            </span>
+        </div>
+
+        <!-- Main Form -->
+        <form id="hoaAddendumForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+            
+            <!-- ============================================================== -->
+            <!-- SECTION 1: HOA BASIC INFO -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-violet-500 to-violet-600 text-white">1</div>
+                    <div>
+                        <h2 class="section-title">HOA Basic Information</h2>
+                        <p class="section-subtitle">Property Owners Association details</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- HOA Name -->
+                    <div>
+                        <label class="form-label form-label-required">What is the name of the Property Owners Association (HOA)?</label>
+                        <input type="text" name="field_hoa_name" 
+                               value="{{ prefill_data.get('hoa_name', '') }}"
+                               class="premium-input" placeholder="e.g., Cinco Ranch HOA, Memorial Villages POA">
+                        <p class="help-text">Enter the full legal name of the HOA as it appears on official documents.</p>
+                    </div>
+
+                    <!-- HOA Phone -->
+                    <div>
+                        <label class="form-label">What is the HOA's main phone number?</label>
+                        <input type="tel" name="field_hoa_phone" 
+                               value="{{ prefill_data.get('hoa_phone', '') }}"
+                               class="premium-input" placeholder="(555) 123-4567">
+                        <p class="help-text">This helps the buyer contact the HOA for questions about dues, rules, etc.</p>
+                    </div>
+
+                    <!-- Property Address (read-only) -->
+                    <div class="pt-4 border-t border-slate-100">
+                        <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                            <i class="fas fa-home text-slate-400"></i> Property Address
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="form-label">Street Address</label>
+                                <input type="text" name="field_property_address" 
+                                       value="{{ prefill_data.get('property_address', '') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                            <div>
+                                <label class="form-label">City</label>
+                                <input type="text" name="field_property_city" 
+                                       value="{{ prefill_data.get('property_city', '') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="form-label">State</label>
+                                    <input type="text" name="field_property_state" 
+                                           value="{{ prefill_data.get('property_state', 'TX') }}"
+                                           class="premium-input" readonly>
+                                </div>
+                                <div>
+                                    <label class="form-label">ZIP</label>
+                                    <input type="text" name="field_property_zip" 
+                                           value="{{ prefill_data.get('property_zip', '') }}"
+                                           class="premium-input" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 2: HOA DOCUMENTS (SUBDIVISION INFORMATION) -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="2">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">2</div>
+                    <div>
+                        <h2 class="section-title">HOA Documents</h2>
+                        <p class="section-subtitle">Subdivision information and document delivery</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Who handles HOA documents -->
+                    <div>
+                        <label class="form-label form-label-required">Who will be responsible for getting, paying for, and delivering the HOA documents to the buyer?</label>
+                        <p class="text-sm text-slate-600 mb-3">HOA documents include restrictions, bylaws, rules, and the resale certificate.</p>
+                        
+                        <div class="grid grid-cols-1 gap-3">
+                            <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'seller')">
+                                <input type="radio" name="field_doc_responsibility" value="seller" 
+                                       {{ 'checked' if prefill_data.get('doc_responsibility') == 'seller' else '' }}>
+                                <div>
+                                    <span class="option-label">Seller</span>
+                                    <p class="option-description">Seller will obtain, pay for, and deliver HOA documents</p>
+                                </div>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'buyer')">
+                                <input type="radio" name="field_doc_responsibility" value="buyer" 
+                                       {{ 'checked' if prefill_data.get('doc_responsibility') == 'buyer' else '' }}>
+                                <div>
+                                    <span class="option-label">Buyer</span>
+                                    <p class="option-description">Buyer will obtain, pay for, and deliver HOA documents</p>
+                                </div>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'already_received')">
+                                <input type="radio" name="field_doc_responsibility" value="already_received" 
+                                       {{ 'checked' if prefill_data.get('doc_responsibility') == 'already_received' else '' }}>
+                                <div>
+                                    <span class="option-label">Buyer has already received and approved the HOA documents</span>
+                                    <p class="option-description">Documents were provided and buyer has accepted them</p>
+                                </div>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'not_required')">
+                                <input type="radio" name="field_doc_responsibility" value="not_required" 
+                                       {{ 'checked' if prefill_data.get('doc_responsibility') == 'not_required' else '' }}>
+                                <div>
+                                    <span class="option-label">Buyer does not require HOA documents</span>
+                                    <p class="option-description">Buyer waives the right to receive HOA documents</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Conditional: Seller delivers - days -->
+                    <div class="conditional-section" id="sellerDaysSection">
+                        <label class="form-label form-label-required">How many days after the contract effective date does the seller have to provide the HOA documents?</label>
+                        <div class="input-group mt-2" style="max-width: 200px;">
+                            <input type="number" name="field_seller_delivery_days" 
+                                   value="{{ prefill_data.get('seller_delivery_days', '7') }}"
+                                   class="premium-input" placeholder="7" min="1" max="60">
+                            <span class="input-suffix">days</span>
+                        </div>
+                        <p class="help-text">Common values: 5, 7, or 10 days. This sets the deadline for seller to deliver HOA documents.</p>
+                    </div>
+
+                    <!-- Conditional: Buyer delivers - days -->
+                    <div class="conditional-section" id="buyerDaysSection">
+                        <label class="form-label form-label-required">How many days after the contract effective date does the buyer have to provide the HOA documents?</label>
+                        <div class="input-group mt-2" style="max-width: 200px;">
+                            <input type="number" name="field_buyer_delivery_days" 
+                                   value="{{ prefill_data.get('buyer_delivery_days', '7') }}"
+                                   class="premium-input" placeholder="7" min="1" max="60">
+                            <span class="input-suffix">days</span>
+                        </div>
+                        <p class="help-text">Common values: 5, 7, or 10 days.</p>
+                    </div>
+
+                    <!-- Conditional: Already received - updated resale cert -->
+                    <div class="conditional-section" id="updatedResaleSection">
+                        <label class="form-label form-label-required">Does the buyer require an updated resale certificate?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'require_updated_resale', 'yes')">
+                                <input type="radio" name="field_require_updated_resale" value="yes" 
+                                       {{ 'checked' if prefill_data.get('require_updated_resale') == 'yes' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'require_updated_resale', 'no')">
+                                <input type="radio" name="field_require_updated_resale" value="no" 
+                                       {{ 'checked' if prefill_data.get('require_updated_resale') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                        <p class="help-text">An updated resale certificate shows current status of dues and any pending assessments.</p>
+                    </div>
+
+                    <!-- Callout for not_required -->
+                    <div class="conditional-section" id="notRequiredWarning">
+                        <div class="callout-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p><strong>Buyer waives right to HOA documents.</strong> The buyer should understand they will not receive restrictions, bylaws, rules, or the resale certificate. They should verify HOA rules and dues independently.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 3: HOA TRANSFER & RESALE FEES -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="3">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">3</div>
+                    <div>
+                        <h2 class="section-title">HOA Transfer & Resale Fees</h2>
+                        <p class="section-subtitle">Fee allocation between buyer and seller</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Fee Cap -->
+                    <div>
+                        <label class="form-label form-label-required">What is the maximum total amount the buyer is willing to pay for HOA transfer or resale-related fees?</label>
+                        <div class="input-group mt-2" style="max-width: 250px;">
+                            <span class="input-prefix">$</span>
+                            <input type="text" name="field_buyer_fee_cap" 
+                                   value="{{ prefill_data.get('buyer_fee_cap', '') }}"
+                                   class="premium-input" placeholder="500" 
+                                   oninput="formatCurrency(this)">
+                        </div>
+                        <div class="callout-info mt-3">
+                            <i class="fas fa-info-circle"></i>
+                            <p>Any HOA fees above this amount will be paid by the <strong>seller</strong>. Common caps range from $300 to $1,000 depending on the HOA.</p>
+                        </div>
+                    </div>
+
+                    <!-- Additional Document Fees -->
+                    <div class="pt-6 border-t border-slate-100">
+                        <label class="form-label form-label-required">If the title company requires additional HOA documents that have not already been provided, who will pay for those fees?</label>
+                        <p class="text-sm text-slate-600 mb-3">Additional documents may include: status of dues, special assessments, or violation letters.</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label class="option-card" onclick="selectOption(this, 'additional_doc_fee_paid_by', 'buyer')">
+                                <input type="radio" name="field_additional_doc_fee_paid_by" value="buyer" 
+                                       {{ 'checked' if prefill_data.get('additional_doc_fee_paid_by') == 'buyer' else '' }}>
+                                <span class="option-label">Buyer</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'additional_doc_fee_paid_by', 'seller')">
+                                <input type="radio" name="field_additional_doc_fee_paid_by" value="seller" 
+                                       {{ 'checked' if prefill_data.get('additional_doc_fee_paid_by') == 'seller' else '' }}>
+                                <span class="option-label">Seller</span>
+                            </label>
+                        </div>
+                        <p class="help-text">This covers any HOA documents the title company needs beyond the standard package.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 4: ADDITIONAL INFORMATION (OPTIONAL) -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="4">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-slate-500 to-slate-600 text-white">4</div>
+                    <div>
+                        <h2 class="section-title">Additional Information</h2>
+                        <p class="section-subtitle">Special provisions and notes</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Special Provisions -->
+                    <div>
+                        <label class="form-label">Any special provisions or additional terms related to the HOA?</label>
+                        <textarea name="field_special_provisions" class="premium-textarea" rows="3" 
+                                  placeholder="Enter any additional terms, conditions, or agreements specific to the HOA...">{{ prefill_data.get('special_provisions', '') }}</textarea>
+                        <p class="help-text">Examples: specific move-in deposits, parking permits, amenity access fees, etc.</p>
+                    </div>
+
+                    <!-- Notes for internal use -->
+                    <div>
+                        <label class="form-label">Internal notes</label>
+                        <textarea name="field_internal_notes" class="premium-textarea" rows="2" 
+                                  placeholder="Notes for your reference (won't appear on the document)...">{{ prefill_data.get('internal_notes', '') }}</textarea>
+                        <p class="help-text">These notes are for your records only and will not appear on the signed document.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spacer for floating action bar -->
+            <div class="form-bottom-spacer"></div>
+        </form>
+        
+        <!-- Floating Action Bar -->
+        <div class="floating-action-bar">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+                Cancel
+            </a>
+            <div class="w-px h-8 bg-slate-200"></div>
+            <button type="submit" form="hoaAddendumForm" name="submit_action" value="save" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+                <i class="fas fa-save text-slate-500"></i>
+                Save Draft
+            </button>
+            <button type="button" onclick="saveAndPreview()" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+                <i class="fas fa-check-circle"></i>
+                Save & Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+        <i id="toastIcon" class="fas fa-info-circle text-violet-500"></i>
+        <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
+    </div>
+</div>
+
+<script>
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all conditional sections based on current values
+    initializeConditionalSections();
+    
+    // Initialize option cards styling
+    initializeOptionCards();
+    
+    // Update progress bar
+    updateProgress();
+    
+    // Add input listeners for progress tracking
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('change', updateProgress);
+        el.addEventListener('input', updateProgress);
+    });
+});
+
+function initializeConditionalSections() {
+    // Document responsibility sections
+    const docResponsibility = document.querySelector('input[name="field_doc_responsibility"]:checked');
+    if (docResponsibility) {
+        handleDocResponsibility(docResponsibility.value);
+    }
+}
+
+function handleDocResponsibility(value) {
+    // Hide all conditional sections first
+    document.getElementById('sellerDaysSection').classList.remove('show');
+    document.getElementById('buyerDaysSection').classList.remove('show');
+    document.getElementById('updatedResaleSection').classList.remove('show');
+    document.getElementById('notRequiredWarning').classList.remove('show');
+    
+    // Show the appropriate section
+    switch(value) {
+        case 'seller':
+            document.getElementById('sellerDaysSection').classList.add('show');
+            break;
+        case 'buyer':
+            document.getElementById('buyerDaysSection').classList.add('show');
+            break;
+        case 'already_received':
+            document.getElementById('updatedResaleSection').classList.add('show');
+            break;
+        case 'not_required':
+            document.getElementById('notRequiredWarning').classList.add('show');
+            break;
+    }
+}
+
+function initializeOptionCards() {
+    document.querySelectorAll('.option-card').forEach(card => {
+        const input = card.querySelector('input[type="radio"], input[type="checkbox"]');
+        if (input && input.checked) {
+            card.classList.add('selected');
+        }
+    });
+}
+
+// =============================================================================
+// OPTION SELECTION
+// =============================================================================
+
+function selectOption(element, fieldName, value) {
+    // Update visual state for radio buttons in the same group
+    const container = element.closest('.grid, .flex');
+    if (container) {
+        container.querySelectorAll('.option-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+    }
+    element.classList.add('selected');
+    
+    // Handle conditional logic
+    handleConditionalLogic(fieldName, value);
+}
+
+function handleConditionalLogic(fieldName, value) {
+    switch(fieldName) {
+        case 'doc_responsibility':
+            handleDocResponsibility(value);
+            break;
+    }
+    
+    updateProgress();
+}
+
+// =============================================================================
+// PROGRESS TRACKING
+// =============================================================================
+
+function updateProgress() {
+    const form = document.getElementById('hoaAddendumForm');
+    const allInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
+    let filledCount = 0;
+    let totalCount = 0;
+    
+    allInputs.forEach(input => {
+        if (input.type === 'radio') {
+            const name = input.name;
+            if (!form.querySelector(`[name="${name}"][data-counted]`)) {
+                totalCount++;
+                if (form.querySelector(`[name="${name}"]:checked`)) {
+                    filledCount++;
+                }
+                input.setAttribute('data-counted', 'true');
+            }
+        } else if (input.type === 'checkbox') {
+            // Don't count checkboxes toward progress
+        } else if (input.value && input.value.trim()) {
+            filledCount++;
+            totalCount++;
+        } else if (input.required || input.closest('.form-label-required')) {
+            totalCount++;
+        }
+    });
+    
+    // Reset counted flags
+    form.querySelectorAll('[data-counted]').forEach(el => el.removeAttribute('data-counted'));
+    
+    const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
+    document.getElementById('progressFill').style.width = progress + '%';
+}
+
+// =============================================================================
+// CURRENCY FORMATTING
+// =============================================================================
+
+function formatCurrency(input) {
+    let value = input.value.replace(/[^0-9]/g, '');
+    if (value) {
+        value = parseInt(value, 10).toLocaleString('en-US');
+        input.value = value;
+    }
+}
+
+// =============================================================================
+// FORM SUBMISSION
+// =============================================================================
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const icon = document.getElementById('toastIcon');
+    document.getElementById('toastMessage').textContent = message;
+    
+    icon.className = 'fas';
+    if (type === 'success') {
+        icon.classList.add('fa-check-circle', 'text-green-500');
+    } else if (type === 'error') {
+        icon.classList.add('fa-exclamation-circle', 'text-red-500');
+    } else if (type === 'warning') {
+        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+    } else {
+        icon.classList.add('fa-info-circle', 'text-violet-500');
+    }
+    
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+function saveAndPreview() {
+    const form = document.getElementById('hoaAddendumForm');
+    const formData = new FormData(form);
+    
+    showToast('Saving document...', 'info');
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            showToast('Opening preview...', 'success');
+            setTimeout(() => {
+                // Redirect to preview page
+                window.location.href = "{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}";
+            }, 500);
+        } else {
+            showToast('Error saving form. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error saving form. Please try again.', 'error');
+    });
+}
+</script>
+{% endblock %}
+

@@ -21,6 +21,11 @@ template_id: 2468023
 template_name: "Listing Agreement"
 template_slug: "listing-agreement"
 
+# What roles does this template use? (for code to know which submitter types)
+submitter_roles:
+  - Seller
+  - Broker
+
 # =============================================================================
 # FIELD MAPPINGS
 # Format: crm_field: docuseal_field

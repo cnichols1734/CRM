@@ -1,0 +1,264 @@
+{# 
+HOA Addendum Form Fields Partial
+This partial is used in both individual document forms and the combined fill-all-docs view.
+Variables expected: prefill_data (dict), doc (optional - for field prefixing in combined view)
+#}
+
+{% set field_prefix = 'doc_' ~ (doc.id if doc else 'hoa') ~ '_field_' %}
+
+<!-- ============================================================== -->
+<!-- SECTION 1: HOA BASIC INFO -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-violet-500 to-violet-600 text-white">1</div>
+        <div>
+            <h2 class="section-title">HOA Basic Information</h2>
+            <p class="section-subtitle">Property Owners Association details</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- HOA Name -->
+        <div>
+            <label class="form-label form-label-required">What is the name of the Property Owners Association (HOA)?</label>
+            <input type="text" name="{{ field_prefix }}hoa_name" 
+                   value="{{ prefill_data.get('hoa_name', '') }}"
+                   class="premium-input" placeholder="e.g., Cinco Ranch HOA, Memorial Villages POA">
+            <p class="help-text">Enter the full legal name of the HOA as it appears on official documents.</p>
+        </div>
+
+        <!-- HOA Phone -->
+        <div>
+            <label class="form-label">What is the HOA's main phone number?</label>
+            <input type="tel" name="{{ field_prefix }}hoa_phone" 
+                   value="{{ prefill_data.get('hoa_phone', '') }}"
+                   class="premium-input" placeholder="(555) 123-4567">
+            <p class="help-text">This helps the buyer contact the HOA for questions about dues, rules, etc.</p>
+        </div>
+
+        <!-- Property Address (read-only) -->
+        <div class="pt-4 border-t border-slate-100">
+            <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                <i class="fas fa-home text-slate-400"></i> Property Address
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="form-label">Street Address</label>
+                    <input type="text" name="{{ field_prefix }}property_address" 
+                           value="{{ prefill_data.get('property_address', '') }}"
+                           class="premium-input" readonly>
+                </div>
+                <div>
+                    <label class="form-label">City</label>
+                    <input type="text" name="{{ field_prefix }}property_city" 
+                           value="{{ prefill_data.get('property_city', '') }}"
+                           class="premium-input" readonly>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="form-label">State</label>
+                        <input type="text" name="{{ field_prefix }}property_state" 
+                               value="{{ prefill_data.get('property_state', 'TX') }}"
+                               class="premium-input" readonly>
+                    </div>
+                    <div>
+                        <label class="form-label">ZIP</label>
+                        <input type="text" name="{{ field_prefix }}property_zip" 
+                               value="{{ prefill_data.get('property_zip', '') }}"
+                               class="premium-input" readonly>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- SECTION 2: HOA DOCUMENTS (SUBDIVISION INFORMATION) -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section" data-section="2">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">2</div>
+        <div>
+            <h2 class="section-title">HOA Documents</h2>
+            <p class="section-subtitle">Subdivision information and document delivery</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- Who handles HOA documents -->
+        <div>
+            <label class="form-label form-label-required">Who will be responsible for getting, paying for, and delivering the HOA documents to the buyer?</label>
+            <p class="text-sm text-slate-600 mb-3">HOA documents include restrictions, bylaws, rules, and the resale certificate.</p>
+            
+            <div class="grid grid-cols-1 gap-3">
+                <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'seller')">
+                    <input type="radio" name="{{ field_prefix }}doc_responsibility" value="seller" 
+                           {{ 'checked' if prefill_data.get('doc_responsibility') == 'seller' else '' }}>
+                    <div>
+                        <span class="option-label">Seller</span>
+                        <p class="option-description">Seller will obtain, pay for, and deliver HOA documents</p>
+                    </div>
+                </label>
+                <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'buyer')">
+                    <input type="radio" name="{{ field_prefix }}doc_responsibility" value="buyer" 
+                           {{ 'checked' if prefill_data.get('doc_responsibility') == 'buyer' else '' }}>
+                    <div>
+                        <span class="option-label">Buyer</span>
+                        <p class="option-description">Buyer will obtain, pay for, and deliver HOA documents</p>
+                    </div>
+                </label>
+                <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'already_received')">
+                    <input type="radio" name="{{ field_prefix }}doc_responsibility" value="already_received" 
+                           {{ 'checked' if prefill_data.get('doc_responsibility') == 'already_received' else '' }}>
+                    <div>
+                        <span class="option-label">Buyer has already received and approved the HOA documents</span>
+                        <p class="option-description">Documents were provided and buyer has accepted them</p>
+                    </div>
+                </label>
+                <label class="option-card" onclick="selectOption(this, 'doc_responsibility', 'not_required')">
+                    <input type="radio" name="{{ field_prefix }}doc_responsibility" value="not_required" 
+                           {{ 'checked' if prefill_data.get('doc_responsibility') == 'not_required' else '' }}>
+                    <div>
+                        <span class="option-label">Buyer does not require HOA documents</span>
+                        <p class="option-description">Buyer waives the right to receive HOA documents</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Conditional: Seller delivers - days -->
+        <div class="conditional-section" id="sellerDaysSection">
+            <label class="form-label form-label-required">How many days after the contract effective date does the seller have to provide the HOA documents?</label>
+            <div class="input-group mt-2" style="max-width: 200px;">
+                <input type="number" name="{{ field_prefix }}seller_delivery_days" 
+                       value="{{ prefill_data.get('seller_delivery_days', '7') }}"
+                       class="premium-input" placeholder="7" min="1" max="60">
+                <span class="input-suffix">days</span>
+            </div>
+            <p class="help-text">Common values: 5, 7, or 10 days. This sets the deadline for seller to deliver HOA documents.</p>
+        </div>
+
+        <!-- Conditional: Buyer delivers - days -->
+        <div class="conditional-section" id="buyerDaysSection">
+            <label class="form-label form-label-required">How many days after the contract effective date does the buyer have to provide the HOA documents?</label>
+            <div class="input-group mt-2" style="max-width: 200px;">
+                <input type="number" name="{{ field_prefix }}buyer_delivery_days" 
+                       value="{{ prefill_data.get('buyer_delivery_days', '7') }}"
+                       class="premium-input" placeholder="7" min="1" max="60">
+                <span class="input-suffix">days</span>
+            </div>
+            <p class="help-text">Common values: 5, 7, or 10 days.</p>
+        </div>
+
+        <!-- Conditional: Already received - updated resale cert -->
+        <div class="conditional-section" id="updatedResaleSection">
+            <label class="form-label form-label-required">Does the buyer require an updated resale certificate?</label>
+            <div class="grid grid-cols-2 gap-3 mt-2">
+                <label class="option-card" onclick="selectOption(this, 'require_updated_resale', 'yes')">
+                    <input type="radio" name="{{ field_prefix }}require_updated_resale" value="yes" 
+                           {{ 'checked' if prefill_data.get('require_updated_resale') == 'yes' else '' }}>
+                    <span class="option-label">Yes</span>
+                </label>
+                <label class="option-card" onclick="selectOption(this, 'require_updated_resale', 'no')">
+                    <input type="radio" name="{{ field_prefix }}require_updated_resale" value="no" 
+                           {{ 'checked' if prefill_data.get('require_updated_resale') == 'no' else '' }}>
+                    <span class="option-label">No</span>
+                </label>
+            </div>
+            <p class="help-text">An updated resale certificate shows current status of dues and any pending assessments.</p>
+        </div>
+
+        <!-- Callout for not_required -->
+        <div class="conditional-section" id="notRequiredWarning">
+            <div class="callout-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p><strong>Buyer waives right to HOA documents.</strong> The buyer should understand they will not receive restrictions, bylaws, rules, or the resale certificate. They should verify HOA rules and dues independently.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- SECTION 3: HOA TRANSFER & RESALE FEES -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section" data-section="3">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">3</div>
+        <div>
+            <h2 class="section-title">HOA Transfer & Resale Fees</h2>
+            <p class="section-subtitle">Fee allocation between buyer and seller</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- Fee Cap -->
+        <div>
+            <label class="form-label form-label-required">What is the maximum total amount the buyer is willing to pay for HOA transfer or resale-related fees?</label>
+            <div class="input-group mt-2" style="max-width: 250px;">
+                <span class="input-prefix">$</span>
+                <input type="text" name="{{ field_prefix }}buyer_fee_cap" 
+                       value="{{ prefill_data.get('buyer_fee_cap', '') }}"
+                       class="premium-input" placeholder="500" 
+                       oninput="formatCurrency(this)">
+            </div>
+            <div class="callout-info mt-3">
+                <i class="fas fa-info-circle"></i>
+                <p>Any HOA fees above this amount will be paid by the <strong>seller</strong>. Common caps range from $300 to $1,000 depending on the HOA.</p>
+            </div>
+        </div>
+
+        <!-- Additional Document Fees -->
+        <div class="pt-6 border-t border-slate-100">
+            <label class="form-label form-label-required">If the title company requires additional HOA documents that have not already been provided, who will pay for those fees?</label>
+            <p class="text-sm text-slate-600 mb-3">Additional documents may include: status of dues, special assessments, or violation letters.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="option-card" onclick="selectOption(this, 'additional_doc_fee_paid_by', 'buyer')">
+                    <input type="radio" name="{{ field_prefix }}additional_doc_fee_paid_by" value="buyer" 
+                           {{ 'checked' if prefill_data.get('additional_doc_fee_paid_by') == 'buyer' else '' }}>
+                    <span class="option-label">Buyer</span>
+                </label>
+                <label class="option-card" onclick="selectOption(this, 'additional_doc_fee_paid_by', 'seller')">
+                    <input type="radio" name="{{ field_prefix }}additional_doc_fee_paid_by" value="seller" 
+                           {{ 'checked' if prefill_data.get('additional_doc_fee_paid_by') == 'seller' else '' }}>
+                    <span class="option-label">Seller</span>
+                </label>
+            </div>
+            <p class="help-text">This covers any HOA documents the title company needs beyond the standard package.</p>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- SECTION 4: ADDITIONAL INFORMATION (OPTIONAL) -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section" data-section="4">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-slate-500 to-slate-600 text-white">4</div>
+        <div>
+            <h2 class="section-title">Additional Information</h2>
+            <p class="section-subtitle">Special provisions and notes</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- Special Provisions -->
+        <div>
+            <label class="form-label">Any special provisions or additional terms related to the HOA?</label>
+            <textarea name="{{ field_prefix }}special_provisions" class="premium-textarea" rows="3" 
+                      placeholder="Enter any additional terms, conditions, or agreements specific to the HOA...">{{ prefill_data.get('special_provisions', '') }}</textarea>
+            <p class="help-text">Examples: specific move-in deposits, parking permits, amenity access fees, etc.</p>
+        </div>
+
+        <!-- Notes for internal use -->
+        <div>
+            <label class="form-label">Internal notes</label>
+            <textarea name="{{ field_prefix }}internal_notes" class="premium-textarea" rows="2" 
+                      placeholder="Notes for your reference (won't appear on the document)...">{{ prefill_data.get('internal_notes', '') }}</textarea>
+            <p class="help-text">These notes are for your records only and will not appear on the signed document.</p>
+        </div>
+    </div>
+</div>
+

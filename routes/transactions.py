@@ -4,6 +4,7 @@ Transaction Management Routes
 All routes protected by admin role + TRANSACTIONS_ENABLED feature flag
 """
 
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
 from functools import wraps
@@ -12,6 +13,9 @@ from models import (
     TransactionDocument, DocumentSignature, Contact, User
 )
 from feature_flags import can_access_transactions
+from services.document_registry import (
+    DOCUMENT_REGISTRY, get_specialized_slugs, get_configs_for_slugs, get_document_config
+)
 
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
@@ -796,6 +800,15 @@ def document_form(id, doc_id):
             prefill_data=prefill_data
         )
     
+    if doc.template_slug == 'hoa-addendum':
+        return render_template(
+            'transactions/hoa_addendum_form.html',
+            transaction=transaction,
+            document=doc,
+            participants=participants,
+            prefill_data=prefill_data
+        )
+    
     # Default generic form
     return render_template(
         'transactions/document_form.html',
@@ -850,6 +863,474 @@ def save_document_form(id, doc_id):
         else:
             flash(f'Error saving form: {str(e)}', 'error')
             return redirect(url_for('transactions.document_form', id=id, doc_id=doc_id))
+
+
+# =============================================================================
+# FILL ALL DOCUMENTS
+# =============================================================================
+
+# Document slugs with specialized form UIs are defined in services/document_registry.py
+# Use get_specialized_slugs() to get the list dynamically
+
+
+@transactions_bp.route('/<int:id>/documents/fill-all')
+@login_required
+@transactions_required
+def fill_all_documents(id):
+    """
+    Show a combined form experience for filling multiple documents at once.
+    Only includes documents that have specialized form UIs (defined in document_registry).
+    """
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get document slugs that have specialized forms from registry
+    specialized_slugs = get_specialized_slugs()
+    
+    # Get all documents for this transaction that have specialized forms
+    documents = transaction.documents.filter(
+        TransactionDocument.template_slug.in_(specialized_slugs)
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents:
+        flash('No documents with specialized forms available. Use individual document fill for other documents.', 'info')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    # Get participants for prefill
+    participants = transaction.participants.all()
+    
+    # Build prefill data (shared across all documents)
+    prefill_data = build_prefill_data(transaction, participants)
+    
+    # Merge in any existing field data from all documents
+    for doc in documents:
+        if doc.field_data:
+            # Prefix document-specific fields with doc slug to avoid collisions
+            for key, value in doc.field_data.items():
+                # Store both prefixed (for doc-specific) and unprefixed (for shared fields)
+                prefill_data[f"{doc.template_slug}_{key}"] = value
+                # Also store unprefixed for shared fields
+                if key not in prefill_data:
+                    prefill_data[key] = value
+    
+    # Get document configs for template (for dynamic styling/includes)
+    doc_slugs = [doc.template_slug for doc in documents]
+    doc_configs = get_configs_for_slugs(doc_slugs)
+    
+    return render_template(
+        'transactions/fill_all_documents.html',
+        transaction=transaction,
+        documents=documents,
+        participants=participants,
+        prefill_data=prefill_data,
+        doc_configs=doc_configs  # Pass registry configs for dynamic template rendering
+    )
+
+
+@transactions_bp.route('/<int:id>/documents/fill-all', methods=['POST'])
+@login_required
+@transactions_required
+def save_all_documents(id):
+    """
+    Save form data for multiple documents at once.
+    Form fields are prefixed with doc slug to separate document-specific data.
+    """
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get document slugs that have specialized forms from registry
+    specialized_slugs = get_specialized_slugs()
+    
+    # Get documents with specialized forms
+    documents = transaction.documents.filter(
+        TransactionDocument.template_slug.in_(specialized_slugs)
+    ).all()
+    
+    try:
+        for doc in documents:
+            # Extract fields for this document
+            field_data = {}
+            doc_prefix = f"doc_{doc.id}_field_"
+            
+            for key in request.form:
+                if key.startswith(doc_prefix):
+                    # Remove the doc-specific prefix and 'field_' prefix
+                    field_name = key[len(doc_prefix):]
+                    field_data[field_name] = request.form.get(key)
+            
+            # Only update if we have data for this doc
+            if field_data:
+                doc.field_data = field_data
+                doc.status = 'filled'
+        
+        db.session.commit()
+        
+        # Check if this is "Save All & Continue" (redirect to preview) or just "Save All Drafts"
+        action = request.form.get('submit_action', 'save')
+        
+        if action == 'continue':
+            # Redirect directly to preview page with actual PDFs and send button
+            return redirect(url_for('transactions.preview_all_documents', id=id))
+        else:
+            # Just saving drafts - go back to fill form
+            flash(f'Successfully saved {len(documents)} document(s) as drafts.', 'success')
+            return redirect(url_for('transactions.fill_all_documents', id=id))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error saving documents: {str(e)}', 'error')
+        return redirect(url_for('transactions.fill_all_documents', id=id))
+
+
+@transactions_bp.route('/<int:id>/documents/preview-all')
+@login_required
+@transactions_required
+def preview_all_documents(id):
+    """
+    Preview page showing actual filled PDFs for all documents before sending.
+    Creates DocuSeal preview submissions for each document and displays them
+    via embedded viewers. Also shows signers and send button.
+    """
+    from services.docuseal_service import (
+        create_submission, build_docuseal_fields, get_template_id,
+        get_template_submitter_roles, DOCUSEAL_MOCK_MODE
+    )
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get documents with specialized forms that have been filled
+    specialized_slugs = get_specialized_slugs()
+    documents = transaction.documents.filter(
+        TransactionDocument.template_slug.in_(specialized_slugs),
+        TransactionDocument.status.in_(['filled', 'draft', 'generated'])
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents:
+        flash('No documents ready for preview. Please fill out the documents first.', 'warning')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    # Get participants for signer selection
+    participants = transaction.participants.all()
+    
+    # Build signer list from participants
+    signers = []
+    
+    # Primary seller
+    seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+    if seller and seller.display_email:
+        signers.append({
+            'id': seller.id,
+            'role': 'Seller',
+            'name': seller.display_name,
+            'email': seller.display_email,
+            'participant_role': 'seller'
+        })
+    
+    # Co-seller if exists
+    co_seller = next((p for p in participants if p.role == 'co_seller'), None)
+    if co_seller and co_seller.display_email:
+        signers.append({
+            'id': co_seller.id,
+            'role': 'Co-Seller',
+            'name': co_seller.display_name,
+            'email': co_seller.display_email,
+            'participant_role': 'co_seller'
+        })
+    
+    # Listing agent (maps to "Broker" in DocuSeal)
+    listing_agent = next((p for p in participants if p.role == 'listing_agent'), None)
+    if listing_agent and listing_agent.display_email:
+        signers.append({
+            'id': listing_agent.id,
+            'role': 'Broker',
+            'name': listing_agent.display_name,
+            'email': listing_agent.display_email,
+            'participant_role': 'listing_agent'
+        })
+    
+    # Build preview data for each document - create DocuSeal preview submissions
+    preview_docs = []
+    
+    for doc in documents:
+        config = get_document_config(doc.template_slug)
+        
+        doc_preview = {
+            'id': doc.id,
+            'template_slug': doc.template_slug,
+            'template_name': doc.template_name,
+            'status': doc.status,
+            'field_data': doc.field_data or {},
+            'config': config,
+            'embed_src': None,
+            'embed_slug': None,
+            'error': None
+        }
+        
+        # In real mode, create DocuSeal preview submission
+        if not DOCUSEAL_MOCK_MODE:
+            template_id = get_template_id(doc.template_slug)
+            if template_id:
+                try:
+                    # Build agent data for pre-filling broker fields
+                    agent_data = {
+                        'name': f"{current_user.first_name} {current_user.last_name}",
+                        'email': current_user.email,
+                        'license_number': getattr(current_user, 'license_number', '') or '',
+                        'phone': getattr(current_user, 'phone', '') or ''
+                    }
+                    
+                    # Get the submitter roles this template uses
+                    template_roles = get_template_submitter_roles(doc.template_slug)
+                    
+                    # Build preview submitters based on template's roles
+                    preview_submitters = []
+                    
+                    for role in template_roles:
+                        if role == 'Seller':
+                            # Seller fields from form data
+                            seller_fields = build_docuseal_fields(
+                                doc.field_data or {},
+                                doc.template_slug,
+                                agent_data=None,
+                                submitter_role='Seller'
+                            )
+                            if seller and seller.display_email:
+                                preview_submitters.append({
+                                    'role': 'Seller',
+                                    'email': seller.display_email,
+                                    'name': seller.display_name,
+                                    'fields': seller_fields
+                                })
+                            else:
+                                # Use agent as placeholder for preview
+                                preview_submitters.append({
+                                    'role': 'Seller',
+                                    'email': current_user.email,
+                                    'name': f"{current_user.first_name} {current_user.last_name}",
+                                    'fields': seller_fields
+                                })
+                        
+                        elif role == 'Broker':
+                            # Broker/agent fields
+                            broker_fields = build_docuseal_fields(
+                                doc.field_data or {},
+                                doc.template_slug,
+                                agent_data,
+                                submitter_role='Broker'
+                            )
+                            preview_submitters.append({
+                                'role': 'Broker',
+                                'email': current_user.email,
+                                'name': f"{current_user.first_name} {current_user.last_name}",
+                                'fields': broker_fields
+                            })
+                        
+                        elif role == 'Buyer':
+                            # Buyer fields (for templates like HOA Addendum)
+                            # In listing phase, agent fills these as preview
+                            buyer_fields = build_docuseal_fields(
+                                doc.field_data or {},
+                                doc.template_slug,
+                                agent_data=None,
+                                submitter_role='Buyer'
+                            )
+                            # Use agent email for preview (no actual buyer yet)
+                            preview_submitters.append({
+                                'role': 'Buyer',
+                                'email': current_user.email,
+                                'name': f"{current_user.first_name} {current_user.last_name} (Preview)",
+                                'fields': buyer_fields
+                            })
+                    
+                    # Create submission with send_email=false for preview
+                    submission = create_submission(
+                        template_slug=doc.template_slug,
+                        submitters=preview_submitters,
+                        field_values=None,
+                        send_email=False,
+                        message=None
+                    )
+                    
+                    # Find a submitter slug for embedding (prefer Broker/agent, fallback to first)
+                    submitters_list = submission.get('submitters', [])
+                    agent_submitter = next(
+                        (s for s in submitters_list if s.get('role') in ['Broker', 'Buyer']),
+                        submitters_list[0] if submitters_list else {}
+                    )
+                    
+                    embed_slug = agent_submitter.get('slug', '')
+                    doc_preview['embed_slug'] = embed_slug
+                    doc_preview['embed_src'] = agent_submitter.get('embed_src', f"https://docuseal.com/s/{embed_slug}")
+                    
+                    # Update document with preview submission ID
+                    doc.docuseal_submission_id = submission.get('id')
+                    doc.status = 'generated'
+                    
+                except Exception as e:
+                    doc_preview['error'] = str(e)
+        
+        preview_docs.append(doc_preview)
+    
+    # Commit any status updates
+    db.session.commit()
+    
+    return render_template(
+        'transactions/preview_all_documents.html',
+        transaction=transaction,
+        documents=documents,
+        preview_docs=preview_docs,
+        signers=signers,
+        participants=participants,
+        doc_configs=DOCUMENT_REGISTRY,
+        mock_mode=DOCUSEAL_MOCK_MODE
+    )
+
+
+@transactions_bp.route('/<int:id>/documents/send-all', methods=['POST'])
+@login_required
+@transactions_required
+def send_all_for_signature(id):
+    """
+    Send all filled documents as a single envelope to DocuSeal.
+    Creates a combined submission with all documents.
+    """
+    from services.docuseal_service import (
+        create_multi_doc_submission,
+        build_docuseal_fields,
+        DocuSealError,
+        DOCUSEAL_MOCK_MODE
+    )
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+    
+    # Get documents with specialized forms that are filled
+    specialized_slugs = get_specialized_slugs()
+    documents = transaction.documents.filter(
+        TransactionDocument.template_slug.in_(specialized_slugs),
+        TransactionDocument.status.in_(['filled', 'draft'])
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents:
+        flash('No documents ready to send. Please fill out the documents first.', 'warning')
+        return redirect(url_for('transactions.view_transaction', id=id))
+    
+    # Get participants
+    participants = transaction.participants.all()
+    
+    # Build submitters list
+    submitters = []
+    
+    # Primary seller
+    seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+    if seller and seller.display_email:
+        submitters.append({
+            'role': 'Seller',
+            'email': seller.display_email,
+            'name': seller.display_name
+        })
+    
+    # Listing agent as Broker
+    listing_agent = next((p for p in participants if p.role == 'listing_agent'), None)
+    if listing_agent and listing_agent.display_email:
+        submitters.append({
+            'role': 'Broker',
+            'email': listing_agent.display_email,
+            'name': listing_agent.display_name
+        })
+    
+    if not submitters:
+        flash('No signers found. Please ensure seller and agent have email addresses.', 'error')
+        return redirect(url_for('transactions.preview_all_documents', id=id))
+    
+    # Build agent data for field population
+    agent_data = {
+        'name': f"{current_user.first_name} {current_user.last_name}",
+        'email': current_user.email,
+        'license_number': getattr(current_user, 'license_number', ''),
+        'phone': getattr(current_user, 'phone', '')
+    }
+    
+    # Build documents list for multi-doc submission
+    doc_list = []
+    for doc in documents:
+        doc_list.append({
+            'template_slug': doc.template_slug,
+            'template_name': doc.template_name,
+            'field_data': doc.field_data or {},
+            'agent_data': agent_data
+        })
+    
+    try:
+        # Create combined submission
+        result = create_multi_doc_submission(
+            documents=doc_list,
+            submitters=submitters,
+            transaction_id=transaction.id,
+            send_email=True,
+            message={
+                'subject': f'Documents Ready for Signature - {transaction.street_address}',
+                'body': f'Please review and sign the documents for {transaction.full_address}. Click here to sign: {{{{submitter.link}}}}'
+            }
+        )
+        
+        submission_id = result.get('id')
+        
+        # Update all documents with the combined submission ID
+        for i, doc in enumerate(documents):
+            doc.status = 'sent'
+            doc.docuseal_submission_id = str(submission_id)
+            doc.sent_at = datetime.utcnow()
+            
+            # Create signature records for each signer on each document
+            for submitter_data in result.get('submitters', []):
+                # Find matching participant
+                participant = None
+                if submitter_data.get('role') == 'Seller':
+                    participant = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+                elif submitter_data.get('role') == 'Broker':
+                    participant = next((p for p in participants if p.role == 'listing_agent'), None)
+                
+                signature = DocumentSignature(
+                    document_id=doc.id,
+                    participant_id=participant.id if participant else None,
+                    signer_email=submitter_data.get('email', ''),
+                    signer_name=submitter_data.get('name', ''),
+                    signer_role=submitter_data.get('role', 'Signer'),
+                    status='sent',
+                    docuseal_submitter_slug=submitter_data.get('slug', ''),
+                    sent_at=datetime.utcnow()
+                )
+                db.session.add(signature)
+        
+        db.session.commit()
+        
+        doc_count = len(documents)
+        signer_count = len(submitters)
+        
+        if DOCUSEAL_MOCK_MODE:
+            flash(f'[MOCK MODE] {doc_count} document(s) sent as one envelope to {signer_count} signer(s). Submission ID: {submission_id}', 'success')
+        else:
+            flash(f'{doc_count} document(s) sent as one envelope to {signer_count} signer(s) for signature!', 'success')
+        
+        return redirect(url_for('transactions.view_transaction', id=id))
+        
+    except DocuSealError as e:
+        flash(f'Error sending documents: {str(e)}', 'error')
+        return redirect(url_for('transactions.preview_all_documents', id=id))
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Unexpected error: {str(e)}', 'error')
+        return redirect(url_for('transactions.preview_all_documents', id=id))
 
 
 def build_prefill_data(transaction, participants):
