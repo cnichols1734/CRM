@@ -82,8 +82,7 @@ field_mappings:
   # SECTION 5: BROKER COMPENSATION
   # ---------------------------------------------------------------------------
   offer_buyer_agent_comp: "Broker comp method"  # Radio: "percent" or "flat"
-  total_commission_percent: "Commission percent"
-  total_commission_flat: "Flat fee amount"
+  total_commission: "Total commission"  # Free form text: e.g., "6%", "$5,000", or "$5,000 + 3%"
   buyer_agent_percent: "Compensation percent"
   buyer_agent_flat: "Compensation flat fee"
   
@@ -179,9 +178,12 @@ transforms:
   # Currency fields - will have commas/$ stripped
   currency_fields:
     - list_price
-    - total_commission_flat
     - buyer_agent_flat
     - listing_only_flat
+  
+  # Free form text fields (not processed as currency)
+  freeform_fields:
+    - total_commission
 
   # Date fields - will be converted to MM/DD/YYYY
   date_fields:

@@ -42,20 +42,20 @@
     /* Status dropdown styling */
     .status-dropdown {
         position: relative;
-        z-index: 100;
+        z-index: 1000;
     }
 
     .status-dropdown-menu {
         position: absolute;
         top: 100%;
-        right: 0;
+        left: 0;
         margin-top: 0.5rem;
         background: white;
         border-radius: 0.75rem;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         border: 1px solid #e2e8f0;
-        z-index: 100;
-        min-width: 180px;
+        z-index: 1001;
+        min-width: 200px;
         opacity: 0;
         visibility: hidden;
         transform: translateY(-10px);
@@ -92,12 +92,10 @@
         transition: all 0.2s ease-out;
     }
 
-    .status-draft { background: #f1f5f9; color: #64748b; }
-    .status-draft:hover { background: #e2e8f0; }
+    .status-preparing_to_list { background: #fef3c7; color: #92400e; }
+    .status-preparing_to_list:hover { background: #fde68a; }
     .status-active { background: #dcfce7; color: #166534; }
     .status-active:hover { background: #bbf7d0; }
-    .status-pending { background: #fef3c7; color: #92400e; }
-    .status-pending:hover { background: #fde68a; }
     .status-under_contract { background: #dbeafe; color: #1e40af; }
     .status-under_contract:hover { background: #bfdbfe; }
     .status-closed { background: #e0e7ff; color: #3730a3; }
@@ -157,6 +155,111 @@
         font-size: 0.875rem;
         text-align: right;
     }
+
+    /* Pizza Tracker Styles */
+    .status-tracker {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        padding: 0;
+    }
+    
+    .status-tracker::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+    
+    .status-tracker-progress {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #f97316, #ea580c);
+        z-index: 1;
+        transition: width 0.5s ease-out;
+        border-radius: 2px;
+    }
+    
+    .tracker-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+    
+    .tracker-dot {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.3s ease-out;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .tracker-dot.completed {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+    }
+    
+    .tracker-dot.current {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.15);
+        animation: pulse-tracker 2s infinite;
+    }
+    
+    .tracker-dot.upcoming {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+    
+    .tracker-dot.cancelled {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: white;
+    }
+    
+    @keyframes pulse-tracker {
+        0%, 100% { box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.15); }
+        50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.1), 0 2px 8px rgba(0,0,0,0.15); }
+    }
+    
+    .tracker-label {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        max-width: 80px;
+    }
+    
+    .tracker-label.completed { color: #16a34a; }
+    .tracker-label.current { color: #ea580c; }
+    .tracker-label.upcoming { color: #94a3b8; }
+    .tracker-label.cancelled { color: #dc2626; }
+
+    /* Prominent header badge */
+    .prominent-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border-radius: 1rem;
+        font-weight: 700;
+        font-size: 0.875rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
 </style>
 
 <!-- Premium gradient background -->
@@ -178,7 +281,7 @@
         {% endif %}
         
         <!-- Header Section -->
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6 animate-fade-in-up relative z-50">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 animate-fade-in-up relative z-50">
             <div class="flex items-start space-x-4">
                 <!-- Property Icon -->
                 <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
@@ -193,38 +296,107 @@
                 </div>
             </div>
             
-            <!-- Badges & Actions -->
-            <div class="flex flex-wrap items-center gap-3">
-                <!-- Type Badge -->
-                <span class="type-badge type-{{ transaction.transaction_type.name }}">
-                    {{ transaction.transaction_type.display_name }}
-                </span>
-                
-                <!-- Status Dropdown -->
-                <div class="status-dropdown" id="statusDropdown">
-                    <button onclick="toggleStatusDropdown(event)" class="status-badge status-{{ transaction.status }} flex items-center gap-2">
-                        {{ transaction.status|replace('_', ' ')|title }}
-                        <i class="fas fa-chevron-down text-xs opacity-50"></i>
-                    </button>
-                    <div class="status-dropdown-menu p-2" id="statusDropdownMenu">
-                        {% for status in ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled'] %}
-                        <button onclick="updateStatus('{{ status }}')"
-                                class="w-full text-left px-4 py-2 text-sm rounded-lg hover:bg-slate-100 transition-colors {% if transaction.status == status %}font-bold text-orange-600{% endif %}">
-                            {{ status|replace('_', ' ')|title }}
-                            {% if transaction.status == status %}<i class="fas fa-check ml-2 text-orange-500"></i>{% endif %}
-                        </button>
-                        {% endfor %}
-                    </div>
-                </div>
+            <!-- Delete Button -->
+            <button onclick="confirmDelete()" 
+                    class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
+                <i class="fas fa-trash-alt"></i>
+                <span class="hidden sm:inline">Delete</span>
+            </button>
+        </div>
 
-                <!-- Delete Button -->
-                <button onclick="confirmDelete()" 
-                        class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
-                    <i class="fas fa-trash-alt"></i>
-                    <span class="hidden sm:inline">Delete</span>
+        <!-- Prominent Type & Status Badges -->
+        <div class="flex flex-wrap items-center gap-4 mb-6 animate-fade-in-up relative" style="z-index: 999;">
+            <!-- Type Badge - More Prominent -->
+            <div class="prominent-badge type-{{ transaction.transaction_type.name }}">
+                <i class="fas fa-{% if transaction.transaction_type.name == 'seller' %}home{% elif transaction.transaction_type.name == 'buyer' %}key{% else %}handshake{% endif %}"></i>
+                {{ transaction.transaction_type.display_name }}
+            </div>
+            
+            <!-- Status Dropdown - More Prominent -->
+            <div class="status-dropdown" id="statusDropdown">
+                {% set status_labels = {
+                    'preparing_to_list': 'Preparing to List',
+                    'active': 'Active',
+                    'under_contract': 'Under Contract',
+                    'closed': 'Closed',
+                    'cancelled': 'Cancelled/Withdrawn'
+                } %}
+                <button onclick="toggleStatusDropdown(event)" class="prominent-badge status-{{ transaction.status }} flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+                    <i class="fas fa-{% if transaction.status == 'closed' %}check-circle{% elif transaction.status == 'cancelled' %}times-circle{% elif transaction.status == 'active' %}broadcast-tower{% elif transaction.status == 'under_contract' %}file-signature{% else %}clipboard-list{% endif %}"></i>
+                    {{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
+                    <i class="fas fa-chevron-down text-xs opacity-50 ml-1"></i>
                 </button>
+                <div class="status-dropdown-menu p-2" id="statusDropdownMenu">
+                    {% for status, label in status_labels.items() %}
+                    <button onclick="updateStatus('{{ status }}')"
+                            class="w-full text-left px-4 py-2 text-sm rounded-lg hover:bg-slate-100 transition-colors {% if transaction.status == status %}font-bold text-orange-600{% endif %}">
+                        {{ label }}
+                        {% if transaction.status == status %}<i class="fas fa-check ml-2 text-orange-500"></i>{% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
             </div>
         </div>
+
+        <!-- Status Progress Tracker (Pizza Tracker) -->
+        {% if transaction.status != 'cancelled' %}
+        <div class="premium-card p-6 mb-6 animate-fade-in-up">
+            {% set statuses = ['preparing_to_list', 'active', 'under_contract', 'closed'] %}
+            {% set status_icons = {
+                'preparing_to_list': 'clipboard-list',
+                'active': 'broadcast-tower',
+                'under_contract': 'file-signature',
+                'closed': 'check-circle'
+            } %}
+            {% set status_labels_tracker = {
+                'preparing_to_list': 'Preparing',
+                'active': 'Active',
+                'under_contract': 'Under Contract',
+                'closed': 'Closed'
+            } %}
+            {% set current_index = statuses.index(transaction.status) if transaction.status in statuses else 0 %}
+            {% set is_final_step = current_index == (statuses|length - 1) %}
+            {# Calculate progress: line extends from left edge to center of current step, or 100% if at final step #}
+            {% set step_width = 100 / statuses|length %}
+            {% set progress_percent = 100 if is_final_step else ((step_width / 2) + (current_index * step_width)) %}
+            
+            <div class="status-tracker">
+                <div class="status-tracker-progress" style="width: {{ progress_percent }}%;"></div>
+                {% for status in statuses %}
+                {% set step_index = loop.index0 %}
+                {% set is_completed = step_index < current_index %}
+                {% set is_current = step_index == current_index %}
+                {% set is_upcoming = step_index > current_index %}
+                {% set is_final_completed = is_current and is_final_step %}
+                <div class="tracker-step">
+                    <div class="tracker-dot {% if is_completed or is_final_completed %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
+                        {% if is_completed or is_final_completed %}
+                        <i class="fas fa-check"></i>
+                        {% else %}
+                        <i class="fas fa-{{ status_icons[status] }}"></i>
+                        {% endif %}
+                    </div>
+                    <span class="tracker-label {% if is_completed or is_final_completed %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
+                        {{ status_labels_tracker[status] }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <!-- Cancelled Status Banner -->
+        <div class="premium-card p-4 mb-6 animate-fade-in-up bg-red-50 border-red-200">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                    <i class="fas fa-times-circle text-red-600"></i>
+                </div>
+                <div>
+                    <span class="font-semibold text-red-800">Transaction Cancelled/Withdrawn</span>
+                    <p class="text-sm text-red-600">This transaction is no longer active</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -263,8 +435,15 @@
                         <div class="info-row">
                             <span class="info-label">Current Status</span>
                             <span class="info-value">
+                                {% set detail_status_labels = {
+                                    'preparing_to_list': 'Preparing to List',
+                                    'active': 'Active',
+                                    'under_contract': 'Under Contract',
+                                    'closed': 'Closed',
+                                    'cancelled': 'Cancelled/Withdrawn'
+                                } %}
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-{{ transaction.status }}">
-                                    {{ transaction.status|replace('_', ' ')|title }}
+                                    {{ detail_status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
                                 </span>
                             </span>
                         </div>
@@ -559,10 +738,19 @@
                                 </div>
                                 <div class="text-sm text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
                                 {% if participant.display_email %}
-                                <div class="text-xs text-slate-400 truncate mt-0.5">{{ participant.display_email }}</div>
+                                <div class="text-xs text-slate-400 truncate mt-0.5">
+                                    <i class="fas fa-envelope mr-1"></i>{{ participant.display_email }}
+                                </div>
+                                {% endif %}
+                                {% if participant.display_phone %}
+                                <div class="text-xs text-slate-400 truncate mt-0.5">
+                                    <i class="fas fa-phone mr-1"></i>{{ participant.display_phone }}
+                                </div>
                                 {% endif %}
                                 {% if participant.company %}
-                                <div class="text-xs text-slate-400 truncate">{{ participant.company }}</div>
+                                <div class="text-xs text-slate-400 truncate mt-0.5">
+                                    <i class="fas fa-building mr-1"></i>{{ participant.company }}
+                                </div>
                                 {% endif %}
                             </div>
                             <button onclick="removeParticipant({{ participant.id }})"

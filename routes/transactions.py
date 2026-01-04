@@ -179,7 +179,7 @@ def create_transaction():
             zip_code=zip_code,
             county=county,
             ownership_status=ownership_status,
-            status='draft'
+            status='preparing_to_list'
         )
         db.session.add(transaction)
         db.session.flush()  # Get the transaction ID
@@ -521,7 +521,7 @@ def update_status(id):
     data = request.get_json()
     new_status = data.get('status')
     
-    valid_statuses = ['draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled']
+    valid_statuses = ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled']
     if new_status not in valid_statuses:
         return jsonify({'success': False, 'error': 'Invalid status'}), 400
     
