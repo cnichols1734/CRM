@@ -25,11 +25,17 @@ This project is a Customer Relationship Management (CRM) system tailored for the
 *   **Admin Tools:** Group management, user administration, and system configuration
 *   **Contact Tracking:** Advanced contact date tracking (email, text, phone calls) and client objective management
 *   **Feature Flags:** Runtime feature toggling without code deployments
+*   **Transaction Management:** Complete real estate transaction workflow from listing to close, including:
+    * **Transaction Creation:** Create transactions for seller, buyer, landlord, tenant, or referral deals
+    * **Participant Management:** Track all parties (sellers, co-sellers, agents, title companies, lenders)
+    * **Intake Questionnaires:** Guided property questionnaires that auto-generate document packages
+    * **Document Management:** Dynamic document packages based on intake answers
+    * **Specialized Document Forms:** Wizard-style forms for filling complex documents (e.g., Listing Agreement)
+    * **E-Signature Integration:** DocuSeal integration for sending documents for signature (mock mode available)
 
 ### Planned Features
 
 *   **Advanced Marketing Campaigns:** Full email campaign management with automation and analytics
-*   **Document Management:** File upload and storage for contracts, listings, and client documents
 *   **Calendar Integration:** Sync with external calendars for appointments and showings
 *   **Mobile App:** Native mobile application for iOS and Android
 *   **Advanced Analytics:** Detailed reporting and business intelligence dashboards
@@ -212,6 +218,89 @@ The database is structured using SQLAlchemy with Supabase PostgreSQL and include
     *   `last_modified`: DateTime, optional.
     *   `created_at`: DateTime, defaults to current time.
     *   `updated_at`: DateTime, defaults to current time.
+
+### Transaction Management Models
+
+*   **TransactionType (models.py:362-380):**
+    *   `id`: Integer, primary key.
+    *   `name`: String(50), unique, required (e.g., 'seller', 'buyer', 'landlord', 'tenant', 'referral').
+    *   `display_name`: String(100), required (e.g., 'Seller Representation').
+    *   `description`: Text, optional.
+    *   `is_active`: Boolean, defaults to True.
+    *   `sort_order`: Integer, defaults to 0.
+    *   `transactions`: Relationship to `Transaction` model.
+
+*   **Transaction (models.py:383-447):**
+    *   `id`: Integer, primary key.
+    *   `created_by_id`: Integer, foreign key referencing `User.id`, required.
+    *   `transaction_type_id`: Integer, foreign key referencing `TransactionType.id`, required.
+    *   Property Details:
+        *   `street_address`: String(200), required.
+        *   `city`: String(100), optional.
+        *   `state`: String(50), defaults to 'TX'.
+        *   `zip_code`: String(20), optional.
+        *   `county`: String(100), optional.
+    *   `ownership_status`: String(50), optional (values: 'conventional', 'builder', 'reo', 'short_sale').
+    *   `status`: String(50), defaults to 'draft' (values: 'draft', 'active', 'pending', 'under_contract', 'closed', 'cancelled').
+    *   Key Dates:
+        *   `expected_close_date`: Date, optional.
+        *   `actual_close_date`: Date, optional.
+    *   `intake_data`: JSON, defaults to {} (intake questionnaire answers).
+    *   `extra_data`: JSON, defaults to {} (flexible additional fields).
+    *   `created_at`: DateTime, defaults to current time.
+    *   `updated_at`: DateTime, defaults to current time, updated on each update.
+    *   Relationships: `created_by` (User), `participants` (TransactionParticipant), `documents` (TransactionDocument).
+    *   Property: `full_address` (formatted full address string).
+
+*   **TransactionParticipant (models.py:450-503):**
+    *   `id`: Integer, primary key.
+    *   `transaction_id`: Integer, foreign key referencing `Transaction.id`, required (cascade delete).
+    *   `contact_id`: Integer, foreign key referencing `Contact.id`, optional.
+    *   `user_id`: Integer, foreign key referencing `User.id`, optional.
+    *   `role`: String(50), required (values: 'seller', 'co_seller', 'buyer', 'co_buyer', 'listing_agent', 'buyers_agent', 'title_company', 'lender', 'transaction_coordinator').
+    *   For external parties:
+        *   `name`: String(200), optional.
+        *   `email`: String(200), optional.
+        *   `phone`: String(20), optional.
+        *   `company`: String(200), optional.
+    *   `is_primary`: Boolean, defaults to True.
+    *   `created_at`: DateTime, defaults to current time.
+    *   Relationships: `contact` (Contact), `user` (User).
+    *   Properties: `display_name` (gets name from contact, user, or name field), `display_email` (gets email from contact, user, or email field).
+
+*   **TransactionDocument (models.py:506-544):**
+    *   `id`: Integer, primary key.
+    *   `transaction_id`: Integer, foreign key referencing `Transaction.id`, required (cascade delete).
+    *   `template_slug`: String(100), required (e.g., 'listing-agreement').
+    *   `template_name`: String(200), required (e.g., 'Listing Agreement').
+    *   `status`: String(50), defaults to 'pending' (values: 'pending', 'draft', 'filled', 'generated', 'sent', 'partially_signed', 'signed', 'voided').
+    *   `field_data`: JSON, defaults to {} (form data filled by agent).
+    *   `included_reason`: String(500), optional (why document was included, for conditional docs).
+    *   DocuSeal Integration:
+        *   `docuseal_template_id`: String(100), optional.
+        *   `docuseal_submission_id`: String(100), optional.
+    *   Timestamps:
+        *   `created_at`: DateTime, defaults to current time.
+        *   `updated_at`: DateTime, defaults to current time, updated on each update.
+        *   `sent_at`: DateTime, optional (when sent for signature).
+        *   `signed_at`: DateTime, optional (when all signatures complete).
+    *   Relationships: `signatures` (DocumentSignature).
+
+*   **DocumentSignature (models.py:547-583):**
+    *   `id`: Integer, primary key.
+    *   `document_id`: Integer, foreign key referencing `TransactionDocument.id`, required (cascade delete).
+    *   `participant_id`: Integer, foreign key referencing `TransactionParticipant.id`, optional.
+    *   `signer_email`: String(200), required.
+    *   `signer_name`: String(200), required.
+    *   `signer_role`: String(50), required (e.g., 'seller', 'listing_agent').
+    *   `status`: String(50), defaults to 'pending' (values: 'pending', 'sent', 'viewed', 'signed', 'declined').
+    *   `sign_order`: Integer, defaults to 1 (for sequential signing).
+    *   `docuseal_submitter_slug`: String(200), optional (for embedded signing).
+    *   Timestamps:
+        *   `sent_at`: DateTime, optional.
+        *   `viewed_at`: DateTime, optional.
+        *   `signed_at`: DateTime, optional.
+    *   Relationships: `participant` (TransactionParticipant).
 
 ### Association Table
 
@@ -444,6 +533,138 @@ Templates are stored in `SendGridTemplate` model with:
 - Active/inactive status flags
 - Last synchronization timestamps
 
+## Intake Service (`services/intake_service.py`)
+
+The intake service handles loading intake questionnaire schemas and evaluating document rules to generate dynamic document packages based on property characteristics.
+
+### Key Features
+
+**Schema Loading:**
+- Loads JSON schemas from `intake_schemas/` directory
+- Schemas named by pattern: `{transaction_type}_{ownership_status}.json`
+- Example: `seller_conventional.json` for conventional seller transactions
+
+**Document Rule Evaluation:**
+- Evaluates conditions against intake answers
+- Supports `always`, `equals`, `in`, `not_equals` conditions
+- Returns list of required documents with inclusion reasons
+
+**Intake Validation:**
+- Validates all required questions are answered
+- Returns missing field IDs for error messaging
+
+### Service Methods
+
+**`get_intake_schema(transaction_type, ownership_status)`**
+- Loads and returns the appropriate intake schema
+- Returns None if schema file doesn't exist
+
+**`evaluate_document_rules(schema, intake_data)`**
+- Evaluates document_rules against intake answers
+- Returns list of document dicts with slug, name, reason
+
+**`validate_intake_data(schema, intake_data)`**
+- Checks all required questions have answers
+- Returns tuple: (is_valid, list_of_missing_field_ids)
+
+**`get_question_labels(schema)`**
+- Maps question IDs to display labels
+- Useful for error messaging
+
+### Schema Structure
+
+```json
+{
+  "title": "Property Questionnaire",
+  "sections": [
+    {
+      "title": "Property Details",
+      "questions": [
+        {"id": "has_hoa", "label": "Is there an HOA?", "type": "boolean", "required": true}
+      ]
+    }
+  ],
+  "document_rules": [
+    {"slug": "listing-agreement", "name": "Listing Agreement", "always": true},
+    {"slug": "hoa-addendum", "name": "HOA Addendum", "condition": {"field": "has_hoa", "equals": true}}
+  ]
+}
+```
+
+## DocuSeal Service (`services/docuseal_service.py`)
+
+The DocuSeal service handles e-signature integration for sending documents for signature. Currently uses mock implementations for development, with real API integration ready to enable.
+
+### Key Features
+
+**Mock Mode:**
+- Enabled by default (`DOCUSEAL_MOCK_MODE=True`)
+- In-memory storage for submissions
+- Simulates complete e-signature workflow
+- Allows testing without DocuSeal account
+
+**Submission Management:**
+- Create and track signature requests
+- Get submission status and details
+- Retrieve signing URLs for embedded signing
+- Download signed document URLs
+
+**Template Mapping:**
+- Maps internal template slugs to DocuSeal template IDs
+- `TEMPLATE_MAP` dict for configuration
+
+### Configuration
+
+```bash
+# Environment variables
+DOCUSEAL_API_KEY=your_api_key          # Required for real mode
+DOCUSEAL_API_URL=https://api.docuseal.com
+DOCUSEAL_MOCK_MODE=True                 # Set False for real integration
+```
+
+### Service Methods
+
+**`create_submission(template_slug, submitters, field_values, send_email, message)`**
+- Creates new signature request
+- Returns submission data with IDs and submitter details
+
+**`get_submission(submission_id)`**
+- Gets submission details by ID
+- Returns status, submitters, documents
+
+**`get_submission_status(submission_id)`**
+- Returns current status: pending, viewed, started, completed, expired
+
+**`get_signing_url(submission_id, submitter_slug)`**
+- Gets embedded signing URL for specific submitter
+
+**`get_signed_document_urls(submission_id)`**
+- Gets download URLs for completed documents
+
+**`process_webhook(payload)`**
+- Processes DocuSeal webhook events
+- Returns parsed event data
+
+### Helper Functions
+
+**`build_submitters_from_participants(participants, transaction)`**
+- Converts transaction participants to DocuSeal submitters
+- Maps roles: seller → Seller, co_seller → Co-Seller, listing_agent → Listing Agent
+
+**`format_status_badge(status)`**
+- Returns badge class and label for display
+
+### Mock Testing
+
+```python
+from services.docuseal_service import _mock_simulate_signing
+
+# Simulate signing completion for testing
+_mock_simulate_signing('submission_id', 'completed')
+```
+
+Events supported: 'viewed', 'started', 'completed'
+
 ## Feature Flags System (`feature_flags.py`)
 
 The CRM implements a feature flag system for runtime feature toggling without code deployments. This allows safe feature rollouts, A/B testing, and quick feature deactivation.
@@ -473,6 +694,13 @@ if is_enabled('SHOW_DASHBOARD_JOKE'):
 - **Purpose:** Controls display of joke of the day on dashboard
 - **Implementation:** Fetches jokes from external APIs when enabled
 - **Impact:** Adds humor element to dashboard but requires external API calls
+
+**`TRANSACTIONS_ENABLED`**
+- **Status:** True (enabled)
+- **Purpose:** Controls access to the Transaction Management module
+- **Implementation:** Uses `can_access_transactions(user)` helper that checks both flag status AND user role
+- **Access Control:** Currently admin-only (user must have `role == 'admin'`)
+- **Future:** Can be extended to allow specific agents via additional logic
 
 ### Benefits
 
@@ -769,6 +997,130 @@ The application is structured using Flask blueprints. Here's a breakdown of the 
     *   GET endpoint to retrieve template preview URLs from SendGrid
     *   Returns JSON with preview_url for frontend display
 
+### Transactions Blueprint (`routes/transactions.py`)
+
+All routes protected by `@transactions_required` decorator which checks:
+1. `TRANSACTIONS_ENABLED` feature flag is True
+2. User is authenticated
+3. User has 'admin' role
+
+#### Transaction CRUD
+
+*   **`/transactions/` (list_transactions):**
+    *   Lists all transactions for the current user
+    *   Supports filtering by status, type, and search query
+    *   Search matches property address or participant names
+    *   Renders `transactions/list.html`
+
+*   **`/transactions/new` (new_transaction):**
+    *   GET: Shows transaction creation form
+    *   Renders `transactions/create.html`
+
+*   **`/transactions/` (create_transaction - POST):**
+    *   Creates new transaction with selected contacts as participants
+    *   Automatically adds current user as listing/buyer's agent
+    *   Redirects to transaction detail view
+
+*   **`/transactions/<id>` (view_transaction):**
+    *   Displays single transaction with participants and documents
+    *   Shows document status and action buttons
+    *   Renders `transactions/detail.html`
+
+*   **`/transactions/<id>/edit` (edit_transaction):**
+    *   GET: Shows edit form for transaction
+    *   Renders `transactions/edit.html`
+
+*   **`/transactions/<id>` (update_transaction - POST):**
+    *   Updates transaction fields
+    *   Handles date parsing for close dates
+
+*   **`/transactions/<id>/delete` (delete_transaction - POST):**
+    *   Deletes transaction and all related data (cascade)
+
+*   **`/transactions/<id>/status` (update_status - POST):**
+    *   AJAX endpoint to update transaction status
+    *   Valid statuses: draft, active, pending, under_contract, closed, cancelled
+
+#### Participant Management
+
+*   **`/transactions/<id>/participants` (add_participant - POST):**
+    *   Adds a participant to transaction
+    *   Can link to existing contact or enter external party details
+    *   Returns JSON with participant data
+
+*   **`/transactions/<id>/participants/<participant_id>` (remove_participant - DELETE):**
+    *   Removes participant from transaction
+    *   Returns JSON success status
+
+#### Intake Questionnaire
+
+*   **`/transactions/<id>/intake` (intake_questionnaire - GET):**
+    *   Shows the property intake questionnaire
+    *   Schema loaded based on transaction type and ownership status
+    *   Renders `transactions/intake.html`
+
+*   **`/transactions/<id>/intake` (save_intake - POST):**
+    *   Saves intake questionnaire answers to transaction.intake_data
+    *   Supports both form submission and JSON
+
+*   **`/transactions/<id>/intake/generate-package` (generate_document_package - POST):**
+    *   Evaluates document rules against intake answers
+    *   Creates TransactionDocument records for required documents
+    *   Clears and regenerates if package already exists
+
+#### Document Management
+
+*   **`/transactions/<id>/documents` (add_document - POST):**
+    *   Manually adds a document to the package
+    *   Prevents duplicate documents
+
+*   **`/transactions/<id>/documents/<doc_id>` (remove_document - DELETE):**
+    *   Removes document from package
+
+*   **`/transactions/<id>/documents/<doc_id>/form` (document_form - GET):**
+    *   Displays form for filling document fields
+    *   Routes to specialized templates based on document type:
+        - `listing-agreement` → `listing_agreement_form.html` (wizard-style)
+        - Other documents → `document_form.html` (generic)
+    *   Prefills data from transaction, participants, and intake
+
+*   **`/transactions/<id>/documents/<doc_id>/form` (save_document_form - POST):**
+    *   Saves document form field data
+    *   Updates document status to 'filled'
+
+#### E-Signature (DocuSeal Integration)
+
+*   **`/transactions/<id>/documents/<doc_id>/send` (send_for_signature - POST):**
+    *   Sends document for e-signature via DocuSeal
+    *   Builds submitters list from transaction participants
+    *   Creates DocumentSignature records for each signer
+    *   Updates document status to 'sent'
+
+*   **`/transactions/<id>/documents/<doc_id>/status` (check_signature_status - GET):**
+    *   Checks signature status from DocuSeal
+    *   Returns signer status for each participant
+
+*   **`/transactions/<id>/documents/<doc_id>/simulate-sign` (simulate_signature - POST):**
+    *   Mock mode only: simulates signature completion for testing
+    *   Updates document and signature statuses to 'signed'
+
+*   **`/transactions/<id>/documents/<doc_id>/download` (download_signed_document - GET):**
+    *   Gets download URLs for signed document
+    *   Only available after document is fully signed
+
+#### Webhook Endpoint
+
+*   **`/transactions/webhook/docuseal` (docuseal_webhook - POST):**
+    *   Receives webhooks from DocuSeal for signature events
+    *   Event types: form.viewed, form.started, form.completed
+    *   Updates document and signature statuses accordingly
+
+#### API Endpoints
+
+*   **`/transactions/api/contacts/search` (search_contacts - GET):**
+    *   Contact picker search for transaction creation
+    *   Returns JSON with matching contacts
+
 ## Forms
 
 The application uses Flask-WTF for form handling:
@@ -795,6 +1147,29 @@ The `init_db.py` script initializes the database with:
 
 *   Initial contact groups (Buyer, Seller, Rating, Network, Professional).
 *   Initial task types (Call, Meeting, Email, Document) and their subtypes.
+*   Initial transaction types (Seller, Buyer, Landlord, Tenant, Referral).
+
+## Intake Schemas
+
+The `intake_schemas/` directory contains JSON schema files that define property intake questionnaires for different transaction types:
+
+### File Naming Convention
+- `{transaction_type}_{ownership_status}.json` (e.g., `seller_conventional.json`)
+- Loaded by `intake_service.get_intake_schema()`
+
+### Current Schemas
+- **`seller_conventional.json`:** Property questionnaire for conventional seller transactions
+
+### Schema Structure
+Each schema contains:
+- `title`: Display title for the questionnaire
+- `sections`: Array of question groups with questions
+- `document_rules`: Conditional logic for document package generation
+
+### Document Rules
+Rules determine which documents to include based on intake answers:
+- `always: true` - Always include this document
+- `condition.field` + `condition.equals/in/not_equals` - Include if condition met
 
 ## Configuration
 
@@ -873,6 +1248,21 @@ The application uses Jinja2 templates for rendering HTML:
 ### Marketing Templates (`templates/marketing/`)
 *   **`templates.html`:** SendGrid template management interface.
 *   **`marketing.html`:** Marketing campaign overview page.
+
+### Transaction Templates (`templates/transactions/`)
+*   **`list.html`:** Transaction list with filtering by status, type, and search.
+*   **`create.html`:** Create new transaction form with contact selection.
+*   **`detail.html`:** Transaction detail view with participants and document management.
+*   **`edit.html`:** Edit transaction form.
+*   **`intake.html`:** Property intake questionnaire form.
+*   **`document_form.html`:** Generic document field fill form.
+*   **`listing_agreement_form.html`:** Specialized wizard-style form for Listing Agreement with:
+    - 14 organized sections (Parties, Property, Term, Pricing, etc.)
+    - Conditional field visibility
+    - Progress indicator
+    - Inline helper text and tooltips
+    - Floating action bar for Save/Continue
+    - Prefilled data from transaction and participants
 
 ### Admin Templates (`templates/admin/`)
 *   **`groups.html`:** Contact group management interface.
@@ -1027,4 +1417,16 @@ The application uses Tailwind CSS for utility-first styling with custom componen
 
 ## Summary
 
-This CRM is a well-structured application with a clear separation of concerns. It provides a solid foundation for managing real estate contacts and tasks. The use of Flask, SQLAlchemy, Tailwind CSS, and JavaScript makes it a modern and maintainable project. The planned marketing section will further enhance its capabilities.
+This CRM is a comprehensive real estate application with a clear separation of concerns. It provides a solid foundation for managing:
+
+- **Contacts & Tasks:** Core CRM functionality for tracking clients and agent activities
+- **AI-Powered Features:** B.O.B. chat assistant, action plan generator, and daily todo lists
+- **Transaction Management:** Complete workflow from listing/purchase through close, including:
+  - Transaction creation with participant management
+  - Intake questionnaires for document package generation
+  - Specialized wizard-style document forms (e.g., Listing Agreement)
+  - E-signature integration via DocuSeal (mock mode available for testing)
+- **Company Updates:** Internal communication and announcements
+- **Marketing Integration:** SendGrid template management
+
+The use of Flask, SQLAlchemy, Tailwind CSS, and JavaScript makes it a modern and maintainable project. The feature flag system allows safe rollout of new features, with Transaction Management currently enabled for admin users only.
