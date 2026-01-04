@@ -1138,12 +1138,8 @@ function viewSignedDocument(docId) {
 }
 
 function fillAllForms() {
-    const firstPending = document.querySelector('a[href*="/documents/"][href*="/form"]');
-    if (firstPending) {
-        window.location.href = firstPending.href;
-    } else {
-        showToast('All forms have been filled!', 'success');
-    }
+    // Navigate to combined fill-all-documents view
+    window.location.href = '{{ url_for("transactions.fill_all_documents", id=transaction.id) }}';
 }
 
 function generateAllPDFs() {

@@ -1,0 +1,114 @@
+# =============================================================================
+# HOA ADDENDUM - DocuSeal Field Mapping
+# =============================================================================
+# This file maps CRM form fields to DocuSeal template fields.
+#
+# Template ID: 2469165
+# DocuSeal Template URL: https://docuseal.com/d/b3S4Ryi2HCjoh4
+#
+# Document: Addendum for Property Subject to Mandatory Membership in
+#           Owners' Association (TXR Form)
+#
+# Submitters (signers):
+#   - Seller (primary seller)
+#   - Buyer (in actual transaction - for listing phase, agent fills as preview)
+#
+# ACTUAL DOCUSEAL FIELDS (as of 2026-01-04):
+#   Seller: Street address, Association name & phone, Days after effective date,
+#           Seller pays title company cost, Seller signature, Seller date
+#   Buyer:  Option, Days after effective date, Buyer requires updated resale certificate,
+#           Buyer does not require updated resale certificate, Buyer signature, Buyer date
+#
+# HOW TO UPDATE:
+#   1. View fields at: /transactions/admin/docuseal/template/2469165
+#   2. Match your CRM form field to the DocuSeal field name
+#   3. Run a test submission to verify
+# =============================================================================
+
+template_id: 2469165
+template_name: "HOA Addendum"
+template_slug: "hoa-addendum"
+
+# What roles does this template use? (for code to know which submitter types)
+# Options: seller, buyer, broker
+submitter_roles:
+  - Seller
+  - Buyer
+
+# =============================================================================
+# FIELD MAPPINGS - SELLER FIELDS
+# Format: crm_field: docuseal_field
+# These fields go to the Seller submitter
+# =============================================================================
+field_mappings:
+
+  # Property address (combined into one field in DocuSeal)
+  property_address: "Street address"
+  
+  # HOA info (combined into one field in DocuSeal)
+  hoa_name_phone: "Association name & phone"
+  
+  # Days for seller to deliver documents
+  seller_delivery_days: "Days after effective date"
+  
+  # Seller pays title company cost checkbox
+  seller_pays_title_cost: "Seller pays title company cost"
+
+
+# =============================================================================
+# BUYER FORM FIELDS
+# These fields go to the Buyer submitter (in listing phase, agent fills these)
+# =============================================================================
+buyer_form_fields:
+  
+  # Radio option for document responsibility
+  doc_responsibility: "Option"
+  
+  # Days for buyer side
+  buyer_delivery_days: "Days after effective date"
+  
+  # Resale certificate checkboxes
+  require_updated_resale_yes: "Buyer requires updated resale certificate"
+  require_updated_resale_no: "Buyer does not require updated resale certificate"
+
+
+# =============================================================================
+# VALUE TRANSFORMS
+# These fields require value transformation before sending to DocuSeal
+# =============================================================================
+transforms:
+
+  # Radio button mappings (our value -> DocuSeal value)
+  radio_mappings:
+    doc_responsibility:
+      "A": "A"
+      "B": "B"
+      "C": "C"
+      "D": "D"
+    
+  # Currency fields - will have commas/$ stripped
+  currency_fields: []
+
+  # Date fields - will be converted to MM/DD/YYYY
+  date_fields: []
+
+
+# =============================================================================
+# BROKER/AGENT FIELDS
+# Note: This template doesn't have Broker role - agent data not auto-populated
+# =============================================================================
+agent_fields: []
+
+
+# =============================================================================
+# COMPUTED FIELDS
+# Fields that combine or transform multiple form values
+# =============================================================================
+computed_fields:
+  # Combine HOA name and phone for the single field in DocuSeal
+  - docuseal_field: "Association name & phone"
+    template: "{hoa_name} - {hoa_phone}"
+  
+  # Combine address fields for Street address
+  - docuseal_field: "Street address"
+    template: "{property_address}, {property_city}, {property_state} {property_zip}"

@@ -1,0 +1,408 @@
+{% extends "base.html" %}
+
+{% block title %}Preview Documents - {{ transaction.street_address }}{% endblock %}
+
+{% block head %}
+{{ super() }}
+<style>
+    /* DocuSeal embed container */
+    .docuseal-embed-container {
+        min-height: 700px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    
+    .docuseal-embed-container docuseal-form {
+        display: block;
+        width: 100%;
+        min-height: 700px;
+    }
+    
+    /* Hide DocuSeal submit button in preview mode */
+    docuseal-form::part(submit-button) {
+        display: none !important;
+    }
+    
+    /* Document tabs */
+    .doc-tab {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .doc-tab.active {
+        border-color: #f97316;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    }
+    
+    .doc-tab:not(.active):hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+    
+    /* Document preview panel */
+    .doc-preview-panel {
+        display: none;
+    }
+    
+    .doc-preview-panel.active {
+        display: block;
+    }
+    
+    /* Mock mode placeholder */
+    .mock-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        border-radius: 12px;
+        border: 2px dashed #e2e8f0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Back button and title -->
+                <div class="flex items-center gap-4">
+                    <a href="{{ url_for('transactions.fill_all_documents', id=transaction.id) }}" 
+                       class="flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:inline">Back to Forms</span>
+                    </a>
+                    <div class="h-6 w-px bg-slate-200"></div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-800">Preview & Send Documents</h1>
+                        <p class="text-xs text-slate-500">{{ transaction.street_address }}</p>
+                    </div>
+                </div>
+                
+                <!-- Document count badge -->
+                <div class="flex items-center gap-3">
+                    <span class="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-sm font-semibold rounded-full flex items-center gap-2">
+                        <i class="fas fa-file-signature"></i>
+                        {{ documents|length }} Document{{ 's' if documents|length > 1 else '' }} Ready
+                    </span>
+                    {% if mock_mode %}
+                    <span class="px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full font-medium">
+                        <i class="fas fa-flask mr-1"></i>Test Mode
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview info banner -->
+    <div class="bg-blue-50 border-b border-blue-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex items-center gap-3 text-blue-800">
+                <i class="fas fa-eye text-blue-500"></i>
+                <p class="text-sm">
+                    <strong>Preview Mode:</strong> 
+                    Review each document below. When ready, scroll down and click "Send All for Signature" to email to signers.
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        <!-- Document Tabs -->
+        {% if documents|length > 1 %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+            <div class="flex flex-wrap gap-3">
+                {% for doc in documents %}
+                {% set config = doc_configs.get(doc.template_slug) %}
+                <button type="button" 
+                        class="doc-tab flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm transition-all
+                               {% if loop.first %}active{% endif %}"
+                        data-doc-index="{{ loop.index0 }}"
+                        onclick="switchDocument({{ loop.index0 }})">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center
+                        {% if config %}bg-{{ config.color }}-100{% else %}bg-slate-100{% endif %}">
+                        <i class="fas {{ config.icon if config else 'fa-file-alt' }}
+                            {% if config %}text-{{ config.color }}-600{% else %}text-slate-600{% endif %}"></i>
+                    </div>
+                    <span class="text-slate-700">{{ doc.template_name }}</span>
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Document Preview Panels -->
+        {% for doc in documents %}
+        {% set preview = preview_docs[loop.index0] %}
+        {% set config = doc_configs.get(doc.template_slug) %}
+        
+        <div class="doc-preview-panel {% if loop.first %}active{% endif %}" data-doc-index="{{ loop.index0 }}">
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+                <!-- Document header -->
+                <div class="bg-gradient-to-r {% if config %}from-{{ config.color }}-600 to-{{ config.color }}-700{% else %}from-slate-600 to-slate-700{% endif %} px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                            <i class="fas {{ config.icon if config else 'fa-file-alt' }} text-white text-xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h2 class="font-semibold text-white text-lg">{{ doc.template_name }}</h2>
+                            <p class="text-white/80 text-sm">Scroll through to review all pages</p>
+                        </div>
+                        {% if documents|length > 1 %}
+                        <span class="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-full">
+                            Document {{ loop.index }} of {{ documents|length }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Document preview body -->
+                <div class="p-6">
+                    {% if mock_mode %}
+                    <!-- Mock mode placeholder -->
+                    <div class="mock-preview-placeholder">
+                        <div class="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-4">
+                            <i class="fas fa-file-alt text-4xl text-amber-500"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">{{ doc.template_name }}</h3>
+                        <p class="text-slate-600 max-w-md text-center mb-6">
+                            DocuSeal is running in test mode. In production, the actual filled PDF document 
+                            would be displayed here for you to review.
+                        </p>
+                        <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-md text-left">
+                            <h4 class="font-medium text-slate-700 mb-3 flex items-center gap-2">
+                                <i class="fas fa-check-circle text-green-500"></i>
+                                Document Ready
+                            </h4>
+                            <ul class="space-y-2 text-sm text-slate-600">
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-edit text-slate-400 w-4"></i>
+                                    Form data has been filled
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-file-pdf text-red-400 w-4"></i>
+                                    PDF will be generated on send
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-paper-plane text-blue-400 w-4"></i>
+                                    Ready for e-signature
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    {% elif preview.embed_src %}
+                    <!-- Real DocuSeal embed preview -->
+                    <div class="docuseal-embed-container">
+                        <script src="https://cdn.docuseal.com/js/form.js"></script>
+                        <docuseal-form
+                            data-src="{{ preview.embed_src }}"
+                            data-preview="true"
+                            data-readonly="true">
+                        </docuseal-form>
+                    </div>
+                    {% elif preview.error %}
+                    <!-- Error state -->
+                    <div class="text-center py-12">
+                        <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Preview Error</h3>
+                        <p class="text-slate-600 mb-4">{{ preview.error }}</p>
+                        <a href="{{ url_for('transactions.fill_all_documents', id=transaction.id) }}" 
+                           class="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">
+                            <i class="fas fa-edit"></i>
+                            Edit Form Data
+                        </a>
+                    </div>
+                    {% else %}
+                    <!-- No template configured -->
+                    <div class="text-center py-12">
+                        <div class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-cog text-2xl text-amber-500"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-800 mb-2">Template Not Configured</h3>
+                        <p class="text-slate-600">
+                            This document template hasn't been set up in DocuSeal yet. 
+                            Contact support to configure e-signatures for this document.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        <!-- Navigation between documents (for multi-doc) -->
+        {% if documents|length > 1 %}
+        <div class="flex justify-between items-center bg-white rounded-xl shadow-sm border border-slate-200 px-6 py-4">
+            <button type="button" id="prevDocBtn" onclick="prevDocument()" 
+                    class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                <i class="fas fa-arrow-left"></i>
+                Previous Document
+            </button>
+            <span id="docCounter" class="text-sm text-slate-500">Document 1 of {{ documents|length }}</span>
+            <button type="button" id="nextDocBtn" onclick="nextDocument()" 
+                    class="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium flex items-center gap-2 transition-colors">
+                Next Document
+                <i class="fas fa-arrow-right"></i>
+            </button>
+        </div>
+        {% endif %}
+        
+        <!-- Signers Section -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                        <i class="fas fa-users text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-semibold text-white">Signers</h2>
+                        <p class="text-xs text-orange-100">These people will receive the signing invitation</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                {% if signers %}
+                <div class="space-y-4">
+                    {% for signer in signers %}
+                    <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-lg">
+                            {{ signer.name[0]|upper if signer.name else '?' }}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-medium text-slate-800">{{ signer.name }}</h4>
+                            <p class="text-sm text-slate-500">{{ signer.email }}</p>
+                        </div>
+                        <span class="px-3 py-1.5 bg-slate-200 text-slate-700 text-xs font-medium rounded-full">
+                            {{ signer.role }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <div class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-2xl text-amber-500"></i>
+                    </div>
+                    <h3 class="font-semibold text-slate-800 mb-2">No Signers Found</h3>
+                    <p class="text-slate-600 mb-4">Please ensure the transaction has participants with valid email addresses.</p>
+                    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-user-plus"></i>
+                        Add Participants
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Summary Card -->
+        <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <i class="fas fa-envelope-open-text text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg mb-1">Ready to Send</h3>
+                    <p class="text-emerald-100 text-sm">
+                        When you send, {{ signers|length }} signer(s) will receive an email with a link to sign 
+                        all {{ documents|length }} document(s) in one session. They can sign from any device.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4">
+            <a href="{{ url_for('transactions.fill_all_documents', id=transaction.id) }}" 
+               class="flex-1 px-6 py-4 text-center text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-edit"></i>
+                Edit Forms
+            </a>
+            <form action="{{ url_for('transactions.send_all_for_signature', id=transaction.id) }}" method="POST" class="flex-1">
+                <button type="submit" 
+                        {% if not signers %}disabled{% endif %}
+                        class="w-full px-6 py-4 text-center text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl font-medium shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        onclick="return confirmSend();">
+                    <i class="fas fa-paper-plane"></i>
+                    Send All for Signature
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Add padding for any mobile elements -->
+    <div class="h-8"></div>
+</div>
+
+<script>
+const totalDocs = {{ documents|length }};
+let currentDocIndex = 0;
+
+function switchDocument(index) {
+    currentDocIndex = index;
+    
+    // Update tabs
+    document.querySelectorAll('.doc-tab').forEach((tab, i) => {
+        tab.classList.toggle('active', i === index);
+    });
+    
+    // Update panels
+    document.querySelectorAll('.doc-preview-panel').forEach((panel, i) => {
+        panel.classList.toggle('active', i === index);
+    });
+    
+    // Update navigation buttons
+    updateNavButtons();
+}
+
+function prevDocument() {
+    if (currentDocIndex > 0) {
+        switchDocument(currentDocIndex - 1);
+    }
+}
+
+function nextDocument() {
+    if (currentDocIndex < totalDocs - 1) {
+        switchDocument(currentDocIndex + 1);
+    }
+}
+
+function updateNavButtons() {
+    const prevBtn = document.getElementById('prevDocBtn');
+    const nextBtn = document.getElementById('nextDocBtn');
+    const counter = document.getElementById('docCounter');
+    
+    if (prevBtn) prevBtn.disabled = currentDocIndex === 0;
+    if (nextBtn) nextBtn.disabled = currentDocIndex === totalDocs - 1;
+    if (counter) counter.textContent = `Document ${currentDocIndex + 1} of ${totalDocs}`;
+}
+
+function confirmSend() {
+    const docCount = {{ documents|length }};
+    const signerCount = {{ signers|length }};
+    
+    if (signerCount === 0) {
+        alert('Please add signers with email addresses before sending.');
+        return false;
+    }
+    
+    return confirm(`Send ${docCount} document(s) to ${signerCount} signer(s) for signature?\n\nThis action cannot be undone.`);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateNavButtons();
+});
+</script>
+{% endblock %}

@@ -51,11 +51,11 @@ DOCUSEAL_MOCK_MODE = not bool(DOCUSEAL_API_KEY)
 # NOTE: Template IDs may differ between test and production environments
 TEMPLATE_MAP = {
     'listing-agreement': 2468023,  # Listing Agreement template
+    'hoa-addendum': 2469165,  # HOA Addendum template (https://docuseal.com/d/b3S4Ryi2HCjoh4)
     'iabs': None,
     'sellers-disclosure': None,
     'wire-fraud-warning': None,
     'lead-paint': None,
-    'hoa-addendum': None,
     'flood-hazard': None,
     'water-district': None,
     't47-affidavit': None,
@@ -129,6 +129,23 @@ def get_mapping_file_path(template_slug: str) -> str:
     """Get the path to the mapping file for a template (for display in admin)."""
     return str(MAPPINGS_DIR / f"{template_slug}.yml")
 
+
+def get_template_submitter_roles(template_slug: str) -> List[str]:
+    """
+    Get the submitter roles for a template from YAML config.
+    
+    Returns list like ['Seller', 'Broker'] or ['Seller', 'Buyer'].
+    Defaults to ['Seller', 'Broker'] if not specified in YAML.
+    """
+    mapping = load_field_mapping(template_slug)
+    if mapping:
+        roles = mapping.get('submitter_roles')
+        if roles:
+            return roles
+    # Default to Seller + Broker for backwards compatibility
+    return ['Seller', 'Broker']
+
+
 def _format_date(date_str: str) -> str:
     """Convert date to MM/DD/YYYY format for DocuSeal."""
     if not date_str:
@@ -163,17 +180,17 @@ def _apply_transform(value: Any, field_name: str, transforms: Dict[str, Any]) ->
         return str(value) if value else ''
     
     # Check if it's a currency field
-    currency_fields = transforms.get('currency_fields', [])
+    currency_fields = transforms.get('currency_fields') or []
     if field_name in currency_fields:
         return _format_currency(value)
     
     # Check if it's a date field
-    date_fields = transforms.get('date_fields', [])
+    date_fields = transforms.get('date_fields') or []
     if field_name in date_fields:
         return _format_date(value)
     
     # Check for radio mapping
-    radio_mappings = transforms.get('radio_mappings', {})
+    radio_mappings = transforms.get('radio_mappings') or {}
     if field_name in radio_mappings:
         mapping = radio_mappings[field_name]
         str_value = str(value).lower() if value else ''
@@ -209,10 +226,10 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
     
     # For Broker submitter, return agent_fields + broker_form_fields
     if submitter_role == 'Broker':
-        transforms = mapping.get('transforms', {})
+        transforms = mapping.get('transforms') or {}
         
         # 1. Add agent auto-fill fields
-        agent_field_configs = mapping.get('agent_fields', [])
+        agent_field_configs = mapping.get('agent_fields') or []
         if agent_data and agent_field_configs:
             for config in agent_field_configs:
                 docuseal_name = config.get('docuseal_field')
@@ -244,7 +261,7 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
                     })
         
         # 2. Add broker form fields (form data that goes to Broker submitter)
-        broker_form_fields = mapping.get('broker_form_fields', {})
+        broker_form_fields = mapping.get('broker_form_fields') or {}
         for form_field, docuseal_field in broker_form_fields.items():
             if not docuseal_field:
                 continue
@@ -260,9 +277,30 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
         logger.info(f"Built {len(fields)} DocuSeal Broker fields")
         return fields
     
+    # For Buyer submitter, return buyer_form_fields (used by HOA Addendum etc.)
+    if submitter_role == 'Buyer':
+        transforms = mapping.get('transforms') or {}
+        
+        # Add buyer form fields (form data that goes to Buyer submitter)
+        buyer_form_fields = mapping.get('buyer_form_fields') or {}
+        for form_field, docuseal_field in buyer_form_fields.items():
+            if not docuseal_field:
+                continue
+            if form_field in form_data and form_data[form_field]:
+                value = form_data[form_field]
+                transformed_value = _apply_transform(value, form_field, transforms)
+                if transformed_value:
+                    fields.append({
+                        'name': docuseal_field,
+                        'default_value': transformed_value
+                    })
+        
+        logger.info(f"Built {len(fields)} DocuSeal Buyer fields")
+        return fields
+    
     # For Seller submitter or no filter, return form-based fields
-    field_map = mapping.get('field_mappings', {})
-    transforms = mapping.get('transforms', {})
+    field_map = mapping.get('field_mappings') or {}
+    transforms = mapping.get('transforms') or {}
     
     # Map form fields to DocuSeal fields
     for form_field, docuseal_field in field_map.items():
@@ -464,7 +502,8 @@ def create_submission(
         payload["message"] = message
     
     logger.info(f"Creating DocuSeal submission for template {template_id} ({template_slug})")
-    logger.debug(f"Submitters: {[s.get('email') for s in submitters]}")
+    logger.info(f"Submitters: {json.dumps(submitters, indent=2, default=str)}")
+    logger.info(f"Full payload: {json.dumps(payload, indent=2, default=str)}")
     
     try:
         response = requests.post(
@@ -493,7 +532,9 @@ def create_submission(
     except requests.exceptions.RequestException as e:
         logger.error(f"DocuSeal create_submission error: {e}")
         if hasattr(e, 'response') and e.response is not None:
-            logger.error(f"Response: {e.response.text}")
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
+            logger.error(f"Request payload was: {json.dumps(payload, indent=2, default=str)}")
         raise DocuSealError(f"Failed to create submission: {e}")
 
 
@@ -693,6 +734,333 @@ def upload_template(file_path: str, name: str) -> Dict[str, Any]:
     
     # Real implementation would use multipart form upload
     raise DocuSealError("Template upload should be done via DocuSeal web interface")
+
+
+# =============================================================================
+# MULTI-DOCUMENT SUBMISSION
+# =============================================================================
+# PREVIEW SUBMISSION
+# =============================================================================
+# Creates a preview-only submission to show filled documents without sending.
+
+def create_preview_submission(
+    template_id: int,
+    field_data: Dict[str, Any],
+    template_slug: str
+) -> Optional[Dict[str, Any]]:
+    """
+    Create a preview submission for showing filled documents.
+    
+    In real mode: Creates a draft submission in DocuSeal that can be previewed
+    In mock mode: Returns None (template shows field summary instead)
+    
+    Args:
+        template_id: The DocuSeal template ID
+        field_data: Form data to populate the document
+        template_slug: Our internal template identifier
+        
+    Returns:
+        Dict with 'slug' for embedding, or None if preview not available
+    """
+    if DOCUSEAL_MOCK_MODE:
+        return None
+    
+    try:
+        # Build the fields for DocuSeal format
+        docuseal_fields = build_docuseal_fields(
+            form_data=field_data,
+            template_slug=template_slug
+        )
+        
+        # Create a submission with a placeholder email (won't be sent due to send_email=false)
+        headers = {
+            'X-Auth-Token': DOCUSEAL_API_KEY,
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            'template_id': template_id,
+            'send_email': False,  # Don't send any emails
+            'submitters': [
+                {
+                    'email': 'preview@preview.local',
+                    'role': 'Viewer',
+                    'fields': docuseal_fields
+                }
+            ]
+        }
+        
+        response = requests.post(
+            f'{DOCUSEAL_API_URL}/submissions',
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.ok:
+            result = response.json()
+            # Get the submitter slug for embedding
+            if isinstance(result, list) and len(result) > 0:
+                return {'slug': result[0].get('slug')}
+            return None
+        else:
+            logger.error(f"Failed to create preview submission: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Error creating preview submission: {e}")
+        return None
+
+
+# =============================================================================
+# MULTI-DOCUMENT SUBMISSIONS
+# =============================================================================
+# These functions support sending multiple documents as a single envelope.
+# DocuSeal allows templates to contain multiple PDFs, which signers complete
+# in one signing session.
+
+def create_multi_doc_submission(
+    documents: List[Dict[str, Any]],
+    submitters: List[Dict[str, Any]],
+    transaction_id: int,
+    send_email: bool = True,
+    message: Dict[str, str] = None
+) -> Dict[str, Any]:
+    """
+    Create a submission with multiple documents as one envelope.
+    
+    This creates a combined template from multiple existing templates,
+    then creates a submission from that combined template.
+    
+    Args:
+        documents: List of dicts with:
+            - template_slug: Our internal template identifier (e.g., 'listing-agreement')
+            - field_data: Pre-filled values for this document
+            - template_name: Display name of the document
+        submitters: List of signers with role, email, name
+        transaction_id: Transaction ID for unique template naming
+        send_email: Whether to send email invitations
+        message: Custom email subject/body
+    
+    Returns:
+        Dict with:
+            - id: Submission ID
+            - combined_template_id: The ID of the dynamically created combined template
+            - submitters: List of submitters with their signing URLs
+            - document_count: Number of documents in the envelope
+    """
+    if DOCUSEAL_MOCK_MODE:
+        return _mock_create_multi_doc_submission(documents, submitters, transaction_id, send_email)
+    
+    try:
+        # Step 1: Fetch each template to get document URLs and fields
+        template_docs = []
+        all_fields = []
+        
+        for doc in documents:
+            template_slug = doc.get('template_slug')
+            template_id = get_template_id(template_slug)
+            
+            if not template_id:
+                logger.warning(f"Template not configured for slug: {template_slug}, skipping")
+                continue
+            
+            # Fetch template details
+            template = get_template(template_id)
+            
+            # Get the PDF document(s) from this template
+            for template_doc in template.get('documents', []):
+                template_docs.append({
+                    'name': doc.get('template_name', template_slug),
+                    'file': template_doc.get('url'),  # DocuSeal accepts URL directly
+                })
+            
+            # Collect fields with their values
+            field_data = doc.get('field_data', {})
+            for field in template.get('fields', []):
+                field_with_value = field.copy()
+                # Add default value if we have it in field_data
+                field_name = field.get('name')
+                if field_name and field_name in field_data:
+                    field_with_value['default_value'] = str(field_data[field_name])
+                all_fields.append(field_with_value)
+        
+        if not template_docs:
+            raise DocuSealError("No valid templates found for the provided documents")
+        
+        # Step 2: Create a combined template with all documents
+        combined_template = _create_combined_template(
+            name=f"Combined Package - Transaction {transaction_id}",
+            documents=template_docs,
+            external_id=f"tx-{transaction_id}-combined-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        )
+        
+        combined_template_id = combined_template.get('id')
+        logger.info(f"Created combined template {combined_template_id} with {len(template_docs)} documents")
+        
+        # Step 3: Build submitters with pre-filled fields
+        submitters_with_fields = []
+        for sub in submitters:
+            submitter = {
+                'role': sub.get('role'),
+                'email': sub.get('email'),
+                'name': sub.get('name', ''),
+            }
+            
+            # Add pre-filled fields for this submitter's role
+            fields_for_role = []
+            for doc in documents:
+                template_slug = doc.get('template_slug')
+                field_data = doc.get('field_data', {})
+                agent_data = doc.get('agent_data')
+                
+                # Get fields for this submitter's role
+                role_fields = build_docuseal_fields(
+                    field_data,
+                    template_slug,
+                    agent_data,
+                    submitter_role=sub.get('role')
+                )
+                fields_for_role.extend(role_fields)
+            
+            if fields_for_role:
+                submitter['fields'] = fields_for_role
+            
+            submitters_with_fields.append(submitter)
+        
+        # Step 4: Create submission from combined template
+        payload = {
+            "template_id": combined_template_id,
+            "send_email": send_email,
+            "submitters": submitters_with_fields
+        }
+        
+        if message:
+            payload["message"] = message
+        
+        response = requests.post(
+            f"{DOCUSEAL_API_URL}/submissions",
+            headers=_get_headers(),
+            json=payload
+        )
+        response.raise_for_status()
+        result = response.json()
+        
+        # Normalize result
+        if isinstance(result, list):
+            submission_id = result[0].get('submission_id') if result else None
+            normalized_result = {
+                'id': submission_id,
+                'combined_template_id': combined_template_id,
+                'submitters': result,
+                'document_count': len(template_docs)
+            }
+        else:
+            normalized_result = result
+            normalized_result['combined_template_id'] = combined_template_id
+            normalized_result['document_count'] = len(template_docs)
+        
+        logger.info(f"Created multi-doc submission {normalized_result.get('id')} with {len(template_docs)} documents")
+        return normalized_result
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"DocuSeal create_multi_doc_submission error: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response: {e.response.text}")
+        raise DocuSealError(f"Failed to create multi-document submission: {e}")
+
+
+def _create_combined_template(
+    name: str,
+    documents: List[Dict[str, str]],
+    external_id: str = None
+) -> Dict[str, Any]:
+    """
+    Create a combined template from multiple PDF documents.
+    
+    Uses DocuSeal's "Create template from PDF" API which accepts
+    multiple documents in the documents array.
+    
+    Args:
+        name: Template name
+        documents: List of dicts with 'name' and 'file' (URL or base64)
+        external_id: Optional external identifier for deduplication
+    
+    Returns:
+        Created template object with id, slug, fields, etc.
+    """
+    if DOCUSEAL_MOCK_MODE:
+        return {'id': 999999, 'name': name, 'slug': 'mock-combined'}
+    
+    payload = {
+        "name": name,
+        "documents": documents,
+        "folder_name": "CRM Combined Packages"
+    }
+    
+    if external_id:
+        payload["external_id"] = external_id
+    
+    try:
+        response = requests.post(
+            f"{DOCUSEAL_API_URL}/templates/pdf",
+            headers=_get_headers(),
+            json=payload
+        )
+        response.raise_for_status()
+        return response.json()
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"DocuSeal _create_combined_template error: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response: {e.response.text}")
+        raise DocuSealError(f"Failed to create combined template: {e}")
+
+
+def _mock_create_multi_doc_submission(
+    documents: List[Dict[str, Any]],
+    submitters: List[Dict[str, Any]],
+    transaction_id: int,
+    send_email: bool = True
+) -> Dict[str, Any]:
+    """Mock implementation of create_multi_doc_submission."""
+    submission_id = f"multi-{str(uuid.uuid4())[:8]}"
+    
+    # Create mock submitters
+    mock_submitters = []
+    for i, sub in enumerate(submitters):
+        submitter_slug = str(uuid.uuid4())[:12]
+        mock_submitters.append({
+            'id': 2000 + i,
+            'slug': submitter_slug,
+            'email': sub.get('email'),
+            'name': sub.get('name', ''),
+            'role': sub.get('role', 'Signer'),
+            'status': 'pending',
+            'sent_at': datetime.utcnow().isoformat() if send_email else None,
+            'embed_src': f"https://docuseal.com/s/{submitter_slug}",
+            'sign_url': f"https://docuseal.com/sign/{submitter_slug}"
+        })
+    
+    # Build list of document names
+    doc_names = [d.get('template_name', d.get('template_slug', 'Document')) for d in documents]
+    
+    submission = {
+        'id': submission_id,
+        'combined_template_id': 999999,
+        'transaction_id': transaction_id,
+        'status': 'pending',
+        'created_at': datetime.utcnow().isoformat(),
+        'expire_at': (datetime.utcnow() + timedelta(days=30)).isoformat(),
+        'submitters': mock_submitters,
+        'document_count': len(documents),
+        'document_names': doc_names,
+        'documents': []
+    }
+    
+    _mock_submissions[submission_id] = submission
+    logger.info(f"[MOCK] Created multi-doc submission {submission_id} with {len(documents)} documents")
+    return submission
 
 
 # =============================================================================
