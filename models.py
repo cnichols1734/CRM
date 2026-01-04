@@ -407,8 +407,8 @@ class Transaction(db.Model):
     ownership_status = db.Column(db.String(50))
     
     # Transaction status
-    # Values: draft, active, pending, under_contract, closed, cancelled
-    status = db.Column(db.String(50), default='draft')
+    # Values: preparing_to_list, active, under_contract, closed, cancelled
+    status = db.Column(db.String(50), default='preparing_to_list')
     
     # Key dates
     expected_close_date = db.Column(db.Date)
@@ -498,6 +498,15 @@ class TransactionParticipant(db.Model):
         if self.user and self.user.email:
             return self.user.email
         return self.email
+    
+    @property
+    def display_phone(self):
+        """Get phone from contact, user, or phone field."""
+        if self.contact and self.contact.phone:
+            return self.contact.phone
+        if self.user and self.user.phone:
+            return self.user.phone
+        return self.phone
     
     def __repr__(self):
         return f'<TransactionParticipant {self.role}: {self.display_name}>'

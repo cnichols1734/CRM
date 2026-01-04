@@ -685,15 +685,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="form-label form-label-required">Listing Start Date</label>
-                        <input type="date" name="field_listing_start_date" 
+                        <input type="date" name="field_listing_start_date" id="listingStartDate"
                                value="{{ prefill_data.get('listing_start_date', '') }}"
-                               class="premium-input">
+                               class="premium-input" onchange="updateEndDate(this)">
                     </div>
                     <div>
                         <label class="form-label form-label-required">Listing End Date</label>
-                        <input type="date" name="field_listing_end_date" 
+                        <input type="date" name="field_listing_end_date" id="listingEndDate"
                                value="{{ prefill_data.get('listing_end_date', '') }}"
                                class="premium-input">
+                        <p class="help-text">Defaults to 6 months from start date</p>
                     </div>
                 </div>
             </div>
@@ -745,22 +746,10 @@
                                 <div>
                                     <label class="form-label form-label-required">Total compensation paid by seller</label>
                                     <p class="text-sm text-slate-600 mb-2">This is the total commission (listing + buyer's agent combined)</p>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div class="input-group">
-                                            <input type="number" name="field_total_commission_percent" 
-                                                   value="{{ prefill_data.get('total_commission_percent', '') }}"
-                                                   class="premium-input" placeholder="e.g., 6" step="0.01">
-                                            <span class="input-suffix">%</span>
-                                        </div>
-                                        <div class="flex items-center text-slate-400 justify-center">OR</div>
-                                    </div>
-                                    <div class="input-group mt-3">
-                                        <span class="input-prefix">$</span>
-                                        <input type="text" name="field_total_commission_flat" 
-                                               value="{{ prefill_data.get('total_commission_flat', '') }}"
-                                               class="premium-input" placeholder="Flat fee amount"
-                                               oninput="formatCurrency(this)">
-                                    </div>
+                                    <input type="text" name="field_total_commission" 
+                                           value="{{ prefill_data.get('total_commission', '') }}"
+                                           class="premium-input" placeholder="e.g., 6%, $5,000, or $5,000 + 3%">
+                                    <p class="help-text">Enter percentage, flat fee, or combination (e.g., "$5,000 + 3%")</p>
                                 </div>
 
                                 <div>
@@ -1240,7 +1229,7 @@
                     <label class="form-label">Any special provisions or custom terms to include?</label>
                     <textarea name="field_special_provisions" class="premium-textarea" rows="4" 
                               placeholder="Enter any additional terms, conditions, or agreements...">{{ prefill_data.get('special_provisions', '') }}</textarea>
-                    <p class="help-text">This is where you can add any custom agreements not covered elsewhere in the form.</p>
+                    <p class="help-text">Real estate brokers and sales agents are prohibited from practicing law and shall not add to, delete, or modify any provision of this contract unless drafted by a party to this contract or a party's attorney.</p>
                 </div>
             </div>
 
@@ -1551,6 +1540,38 @@ function formatCurrency(input) {
         input.value = value;
     }
 }
+
+// =============================================================================
+// DATE CALCULATIONS
+// =============================================================================
+
+function updateEndDate(startInput) {
+    const endInput = document.getElementById('listingEndDate');
+    if (startInput.value && endInput) {
+        // Only update if end date is empty or hasn't been manually changed
+        if (!endInput.value || endInput.dataset.autoSet === 'true') {
+            const startDate = new Date(startInput.value);
+            // Add 6 months
+            startDate.setMonth(startDate.getMonth() + 6);
+            // Format as YYYY-MM-DD for input[type="date"]
+            const year = startDate.getFullYear();
+            const month = String(startDate.getMonth() + 1).padStart(2, '0');
+            const day = String(startDate.getDate()).padStart(2, '0');
+            endInput.value = `${year}-${month}-${day}`;
+            endInput.dataset.autoSet = 'true';
+        }
+    }
+}
+
+// Clear auto-set flag when user manually changes end date
+document.addEventListener('DOMContentLoaded', function() {
+    const endDateInput = document.getElementById('listingEndDate');
+    if (endDateInput) {
+        endDateInput.addEventListener('input', function() {
+            this.dataset.autoSet = 'false';
+        });
+    }
+});
 
 // =============================================================================
 // FORM SUBMISSION
