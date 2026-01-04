@@ -1,0 +1,1618 @@
+{% extends "base.html" %}
+
+{% block title %}Listing Agreement - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse-soft {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.3s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Section styling */
+    .form-section {
+        border-left: 4px solid transparent;
+        transition: all 0.3s ease-out;
+    }
+
+    .form-section:hover {
+        border-left-color: #f97316;
+    }
+
+    .form-section.active {
+        border-left-color: #f97316;
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.02), transparent);
+    }
+
+    /* Section header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .section-number {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .section-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+    }
+
+    .premium-input:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .premium-input[readonly] {
+        background-color: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    .premium-input[readonly]:focus {
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+
+    /* Premium select */
+    .premium-select {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 1.25rem;
+        padding-right: 2.5rem;
+    }
+
+    .premium-select:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    /* Premium textarea */
+    .premium-textarea {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    .premium-textarea:focus {
+        border-color: #f97316;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        outline: none;
+    }
+
+    /* Form label */
+    .form-label {
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-label-required::after {
+        content: ' *';
+        color: #ef4444;
+    }
+
+    /* Help text - always visible */
+    .help-text {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+        line-height: 1.5;
+    }
+
+    /* Important callout - always visible helper */
+    .callout-info {
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        border: 1px solid #93c5fd;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .callout-info i {
+        color: #3b82f6;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .callout-info p {
+        font-size: 0.875rem;
+        color: #1e40af;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    .callout-warning {
+        background: linear-gradient(135deg, #fffbeb, #fef3c7);
+        border: 1px solid #fcd34d;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .callout-warning i {
+        color: #f59e0b;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .callout-warning p {
+        font-size: 0.875rem;
+        color: #92400e;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* Radio/Checkbox card styling */
+    .option-card {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.25rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+        background: #f8fafc;
+    }
+
+    .option-card:hover {
+        border-color: #cbd5e1;
+        background: #f1f5f9;
+    }
+
+    .option-card.selected {
+        border-color: #f97316;
+        background: linear-gradient(135deg, #fff7ed, #ffedd5);
+    }
+
+    .option-card input[type="radio"],
+    .option-card input[type="checkbox"] {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.875rem;
+        accent-color: #f97316;
+        flex-shrink: 0;
+    }
+
+    .option-label {
+        font-weight: 500;
+        color: #1e293b;
+    }
+
+    .option-description {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Checkbox group */
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        cursor: pointer;
+        transition: all 0.2s ease-out;
+        background: #f8fafc;
+    }
+
+    .checkbox-item:hover {
+        border-color: #cbd5e1;
+    }
+
+    .checkbox-item.checked {
+        border-color: #f97316;
+        background: #fff7ed;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin-right: 0.75rem;
+        accent-color: #f97316;
+    }
+
+    /* Conditional section */
+    .conditional-section {
+        display: none;
+        padding-left: 1.5rem;
+        margin-top: 1rem;
+        border-left: 3px solid #e2e8f0;
+        animation: fadeInUp 0.3s ease-out;
+    }
+
+    .conditional-section.show {
+        display: block;
+    }
+
+    /* Input with prefix/suffix */
+    .input-group {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+    }
+
+    .input-prefix,
+    .input-suffix {
+        display: flex;
+        align-items: center;
+        padding: 0 1rem;
+        background: #e2e8f0;
+        color: #64748b;
+        font-weight: 500;
+        font-size: 0.9375rem;
+        border: 2px solid #e2e8f0;
+    }
+
+    .input-prefix {
+        border-right: none;
+        border-radius: 0.625rem 0 0 0.625rem;
+    }
+
+    .input-suffix {
+        border-left: none;
+        border-radius: 0 0.625rem 0.625rem 0;
+    }
+
+    .input-group .premium-input {
+        border-radius: 0;
+    }
+
+    .input-group .premium-input:first-child {
+        border-radius: 0.625rem 0 0 0.625rem;
+    }
+
+    .input-group .premium-input:last-child {
+        border-radius: 0 0.625rem 0.625rem 0;
+    }
+
+    .input-group .premium-input:only-child {
+        border-radius: 0.625rem;
+    }
+
+    /* Progress indicator */
+    .progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e2e8f0;
+        z-index: 1000;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #f97316, #ea580c);
+        transition: width 0.3s ease-out;
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Status badge */
+    .status-badge {
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .status-pending { background: #f1f5f9; color: #64748b; }
+    .status-filled { background: #dbeafe; color: #1e40af; }
+    .status-sent { background: #fef3c7; color: #92400e; }
+    .status-signed { background: #dcfce7; color: #166534; }
+
+    /* Floating action bar */
+    .floating-action-bar {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 0.875rem 1.25rem;
+        border-radius: 1rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    /* Add padding at bottom of form so last section isn't hidden */
+    .form-bottom-spacer {
+        height: 100px;
+    }
+</style>
+
+<!-- Progress Bar -->
+<div class="progress-bar">
+    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
+        </a>
+        
+        <!-- Header Section -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 animate-fade-in-up">
+            <div class="flex items-start space-x-4">
+                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
+                    <i class="fas fa-file-contract text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Listing Agreement</h1>
+                    <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
+                    <p class="text-xs text-slate-400 mt-1">TXR-1101 • Exclusive Right to Sell</p>
+                </div>
+            </div>
+            <span class="status-badge status-{{ document.status }}">
+                {{ document.status|title }}
+            </span>
+        </div>
+
+        <!-- Main Form -->
+        <form id="listingAgreementForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+            
+            <!-- ============================================================== -->
+            <!-- SECTION 1: PARTIES -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-blue-500 to-blue-600 text-white">1</div>
+                    <div>
+                        <h2 class="section-title">Parties</h2>
+                        <p class="section-subtitle">Seller and property information</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Seller Information -->
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                            <i class="fas fa-user text-slate-400"></i> Seller Information
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="form-label form-label-required">Seller Full Legal Name(s)</label>
+                                <input type="text" name="field_seller_legal_name" 
+                                       value="{{ prefill_data.get('seller_legal_name', prefill_data.get('seller_name', '')) }}"
+                                       class="premium-input" placeholder="e.g., John Smith and Jane Smith">
+                                <p class="help-text">Enter all sellers' full legal names as they appear on the deed.</p>
+                            </div>
+                            <div>
+                                <label class="form-label form-label-required">Seller Phone</label>
+                                <input type="tel" name="field_seller_phone" 
+                                       value="{{ prefill_data.get('seller_phone', '') }}"
+                                       class="premium-input" placeholder="(555) 123-4567">
+                            </div>
+                            <div>
+                                <label class="form-label form-label-required">Seller Email</label>
+                                <input type="email" name="field_seller_email" 
+                                       value="{{ prefill_data.get('seller_email', '') }}"
+                                       class="premium-input" placeholder="seller@email.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Property Address -->
+                    <div>
+                        <h3 class="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
+                            <i class="fas fa-home text-slate-400"></i> Property Address
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2">
+                                <label class="form-label form-label-required">Street Address</label>
+                                <input type="text" name="field_property_address" 
+                                       value="{{ prefill_data.get('property_address', '') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                            <div>
+                                <label class="form-label form-label-required">City</label>
+                                <input type="text" name="field_property_city" 
+                                       value="{{ prefill_data.get('property_city', '') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="form-label">State</label>
+                                    <input type="text" name="field_property_state" 
+                                           value="{{ prefill_data.get('property_state', 'TX') }}"
+                                           class="premium-input" readonly>
+                                </div>
+                                <div>
+                                    <label class="form-label">ZIP</label>
+                                    <input type="text" name="field_property_zip" 
+                                           value="{{ prefill_data.get('property_zip', '') }}"
+                                           class="premium-input" readonly>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 2: PROPERTY DETAILS -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="2">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">2</div>
+                    <div>
+                        <h2 class="section-title">Property Details</h2>
+                        <p class="section-subtitle">Legal description and property characteristics</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Is this a Condo? -->
+                    <div>
+                        <label class="form-label form-label-required">Is this property a condominium?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'is_condo', 'yes')">
+                                <input type="radio" name="field_is_condo" value="yes" 
+                                       {{ 'checked' if prefill_data.get('is_condo') == 'yes' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'is_condo', 'no')">
+                                <input type="radio" name="field_is_condo" value="no" 
+                                       {{ 'checked' if prefill_data.get('is_condo') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                        <div class="callout-info" id="condoCallout" style="display: none;">
+                            <i class="fas fa-info-circle"></i>
+                            <p>A Condominium Addendum will be automatically added to the document package.</p>
+                        </div>
+                    </div>
+
+                    <!-- Legal Description -->
+                    <div>
+                        <label class="form-label">Legal Description</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <input type="text" name="field_legal_lot" 
+                                       value="{{ prefill_data.get('legal_lot', '') }}"
+                                       class="premium-input" placeholder="Lot">
+                            </div>
+                            <div>
+                                <input type="text" name="field_legal_block" 
+                                       value="{{ prefill_data.get('legal_block', '') }}"
+                                       class="premium-input" placeholder="Block">
+                            </div>
+                            <div>
+                                <input type="text" name="field_legal_subdivision" 
+                                       value="{{ prefill_data.get('legal_subdivision', '') }}"
+                                       class="premium-input" placeholder="Subdivision">
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="form-label">County</label>
+                            <input type="text" name="field_property_county" 
+                                   value="{{ prefill_data.get('property_county', '') }}"
+                                   class="premium-input" placeholder="Enter county">
+                        </div>
+                    </div>
+
+                    <!-- Exclusions -->
+                    <div>
+                        <label class="form-label">Are there any items the seller wants to EXCLUDE from the sale?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'has_exclusions', 'no')">
+                                <input type="radio" name="field_has_exclusions" value="no" 
+                                       {{ 'checked' if prefill_data.get('has_exclusions') != 'yes' else '' }}>
+                                <span class="option-label">No exclusions</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'has_exclusions', 'yes')">
+                                <input type="radio" name="field_has_exclusions" value="yes" 
+                                       {{ 'checked' if prefill_data.get('has_exclusions') == 'yes' else '' }}>
+                                <span class="option-label">Yes, there are exclusions</span>
+                            </label>
+                        </div>
+                        <div class="conditional-section" id="exclusionsSection">
+                            <label class="form-label">List the items to be excluded:</label>
+                            <textarea name="field_exclusions" class="premium-textarea" rows="3" 
+                                      placeholder="e.g., Refrigerator in garage, chandelier in dining room">{{ prefill_data.get('exclusions', '') }}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- HOA -->
+                    <div>
+                        <label class="form-label form-label-required">Is the property subject to a mandatory HOA?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'has_hoa', 'yes')">
+                                <input type="radio" name="field_has_hoa" value="yes" 
+                                       {{ 'checked' if prefill_data.get('has_hoa') == 'yes' or prefill_data.get('intake_has_hoa') == true else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'has_hoa', 'no')">
+                                <input type="radio" name="field_has_hoa" value="no" 
+                                       {{ 'checked' if prefill_data.get('has_hoa') == 'no' or prefill_data.get('intake_has_hoa') == false else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                        <p class="help-text">Includes HOAs, POAs, and any mandatory membership associations.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 3: LISTING PRICE -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="3">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-green-500 to-green-600 text-white">3</div>
+                    <div>
+                        <h2 class="section-title">Listing Price</h2>
+                        <p class="section-subtitle">Property listing price</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="form-label form-label-required">What is the listing price?</label>
+                    <div class="input-group mt-2">
+                        <span class="input-prefix">$</span>
+                        <input type="text" name="field_list_price" 
+                               value="{{ prefill_data.get('list_price', '') }}"
+                               class="premium-input" placeholder="0" 
+                               oninput="formatCurrency(this)">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 4: LISTING TERM -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="4">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-purple-500 to-purple-600 text-white">4</div>
+                    <div>
+                        <h2 class="section-title">Listing Term</h2>
+                        <p class="section-subtitle">Start and end dates for the listing period</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label form-label-required">Listing Start Date</label>
+                        <input type="date" name="field_listing_start_date" 
+                               value="{{ prefill_data.get('listing_start_date', '') }}"
+                               class="premium-input">
+                    </div>
+                    <div>
+                        <label class="form-label form-label-required">Listing End Date</label>
+                        <input type="date" name="field_listing_end_date" 
+                               value="{{ prefill_data.get('listing_end_date', '') }}"
+                               class="premium-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 5: BROKER COMPENSATION -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="5">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-amber-500 to-amber-600 text-white">5</div>
+                    <div>
+                        <h2 class="section-title">Broker Compensation</h2>
+                        <p class="section-subtitle">Commission structure and buyer agent compensation</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Primary Decision: Include buyer agent compensation? -->
+                    <div>
+                        <label class="form-label form-label-required">Will this listing include compensation offered to a buyer's agent?</label>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'offer_buyer_agent_comp', 'yes')">
+                                <input type="radio" name="field_offer_buyer_agent_comp" value="yes" 
+                                       {{ 'checked' if prefill_data.get('offer_buyer_agent_comp') == 'yes' else '' }}>
+                                <div>
+                                    <span class="option-label">Yes — Use Section 5A</span>
+                                    <p class="option-description">Seller will pay listing + buyer's agent compensation</p>
+                                </div>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'offer_buyer_agent_comp', 'no')">
+                                <input type="radio" name="field_offer_buyer_agent_comp" value="no" 
+                                       {{ 'checked' if prefill_data.get('offer_buyer_agent_comp') == 'no' else '' }}>
+                                <div>
+                                    <span class="option-label">No — Use Section 5B</span>
+                                    <p class="option-description">Seller pays listing broker only</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Section 5A: With Buyer Agent Compensation -->
+                    <div class="conditional-section" id="section5A">
+                        <div class="bg-blue-50 rounded-xl p-5 border border-blue-100">
+                            <h4 class="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                                <i class="fas fa-file-contract text-blue-500"></i> Section 5A: With Buyer Agent Compensation
+                            </h4>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="form-label form-label-required">Total compensation paid by seller</label>
+                                    <p class="text-sm text-slate-600 mb-2">This is the total commission (listing + buyer's agent combined)</p>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div class="input-group">
+                                            <input type="number" name="field_total_commission_percent" 
+                                                   value="{{ prefill_data.get('total_commission_percent', '') }}"
+                                                   class="premium-input" placeholder="e.g., 6" step="0.01">
+                                            <span class="input-suffix">%</span>
+                                        </div>
+                                        <div class="flex items-center text-slate-400 justify-center">OR</div>
+                                    </div>
+                                    <div class="input-group mt-3">
+                                        <span class="input-prefix">$</span>
+                                        <input type="text" name="field_total_commission_flat" 
+                                               value="{{ prefill_data.get('total_commission_flat', '') }}"
+                                               class="premium-input" placeholder="Flat fee amount"
+                                               oninput="formatCurrency(this)">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="form-label">If another broker brings the buyer, how should they be paid?</label>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                        <div>
+                                            <label class="text-sm text-slate-600 mb-1 block">Buyer's Agent</label>
+                                            <div class="input-group">
+                                                <input type="number" name="field_buyer_agent_percent" 
+                                                       value="{{ prefill_data.get('buyer_agent_percent', '') }}"
+                                                       class="premium-input" placeholder="e.g., 3" step="0.01">
+                                                <span class="input-suffix">%</span>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-sm text-slate-600 mb-1 block">— OR Flat Fee —</label>
+                                            <div class="input-group">
+                                                <span class="input-prefix">$</span>
+                                                <input type="text" name="field_buyer_agent_flat" 
+                                                       value="{{ prefill_data.get('buyer_agent_flat', '') }}"
+                                                       class="premium-input" placeholder="Amount"
+                                                       oninput="formatCurrency(this)">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 5B: Without Buyer Agent Compensation -->
+                    <div class="conditional-section" id="section5B">
+                        <div class="bg-purple-50 rounded-xl p-5 border border-purple-100">
+                            <h4 class="font-semibold text-purple-900 mb-4 flex items-center gap-2">
+                                <i class="fas fa-file-contract text-purple-500"></i> Section 5B: Listing Broker Only
+                            </h4>
+                            
+                            <div>
+                                <label class="form-label form-label-required">Broker's fee paid to Origen Realty</label>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                                    <div class="input-group">
+                                        <input type="number" name="field_listing_only_percent" 
+                                               value="{{ prefill_data.get('listing_only_percent', '') }}"
+                                               class="premium-input" placeholder="e.g., 3" step="0.01">
+                                        <span class="input-suffix">%</span>
+                                    </div>
+                                    <div class="flex items-center text-slate-400 justify-center">OR</div>
+                                </div>
+                                <div class="input-group mt-3">
+                                    <span class="input-prefix">$</span>
+                                    <input type="text" name="field_listing_only_flat" 
+                                           value="{{ prefill_data.get('listing_only_flat', '') }}"
+                                           class="premium-input" placeholder="Flat fee amount"
+                                           oninput="formatCurrency(this)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seller Paying Buyer's Expenses Disclosure -->
+                    <div class="mt-6 pt-6 border-t border-slate-200">
+                        <label class="form-label form-label-required">
+                            Can we tell buyers and other agents that the seller may consider helping with buyer expenses?
+                        </label>
+                        <p class="text-sm text-slate-600 mb-3">(closing costs or buyer agent fees)</p>
+                        
+                        <div class="callout-info mb-4">
+                            <i class="fas fa-info-circle"></i>
+                            <p><strong>This does not obligate the seller to pay anything.</strong> It only controls whether the broker is allowed to disclose that the seller will consider contributing to the buyer's expenses during negotiations.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <label class="option-card" onclick="selectOption(this, 'authorize_buyer_expense_disclosure', 'yes')">
+                                <input type="radio" name="field_authorize_buyer_expense_disclosure" value="yes" 
+                                       {{ 'checked' if prefill_data.get('authorize_buyer_expense_disclosure') == 'yes' else '' }}>
+                                <div>
+                                    <span class="option-label">Yes — Broker may disclose this</span>
+                                </div>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'authorize_buyer_expense_disclosure', 'no')">
+                                <input type="radio" name="field_authorize_buyer_expense_disclosure" value="no" 
+                                       {{ 'checked' if prefill_data.get('authorize_buyer_expense_disclosure') == 'no' else '' }}>
+                                <div>
+                                    <span class="option-label">No — Broker may not disclose this</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 6: PROTECTION PERIOD -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="6">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-red-500 to-red-600 text-white">6</div>
+                    <div>
+                        <h2 class="section-title">Protection Period</h2>
+                        <p class="section-subtitle">Broker protection after listing ends</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="form-label form-label-required">How many days should the protection period be after the listing ends?</label>
+                        <div class="input-group mt-2" style="max-width: 200px;">
+                            <input type="number" name="field_protection_period_days" 
+                                   value="{{ prefill_data.get('protection_period_days', '90') }}"
+                                   class="premium-input" placeholder="90" min="0" max="365">
+                            <span class="input-suffix">days</span>
+                        </div>
+                        <p class="help-text">Common values: 30, 60, or 90 days. This protects the broker if a buyer who viewed the property during the listing period purchases after the listing ends.</p>
+                    </div>
+                    
+                    <div>
+                        <label class="form-label">County where broker compensation is payable</label>
+                        <input type="text" name="field_compensation_county" 
+                               value="{{ prefill_data.get('compensation_county', prefill_data.get('property_county', '')) }}"
+                               class="premium-input" placeholder="Defaults to property county">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 7: MLS & MARKETING -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="7">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">7</div>
+                    <div>
+                        <h2 class="section-title">MLS & Marketing</h2>
+                        <p class="section-subtitle">Public listing and marketing options</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label form-label-required">Should this listing be entered into the MLS?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'enter_mls', 'yes')">
+                                <input type="radio" name="field_enter_mls" value="yes" 
+                                       {{ 'checked' if prefill_data.get('enter_mls') != 'no' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'enter_mls', 'no')">
+                                <input type="radio" name="field_enter_mls" value="no" 
+                                       {{ 'checked' if prefill_data.get('enter_mls') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- MLS Yes Options -->
+                    <div class="conditional-section" id="mlsYesSection">
+                        <div>
+                            <label class="form-label">When should it be entered into the MLS?</label>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                                <label class="option-card" onclick="selectOption(this, 'mls_timing', 'immediately')">
+                                    <input type="radio" name="field_mls_timing" value="immediately" 
+                                           {{ 'checked' if prefill_data.get('mls_timing') != 'delayed' else '' }}>
+                                    <div>
+                                        <span class="option-label">Immediately</span>
+                                        <p class="option-description">Per MLS rules</p>
+                                    </div>
+                                </label>
+                                <label class="option-card" onclick="selectOption(this, 'mls_timing', 'delayed')">
+                                    <input type="radio" name="field_mls_timing" value="delayed" 
+                                           {{ 'checked' if prefill_data.get('mls_timing') == 'delayed' else '' }}>
+                                    <div>
+                                        <span class="option-label">Delay entry</span>
+                                        <p class="option-description">Specify days and reason</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="conditional-section" id="mlsDelaySection">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                                <div>
+                                    <label class="form-label">Delay for how many days?</label>
+                                    <input type="number" name="field_mls_delay_days" 
+                                           value="{{ prefill_data.get('mls_delay_days', '') }}"
+                                           class="premium-input" placeholder="e.g., 7">
+                                </div>
+                                <div>
+                                    <label class="form-label">Reason for delay</label>
+                                    <input type="text" name="field_mls_delay_reason" 
+                                           value="{{ prefill_data.get('mls_delay_reason', '') }}"
+                                           class="premium-input" placeholder="e.g., Seller preparing property">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MLS No Warning -->
+                    <div class="conditional-section" id="mlsNoSection">
+                        <div class="callout-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <div>
+                                <p><strong>Seller acknowledges:</strong> The property will not be publicly marketed. This may reduce exposure and potentially affect the sale price and time on market.</p>
+                                <label class="flex items-center gap-3 mt-3 cursor-pointer">
+                                    <input type="checkbox" name="field_mls_no_acknowledge" value="yes" 
+                                           class="w-5 h-5 accent-amber-600"
+                                           {{ 'checked' if prefill_data.get('mls_no_acknowledge') == 'yes' else '' }}>
+                                    <span class="text-amber-900 font-medium">Seller acknowledges and accepts this</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 8: ACCESS & SHOWINGS -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="8">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">8</div>
+                    <div>
+                        <h2 class="section-title">Access & Showings</h2>
+                        <p class="section-subtitle">Property access and showing arrangements</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label">Authorize showings and access to the property?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'authorize_showings', 'yes')">
+                                <input type="radio" name="field_authorize_showings" value="yes" 
+                                       {{ 'checked' if prefill_data.get('authorize_showings') != 'no' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'authorize_showings', 'no')">
+                                <input type="radio" name="field_authorize_showings" value="no" 
+                                       {{ 'checked' if prefill_data.get('authorize_showings') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Scheduling service to be used (if any)</label>
+                        <input type="text" name="field_scheduling_service" 
+                               value="{{ prefill_data.get('scheduling_service', '') }}"
+                               class="premium-input" placeholder="e.g., ShowingTime, CSS">
+                    </div>
+
+                    <div>
+                        <label class="form-label">Authorize use of a lockbox?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'authorize_lockbox', 'yes')">
+                                <input type="radio" name="field_authorize_lockbox" value="yes" 
+                                       {{ 'checked' if prefill_data.get('authorize_lockbox') != 'no' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'authorize_lockbox', 'no')">
+                                <input type="radio" name="field_authorize_lockbox" value="no" 
+                                       {{ 'checked' if prefill_data.get('authorize_lockbox') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 9: INTERMEDIARY -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="9">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-violet-500 to-violet-600 text-white">9</div>
+                    <div>
+                        <h2 class="section-title">Intermediary</h2>
+                        <p class="section-subtitle">Dual agency authorization</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="form-label form-label-required">May Origen Realty act as an intermediary if representing both buyer and seller?</label>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
+                        <label class="option-card" onclick="selectOption(this, 'authorize_intermediary', 'yes')">
+                            <input type="radio" name="field_authorize_intermediary" value="yes" 
+                                   {{ 'checked' if prefill_data.get('authorize_intermediary') != 'no' else '' }}>
+                            <div>
+                                <span class="option-label">Yes — Intermediary authorized</span>
+                                <p class="option-description">Broker may represent both parties</p>
+                            </div>
+                        </label>
+                        <label class="option-card" onclick="selectOption(this, 'authorize_intermediary', 'no')">
+                            <input type="radio" name="field_authorize_intermediary" value="no" 
+                                   {{ 'checked' if prefill_data.get('authorize_intermediary') == 'no' else '' }}>
+                            <div>
+                                <span class="option-label">No — Do not show to Origen buyers</span>
+                                <p class="option-description">Property not shown to broker's buyer clients</p>
+                            </div>
+                        </label>
+                    </div>
+                    <p class="help-text">If "No" is selected, Origen agents cannot show this property to their buyer clients.</p>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 10: INTERNET DISPLAY -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="10">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-pink-500 to-pink-600 text-white">10</div>
+                    <div>
+                        <h2 class="section-title">Internet Display</h2>
+                        <p class="section-subtitle">Online marketing options</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label">Allow this listing to be displayed on the internet?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'internet_display', 'yes')">
+                                <input type="radio" name="field_internet_display" value="yes" 
+                                       {{ 'checked' if prefill_data.get('internet_display') != 'no' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'internet_display', 'no')">
+                                <input type="radio" name="field_internet_display" value="no" 
+                                       {{ 'checked' if prefill_data.get('internet_display') == 'no' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="conditional-section" id="internetYesSection">
+                        <div>
+                            <label class="form-label">Display the property address online?</label>
+                            <div class="grid grid-cols-2 gap-3 mt-2">
+                                <label class="option-card" onclick="selectOption(this, 'display_address_online', 'yes')">
+                                    <input type="radio" name="field_display_address_online" value="yes" 
+                                           {{ 'checked' if prefill_data.get('display_address_online') != 'no' else '' }}>
+                                    <span class="option-label">Yes</span>
+                                </label>
+                                <label class="option-card" onclick="selectOption(this, 'display_address_online', 'no')">
+                                    <input type="radio" name="field_display_address_online" value="no" 
+                                           {{ 'checked' if prefill_data.get('display_address_online') == 'no' else '' }}>
+                                    <span class="option-label">No</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 11: FINANCING OPTIONS -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="11">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-teal-500 to-teal-600 text-white">11</div>
+                    <div>
+                        <h2 class="section-title">Financing Options</h2>
+                        <p class="section-subtitle">Acceptable financing types</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="form-label">Which financing types should be advertised? <span class="text-slate-400 font-normal">(select all that apply)</span></label>
+                    <div class="checkbox-grid mt-3">
+                        {% set financing_options = [
+                            ('conventional', 'Conventional'),
+                            ('fha', 'FHA'),
+                            ('va', 'VA'),
+                            ('cash', 'Cash'),
+                            ('tx_vet', 'Texas Veterans Land Program'),
+                            ('owner_financing', 'Owner Financing'),
+                            ('other', 'Other')
+                        ] %}
+                        {% for value, label in financing_options %}
+                        <label class="checkbox-item" onclick="toggleCheckbox(this)">
+                            <input type="checkbox" name="field_financing_{{ value }}" value="yes"
+                                   {{ 'checked' if prefill_data.get('financing_' + value) == 'yes' else '' }}>
+                            <span>{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 12: SELLER REPRESENTATIONS -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="12">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-rose-500 to-rose-600 text-white">12</div>
+                    <div>
+                        <h2 class="section-title">Seller Representations</h2>
+                        <p class="section-subtitle">Property condition and disclosures</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label">Any known unpaid liens or encumbrances on the property?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'has_liens', 'no')">
+                                <input type="radio" name="field_has_liens" value="no" 
+                                       {{ 'checked' if prefill_data.get('has_liens') != 'yes' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'has_liens', 'yes')">
+                                <input type="radio" name="field_has_liens" value="yes" 
+                                       {{ 'checked' if prefill_data.get('has_liens') == 'yes' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                        </div>
+                        <div class="conditional-section" id="liensSection">
+                            <label class="form-label">Please explain:</label>
+                            <textarea name="field_liens_explanation" class="premium-textarea" rows="2">{{ prefill_data.get('liens_explanation', '') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Any delinquent loans, taxes, or HOA dues?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'has_delinquencies', 'no')">
+                                <input type="radio" name="field_has_delinquencies" value="no" 
+                                       {{ 'checked' if prefill_data.get('has_delinquencies') != 'yes' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'has_delinquencies', 'yes')">
+                                <input type="radio" name="field_has_delinquencies" value="yes" 
+                                       {{ 'checked' if prefill_data.get('has_delinquencies') == 'yes' else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                        </div>
+                        <div class="conditional-section" id="delinquenciesSection">
+                            <label class="form-label">Please explain:</label>
+                            <textarea name="field_delinquencies_explanation" class="premium-textarea" rows="2">{{ prefill_data.get('delinquencies_explanation', '') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Is the property located in any special districts (MUD, PID, etc.)?</label>
+                        <div class="grid grid-cols-2 gap-3 mt-2">
+                            <label class="option-card" onclick="selectOption(this, 'has_special_districts', 'no')">
+                                <input type="radio" name="field_has_special_districts" value="no" 
+                                       {{ 'checked' if prefill_data.get('has_special_districts') != 'yes' else '' }}>
+                                <span class="option-label">No</span>
+                            </label>
+                            <label class="option-card" onclick="selectOption(this, 'has_special_districts', 'yes')">
+                                <input type="radio" name="field_has_special_districts" value="yes" 
+                                       {{ 'checked' if prefill_data.get('has_special_districts') == 'yes' or prefill_data.get('intake_special_districts') == true else '' }}>
+                                <span class="option-label">Yes</span>
+                            </label>
+                        </div>
+                        <div class="conditional-section" id="specialDistrictsSection">
+                            <label class="form-label">List the special districts:</label>
+                            <textarea name="field_special_districts_list" class="premium-textarea" rows="2" 
+                                      placeholder="e.g., Cinco MUD 1, Harris County Improvement District 5">{{ prefill_data.get('special_districts_list', '') }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 13: SPECIAL PROVISIONS -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="13">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-slate-600 to-slate-700 text-white">13</div>
+                    <div>
+                        <h2 class="section-title">Special Provisions</h2>
+                        <p class="section-subtitle">Additional terms and conditions</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="form-label">Any special provisions or custom terms to include?</label>
+                    <textarea name="field_special_provisions" class="premium-textarea" rows="4" 
+                              placeholder="Enter any additional terms, conditions, or agreements...">{{ prefill_data.get('special_provisions', '') }}</textarea>
+                    <p class="help-text">This is where you can add any custom agreements not covered elsewhere in the form.</p>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 14: FIRPTA (Foreign Seller) -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="14">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-orange-600 to-red-600 text-white">14</div>
+                    <div>
+                        <h2 class="section-title">Foreign Seller (FIRPTA)</h2>
+                        <p class="section-subtitle">Tax withholding requirements</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="form-label form-label-required">Is the seller considered a "foreign person" for U.S. tax purposes?</label>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
+                        <label class="option-card" onclick="selectOption(this, 'is_foreign_seller', 'no')">
+                            <input type="radio" name="field_is_foreign_seller" value="no" 
+                                   {{ 'checked' if prefill_data.get('is_foreign_seller') == 'no' else '' }}>
+                            <span class="option-label">No</span>
+                        </label>
+                        <label class="option-card" onclick="selectOption(this, 'is_foreign_seller', 'yes')">
+                            <input type="radio" name="field_is_foreign_seller" value="yes" 
+                                   {{ 'checked' if prefill_data.get('is_foreign_seller') == 'yes' else '' }}>
+                            <span class="option-label">Yes</span>
+                        </label>
+                        <label class="option-card" onclick="selectOption(this, 'is_foreign_seller', 'not_sure')">
+                            <input type="radio" name="field_is_foreign_seller" value="not_sure" 
+                                   {{ 'checked' if prefill_data.get('is_foreign_seller') == 'not_sure' else '' }}>
+                            <span class="option-label">Not Sure</span>
+                        </label>
+                    </div>
+                    
+                    <div class="conditional-section" id="firptaWarningSection">
+                        <div class="callout-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p>If the seller is a foreign person, FIRPTA (Foreign Investment in Real Property Tax Act) withholding may apply. The seller should consult with a tax professional before closing.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spacer for floating action bar -->
+            <div class="form-bottom-spacer"></div>
+        </form>
+        
+        <!-- Floating Action Bar -->
+        <div class="floating-action-bar">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+                Cancel
+            </a>
+            <div class="w-px h-8 bg-slate-200"></div>
+            <button type="submit" form="listingAgreementForm" name="action" value="save" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+                <i class="fas fa-save text-slate-500"></i>
+                Save Draft
+            </button>
+            <button type="button" onclick="saveAndPreview()" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+                <i class="fas fa-check-circle"></i>
+                Save & Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+        <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
+        <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
+    </div>
+</div>
+
+<script>
+// =============================================================================
+// INITIALIZATION
+// =============================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize all conditional sections based on current values
+    initializeConditionalSections();
+    
+    // Initialize option cards styling
+    initializeOptionCards();
+    
+    // Initialize checkbox items styling
+    initializeCheckboxItems();
+    
+    // Update progress bar
+    updateProgress();
+    
+    // Add input listeners for progress tracking
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+        el.addEventListener('change', updateProgress);
+        el.addEventListener('input', updateProgress);
+    });
+});
+
+function initializeConditionalSections() {
+    // Condo callout
+    const isCondo = document.querySelector('input[name="field_is_condo"]:checked');
+    if (isCondo && isCondo.value === 'yes') {
+        document.getElementById('condoCallout').style.display = 'flex';
+    }
+    
+    // Exclusions
+    const hasExclusions = document.querySelector('input[name="field_has_exclusions"]:checked');
+    if (hasExclusions && hasExclusions.value === 'yes') {
+        document.getElementById('exclusionsSection').classList.add('show');
+    }
+    
+    // Compensation sections
+    const offerBuyerComp = document.querySelector('input[name="field_offer_buyer_agent_comp"]:checked');
+    if (offerBuyerComp) {
+        if (offerBuyerComp.value === 'yes') {
+            document.getElementById('section5A').classList.add('show');
+        } else {
+            document.getElementById('section5B').classList.add('show');
+        }
+    }
+    
+    // MLS sections
+    const enterMls = document.querySelector('input[name="field_enter_mls"]:checked');
+    if (enterMls) {
+        if (enterMls.value === 'yes') {
+            document.getElementById('mlsYesSection').classList.add('show');
+            
+            const mlsTiming = document.querySelector('input[name="field_mls_timing"]:checked');
+            if (mlsTiming && mlsTiming.value === 'delayed') {
+                document.getElementById('mlsDelaySection').classList.add('show');
+            }
+        } else {
+            document.getElementById('mlsNoSection').classList.add('show');
+        }
+    }
+    
+    // Internet display
+    const internetDisplay = document.querySelector('input[name="field_internet_display"]:checked');
+    if (internetDisplay && internetDisplay.value === 'yes') {
+        document.getElementById('internetYesSection').classList.add('show');
+    }
+    
+    // Liens
+    const hasLiens = document.querySelector('input[name="field_has_liens"]:checked');
+    if (hasLiens && hasLiens.value === 'yes') {
+        document.getElementById('liensSection').classList.add('show');
+    }
+    
+    // Delinquencies
+    const hasDelinquencies = document.querySelector('input[name="field_has_delinquencies"]:checked');
+    if (hasDelinquencies && hasDelinquencies.value === 'yes') {
+        document.getElementById('delinquenciesSection').classList.add('show');
+    }
+    
+    // Special districts
+    const hasSpecialDistricts = document.querySelector('input[name="field_has_special_districts"]:checked');
+    if (hasSpecialDistricts && hasSpecialDistricts.value === 'yes') {
+        document.getElementById('specialDistrictsSection').classList.add('show');
+    }
+    
+    // FIRPTA
+    const isForeignSeller = document.querySelector('input[name="field_is_foreign_seller"]:checked');
+    if (isForeignSeller && (isForeignSeller.value === 'yes' || isForeignSeller.value === 'not_sure')) {
+        document.getElementById('firptaWarningSection').classList.add('show');
+    }
+}
+
+function initializeOptionCards() {
+    document.querySelectorAll('.option-card').forEach(card => {
+        const input = card.querySelector('input[type="radio"], input[type="checkbox"]');
+        if (input && input.checked) {
+            card.classList.add('selected');
+        }
+    });
+}
+
+function initializeCheckboxItems() {
+    document.querySelectorAll('.checkbox-item').forEach(item => {
+        const input = item.querySelector('input[type="checkbox"]');
+        if (input && input.checked) {
+            item.classList.add('checked');
+        }
+    });
+}
+
+// =============================================================================
+// OPTION SELECTION
+// =============================================================================
+
+function selectOption(element, fieldName, value) {
+    // Update visual state for radio buttons in the same group
+    const container = element.closest('.grid, .flex');
+    if (container) {
+        container.querySelectorAll('.option-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+    }
+    element.classList.add('selected');
+    
+    // Handle conditional logic
+    handleConditionalLogic(fieldName, value);
+}
+
+function toggleCheckbox(element) {
+    element.classList.toggle('checked');
+}
+
+function handleConditionalLogic(fieldName, value) {
+    switch(fieldName) {
+        case 'is_condo':
+            document.getElementById('condoCallout').style.display = value === 'yes' ? 'flex' : 'none';
+            break;
+            
+        case 'has_exclusions':
+            document.getElementById('exclusionsSection').classList.toggle('show', value === 'yes');
+            break;
+            
+        case 'offer_buyer_agent_comp':
+            document.getElementById('section5A').classList.toggle('show', value === 'yes');
+            document.getElementById('section5B').classList.toggle('show', value === 'no');
+            break;
+            
+        case 'enter_mls':
+            document.getElementById('mlsYesSection').classList.toggle('show', value === 'yes');
+            document.getElementById('mlsNoSection').classList.toggle('show', value === 'no');
+            break;
+            
+        case 'mls_timing':
+            document.getElementById('mlsDelaySection').classList.toggle('show', value === 'delayed');
+            break;
+            
+        case 'internet_display':
+            document.getElementById('internetYesSection').classList.toggle('show', value === 'yes');
+            break;
+            
+        case 'has_liens':
+            document.getElementById('liensSection').classList.toggle('show', value === 'yes');
+            break;
+            
+        case 'has_delinquencies':
+            document.getElementById('delinquenciesSection').classList.toggle('show', value === 'yes');
+            break;
+            
+        case 'has_special_districts':
+            document.getElementById('specialDistrictsSection').classList.toggle('show', value === 'yes');
+            break;
+            
+        case 'is_foreign_seller':
+            document.getElementById('firptaWarningSection').classList.toggle('show', value === 'yes' || value === 'not_sure');
+            break;
+    }
+    
+    updateProgress();
+}
+
+// =============================================================================
+// PROGRESS TRACKING
+// =============================================================================
+
+function updateProgress() {
+    const form = document.getElementById('listingAgreementForm');
+    const requiredFields = form.querySelectorAll('[required], .form-label-required');
+    
+    // Count filled required fields (simplified)
+    const allInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
+    let filledCount = 0;
+    let totalCount = 0;
+    
+    allInputs.forEach(input => {
+        if (input.type === 'radio') {
+            const name = input.name;
+            if (!form.querySelector(`[name="${name}"][data-counted]`)) {
+                totalCount++;
+                if (form.querySelector(`[name="${name}"]:checked`)) {
+                    filledCount++;
+                }
+                input.setAttribute('data-counted', 'true');
+            }
+        } else if (input.type === 'checkbox') {
+            // Don't count checkboxes toward progress
+        } else if (input.value && input.value.trim()) {
+            filledCount++;
+            totalCount++;
+        } else if (input.required || input.closest('.form-label-required')) {
+            totalCount++;
+        }
+    });
+    
+    // Reset counted flags
+    form.querySelectorAll('[data-counted]').forEach(el => el.removeAttribute('data-counted'));
+    
+    const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
+    document.getElementById('progressFill').style.width = progress + '%';
+}
+
+// =============================================================================
+// CURRENCY FORMATTING
+// =============================================================================
+
+function formatCurrency(input) {
+    let value = input.value.replace(/[^0-9]/g, '');
+    if (value) {
+        value = parseInt(value, 10).toLocaleString('en-US');
+        input.value = value;
+    }
+}
+
+// =============================================================================
+// FORM SUBMISSION
+// =============================================================================
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const icon = document.getElementById('toastIcon');
+    document.getElementById('toastMessage').textContent = message;
+    
+    icon.className = 'fas';
+    if (type === 'success') {
+        icon.classList.add('fa-check-circle', 'text-green-500');
+    } else if (type === 'error') {
+        icon.classList.add('fa-exclamation-circle', 'text-red-500');
+    } else if (type === 'warning') {
+        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+    } else {
+        icon.classList.add('fa-info-circle', 'text-blue-500');
+    }
+    
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+function saveAndPreview() {
+    const form = document.getElementById('listingAgreementForm');
+    const formData = new FormData(form);
+    
+    showToast('Saving document...', 'info');
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            showToast('Document saved successfully!', 'success');
+            setTimeout(() => {
+                window.location.href = "{{ url_for('transactions.view_transaction', id=transaction.id) }}";
+            }, 1500);
+        } else {
+            showToast('Error saving form. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error saving form. Please try again.', 'error');
+    });
+}
+
+// =============================================================================
+// AUTO-SAVE (Optional - can enable later)
+// =============================================================================
+
+let autoSaveTimeout;
+function scheduleAutoSave() {
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(() => {
+        // Could implement auto-save here
+    }, 30000); // 30 seconds
+}
+</script>
+{% endblock %}
+

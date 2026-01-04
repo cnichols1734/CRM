@@ -398,48 +398,90 @@
                                     {{ doc.status|title }}
                                 </span>
                                 
-                                <!-- Action buttons based on status -->
-                                <div class="flex items-center gap-1">
-                                    {% if doc.status == 'pending' %}
-                                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
-                                       class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                                       title="Fill Form">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    {% elif doc.status == 'filled' %}
-                                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
-                                       class="p-2 rounded-lg text-slate-400 hover:text-purple-600 hover:bg-purple-50 transition-all"
-                                       title="Edit Form">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <button onclick="sendForSignature({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
-                                            title="Send for Signature">
-                                        <i class="fas fa-paper-plane"></i>
+                                <!-- Actions Dropdown Menu -->
+                                <div class="relative doc-actions-dropdown">
+                                    <button onclick="toggleDocActionsMenu({{ doc.id }})" 
+                                            class="p-2 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all">
+                                        <i class="fas fa-ellipsis-v"></i>
                                     </button>
-                                    {% elif doc.status == 'sent' %}
-                                    <button onclick="checkSignatureStatus({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                                            title="Check Status">
-                                        <i class="fas fa-clock"></i>
-                                    </button>
-                                    <button onclick="simulateSignature({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all"
-                                            title="Simulate Sign (Test)">
-                                        <i class="fas fa-magic"></i>
-                                    </button>
-                                    {% elif doc.status == 'signed' %}
-                                    <button onclick="downloadDocument({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-green-600 hover:bg-green-50 transition-all"
-                                            title="Download">
-                                        <i class="fas fa-download"></i>
-                                    </button>
-                                    {% endif %}
-                                    <button onclick="removeDocument({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                                            title="Remove">
-                                        <i class="fas fa-times"></i>
-                                    </button>
+                                    <div id="docActionsMenu-{{ doc.id }}" 
+                                         class="hidden absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-2">
+                                        
+                                        <!-- Form Actions -->
+                                        {% if doc.status == 'pending' %}
+                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
+                                           class="flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
+                                            <i class="fas fa-edit w-5"></i>
+                                            <span class="ml-2">Fill Form</span>
+                                        </a>
+                                        {% elif doc.status in ['filled', 'generated'] %}
+                                        <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
+                                           class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-edit w-5 text-slate-400"></i>
+                                            <span class="ml-2">Edit Form</span>
+                                        </a>
+                                        {% endif %}
+                                        
+                                        <!-- Mock DocuSeal Test Section -->
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                            Mock DocuSeal Test
+                                        </div>
+                                        
+                                        {% if doc.status in ['filled', 'generated'] %}
+                                        <button onclick="sendForSignature({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
+                                            <i class="fas fa-paper-plane w-5"></i>
+                                            <span class="ml-2">Send for Signature</span>
+                                        </button>
+                                        {% elif doc.status == 'pending' %}
+                                        <span class="flex items-center px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed">
+                                            <i class="fas fa-paper-plane w-5"></i>
+                                            <span class="ml-2">Send for Signature</span>
+                                            <span class="ml-auto text-xs">(fill first)</span>
+                                        </span>
+                                        {% endif %}
+                                        
+                                        {% if doc.status == 'sent' %}
+                                        <button onclick="checkSignatureStatus({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
+                                            <i class="fas fa-clock w-5"></i>
+                                            <span class="ml-2">Check Status</span>
+                                        </button>
+                                        <button onclick="simulateSignature({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 transition-colors">
+                                            <i class="fas fa-magic w-5"></i>
+                                            <span class="ml-2">Simulate Signing</span>
+                                        </button>
+                                        {% elif doc.status not in ['signed'] %}
+                                        <span class="flex items-center px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed">
+                                            <i class="fas fa-magic w-5"></i>
+                                            <span class="ml-2">Simulate Signing</span>
+                                            <span class="ml-auto text-xs">(send first)</span>
+                                        </span>
+                                        {% endif %}
+                                        
+                                        {% if doc.status == 'signed' %}
+                                        <button onclick="downloadDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
+                                            <i class="fas fa-download w-5"></i>
+                                            <span class="ml-2">Download Signed</span>
+                                        </button>
+                                        <button onclick="viewSignedDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-eye w-5 text-slate-400"></i>
+                                            <span class="ml-2">View Signed</span>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <!-- Remove -->
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        <button onclick="removeDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                            <i class="fas fa-trash-alt w-5"></i>
+                                            <span class="ml-2">Remove Document</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -911,7 +953,32 @@ function removeDocument(docId) {
 }
 
 // =============================================================================
-// DOCUMENT ACTIONS
+// DOCUMENT ACTIONS DROPDOWN
+// =============================================================================
+
+function toggleDocActionsMenu(docId) {
+    // Close all other menus first
+    document.querySelectorAll('[id^="docActionsMenu-"]').forEach(menu => {
+        if (menu.id !== `docActionsMenu-${docId}`) {
+            menu.classList.add('hidden');
+        }
+    });
+    
+    const menu = document.getElementById(`docActionsMenu-${docId}`);
+    menu.classList.toggle('hidden');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.closest('.doc-actions-dropdown')) {
+        document.querySelectorAll('[id^="docActionsMenu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
+
+// =============================================================================
+// TOAST NOTIFICATIONS
 // =============================================================================
 
 function showToast(message, type = 'info') {
@@ -999,6 +1066,22 @@ function downloadDocument(docId) {
             }
         } else {
             showToast('Error: ' + (data.error || 'No documents'), 'error');
+        }
+    });
+}
+
+function viewSignedDocument(docId) {
+    fetch(`/transactions/${transactionId}/documents/${docId}/download`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.documents && data.documents.length > 0) {
+            if (data.mock_mode) {
+                showToast('Mock Mode: Signed document URL would be ' + data.documents[0].url, 'info');
+            } else {
+                window.open(data.documents[0].url, '_blank');
+            }
+        } else {
+            showToast('Error: ' + (data.error || 'No signed documents available'), 'error');
         }
     });
 }
