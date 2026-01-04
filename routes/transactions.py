@@ -1213,11 +1213,11 @@ def send_all_for_signature(id):
     if transaction.created_by_id != current_user.id:
         abort(403)
     
-    # Get documents with specialized forms that are filled
+    # Get documents with specialized forms that are filled or generated (previewed)
     specialized_slugs = get_specialized_slugs()
     documents = transaction.documents.filter(
         TransactionDocument.template_slug.in_(specialized_slugs),
-        TransactionDocument.status.in_(['filled', 'draft'])
+        TransactionDocument.status.in_(['filled', 'draft', 'generated'])
     ).order_by(TransactionDocument.created_at).all()
     
     if not documents:
