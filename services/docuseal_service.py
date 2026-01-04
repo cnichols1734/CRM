@@ -467,28 +467,31 @@ def create_submission(
     submitters: List[Dict[str, Any]],
     field_values: Dict[str, Any] = None,
     send_email: bool = True,
-    message: Dict[str, str] = None
+    message: Dict[str, str] = None,
+    template_id: int = None
 ) -> Dict[str, Any]:
     """
     Create a new submission (send document for signature).
     
     Args:
-        template_slug: Our internal template identifier
+        template_slug: Our internal template identifier (can be None if template_id provided)
         submitters: List of signers with role, email, name, and optional fields[]
         field_values: Pre-filled field values (applied to all submitters if not in submitter.fields)
         send_email: Whether to send email invitations
         message: Custom email subject/body
+        template_id: Optional direct template ID (use for merged templates)
     
     Returns:
         Submission data with ID and submitter details
     """
     if DOCUSEAL_MOCK_MODE:
-        return _mock_create_submission(template_slug, submitters, field_values, send_email)
+        return _mock_create_submission(template_slug or 'merged', submitters, field_values, send_email)
     
-    # Get template ID
-    template_id = get_template_id(template_slug)
-    if not template_id:
-        raise DocuSealError(f"Template not configured for slug: {template_slug}")
+    # Get template ID - use provided ID or look up by slug
+    if template_id is None:
+        template_id = get_template_id(template_slug)
+        if not template_id:
+            raise DocuSealError(f"Template not configured for slug: {template_slug}")
     
     # Build the request payload
     payload = {
@@ -970,51 +973,68 @@ def create_multi_doc_submission(
         raise DocuSealError(f"Failed to create multi-document submission: {e}")
 
 
-def _create_combined_template(
-    name: str,
-    documents: List[Dict[str, str]],
+def merge_templates(
+    template_ids: List[int],
+    name: str = None,
+    roles: List[str] = None,
     external_id: str = None
 ) -> Dict[str, Any]:
     """
-    Create a combined template from multiple PDF documents.
+    Merge multiple existing templates into a single combined template.
     
-    Uses DocuSeal's "Create template from PDF" API which accepts
-    multiple documents in the documents array.
+    Uses DocuSeal's "Merge templates" API which combines templates
+    with all their documents and fields into one.
     
     Args:
-        name: Template name
-        documents: List of dicts with 'name' and 'file' (URL or base64)
-        external_id: Optional external identifier for deduplication
+        template_ids: List of template IDs to merge
+        name: Optional name for merged template (defaults to "Merged Template")
+        roles: Optional list of unified role names for the merged template
+               (e.g., ["Seller", "Broker"] to unify different role names)
+        external_id: Optional external identifier for caching/deduplication
     
     Returns:
-        Created template object with id, slug, fields, etc.
+        Created merged template object with id, slug, fields, submitters, etc.
     """
     if DOCUSEAL_MOCK_MODE:
-        return {'id': 999999, 'name': name, 'slug': 'mock-combined'}
+        return {
+            'id': 999999,
+            'name': name or 'Merged Template',
+            'slug': 'mock-merged',
+            'submitters': [{'name': r, 'uuid': f'mock-{r}'} for r in (roles or ['Seller', 'Broker'])]
+        }
     
     payload = {
-        "name": name,
-        "documents": documents,
+        "template_ids": template_ids,
         "folder_name": "CRM Combined Packages"
     }
+    
+    if name:
+        payload["name"] = name
+    
+    if roles:
+        payload["roles"] = roles
     
     if external_id:
         payload["external_id"] = external_id
     
+    logger.info(f"Merging templates {template_ids} with roles {roles}")
+    
     try:
         response = requests.post(
-            f"{DOCUSEAL_API_URL}/templates/pdf",
+            f"{DOCUSEAL_API_URL}/templates/merge",
             headers=_get_headers(),
             json=payload
         )
         response.raise_for_status()
-        return response.json()
+        result = response.json()
+        logger.info(f"Merged template created: ID {result.get('id')}, submitters: {[s.get('name') for s in result.get('submitters', [])]}")
+        return result
         
     except requests.exceptions.RequestException as e:
-        logger.error(f"DocuSeal _create_combined_template error: {e}")
+        logger.error(f"DocuSeal merge_templates error: {e}")
         if hasattr(e, 'response') and e.response is not None:
             logger.error(f"Response: {e.response.text}")
-        raise DocuSealError(f"Failed to create combined template: {e}")
+        raise DocuSealError(f"Failed to merge templates: {e}")
 
 
 def _mock_create_multi_doc_submission(

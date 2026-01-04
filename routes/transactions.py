@@ -1198,12 +1198,14 @@ def preview_all_documents(id):
 @transactions_required
 def send_all_for_signature(id):
     """
-    Send all filled documents as a single envelope to DocuSeal.
-    Creates a combined submission with all documents.
+    Send all filled documents as ONE envelope using DocuSeal's merge templates API.
+    This merges multiple templates into one and sends a single email to signers.
     """
     from services.docuseal_service import (
-        create_multi_doc_submission,
+        create_submission,
+        merge_templates,
         build_docuseal_fields,
+        get_template_id,
         DocuSealError,
         DOCUSEAL_MOCK_MODE
     )
@@ -1213,11 +1215,11 @@ def send_all_for_signature(id):
     if transaction.created_by_id != current_user.id:
         abort(403)
     
-    # Get documents with specialized forms that are filled
+    # Get documents with specialized forms that are filled or generated (previewed)
     specialized_slugs = get_specialized_slugs()
     documents = transaction.documents.filter(
         TransactionDocument.template_slug.in_(specialized_slugs),
-        TransactionDocument.status.in_(['filled', 'draft'])
+        TransactionDocument.status.in_(['filled', 'draft', 'generated'])
     ).order_by(TransactionDocument.created_at).all()
     
     if not documents:
@@ -1227,85 +1229,123 @@ def send_all_for_signature(id):
     # Get participants
     participants = transaction.participants.all()
     
-    # Build submitters list
-    submitters = []
-    
-    # Primary seller
+    # Get key participants
     seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
-    if seller and seller.display_email:
-        submitters.append({
-            'role': 'Seller',
-            'email': seller.display_email,
-            'name': seller.display_name
-        })
-    
-    # Listing agent as Broker
     listing_agent = next((p for p in participants if p.role == 'listing_agent'), None)
-    if listing_agent and listing_agent.display_email:
-        submitters.append({
-            'role': 'Broker',
-            'email': listing_agent.display_email,
-            'name': listing_agent.display_name
-        })
     
-    if not submitters:
-        flash('No signers found. Please ensure seller and agent have email addresses.', 'error')
+    if not seller or not seller.display_email:
+        flash('No seller with email found. Please add seller contact information.', 'error')
         return redirect(url_for('transactions.preview_all_documents', id=id))
     
     # Build agent data for field population
     agent_data = {
         'name': f"{current_user.first_name} {current_user.last_name}",
         'email': current_user.email,
-        'license_number': getattr(current_user, 'license_number', ''),
-        'phone': getattr(current_user, 'phone', '')
+        'license_number': getattr(current_user, 'license_number', '') or '',
+        'phone': getattr(current_user, 'phone', '') or ''
     }
     
-    # Build documents list for multi-doc submission
-    doc_list = []
-    for doc in documents:
-        doc_list.append({
-            'template_slug': doc.template_slug,
-            'template_name': doc.template_name,
-            'field_data': doc.field_data or {},
-            'agent_data': agent_data
-        })
-    
     try:
-        # Create combined submission
-        result = create_multi_doc_submission(
-            documents=doc_list,
+        # Step 1: Collect all template IDs
+        template_ids = []
+        for doc in documents:
+            template_id = get_template_id(doc.template_slug)
+            if template_id:
+                template_ids.append(template_id)
+        
+        if not template_ids:
+            flash('No valid templates found for the documents.', 'error')
+            return redirect(url_for('transactions.preview_all_documents', id=id))
+        
+        # Step 2: Merge templates into one combined template
+        # Use unified roles: Seller and Broker (Broker handles agent signing)
+        merged_template = merge_templates(
+            template_ids=template_ids,
+            name=f"Document Package - {transaction.street_address} - TX{transaction.id}",
+            roles=['Seller', 'Broker'],  # Unified roles for merged template
+            external_id=f"tx-{transaction.id}-merged-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+        )
+        
+        merged_template_id = merged_template.get('id')
+        
+        # Step 3: Build combined fields from ALL documents for each submitter
+        all_seller_fields = []
+        all_broker_fields = []
+        
+        for doc in documents:
+            # Get seller fields for this document
+            seller_fields = build_docuseal_fields(
+                doc.field_data or {},
+                doc.template_slug,
+                agent_data=None,
+                submitter_role='Seller'
+            )
+            all_seller_fields.extend(seller_fields)
+            
+            # Get broker fields for this document
+            broker_fields = build_docuseal_fields(
+                doc.field_data or {},
+                doc.template_slug,
+                agent_data,
+                submitter_role='Broker'
+            )
+            all_broker_fields.extend(broker_fields)
+        
+        # Step 4: Build submitters with combined fields
+        broker_email = listing_agent.display_email if listing_agent else current_user.email
+        broker_name = listing_agent.display_name if listing_agent else f"{current_user.first_name} {current_user.last_name}"
+        
+        submitters = [
+            {
+                'role': 'Seller',
+                'email': seller.display_email,
+                'name': seller.display_name,
+                'fields': all_seller_fields
+            },
+            {
+                'role': 'Broker',
+                'email': broker_email,
+                'name': broker_name,
+                'fields': all_broker_fields
+            }
+        ]
+        
+        # Step 5: Create ONE submission from the merged template
+        result = create_submission(
+            template_slug=None,  # We're using template_id directly
             submitters=submitters,
-            transaction_id=transaction.id,
+            field_values=None,
             send_email=True,
             message={
                 'subject': f'Documents Ready for Signature - {transaction.street_address}',
-                'body': f'Please review and sign the documents for {transaction.full_address}. Click here to sign: {{{{submitter.link}}}}'
-            }
+                'body': f'Please review and sign your documents for {transaction.full_address}. Click here to sign: {{{{submitter.link}}}}'
+            },
+            template_id=merged_template_id  # Use merged template directly
         )
         
         submission_id = result.get('id')
         
-        # Update all documents with the combined submission ID
-        for i, doc in enumerate(documents):
+        # Step 6: Update ALL documents with the same submission ID
+        for doc in documents:
             doc.status = 'sent'
             doc.docuseal_submission_id = str(submission_id)
             doc.sent_at = datetime.utcnow()
             
-            # Create signature records for each signer on each document
+            # Create signature records for each signer
             for submitter_data in result.get('submitters', []):
-                # Find matching participant
                 participant = None
-                if submitter_data.get('role') == 'Seller':
-                    participant = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
-                elif submitter_data.get('role') == 'Broker':
-                    participant = next((p for p in participants if p.role == 'listing_agent'), None)
+                role = submitter_data.get('role')
+                if role == 'Seller':
+                    participant = seller
+                elif role == 'Broker':
+                    participant = listing_agent
                 
                 signature = DocumentSignature(
                     document_id=doc.id,
                     participant_id=participant.id if participant else None,
                     signer_email=submitter_data.get('email', ''),
                     signer_name=submitter_data.get('name', ''),
-                    signer_role=submitter_data.get('role', 'Signer'),
+                    signer_role=role or 'Signer',
                     status='sent',
                     docuseal_submitter_slug=submitter_data.get('slug', ''),
                     sent_at=datetime.utcnow()
@@ -1315,12 +1355,10 @@ def send_all_for_signature(id):
         db.session.commit()
         
         doc_count = len(documents)
-        signer_count = len(submitters)
-        
         if DOCUSEAL_MOCK_MODE:
-            flash(f'[MOCK MODE] {doc_count} document(s) sent as one envelope to {signer_count} signer(s). Submission ID: {submission_id}', 'success')
+            flash(f'[MOCK MODE] {doc_count} document(s) sent as ONE envelope! Submission ID: {submission_id}', 'success')
         else:
-            flash(f'{doc_count} document(s) sent as one envelope to {signer_count} signer(s) for signature!', 'success')
+            flash(f'{doc_count} document(s) sent as one envelope to signers!', 'success')
         
         return redirect(url_for('transactions.view_transaction', id=id))
         
