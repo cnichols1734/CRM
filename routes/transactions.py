@@ -751,6 +751,17 @@ def document_form(id, doc_id):
     if doc.field_data:
         prefill_data.update(doc.field_data)
     
+    # Route to specialized form templates based on document type
+    if doc.template_slug == 'listing-agreement':
+        return render_template(
+            'transactions/listing_agreement_form.html',
+            transaction=transaction,
+            document=doc,
+            participants=participants,
+            prefill_data=prefill_data
+        )
+    
+    # Default generic form
     return render_template(
         'transactions/document_form.html',
         transaction=transaction,
@@ -816,6 +827,10 @@ def build_prefill_data(transaction, participants):
         'property_zip': transaction.zip_code or '',
         'property_county': transaction.county or '',
         'property_full_address': f"{transaction.street_address or ''}, {transaction.city or ''}, {transaction.state or 'TX'} {transaction.zip_code or ''}".strip(', '),
+        
+        # Broker info (Origen Realty defaults)
+        'broker_name': 'Origen Realty',
+        'broker_license': '',  # Can be set in config or org settings later
     }
     
     # Helper to get phone from participant (check contact first, then direct phone field)
@@ -828,14 +843,35 @@ def build_prefill_data(transaction, participants):
     seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
     if seller:
         data['seller_name'] = seller.display_name
+        data['seller_legal_name'] = seller.display_name  # Can be overwritten in form
         data['seller_email'] = seller.display_email or ''
         data['seller_phone'] = get_phone(seller)
+        
+        # If linked to a contact, get additional info
+        if seller.contact:
+            contact = seller.contact
+            # Build mailing address if different from property
+            if contact.street_address:
+                mailing_parts = [contact.street_address]
+                if contact.city:
+                    mailing_parts.append(contact.city)
+                if contact.state:
+                    mailing_parts.append(contact.state)
+                if contact.zip_code:
+                    mailing_parts.append(contact.zip_code)
+                data['seller_mailing_address'] = ', '.join(mailing_parts)
     
     # Add co-seller info
     co_sellers = [p for p in participants if p.role == 'co_seller']
     if co_sellers:
-        data['co_seller_name'] = co_sellers[0].display_name
-        data['co_seller_email'] = co_sellers[0].display_email or ''
+        co_seller = co_sellers[0]
+        data['co_seller_name'] = co_seller.display_name
+        data['co_seller_email'] = co_seller.display_email or ''
+        data['co_seller_phone'] = get_phone(co_seller)
+        
+        # Combine names for legal name field if both exist
+        if seller:
+            data['seller_legal_name'] = f"{seller.display_name} and {co_seller.display_name}"
     
     # Add listing agent info
     agent = next((p for p in participants if p.role == 'listing_agent'), None)
@@ -843,11 +879,44 @@ def build_prefill_data(transaction, participants):
         data['agent_name'] = agent.display_name
         data['agent_email'] = agent.display_email or ''
         data['agent_phone'] = get_phone(agent)
+        
+        # If linked to a user, get license info
+        if agent.user:
+            user = agent.user
+            data['agent_license'] = user.license_number or ''
+            data['licensed_supervisor'] = user.licensed_supervisor or ''
     
-    # Add intake data if available
+    # Add buyer's agent info if present
+    buyers_agent = next((p for p in participants if p.role == 'buyers_agent'), None)
+    if buyers_agent:
+        data['buyers_agent_name'] = buyers_agent.display_name
+        data['buyers_agent_email'] = buyers_agent.display_email or ''
+        data['buyers_agent_phone'] = get_phone(buyers_agent)
+        data['buyers_agent_company'] = buyers_agent.company or ''
+    
+    # Add title company info if present
+    title_company = next((p for p in participants if p.role == 'title_company'), None)
+    if title_company:
+        data['title_company_name'] = title_company.display_name
+        data['title_company_email'] = title_company.display_email or ''
+        data['title_company_phone'] = get_phone(title_company)
+    
+    # Add intake data if available (with intake_ prefix)
     if transaction.intake_data:
         for key, value in transaction.intake_data.items():
             data[f'intake_{key}'] = value
+    
+    # Set defaults for listing agreement from intake data
+    if transaction.intake_data:
+        intake = transaction.intake_data
+        
+        # Map intake responses to listing agreement defaults
+        if intake.get('has_hoa'):
+            data['has_hoa'] = 'yes' if intake['has_hoa'] else 'no'
+        if intake.get('special_districts'):
+            data['has_special_districts'] = 'yes' if intake['special_districts'] else 'no'
+        if intake.get('flood_hazard'):
+            data['is_flood_hazard'] = 'yes' if intake['flood_hazard'] else 'no'
     
     return data
 
