@@ -733,7 +733,7 @@ Variables expected: prefill_data (dict), doc (optional - for field prefixing in 
         </div>
 
         <div>
-            <label class="form-label">Is the property located in any special districts (MUD, PID, etc.)?</label>
+            <label class="form-label">Is the property located in any special taxing districts (MUD, PID, etc.)?</label>
             <div class="grid grid-cols-2 gap-3 mt-2">
                 <label class="option-card" onclick="selectOption(this, 'has_special_districts', 'no')">
                     <input type="radio" name="{{ field_prefix }}has_special_districts" value="no" 
@@ -747,7 +747,7 @@ Variables expected: prefill_data (dict), doc (optional - for field prefixing in 
                 </label>
             </div>
             <div class="conditional-section" id="specialDistrictsSection">
-                <label class="form-label">List the special districts:</label>
+                <label class="form-label">List the special taxing districts:</label>
                 <textarea name="{{ field_prefix }}special_districts_list" class="premium-textarea" rows="2" 
                           placeholder="e.g., Cinco MUD 1, Harris County Improvement District 5">{{ prefill_data.get('special_districts_list', '') }}</textarea>
             </div>
