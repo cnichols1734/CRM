@@ -756,6 +756,18 @@ function handleDocResponsibility(value) {
     document.getElementById('updatedResaleSection').classList.remove('show');
     document.getElementById('notRequiredWarning').classList.remove('show');
     
+    // Clear sub-option fields when their parent option is deselected
+    // This ensures values don't persist when hidden
+    if (value !== 'already_received') {
+        // Clear the require_updated_resale radio buttons
+        document.querySelectorAll('input[name="field_require_updated_resale"]').forEach(radio => {
+            radio.checked = false;
+            // Also remove the 'selected' class from option cards
+            const card = radio.closest('.option-card');
+            if (card) card.classList.remove('selected');
+        });
+    }
+    
     // Show the appropriate section
     switch(value) {
         case 'seller':

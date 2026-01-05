@@ -172,12 +172,22 @@ def _apply_transform(value: Any, field_name: str, transforms: Dict[str, Any]) ->
     Apply transformation rules from YAML config to a field value.
     
     Handles:
+    - checkbox_to_x: Convert truthy values to "X", falsy to ""
     - radio_mappings: Map our values to DocuSeal values
     - currency_fields: Strip $ and commas
     - date_fields: Convert to MM/DD/YYYY
     """
     if not transforms:
         return str(value) if value else ''
+    
+    # Check if it's a checkbox_to_x field (convert true/yes to "X")
+    checkbox_to_x_fields = transforms.get('checkbox_to_x') or []
+    if field_name in checkbox_to_x_fields:
+        # Convert various truthy values to "X"
+        if value in [True, 'true', 'True', 'yes', 'Yes', '1', 1, 'X', 'x']:
+            return 'X'
+        else:
+            return ''
     
     # Check if it's a currency field
     currency_fields = transforms.get('currency_fields') or []
@@ -298,6 +308,30 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
         logger.info(f"Built {len(fields)} DocuSeal Buyer fields")
         return fields
     
+    # For Seller 2, Seller 3, etc. - these typically only have signature fields
+    # No pre-filled text fields needed, but check seller_2_fields in YAML if defined
+    if submitter_role and submitter_role.startswith('Seller ') and submitter_role != 'Seller':
+        transforms = mapping.get('transforms') or {}
+        
+        # Check for role-specific fields (e.g., seller_2_fields, seller_3_fields)
+        role_key = submitter_role.lower().replace(' ', '_') + '_fields'  # "Seller 2" -> "seller_2_fields"
+        role_fields = mapping.get(role_key) or {}
+        
+        for form_field, docuseal_field in role_fields.items():
+            if not docuseal_field:
+                continue
+            if form_field in form_data and form_data[form_field]:
+                value = form_data[form_field]
+                transformed_value = _apply_transform(value, form_field, transforms)
+                if transformed_value:
+                    fields.append({
+                        'name': docuseal_field,
+                        'default_value': transformed_value
+                    })
+        
+        logger.info(f"Built {len(fields)} DocuSeal {submitter_role} fields")
+        return fields
+    
     # For Seller submitter or no filter, return form-based fields
     field_map = mapping.get('field_mappings') or {}
     transforms = mapping.get('transforms') or {}
@@ -336,6 +370,39 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
                     })
             except KeyError:
                 pass  # Missing form field, skip this computed field
+    
+    # Handle option_transforms (form values that map to DocuSeal checkbox fields with "X")
+    # Used for radio groups where a single form value determines which DocuSeal field gets "X"
+    option_transforms = mapping.get('option_transforms', {})
+    for form_field, value_mapping in option_transforms.items():
+        form_value = form_data.get(form_field)
+        if form_value and isinstance(value_mapping, dict):
+            # Get the DocuSeal field name that should receive "X" based on form value
+            docuseal_field = value_mapping.get(form_value) or value_mapping.get(str(form_value).lower())
+            if docuseal_field:
+                fields.append({
+                    'name': docuseal_field,
+                    'default_value': 'X'
+                })
+    
+    # Handle conditional_fields (fields only included when a condition is met)
+    # Format: { condition_field: { condition_value: { form_field: docuseal_field } } }
+    conditional_fields = mapping.get('conditional_fields', {})
+    for condition_field, value_conditions in conditional_fields.items():
+        condition_value = form_data.get(condition_field)
+        if condition_value and isinstance(value_conditions, dict):
+            # Get the field mappings for this condition value
+            conditional_mappings = value_conditions.get(condition_value) or value_conditions.get(str(condition_value).lower())
+            if conditional_mappings and isinstance(conditional_mappings, dict):
+                for form_field, docuseal_field in conditional_mappings.items():
+                    if form_field in form_data and form_data[form_field]:
+                        value = form_data[form_field]
+                        transformed_value = _apply_transform(value, form_field, transforms)
+                        if transformed_value:
+                            fields.append({
+                                'name': docuseal_field,
+                                'default_value': transformed_value
+                            })
     
     # Add agent/broker fields if provided (only when not filtering for Seller)
     if submitter_role != 'Seller':
@@ -508,6 +575,19 @@ def create_submission(
     logger.info(f"Submitters: {json.dumps(submitters, indent=2, default=str)}")
     logger.info(f"Full payload: {json.dumps(payload, indent=2, default=str)}")
     
+    # DEBUG: Print to console for immediate visibility
+    print(f"\n{'='*60}")
+    print(f"DOCUSEAL SUBMISSION DEBUG")
+    print(f"{'='*60}")
+    print(f"Template ID: {template_id}, Slug: {template_slug}")
+    print(f"Number of submitters: {len(submitters)}")
+    for i, sub in enumerate(submitters):
+        print(f"  Submitter {i+1}: role={sub.get('role')}, email={sub.get('email')}")
+        print(f"    Fields: {len(sub.get('fields', []))} fields")
+        for f in sub.get('fields', [])[:5]:  # Show first 5 fields
+            print(f"      - {f.get('name')}: {f.get('default_value', '')[:30]}...")
+    print(f"{'='*60}\n")
+    
     try:
         response = requests.post(
             f"{DOCUSEAL_API_URL}/submissions",
@@ -534,10 +614,18 @@ def create_submission(
         
     except requests.exceptions.RequestException as e:
         logger.error(f"DocuSeal create_submission error: {e}")
+        # Print to console for immediate visibility
+        print(f"\n{'='*60}")
+        print(f"DOCUSEAL API ERROR")
+        print(f"{'='*60}")
+        print(f"Error: {e}")
         if hasattr(e, 'response') and e.response is not None:
+            print(f"Status Code: {e.response.status_code}")
+            print(f"Response Body: {e.response.text}")
             logger.error(f"Response status: {e.response.status_code}")
             logger.error(f"Response body: {e.response.text}")
             logger.error(f"Request payload was: {json.dumps(payload, indent=2, default=str)}")
+        print(f"{'='*60}\n")
         raise DocuSealError(f"Failed to create submission: {e}")
 
 
@@ -1272,22 +1360,41 @@ def build_submitters_from_participants(participants, transaction) -> List[Dict[s
     """
     Build DocuSeal submitters list from transaction participants.
     
-    Maps our roles to DocuSeal signer roles.
+    Maps our roles to DocuSeal signer roles:
+    - Primary seller -> "Seller"
+    - Additional sellers -> "Seller 2", "Seller 3", etc.
+    - Listing agent -> "Broker"
+    
+    If a role is omitted, DocuSeal will skip fields assigned to that role.
     """
     submitters = []
     
-    # Get primary seller
+    # Collect all sellers, primary first
+    sellers = []
+    primary_seller = None
     for p in participants:
-        if p.role == 'seller' and p.is_primary:
-            submitters.append({
-                'role': 'Seller',
-                'email': p.display_email,
-                'name': p.display_name
-            })
-            break
+        if p.role == 'seller':
+            if p.is_primary:
+                primary_seller = p
+            else:
+                sellers.append(p)
     
-    # NOTE: Co-seller would need a separate DocuSeal template role
-    # For now, only primary seller signs as "Seller"
+    # Add primary seller first as "Seller"
+    if primary_seller:
+        submitters.append({
+            'role': 'Seller',
+            'email': primary_seller.display_email,
+            'name': primary_seller.display_name
+        })
+    
+    # Add additional sellers as "Seller 2", "Seller 3", etc.
+    for i, seller in enumerate(sellers, start=2):
+        if seller.display_email:  # Only add if they have an email
+            submitters.append({
+                'role': f'Seller {i}',
+                'email': seller.display_email,
+                'name': seller.display_name
+            })
     
     # Get listing agent - maps to "Broker" in DocuSeal
     for p in participants:
