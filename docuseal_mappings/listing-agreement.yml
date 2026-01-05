@@ -82,7 +82,8 @@ field_mappings:
   # SECTION 5: BROKER COMPENSATION
   # ---------------------------------------------------------------------------
   offer_buyer_agent_comp: "Broker comp method"  # Radio: "percent" or "flat"
-  total_commission: "Total commission"  # Free form text: e.g., "6%", "$5,000", or "$5,000 + 3%"
+  # TODO: Update this to match the actual DocuSeal field name for commission
+  # total_commission: "Total commission"  # Commented out - field doesn't exist in DocuSeal yet
   buyer_agent_percent: "Compensation percent"
   buyer_agent_flat: "Compensation flat fee"
   

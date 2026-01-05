@@ -729,6 +729,18 @@ function handleDocResponsibility(value, container) {
     toggleConditional('buyerDaysSection', value === 'buyer', container);
     toggleConditional('updatedResaleSection', value === 'already_received', container);
     toggleConditional('notRequiredWarning', value === 'not_required', container);
+    
+    // Clear sub-option fields when their parent option is deselected
+    if (value !== 'already_received') {
+        // Clear the require_updated_resale radio buttons within this container
+        const searchRoot = container || document;
+        searchRoot.querySelectorAll('input[name*="require_updated_resale"]').forEach(radio => {
+            radio.checked = false;
+            // Also remove the 'selected' class from option cards
+            const card = radio.closest('.option-card');
+            if (card) card.classList.remove('selected');
+        });
+    }
 }
 
 // =============================================================================
