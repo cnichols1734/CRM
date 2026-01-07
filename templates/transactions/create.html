@@ -36,6 +36,12 @@
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         transition: all 0.2s ease-out;
+        position: relative;
+    }
+
+    /* First card needs higher z-index for dropdown to overlay other cards */
+    .premium-card:first-of-type {
+        z-index: 100;
     }
 
     .premium-card:hover {
@@ -150,6 +156,7 @@
         border-radius: 0.75rem;
         box-shadow: 0 10px 40px rgba(0,0,0,0.12);
         overflow: hidden;
+        z-index: 1000;
     }
 
     .search-result-item {
@@ -224,7 +231,7 @@
                                autocomplete="off">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
                     </div>
-                    <div id="contactSearchResults" class="search-results mt-2 hidden max-h-48 overflow-y-auto absolute left-0 right-0 z-10"></div>
+                    <div id="contactSearchResults" class="search-results mt-2 hidden max-h-48 overflow-y-auto absolute left-0 right-0"></div>
                 </div>
 
                 <!-- Selected Contacts -->
