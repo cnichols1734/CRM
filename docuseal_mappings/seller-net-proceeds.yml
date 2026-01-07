@@ -1,0 +1,131 @@
+# =============================================================================
+# SELLER'S ESTIMATED NET PROCEEDS - DocuSeal Field Mapping
+# =============================================================================
+# This file maps CRM form fields to DocuSeal template fields.
+# Template ID: TBD (set when template is uploaded to DocuSeal)
+# Form: TXR-1935
+# =============================================================================
+
+template_id: null  # Set this after uploading template to DocuSeal
+template_name: "Seller's Estimated Net Proceeds"
+template_slug: "seller-net-proceeds"
+
+submitter_roles:
+  - Seller
+  - Broker
+
+field_mappings:
+  seller_name: "Seller"
+  property_address: "Address"
+  closing_date: "Anticipated Closing Date"
+  annual_property_taxes: "Estimated Annual Property Taxes"
+  annual_maintenance_fees: "Estimated Annual Maintenance Fees"
+  financing_conventional: "Conventional"
+  financing_va: "VA"
+  financing_fha: "FHA"
+  financing_usda: "USDA"
+  financing_reverse: "Reverse Mortgage"
+  financing_assumption: "Assumption"
+  financing_owner: "Owner"
+  financing_cash: "Cash"
+  attorneys_fees: "Attorney's Fees / Doc. Prep."
+  brokers_fee_percent: "Brokers' Fees Percent"
+  brokers_fee: "Brokers' Fees"
+  condo_transfer_fee: "Condo. Transfer Fee"
+  courier_fees: "Courier & Express Mail Fees"
+  escrow_fee: "Escrow Fee (one-half)"
+  prorated_taxes: "Taxes Prorated"
+  prorated_interest: "Interest (Assumptions)"
+  prorated_maintenance: "Maintenance Fees"
+  assessments: "Assessments"
+  rents: "Rents"
+  recording_fees: "Recording Fees"
+  repairs_buyer: "Repairs Required by Buyer"
+  repairs_lender: "Repairs Required by Lender"
+  residential_service: "Residential Service Contract"
+  seller_allowances: "Seller Allowances or FHA/VA Nonallowables"
+  survey_fee: "Survey Fee"
+  tax_cert_fee: "Tax Certificate Fee"
+  title_policy: "Title Policy - Owner's"
+  wiring_fees: "Wiring Fees"
+  custom_label_1: "Custom Cost Label 1"
+  custom_amount_1: "Custom Cost Amount 1"
+  custom_label_2: "Custom Cost Label 2"
+  custom_amount_2: "Custom Cost Amount 2"
+  custom_label_3: "Custom Cost Label 3"
+  custom_amount_3: "Custom Cost Amount 3"
+  custom_label_4: "Custom Cost Label 4"
+  custom_amount_4: "Custom Cost Amount 4"
+  total_costs: "Total Estimated Costs"
+  sales_price: "Sales Price"
+  less_costs: "Less Estimated Costs"
+  loan_payoff: "Less Estimated Loan Payoff"
+  net_proceeds: "Estimated Net Proceeds"
+  unused_insurance: "Estimated Unused Insurance"
+  escrow_balance: "Estimated Escrow Balance"
+  total_refunds: "Total Estimated Refunds"
+  prepared_by: "Prepared by"
+
+transforms:
+  checkbox_fields:
+    - financing_conventional
+    - financing_va
+    - financing_fha
+    - financing_usda
+    - financing_reverse
+    - financing_assumption
+    - financing_owner
+    - financing_cash
+  currency_fields:
+    - annual_property_taxes
+    - annual_maintenance_fees
+    - attorneys_fees
+    - brokers_fee
+    - condo_transfer_fee
+    - courier_fees
+    - escrow_fee
+    - prorated_taxes
+    - prorated_interest
+    - prorated_maintenance
+    - assessments
+    - rents
+    - recording_fees
+    - repairs_buyer
+    - repairs_lender
+    - residential_service
+    - seller_allowances
+    - survey_fee
+    - tax_cert_fee
+    - title_policy
+    - wiring_fees
+    - custom_amount_1
+    - custom_amount_2
+    - custom_amount_3
+    - custom_amount_4
+    - total_costs
+    - sales_price
+    - less_costs
+    - loan_payoff
+    - net_proceeds
+    - unused_insurance
+    - escrow_balance
+    - total_refunds
+  date_fields:
+    - closing_date
+  percentage_fields:
+    - brokers_fee_percent
+
+broker_form_fields:
+  prepared_by: "Prepared by"
+
+agent_fields:
+  - prepared_by
+
+computed_fields:
+  - prorated_taxes
+  - brokers_fee
+  - total_costs
+  - less_costs
+  - net_proceeds
+  - total_refunds
+
