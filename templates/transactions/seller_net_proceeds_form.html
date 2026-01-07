@@ -821,7 +821,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_attorneys_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('attorneys_fees', '') }}"
+                                           value="{{ prefill_data.get('attorneys_fees', '180.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -855,7 +855,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_courier_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('courier_fees', '') }}"
+                                           value="{{ prefill_data.get('courier_fees', '40.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -865,7 +865,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_escrow_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('escrow_fee', '') }}"
+                                           value="{{ prefill_data.get('escrow_fee', '80.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -927,7 +927,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_recording_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('recording_fees', '') }}"
+                                           value="{{ prefill_data.get('recording_fees', '50.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -957,7 +957,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_residential_service" class="money-input cost-input"
-                                           value="{{ prefill_data.get('residential_service', '') }}"
+                                           value="{{ prefill_data.get('residential_service', '450.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -987,18 +987,18 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_tax_cert_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('tax_cert_fee', '') }}"
+                                           value="{{ prefill_data.get('tax_cert_fee', '100.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
                             
                             <div class="cost-row">
                                 <label>Title Policy - Owner's</label>
-                                <div class="money-input-wrapper">
+                                <div class="money-input-wrapper calculated">
                                     <span class="dollar-sign">$</span>
-                                    <input type="text" name="field_title_policy" class="money-input cost-input"
+                                    <input type="text" name="field_title_policy" id="titlePolicy" class="money-input calculated cost-input"
                                            value="{{ prefill_data.get('title_policy', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" readonly>
                                 </div>
                             </div>
                             
@@ -1007,7 +1007,7 @@
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_wiring_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('wiring_fees', '') }}"
+                                           value="{{ prefill_data.get('wiring_fees', '40.00') }}"
                                            placeholder="0" oninput="formatMoney(this); recalculateCosts()">
                                 </div>
                             </div>
@@ -1216,6 +1216,9 @@
     </div>
 </div>
 
+<!-- Texas Title Policy Calculator -->
+<script src="{{ url_for('static', filename='js/texas_title_policy.js') }}"></script>
+
 <script>
 // =============================================================================
 // INITIALIZATION
@@ -1308,10 +1311,27 @@ function confirmSalesPriceChange() {
 function recalculateAll() {
     calculateProratedTaxes();
     calculateBrokersFee();
+    calculateTitlePolicy();
     recalculateCosts();
     recalculateRefunds();
     recalculateNetProceeds();
     updateProgress();
+}
+
+function calculateTitlePolicy() {
+    const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
+    const titlePolicyInput = document.getElementById('titlePolicy');
+    
+    if (!salesPrice || salesPrice <= 0) {
+        titlePolicyInput.value = '';
+        return;
+    }
+    
+    // Use the Texas Title Policy calculator (from texas_title_policy.js)
+    if (typeof calculateTexasTitlePremium === 'function') {
+        const premium = calculateTexasTitlePremium(salesPrice);
+        titlePolicyInput.value = formatAsMoney(premium);
+    }
 }
 
 function calculateProratedTaxes() {
