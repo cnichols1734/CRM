@@ -60,7 +60,7 @@ TEMPLATE_MAP = {
     'flood-hazard': None,
     'water-district': None,
     't47-affidavit': None,
-    'sellers-net': None,
+    'seller-net-proceeds': None,
     'referral-agreement': None,
 }
 
@@ -87,6 +87,12 @@ DOCUMENT_FORMS = {
         'form_template': 'transactions/flood_hazard_form.html',
         'template_id': None,  # Set when DocuSeal template is created
         'description': 'Information About Special Flood Hazard Areas'
+    },
+    'seller-net-proceeds': {
+        'name': "Seller's Estimated Net Proceeds",
+        'form_template': 'transactions/seller_net_proceeds_form.html',
+        'template_id': None,  # Set when DocuSeal template is created
+        'description': 'TXR-1935 Seller\'s Estimated Net Proceeds'
     },
 }
 

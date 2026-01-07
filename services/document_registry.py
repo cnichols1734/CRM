@@ -126,6 +126,14 @@ DOCUMENT_REGISTRY: Dict[str, DocumentConfig] = {
         icon='fa-water',
         sort_order=3,
     ),
+    'seller-net-proceeds': DocumentConfig(
+        slug='seller-net-proceeds',
+        name="Seller's Estimated Net Proceeds",
+        partial_template='transactions/partials/seller_net_proceeds_fields.html',
+        color='emerald',
+        icon='fa-calculator',
+        sort_order=4,
+    ),
     # Future documents - uncomment and create partials/YAMLs as needed:
     #
     # 'sellers-disclosure': DocumentConfig(

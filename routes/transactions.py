@@ -818,6 +818,15 @@ def document_form(id, doc_id):
             prefill_data=prefill_data
         )
     
+    if doc.template_slug == 'seller-net-proceeds':
+        return render_template(
+            'transactions/seller_net_proceeds_form.html',
+            transaction=transaction,
+            document=doc,
+            participants=participants,
+            prefill_data=prefill_data
+        )
+    
     # Default generic form
     return render_template(
         'transactions/document_form.html',
