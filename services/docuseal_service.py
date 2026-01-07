@@ -82,6 +82,12 @@ DOCUMENT_FORMS = {
         'template_id': 2469165,
         'description': 'Addendum for Property Subject to Mandatory Membership in HOA'
     },
+    'flood-hazard': {
+        'name': 'Flood Hazard Information',
+        'form_template': 'transactions/flood_hazard_form.html',
+        'template_id': None,  # Set when DocuSeal template is created
+        'description': 'Information About Special Flood Hazard Areas'
+    },
 }
 
 # Path to templates directory
@@ -1122,13 +1128,30 @@ def _get_headers() -> Dict[str, str]:
 
 
 def get_template_id(slug: str) -> Optional[int]:
-    """Get DocuSeal template ID for a document slug."""
-    return TEMPLATE_MAP.get(slug)
+    """
+    Get DocuSeal template ID for a document slug.
+    
+    First checks TEMPLATE_MAP for hardcoded IDs, then falls back to
+    checking the YAML mapping file for dynamically configured templates.
+    """
+    # First check the static TEMPLATE_MAP
+    template_id = TEMPLATE_MAP.get(slug)
+    if template_id:
+        return template_id
+    
+    # Fall back to checking the YAML mapping file
+    mapping = load_field_mapping(slug)
+    if mapping:
+        yaml_template_id = mapping.get('template_id')
+        if yaml_template_id:
+            return yaml_template_id
+    
+    return None
 
 
 def is_template_ready(slug: str) -> bool:
     """Check if a template has been uploaded to DocuSeal."""
-    return TEMPLATE_MAP.get(slug) is not None
+    return get_template_id(slug) is not None
 
 
 # =============================================================================

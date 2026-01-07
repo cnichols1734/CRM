@@ -385,15 +385,11 @@
 
 <!-- Combined Field Template Modal -->
 <div class="modal-overlay" id="combinedFieldModal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width: 500px;">
         <h3 class="text-lg font-semibold mb-4">Combined Field Template</h3>
         <p class="text-sm text-gray-600 mb-4">
-            This DocuSeal field maps to multiple CRM fields. Define the template:
+            Multiple CRM fields combine into one DocuSeal field. Define the template:
         </p>
-        <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">DocuSeal Field:</label>
-            <input type="text" id="combinedDocuSealField" class="w-full p-2 border rounded" readonly>
-        </div>
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">CRM Fields:</label>
             <div id="combinedCrmFields" class="text-sm text-gray-600"></div>
@@ -401,8 +397,15 @@
         <div class="mb-4">
             <label class="block text-sm font-medium text-gray-700 mb-1">Template:</label>
             <input type="text" id="combinedTemplate" class="w-full p-2 border rounded" 
-                   placeholder="{field1} - {field2}">
-            <p class="text-xs text-gray-500 mt-1">Use {field_name} placeholders</p>
+                   placeholder="{field1}, {field2}, {field3} {field4}">
+            <p class="text-xs text-gray-500 mt-1">Use {field_name} placeholders. Example: {property_address}, {property_city}, {property_state} {property_zip}</p>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Apply this template to DocuSeal fields:</label>
+            <p class="text-xs text-gray-500 mb-2">Select all DocuSeal fields that should receive this combined value</p>
+            <div id="combinedDocuSealFieldsContainer" class="border rounded p-2 max-h-40 overflow-y-auto bg-gray-50">
+                <!-- Checkboxes populated dynamically -->
+            </div>
         </div>
         <div class="flex justify-end gap-2">
             <button onclick="closeCombinedModal()" 
@@ -531,10 +534,26 @@ function loadExistingMappings() {
             crm_fields: extractFieldsFromTemplate(cf.template)
         }));
         
-        // Mark combined fields
+        // Group combined fields by template to show consolidated display
+        const templateGroups = {};
         for (const combined of mappings.combined) {
-            for (const crmField of combined.crm_fields) {
-                markFieldAsMapped(crmField, combined.docuseal_field, 'combined');
+            if (!templateGroups[combined.template]) {
+                templateGroups[combined.template] = {
+                    docuFields: [],
+                    crmFields: combined.crm_fields
+                };
+            }
+            templateGroups[combined.template].docuFields.push(combined.docuseal_field);
+        }
+        
+        // Mark combined fields with grouped display
+        for (const [template, group] of Object.entries(templateGroups)) {
+            const displayField = group.docuFields.length > 1 
+                ? `${group.docuFields[0]} (+${group.docuFields.length - 1} more)` 
+                : group.docuFields[0];
+            
+            for (const crmField of group.crmFields) {
+                markFieldAsMapped(crmField, displayField, 'combined');
             }
         }
     }
@@ -652,18 +671,54 @@ function handleDrop(e) {
     const docuFieldName = draggedField.name;
     const docuFieldType = draggedField.type;
     
-    // Check if this DocuSeal field is already mapped to other CRM fields (combined)
-    const existingMappings = Object.entries(mappings.direct)
+    // First, check if this DocuSeal field already exists in a combined mapping
+    // We need to find ALL combined entries that share the same template/crm_fields pattern
+    const existingCombinedEntries = mappings.combined.filter(c => c.docuseal_field === docuFieldName);
+    
+    if (existingCombinedEntries.length > 0) {
+        // Add to existing combined mapping
+        const existingCombined = existingCombinedEntries[0]; // Use the first one for CRM fields
+        
+        // Only add if not already in the list
+        if (!existingCombined.crm_fields.includes(crmFieldName)) {
+            const allCrmFields = [...existingCombined.crm_fields, crmFieldName];
+            
+            // Collect all DocuSeal fields that share this template (were previously selected)
+            const previouslySelectedDocuFields = mappings.combined
+                .filter(c => c.template === existingCombined.template && 
+                            JSON.stringify(c.crm_fields.sort()) === JSON.stringify(existingCombined.crm_fields.sort()))
+                .map(c => c.docuseal_field);
+            
+            // Remove all combined entries with this template pattern
+            mappings.combined = mappings.combined.filter(c => 
+                !(c.template === existingCombined.template && 
+                  JSON.stringify(c.crm_fields.sort()) === JSON.stringify(existingCombined.crm_fields.sort()))
+            );
+            
+            // Clear UI for existing fields
+            for (const field of existingCombined.crm_fields) {
+                clearFieldMapping(field);
+            }
+            
+            // Re-open modal with all fields and previously selected DocuSeal fields
+            openCombinedModal(docuFieldName, allCrmFields, previouslySelectedDocuFields);
+        }
+        return;
+    }
+    
+    // Check if this DocuSeal field is already mapped to other CRM fields in direct mappings
+    const existingDirectMappings = Object.entries(mappings.direct)
         .filter(([crm, docu]) => docu === docuFieldName)
         .map(([crm]) => crm);
     
-    if (existingMappings.length > 0 && !existingMappings.includes(crmFieldName)) {
-        // This is now a combined field
-        const allCrmFields = [...existingMappings, crmFieldName];
+    if (existingDirectMappings.length > 0 && !existingDirectMappings.includes(crmFieldName)) {
+        // This is now a combined field - convert from direct to combined
+        const allCrmFields = [...existingDirectMappings, crmFieldName];
         
-        // Remove from direct mappings
-        for (const field of existingMappings) {
+        // Remove from direct mappings and clear UI
+        for (const field of existingDirectMappings) {
             delete mappings.direct[field];
+            clearFieldMapping(field);
         }
         
         // Open combined field modal
@@ -678,16 +733,8 @@ function handleDrop(e) {
     draggedField = null;
 }
 
-function removeMapping(e, crmFieldName) {
-    e.stopPropagation();
-    
-    // Remove from direct
-    delete mappings.direct[crmFieldName];
-    
-    // Remove from combined
-    mappings.combined = mappings.combined.filter(c => !c.crm_fields.includes(crmFieldName));
-    
-    // Clear UI
+function clearFieldMapping(crmFieldName) {
+    // Clear the UI for a single field without modifying the mappings data
     const fieldCard = document.querySelector(`.field-card.crm[data-field-name="${crmFieldName}"]`);
     if (fieldCard) {
         fieldCard.classList.remove('mapped');
@@ -696,6 +743,37 @@ function removeMapping(e, crmFieldName) {
         const badge = fieldCard.querySelector('.mapping-badge');
         if (badge) badge.remove();
     }
+}
+
+function removeMapping(e, crmFieldName) {
+    e.stopPropagation();
+    
+    // Remove from direct
+    delete mappings.direct[crmFieldName];
+    
+    // Remove from combined - need to handle this more carefully
+    // Find any combined mapping that includes this field
+    for (let i = mappings.combined.length - 1; i >= 0; i--) {
+        const combined = mappings.combined[i];
+        if (combined.crm_fields.includes(crmFieldName)) {
+            // Remove this field from the combined mapping
+            combined.crm_fields = combined.crm_fields.filter(f => f !== crmFieldName);
+            
+            // If only one field left, convert back to direct mapping
+            if (combined.crm_fields.length === 1) {
+                const lastField = combined.crm_fields[0];
+                mappings.direct[lastField] = combined.docuseal_field;
+                markFieldAsMapped(lastField, combined.docuseal_field, 'direct');
+                mappings.combined.splice(i, 1);
+            } else if (combined.crm_fields.length === 0) {
+                // No fields left, remove the combined entry
+                mappings.combined.splice(i, 1);
+            }
+        }
+    }
+    
+    // Clear UI for this field
+    clearFieldMapping(crmFieldName);
     
     updateMappingsSummary();
 }
@@ -703,14 +781,49 @@ function removeMapping(e, crmFieldName) {
 // Combined field modal
 let currentCombinedData = null;
 
-function openCombinedModal(docuFieldName, crmFields) {
-    currentCombinedData = { docuFieldName, crmFields };
+function openCombinedModal(docuFieldName, crmFields, previouslySelectedDocuFields = null) {
+    currentCombinedData = { docuFieldName, crmFields, previouslySelectedDocuFields };
     
-    document.getElementById('combinedDocuSealField').value = docuFieldName;
+    // Show CRM fields as badges
     document.getElementById('combinedCrmFields').innerHTML = crmFields.map(f => 
-        `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs mr-1">{${f}}</span>`
+        `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs mr-1 mb-1">{${f}}</span>`
     ).join('');
-    document.getElementById('combinedTemplate').value = crmFields.map(f => `{${f}}`).join(' - ');
+    
+    // Create default template with proper formatting for address fields
+    let defaultTemplate;
+    if (crmFields.includes('property_address') && crmFields.includes('property_city') && 
+        crmFields.includes('property_state') && crmFields.includes('property_zip')) {
+        defaultTemplate = '{property_address}, {property_city}, {property_state} {property_zip}';
+    } else {
+        defaultTemplate = crmFields.map(f => `{${f}}`).join(' - ');
+    }
+    document.getElementById('combinedTemplate').value = defaultTemplate;
+    
+    // Populate DocuSeal fields checkboxes - show all text fields that could use this mapping
+    const container = document.getElementById('combinedDocuSealFieldsContainer');
+    const allDocuFields = document.querySelectorAll('.field-card.docuseal');
+    let checkboxesHtml = '';
+    
+    // Determine which fields should be pre-checked
+    const fieldsToCheck = previouslySelectedDocuFields || [docuFieldName];
+    
+    allDocuFields.forEach(field => {
+        const fieldName = field.dataset.fieldName;
+        const fieldType = field.dataset.fieldType;
+        // Only show text fields as options for combined mappings
+        if (fieldType === 'text') {
+            const isChecked = fieldsToCheck.includes(fieldName) ? 'checked' : '';
+            checkboxesHtml += `
+                <label class="flex items-center p-1.5 hover:bg-gray-100 rounded cursor-pointer">
+                    <input type="checkbox" name="combinedDocuFields" value="${fieldName}" ${isChecked}
+                           class="mr-2 accent-orange-500">
+                    <span class="text-sm">${fieldName}</span>
+                </label>
+            `;
+        }
+    });
+    
+    container.innerHTML = checkboxesHtml || '<p class="text-sm text-gray-500">No text fields available</p>';
     
     document.getElementById('combinedFieldModal').classList.add('active');
 }
@@ -725,15 +838,32 @@ function saveCombinedMapping() {
     
     const template = document.getElementById('combinedTemplate').value;
     
-    mappings.combined.push({
-        docuseal_field: currentCombinedData.docuFieldName,
-        template: template,
-        crm_fields: currentCombinedData.crmFields
-    });
+    // Get all selected DocuSeal fields
+    const selectedFields = Array.from(
+        document.querySelectorAll('input[name="combinedDocuFields"]:checked')
+    ).map(cb => cb.value);
     
-    // Mark all fields as combined
+    if (selectedFields.length === 0) {
+        alert('Please select at least one DocuSeal field');
+        return;
+    }
+    
+    // Create a combined mapping for each selected DocuSeal field
+    for (const docuField of selectedFields) {
+        mappings.combined.push({
+            docuseal_field: docuField,
+            template: template,
+            crm_fields: currentCombinedData.crmFields
+        });
+    }
+    
+    // Mark all CRM fields as combined (showing first DocuSeal field in indicator)
+    const displayField = selectedFields.length > 1 
+        ? `${selectedFields[0]} (+${selectedFields.length - 1} more)` 
+        : selectedFields[0];
+    
     for (const crmField of currentCombinedData.crmFields) {
-        markFieldAsMapped(crmField, currentCombinedData.docuFieldName, 'combined');
+        markFieldAsMapped(crmField, displayField, 'combined');
     }
     
     closeCombinedModal();
@@ -921,15 +1051,41 @@ function updateMappingsSummary() {
     const conditionalCount = Object.keys(mappings.conditional).length;
     const optionCount = Object.keys(mappings.option_transforms).length;
     
+    // Count unique combined templates (multiple DocuSeal fields can share same template)
+    const uniqueTemplates = [...new Set(mappings.combined.map(c => c.template))].length;
+    
     if (directCount + combinedCount + conditionalCount + optionCount === 0) {
         html = '<p class="text-gray-500">No mappings yet. Drag DocuSeal fields to CRM fields to create mappings.</p>';
     } else {
-        html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4">';
+        html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">';
         html += `<div class="text-center p-3 bg-blue-50 rounded"><div class="text-2xl font-bold text-blue-600">${directCount}</div><div class="text-xs text-blue-600">Direct</div></div>`;
         html += `<div class="text-center p-3 bg-purple-50 rounded"><div class="text-2xl font-bold text-purple-600">${combinedCount}</div><div class="text-xs text-purple-600">Combined</div></div>`;
         html += `<div class="text-center p-3 bg-pink-50 rounded"><div class="text-2xl font-bold text-pink-600">${conditionalCount}</div><div class="text-xs text-pink-600">Conditional</div></div>`;
         html += `<div class="text-center p-3 bg-teal-50 rounded"><div class="text-2xl font-bold text-teal-600">${optionCount}</div><div class="text-xs text-teal-600">Options</div></div>`;
         html += '</div>';
+        
+        // Show combined field details if any
+        if (combinedCount > 0) {
+            html += '<div class="mt-4 pt-4 border-t border-gray-200">';
+            html += '<h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Combined Field Templates</h4>';
+            
+            // Group by template
+            const templateGroups = {};
+            for (const c of mappings.combined) {
+                if (!templateGroups[c.template]) {
+                    templateGroups[c.template] = [];
+                }
+                templateGroups[c.template].push(c.docuseal_field);
+            }
+            
+            for (const [template, docuFields] of Object.entries(templateGroups)) {
+                html += `<div class="text-xs p-2 bg-purple-50 rounded mb-2">`;
+                html += `<div class="font-mono text-purple-700 mb-1">${template}</div>`;
+                html += `<div class="text-purple-600">→ ${docuFields.join(', ')}</div>`;
+                html += `</div>`;
+            }
+            html += '</div>';
+        }
     }
     
     summary.innerHTML = html;

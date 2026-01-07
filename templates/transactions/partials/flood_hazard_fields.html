@@ -1,0 +1,64 @@
+{# 
+Flood Hazard Information Form Fields Partial
+TXR 1414 - Information About Special Flood Hazard Areas
+
+This is a disclosure document with minimal fill-in fields.
+Only the property address is required - it maps to 3 locations in DocuSeal.
+Signatures are handled automatically by DocuSeal.
+
+Variables expected: prefill_data (dict), doc (optional - for field prefixing in combined view)
+#}
+
+{% set field_prefix = 'doc_' ~ (doc.id if doc else 'flood') ~ '_field_' %}
+
+<!-- ============================================================== -->
+<!-- FLOOD HAZARD DISCLOSURE - PROPERTY INFO -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
+            <i class="fas fa-water text-xs"></i>
+        </div>
+        <div>
+            <h2 class="section-title">Flood Hazard Disclosure</h2>
+            <p class="section-subtitle">TXR 1414 • Property address for disclosure</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- Property Address -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="form-label">Street Address</label>
+                <input type="text" name="{{ field_prefix }}property_address" 
+                       value="{{ prefill_data.get('property_address', '') }}"
+                       class="premium-input" readonly>
+            </div>
+            <div>
+                <label class="form-label">City</label>
+                <input type="text" name="{{ field_prefix }}property_city" 
+                       value="{{ prefill_data.get('property_city', '') }}"
+                       class="premium-input" readonly>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="form-label">State</label>
+                    <input type="text" name="{{ field_prefix }}property_state" 
+                           value="{{ prefill_data.get('property_state', 'TX') }}"
+                           class="premium-input" readonly>
+                </div>
+                <div>
+                    <label class="form-label">ZIP</label>
+                    <input type="text" name="{{ field_prefix }}property_zip" 
+                           value="{{ prefill_data.get('property_zip', '') }}"
+                           class="premium-input" readonly>
+                </div>
+            </div>
+        </div>
+
+        <div class="callout-info">
+            <i class="fas fa-info-circle"></i>
+            <p>This disclosure provides buyers with information about Special Flood Hazard Areas. The property address will appear on all 3 pages. Buyer signatures are collected automatically when sent for signing.</p>
+        </div>
+    </div>
+</div>

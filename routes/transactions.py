@@ -809,6 +809,15 @@ def document_form(id, doc_id):
             prefill_data=prefill_data
         )
     
+    if doc.template_slug == 'flood-hazard':
+        return render_template(
+            'transactions/flood_hazard_form.html',
+            transaction=transaction,
+            document=doc,
+            participants=participants,
+            prefill_data=prefill_data
+        )
+    
     # Default generic form
     return render_template(
         'transactions/document_form.html',
@@ -853,8 +862,15 @@ def save_document_form(id, doc_id):
         if request.is_json:
             return jsonify({'success': True, 'status': doc.status})
         else:
-            flash('Document form saved successfully!', 'success')
-            return redirect(url_for('transactions.view_transaction', id=id))
+            # Check if this is "Save & Continue" (redirect to preview) or just "Save Draft"
+            action = request.form.get('submit_action', 'save')
+            
+            if action == 'continue':
+                # Redirect to document preview
+                return redirect(url_for('transactions.document_preview', id=id, doc_id=doc_id))
+            else:
+                flash('Document form saved successfully!', 'success')
+                return redirect(url_for('transactions.view_transaction', id=id))
             
     except Exception as e:
         db.session.rollback()

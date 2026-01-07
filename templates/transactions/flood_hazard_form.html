@@ -1,0 +1,422 @@
+{% extends "base.html" %}
+
+{% block title %}Flood Hazard Info - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        transition: all 0.3s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    /* Section styling */
+    .form-section {
+        border-left: 4px solid transparent;
+        transition: all 0.3s ease-out;
+    }
+
+    .form-section:hover {
+        border-left-color: #06b6d4;
+    }
+
+    .form-section.active {
+        border-left-color: #06b6d4;
+        background: linear-gradient(to right, rgba(6, 182, 212, 0.02), transparent);
+    }
+
+    /* Section header */
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .section-number {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.875rem;
+        flex-shrink: 0;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .section-subtitle {
+        font-size: 0.875rem;
+        color: #64748b;
+        margin-top: 0.25rem;
+    }
+
+    /* Premium input styling */
+    .premium-input {
+        border: 2px solid #e2e8f0;
+        border-radius: 0.625rem;
+        background-color: #f8fafc;
+        transition: all 0.2s ease-out;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        width: 100%;
+    }
+
+    .premium-input:focus {
+        border-color: #06b6d4;
+        background-color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.1);
+        outline: none;
+    }
+
+    .premium-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .premium-input[readonly] {
+        background-color: #f1f5f9;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
+    .premium-input[readonly]:focus {
+        border-color: #e2e8f0;
+        box-shadow: none;
+    }
+
+    /* Form label */
+    .form-label {
+        display: block;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Help text */
+    .help-text {
+        font-size: 0.8125rem;
+        color: #64748b;
+        margin-top: 0.5rem;
+        line-height: 1.5;
+    }
+
+    /* Callouts */
+    .callout-info {
+        background: linear-gradient(135deg, #ecfeff, #cffafe);
+        border: 1px solid #67e8f9;
+        border-radius: 0.75rem;
+        padding: 1rem 1.25rem;
+        margin-top: 0.75rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .callout-info i {
+        color: #06b6d4;
+        flex-shrink: 0;
+        margin-top: 0.125rem;
+    }
+
+    .callout-info p {
+        font-size: 0.875rem;
+        color: #155e75;
+        line-height: 1.6;
+        margin: 0;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e2e8f0;
+        z-index: 1000;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #06b6d4, #0891b2);
+        transition: width 0.3s ease-out;
+    }
+
+    /* Status badge */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.875rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .status-draft { background: #f1f5f9; color: #64748b; }
+    .status-pending { background: #fef3c7; color: #92400e; }
+    .status-completed { background: #d1fae5; color: #047857; }
+    .status-sent { background: #dbeafe; color: #1d4ed8; }
+
+    /* Floating action bar */
+    .floating-action-bar {
+        position: fixed;
+        bottom: 1.5rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: white;
+        padding: 0.875rem 1.25rem;
+        border-radius: 1rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.06);
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-bottom-spacer {
+        height: 100px;
+    }
+
+    /* Document info list */
+    .doc-info-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .doc-info-list li {
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f5f9;
+        font-size: 0.875rem;
+        color: #475569;
+    }
+
+    .doc-info-list li:last-child {
+        border-bottom: none;
+    }
+
+    .doc-info-list li strong {
+        color: #1e293b;
+    }
+</style>
+
+<!-- Progress Bar -->
+<div class="progress-bar">
+    <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+</div>
+
+<!-- Premium gradient background -->
+<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-cyan-50/30">
+    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+        <!-- Back Link -->
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+           class="inline-flex items-center text-slate-500 hover:text-cyan-600 text-sm mb-4 transition-colors animate-fade-in-up">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
+        </a>
+        
+        <!-- Header Section -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 animate-fade-in-up">
+            <div class="flex items-start space-x-4">
+                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-cyan-600 items-center justify-center shadow-lg flex-shrink-0">
+                    <i class="fas fa-water text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Flood Hazard Information</h1>
+                    <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
+                    <p class="text-xs text-slate-400 mt-1">TXR 1414 • Information About Special Flood Hazard Areas</p>
+                </div>
+            </div>
+            <span class="status-badge status-{{ document.status }}">
+                {{ document.status|title }}
+            </span>
+        </div>
+
+        <!-- Main Form -->
+        <form id="floodHazardForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+            
+            <!-- ============================================================== -->
+            <!-- SECTION 1: PROPERTY INFORMATION -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">1</div>
+                    <div>
+                        <h2 class="section-title">Property Information</h2>
+                        <p class="section-subtitle">Property address for the disclosure</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Property Address -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="form-label">Street Address</label>
+                            <input type="text" name="field_property_address" 
+                                   value="{{ prefill_data.get('property_address', '') }}"
+                                   class="premium-input" readonly>
+                        </div>
+                        <div>
+                            <label class="form-label">City</label>
+                            <input type="text" name="field_property_city" 
+                                   value="{{ prefill_data.get('property_city', '') }}"
+                                   class="premium-input" readonly>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="form-label">State</label>
+                                <input type="text" name="field_property_state" 
+                                       value="{{ prefill_data.get('property_state', 'TX') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                            <div>
+                                <label class="form-label">ZIP</label>
+                                <input type="text" name="field_property_zip" 
+                                       value="{{ prefill_data.get('property_zip', '') }}"
+                                       class="premium-input" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="help-text">
+                        <i class="fas fa-info-circle text-cyan-500 mr-1"></i>
+                        The property address will be automatically populated on all pages of the document.
+                    </p>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 2: DOCUMENT OVERVIEW -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="2">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-blue-500 to-blue-600 text-white">2</div>
+                    <div>
+                        <h2 class="section-title">Document Overview</h2>
+                        <p class="section-subtitle">What this disclosure covers</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <p class="text-slate-600 text-sm leading-relaxed">
+                        This TXR 1414 form provides important information to buyers about Special Flood Hazard Areas as designated by FEMA. The document covers:
+                    </p>
+                    
+                    <ul class="doc-info-list">
+                        <li><strong>A. Flood Areas</strong> — FEMA flood zone designations and what they mean</li>
+                        <li><strong>B. Availability of Flood Insurance</strong> — National Flood Insurance Program information</li>
+                        <li><strong>C. Ground Floor Requirements</strong> — Elevated home and enclosure regulations</li>
+                        <li><strong>D. Compliance</strong> — Property compliance with flood regulations</li>
+                        <li><strong>E. Elevation Certificate</strong> — Importance of elevation certificates for insurance rates</li>
+                    </ul>
+
+                    <div class="callout-info">
+                        <i class="fas fa-signature"></i>
+                        <div>
+                            <p><strong>Signatures Required:</strong> The buyer(s) will acknowledge receipt of this disclosure by signing and dating the document. Signature fields will be added automatically when the document is sent for signing.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============================================================== -->
+            <!-- SECTION 3: INTERNAL NOTES (OPTIONAL) -->
+            <!-- ============================================================== -->
+            <div class="premium-card p-6 mb-6 form-section" data-section="3">
+                <div class="section-header">
+                    <div class="section-number bg-gradient-to-br from-slate-500 to-slate-600 text-white">3</div>
+                    <div>
+                        <h2 class="section-title">Internal Notes</h2>
+                        <p class="section-subtitle">Optional notes for your records</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-6">
+                    <div>
+                        <label class="form-label">Notes (won't appear on document)</label>
+                        <textarea name="field_internal_notes" class="premium-input" rows="3" 
+                                  style="resize: vertical; min-height: 80px;"
+                                  placeholder="Any notes for your reference...">{{ prefill_data.get('internal_notes', '') }}</textarea>
+                        <p class="help-text">These notes are for your records only and will not appear on the signed document.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spacer for floating action bar -->
+            <div class="form-bottom-spacer"></div>
+        </form>
+        
+        <!-- Floating Action Bar -->
+        <div class="floating-action-bar">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+                Cancel
+            </a>
+            <div class="w-px h-8 bg-slate-200"></div>
+            <button type="submit" form="floodHazardForm" name="submit_action" value="save" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+                <i class="fas fa-save text-slate-500"></i>
+                Save Draft
+            </button>
+            <button type="submit" form="floodHazardForm" name="submit_action" value="continue" 
+                    class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-600 hover:to-cyan-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+                <i class="fas fa-check-circle"></i>
+                Save & Continue
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+        <i id="toastIcon" class="fas fa-info-circle text-cyan-500"></i>
+        <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set progress to 100% since address is pre-filled
+    document.getElementById('progressFill').style.width = '100%';
+});
+</script>
+{% endblock %}
