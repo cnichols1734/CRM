@@ -1,0 +1,1056 @@
+{% extends "base.html" %}
+
+{% block title %}Map Fields - {{ doc_info.name }} - Admin{% endblock %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<style>
+    .mapper-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        min-height: 600px;
+    }
+    
+    .panel {
+        background: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .panel-header {
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    
+    .panel-body {
+        padding: 1rem;
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .field-card {
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        border-radius: 0.375rem;
+        border: 2px solid #e5e7eb;
+        background: white;
+        cursor: grab;
+        transition: all 0.2s;
+    }
+    
+    .field-card:hover {
+        border-color: #f97316;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+    }
+    
+    .field-card.dragging {
+        opacity: 0.5;
+        cursor: grabbing;
+    }
+    
+    .field-card.docuseal {
+        background: #fef3c7;
+        border-color: #fcd34d;
+    }
+    
+    .field-card.docuseal:hover {
+        border-color: #f59e0b;
+    }
+    
+    .field-card.crm {
+        background: #f0fdf4;
+        border-color: #86efac;
+    }
+    
+    .field-card.crm.mapped {
+        background: #dcfce7;
+        border-color: #22c55e;
+    }
+    
+    .field-card.crm.drop-target {
+        border-color: #f97316;
+        border-style: dashed;
+        background: #fff7ed;
+    }
+    
+    .field-name {
+        font-family: monospace;
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+    
+    .field-type {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-left: 0.5rem;
+    }
+    
+    .field-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .mapping-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.125rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.625rem;
+        font-weight: 500;
+        margin-top: 0.25rem;
+    }
+    
+    .mapping-badge.direct {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .mapping-badge.combined {
+        background: #f3e8ff;
+        color: #7c3aed;
+    }
+    
+    .mapping-badge.conditional {
+        background: #fce7f3;
+        color: #be185d;
+    }
+    
+    .mapping-badge.option {
+        background: #ccfbf1;
+        color: #0d9488;
+    }
+    
+    .role-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .role-header {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .section-divider {
+        background: #f1f5f9;
+        padding: 0.5rem 1rem;
+        margin: 0.5rem -1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+    }
+    
+    .template-id-input {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .template-id-input input {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+    }
+    
+    .template-id-input button {
+        padding: 0.5rem 1rem;
+        background: #f97316;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .template-id-input button:hover {
+        background: #ea580c;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #9ca3af;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    .mapping-indicator {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.75rem;
+        color: #22c55e;
+        margin-top: 0.25rem;
+    }
+    
+    .remove-mapping {
+        margin-left: auto;
+        padding: 0.25rem;
+        color: #ef4444;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+    
+    .field-card:hover .remove-mapping {
+        opacity: 1;
+    }
+    
+    /* Combined field template editor modal */
+    .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        max-width: 500px;
+        width: 90%;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+    
+    .save-bar {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        border-top: 1px solid #e5e7eb;
+        padding: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{{ url_for('admin.document_mapping_list') }}" class="flex items-center text-gray-600 hover:text-gray-900 mb-2">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Documents
+            </a>
+            <h1 class="text-2xl font-bold text-gray-900">{{ doc_info.name }}</h1>
+            <p class="text-sm text-gray-500">{{ doc_info.description }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="saveIndicator" class="text-sm text-gray-400">
+                <i class="fas fa-cloud"></i> <span id="saveStatus">Ready</span>
+            </span>
+            <button onclick="saveMappings()" 
+                    class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700">
+                <i class="fas fa-save mr-2"></i>
+                Save Mappings
+            </button>
+        </div>
+    </div>
+
+    <!-- Template ID Input -->
+    <div class="bg-white rounded-lg shadow p-4 mb-6">
+        <div class="flex items-center gap-4">
+            <label class="text-sm font-medium text-gray-700">DocuSeal Template ID:</label>
+            <div class="template-id-input flex-1" style="max-width: 300px;">
+                <input type="number" id="templateIdInput" value="{{ template_id or '' }}" placeholder="e.g., 2469165">
+                <button onclick="fetchDocuSealFields()">
+                    <i class="fas fa-sync-alt mr-1"></i>Fetch
+                </button>
+            </div>
+            <span id="fetchStatus" class="text-sm text-gray-500"></span>
+        </div>
+    </div>
+
+    <!-- Two Panel Mapper -->
+    <div class="mapper-container">
+        <!-- Left Panel: DocuSeal Fields -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-file-signature text-amber-500 mr-2"></i>
+                    DocuSeal Fields
+                </h2>
+                <p class="text-sm text-gray-500">Drag fields to map them</p>
+            </div>
+            <div class="panel-body" id="docusealFieldsContainer">
+                {% if docuseal_fields %}
+                    {% set current_role = namespace(value=None) %}
+                    {% for field in docuseal_fields %}
+                        {% if field.role != current_role.value %}
+                            {% set current_role.value = field.role %}
+                            <div class="role-header">
+                                <i class="fas fa-user"></i>
+                                {{ field.role }}
+                            </div>
+                        {% endif %}
+                        <div class="field-card docuseal" 
+                             draggable="true"
+                             data-field-name="{{ field.name }}"
+                             data-field-type="{{ field.type }}"
+                             data-field-role="{{ field.role }}">
+                            <div class="flex items-center">
+                                <i class="fas fa-grip-vertical text-gray-400 mr-2"></i>
+                                <span class="field-name">{{ field.name }}</span>
+                                <span class="field-type">({{ field.type }})</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" id="docusealEmptyState">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        <p>Enter a Template ID above and click Fetch</p>
+                        <p class="text-sm mt-2">DocuSeal fields will appear here</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Panel: CRM Form Fields -->
+        <div class="panel">
+            <div class="panel-header">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-wpforms text-green-500 mr-2"></i>
+                    CRM Form Fields
+                </h2>
+                <p class="text-sm text-gray-500">Drop DocuSeal fields here to create mappings</p>
+            </div>
+            <div class="panel-body" id="crmFieldsContainer">
+                {% set current_section = namespace(value=None) %}
+                {% for field in crm_fields %}
+                    {% if field.section and field.section != current_section.value %}
+                        {% set current_section.value = field.section %}
+                        <div class="section-divider">
+                            <i class="fas fa-folder mr-1"></i> Section {{ field.section }}
+                        </div>
+                    {% endif %}
+                    <div class="field-card crm" 
+                         data-field-name="{{ field.name }}"
+                         data-field-type="{{ field.html_type }}"
+                         data-field-label="{{ field.label }}">
+                        <div class="flex items-center">
+                            <span class="field-name">{{ field.name }}</span>
+                            <span class="field-type">({{ field.html_type }})</span>
+                        </div>
+                        <div class="field-label">{{ field.label }}</div>
+                        <div class="mapping-indicator" style="display: none;">
+                            <i class="fas fa-link"></i>
+                            <span class="mapped-to-field"></span>
+                            <span class="remove-mapping" onclick="removeMapping(event, '{{ field.name }}')">
+                                <i class="fas fa-times-circle"></i>
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Mappings Summary -->
+    <div class="bg-white rounded-lg shadow mt-6 p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">
+            <i class="fas fa-list-check mr-2"></i>Current Mappings
+        </h3>
+        <div id="mappingsSummary" class="text-sm text-gray-600">
+            <p>No mappings yet. Drag DocuSeal fields to CRM fields to create mappings.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Combined Field Template Modal -->
+<div class="modal-overlay" id="combinedFieldModal">
+    <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4">Combined Field Template</h3>
+        <p class="text-sm text-gray-600 mb-4">
+            This DocuSeal field maps to multiple CRM fields. Define the template:
+        </p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">DocuSeal Field:</label>
+            <input type="text" id="combinedDocuSealField" class="w-full p-2 border rounded" readonly>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">CRM Fields:</label>
+            <div id="combinedCrmFields" class="text-sm text-gray-600"></div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Template:</label>
+            <input type="text" id="combinedTemplate" class="w-full p-2 border rounded" 
+                   placeholder="{field1} - {field2}">
+            <p class="text-xs text-gray-500 mt-1">Use {field_name} placeholders</p>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="closeCombinedModal()" 
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+            </button>
+            <button onclick="saveCombinedMapping()" 
+                    class="px-4 py-2 bg-orange-600 text-white text-sm rounded hover:bg-orange-700">
+                Save Combined Mapping
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Conditional Field Modal -->
+<div class="modal-overlay" id="conditionalFieldModal">
+    <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4">Conditional Field Mapping</h3>
+        <p class="text-sm text-gray-600 mb-4">
+            This field's mapping depends on another field's value:
+        </p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">CRM Field:</label>
+            <input type="text" id="conditionalCrmField" class="w-full p-2 border rounded bg-gray-50" readonly>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Condition Field:</label>
+            <select id="conditionalConditionField" class="w-full p-2 border rounded">
+                <option value="">Select a field...</option>
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">When value equals:</label>
+            <input type="text" id="conditionalConditionValue" class="w-full p-2 border rounded" 
+                   placeholder="e.g., seller, buyer, yes, no">
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">DocuSeal Field:</label>
+            <input type="text" id="conditionalDocuSealField" class="w-full p-2 border rounded" 
+                   placeholder="Enter DocuSeal field name">
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="closeConditionalModal()" 
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+            </button>
+            <button onclick="saveConditionalMapping()" 
+                    class="px-4 py-2 bg-pink-600 text-white text-sm rounded hover:bg-pink-700">
+                Save Conditional Mapping
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Option Transform Modal -->
+<div class="modal-overlay" id="optionTransformModal">
+    <div class="modal-content">
+        <h3 class="text-lg font-semibold mb-4">Option Transform Mapping</h3>
+        <p class="text-sm text-gray-600 mb-4">
+            Map radio/checkbox values to DocuSeal checkbox fields:
+        </p>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-1">CRM Field:</label>
+            <input type="text" id="optionCrmField" class="w-full p-2 border rounded bg-gray-50" readonly>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Value to DocuSeal Field Mappings:</label>
+            <div id="optionMappingsContainer" class="space-y-2">
+                <!-- Dynamic option rows added here -->
+            </div>
+            <button onclick="addOptionRow()" 
+                    class="mt-2 text-sm text-orange-600 hover:text-orange-800">
+                <i class="fas fa-plus mr-1"></i>Add Option
+            </button>
+        </div>
+        <div class="flex justify-end gap-2">
+            <button onclick="closeOptionModal()" 
+                    class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">
+                Cancel
+            </button>
+            <button onclick="saveOptionTransform()" 
+                    class="px-4 py-2 bg-teal-600 text-white text-sm rounded hover:bg-teal-700">
+                Save Option Transform
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const slug = "{{ slug }}";
+const existingYaml = {{ existing_yaml | tojson if existing_yaml else 'null' }};
+
+// Mapping data structures
+let mappings = {
+    direct: {},           // crm_field -> docuseal_field
+    combined: [],         // [{docuseal_field, template, crm_fields: [...]}]
+    conditional: {},      // condition_field -> {value -> {crm_field: docuseal_field}}
+    option_transforms: {} // crm_field -> {value: docuseal_field}
+};
+
+// Initialize from existing YAML if available
+document.addEventListener('DOMContentLoaded', function() {
+    if (existingYaml) {
+        loadExistingMappings();
+    }
+    initDragAndDrop();
+    updateMappingsSummary();
+});
+
+function loadExistingMappings() {
+    // Load direct field mappings
+    if (existingYaml.field_mappings) {
+        for (const [crmField, docuField] of Object.entries(existingYaml.field_mappings)) {
+            if (docuField) {
+                mappings.direct[crmField] = docuField;
+                markFieldAsMapped(crmField, docuField, 'direct');
+            }
+        }
+    }
+    
+    // Load computed/combined fields
+    if (existingYaml.computed_fields) {
+        mappings.combined = existingYaml.computed_fields.map(cf => ({
+            docuseal_field: cf.docuseal_field,
+            template: cf.template,
+            crm_fields: extractFieldsFromTemplate(cf.template)
+        }));
+        
+        // Mark combined fields
+        for (const combined of mappings.combined) {
+            for (const crmField of combined.crm_fields) {
+                markFieldAsMapped(crmField, combined.docuseal_field, 'combined');
+            }
+        }
+    }
+    
+    // Load conditional fields
+    if (existingYaml.conditional_fields) {
+        mappings.conditional = existingYaml.conditional_fields;
+        
+        // Mark conditional fields
+        for (const [condField, conditions] of Object.entries(existingYaml.conditional_fields)) {
+            for (const [condValue, fieldMap] of Object.entries(conditions)) {
+                for (const [crmField, docuField] of Object.entries(fieldMap)) {
+                    markFieldAsMapped(crmField, `(when ${condField}=${condValue}) ${docuField}`, 'conditional');
+                }
+            }
+        }
+    }
+    
+    // Load option transforms
+    if (existingYaml.option_transforms) {
+        mappings.option_transforms = existingYaml.option_transforms;
+        
+        // Mark option transform fields
+        for (const [crmField, options] of Object.entries(existingYaml.option_transforms)) {
+            const firstOpt = Object.values(options)[0];
+            markFieldAsMapped(crmField, `(options) ${firstOpt}...`, 'option');
+        }
+    }
+}
+
+function extractFieldsFromTemplate(template) {
+    const regex = /\{([a-zA-Z0-9_]+)\}/g;
+    const fields = [];
+    let match;
+    while ((match = regex.exec(template)) !== null) {
+        fields.push(match[1]);
+    }
+    return fields;
+}
+
+function markFieldAsMapped(crmFieldName, docuFieldName, mappingType) {
+    const fieldCard = document.querySelector(`.field-card.crm[data-field-name="${crmFieldName}"]`);
+    if (fieldCard) {
+        fieldCard.classList.add('mapped');
+        const indicator = fieldCard.querySelector('.mapping-indicator');
+        const mappedTo = fieldCard.querySelector('.mapped-to-field');
+        if (indicator && mappedTo) {
+            indicator.style.display = 'flex';
+            mappedTo.textContent = docuFieldName;
+            
+            // Add badge
+            let badge = fieldCard.querySelector('.mapping-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = `mapping-badge ${mappingType}`;
+                indicator.insertBefore(badge, indicator.firstChild);
+            }
+            badge.textContent = mappingType;
+            badge.className = `mapping-badge ${mappingType}`;
+        }
+    }
+}
+
+function initDragAndDrop() {
+    // Make DocuSeal fields draggable
+    document.querySelectorAll('.field-card.docuseal').forEach(card => {
+        card.addEventListener('dragstart', handleDragStart);
+        card.addEventListener('dragend', handleDragEnd);
+    });
+    
+    // Make CRM fields drop targets
+    document.querySelectorAll('.field-card.crm').forEach(card => {
+        card.addEventListener('dragover', handleDragOver);
+        card.addEventListener('dragleave', handleDragLeave);
+        card.addEventListener('drop', handleDrop);
+    });
+}
+
+let draggedField = null;
+
+function handleDragStart(e) {
+    draggedField = {
+        name: e.target.dataset.fieldName,
+        type: e.target.dataset.fieldType,
+        role: e.target.dataset.fieldRole
+    };
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'copy';
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.field-card.crm.drop-target').forEach(card => {
+        card.classList.remove('drop-target');
+    });
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('drop-target');
+    e.dataTransfer.dropEffect = 'copy';
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drop-target');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drop-target');
+    
+    if (!draggedField) return;
+    
+    const crmFieldName = e.currentTarget.dataset.fieldName;
+    const docuFieldName = draggedField.name;
+    const docuFieldType = draggedField.type;
+    
+    // Check if this DocuSeal field is already mapped to other CRM fields (combined)
+    const existingMappings = Object.entries(mappings.direct)
+        .filter(([crm, docu]) => docu === docuFieldName)
+        .map(([crm]) => crm);
+    
+    if (existingMappings.length > 0 && !existingMappings.includes(crmFieldName)) {
+        // This is now a combined field
+        const allCrmFields = [...existingMappings, crmFieldName];
+        
+        // Remove from direct mappings
+        for (const field of existingMappings) {
+            delete mappings.direct[field];
+        }
+        
+        // Open combined field modal
+        openCombinedModal(docuFieldName, allCrmFields);
+    } else {
+        // Simple 1:1 mapping
+        mappings.direct[crmFieldName] = docuFieldName;
+        markFieldAsMapped(crmFieldName, docuFieldName, 'direct');
+    }
+    
+    updateMappingsSummary();
+    draggedField = null;
+}
+
+function removeMapping(e, crmFieldName) {
+    e.stopPropagation();
+    
+    // Remove from direct
+    delete mappings.direct[crmFieldName];
+    
+    // Remove from combined
+    mappings.combined = mappings.combined.filter(c => !c.crm_fields.includes(crmFieldName));
+    
+    // Clear UI
+    const fieldCard = document.querySelector(`.field-card.crm[data-field-name="${crmFieldName}"]`);
+    if (fieldCard) {
+        fieldCard.classList.remove('mapped');
+        const indicator = fieldCard.querySelector('.mapping-indicator');
+        if (indicator) indicator.style.display = 'none';
+        const badge = fieldCard.querySelector('.mapping-badge');
+        if (badge) badge.remove();
+    }
+    
+    updateMappingsSummary();
+}
+
+// Combined field modal
+let currentCombinedData = null;
+
+function openCombinedModal(docuFieldName, crmFields) {
+    currentCombinedData = { docuFieldName, crmFields };
+    
+    document.getElementById('combinedDocuSealField').value = docuFieldName;
+    document.getElementById('combinedCrmFields').innerHTML = crmFields.map(f => 
+        `<span class="inline-block bg-green-100 text-green-800 px-2 py-1 rounded text-xs mr-1">{${f}}</span>`
+    ).join('');
+    document.getElementById('combinedTemplate').value = crmFields.map(f => `{${f}}`).join(' - ');
+    
+    document.getElementById('combinedFieldModal').classList.add('active');
+}
+
+function closeCombinedModal() {
+    document.getElementById('combinedFieldModal').classList.remove('active');
+    currentCombinedData = null;
+}
+
+function saveCombinedMapping() {
+    if (!currentCombinedData) return;
+    
+    const template = document.getElementById('combinedTemplate').value;
+    
+    mappings.combined.push({
+        docuseal_field: currentCombinedData.docuFieldName,
+        template: template,
+        crm_fields: currentCombinedData.crmFields
+    });
+    
+    // Mark all fields as combined
+    for (const crmField of currentCombinedData.crmFields) {
+        markFieldAsMapped(crmField, currentCombinedData.docuFieldName, 'combined');
+    }
+    
+    closeCombinedModal();
+    updateMappingsSummary();
+}
+
+// Conditional field modal
+let currentConditionalData = null;
+
+function openConditionalModal(crmFieldName) {
+    currentConditionalData = { crmFieldName };
+    
+    document.getElementById('conditionalCrmField').value = crmFieldName;
+    document.getElementById('conditionalConditionField').innerHTML = '<option value="">Select a field...</option>';
+    document.getElementById('conditionalConditionValue').value = '';
+    document.getElementById('conditionalDocuSealField').value = '';
+    
+    // Populate condition field dropdown with radio/select CRM fields
+    const radioFields = document.querySelectorAll('.field-card.crm[data-field-type="radio"], .field-card.crm[data-field-type="select"]');
+    radioFields.forEach(card => {
+        const name = card.dataset.fieldName;
+        if (name !== crmFieldName) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            document.getElementById('conditionalConditionField').appendChild(option);
+        }
+    });
+    
+    document.getElementById('conditionalFieldModal').classList.add('active');
+}
+
+function closeConditionalModal() {
+    document.getElementById('conditionalFieldModal').classList.remove('active');
+    currentConditionalData = null;
+}
+
+function saveConditionalMapping() {
+    if (!currentConditionalData) return;
+    
+    const conditionField = document.getElementById('conditionalConditionField').value;
+    const conditionValue = document.getElementById('conditionalConditionValue').value;
+    const docuSealField = document.getElementById('conditionalDocuSealField').value;
+    
+    if (!conditionField || !conditionValue || !docuSealField) {
+        alert('Please fill all fields');
+        return;
+    }
+    
+    // Initialize nested structure
+    if (!mappings.conditional[conditionField]) {
+        mappings.conditional[conditionField] = {};
+    }
+    if (!mappings.conditional[conditionField][conditionValue]) {
+        mappings.conditional[conditionField][conditionValue] = {};
+    }
+    
+    mappings.conditional[conditionField][conditionValue][currentConditionalData.crmFieldName] = docuSealField;
+    
+    markFieldAsMapped(
+        currentConditionalData.crmFieldName, 
+        `(when ${conditionField}=${conditionValue}) ${docuSealField}`, 
+        'conditional'
+    );
+    
+    closeConditionalModal();
+    updateMappingsSummary();
+}
+
+// Option transform modal
+let currentOptionData = null;
+
+function openOptionModal(crmFieldName) {
+    currentOptionData = { crmFieldName };
+    
+    document.getElementById('optionCrmField').value = crmFieldName;
+    
+    // Initialize with 2 empty rows
+    const container = document.getElementById('optionMappingsContainer');
+    container.innerHTML = '';
+    addOptionRow();
+    addOptionRow();
+    
+    document.getElementById('optionTransformModal').classList.add('active');
+}
+
+function closeOptionModal() {
+    document.getElementById('optionTransformModal').classList.remove('active');
+    currentOptionData = null;
+}
+
+function addOptionRow() {
+    const container = document.getElementById('optionMappingsContainer');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2 items-center';
+    row.innerHTML = `
+        <input type="text" class="option-value flex-1 p-2 border rounded text-sm" placeholder="CRM value (e.g., seller)">
+        <span class="text-gray-400">→</span>
+        <input type="text" class="option-docuseal flex-1 p-2 border rounded text-sm" placeholder="DocuSeal field">
+        <button onclick="this.parentElement.remove()" class="text-red-500 hover:text-red-700">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    container.appendChild(row);
+}
+
+function saveOptionTransform() {
+    if (!currentOptionData) return;
+    
+    const rows = document.querySelectorAll('#optionMappingsContainer > div');
+    const optionMap = {};
+    
+    rows.forEach(row => {
+        const value = row.querySelector('.option-value').value.trim();
+        const docuField = row.querySelector('.option-docuseal').value.trim();
+        if (value && docuField) {
+            optionMap[value] = docuField;
+        }
+    });
+    
+    if (Object.keys(optionMap).length === 0) {
+        alert('Please add at least one option mapping');
+        return;
+    }
+    
+    mappings.option_transforms[currentOptionData.crmFieldName] = optionMap;
+    
+    const firstOpt = Object.values(optionMap)[0];
+    markFieldAsMapped(currentOptionData.crmFieldName, `(options) ${firstOpt}...`, 'option');
+    
+    closeOptionModal();
+    updateMappingsSummary();
+}
+
+// Context menu for right-click on CRM fields
+document.addEventListener('contextmenu', function(e) {
+    const fieldCard = e.target.closest('.field-card.crm');
+    if (fieldCard) {
+        e.preventDefault();
+        showContextMenu(e, fieldCard.dataset.fieldName, fieldCard.dataset.fieldType);
+    }
+});
+
+function showContextMenu(e, fieldName, fieldType) {
+    // Remove any existing context menu
+    const existing = document.getElementById('contextMenu');
+    if (existing) existing.remove();
+    
+    const menu = document.createElement('div');
+    menu.id = 'contextMenu';
+    menu.className = 'fixed bg-white border shadow-lg rounded-lg py-1 z-50';
+    menu.style.left = e.pageX + 'px';
+    menu.style.top = e.pageY + 'px';
+    
+    menu.innerHTML = `
+        <button onclick="openConditionalModal('${fieldName}'); removeContextMenu();" 
+                class="block w-full text-left px-4 py-2 text-sm hover:bg-pink-50 text-pink-700">
+            <i class="fas fa-code-branch mr-2"></i>Make Conditional
+        </button>
+        <button onclick="openOptionModal('${fieldName}'); removeContextMenu();" 
+                class="block w-full text-left px-4 py-2 text-sm hover:bg-teal-50 text-teal-700">
+            <i class="fas fa-list-ul mr-2"></i>Map Options
+        </button>
+    `;
+    
+    document.body.appendChild(menu);
+    
+    // Remove menu when clicking elsewhere
+    setTimeout(() => {
+        document.addEventListener('click', removeContextMenu, { once: true });
+    }, 10);
+}
+
+function removeContextMenu() {
+    const menu = document.getElementById('contextMenu');
+    if (menu) menu.remove();
+}
+
+function updateMappingsSummary() {
+    const summary = document.getElementById('mappingsSummary');
+    let html = '';
+    
+    const directCount = Object.keys(mappings.direct).length;
+    const combinedCount = mappings.combined.length;
+    const conditionalCount = Object.keys(mappings.conditional).length;
+    const optionCount = Object.keys(mappings.option_transforms).length;
+    
+    if (directCount + combinedCount + conditionalCount + optionCount === 0) {
+        html = '<p class="text-gray-500">No mappings yet. Drag DocuSeal fields to CRM fields to create mappings.</p>';
+    } else {
+        html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4">';
+        html += `<div class="text-center p-3 bg-blue-50 rounded"><div class="text-2xl font-bold text-blue-600">${directCount}</div><div class="text-xs text-blue-600">Direct</div></div>`;
+        html += `<div class="text-center p-3 bg-purple-50 rounded"><div class="text-2xl font-bold text-purple-600">${combinedCount}</div><div class="text-xs text-purple-600">Combined</div></div>`;
+        html += `<div class="text-center p-3 bg-pink-50 rounded"><div class="text-2xl font-bold text-pink-600">${conditionalCount}</div><div class="text-xs text-pink-600">Conditional</div></div>`;
+        html += `<div class="text-center p-3 bg-teal-50 rounded"><div class="text-2xl font-bold text-teal-600">${optionCount}</div><div class="text-xs text-teal-600">Options</div></div>`;
+        html += '</div>';
+    }
+    
+    summary.innerHTML = html;
+}
+
+async function fetchDocuSealFields() {
+    const templateId = document.getElementById('templateIdInput').value;
+    if (!templateId) {
+        alert('Please enter a Template ID');
+        return;
+    }
+    
+    const status = document.getElementById('fetchStatus');
+    status.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+    
+    try {
+        const response = await fetch('/admin/document-mapping/fetch-template', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ template_id: templateId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            status.innerHTML = `<i class="fas fa-check text-green-500"></i> Found ${data.all_fields.length} fields`;
+            renderDocuSealFields(data.fields_by_role, data.submitters);
+        } else {
+            status.innerHTML = `<i class="fas fa-times text-red-500"></i> ${data.error}`;
+        }
+    } catch (error) {
+        status.innerHTML = `<i class="fas fa-times text-red-500"></i> Error: ${error.message}`;
+    }
+}
+
+function renderDocuSealFields(fieldsByRole, submitters) {
+    const container = document.getElementById('docusealFieldsContainer');
+    let html = '';
+    
+    for (const role of submitters) {
+        const fields = fieldsByRole[role] || [];
+        if (fields.length === 0) continue;
+        
+        html += `<div class="role-header"><i class="fas fa-user"></i>${role}</div>`;
+        
+        for (const field of fields) {
+            html += `
+                <div class="field-card docuseal" 
+                     draggable="true"
+                     data-field-name="${field.name}"
+                     data-field-type="${field.type}"
+                     data-field-role="${role}">
+                    <div class="flex items-center">
+                        <i class="fas fa-grip-vertical text-gray-400 mr-2"></i>
+                        <span class="field-name">${field.name}</span>
+                        <span class="field-type">(${field.type})</span>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    if (html) {
+        container.innerHTML = html;
+        initDragAndDrop();
+    }
+}
+
+async function saveMappings() {
+    const templateId = document.getElementById('templateIdInput').value;
+    
+    if (!templateId) {
+        alert('Please enter a Template ID first');
+        return;
+    }
+    
+    const status = document.getElementById('saveStatus');
+    status.textContent = 'Saving...';
+    
+    // Build the full mapping data
+    const mappingData = {
+        template_id: parseInt(templateId),
+        field_mappings: mappings.direct,
+        computed_fields: mappings.combined.map(c => ({
+            docuseal_field: c.docuseal_field,
+            template: c.template
+        })),
+        conditional_fields: mappings.conditional,
+        option_transforms: mappings.option_transforms,
+        transforms: {
+            currency_fields: [],
+            date_fields: []
+        }
+    };
+    
+    // Detect currency fields (fields with "price", "fee", "amount" in name)
+    for (const crmField of Object.keys(mappings.direct)) {
+        if (/price|fee|amount|cost|cap/i.test(crmField)) {
+            mappingData.transforms.currency_fields.push(crmField);
+        }
+    }
+    
+    try {
+        const response = await fetch(`/admin/document-mapping/${slug}/save-full`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mappingData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            status.textContent = 'Saved!';
+            setTimeout(() => { status.textContent = 'Ready'; }, 2000);
+        } else {
+            status.textContent = 'Error: ' + data.error;
+        }
+    } catch (error) {
+        status.textContent = 'Error saving';
+        console.error(error);
+    }
+}
+</script>
+{% endblock %}
