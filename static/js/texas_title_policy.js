@@ -5,15 +5,41 @@
  * This module calculates the owner's title insurance premium based on the
  * Texas Department of Insurance approved rate schedule.
  * 
+ * Features:
+ *   - Exact decimal math (no intermediate rounding)
+ *   - Configurable rounding mode for audit safety and compliance
+ *   - Final premium formatted to 2 decimal places
+ * 
  * Usage:
  *   const premium = calculateTexasTitlePremium(salesPrice);
+ *   const premium = calculateTexasTitlePremium(salesPrice, { roundingMode: 'nearest_dollar' });
+ * 
+ * Configuration:
+ *   roundingMode: 'none' (default) - Returns exact calculation to 2 decimal places
+ *                 'nearest_dollar' - Rounds final result to nearest whole dollar
  */
 
 (function(global) {
     'use strict';
 
-    // Rate table for $25,000 to $100,000 (in $500 increments)
-    // Key: ceiling amount, Value: premium in whole dollars
+    // =============================================================================
+    // CONFIGURATION
+    // =============================================================================
+
+    const CONFIG = {
+        // Default rounding mode: 'none' | 'nearest_dollar'
+        // 'none' - Exact decimal calculation, formatted to 2 decimal places
+        // 'nearest_dollar' - Round final premium to nearest whole dollar
+        roundingMode: 'none',
+        
+        // Effective date of these rates
+        effectiveDate: '2019-09-01'
+    };
+
+    // =============================================================================
+    // RATE TABLE ($25,000 to $100,000 in $500 increments)
+    // =============================================================================
+
     const RATE_TABLE = {
         25000: 328, 25500: 331, 26000: 335, 26500: 338, 27000: 340,
         27500: 343, 28000: 347, 28500: 350, 29000: 355, 29500: 358,
@@ -48,22 +74,31 @@
         100000: 832
     };
 
-    // Tier definitions for amounts > $100,000
+    // =============================================================================
+    // TIER DEFINITIONS (amounts > $100,000)
+    // Formula: premium = base + (excess × rate)
+    // No intermediate rounding - exact decimal calculation
+    // =============================================================================
+
     const TIERS = [
-        { max: 1000000,    base: 832,    rate: 0.00527, floor: 100000 },    // Tier A
-        { max: 5000000,    base: 5575,   rate: 0.00433, floor: 1000000 },   // Tier B
-        { max: 15000000,   base: 22895,  rate: 0.00357, floor: 5000000 },   // Tier C
-        { max: 25000000,   base: 58595,  rate: 0.00254, floor: 15000000 },  // Tier D
-        { max: 50000000,   base: 83995,  rate: 0.00152, floor: 25000000 },  // Tier E
-        { max: 100000000,  base: 121995, rate: 0.00138, floor: 50000000 },  // Tier F
-        { max: Infinity,   base: 190995, rate: 0.00124, floor: 100000000 }  // Tier G
+        { max: 1000000,    base: 832,    rate: 0.00527, floor: 100000 },    // Tier A: $100,001 – $1,000,000
+        { max: 5000000,    base: 5575,   rate: 0.00433, floor: 1000000 },   // Tier B: $1,000,001 – $5,000,000
+        { max: 15000000,   base: 22895,  rate: 0.00357, floor: 5000000 },   // Tier C: $5,000,001 – $15,000,000
+        { max: 25000000,   base: 58595,  rate: 0.00254, floor: 15000000 },  // Tier D: $15,000,001 – $25,000,000
+        { max: 50000000,   base: 83995,  rate: 0.00152, floor: 25000000 },  // Tier E: $25,000,001 – $50,000,000
+        { max: 100000000,  base: 121995, rate: 0.00138, floor: 50000000 },  // Tier F: $50,000,001 – $100,000,000
+        { max: Infinity,   base: 190995, rate: 0.00124, floor: 100000000 }  // Tier G: > $100,000,000
     ];
 
     const MIN_PREMIUM = 328;
     const MIN_POLICY_AMOUNT = 25000;
 
+    // =============================================================================
+    // HELPER FUNCTIONS
+    // =============================================================================
+
     /**
-     * Round up to the next $500 increment
+     * Round up to the next $500 increment (for table lookup)
      * @param {number} amount - The policy amount
      * @returns {number} - The ceiling rounded up to nearest $500
      */
@@ -72,48 +107,73 @@
     }
 
     /**
-     * Round to nearest whole dollar
-     * @param {number} value - The value to round
-     * @returns {number} - Rounded whole dollar amount
+     * Apply final rounding based on configuration
+     * @param {number} value - The calculated premium
+     * @param {string} roundingMode - 'none' or 'nearest_dollar'
+     * @returns {number} - The final premium value
      */
-    function roundToNearestDollar(value) {
-        return Math.round(value);
+    function applyFinalRounding(value, roundingMode) {
+        switch (roundingMode) {
+            case 'nearest_dollar':
+                return Math.round(value);
+            case 'none':
+            default:
+                // Return exact value to 2 decimal places (no rounding loss)
+                return Math.round(value * 100) / 100;
+        }
     }
+
+    // =============================================================================
+    // MAIN CALCULATOR
+    // =============================================================================
 
     /**
      * Calculate the Texas Owner's Title Policy Basic Premium
      * Based on Texas DOI approved rates effective September 1, 2019
      * 
+     * Uses exact decimal math with no intermediate rounding.
+     * Final result formatted based on rounding mode configuration.
+     * 
      * @param {number} salesPrice - The sales price / policy amount
-     * @returns {number} - The premium in whole dollars (0 if invalid input)
+     * @param {Object} options - Optional configuration
+     * @param {string} options.roundingMode - 'none' (default) or 'nearest_dollar'
+     * @returns {number} - The premium (0 if invalid input)
      */
-    function calculateTexasTitlePremium(salesPrice) {
+    function calculateTexasTitlePremium(salesPrice, options) {
+        // Merge options with defaults
+        const opts = Object.assign({}, { roundingMode: CONFIG.roundingMode }, options || {});
+
         // Handle invalid input
         if (!salesPrice || isNaN(salesPrice) || salesPrice <= 0) {
             return 0;
         }
 
         const amount = parseFloat(salesPrice);
+        let premium;
 
         // 1) Minimum premium (amount <= $25,000)
         if (amount <= MIN_POLICY_AMOUNT) {
-            return MIN_PREMIUM;
+            premium = MIN_PREMIUM;
+            return applyFinalRounding(premium, opts.roundingMode);
         }
 
         // 2) Table lookup ($25,001 - $100,000)
         if (amount <= 100000) {
             const ceiling = roundUpToNext500(amount);
-            // Clamp to table range
             const lookupKey = Math.min(ceiling, 100000);
-            return RATE_TABLE[lookupKey] || MIN_PREMIUM;
+            premium = RATE_TABLE[lookupKey] || MIN_PREMIUM;
+            return applyFinalRounding(premium, opts.roundingMode);
         }
 
         // 3) Formula tiers (> $100,000)
+        // premium = base + (excess × rate)
+        // No intermediate rounding - exact decimal calculation
         for (const tier of TIERS) {
             if (amount <= tier.max) {
                 const excess = amount - tier.floor;
-                const premium = tier.base + roundToNearestDollar(excess * tier.rate);
-                return premium;
+                // Exact calculation: base + (excess × rate)
+                premium = tier.base + (excess * tier.rate);
+                return applyFinalRounding(premium, opts.roundingMode);
             }
         }
 
@@ -121,8 +181,32 @@
         return 0;
     }
 
-    // Expose to global scope
+    /**
+     * Get the current configuration
+     * @returns {Object} - Current config settings
+     */
+    function getTexasTitlePolicyConfig() {
+        return Object.assign({}, CONFIG);
+    }
+
+    /**
+     * Update the default configuration
+     * @param {Object} newConfig - Configuration overrides
+     */
+    function setTexasTitlePolicyConfig(newConfig) {
+        if (newConfig && typeof newConfig === 'object') {
+            if (newConfig.roundingMode && ['none', 'nearest_dollar'].includes(newConfig.roundingMode)) {
+                CONFIG.roundingMode = newConfig.roundingMode;
+            }
+        }
+    }
+
+    // =============================================================================
+    // EXPOSE TO GLOBAL SCOPE
+    // =============================================================================
+
     global.calculateTexasTitlePremium = calculateTexasTitlePremium;
+    global.getTexasTitlePolicyConfig = getTexasTitlePolicyConfig;
+    global.setTexasTitlePolicyConfig = setTexasTitlePolicyConfig;
 
 })(typeof window !== 'undefined' ? window : this);
-
