@@ -18,6 +18,7 @@ Field Mappings:
 
 import os
 import json
+import re
 import requests
 import logging
 import yaml
@@ -62,6 +63,671 @@ TEMPLATE_MAP = {
     'sellers-net': None,
     'referral-agreement': None,
 }
+
+# =============================================================================
+# DOCUMENT FORMS REGISTRY
+# =============================================================================
+# Maps template slugs to their fill form HTML templates for the Document Mapping UI.
+# Used by admin to map form fields to DocuSeal fields.
+DOCUMENT_FORMS = {
+    'listing-agreement': {
+        'name': 'Listing Agreement',
+        'form_template': 'transactions/listing_agreement_form.html',
+        'template_id': 2468023,
+        'description': 'TXR-1101 Exclusive Right to Sell'
+    },
+    'hoa-addendum': {
+        'name': 'HOA Addendum',
+        'form_template': 'transactions/hoa_addendum_form.html',
+        'template_id': 2469165,
+        'description': 'Addendum for Property Subject to Mandatory Membership in HOA'
+    },
+    'flood-hazard': {
+        'name': 'Flood Hazard Information',
+        'form_template': 'transactions/flood_hazard_form.html',
+        'template_id': None,  # Set when DocuSeal template is created
+        'description': 'Information About Special Flood Hazard Areas'
+    },
+}
+
+# Path to templates directory
+TEMPLATES_DIR = Path(__file__).parent.parent / 'templates'
+
+
+def has_yaml_mapping(template_slug: str) -> bool:
+    """Check if a YAML mapping file exists for the given template slug."""
+    mapping_file = MAPPINGS_DIR / f"{template_slug}.yml"
+    return mapping_file.exists()
+
+
+def get_yaml_template_id(template_slug: str) -> Optional[int]:
+    """Get the DocuSeal template ID from an existing YAML mapping file."""
+    mapping = load_field_mapping(template_slug)
+    if mapping:
+        return mapping.get('template_id')
+    return None
+
+
+def get_full_yaml_mapping(template_slug: str) -> Optional[Dict[str, Any]]:
+    """Load the complete YAML mapping file for a template."""
+    return load_field_mapping(template_slug)
+
+
+# =============================================================================
+# DOCUMENT MAPPING UI FUNCTIONS
+# =============================================================================
+# These functions support the admin Document Mapping UI for mapping form fields
+# to DocuSeal template fields.
+
+
+def parse_form_fields(template_slug: str) -> List[Dict[str, Any]]:
+    """
+    Parse an HTML form template to extract all field definitions.
+    
+    Returns list of dicts with:
+    - name: field name (without 'field_' prefix)
+    - label: human-readable label from the form
+    - html_type: detected HTML input type (text, radio, checkbox, date, textarea, select)
+    - section: section number if detected
+    
+    Args:
+        template_slug: Template identifier (e.g., 'listing-agreement')
+        
+    Returns:
+        List of field definitions in order they appear in the form
+    """
+    if template_slug not in DOCUMENT_FORMS:
+        logger.warning(f"Unknown template slug: {template_slug}")
+        return []
+    
+    form_template = DOCUMENT_FORMS[template_slug]['form_template']
+    template_path = TEMPLATES_DIR / form_template
+    
+    if not template_path.exists():
+        logger.warning(f"Form template not found: {template_path}")
+        return []
+    
+    try:
+        with open(template_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+    except Exception as e:
+        logger.error(f"Error reading template {template_path}: {e}")
+        return []
+    
+    fields = []
+    seen_fields = set()
+    current_section = None
+    
+    # Track section numbers from section headers
+    section_pattern = re.compile(r'data-section="(\d+)"')
+    
+    # Find all input/select/textarea elements with name="field_*"
+    # Pattern matches: name="field_xxx" with surrounding context for type detection
+    field_pattern = re.compile(
+        r'(?:<label[^>]*>([^<]*)</label>\s*)?'  # Optional preceding label
+        r'<(input|select|textarea)[^>]*name=["\']field_([a-zA-Z0-9_]+)["\'][^>]*>',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    # Also find labels that come after the input (common pattern)
+    # Pattern: <input name="field_xxx"> ... <label>Label Text</label>
+    reverse_label_pattern = re.compile(
+        r'<(input|select|textarea)[^>]*name=["\']field_([a-zA-Z0-9_]+)["\'][^>]*>'
+        r'(?:[^<]*<[^>]*>)*?\s*'  # Skip some tags
+        r'<(?:span|div)[^>]*class="[^"]*option-label[^"]*"[^>]*>([^<]+)</(?:span|div)>',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    # Find form-label class labels followed by inputs
+    label_input_pattern = re.compile(
+        r'<label[^>]*class="[^"]*form-label[^"]*"[^>]*>([^<]+)</label>'
+        r'[\s\S]*?<(input|select|textarea)[^>]*name=["\']field_([a-zA-Z0-9_]+)["\']',
+        re.IGNORECASE
+    )
+    
+    # Build a map of field names to labels using the label_input pattern
+    label_map = {}
+    for match in label_input_pattern.finditer(html_content):
+        label_text = match.group(1).strip()
+        field_name = match.group(3)
+        # Clean up label text
+        label_text = re.sub(r'\s+', ' ', label_text)
+        label_text = label_text.replace('*', '').strip()
+        if field_name not in label_map:
+            label_map[field_name] = label_text
+    
+    # Find all field_* inputs in order
+    input_pattern = re.compile(
+        r'<(input|select|textarea)([^>]*)name=["\']field_([a-zA-Z0-9_]+)["\']([^>]*)>',
+        re.IGNORECASE
+    )
+    
+    # Track sections
+    lines = html_content.split('\n')
+    line_to_section = {}
+    current_section = None
+    for i, line in enumerate(lines):
+        section_match = section_pattern.search(line)
+        if section_match:
+            current_section = section_match.group(1)
+        line_to_section[i] = current_section
+    
+    # Find all fields in order
+    for match in input_pattern.finditer(html_content):
+        tag_type = match.group(1).lower()
+        attrs_before = match.group(2)
+        field_name = match.group(3)
+        attrs_after = match.group(4)
+        attrs = attrs_before + attrs_after
+        
+        if field_name in seen_fields:
+            continue
+        seen_fields.add(field_name)
+        
+        # Determine HTML type
+        if tag_type == 'textarea':
+            html_type = 'textarea'
+        elif tag_type == 'select':
+            html_type = 'select'
+        else:
+            # Check input type attribute
+            type_match = re.search(r'type=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+            if type_match:
+                html_type = type_match.group(1).lower()
+            else:
+                html_type = 'text'
+        
+        # Get label from our map
+        label = label_map.get(field_name, field_name.replace('_', ' ').title())
+        
+        # Find which section this field is in based on position
+        pos = match.start()
+        line_num = html_content[:pos].count('\n')
+        section = line_to_section.get(line_num, None)
+        
+        fields.append({
+            'name': field_name,
+            'label': label,
+            'html_type': html_type,
+            'section': section
+        })
+    
+    logger.info(f"Parsed {len(fields)} fields from {template_slug}")
+    return fields
+
+
+def get_existing_mappings(template_slug: str) -> Dict[str, Dict[str, str]]:
+    """
+    Load existing field mappings from YAML to pre-fill the mapping UI.
+    
+    Handles multiple mapping types:
+    - field_mappings: Direct field-to-field mappings
+    - broker_form_fields: Fields for broker submitter
+    - computed_fields: Fields combined via templates
+    - conditional_fields: Nested mappings based on conditions
+    - option_transforms: Radio/checkbox option mappings
+    
+    Returns dict mapping field_name -> {'docuseal_field': '...', 'type': '...'}
+    """
+    mapping = load_field_mapping(template_slug)
+    if not mapping:
+        return {}
+    
+    result = {}
+    
+    # Get field_mappings
+    field_mappings = mapping.get('field_mappings', {})
+    transforms = mapping.get('transforms', {})
+    
+    # Determine types from transforms
+    currency_fields = set(transforms.get('currency_fields', []))
+    date_fields = set(transforms.get('date_fields', []))
+    radio_mappings = transforms.get('radio_mappings', {})
+    checkbox_to_x = set(transforms.get('checkbox_to_x', []))
+    
+    def get_field_type(field_name):
+        """Determine field type from transforms."""
+        if field_name in currency_fields:
+            return 'currency'
+        elif field_name in date_fields:
+            return 'date'
+        elif field_name in radio_mappings:
+            return 'radio'
+        elif field_name in checkbox_to_x:
+            return 'checkbox'
+        return 'text'
+    
+    # Process direct field_mappings
+    for field_name, docuseal_field in field_mappings.items():
+        if not docuseal_field:
+            continue
+        
+        result[field_name] = {
+            'docuseal_field': docuseal_field,
+            'type': get_field_type(field_name)
+        }
+    
+    # Process broker_form_fields
+    broker_fields = mapping.get('broker_form_fields', {})
+    for field_name, docuseal_field in broker_fields.items():
+        if not docuseal_field or field_name in result:
+            continue
+        
+        result[field_name] = {
+            'docuseal_field': docuseal_field,
+            'type': get_field_type(field_name)
+        }
+    
+    # Process computed_fields - extract field names from template strings
+    # e.g., template: "{hoa_name} - {hoa_phone}" -> hoa_name and hoa_phone are mapped
+    computed_fields = mapping.get('computed_fields', [])
+    for computed in computed_fields:
+        if not isinstance(computed, dict):
+            continue
+        docuseal_field = computed.get('docuseal_field', '')
+        template = computed.get('template', '')
+        
+        # Extract field names from template like "{field_name}"
+        field_names = re.findall(r'\{([a-zA-Z0-9_]+)\}', template)
+        for field_name in field_names:
+            if field_name not in result:
+                result[field_name] = {
+                    'docuseal_field': f'(computed) {docuseal_field}',
+                    'type': 'computed'
+                }
+    
+    # Process conditional_fields - nested structure
+    # e.g., doc_responsibility: { seller: { seller_delivery_days: "1. Days..." } }
+    conditional_fields = mapping.get('conditional_fields', {})
+    for condition_field, conditions in conditional_fields.items():
+        if not isinstance(conditions, dict):
+            continue
+        
+        # The condition_field itself has option-based mappings
+        if condition_field not in result:
+            result[condition_field] = {
+                'docuseal_field': '(conditional)',
+                'type': 'radio'
+            }
+        
+        # Extract the nested field mappings
+        for condition_value, field_map in conditions.items():
+            if not isinstance(field_map, dict):
+                continue
+            for field_name, docuseal_field in field_map.items():
+                if field_name not in result:
+                    result[field_name] = {
+                        'docuseal_field': f'(when {condition_field}={condition_value}) {docuseal_field}',
+                        'type': get_field_type(field_name)
+                    }
+    
+    # Process option_transforms - radio/checkbox transformations
+    # e.g., doc_responsibility: { seller: "Option 1", buyer: "Option 2" }
+    option_transforms = mapping.get('option_transforms', {})
+    for field_name, options in option_transforms.items():
+        if not isinstance(options, dict):
+            continue
+        if field_name not in result:
+            # Get the first option value as an example
+            first_option = next(iter(options.values()), '')
+            result[field_name] = {
+                'docuseal_field': f'(options) {first_option}...',
+                'type': 'radio'
+            }
+    
+    return result
+
+
+def save_field_mappings(template_slug: str, mappings: List[Dict[str, Any]]) -> bool:
+    """
+    Save field mappings to YAML file.
+    
+    Args:
+        template_slug: Template identifier
+        mappings: List of dicts with 'name', 'docuseal_field', 'type'
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    if template_slug not in DOCUMENT_FORMS:
+        logger.error(f"Unknown template slug: {template_slug}")
+        return False
+    
+    doc_info = DOCUMENT_FORMS[template_slug]
+    mapping_file = MAPPINGS_DIR / f"{template_slug}.yml"
+    
+    # Build the YAML structure
+    field_mappings = {}
+    currency_fields = []
+    date_fields = []
+    radio_mappings = {}
+    
+    for m in mappings:
+        field_name = m.get('name', '')
+        docuseal_field = m.get('docuseal_field', '').strip()
+        field_type = m.get('type', 'text')
+        
+        if not field_name or not docuseal_field:
+            continue
+        
+        field_mappings[field_name] = docuseal_field
+        
+        # Add to appropriate transform list based on type
+        if field_type == 'currency':
+            currency_fields.append(field_name)
+        elif field_type == 'date':
+            date_fields.append(field_name)
+        elif field_type == 'radio':
+            # Create a placeholder radio mapping
+            radio_mappings[field_name] = {
+                'yes': 'yes',
+                'no': 'no'
+            }
+    
+    # Build the YAML content
+    yaml_content = f"""# =============================================================================
+# {doc_info['name'].upper()} - DocuSeal Field Mapping
+# =============================================================================
+# This file maps CRM form fields to DocuSeal template fields.
+#
+# Template ID: {doc_info['template_id']}
+# Generated by Document Mapping UI
+# =============================================================================
+
+template_id: {doc_info['template_id']}
+template_name: "{doc_info['name']}"
+template_slug: "{template_slug}"
+
+# Submitter roles for this template
+submitter_roles:
+  - Seller
+  - Broker
+
+# =============================================================================
+# FIELD MAPPINGS
+# Format: crm_field: docuseal_field
+# =============================================================================
+field_mappings:
+"""
+    
+    # Add field mappings
+    for field_name, docuseal_field in field_mappings.items():
+        yaml_content += f'  {field_name}: "{docuseal_field}"\n'
+    
+    # Add transforms section
+    yaml_content += """
+# =============================================================================
+# VALUE TRANSFORMS
+# =============================================================================
+transforms:
+"""
+    
+    # Radio mappings
+    if radio_mappings:
+        yaml_content += "  radio_mappings:\n"
+        for field_name, mapping in radio_mappings.items():
+            yaml_content += f"    {field_name}:\n"
+            for k, v in mapping.items():
+                yaml_content += f'      "{k}": "{v}"\n'
+    else:
+        yaml_content += "  radio_mappings: {}\n"
+    
+    # Currency fields
+    yaml_content += "\n  currency_fields:\n"
+    if currency_fields:
+        for f in currency_fields:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
+    # Date fields
+    yaml_content += "\n  date_fields:\n"
+    if date_fields:
+        for f in date_fields:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
+    # Add placeholder sections
+    yaml_content += """
+# =============================================================================
+# BROKER FORM FIELDS (fields that go to Broker submitter)
+# =============================================================================
+broker_form_fields: {}
+
+# =============================================================================
+# AGENT FIELDS (auto-populated from logged-in agent)
+# =============================================================================
+agent_fields: []
+
+# =============================================================================
+# COMPUTED FIELDS (combine multiple form values)
+# =============================================================================
+computed_fields: []
+"""
+    
+    try:
+        with open(mapping_file, 'w', encoding='utf-8') as f:
+            f.write(yaml_content)
+        
+        # Clear the cache so changes are picked up
+        if template_slug in _mapping_cache:
+            del _mapping_cache[template_slug]
+        
+        logger.info(f"Saved field mappings to {mapping_file}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving mappings to {mapping_file}: {e}")
+        return False
+
+
+def save_full_mapping(template_slug: str, mapping_data: Dict[str, Any]) -> bool:
+    """
+    Save complete mapping data including all mapping types to YAML file.
+    
+    This is the new save function that supports:
+    - Direct field mappings (1:1)
+    - Combined/computed fields (one DocuSeal field -> multiple CRM fields)
+    - Conditional fields (mappings that depend on another field's value)
+    - Option transforms (radio/checkbox value to DocuSeal field mapping)
+    
+    Args:
+        template_slug: Template identifier
+        mapping_data: Dict with template_id, field_mappings, computed_fields, 
+                     conditional_fields, option_transforms, transforms
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    if template_slug not in DOCUMENT_FORMS:
+        logger.error(f"Unknown template slug: {template_slug}")
+        return False
+    
+    doc_info = DOCUMENT_FORMS[template_slug]
+    mapping_file = MAPPINGS_DIR / f"{template_slug}.yml"
+    
+    template_id = mapping_data.get('template_id', doc_info.get('template_id', 0))
+    
+    # Build YAML structure
+    yaml_data = {
+        'template_id': template_id,
+        'template_name': doc_info['name'],
+        'template_slug': template_slug,
+        'submitter_roles': ['Seller', 'Seller 2'],
+        'field_mappings': mapping_data.get('field_mappings', {}),
+        'computed_fields': mapping_data.get('computed_fields', []),
+        'conditional_fields': mapping_data.get('conditional_fields', {}),
+        'option_transforms': mapping_data.get('option_transforms', {}),
+        'transforms': mapping_data.get('transforms', {
+            'currency_fields': [],
+            'date_fields': [],
+            'radio_mappings': {},
+            'checkbox_to_x': []
+        }),
+        'broker_form_fields': {},
+        'agent_fields': []
+    }
+    
+    # Build human-readable YAML with comments
+    yaml_content = f"""# =============================================================================
+# {doc_info['name'].upper()} - DocuSeal Field Mapping
+# =============================================================================
+# This file maps CRM form fields to DocuSeal template fields.
+# Generated by the Document Mapping UI
+#
+# Template ID: {template_id}
+# =============================================================================
+
+template_id: {template_id}
+template_name: "{doc_info['name']}"
+template_slug: "{template_slug}"
+
+# Submitter roles for this template
+submitter_roles:
+  - Seller
+  - Seller 2
+
+# =============================================================================
+# DIRECT FIELD MAPPINGS
+# Format: crm_field: "DocuSeal Field Name"
+# =============================================================================
+field_mappings:
+"""
+    
+    # Add direct field mappings
+    for crm_field, docu_field in yaml_data['field_mappings'].items():
+        if docu_field:  # Only include non-empty mappings
+            yaml_content += f'  {crm_field}: "{docu_field}"\n'
+    
+    # Add computed fields section
+    yaml_content += """
+# =============================================================================
+# COMPUTED/COMBINED FIELDS
+# One DocuSeal field populated from multiple CRM fields
+# =============================================================================
+computed_fields:
+"""
+    
+    if yaml_data['computed_fields']:
+        for cf in yaml_data['computed_fields']:
+            yaml_content += f"  - docuseal_field: \"{cf.get('docuseal_field', '')}\"\n"
+            yaml_content += f"    template: \"{cf.get('template', '')}\"\n"
+    else:
+        yaml_content += "  []\n"
+    
+    # Add conditional fields section
+    yaml_content += """
+# =============================================================================
+# CONDITIONAL FIELDS
+# Fields that are mapped based on another field's value
+# =============================================================================
+conditional_fields:
+"""
+    
+    if yaml_data['conditional_fields']:
+        for cond_field, conditions in yaml_data['conditional_fields'].items():
+            yaml_content += f"  {cond_field}:\n"
+            for cond_value, field_map in conditions.items():
+                yaml_content += f"    {cond_value}:\n"
+                for crm_field, docu_field in field_map.items():
+                    yaml_content += f'      {crm_field}: "{docu_field}"\n'
+    else:
+        yaml_content += "  {}\n"
+    
+    # Add option transforms section
+    yaml_content += """
+# =============================================================================
+# OPTION TRANSFORMS
+# Radio/checkbox values mapped to DocuSeal checkbox fields
+# =============================================================================
+option_transforms:
+"""
+    
+    if yaml_data['option_transforms']:
+        for crm_field, options in yaml_data['option_transforms'].items():
+            yaml_content += f"  {crm_field}:\n"
+            for opt_value, docu_field in options.items():
+                yaml_content += f'    {opt_value}: "{docu_field}"\n'
+    else:
+        yaml_content += "  {}\n"
+    
+    # Add transforms section
+    yaml_content += """
+# =============================================================================
+# VALUE TRANSFORMS
+# =============================================================================
+transforms:
+"""
+    
+    transforms = yaml_data.get('transforms', {})
+    
+    # Currency fields
+    currency_fields = transforms.get('currency_fields', [])
+    yaml_content += "  currency_fields:\n"
+    if currency_fields:
+        for f in currency_fields:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
+    # Date fields
+    date_fields = transforms.get('date_fields', [])
+    yaml_content += "  date_fields:\n"
+    if date_fields:
+        for f in date_fields:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
+    # Radio mappings
+    radio_mappings = transforms.get('radio_mappings', {})
+    yaml_content += "  radio_mappings:\n"
+    if radio_mappings:
+        for field_name, mapping in radio_mappings.items():
+            yaml_content += f"    {field_name}:\n"
+            for k, v in mapping.items():
+                yaml_content += f'      "{k}": "{v}"\n'
+    else:
+        yaml_content += "    {}\n"
+    
+    # Checkbox to X
+    checkbox_to_x = transforms.get('checkbox_to_x', [])
+    yaml_content += "  checkbox_to_x:\n"
+    if checkbox_to_x:
+        for f in checkbox_to_x:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
+    # Add broker and agent fields
+    yaml_content += """
+# =============================================================================
+# BROKER FORM FIELDS (fields that go to Broker submitter)
+# =============================================================================
+broker_form_fields: {}
+
+# =============================================================================
+# AGENT FIELDS (auto-populated from logged-in agent)
+# =============================================================================
+agent_fields: []
+"""
+    
+    try:
+        with open(mapping_file, 'w', encoding='utf-8') as f:
+            f.write(yaml_content)
+        
+        # Clear the cache so changes are picked up
+        if template_slug in _mapping_cache:
+            del _mapping_cache[template_slug]
+        
+        logger.info(f"Saved full field mappings to {mapping_file}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error saving mappings to {mapping_file}: {e}")
+        return False
+
 
 # =============================================================================
 # FIELD MAPPING LOADER
@@ -462,13 +1128,30 @@ def _get_headers() -> Dict[str, str]:
 
 
 def get_template_id(slug: str) -> Optional[int]:
-    """Get DocuSeal template ID for a document slug."""
-    return TEMPLATE_MAP.get(slug)
+    """
+    Get DocuSeal template ID for a document slug.
+    
+    First checks TEMPLATE_MAP for hardcoded IDs, then falls back to
+    checking the YAML mapping file for dynamically configured templates.
+    """
+    # First check the static TEMPLATE_MAP
+    template_id = TEMPLATE_MAP.get(slug)
+    if template_id:
+        return template_id
+    
+    # Fall back to checking the YAML mapping file
+    mapping = load_field_mapping(slug)
+    if mapping:
+        yaml_template_id = mapping.get('template_id')
+        if yaml_template_id:
+            return yaml_template_id
+    
+    return None
 
 
 def is_template_ready(slug: str) -> bool:
     """Check if a template has been uploaded to DocuSeal."""
-    return TEMPLATE_MAP.get(slug) is not None
+    return get_template_id(slug) is not None
 
 
 # =============================================================================

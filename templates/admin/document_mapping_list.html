@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Document Mapping - Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Back button -->
+    <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-900 mb-8">
+        <i class="fas fa-arrow-left mr-2"></i>
+        Back
+    </button>
+    
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-4 py-5 border-b border-gray-200 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-medium text-gray-900">DocuSeal Field Mapper</h2>
+                    <p class="mt-1 text-sm text-gray-500">Drag and drop DocuSeal fields to map them to your form fields</p>
+                </div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                    <i class="fas fa-lock mr-1"></i> Admin Only
+                </span>
+            </div>
+        </div>
+
+        <div class="px-4 py-5 sm:p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for doc in documents %}
+                <a href="{{ url_for('admin.document_mapping_edit', slug=doc.slug) }}" 
+                   class="block p-6 rounded-lg border-2 transition-all duration-200 
+                          {% if doc.is_mapped %}
+                          bg-green-50 border-green-200 hover:border-green-400
+                          {% else %}
+                          bg-gray-50 border-gray-200 hover:border-orange-300
+                          {% endif %}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                {% if doc.is_mapped %}
+                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-500 text-white">
+                                    <i class="fas fa-check text-xs"></i>
+                                </span>
+                                {% else %}
+                                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-300 text-white">
+                                    <i class="fas fa-minus text-xs"></i>
+                                </span>
+                                {% endif %}
+                                <h3 class="text-base font-semibold text-gray-900">{{ doc.name }}</h3>
+                            </div>
+                            <p class="mt-2 text-sm text-gray-500">{{ doc.description }}</p>
+                            {% if doc.template_id %}
+                            <p class="mt-2 text-xs {% if doc.is_mapped %}text-green-600{% else %}text-gray-400{% endif %}">
+                                <i class="fas fa-hashtag mr-1"></i>Template ID: {{ doc.template_id }}
+                            </p>
+                            {% else %}
+                            <p class="mt-2 text-xs text-orange-500">
+                                <i class="fas fa-exclamation-circle mr-1"></i>No template ID set
+                            </p>
+                            {% endif %}
+                            <p class="mt-1 text-xs {% if doc.is_mapped %}text-green-600{% else %}text-gray-400{% endif %}">
+                                {% if doc.is_mapped %}
+                                <i class="fas fa-file-alt mr-1"></i>Mapping configured
+                                {% else %}
+                                <i class="fas fa-file mr-1"></i>Not mapped yet
+                                {% endif %}
+                            </p>
+                        </div>
+                        <i class="fas fa-chevron-right {% if doc.is_mapped %}text-green-400{% else %}text-gray-400{% endif %} ml-4"></i>
+                    </div>
+                </a>
+                {% else %}
+                <div class="col-span-full text-center py-8 text-gray-500">
+                    <i class="fas fa-file-alt text-4xl mb-4 text-gray-300"></i>
+                    <p>No document forms configured yet.</p>
+                    <p class="text-sm mt-2">Add forms to DOCUMENT_FORMS in docuseal_service.py</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help Section -->
+    <div class="mt-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+        <div class="flex">
+            <i class="fas fa-info-circle text-blue-500 mt-0.5 mr-3"></i>
+            <div class="text-sm text-blue-800">
+                <p class="font-medium mb-1">How to use the Field Mapper:</p>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>Click on a document to open the mapper</li>
+                    <li>Enter the DocuSeal Template ID and click Fetch</li>
+                    <li>Drag DocuSeal fields from the left panel to CRM fields on the right</li>
+                    <li>For combined fields (one DocuSeal field -> multiple CRM fields), drag to each field</li>
+                    <li>Save to generate the YAML mapping file</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

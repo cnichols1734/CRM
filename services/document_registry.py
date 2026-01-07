@@ -118,6 +118,14 @@ DOCUMENT_REGISTRY: Dict[str, DocumentConfig] = {
         icon='fa-building',
         sort_order=2,
     ),
+    'flood-hazard': DocumentConfig(
+        slug='flood-hazard',
+        name='Flood Hazard Information',
+        partial_template='transactions/partials/flood_hazard_fields.html',
+        color='cyan',
+        icon='fa-water',
+        sort_order=3,
+    ),
     # Future documents - uncomment and create partials/YAMLs as needed:
     #
     # 'sellers-disclosure': DocumentConfig(
