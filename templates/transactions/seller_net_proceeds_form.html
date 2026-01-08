@@ -747,7 +747,7 @@
                             <input type="text" name="field_annual_property_taxes" id="annualPropertyTaxes" class="doc-field money-field"
                                    value="{{ prefill_data.get('annual_property_taxes', '') }}"
                                    placeholder="0.00"
-                                   oninput="formatMoney(this); recalculateAll()">
+                                   oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateAll()">
                         </div>
                     </div>
 
@@ -759,7 +759,7 @@
                             <input type="text" name="field_annual_maintenance_fees" id="annualMaintenanceFees" class="doc-field money-field"
                                    value="{{ prefill_data.get('annual_maintenance_fees', '') }}"
                                    placeholder="0.00"
-                                   oninput="formatMoney(this)">
+                                   oninput="formatMoney(this)" onblur="formatMoneyOnBlur(this)">
                         </div>
                     </div>
 
@@ -822,7 +822,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_attorneys_fees" class="money-input cost-input"
                                            value="{{ prefill_data.get('attorneys_fees', '180.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -846,7 +846,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_condo_transfer_fee" class="money-input cost-input"
                                            value="{{ prefill_data.get('condo_transfer_fee', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -856,7 +856,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_courier_fees" class="money-input cost-input"
                                            value="{{ prefill_data.get('courier_fees', '40.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -866,7 +866,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_escrow_fee" class="money-input cost-input"
                                            value="{{ prefill_data.get('escrow_fee', '80.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -880,6 +880,8 @@
                                            value="{{ prefill_data.get('prorated_taxes', '') }}"
                                            placeholder="0" readonly>
                                 </div>
+                                <!-- Hidden field to store the calculated prorated days for DocuSeal mapping -->
+                                <input type="hidden" name="field_prorated_days" id="proratedDaysValue" value="{{ prefill_data.get('prorated_days', '') }}">
                             </div>
                             
                             <div class="cost-row" style="margin-left: 0.75rem;">
@@ -888,7 +890,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_prorated_interest" class="money-input cost-input"
                                            value="{{ prefill_data.get('prorated_interest', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -898,7 +900,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_prorated_maintenance" class="money-input cost-input"
                                            value="{{ prefill_data.get('prorated_maintenance', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -908,7 +910,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_assessments" class="money-input cost-input"
                                            value="{{ prefill_data.get('assessments', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -918,7 +920,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_rents" class="money-input cost-input"
                                            value="{{ prefill_data.get('rents', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -928,7 +930,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_recording_fees" class="money-input cost-input"
                                            value="{{ prefill_data.get('recording_fees', '50.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -938,7 +940,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_repairs_buyer" class="money-input cost-input"
                                            value="{{ prefill_data.get('repairs_buyer', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -948,7 +950,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_repairs_lender" class="money-input cost-input"
                                            value="{{ prefill_data.get('repairs_lender', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -958,7 +960,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_residential_service" class="money-input cost-input"
                                            value="{{ prefill_data.get('residential_service', '450.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -968,7 +970,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_seller_allowances" class="money-input cost-input"
                                            value="{{ prefill_data.get('seller_allowances', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -978,7 +980,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_survey_fee" class="money-input cost-input"
                                            value="{{ prefill_data.get('survey_fee', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -988,7 +990,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_tax_cert_fee" class="money-input cost-input"
                                            value="{{ prefill_data.get('tax_cert_fee', '100.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1008,7 +1010,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_wiring_fees" class="money-input cost-input"
                                            value="{{ prefill_data.get('wiring_fees', '40.00') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1021,7 +1023,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_1" class="money-input cost-input"
                                            value="{{ prefill_data.get('custom_amount_1', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1033,7 +1035,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_2" class="money-input cost-input"
                                            value="{{ prefill_data.get('custom_amount_2', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1045,7 +1047,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_3" class="money-input cost-input"
                                            value="{{ prefill_data.get('custom_amount_3', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1057,7 +1059,7 @@
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_4" class="money-input cost-input"
                                            value="{{ prefill_data.get('custom_amount_4', '') }}"
-                                           placeholder="0" oninput="formatMoney(this); recalculateCosts()">
+                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
                             
@@ -1085,7 +1087,7 @@
                                                value="{{ prefill_data.get('sales_price', prefill_data.get('list_price', '')) }}"
                                                placeholder="0"
                                                onfocus="checkSalesPriceEdit(this)"
-                                               oninput="formatMoney(this); recalculateAll()">
+                                               oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateAll()">
                                     </div>
                                     <input type="hidden" id="originalSalesPrice" value="{{ prefill_data.get('list_price', '') }}">
                                 </div>
@@ -1110,7 +1112,7 @@
                                             <input type="text" name="field_loan_payoff" id="loanPayoff" class="money-input"
                                                    value="{{ prefill_data.get('loan_payoff', '') }}"
                                                    placeholder="0"
-                                                   oninput="formatMoney(this); recalculateNetProceeds()">
+                                                   oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateNetProceeds()">
                                         </div>
                                     </div>
                                 </div>
@@ -1136,7 +1138,7 @@
                                         <span class="dollar-sign">$</span>
                                         <input type="text" name="field_unused_insurance" class="money-input refund-input"
                                                value="{{ prefill_data.get('unused_insurance', '') }}"
-                                               placeholder="0" oninput="formatMoney(this); recalculateRefunds()">
+                                               placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateRefunds()">
                                     </div>
                                 </div>
                                 
@@ -1146,7 +1148,7 @@
                                         <span class="dollar-sign">$</span>
                                         <input type="text" name="field_escrow_balance" class="money-input refund-input"
                                                value="{{ prefill_data.get('escrow_balance', '') }}"
-                                               placeholder="0" oninput="formatMoney(this); recalculateRefunds()">
+                                               placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateRefunds()">
                                     </div>
                                 </div>
                                 
@@ -1252,16 +1254,32 @@ function formatMoney(input) {
         value = parts[0] + '.' + parts.slice(1).join('');
     }
     
-    // Parse and format
+    // Parse and format - add commas while typing but don't force .00 yet
     if (value) {
         const num = parseFloat(value);
         if (!isNaN(num)) {
-            // Format with commas, keeping decimal if present
+            // Format with commas, preserve user's decimal input while typing
+            const hasDecimal = value.includes('.');
             const formatted = num.toLocaleString('en-US', {
-                minimumFractionDigits: value.includes('.') ? 2 : 0,
+                minimumFractionDigits: hasDecimal ? Math.min(parts[1]?.length || 0, 2) : 0,
                 maximumFractionDigits: 2
             });
-            input.value = formatted;
+            // Preserve trailing decimal point if user just typed it
+            input.value = formatted + (value.endsWith('.') && !formatted.includes('.') ? '.' : '');
+        }
+    }
+}
+
+function formatMoneyOnBlur(input) {
+    // On blur, ensure we have .00 format
+    let value = input.value.replace(/[^0-9.]/g, '');
+    if (value) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) {
+            input.value = num.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
     }
 }
@@ -1341,6 +1359,7 @@ function calculateProratedTaxes() {
     if (!closingDateStr || !annualTaxes) {
         document.getElementById('proratedTaxes').value = '';
         document.getElementById('proratedDays').textContent = 'Prorated for ___ days';
+        document.getElementById('proratedDaysValue').value = '';
         return;
     }
     
@@ -1356,6 +1375,8 @@ function calculateProratedTaxes() {
     
     document.getElementById('proratedDays').textContent = `Prorated for ${diffDays} days`;
     document.getElementById('proratedTaxes').value = formatAsMoney(proratedAmount);
+    // Store the days value in hidden field for DocuSeal mapping
+    document.getElementById('proratedDaysValue').value = diffDays;
     
     recalculateCosts();
 }

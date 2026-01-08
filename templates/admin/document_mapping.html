@@ -249,6 +249,26 @@
         justify-content: space-between;
         align-items: center;
     }
+    
+    .transform-type-select {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.25rem;
+        background: white;
+        cursor: pointer;
+        min-width: 95px;
+    }
+    
+    .transform-type-select:focus {
+        outline: none;
+        border-color: #f97316;
+    }
+    
+    .transform-type-select.has-override {
+        border-color: #f97316;
+        background: #fff7ed;
+    }
 </style>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -353,10 +373,20 @@
                     <div class="field-card crm" 
                          data-field-name="{{ field.name }}"
                          data-field-type="{{ field.html_type }}"
-                         data-field-label="{{ field.label }}">
-                        <div class="flex items-center">
-                            <span class="field-name">{{ field.name }}</span>
-                            <span class="field-type">({{ field.html_type }})</span>
+                         data-field-label="{{ field.label }}"
+                         data-transform-type="">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="field-name">{{ field.name }}</span>
+                                <span class="field-type">({{ field.html_type }})</span>
+                            </div>
+                            <select class="transform-type-select" onchange="setTransformType('{{ field.name }}', this.value)" title="Field type for DocuSeal">
+                                <option value="">Auto</option>
+                                <option value="currency">💰 Currency</option>
+                                <option value="date">📅 Date</option>
+                                <option value="checkbox">☑️ Checkbox</option>
+                                <option value="text">📝 Text</option>
+                            </select>
                         </div>
                         <div class="field-label">{{ field.label }}</div>
                         <div class="mapping-indicator" style="display: none;">
@@ -506,6 +536,24 @@ let mappings = {
     option_transforms: {} // crm_field -> {value: docuseal_field}
 };
 
+// Manual transform type overrides (set by user via dropdown)
+let transformOverrides = {}; // crm_field -> 'currency' | 'date' | 'checkbox' | 'text'
+
+function setTransformType(fieldName, transformType) {
+    const fieldCard = document.querySelector(`.field-card.crm[data-field-name="${fieldName}"]`);
+    const select = fieldCard?.querySelector('.transform-type-select');
+    
+    if (transformType) {
+        transformOverrides[fieldName] = transformType;
+        fieldCard?.setAttribute('data-transform-type', transformType);
+        select?.classList.add('has-override');
+    } else {
+        delete transformOverrides[fieldName];
+        fieldCard?.setAttribute('data-transform-type', '');
+        select?.classList.remove('has-override');
+    }
+}
+
 // Initialize from existing YAML if available
 document.addEventListener('DOMContentLoaded', function() {
     if (existingYaml) {
@@ -581,6 +629,45 @@ function loadExistingMappings() {
             const firstOpt = Object.values(options)[0];
             markFieldAsMapped(crmField, `(options) ${firstOpt}...`, 'option');
         }
+    }
+    
+    // Load existing transform types and set dropdowns
+    if (existingYaml.transforms) {
+        const transforms = existingYaml.transforms;
+        
+        // Load currency fields
+        if (transforms.currency_fields) {
+            for (const field of transforms.currency_fields) {
+                setFieldTransformDropdown(field, 'currency');
+            }
+        }
+        
+        // Load date fields
+        if (transforms.date_fields) {
+            for (const field of transforms.date_fields) {
+                setFieldTransformDropdown(field, 'date');
+            }
+        }
+        
+        // Load checkbox fields
+        if (transforms.checkbox_to_x) {
+            for (const field of transforms.checkbox_to_x) {
+                setFieldTransformDropdown(field, 'checkbox');
+            }
+        }
+    }
+}
+
+function setFieldTransformDropdown(fieldName, transformType) {
+    const fieldCard = document.querySelector(`.field-card.crm[data-field-name="${fieldName}"]`);
+    if (fieldCard) {
+        const select = fieldCard.querySelector('.transform-type-select');
+        if (select) {
+            select.value = transformType;
+            select.classList.add('has-override');
+        }
+        fieldCard.setAttribute('data-transform-type', transformType);
+        transformOverrides[fieldName] = transformType;
     }
 }
 
@@ -1177,14 +1264,48 @@ async function saveMappings() {
         option_transforms: mappings.option_transforms,
         transforms: {
             currency_fields: [],
-            date_fields: []
+            date_fields: [],
+            checkbox_to_x: []
         }
     };
     
-    // Detect currency fields (fields with "price", "fee", "amount" in name)
+    // Detect field types: manual overrides take priority, then auto-detect
+    const crmFieldCards = document.querySelectorAll('.field-card.crm');
+    const fieldTypeMap = {};
+    crmFieldCards.forEach(card => {
+        const name = card.dataset.fieldName;
+        const htmlType = card.dataset.fieldType;
+        fieldTypeMap[name] = htmlType;
+    });
+    
     for (const crmField of Object.keys(mappings.direct)) {
-        if (/price|fee|amount|cost|cap/i.test(crmField)) {
+        const htmlType = fieldTypeMap[crmField] || '';
+        const manualType = transformOverrides[crmField];
+        
+        // Manual override takes priority
+        if (manualType) {
+            if (manualType === 'currency') {
+                mappingData.transforms.currency_fields.push(crmField);
+            } else if (manualType === 'date') {
+                mappingData.transforms.date_fields.push(crmField);
+            } else if (manualType === 'checkbox') {
+                mappingData.transforms.checkbox_to_x.push(crmField);
+            }
+            // 'text' means no transform needed
+            continue;
+        }
+        
+        // Auto-detect currency fields (expanded patterns for money fields)
+        if (/price|fee|amount|cost|cap|taxes|proceeds|payoff|balance|refund|insurance|allowance|repairs|rents|assessments|maintenance|interest|policy|service/i.test(crmField)) {
             mappingData.transforms.currency_fields.push(crmField);
+        }
+        // Auto-detect date fields
+        else if (/date|_at$|_on$/i.test(crmField) || htmlType === 'date') {
+            mappingData.transforms.date_fields.push(crmField);
+        }
+        // Auto-detect checkbox fields (by HTML type or naming pattern)
+        else if (htmlType === 'checkbox' || /^financing_|^is_|^has_|^include_|^show_|^enable_|_checkbox$|_checked$/i.test(crmField)) {
+            mappingData.transforms.checkbox_to_x.push(crmField);
         }
     }
     
