@@ -64,8 +64,13 @@ Variables expected: prefill_data (dict), doc (optional - for field prefixing in 
     .snp-financing-option:has(input:checked) span { color: #1d4ed8; }
     .snp-prepared-by { margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; font-size: 0.8125rem; color: #475569; }
     .snp-note-text { font-size: 0.6875rem; color: #64748b; font-style: italic; margin-top: 0.5rem; }
-    .snp-parentheses::before { content: '('; font-weight: 600; color: #dc2626; margin-right: 2px; }
-    .snp-parentheses::after { content: ')'; font-weight: 600; color: #dc2626; margin-left: 2px; }
+    .snp-parentheses {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    .snp-parentheses::before { content: '('; font-weight: 600; color: #dc2626; }
+    .snp-parentheses::after { content: ')'; font-weight: 600; color: #dc2626; }
 </style>
 
 <div class="snp-document" id="snpDocument_{{ doc_id }}">
@@ -128,8 +133,8 @@ Variables expected: prefill_data (dict), doc (optional - for field prefixing in 
                 <div class="snp-section-box" style="margin-bottom:0.75rem;">
                     <div class="snp-section-title">Estimated Proceeds to Seller:</div>
                     <div class="snp-cost-row"><label>Sales Price</label><div class="snp-money-wrapper"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}sales_price" id="snp_salesPrice_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('sales_price', prefill_data.get('list_price', '')) }}" placeholder="0" oninput="snpFormatMoney(this);" onblur="snpFormatMoneyOnBlur(this); snpRecalculateAll('{{ doc_id }}')"></div></div>
-                    <div class="snp-cost-row"><label>Less Estimated Costs</label><span class="snp-parentheses"><div class="snp-money-wrapper calculated"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}less_costs" id="snp_lessCosts_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('less_costs', '') }}" readonly></div></span></div>
-                    <div class="snp-cost-row"><label>Less Estimated Loan Payoff</label><span class="snp-parentheses"><div class="snp-money-wrapper"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}loan_payoff" id="snp_loanPayoff_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('loan_payoff', '') }}" placeholder="0" oninput="snpFormatMoney(this);" onblur="snpFormatMoneyOnBlur(this); snpRecalculateNetProceeds('{{ doc_id }}')"></div></span></div>
+                    <div class="snp-cost-row"><label>Less Estimated Costs</label><div class="snp-parentheses"><div class="snp-money-wrapper calculated"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}less_costs" id="snp_lessCosts_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('less_costs', '') }}" readonly></div></div></div>
+                    <div class="snp-cost-row"><label>Less Estimated Loan Payoff</label><div class="snp-parentheses"><div class="snp-money-wrapper"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}loan_payoff" id="snp_loanPayoff_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('loan_payoff', '') }}" placeholder="0" oninput="snpFormatMoney(this);" onblur="snpFormatMoneyOnBlur(this); snpRecalculateNetProceeds('{{ doc_id }}')"></div></div></div>
                     <div class="snp-net-proceeds-row"><label>Estimated Net Proceeds:</label><div class="snp-money-wrapper"><span class="snp-dollar">$</span><input type="text" name="{{ field_prefix }}net_proceeds" id="snp_netProceeds_{{ doc_id }}" class="snp-money-input" value="{{ prefill_data.get('net_proceeds', '') }}" readonly></div></div>
                 </div>
                 <div class="snp-section-box">
@@ -150,17 +155,170 @@ Variables expected: prefill_data (dict), doc (optional - for field prefixing in 
 <script src="{{ url_for('static', filename='js/texas_title_policy.js') }}"></script>
 
 <script>
-function snpFormatMoney(input) { let v=input.value.replace(/[^0-9.]/g,''); const p=v.split('.'); if(p.length>2)v=p[0]+'.'+p.slice(1).join(''); if(v){const n=parseFloat(v); if(!isNaN(n)){const hasDecimal=v.includes('.');input.value=n.toLocaleString('en-US',{minimumFractionDigits:hasDecimal?Math.min(p[1]?.length||0,2):0,maximumFractionDigits:2})+(v.endsWith('.')&&!input.value.includes('.')?'.':'');}} }
-function snpFormatMoneyOnBlur(input) { let v=input.value.replace(/[^0-9.]/g,''); if(v){const n=parseFloat(v); if(!isNaN(n))input.value=n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});} }
-function snpParseMoney(s) { return s?parseFloat(s.replace(/[$,]/g,''))||0:0; }
-function snpFormatAsMoney(n) { return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function snpRecalculateAll(id) { snpCalculateProratedTaxes(id); snpCalculateBrokersFee(id); snpCalculateTitlePolicy(id); snpRecalculateCosts(id); snpRecalculateRefunds(id); snpRecalculateNetProceeds(id); }
-function snpCalculateProratedTaxes(id) { const cd=document.getElementById('snp_closingDate_'+id)?.value; const at=snpParseMoney(document.getElementById('snp_annualTaxes_'+id)?.value); if(!cd||!at){const tf=document.getElementById('snp_proratedTaxes_'+id);const df=document.getElementById('snp_proratedDays_'+id);const dv=document.getElementById('snp_proratedDaysValue_'+id);if(tf)tf.value='';if(df)df.textContent='(___ days)';if(dv)dv.value='';return;} const c=new Date(cd);const y=new Date(c.getFullYear(),0,1);const d=Math.ceil((c-y)/(1000*60*60*24))+1;const dr=at/365;const pa=dr*d;const df=document.getElementById('snp_proratedDays_'+id);if(df)df.textContent='('+d+' days)';const tf=document.getElementById('snp_proratedTaxes_'+id);if(tf)tf.value=snpFormatAsMoney(pa);const dv=document.getElementById('snp_proratedDaysValue_'+id);if(dv)dv.value=d;snpRecalculateCosts(id); }
-function snpCalculateBrokersFee(id) { const ps=document.getElementById('snp_brokerPercent_'+id)?.value; const sp=snpParseMoney(document.getElementById('snp_salesPrice_'+id)?.value); const ff=document.getElementById('snp_brokerFee_'+id); if(!ps||!sp){if(ff)ff.value='';snpRecalculateCosts(id);return;} const p=parseFloat(ps)||0;const f=(sp*p)/100;if(ff)ff.value=snpFormatAsMoney(f);snpRecalculateCosts(id); }
-function snpCalculateTitlePolicy(id) { const sp=snpParseMoney(document.getElementById('snp_salesPrice_'+id)?.value); const tf=document.getElementById('snp_titlePolicy_'+id); if(!sp||sp<=0){if(tf)tf.value='';return;} if(typeof calculateTexasTitlePremium==='function'){const premium=calculateTexasTitlePremium(sp);if(tf)tf.value=snpFormatAsMoney(premium);} }
-function snpRecalculateCosts(id) { const ci=document.querySelectorAll('.snp-cost-input-'+id); let t=0; ci.forEach(i=>{t+=snpParseMoney(i.value);}); const tf=document.getElementById('snp_totalCosts_'+id); const lf=document.getElementById('snp_lessCosts_'+id); if(tf)tf.value=snpFormatAsMoney(t); if(lf)lf.value=snpFormatAsMoney(t); snpRecalculateNetProceeds(id); }
-function snpRecalculateRefunds(id) { const ri=document.querySelectorAll('.snp-refund-input-'+id); let t=0; ri.forEach(i=>{t+=snpParseMoney(i.value);}); const tf=document.getElementById('snp_totalRefunds_'+id); if(tf)tf.value=snpFormatAsMoney(t); }
-function snpRecalculateNetProceeds(id) { const sp=snpParseMoney(document.getElementById('snp_salesPrice_'+id)?.value); const lc=snpParseMoney(document.getElementById('snp_lessCosts_'+id)?.value); const lp=snpParseMoney(document.getElementById('snp_loanPayoff_'+id)?.value); const np=sp-lc-lp; const nf=document.getElementById('snp_netProceeds_'+id); if(nf)nf.value=snpFormatAsMoney(np); }
-document.addEventListener('DOMContentLoaded',function(){document.querySelectorAll('[id^="snpDocument_"]').forEach(function(d){const id=d.id.replace('snpDocument_','');snpRecalculateAll(id);});});
+// Money formatting functions - matches seller_net_proceeds_form.html exactly
+function snpFormatMoney(input) {
+    // Remove all non-numeric except decimal
+    let value = input.value.replace(/[^0-9.]/g, '');
+    
+    // Ensure only one decimal point
+    const parts = value.split('.');
+    if (parts.length > 2) {
+        value = parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    // Parse and format - add commas while typing but don't force .00 yet
+    if (value) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) {
+            // Format with commas, preserve user's decimal input while typing
+            const hasDecimal = value.includes('.');
+            const formatted = num.toLocaleString('en-US', {
+                minimumFractionDigits: hasDecimal ? Math.min(parts[1]?.length || 0, 2) : 0,
+                maximumFractionDigits: 2
+            });
+            // Preserve trailing decimal point if user just typed it
+            input.value = formatted + (value.endsWith('.') && !formatted.includes('.') ? '.' : '');
+        }
+    }
+}
+
+function snpFormatMoneyOnBlur(input) {
+    // On blur, ensure we have .00 format
+    let value = input.value.replace(/[^0-9.]/g, '');
+    if (value) {
+        const num = parseFloat(value);
+        if (!isNaN(num)) {
+            input.value = num.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
+    }
+}
+
+function snpParseMoney(str) {
+    if (!str) return 0;
+    const cleaned = str.replace(/[$,]/g, '');
+    return parseFloat(cleaned) || 0;
+}
+
+function snpFormatAsMoney(num) {
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+// Calculation functions
+function snpRecalculateAll(id) {
+    snpCalculateProratedTaxes(id);
+    snpCalculateBrokersFee(id);
+    snpCalculateTitlePolicy(id);
+    snpRecalculateCosts(id);
+    snpRecalculateRefunds(id);
+    snpRecalculateNetProceeds(id);
+}
+
+function snpCalculateProratedTaxes(id) {
+    const closingDateStr = document.getElementById('snp_closingDate_' + id)?.value;
+    const annualTaxes = snpParseMoney(document.getElementById('snp_annualTaxes_' + id)?.value);
+    
+    if (!closingDateStr || !annualTaxes) {
+        const taxesField = document.getElementById('snp_proratedTaxes_' + id);
+        const daysField = document.getElementById('snp_proratedDays_' + id);
+        const daysValue = document.getElementById('snp_proratedDaysValue_' + id);
+        if (taxesField) taxesField.value = '';
+        if (daysField) daysField.textContent = '(___ days)';
+        if (daysValue) daysValue.value = '';
+        return;
+    }
+    
+    const closingDate = new Date(closingDateStr);
+    const yearStart = new Date(closingDate.getFullYear(), 0, 1);
+    const diffDays = Math.ceil((closingDate - yearStart) / (1000 * 60 * 60 * 24)) + 1;
+    const dailyRate = annualTaxes / 365;
+    const proratedAmount = dailyRate * diffDays;
+    
+    const daysField = document.getElementById('snp_proratedDays_' + id);
+    if (daysField) daysField.textContent = '(' + diffDays + ' days)';
+    
+    const taxesField = document.getElementById('snp_proratedTaxes_' + id);
+    if (taxesField) taxesField.value = snpFormatAsMoney(proratedAmount);
+    
+    const daysValue = document.getElementById('snp_proratedDaysValue_' + id);
+    if (daysValue) daysValue.value = diffDays;
+    
+    snpRecalculateCosts(id);
+}
+
+function snpCalculateBrokersFee(id) {
+    const percentStr = document.getElementById('snp_brokerPercent_' + id)?.value;
+    const salesPrice = snpParseMoney(document.getElementById('snp_salesPrice_' + id)?.value);
+    const feeField = document.getElementById('snp_brokerFee_' + id);
+    
+    if (!percentStr || !salesPrice) {
+        if (feeField) feeField.value = '';
+        snpRecalculateCosts(id);
+        return;
+    }
+    
+    const percent = parseFloat(percentStr) || 0;
+    const fee = (salesPrice * percent) / 100;
+    if (feeField) feeField.value = snpFormatAsMoney(fee);
+    snpRecalculateCosts(id);
+}
+
+function snpCalculateTitlePolicy(id) {
+    const salesPrice = snpParseMoney(document.getElementById('snp_salesPrice_' + id)?.value);
+    const titleField = document.getElementById('snp_titlePolicy_' + id);
+    
+    if (!salesPrice || salesPrice <= 0) {
+        if (titleField) titleField.value = '';
+        return;
+    }
+    
+    if (typeof calculateTexasTitlePremium === 'function') {
+        const premium = calculateTexasTitlePremium(salesPrice);
+        if (titleField) titleField.value = snpFormatAsMoney(premium);
+    }
+}
+
+function snpRecalculateCosts(id) {
+    const costInputs = document.querySelectorAll('.snp-cost-input-' + id);
+    let total = 0;
+    costInputs.forEach(input => { total += snpParseMoney(input.value); });
+    
+    const totalField = document.getElementById('snp_totalCosts_' + id);
+    const lessField = document.getElementById('snp_lessCosts_' + id);
+    if (totalField) totalField.value = snpFormatAsMoney(total);
+    if (lessField) lessField.value = snpFormatAsMoney(total);
+    snpRecalculateNetProceeds(id);
+}
+
+function snpRecalculateRefunds(id) {
+    const refundInputs = document.querySelectorAll('.snp-refund-input-' + id);
+    let total = 0;
+    refundInputs.forEach(input => { total += snpParseMoney(input.value); });
+    
+    const totalField = document.getElementById('snp_totalRefunds_' + id);
+    if (totalField) totalField.value = snpFormatAsMoney(total);
+}
+
+function snpRecalculateNetProceeds(id) {
+    const salesPrice = snpParseMoney(document.getElementById('snp_salesPrice_' + id)?.value);
+    const lessCosts = snpParseMoney(document.getElementById('snp_lessCosts_' + id)?.value);
+    const loanPayoff = snpParseMoney(document.getElementById('snp_loanPayoff_' + id)?.value);
+    const netProceeds = salesPrice - lessCosts - loanPayoff;
+    
+    const netField = document.getElementById('snp_netProceeds_' + id);
+    if (netField) netField.value = snpFormatAsMoney(netProceeds);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[id^="snpDocument_"]').forEach(function(doc) {
+        const id = doc.id.replace('snpDocument_', '');
+        snpRecalculateAll(id);
+    });
+});
 </script>
 
