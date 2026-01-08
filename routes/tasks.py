@@ -67,7 +67,7 @@ def tasks():
         if task.scheduled_time:
             task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 
-    return render_template('tasks.html', 
+    return render_template('tasks/list.html', 
                          tasks=tasks, 
                          show_all=current_user.role == 'admin' and view == 'all',
                          current_status=status_filter,
@@ -135,7 +135,7 @@ def create_task():
     task_types = TaskType.query.all()
     users = User.query.all() if current_user.role == 'admin' else [current_user]
 
-    return render_template('create_task.html',
+    return render_template('tasks/create.html',
                          contacts=contacts,
                          task_types=task_types,
                          users=users)
@@ -273,7 +273,7 @@ def view_task(task_id):
             }
         })
 
-    return render_template('view_task.html',
+    return render_template('tasks/view.html',
                          task=task,
                          contacts=contacts,
                          task_types=task_types,
