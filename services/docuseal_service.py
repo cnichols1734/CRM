@@ -407,11 +407,13 @@ def save_field_mappings(template_slug: str, mappings: List[Dict[str, Any]]) -> b
     currency_fields = []
     date_fields = []
     radio_mappings = {}
+    checkbox_to_x = []
     
     for m in mappings:
         field_name = m.get('name', '')
         docuseal_field = m.get('docuseal_field', '').strip()
         field_type = m.get('type', 'text')
+        html_type = m.get('html_type', '')  # HTML input type from form parsing
         
         if not field_name or not docuseal_field:
             continue
@@ -429,6 +431,9 @@ def save_field_mappings(template_slug: str, mappings: List[Dict[str, Any]]) -> b
                 'yes': 'yes',
                 'no': 'no'
             }
+        elif field_type == 'checkbox' or html_type == 'checkbox':
+            # Checkbox fields get converted to "X" for DocuSeal
+            checkbox_to_x.append(field_name)
     
     # Build the YAML content
     yaml_content = f"""# =============================================================================
@@ -494,6 +499,14 @@ transforms:
     else:
         yaml_content += "    []\n"
     
+    # Checkbox to X fields (auto-detected from checkbox type fields)
+    yaml_content += "\n  checkbox_to_x:\n"
+    if checkbox_to_x:
+        for f in checkbox_to_x:
+            yaml_content += f"    - {f}\n"
+    else:
+        yaml_content += "    []\n"
+    
     # Add placeholder sections
     yaml_content += """
 # =============================================================================
@@ -555,6 +568,23 @@ def save_full_mapping(template_slug: str, mapping_data: Dict[str, Any]) -> bool:
     
     template_id = mapping_data.get('template_id', doc_info.get('template_id', 0))
     
+    # Get transforms from mapping data
+    transforms = mapping_data.get('transforms', {
+        'currency_fields': [],
+        'date_fields': [],
+        'radio_mappings': {},
+        'checkbox_to_x': []
+    })
+    
+    # Auto-detect checkbox fields from field_types if provided
+    # field_types is a dict of {field_name: html_type} passed from the UI
+    field_types = mapping_data.get('field_types', {})
+    checkbox_to_x = list(transforms.get('checkbox_to_x', []))
+    for field_name, html_type in field_types.items():
+        if html_type == 'checkbox' and field_name not in checkbox_to_x:
+            checkbox_to_x.append(field_name)
+    transforms['checkbox_to_x'] = checkbox_to_x
+    
     # Build YAML structure
     yaml_data = {
         'template_id': template_id,
@@ -565,12 +595,7 @@ def save_full_mapping(template_slug: str, mapping_data: Dict[str, Any]) -> bool:
         'computed_fields': mapping_data.get('computed_fields', []),
         'conditional_fields': mapping_data.get('conditional_fields', {}),
         'option_transforms': mapping_data.get('option_transforms', {}),
-        'transforms': mapping_data.get('transforms', {
-            'currency_fields': [],
-            'date_fields': [],
-            'radio_mappings': {},
-            'checkbox_to_x': []
-        }),
+        'transforms': transforms,
         'broker_form_fields': {},
         'agent_fields': []
     }
@@ -844,19 +869,22 @@ def _apply_transform(value: Any, field_name: str, transforms: Dict[str, Any]) ->
     Apply transformation rules from YAML config to a field value.
     
     Handles:
-    - checkbox_to_x: Convert truthy values to "X", falsy to ""
+    - checkbox_to_x: Convert truthy values to "X", falsy to "" (configured in YAML)
     - radio_mappings: Map our values to DocuSeal values
     - currency_fields: Strip $ and commas
     - date_fields: Convert to MM/DD/YYYY
+    
+    Note: Checkbox fields are automatically added to checkbox_to_x when the YAML
+    is saved via the Document Mapping UI (see save_full_mapping function).
     """
     if not transforms:
         return str(value) if value else ''
     
-    # Check if it's a checkbox_to_x field (convert true/yes to "X")
+    # Check if it's a checkbox_to_x field (convert true/yes/1 to "X")
     checkbox_to_x_fields = transforms.get('checkbox_to_x') or []
     if field_name in checkbox_to_x_fields:
         # Convert various truthy values to "X"
-        if value in [True, 'true', 'True', 'yes', 'Yes', '1', 1, 'X', 'x']:
+        if value in [True, 'true', 'True', 'yes', 'Yes', '1', 1, 'on', 'On', 'X', 'x']:
             return 'X'
         else:
             return ''
