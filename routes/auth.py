@@ -259,7 +259,7 @@ def register():
         flash('Registration successful!', 'success')
         return redirect(url_for('auth.login'))
 
-    return render_template('register.html', form=form)
+    return render_template('auth/register.html', form=form)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -283,7 +283,7 @@ def login():
         else:
             flash('Invalid username/email or password', 'error')
 
-    return render_template('login.html', form=form)
+    return render_template('auth/login.html', form=form)
 
 @auth_bp.route('/logout')
 @login_required
@@ -295,7 +295,7 @@ def logout():
 @auth_bp.route('/profile')
 @login_required
 def view_user_profile():
-    return render_template('user_profile.html', user=current_user)
+    return render_template('auth/user_profile.html', user=current_user)
 
 @auth_bp.route('/profile/update', methods=['POST'])
 @login_required
@@ -363,7 +363,7 @@ def reset_request():
             return redirect(url_for('auth.login'))
         else:
             flash('There is no account with that email.', 'error')
-    return render_template('reset_request.html', form=form)
+    return render_template('auth/reset_request.html', form=form)
 
 @auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
@@ -379,7 +379,7 @@ def reset_password(token):
         db.session.commit()
         flash('Your password has been updated! You are now able to log in', 'success')
         return redirect(url_for('auth.login'))
-    return render_template('reset_password.html', form=form)
+    return render_template('auth/reset_password.html', form=form)
 
 @auth_bp.route('/manage-users')
 @login_required
@@ -391,7 +391,7 @@ def manage_users():
     for user in users:
         plan = ActionPlan.get_for_user(user.id)
         action_plan_status[user.id] = plan is not None and plan.ai_generated_plan is not None
-    return render_template('manage_users.html', users=users, format_datetime=format_datetime_cst, action_plan_status=action_plan_status)
+    return render_template('admin/manage_users.html', users=users, format_datetime=format_datetime_cst, action_plan_status=action_plan_status)
 
 @auth_bp.route('/user/<int:user_id>/action-plan')
 @login_required
@@ -405,7 +405,7 @@ def view_user_action_plan(user_id):
         flash('This user has not completed an action plan.', 'error')
         return redirect(url_for('auth.manage_users'))
     
-    return render_template('admin_view_action_plan.html', user=user, plan=plan)
+    return render_template('admin/view_action_plan.html', user=user, plan=plan)
 
 
 @auth_bp.route('/user/<int:user_id>/role', methods=['POST'])
@@ -454,7 +454,7 @@ def edit_user(user_id):
             db.session.rollback()
             flash(f'Error updating user: {str(e)}', 'error')
     
-    return render_template('user_profile.html', user=user, is_admin_edit=True)
+    return render_template('auth/user_profile.html', user=user, is_admin_edit=True)
 
 @auth_bp.route('/user/<int:user_id>/delete', methods=['POST'])
 @login_required

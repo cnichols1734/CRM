@@ -116,7 +116,7 @@ def view_contact(contact_id):
         TransactionParticipant.contact_id == contact.id
     ).order_by(Transaction.created_at.desc()).all()
 
-    return render_template('view_contact.html', 
+    return render_template('contacts/view.html', 
                          contact=contact, 
                          all_groups=all_groups,
                          next_contact=next_contact,
@@ -167,7 +167,7 @@ def create_contact():
         flash('Contact created successfully!', 'success')
         return redirect(url_for('main.index'))
 
-    return render_template('contact_form.html', form=form)
+    return render_template('contacts/form.html', form=form)
 
 
 @contacts_bp.route('/contacts/<int:contact_id>/edit', methods=['POST'])
