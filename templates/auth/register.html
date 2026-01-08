@@ -1,161 +1,268 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="absolute inset-0 bg-base-200">
-    <div class="min-h-screen hero pt-8 -mt-32">
-        <div class="flex-col hero-content">
-            <div class="text-center">
-                <h2 class="text-3xl font-bold">Create your account</h2>
-                <p class="py-3 text-sm text-base-content/70">Fill in your information to get started</p>
+<style>
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-10px); }
+    }
+    .animate-fade-in-up { 
+        animation: fadeInUp 0.6s ease-out forwards; 
+    }
+    .animate-fade-in-up-delay-1 { 
+        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
+        opacity: 0; 
+    }
+    .animate-fade-in-up-delay-2 { 
+        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
+        opacity: 0; 
+    }
+    .premium-input:focus {
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    }
+    .gradient-border {
+        background: linear-gradient(135deg, #f97316, #ea580c, #f59e0b);
+        padding: 2px;
+        border-radius: 1.25rem;
+    }
+    .gradient-border-inner {
+        background: white;
+        border-radius: calc(1.25rem - 2px);
+    }
+    /* Decorative shapes */
+    .shape-1 {
+        position: absolute;
+        width: 300px;
+        height: 300px;
+        background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(234, 88, 12, 0.05) 100%);
+        border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+        top: -100px;
+        right: -100px;
+        animation: float 8s ease-in-out infinite;
+    }
+    .shape-2 {
+        position: absolute;
+        width: 200px;
+        height: 200px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
+        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+        bottom: -50px;
+        left: -50px;
+        animation: float 10s ease-in-out infinite reverse;
+    }
+    .shape-3 {
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.03) 100%);
+        border-radius: 50% 50% 30% 70% / 50% 50% 70% 30%;
+        top: 40%;
+        left: -80px;
+        animation: float 12s ease-in-out infinite;
+    }
+</style>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 flex items-center justify-center px-4 py-8 md:py-12 relative overflow-hidden">
+    <!-- Decorative shapes -->
+    <div class="shape-1 hidden md:block"></div>
+    <div class="shape-2 hidden md:block"></div>
+    <div class="shape-3 hidden md:block"></div>
+    
+    <div class="w-full max-w-lg relative z-10">
+        <!-- Logo and Header -->
+        <div class="text-center mb-8 animate-fade-in-up">
+            <div class="flex justify-center mb-6">
+                <div class="w-28 h-28 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-2xl flex items-center justify-center shadow-xl">
+                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="TechnolOG" class="h-24 w-auto object-contain" />
+                </div>
             </div>
-            
-            <div class="w-full card bg-base-100 shadow-xl sm:w-[450px]">
-                <form class="card-body" method="POST" action="{{ url_for('auth.register') }}">
-                    {{ form.hidden_tag() }}
-                    
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Username</span>
-                        </label>
-                        {{ form.username(class="input input-bordered w-full") }}
-                        {% if form.username.errors %}
-                            {% for error in form.username.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Join TechnolOG</h1>
+            <p class="text-slate-500 font-medium">Create your account to get started</p>
+        </div>
+        
+        <!-- Register Card -->
+        <div class="animate-fade-in-up-delay-1">
+            <div class="gradient-border shadow-2xl shadow-orange-500/10">
+                <div class="gradient-border-inner p-6 md:p-8">
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4">
+                        {{ form.hidden_tag() }}
+                        
+                        <!-- Two column grid for name fields -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- First Name -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-user text-slate-400 mr-2"></i>First Name
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.first_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="John") }}
+                                {% if form.first_name.errors %}
+                                    {% for error in form.first_name.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Email address</span>
-                        </label>
-                        {{ form.email(class="input input-bordered w-full", placeholder="name@origenrealty.com") }}
-                        <label class="label">
-                            <span class="label-text-alt text-base-content/70">
-                                <i class="fas fa-building mr-1"></i>Registration is limited to Origen Realty email addresses
-                            </span>
-                        </label>
-                        {% if form.email.errors %}
-                            {% for error in form.email.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+                            <!-- Last Name -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-user text-slate-400 mr-2"></i>Last Name
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.last_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Doe") }}
+                                {% if form.last_name.errors %}
+                                    {% for error in form.last_name.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">First Name</span>
-                        </label>
-                        {{ form.first_name(class="input input-bordered w-full") }}
-                        {% if form.first_name.errors %}
-                            {% for error in form.first_name.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+                        <!-- Username -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">
+                                <i class="fas fa-at text-slate-400 mr-2"></i>Username
+                            </label>
+                            {{ form.username(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="johndoe") }}
+                            {% if form.username.errors %}
+                                {% for error in form.username.errors %}
+                                    <p class="text-red-500 text-xs flex items-center mt-1">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                    </p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Email -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">
+                                <i class="fas fa-envelope text-slate-400 mr-2"></i>Email Address
+                            </label>
+                            {{ form.email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="name@origenrealty.com") }}
+                            <div class="flex items-center text-xs text-slate-500 mt-1 bg-slate-50 rounded-lg px-3 py-2">
+                                <i class="fas fa-building text-orange-400 mr-2"></i>
+                                Registration is limited to Origen Realty email addresses
+                            </div>
+                            {% if form.email.errors %}
+                                {% for error in form.email.errors %}
+                                    <p class="text-red-500 text-xs flex items-center mt-1">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                    </p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- Phone -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">
+                                <i class="fas fa-phone text-slate-400 mr-2"></i>Phone Number
+                            </label>
+                            {{ form.phone(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="(555) 123-4567") }}
+                            {% if form.phone.errors %}
+                                {% for error in form.phone.errors %}
+                                    <p class="text-red-500 text-xs flex items-center mt-1">
+                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                    </p>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <!-- License Info Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- License Number -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-id-card text-slate-400 mr-2"></i>License Number
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.license_number(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", maxlength="16") }}
+                                {% if form.license_number.errors %}
+                                    {% for error in form.license_number.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Last Name</span>
-                        </label>
-                        {{ form.last_name(class="input input-bordered w-full") }}
-                        {% if form.last_name.errors %}
-                            {% for error in form.last_name.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+                            <!-- Licensed Supervisor -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-user-tie text-slate-400 mr-2"></i>Supervisor
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.licensed_supervisor(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Supervisor name") }}
+                                {% if form.licensed_supervisor.errors %}
+                                    {% for error in form.licensed_supervisor.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Phone Number</span>
-                        </label>
-                        {{ form.phone(class="input input-bordered w-full", placeholder="(555) 123-4567") }}
-                        {% if form.phone.errors %}
-                            {% for error in form.phone.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+                        <!-- Password Fields Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Password -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-lock text-slate-400 mr-2"></i>Password
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
+                                {% if form.password.errors %}
+                                    {% for error in form.password.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">License Number</span>
-                        </label>
-                        {{ form.license_number(class="input input-bordered w-full", maxlength="16") }}
-                        {% if form.license_number.errors %}
-                            {% for error in form.license_number.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
+                            <!-- Confirm Password -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-lock text-slate-400 mr-2"></i>Confirm Password
                                 </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
+                                {{ form.confirm_password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
+                                {% if form.confirm_password.errors %}
+                                    {% for error in form.confirm_password.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
 
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Licensed Supervisor of Associate</span>
-                        </label>
-                        {{ form.licensed_supervisor(class="input input-bordered w-full") }}
-                        {% if form.licensed_supervisor.errors %}
-                            {% for error in form.licensed_supervisor.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
-                                </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Password</span>
-                        </label>
-                        {{ form.password(class="input input-bordered w-full") }}
-                        {% if form.password.errors %}
-                            {% for error in form.password.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
-                                </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <div class="form-control">
-                        <label class="label">
-                            <span class="label-text">Confirm Password</span>
-                        </label>
-                        {{ form.confirm_password(class="input input-bordered w-full") }}
-                        {% if form.confirm_password.errors %}
-                            {% for error in form.confirm_password.errors %}
-                                <label class="label">
-                                    <span class="label-text-alt text-error">{{ error }}</span>
-                                </label>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-
-                    <div class="mt-6 form-control">
-                        {{ form.submit(class="btn btn-primary w-full text-white") }}
-                    </div>
-
-                    <div class="text-center">
-                        <p class="text-sm text-base-content/70">
-                            Already have an account?
-                            <a href="{{ url_for('auth.login') }}" class="link link-primary">Sign in here</a>
-                        </p>
-                    </div>
-                </form>
+                        <!-- Submit Button -->
+                        <div class="pt-4">
+                            {{ form.submit(class="group relative w-full overflow-hidden px-6 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-base font-semibold text-white focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer") }}
+                        </div>
+                    </form>
+                </div>
             </div>
+        </div>
+
+        <!-- Login Link -->
+        <div class="text-center mt-8 animate-fade-in-up-delay-2">
+            <p class="text-slate-600">
+                Already have an account?
+                <a href="{{ url_for('auth.login') }}" class="font-semibold text-orange-600 hover:text-orange-700 transition-colors ml-1">
+                    Sign in here <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </p>
+        </div>
+        
+        <!-- Footer branding -->
+        <div class="text-center mt-8 animate-fade-in-up-delay-2">
+            <p class="text-xs text-slate-400">
+                <i class="fas fa-shield-alt mr-1"></i> Your data is protected by Origen TechnolOG
+            </p>
         </div>
     </div>
 </div>
@@ -164,7 +271,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
     const emailInput = document.querySelector('input[name="email"]');
-    const emailContainer = emailInput.closest('.form-control');
+    const emailContainer = emailInput.closest('.space-y-2');
     
     form.addEventListener('submit', function(e) {
         const email = emailInput.value.trim();
@@ -172,28 +279,30 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             // Remove any existing error message
-            const existingError = emailContainer.querySelector('.label-text-alt.text-error');
+            const existingError = emailContainer.querySelector('.text-red-500');
             if (existingError) {
                 existingError.remove();
             }
             
             // Add new error message
-            const errorLabel = document.createElement('label');
-            errorLabel.className = 'label';
-            errorLabel.innerHTML = '<span class="label-text-alt text-error">Only @Origenrealty.com email addresses are allowed</span>';
-            emailContainer.appendChild(errorLabel);
+            const errorP = document.createElement('p');
+            errorP.className = 'text-red-500 text-xs flex items-center mt-1';
+            errorP.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>Only @origenrealty.com email addresses are allowed';
+            emailContainer.appendChild(errorP);
             
             // Add error styling to input
-            emailInput.classList.add('input-error');
+            emailInput.classList.add('border-red-500');
+            emailInput.classList.remove('border-slate-200');
         }
     });
     
     // Clear error when user starts typing
     emailInput.addEventListener('input', function() {
-        const existingError = emailContainer.querySelector('.label-text-alt.text-error');
+        const existingError = emailContainer.querySelector('.text-red-500');
         if (existingError) {
             existingError.remove();
-            emailInput.classList.remove('input-error');
+            emailInput.classList.remove('border-red-500');
+            emailInput.classList.add('border-slate-200');
         }
     });
 });
