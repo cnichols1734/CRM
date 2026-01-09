@@ -59,6 +59,24 @@
                     <input type="text" name="licensed_supervisor" id="licensed_supervisor" value="{{ user.licensed_supervisor }}"
                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 </div>
+
+                <div>
+                    <label for="licensed_supervisor_license" class="block text-sm font-medium text-gray-700">Licensed Supervisor License Number</label>
+                    <input type="text" name="licensed_supervisor_license" id="licensed_supervisor_license" maxlength="16" value="{{ user.licensed_supervisor_license }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label for="licensed_supervisor_email" class="block text-sm font-medium text-gray-700">Licensed Supervisor Email</label>
+                    <input type="email" name="licensed_supervisor_email" id="licensed_supervisor_email" value="{{ user.licensed_supervisor_email }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
+
+                <div>
+                    <label for="licensed_supervisor_phone" class="block text-sm font-medium text-gray-700">Licensed Supervisor Phone</label>
+                    <input type="tel" name="licensed_supervisor_phone" id="licensed_supervisor_phone" value="{{ user.licensed_supervisor_phone }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                </div>
                 {% if not is_admin_edit %}
 
                 <div>

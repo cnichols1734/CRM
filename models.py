@@ -28,6 +28,9 @@ class User(UserMixin, db.Model):
     phone = db.Column(db.String(20))
     license_number = db.Column(db.String(16))
     licensed_supervisor = db.Column(db.String(120))
+    licensed_supervisor_license = db.Column(db.String(16))
+    licensed_supervisor_email = db.Column(db.String(120))
+    licensed_supervisor_phone = db.Column(db.String(20))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

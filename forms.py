@@ -17,6 +17,16 @@ class RegistrationForm(FlaskForm):
         ]
     )
     licensed_supervisor = StringField('Licensed Supervisor of Associate', validators=[Optional(), Length(max=120)])
+    licensed_supervisor_license = StringField(
+        'Licensed Supervisor License Number',
+        validators=[
+            Optional(),
+            Length(max=16, message='License number must be 16 digits or fewer'),
+            Regexp(r'^\d*$', message='License number must contain digits only')
+        ]
+    )
+    licensed_supervisor_email = StringField('Licensed Supervisor Email', validators=[Optional(), Email()])
+    licensed_supervisor_phone = StringField('Licensed Supervisor Phone', validators=[Optional(), Length(max=20)])
     password = PasswordField('Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm Password',
                                    validators=[DataRequired(), EqualTo('password')])
