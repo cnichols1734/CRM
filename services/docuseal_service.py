@@ -53,7 +53,7 @@ DOCUSEAL_MOCK_MODE = not bool(DOCUSEAL_API_KEY)
 TEMPLATE_MAP = {
     'listing-agreement': 2468023,  # Listing Agreement template
     'hoa-addendum': 2469165,  # HOA Addendum template (https://docuseal.com/d/b3S4Ryi2HCjoh4)
-    'iabs': None,
+    'iabs': 2508644,  # TXR-2501 Information About Brokerage Services (preview-only)
     'sellers-disclosure': None,
     'wire-fraud-warning': None,
     'lead-paint': None,
@@ -93,6 +93,12 @@ DOCUMENT_FORMS = {
         'form_template': 'transactions/seller_net_proceeds_form.html',
         'template_id': None,  # Set when DocuSeal template is created
         'description': 'TXR-1935 Seller\'s Estimated Net Proceeds'
+    },
+    'iabs': {
+        'name': 'Information About Brokerage Services',
+        'form_template': None,  # Preview-only document, no form UI
+        'template_id': 2508644,
+        'description': 'TXR-2501 Information About Brokerage Services (auto-populated from agent profile)'
     },
 }
 
@@ -1143,6 +1149,87 @@ def build_docuseal_fields(form_data: Dict[str, Any], template_slug: str, agent_d
     logger.info(f"Built {len(fields)} DocuSeal fields{role_label} from form data for {template_slug}")
     return fields
 
+
+# =============================================================================
+# PREVIEW-ONLY DOCUMENT FIELD BUILDERS
+# =============================================================================
+# These functions build fields for preview-only documents that auto-populate
+# from user profile data rather than form input.
+
+def build_iabs_fields(user) -> List[Dict[str, Any]]:
+    """
+    Build DocuSeal fields for the IABS document from user profile.
+    
+    The IABS (Information About Brokerage Services) document auto-populates
+    agent and supervisor information from the logged-in user's profile.
+    
+    Args:
+        user: The User model object (current_user)
+        
+    Returns:
+        List of dicts with 'name' and 'default_value' for DocuSeal API
+    """
+    fields = []
+    
+    # Load the YAML mapping to get DocuSeal field names
+    mapping = load_field_mapping('iabs')
+    agent_fields_config = mapping.get('agent_fields', {}) if mapping else {}
+    
+    # Build agent name
+    agent_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    
+    # Map our internal field names to values from user profile
+    field_values = {
+        'supervisor_name': getattr(user, 'licensed_supervisor', '') or '',
+        'supervisor_license': getattr(user, 'licensed_supervisor_license', '') or '',
+        'supervisor_email': getattr(user, 'licensed_supervisor_email', '') or '',
+        'supervisor_phone': getattr(user, 'licensed_supervisor_phone', '') or '',
+        'agent_name': agent_name,
+        'agent_license': getattr(user, 'license_number', '') or '',
+        'agent_email': getattr(user, 'email', '') or '',
+        'agent_phone': getattr(user, 'phone', '') or '',
+    }
+    
+    # Build DocuSeal fields from the mapping
+    for internal_name, docuseal_name in agent_fields_config.items():
+        value = field_values.get(internal_name, '')
+        if docuseal_name and value:
+            fields.append({
+                'name': docuseal_name,
+                'default_value': str(value)
+            })
+    
+    logger.info(f"Built {len(fields)} DocuSeal fields for IABS from user profile")
+    return fields
+
+
+def build_iabs_field_data(user) -> Dict[str, Any]:
+    """
+    Build field_data dict for IABS document storage.
+    
+    This is stored in TransactionDocument.field_data for reference
+    and can be used for display purposes.
+    
+    Args:
+        user: The User model object (current_user)
+        
+    Returns:
+        Dict of field names to values
+    """
+    agent_name = f"{user.first_name or ''} {user.last_name or ''}".strip()
+    
+    return {
+        'supervisor_name': getattr(user, 'licensed_supervisor', '') or '',
+        'supervisor_license': getattr(user, 'licensed_supervisor_license', '') or '',
+        'supervisor_email': getattr(user, 'licensed_supervisor_email', '') or '',
+        'supervisor_phone': getattr(user, 'licensed_supervisor_phone', '') or '',
+        'agent_name': agent_name,
+        'agent_license': getattr(user, 'license_number', '') or '',
+        'agent_email': getattr(user, 'email', '') or '',
+        'agent_phone': getattr(user, 'phone', '') or '',
+    }
+
+
 # Mock storage for development (in-memory)
 _mock_submissions = {}
 _mock_events = []
@@ -1551,13 +1638,67 @@ def upload_template(file_path: str, name: str) -> Dict[str, Any]:
 # =============================================================================
 # Creates a preview-only submission to show filled documents without sending.
 
+def get_template_field_role_mapping(template_id: int) -> Dict[str, Any]:
+    """
+    Fetch a template and build a mapping of field names to their submitter roles.
+    
+    This is essential for correctly assigning pre-filled values to the right submitter
+    when creating submissions.
+    
+    Returns:
+        Dict with:
+        - 'field_to_role': Dict mapping field_name -> role_name
+        - 'roles': List of role names in the template
+        - 'submitters': Original submitter data from template
+        - 'all_field_names': List of all field names in template (for debugging)
+    """
+    try:
+        template = get_template(template_id)
+        submitters = template.get('submitters', [])
+        fields = template.get('fields', [])
+        
+        # Build uuid -> role name mapping
+        uuid_to_role = {s['uuid']: s['name'] for s in submitters}
+        
+        # Build field name -> role mapping
+        field_to_role = {}
+        all_field_names = []
+        for field in fields:
+            field_name = field.get('name')
+            submitter_uuid = field.get('submitter_uuid')
+            if field_name:
+                all_field_names.append(field_name)
+                if submitter_uuid:
+                    role = uuid_to_role.get(submitter_uuid, 'Unknown')
+                    field_to_role[field_name] = role
+        
+        roles = [s['name'] for s in submitters]
+        
+        logger.info(f"Template {template_id} has {len(roles)} roles: {roles}")
+        logger.info(f"Template {template_id} has {len(all_field_names)} fields: {all_field_names}")
+        
+        return {
+            'field_to_role': field_to_role,
+            'roles': roles,
+            'submitters': submitters,
+            'all_field_names': all_field_names
+        }
+    except Exception as e:
+        logger.error(f"Error getting template field role mapping: {e}")
+        return {'field_to_role': {}, 'roles': [], 'submitters': [], 'all_field_names': []}
+
+
 def create_preview_submission(
     template_id: int,
     field_data: Dict[str, Any],
-    template_slug: str
+    template_slug: str,
+    prebuilt_fields: List[Dict[str, Any]] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Create a preview submission for showing filled documents.
+    
+    This function intelligently determines which submitter role each field belongs to
+    by querying the template structure from DocuSeal.
     
     In real mode: Creates a draft submission in DocuSeal that can be previewed
     In mock mode: Returns None (template shows field summary instead)
@@ -1566,6 +1707,7 @@ def create_preview_submission(
         template_id: The DocuSeal template ID
         field_data: Form data to populate the document
         template_slug: Our internal template identifier
+        prebuilt_fields: Optional pre-built DocuSeal fields (for preview-only docs like IABS)
         
     Returns:
         Dict with 'slug' for embedding, or None if preview not available
@@ -1574,13 +1716,61 @@ def create_preview_submission(
         return None
     
     try:
-        # Build the fields for DocuSeal format
-        docuseal_fields = build_docuseal_fields(
-            form_data=field_data,
-            template_slug=template_slug
-        )
+        # Use prebuilt fields if provided, otherwise build from field_data
+        if prebuilt_fields is not None:
+            docuseal_fields = prebuilt_fields
+        else:
+            # Build the fields for DocuSeal format
+            docuseal_fields = build_docuseal_fields(
+                form_data=field_data,
+                template_slug=template_slug
+            )
         
-        # Create a submission with a placeholder email (won't be sent due to send_email=false)
+        # Get template field-to-role mapping to correctly assign fields
+        role_mapping = get_template_field_role_mapping(template_id)
+        field_to_role = role_mapping.get('field_to_role', {})
+        available_roles = role_mapping.get('roles', [])
+        
+        if not available_roles:
+            logger.error(f"No roles found for template {template_id}")
+            return None
+        
+        # Group fields by their owning role
+        fields_by_role = {}
+        unassigned_fields = []
+        
+        for field in docuseal_fields:
+            field_name = field.get('name', '')
+            role = field_to_role.get(field_name)
+            
+            if role:
+                if role not in fields_by_role:
+                    fields_by_role[role] = []
+                fields_by_role[role].append(field)
+            else:
+                # Field not found in template - might be case mismatch or typo
+                unassigned_fields.append(field_name)
+        
+        if unassigned_fields:
+            logger.warning(f"Fields not found in template {template_id}: {unassigned_fields}")
+            logger.warning(f"Available fields: {list(field_to_role.keys())}")
+        
+        if not fields_by_role:
+            # Fallback: try the first available role with all fields
+            logger.warning(f"No fields matched template roles. Using first role: {available_roles[0]}")
+            fields_by_role[available_roles[0]] = docuseal_fields
+        
+        # Build submitters list with correct role assignments
+        submitters = []
+        for idx, (role, fields) in enumerate(fields_by_role.items()):
+            submitters.append({
+                'email': f'preview{idx}@preview.local',
+                'role': role,
+                'fields': fields
+            })
+        
+        logger.info(f"Creating preview with {len(submitters)} submitter(s): {list(fields_by_role.keys())}")
+        
         headers = {
             'X-Auth-Token': DOCUSEAL_API_KEY,
             'Content-Type': 'application/json'
@@ -1589,13 +1779,7 @@ def create_preview_submission(
         payload = {
             'template_id': template_id,
             'send_email': False,  # Don't send any emails
-            'submitters': [
-                {
-                    'email': 'preview@preview.local',
-                    'role': 'Viewer',
-                    'fields': docuseal_fields
-                }
-            ]
+            'submitters': submitters
         }
         
         response = requests.post(
@@ -1607,7 +1791,7 @@ def create_preview_submission(
         
         if response.ok:
             result = response.json()
-            # Get the submitter slug for embedding
+            # Get the submitter slug for embedding - return the first one
             if isinstance(result, list) and len(result) > 0:
                 return {'slug': result[0].get('slug')}
             return None

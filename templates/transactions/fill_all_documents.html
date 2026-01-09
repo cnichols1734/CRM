@@ -569,9 +569,120 @@
             
             {% endfor %}
 
-            <!-- Spacer for floating action bar -->
-            <div class="form-bottom-spacer"></div>
         </form>
+        
+        <!-- Preview-Only Documents Section -->
+        {% if has_preview_docs and preview_data %}
+        <div class="preview-documents-section mt-8">
+            <!-- Section Divider -->
+            <div class="document-divider">
+                <div class="document-divider-content">
+                    <span class="document-badge document-badge-indigo">
+                        <i class="fas fa-file-pdf"></i>
+                        Pre-Filled Documents
+                    </span>
+                </div>
+            </div>
+            
+            <p class="text-sm text-slate-500 text-center mb-6">
+                These documents are auto-populated from your profile. Review the preview below.
+            </p>
+            
+            {% for preview in preview_data %}
+            {% set config = preview.config %}
+            {% set doc = preview.doc %}
+            
+            <!-- Preview Document Card -->
+            <div class="premium-card p-6 mb-6" style="--section-color: {{ config.section_color_var }}">
+                <!-- Document Header -->
+                <div class="section-header">
+                    <div class="section-number bg-{{ config.color }}-100 text-{{ config.color }}-700">
+                        <i class="fas {{ config.icon }}"></i>
+                    </div>
+                    <div>
+                        <h3 class="section-title">{{ doc.template_name }}</h3>
+                        <p class="section-subtitle">Auto-populated from your agent profile</p>
+                    </div>
+                    <span class="ml-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Ready
+                    </span>
+                </div>
+                
+                <!-- DocuSeal Preview Embed -->
+                <div class="preview-embed-container rounded-lg overflow-hidden border border-slate-200" style="min-height: 600px;">
+                    {% if preview.mock_mode %}
+                    <!-- Mock mode placeholder -->
+                    <div class="flex flex-col items-center justify-center h-full min-h-[400px] bg-gradient-to-br from-slate-50 to-indigo-50 p-8">
+                        <div class="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
+                            <i class="fas fa-file-pdf text-4xl text-indigo-500"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold text-slate-800 mb-2">{{ doc.template_name }}</h4>
+                        <p class="text-slate-500 text-center max-w-md mb-6">
+                            Document preview is available in production mode. This document has been 
+                            pre-filled with your agent and supervisor information.
+                        </p>
+                        <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-sm text-left">
+                            <h5 class="font-medium text-slate-700 mb-3 flex items-center gap-2">
+                                <i class="fas fa-check-circle text-green-500"></i>
+                                Pre-filled Fields
+                            </h5>
+                            <ul class="space-y-2 text-sm text-slate-600">
+                                {% if doc.field_data %}
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-user text-indigo-400 w-4"></i>
+                                    Agent: {{ doc.field_data.get('agent_name', 'N/A') }}
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-id-card text-indigo-400 w-4"></i>
+                                    License: {{ doc.field_data.get('agent_license', 'N/A') }}
+                                </li>
+                                <li class="flex items-center gap-2">
+                                    <i class="fas fa-user-tie text-indigo-400 w-4"></i>
+                                    Supervisor: {{ doc.field_data.get('supervisor_name', 'N/A') }}
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% elif preview.embed_src %}
+                    <!-- Real DocuSeal embed preview -->
+                    <script src="https://cdn.docuseal.com/js/form.js"></script>
+                    <docuseal-form
+                        data-src="{{ preview.embed_src }}"
+                        data-preview="true"
+                        data-readonly="true"
+                        style="min-height: 600px;">
+                    </docuseal-form>
+                    {% elif preview.error %}
+                    <!-- Error state -->
+                    <div class="flex flex-col items-center justify-center h-full min-h-[300px] bg-red-50 p-8">
+                        <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                            <i class="fas fa-exclamation-triangle text-3xl text-red-500"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold text-red-800 mb-2">Preview Error</h4>
+                        <p class="text-red-600 text-center max-w-md">{{ preview.error }}</p>
+                    </div>
+                    {% else %}
+                    <!-- No preview available -->
+                    <div class="flex flex-col items-center justify-center h-full min-h-[300px] bg-slate-50 p-8">
+                        <div class="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center mb-4">
+                            <i class="fas fa-file-alt text-3xl text-slate-400"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold text-slate-700 mb-2">Preview Not Available</h4>
+                        <p class="text-slate-500 text-center max-w-md">
+                            The document preview could not be generated. The document will still be included when sent for signature.
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Spacer for floating action bar -->
+        <div class="form-bottom-spacer"></div>
         
         <!-- Floating Action Bar -->
         <div class="floating-action-bar">
