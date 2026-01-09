@@ -193,11 +193,59 @@
                             <!-- Licensed Supervisor -->
                             <div class="space-y-2">
                                 <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-user-tie text-slate-400 mr-2"></i>Supervisor
+                                    <i class="fas fa-user-tie text-slate-400 mr-2"></i>Supervisor Name
                                 </label>
                                 {{ form.licensed_supervisor(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Supervisor name") }}
                                 {% if form.licensed_supervisor.errors %}
                                     {% for error in form.licensed_supervisor.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Licensed Supervisor Details Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Licensed Supervisor License Number -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-id-badge text-slate-400 mr-2"></i>Supervisor License #
+                                </label>
+                                {{ form.licensed_supervisor_license(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", maxlength="16") }}
+                                {% if form.licensed_supervisor_license.errors %}
+                                    {% for error in form.licensed_supervisor_license.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Licensed Supervisor Email -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-envelope text-slate-400 mr-2"></i>Supervisor Email
+                                </label>
+                                {{ form.licensed_supervisor_email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="supervisor@email.com") }}
+                                {% if form.licensed_supervisor_email.errors %}
+                                    {% for error in form.licensed_supervisor_email.errors %}
+                                        <p class="text-red-500 text-xs flex items-center mt-1">
+                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
+                                        </p>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+
+                            <!-- Licensed Supervisor Phone -->
+                            <div class="space-y-2">
+                                <label class="block text-sm font-semibold text-slate-700">
+                                    <i class="fas fa-phone text-slate-400 mr-2"></i>Supervisor Phone
+                                </label>
+                                {{ form.licensed_supervisor_phone(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="(555) 123-4567") }}
+                                {% if form.licensed_supervisor_phone.errors %}
+                                    {% for error in form.licensed_supervisor_phone.errors %}
                                         <p class="text-red-500 text-xs flex items-center mt-1">
                                             <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
                                         </p>

@@ -4,6 +4,9 @@ Database Management Script
 Helps manage database operations across different environments.
 """
 
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file before any other imports
+
 import os
 import sys
 from flask import Flask

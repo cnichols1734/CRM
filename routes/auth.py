@@ -251,6 +251,9 @@ def register():
             phone=form.phone.data,
             license_number=form.license_number.data,
             licensed_supervisor=form.licensed_supervisor.data,
+            licensed_supervisor_license=form.licensed_supervisor_license.data,
+            licensed_supervisor_email=form.licensed_supervisor_email.data,
+            licensed_supervisor_phone=form.licensed_supervisor_phone.data,
             role='agent'
         )
         user.set_password(form.password.data)
@@ -314,6 +317,9 @@ def update_profile():
             current_user.phone = request.form.get('phone')
             current_user.license_number = request.form.get('license_number')
             current_user.licensed_supervisor = request.form.get('licensed_supervisor')
+            current_user.licensed_supervisor_license = request.form.get('licensed_supervisor_license')
+            current_user.licensed_supervisor_email = request.form.get('licensed_supervisor_email')
+            current_user.licensed_supervisor_phone = request.form.get('licensed_supervisor_phone')
 
             # Update password if provided
             new_password = request.form.get('new_password')
@@ -441,6 +447,9 @@ def edit_user(user_id):
             user.phone = request.form.get('phone')
             user.license_number = request.form.get('license_number')
             user.licensed_supervisor = request.form.get('licensed_supervisor')
+            user.licensed_supervisor_license = request.form.get('licensed_supervisor_license')
+            user.licensed_supervisor_email = request.form.get('licensed_supervisor_email')
+            user.licensed_supervisor_phone = request.form.get('licensed_supervisor_phone')
             
             # Update password if provided
             new_password = request.form.get('new_password')
