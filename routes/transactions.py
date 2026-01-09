@@ -1168,8 +1168,9 @@ def preview_all_documents(id):
     """
     from services.docuseal_service import (
         create_submission, build_docuseal_fields, get_template_id,
-        get_template_submitter_roles, DOCUSEAL_MOCK_MODE
+        get_template_submitter_roles, DOCUSEAL_MOCK_MODE, build_iabs_fields
     )
+    from services.document_registry import get_preview_slugs, is_preview_document
     
     transaction = Transaction.query.get_or_404(id)
     
@@ -1178,8 +1179,11 @@ def preview_all_documents(id):
     
     # Get documents with specialized forms that have been filled
     specialized_slugs = get_specialized_slugs()
+    preview_slugs = get_preview_slugs()  # Get preview-only document slugs (like IABS)
+    all_valid_slugs = specialized_slugs + preview_slugs
+    
     documents = transaction.documents.filter(
-        TransactionDocument.template_slug.in_(specialized_slugs),
+        TransactionDocument.template_slug.in_(all_valid_slugs),
         TransactionDocument.status.in_(['filled', 'draft', 'generated'])
     ).order_by(TransactionDocument.created_at).all()
     
@@ -1268,86 +1272,146 @@ def preview_all_documents(id):
                     primary_seller = next((s for s in all_sellers if s.is_primary), None)
                     additional_sellers = [s for s in all_sellers if not s.is_primary and s.display_email]
                     
-                    for role in template_roles:
-                        if role == 'Seller':
-                            # Seller fields from form data
-                            seller_fields = build_docuseal_fields(
-                                doc.field_data or {},
-                                doc.template_slug,
-                                agent_data=None,
-                                submitter_role='Seller'
-                            )
-                            if seller and seller.display_email:
+                    # Check if this is a preview-only document (like IABS)
+                    is_preview_doc = is_preview_document(doc.template_slug)
+                    
+                    if is_preview_doc and doc.template_slug == 'iabs':
+                        # Special handling for IABS - fields go to Agent role only
+                        iabs_fields = build_iabs_fields(current_user)
+                        
+                        for role in template_roles:
+                            if role == 'Agent':
                                 preview_submitters.append({
-                                    'role': 'Seller',
-                                    'email': seller.display_email,
-                                    'name': seller.display_name,
-                                    'fields': seller_fields
-                                })
-                            else:
-                                # Use agent as placeholder for preview
-                                preview_submitters.append({
-                                    'role': 'Seller',
+                                    'role': 'Agent',
                                     'email': current_user.email,
                                     'name': f"{current_user.first_name} {current_user.last_name}",
-                                    'fields': seller_fields
+                                    'fields': iabs_fields
                                 })
-                        
-                        elif role.startswith('Seller ') and role != 'Seller':
-                            # Additional seller roles (Seller 2, Seller 3, etc.)
-                            # Only include if we have an actual additional seller
-                            try:
-                                seller_num = int(role.split(' ')[1])
-                                seller_index = seller_num - 2  # Seller 2 -> index 0
-                                if seller_index < len(additional_sellers):
-                                    add_seller = additional_sellers[seller_index]
-                                    add_seller_fields = build_docuseal_fields(
-                                        doc.field_data or {},
-                                        doc.template_slug,
-                                        agent_data=None,
-                                        submitter_role=role
-                                    )
+                            elif role == 'Broker':
+                                preview_submitters.append({
+                                    'role': 'Broker',
+                                    'email': current_user.email,
+                                    'name': f"{current_user.first_name} {current_user.last_name}",
+                                    'fields': []
+                                })
+                            elif role == 'Seller':
+                                if seller and seller.display_email:
                                     preview_submitters.append({
-                                        'role': role,
-                                        'email': add_seller.display_email,
-                                        'name': add_seller.display_name,
-                                        'fields': add_seller_fields
+                                        'role': 'Seller',
+                                        'email': seller.display_email,
+                                        'name': seller.display_name,
+                                        'fields': []
                                     })
-                                # If no additional seller, skip this role - DocuSeal will deactivate those fields
-                            except (ValueError, IndexError):
-                                pass  # Invalid role format, skip
-                        
-                        elif role == 'Broker':
-                            # Broker/agent fields
-                            broker_fields = build_docuseal_fields(
-                                doc.field_data or {},
-                                doc.template_slug,
-                                agent_data,
-                                submitter_role='Broker'
-                            )
-                            preview_submitters.append({
-                                'role': 'Broker',
-                                'email': current_user.email,
-                                'name': f"{current_user.first_name} {current_user.last_name}",
-                                'fields': broker_fields
-                            })
-                        
-                        elif role == 'Buyer':
-                            # Buyer fields (for templates like HOA Addendum)
-                            # In listing phase, agent fills these as preview
-                            buyer_fields = build_docuseal_fields(
-                                doc.field_data or {},
-                                doc.template_slug,
-                                agent_data=None,
-                                submitter_role='Buyer'
-                            )
-                            # Use agent email for preview (no actual buyer yet)
-                            preview_submitters.append({
-                                'role': 'Buyer',
-                                'email': current_user.email,
-                                'name': f"{current_user.first_name} {current_user.last_name} (Preview)",
-                                'fields': buyer_fields
-                            })
+                                else:
+                                    preview_submitters.append({
+                                        'role': 'Seller',
+                                        'email': current_user.email,
+                                        'name': f"{current_user.first_name} {current_user.last_name}",
+                                        'fields': []
+                                    })
+                            elif role.startswith('Seller '):
+                                try:
+                                    seller_num = int(role.split(' ')[1])
+                                    seller_index = seller_num - 2
+                                    if seller_index < len(additional_sellers):
+                                        add_seller = additional_sellers[seller_index]
+                                        preview_submitters.append({
+                                            'role': role,
+                                            'email': add_seller.display_email,
+                                            'name': add_seller.display_name,
+                                            'fields': []
+                                        })
+                                    else:
+                                        preview_submitters.append({
+                                            'role': role,
+                                            'email': current_user.email,
+                                            'name': f"{current_user.first_name} {current_user.last_name}",
+                                            'fields': []
+                                        })
+                                except (ValueError, IndexError):
+                                    pass
+                    else:
+                        # Standard document handling
+                        for role in template_roles:
+                            if role == 'Seller':
+                                # Seller fields from form data
+                                seller_fields = build_docuseal_fields(
+                                    doc.field_data or {},
+                                    doc.template_slug,
+                                    agent_data=None,
+                                    submitter_role='Seller'
+                                )
+                                if seller and seller.display_email:
+                                    preview_submitters.append({
+                                        'role': 'Seller',
+                                        'email': seller.display_email,
+                                        'name': seller.display_name,
+                                        'fields': seller_fields
+                                    })
+                                else:
+                                    # Use agent as placeholder for preview
+                                    preview_submitters.append({
+                                        'role': 'Seller',
+                                        'email': current_user.email,
+                                        'name': f"{current_user.first_name} {current_user.last_name}",
+                                        'fields': seller_fields
+                                    })
+                            
+                            elif role.startswith('Seller ') and role != 'Seller':
+                                # Additional seller roles (Seller 2, Seller 3, etc.)
+                                # Only include if we have an actual additional seller
+                                try:
+                                    seller_num = int(role.split(' ')[1])
+                                    seller_index = seller_num - 2  # Seller 2 -> index 0
+                                    if seller_index < len(additional_sellers):
+                                        add_seller = additional_sellers[seller_index]
+                                        add_seller_fields = build_docuseal_fields(
+                                            doc.field_data or {},
+                                            doc.template_slug,
+                                            agent_data=None,
+                                            submitter_role=role
+                                        )
+                                        preview_submitters.append({
+                                            'role': role,
+                                            'email': add_seller.display_email,
+                                            'name': add_seller.display_name,
+                                            'fields': add_seller_fields
+                                        })
+                                    # If no additional seller, skip this role - DocuSeal will deactivate those fields
+                                except (ValueError, IndexError):
+                                    pass  # Invalid role format, skip
+                            
+                            elif role == 'Broker':
+                                # Broker/agent fields
+                                broker_fields = build_docuseal_fields(
+                                    doc.field_data or {},
+                                    doc.template_slug,
+                                    agent_data,
+                                    submitter_role='Broker'
+                                )
+                                preview_submitters.append({
+                                    'role': 'Broker',
+                                    'email': current_user.email,
+                                    'name': f"{current_user.first_name} {current_user.last_name}",
+                                    'fields': broker_fields
+                                })
+                            
+                            elif role == 'Buyer':
+                                # Buyer fields (for templates like HOA Addendum)
+                                # In listing phase, agent fills these as preview
+                                buyer_fields = build_docuseal_fields(
+                                    doc.field_data or {},
+                                    doc.template_slug,
+                                    agent_data=None,
+                                    submitter_role='Buyer'
+                                )
+                                # Use agent email for preview (no actual buyer yet)
+                                preview_submitters.append({
+                                    'role': 'Buyer',
+                                    'email': current_user.email,
+                                    'name': f"{current_user.first_name} {current_user.last_name} (Preview)",
+                                    'fields': buyer_fields
+                                })
                     
                     # Create submission with send_email=false for preview
                     submission = create_submission(
@@ -1358,10 +1422,10 @@ def preview_all_documents(id):
                         message=None
                     )
                     
-                    # Find a submitter slug for embedding (prefer Broker/agent, fallback to first)
+                    # Find a submitter slug for embedding (prefer Agent/Broker, fallback to first)
                     submitters_list = submission.get('submitters', [])
                     agent_submitter = next(
-                        (s for s in submitters_list if s.get('role') in ['Broker', 'Buyer']),
+                        (s for s in submitters_list if s.get('role') in ['Agent', 'Broker', 'Buyer']),
                         submitters_list[0] if submitters_list else {}
                     )
                     
@@ -1746,26 +1810,66 @@ def document_preview(id, doc_id):
         # Special handling for preview-only documents (like IABS)
         if is_preview_doc and doc.template_slug == 'iabs':
             # IABS uses agent/supervisor fields from user profile
+            # These fields belong to the "Agent" role in the template
             iabs_fields = build_iabs_fields(current_user)
             
-            # Build submitters for IABS - Seller roles just need initials/date
+            # Build submitters for IABS - each role gets appropriate handling
             for role in template_roles:
-                if role == 'Seller' or role.startswith('Seller '):
-                    if role == 'Seller' and seller and seller.display_email:
+                if role == 'Agent':
+                    # Agent role gets the agent/supervisor pre-filled fields
+                    preview_submitters.append({
+                        'role': 'Agent',
+                        'email': current_user.email,
+                        'name': f"{current_user.first_name} {current_user.last_name}",
+                        'fields': iabs_fields
+                    })
+                elif role == 'Broker':
+                    # Broker fields are pre-filled in DocuSeal template itself
+                    preview_submitters.append({
+                        'role': 'Broker',
+                        'email': current_user.email,
+                        'name': f"{current_user.first_name} {current_user.last_name}",
+                        'fields': []  # No additional fields - DocuSeal has them prefilled
+                    })
+                elif role == 'Seller':
+                    # Seller just provides initials/date during signing
+                    if seller and seller.display_email:
                         preview_submitters.append({
-                            'role': role,
+                            'role': 'Seller',
                             'email': seller.display_email,
                             'name': seller.display_name,
-                            'fields': iabs_fields  # Pre-fill with agent/supervisor data
+                            'fields': []  # No pre-filled data, just initials/date during signing
                         })
                     else:
-                        # Use agent as placeholder for preview
                         preview_submitters.append({
-                            'role': role,
+                            'role': 'Seller',
                             'email': current_user.email,
                             'name': f"{current_user.first_name} {current_user.last_name}",
-                            'fields': iabs_fields
+                            'fields': []
                         })
+                elif role.startswith('Seller '):
+                    # Additional seller roles (Seller 2, etc.)
+                    try:
+                        seller_num = int(role.split(' ')[1])
+                        seller_index = seller_num - 2
+                        if seller_index < len(additional_sellers):
+                            add_seller = additional_sellers[seller_index]
+                            preview_submitters.append({
+                                'role': role,
+                                'email': add_seller.display_email,
+                                'name': add_seller.display_name,
+                                'fields': []
+                            })
+                        else:
+                            # Placeholder for missing additional seller
+                            preview_submitters.append({
+                                'role': role,
+                                'email': current_user.email,
+                                'name': f"{current_user.first_name} {current_user.last_name}",
+                                'fields': []
+                            })
+                    except (ValueError, IndexError):
+                        pass
         else:
             # Standard document handling
             for role in template_roles:
@@ -1853,9 +1957,9 @@ def document_preview(id, doc_id):
             message=None
         )
         
-        # Find the agent's submitter slug for embedding
+        # Find the agent's submitter slug for embedding (prefer Agent/Broker)
         agent_submitter = next(
-            (s for s in submission.get('submitters', []) if s.get('role') == 'Broker'),
+            (s for s in submission.get('submitters', []) if s.get('role') in ['Agent', 'Broker']),
             submission.get('submitters', [{}])[0] if submission.get('submitters') else {}
         )
         
