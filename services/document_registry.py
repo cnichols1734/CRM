@@ -235,3 +235,157 @@ def is_specialized_document(slug: str) -> bool:
     """
     return slug in DOCUMENT_REGISTRY
 
+
+# =============================================================================
+# PREVIEW-ONLY DOCUMENT REGISTRY
+# =============================================================================
+# Documents that auto-populate from user profile/system data and display as
+# PDF previews (no form UI). These documents are shown in Fill All view after
+# all form UI documents.
+#
+# These documents:
+# - Have no user-fillable form fields
+# - Auto-populate data from user profile (agent info, supervisor info)
+# - Display as embedded PDF previews
+# - Are automatically marked as 'filled' when generated
+# =============================================================================
+
+@dataclass
+class PreviewDocumentConfig:
+    """Configuration for a preview-only document type."""
+    
+    slug: str                   # Unique identifier (matches template_slug)
+    name: str                   # Display name for UI
+    docuseal_template_id: int   # DocuSeal template ID
+    color: str                  # Tailwind color name for theming
+    icon: str                   # FontAwesome icon class
+    sort_order: int             # Display order (higher = after form docs)
+    description: str = ''       # Optional description
+    
+    @property
+    def badge_bg_class(self) -> str:
+        """Background class for badge (light variant)."""
+        return f"bg-{self.color}-100"
+    
+    @property
+    def badge_text_class(self) -> str:
+        """Text class for badge."""
+        return f"text-{self.color}-700"
+    
+    @property
+    def badge_classes(self) -> str:
+        """Combined badge classes for overview pills."""
+        return f"bg-{self.color}-100 text-{self.color}-700"
+    
+    @property
+    def gradient_class(self) -> str:
+        """Gradient class for document header badges."""
+        return f"from-{self.color}-500 to-{self.color}-600"
+    
+    @property
+    def section_color_var(self) -> str:
+        """CSS variable value for section accent color."""
+        color_map = {
+            'orange': '#f97316',
+            'violet': '#8b5cf6',
+            'blue': '#3b82f6',
+            'emerald': '#10b981',
+            'rose': '#f43f5e',
+            'amber': '#f59e0b',
+            'cyan': '#06b6d4',
+            'indigo': '#6366f1',
+            'teal': '#14b8a6',
+            'pink': '#ec4899',
+            'lime': '#84cc16',
+            'sky': '#0ea5e9',
+        }
+        return color_map.get(self.color, '#64748b')
+
+
+PREVIEW_DOCUMENT_REGISTRY: Dict[str, PreviewDocumentConfig] = {
+    'iabs': PreviewDocumentConfig(
+        slug='iabs',
+        name='Information About Brokerage Services',
+        docuseal_template_id=2508644,
+        color='indigo',
+        icon='fa-handshake',
+        sort_order=100,  # High number ensures it appears after form UI docs
+        description='TXR-2501 Information About Brokerage Services'
+    ),
+    # Future preview-only documents can be added here:
+    # 'wire-fraud-warning': PreviewDocumentConfig(...),
+}
+
+
+# =============================================================================
+# PREVIEW DOCUMENT HELPER FUNCTIONS
+# =============================================================================
+
+def get_preview_config(slug: str) -> Optional[PreviewDocumentConfig]:
+    """
+    Get configuration for a preview-only document type by slug.
+    
+    Args:
+        slug: Document template slug (e.g., 'iabs')
+        
+    Returns:
+        PreviewDocumentConfig if found, None otherwise
+    """
+    return PREVIEW_DOCUMENT_REGISTRY.get(slug)
+
+
+def get_preview_slugs() -> List[str]:
+    """
+    Get list of document slugs that are preview-only (no form UI).
+    
+    Returns:
+        List of slugs registered in PREVIEW_DOCUMENT_REGISTRY
+    """
+    return list(PREVIEW_DOCUMENT_REGISTRY.keys())
+
+
+def is_preview_document(slug: str) -> bool:
+    """
+    Check if a document slug is a preview-only document.
+    
+    Args:
+        slug: Document template slug
+        
+    Returns:
+        True if document is in preview registry, False otherwise
+    """
+    return slug in PREVIEW_DOCUMENT_REGISTRY
+
+
+def get_preview_configs_for_slugs(slugs: List[str]) -> Dict[str, PreviewDocumentConfig]:
+    """
+    Get preview configs for a list of slugs.
+    
+    Args:
+        slugs: List of document slugs to look up
+        
+    Returns:
+        Dict mapping slug -> PreviewDocumentConfig for found documents
+    """
+    return {s: PREVIEW_DOCUMENT_REGISTRY[s] for s in slugs if s in PREVIEW_DOCUMENT_REGISTRY}
+
+
+def get_all_preview_configs() -> Dict[str, PreviewDocumentConfig]:
+    """
+    Get all preview document configurations.
+    
+    Returns:
+        Complete PREVIEW_DOCUMENT_REGISTRY dict
+    """
+    return PREVIEW_DOCUMENT_REGISTRY
+
+
+def get_sorted_preview_configs() -> List[PreviewDocumentConfig]:
+    """
+    Get all preview document configs sorted by sort_order.
+    
+    Returns:
+        List of PreviewDocumentConfig sorted by sort_order ascending
+    """
+    return sorted(PREVIEW_DOCUMENT_REGISTRY.values(), key=lambda c: c.sort_order)
+

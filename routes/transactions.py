@@ -634,6 +634,8 @@ def save_intake(id):
 def generate_document_package(id):
     """Generate the document package based on intake answers."""
     from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
+    from services.document_registry import is_preview_document
+    from services.docuseal_service import build_iabs_field_data
     
     transaction = Transaction.query.get_or_404(id)
     
@@ -666,13 +668,22 @@ def generate_document_package(id):
         
         # Create TransactionDocument records for each required doc
         for doc in required_docs:
+            # Check if this is a preview-only document (like IABS)
+            is_preview = is_preview_document(doc['slug'])
+            
             tx_doc = TransactionDocument(
                 transaction_id=transaction.id,
                 template_slug=doc['slug'],
                 template_name=doc['name'],
                 included_reason=doc['reason'] if not doc.get('always') else None,
-                status='pending'
+                status='filled' if is_preview else 'pending'
             )
+            
+            # Auto-populate field_data for preview-only documents
+            if is_preview:
+                if doc['slug'] == 'iabs':
+                    tx_doc.field_data = build_iabs_field_data(current_user)
+            
             db.session.add(tx_doc)
         
         db.session.commit()
@@ -770,6 +781,11 @@ def remove_document(id, doc_id):
 @transactions_required
 def document_form(id, doc_id):
     """Display the form for filling out a document."""
+    from services.document_registry import is_preview_document, get_preview_config
+    from services.docuseal_service import (
+        get_template_id, build_iabs_fields, create_preview_submission, DOCUSEAL_MOCK_MODE
+    )
+    
     transaction = Transaction.query.get_or_404(id)
     
     if transaction.created_by_id != current_user.id:
@@ -779,6 +795,63 @@ def document_form(id, doc_id):
     
     if doc.transaction_id != transaction.id:
         abort(404)
+    
+    # Check if this is a preview-only document (like IABS)
+    if is_preview_document(doc.template_slug):
+        from services.docuseal_service import build_iabs_field_data
+        
+        config = get_preview_config(doc.template_slug)
+        
+        # Ensure field_data is populated from current user profile
+        # This handles documents created before auto-fill was added,
+        # or if user profile data has been updated since creation
+        if doc.template_slug == 'iabs':
+            fresh_field_data = build_iabs_field_data(current_user)
+            # Update if field_data is empty or missing key data
+            if not doc.field_data or not doc.field_data.get('agent_name'):
+                doc.field_data = fresh_field_data
+                doc.status = 'filled'
+                db.session.commit()
+            else:
+                # Always use fresh data from user profile for display
+                doc.field_data = fresh_field_data
+        
+        preview_info = {
+            'embed_src': None,
+            'mock_mode': DOCUSEAL_MOCK_MODE,
+            'error': None
+        }
+        
+        if not DOCUSEAL_MOCK_MODE:
+            try:
+                template_id = get_template_id(doc.template_slug)
+                if template_id:
+                    # Build fields from user profile for IABS
+                    if doc.template_slug == 'iabs':
+                        docuseal_fields = build_iabs_fields(current_user)
+                    else:
+                        docuseal_fields = []
+                    
+                    # Create preview submission with prebuilt fields for IABS
+                    preview_result = create_preview_submission(
+                        template_id=template_id,
+                        field_data=doc.field_data or {},
+                        template_slug=doc.template_slug,
+                        prebuilt_fields=docuseal_fields if doc.template_slug == 'iabs' else None
+                    )
+                    
+                    if preview_result and preview_result.get('slug'):
+                        preview_info['embed_src'] = f"https://docuseal.com/s/{preview_result['slug']}"
+            except Exception as e:
+                preview_info['error'] = str(e)
+        
+        return render_template(
+            'transactions/iabs_preview.html',
+            transaction=transaction,
+            document=doc,
+            config=config,
+            preview_info=preview_info
+        )
     
     # Get participants for the form
     participants = transaction.participants.all()
@@ -904,8 +977,14 @@ def save_document_form(id, doc_id):
 def fill_all_documents(id):
     """
     Show a combined form experience for filling multiple documents at once.
-    Only includes documents that have specialized form UIs (defined in document_registry).
+    Includes documents with specialized form UIs and preview-only documents.
+    Form UI documents are shown first, followed by preview-only documents as PDF embeds.
     """
+    from services.document_registry import get_preview_slugs, get_preview_configs_for_slugs
+    from services.docuseal_service import (
+        get_template_id, build_iabs_fields, create_preview_submission, DOCUSEAL_MOCK_MODE
+    )
+    
     transaction = Transaction.query.get_or_404(id)
     
     if transaction.created_by_id != current_user.id:
@@ -919,8 +998,14 @@ def fill_all_documents(id):
         TransactionDocument.template_slug.in_(specialized_slugs)
     ).order_by(TransactionDocument.created_at).all()
     
-    if not documents:
-        flash('No documents with specialized forms available. Use individual document fill for other documents.', 'info')
+    # Get preview-only documents (like IABS)
+    preview_slugs = get_preview_slugs()
+    preview_documents = transaction.documents.filter(
+        TransactionDocument.template_slug.in_(preview_slugs)
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents and not preview_documents:
+        flash('No documents available to fill. Use individual document fill for other documents.', 'info')
         return redirect(url_for('transactions.view_transaction', id=id))
     
     # Get participants for prefill
@@ -944,13 +1029,74 @@ def fill_all_documents(id):
     doc_slugs = [doc.template_slug for doc in documents]
     doc_configs = get_configs_for_slugs(doc_slugs)
     
+    # Get preview configs for preview documents
+    preview_doc_slugs = [doc.template_slug for doc in preview_documents]
+    preview_configs = get_preview_configs_for_slugs(preview_doc_slugs)
+    
+    # Create preview submissions for preview-only documents
+    from services.docuseal_service import build_iabs_field_data
+    
+    preview_data = []
+    for doc in preview_documents:
+        config = preview_configs.get(doc.template_slug)
+        if not config:
+            continue
+        
+        # Ensure field_data is populated from current user profile
+        # This handles documents created before auto-fill was added
+        if doc.template_slug == 'iabs':
+            fresh_field_data = build_iabs_field_data(current_user)
+            # Update if field_data is empty or missing key data
+            if not doc.field_data or not doc.field_data.get('agent_name'):
+                doc.field_data = fresh_field_data
+                doc.status = 'filled'
+                db.session.commit()
+            else:
+                # Always use fresh data from user profile for display
+                doc.field_data = fresh_field_data
+        
+        preview_info = {
+            'doc': doc,
+            'config': config,
+            'embed_src': None,
+            'mock_mode': DOCUSEAL_MOCK_MODE,
+            'error': None
+        }
+        
+        if not DOCUSEAL_MOCK_MODE:
+            try:
+                template_id = get_template_id(doc.template_slug)
+                if template_id:
+                    # Build fields from user profile for IABS
+                    if doc.template_slug == 'iabs':
+                        docuseal_fields = build_iabs_fields(current_user)
+                    else:
+                        docuseal_fields = []
+                    
+                    # Create preview submission with prebuilt fields for IABS
+                    preview_result = create_preview_submission(
+                        template_id=template_id,
+                        field_data=doc.field_data or {},
+                        template_slug=doc.template_slug,
+                        prebuilt_fields=docuseal_fields if doc.template_slug == 'iabs' else None
+                    )
+                    
+                    if preview_result and preview_result.get('slug'):
+                        preview_info['embed_src'] = f"https://docuseal.com/s/{preview_result['slug']}"
+            except Exception as e:
+                preview_info['error'] = str(e)
+        
+        preview_data.append(preview_info)
+    
     return render_template(
         'transactions/fill_all_documents.html',
         transaction=transaction,
         documents=documents,
         participants=participants,
         prefill_data=prefill_data,
-        doc_configs=doc_configs  # Pass registry configs for dynamic template rendering
+        doc_configs=doc_configs,  # Pass registry configs for dynamic template rendering
+        preview_data=preview_data,  # Preview-only documents with embed URLs
+        has_preview_docs=len(preview_data) > 0
     )
 
 
@@ -1546,8 +1692,9 @@ def document_preview(id, doc_id):
     """
     from services.docuseal_service import (
         create_submission, build_docuseal_fields, get_template_id,
-        DOCUSEAL_MOCK_MODE, DOCUSEAL_API_URL
+        DOCUSEAL_MOCK_MODE, DOCUSEAL_API_URL, build_iabs_fields
     )
+    from services.document_registry import is_preview_document
     
     transaction = Transaction.query.get_or_404(id)
     
@@ -1563,6 +1710,9 @@ def document_preview(id, doc_id):
     if doc.status not in ['filled', 'generated', 'draft']:
         flash('Please fill out the document form first.', 'error')
         return redirect(url_for('transactions.document_form', id=id, doc_id=doc_id))
+    
+    # Check if this is a preview-only document (like IABS)
+    is_preview_doc = is_preview_document(doc.template_slug)
     
     # Check if template is configured in DocuSeal
     template_id = get_template_id(doc.template_slug)
@@ -1593,81 +1743,106 @@ def document_preview(id, doc_id):
         # Build preview submitters based on template's actual roles
         preview_submitters = []
         
-        for role in template_roles:
-            if role == 'Seller':
-                seller_fields = build_docuseal_fields(
-                    doc.field_data or {},
-                    doc.template_slug,
-                    agent_data=None,
-                    submitter_role='Seller'
-                )
-                if seller and seller.display_email:
-                    preview_submitters.append({
-                        'role': 'Seller',
-                        'email': seller.display_email,
-                        'name': seller.display_name,
-                        'fields': seller_fields
-                    })
-                else:
-                    # Use agent as placeholder for preview
-                    preview_submitters.append({
-                        'role': 'Seller',
-                        'email': current_user.email,
-                        'name': f"{current_user.first_name} {current_user.last_name}",
-                        'fields': seller_fields
-                    })
+        # Special handling for preview-only documents (like IABS)
+        if is_preview_doc and doc.template_slug == 'iabs':
+            # IABS uses agent/supervisor fields from user profile
+            iabs_fields = build_iabs_fields(current_user)
             
-            elif role.startswith('Seller ') and role != 'Seller':
-                # Additional seller roles (Seller 2, Seller 3, etc.)
-                # Only include if we have an actual additional seller
-                try:
-                    seller_num = int(role.split(' ')[1])
-                    seller_index = seller_num - 2  # Seller 2 -> index 0
-                    if seller_index < len(additional_sellers):
-                        add_seller = additional_sellers[seller_index]
-                        add_seller_fields = build_docuseal_fields(
-                            doc.field_data or {},
-                            doc.template_slug,
-                            agent_data=None,
-                            submitter_role=role
-                        )
+            # Build submitters for IABS - Seller roles just need initials/date
+            for role in template_roles:
+                if role == 'Seller' or role.startswith('Seller '):
+                    if role == 'Seller' and seller and seller.display_email:
                         preview_submitters.append({
                             'role': role,
-                            'email': add_seller.display_email,
-                            'name': add_seller.display_name,
-                            'fields': add_seller_fields
+                            'email': seller.display_email,
+                            'name': seller.display_name,
+                            'fields': iabs_fields  # Pre-fill with agent/supervisor data
                         })
-                    # If no additional seller, skip this role - DocuSeal will deactivate those fields
-                except (ValueError, IndexError):
-                    pass
-            
-            elif role == 'Broker':
-                broker_fields = build_docuseal_fields(
-                    doc.field_data or {},
-                    doc.template_slug,
-                    agent_data,
-                    submitter_role='Broker'
-                )
-                preview_submitters.append({
-                    'role': 'Broker',
-                    'email': current_user.email,
-                    'name': f"{current_user.first_name} {current_user.last_name}",
-                    'fields': broker_fields
-                })
-            
-            elif role == 'Buyer':
-                buyer_fields = build_docuseal_fields(
-                    doc.field_data or {},
-                    doc.template_slug,
-                    agent_data=None,
-                    submitter_role='Buyer'
-                )
-                preview_submitters.append({
-                    'role': 'Buyer',
-                    'email': current_user.email,
-                    'name': f"{current_user.first_name} {current_user.last_name} (Preview)",
-                    'fields': buyer_fields
-                })
+                    else:
+                        # Use agent as placeholder for preview
+                        preview_submitters.append({
+                            'role': role,
+                            'email': current_user.email,
+                            'name': f"{current_user.first_name} {current_user.last_name}",
+                            'fields': iabs_fields
+                        })
+        else:
+            # Standard document handling
+            for role in template_roles:
+                if role == 'Seller':
+                    seller_fields = build_docuseal_fields(
+                        doc.field_data or {},
+                        doc.template_slug,
+                        agent_data=None,
+                        submitter_role='Seller'
+                    )
+                    if seller and seller.display_email:
+                        preview_submitters.append({
+                            'role': 'Seller',
+                            'email': seller.display_email,
+                            'name': seller.display_name,
+                            'fields': seller_fields
+                        })
+                    else:
+                        # Use agent as placeholder for preview
+                        preview_submitters.append({
+                            'role': 'Seller',
+                            'email': current_user.email,
+                            'name': f"{current_user.first_name} {current_user.last_name}",
+                            'fields': seller_fields
+                        })
+                
+                elif role.startswith('Seller ') and role != 'Seller':
+                    # Additional seller roles (Seller 2, Seller 3, etc.)
+                    # Only include if we have an actual additional seller
+                    try:
+                        seller_num = int(role.split(' ')[1])
+                        seller_index = seller_num - 2  # Seller 2 -> index 0
+                        if seller_index < len(additional_sellers):
+                            add_seller = additional_sellers[seller_index]
+                            add_seller_fields = build_docuseal_fields(
+                                doc.field_data or {},
+                                doc.template_slug,
+                                agent_data=None,
+                                submitter_role=role
+                            )
+                            preview_submitters.append({
+                                'role': role,
+                                'email': add_seller.display_email,
+                                'name': add_seller.display_name,
+                                'fields': add_seller_fields
+                            })
+                        # If no additional seller, skip this role - DocuSeal will deactivate those fields
+                    except (ValueError, IndexError):
+                        pass
+                
+                elif role == 'Broker':
+                    broker_fields = build_docuseal_fields(
+                        doc.field_data or {},
+                        doc.template_slug,
+                        agent_data,
+                        submitter_role='Broker'
+                    )
+                    preview_submitters.append({
+                        'role': 'Broker',
+                        'email': current_user.email,
+                        'name': f"{current_user.first_name} {current_user.last_name}",
+                        'fields': broker_fields
+                    })
+                
+                elif role == 'Buyer':
+                    buyer_fields = build_docuseal_fields(
+                        doc.field_data or {},
+                        doc.template_slug,
+                        agent_data=None,
+                        submitter_role='Buyer'
+                    )
+                    preview_submitters.append({
+                        'role': 'Buyer',
+                        'email': current_user.email,
+                        'name': f"{current_user.first_name} {current_user.last_name} (Preview)",
+                        'fields': buyer_fields
+                    })
         
         # Create submission with send_email=false for preview
         submission = create_submission(
