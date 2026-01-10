@@ -3,15 +3,58 @@ Company Updates routes - Blog-style announcements visible to all users.
 Admin users can create, edit, and delete posts.
 Includes reactions, comments, and view tracking for engagement.
 """
+import os
+import uuid
 from functools import wraps
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 from models import db, CompanyUpdate, CompanyUpdateReaction, CompanyUpdateComment, CompanyUpdateView
 from datetime import datetime
 import re
 import html
 
 company_updates_bp = Blueprint('company_updates', __name__)
+
+# File upload configuration
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+UPLOAD_FOLDER = 'static/uploads/company_updates'
+
+
+def allowed_file(filename):
+    """Check if the file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def save_uploaded_image(file):
+    """Save an uploaded image file and return the URL path."""
+    if file and file.filename and allowed_file(file.filename):
+        # Create a unique filename to prevent overwrites
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        unique_filename = f"{uuid.uuid4().hex}.{ext}"
+        
+        # Ensure upload directory exists
+        upload_path = os.path.join(current_app.root_path, UPLOAD_FOLDER)
+        os.makedirs(upload_path, exist_ok=True)
+        
+        # Save the file
+        file_path = os.path.join(upload_path, unique_filename)
+        file.save(file_path)
+        
+        # Return the URL path (relative to static)
+        return f"/{UPLOAD_FOLDER}/{unique_filename}"
+    return None
+
+
+def delete_uploaded_image(image_url):
+    """Delete an uploaded image file from the server."""
+    if image_url and image_url.startswith(f"/{UPLOAD_FOLDER}/"):
+        try:
+            file_path = os.path.join(current_app.root_path, image_url.lstrip('/'))
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception as e:
+            current_app.logger.error(f"Failed to delete image {image_url}: {e}")
 
 
 def admin_required(f):
@@ -114,7 +157,6 @@ def create_update():
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
-        cover_image_url = request.form.get('cover_image_url', '').strip() or None
         
         if not title:
             flash('Title is required.', 'error')
@@ -123,6 +165,17 @@ def create_update():
         if not content:
             flash('Content is required.', 'error')
             return render_template('company_updates/form.html', update=None)
+        
+        # Handle file upload
+        cover_image_url = None
+        if 'cover_image' in request.files:
+            file = request.files['cover_image']
+            if file and file.filename:
+                if allowed_file(file.filename):
+                    cover_image_url = save_uploaded_image(file)
+                else:
+                    flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
+                    return render_template('company_updates/form.html', update=None)
         
         # Auto-generate excerpt from content
         excerpt = generate_excerpt(content)
@@ -154,7 +207,6 @@ def edit_update(update_id):
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
         content = request.form.get('content', '').strip()
-        cover_image_url = request.form.get('cover_image_url', '').strip() or None
         
         if not title:
             flash('Title is required.', 'error')
@@ -164,13 +216,32 @@ def edit_update(update_id):
             flash('Content is required.', 'error')
             return render_template('company_updates/form.html', update=update)
         
+        # Handle file upload
+        if 'cover_image' in request.files:
+            file = request.files['cover_image']
+            if file and file.filename:
+                if allowed_file(file.filename):
+                    # Delete old image if it exists and was uploaded to our server
+                    if update.cover_image_url:
+                        delete_uploaded_image(update.cover_image_url)
+                    # Save new image
+                    update.cover_image_url = save_uploaded_image(file)
+                else:
+                    flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
+                    return render_template('company_updates/form.html', update=update)
+        
+        # Handle image removal checkbox
+        if request.form.get('remove_image') == '1':
+            if update.cover_image_url:
+                delete_uploaded_image(update.cover_image_url)
+            update.cover_image_url = None
+        
         # Auto-generate excerpt from content
         excerpt = generate_excerpt(content)
         
         update.title = title
         update.content = content
         update.excerpt = excerpt
-        update.cover_image_url = cover_image_url
         update.updated_at = datetime.utcnow()
         
         db.session.commit()
