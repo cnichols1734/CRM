@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "document-definition-v1.0",
+  "title": "Document Definition",
+  "description": "Schema for document definitions that drive the document generation system",
+  "type": "object",
+  "required": ["schema_version", "slug", "name", "docuseal_template_id", "type", "display", "roles", "fields"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Schema version (e.g., '1.0')"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Stable identifier, kebab-case"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Display name for the document"
+    },
+    "docuseal_template_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "DocuSeal template ID"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["form-driven", "pdf-preview"],
+      "description": "Document type"
+    },
+    "display": {
+      "type": "object",
+      "required": ["color", "icon", "sort_order"],
+      "properties": {
+        "color": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "description": "Hex color code"
+        },
+        "icon": {
+          "type": "string",
+          "description": "Font Awesome icon class"
+        },
+        "sort_order": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Display order (lower = first)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "form": {
+      "type": "object",
+      "required": ["template", "partial"],
+      "properties": {
+        "template": {
+          "type": "string",
+          "description": "Form template filename"
+        },
+        "partial": {
+          "type": "string",
+          "description": "Form partial filename"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Required for form-driven documents"
+    },
+    "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["role_key", "docuseal_role", "email_source", "name_source"],
+        "properties": {
+          "role_key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Stable internal identifier, snake_case"
+          },
+          "docuseal_role": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact DocuSeal role name"
+          },
+          "email_source": {
+            "type": "string",
+            "description": "Source path for email"
+          },
+          "name_source": {
+            "type": "string",
+            "description": "Source path for display name"
+          },
+          "optional": {
+            "type": "boolean",
+            "default": false,
+            "description": "Skip if source resolves to null"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["field_key", "docuseal_field", "role_key"],
+        "properties": {
+          "field_key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Stable internal identifier, snake_case"
+          },
+          "docuseal_field": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact DocuSeal field name"
+          },
+          "role_key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "Role this field belongs to"
+          },
+          "source": {
+            "type": ["string", "null"],
+            "description": "Data source path (null = manual entry)"
+          },
+          "transform": {
+            "type": "string",
+            "description": "Optional transform function name"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": { "type": { "const": "form-driven" } }
+      },
+      "then": {
+        "required": ["form"]
+      }
+    }
+  ]
+}
+

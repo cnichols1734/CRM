@@ -1,0 +1,109 @@
+# =============================================================================
+# SELLER'S ESTIMATED NET PROCEEDS
+# =============================================================================
+# Seller's Estimated Net Proceeds worksheet
+# Calculates expected proceeds from sale after all deductions
+# 
+# This is a form-driven document with a custom UI for data entry.
+# =============================================================================
+
+schema_version: "1.0"
+slug: seller-net-proceeds
+name: "Seller's Estimated Net Proceeds"
+docuseal_template_id: 2490157
+type: form-driven
+
+display:
+  color: "#10B981"
+  icon: "fas fa-calculator"
+  sort_order: 4
+
+form:
+  template: seller_net_proceeds_form.html
+  partial: seller_net_proceeds_fields.html
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Seller 2
+# =============================================================================
+
+roles:
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Financial calculation fields from seller_net_proceeds_fields.html
+# =============================================================================
+
+fields:
+  # Property information
+  - field_key: property_address
+    docuseal_field: "Property Address"
+    role_key: seller
+    source: form.property_address
+
+  # Financial fields
+  - field_key: sales_price
+    docuseal_field: "Sales Price"
+    role_key: seller
+    source: form.sales_price
+    transform: currency
+
+  - field_key: first_mortgage
+    docuseal_field: "First Mortgage"
+    role_key: seller
+    source: form.first_mortgage
+    transform: currency
+
+  - field_key: second_mortgage
+    docuseal_field: "Second Mortgage"
+    role_key: seller
+    source: form.second_mortgage
+    transform: currency
+
+  - field_key: commission
+    docuseal_field: "Commission"
+    role_key: seller
+    source: form.commission
+    transform: currency
+
+  - field_key: title_insurance
+    docuseal_field: "Title Insurance"
+    role_key: seller
+    source: form.title_insurance
+    transform: currency
+
+  - field_key: closing_costs
+    docuseal_field: "Closing Costs"
+    role_key: seller
+    source: form.closing_costs
+    transform: currency
+
+  - field_key: estimated_net
+    docuseal_field: "Estimated Net Proceeds"
+    role_key: seller
+    source: form.estimated_net
+    transform: currency
+
+  # Signature fields - handled by DocuSeal
+  - field_key: seller_signature
+    docuseal_field: "Seller Signature"
+    role_key: seller
+    source: null
+
+  - field_key: seller_2_signature
+    docuseal_field: "Seller 2 Signature"
+    role_key: seller_2
+    source: null
+

@@ -1,0 +1,92 @@
+# =============================================================================
+# HOA ADDENDUM
+# =============================================================================
+# Addendum for Property Subject to Mandatory Membership in Owners' Association
+# TREC Form
+# 
+# This is a form-driven document with a custom UI for data entry.
+# =============================================================================
+
+schema_version: "1.0"
+slug: hoa-addendum
+name: "HOA Addendum"
+docuseal_template_id: 2469165
+type: form-driven
+
+display:
+  color: "#8B5CF6"
+  icon: "fas fa-building"
+  sort_order: 2
+
+form:
+  template: hoa_addendum_form.html
+  partial: hoa_addendum_fields.html
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Seller 2
+# Both sellers sign the HOA addendum
+# =============================================================================
+
+roles:
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Form fields from hoa_addendum_fields.html
+# Note: Computed fields (combining multiple form values) are handled separately
+# =============================================================================
+
+fields:
+  # Property address (computed from multiple fields in old system)
+  - field_key: street_address
+    docuseal_field: "Street address"
+    role_key: seller
+    source: form.property_address
+
+  # HOA information
+  - field_key: association_info
+    docuseal_field: "Association name & phone"
+    role_key: seller
+    source: form.hoa_name
+
+  # Section A - Document delivery options
+  - field_key: option_1_days
+    docuseal_field: "1. Days after effective date"
+    role_key: seller
+    source: form.seller_delivery_days
+
+  - field_key: option_2_days
+    docuseal_field: "2. Days after effective date"
+    role_key: seller
+    source: form.buyer_delivery_days
+
+  # Section C - Fees
+  - field_key: buyer_fee_cap
+    docuseal_field: "C. Buyer paid transfer fee"
+    role_key: seller
+    source: form.buyer_fee_cap
+    transform: currency
+
+  # Signature fields - handled by DocuSeal
+  - field_key: seller_signature
+    docuseal_field: "Seller signature 1"
+    role_key: seller
+    source: null
+
+  - field_key: seller_2_signature
+    docuseal_field: "Signature Field 2"
+    role_key: seller_2
+    source: null
+

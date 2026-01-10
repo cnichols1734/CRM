@@ -446,6 +446,19 @@ class Transaction(db.Model):
             parts.append(self.zip_code)
         return ', '.join(parts)
     
+    @property
+    def primary_seller(self):
+        """Get the primary seller participant (for document field resolution)."""
+        return next(
+            (p for p in self.participants.all() if p.role == 'seller' and p.is_primary),
+            None
+        )
+    
+    @property
+    def sellers(self):
+        """Get all seller participants as a list (for document field resolution)."""
+        return [p for p in self.participants.all() if p.role == 'seller']
+    
     def __repr__(self):
         return f'<Transaction {self.id}: {self.street_address}>'
 

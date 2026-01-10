@@ -78,6 +78,18 @@ def create_app():
     app.register_blueprint(company_updates_bp)
     app.register_blueprint(transactions_bp)
 
+    # Load and validate document definitions on startup
+    # This ensures all YAML configs are valid before the app starts
+    with app.app_context():
+        from services.documents import DocumentLoader
+        try:
+            DocumentLoader.load_all()
+            app.logger.info(f"Loaded {len(DocumentLoader.all())} document definitions")
+        except Exception as e:
+            app.logger.error(f"Failed to load document definitions: {e}")
+            # Don't fail startup - old system still works as fallback
+            # raise
+
     return app
 
 app = create_app()

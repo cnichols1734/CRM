@@ -1,0 +1,75 @@
+# =============================================================================
+# FLOOD HAZARD INFORMATION
+# =============================================================================
+# Information About Special Flood Hazard Areas
+# 
+# This is a form-driven document with a custom UI for data entry.
+# =============================================================================
+
+schema_version: "1.0"
+slug: flood-hazard
+name: "Flood Hazard Information"
+docuseal_template_id: 2489522
+type: form-driven
+
+display:
+  color: "#06B6D4"
+  icon: "fas fa-water"
+  sort_order: 3
+
+form:
+  template: flood_hazard_form.html
+  partial: flood_hazard_fields.html
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Seller 2
+# =============================================================================
+
+roles:
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Property address is repeated in 3 places in this document
+# =============================================================================
+
+fields:
+  # Property address fields
+  - field_key: property_address_1
+    docuseal_field: "Property address 1"
+    role_key: seller
+    source: form.property_address
+
+  - field_key: property_address_2
+    docuseal_field: "Property address 2"
+    role_key: seller
+    source: form.property_address
+
+  - field_key: property_address_3
+    docuseal_field: "Property address 3"
+    role_key: seller
+    source: form.property_address
+
+  # Signature fields - handled by DocuSeal
+  - field_key: seller_signature
+    docuseal_field: "Seller Signature"
+    role_key: seller
+    source: null
+
+  - field_key: seller_2_signature
+    docuseal_field: "Seller 2 Signature"
+    role_key: seller_2
+    source: null
+
