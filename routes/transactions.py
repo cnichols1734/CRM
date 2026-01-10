@@ -1093,13 +1093,10 @@ def fill_all_documents(id):
             if field.value:
                 field_data_for_display[field.field_key] = field.value
         
-        # Update document field_data if needed
-        if not doc.field_data or not doc.field_data.get('agent_name'):
-            doc.field_data = field_data_for_display
-            doc.status = 'filled'
-            db.session.commit()
-        else:
-            doc.field_data = field_data_for_display
+        # Update document field_data and status
+        doc.field_data = field_data_for_display
+        doc.status = 'filled'
+        db.session.commit()
         
         # Build compatible config object
         config = type('Config', (), {
@@ -1366,10 +1363,18 @@ def send_all_for_signature(id):
     """
     Send all filled documents as ONE envelope using DocuSeal's merge templates API.
     This merges multiple templates into one and sends a single email to signers.
+    
+    Handles multiple roles across documents:
+    - Seller: Primary seller (required)
+    - Seller 2: Co-seller (optional)
+    - Agent: Listing agent, auto-completed with pre-filled data
+    - Broker: Same as agent for most docs, auto-completed
     """
     from services.documents import (
         DocumentLoader, FieldResolver, RoleBuilder, DocuSealClient
     )
+    from services.documents.types import Submitter
+    from services.documents.exceptions import DocuSealAPIError
     
     transaction = Transaction.query.get_or_404(id)
     
@@ -1394,6 +1399,7 @@ def send_all_for_signature(id):
     
     # Get key participants
     seller = next((p for p in participants if p.role == 'seller' and p.is_primary), None)
+    co_seller = next((p for p in participants if p.role == 'co_seller'), None)
     listing_agent = next((p for p in participants if p.role == 'listing_agent'), None)
     
     if not seller or not seller.display_email:
@@ -1401,10 +1407,13 @@ def send_all_for_signature(id):
         return redirect(url_for('transactions.preview_all_documents', id=id))
     
     try:
-        # Step 1: Collect all template IDs and resolve fields for each document
+        # Step 1: Collect all template IDs, unique roles, and resolve fields for each document
         template_ids = []
-        all_seller_fields = []
-        all_broker_fields = []
+        unique_docuseal_roles = set()
+        auto_complete_roles = set()  # Roles that should be auto-completed (Agent, Broker)
+        
+        # Fields grouped by docuseal_role (not role_key)
+        fields_by_docuseal_role = {}
         
         for doc in documents:
             definition = DocumentLoader.get(doc.template_slug)
@@ -1412,6 +1421,12 @@ def send_all_for_signature(id):
                 continue
             
             template_ids.append(definition.docuseal_template_id)
+            
+            # Collect unique roles from this document
+            for role_def in definition.roles:
+                unique_docuseal_roles.add(role_def.docuseal_role)
+                if role_def.auto_complete:
+                    auto_complete_roles.add(role_def.docuseal_role)
             
             # Build context for field resolution
             context = {
@@ -1423,46 +1438,85 @@ def send_all_for_signature(id):
             # Resolve fields using new system
             resolved_fields = FieldResolver.resolve(definition, context)
             
-            # Group fields by role
+            # Group fields by docuseal_role (look up role_key -> docuseal_role mapping)
             for field in resolved_fields:
-                docuseal_field = {'name': field.docuseal_field, 'default_value': field.value or ''}
-                if field.role_key in ['seller', 'seller_1']:
-                    all_seller_fields.append(docuseal_field)
-                elif field.role_key in ['broker', 'agent']:
-                    all_broker_fields.append(docuseal_field)
+                # Skip manual/signature fields - these are filled by the signer
+                if field.is_manual:
+                    continue
+                
+                # Skip fields with no value
+                if field.value is None:
+                    continue
+                
+                # Find the role definition for this field's role_key
+                role_def = definition.get_role(field.role_key)
+                if role_def:
+                    docuseal_role = role_def.docuseal_role
+                    if docuseal_role not in fields_by_docuseal_role:
+                        fields_by_docuseal_role[docuseal_role] = []
+                    
+                    docuseal_field = {'name': field.docuseal_field, 'default_value': str(field.value)}
+                    fields_by_docuseal_role[docuseal_role].append(docuseal_field)
         
         if not template_ids:
             flash('No valid templates found for the documents.', 'error')
             return redirect(url_for('transactions.preview_all_documents', id=id))
         
         # Step 2: Merge templates into one combined template
+        # DON'T specify roles - let DocuSeal combine them automatically
+        # This preserves pre-filled field values from original templates (e.g., Broker info in IABS)
         merged_template = DocuSealClient.merge_templates(
             template_ids=template_ids,
             name=f"Document Package - {transaction.street_address} - TX{transaction.id}",
-            roles=['Seller', 'Broker'],
+            roles=None,  # Let DocuSeal preserve original roles and their pre-filled values
             external_id=f"tx-{transaction.id}-merged-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
         )
         
         merged_template_id = merged_template.get('id')
         
-        # Step 3: Build submitters with combined fields
-        broker_email = listing_agent.display_email if listing_agent else current_user.email
-        broker_name = listing_agent.display_name if listing_agent else f"{current_user.first_name} {current_user.last_name}"
+        # Step 3: Build submitters for each unique role
+        agent_email = listing_agent.display_email if listing_agent else current_user.email
+        agent_name = listing_agent.display_name if listing_agent else f"{current_user.first_name} {current_user.last_name}"
         
-        submitters = [
-            {
-                'role': 'Seller',
-                'email': seller.display_email,
-                'name': seller.display_name,
-                'fields': all_seller_fields
-            },
-            {
-                'role': 'Broker',
-                'email': broker_email,
-                'name': broker_name,
-                'fields': all_broker_fields
-            }
-        ]
+        submitters = []
+        participant_by_role = {}  # Track participant for each role for signature records
+        
+        for docuseal_role in unique_docuseal_roles:
+            # Determine email/name based on role
+            if docuseal_role == 'Seller':
+                email = seller.display_email
+                name = seller.display_name
+                participant_by_role['Seller'] = seller
+            elif docuseal_role == 'Seller 2':
+                # Skip Seller 2 if no co-seller
+                if not co_seller or not co_seller.display_email:
+                    continue
+                email = co_seller.display_email
+                name = co_seller.display_name
+                participant_by_role['Seller 2'] = co_seller
+            elif docuseal_role in ['Agent', 'Broker']:
+                # Agent and Broker both use the listing agent/current user
+                email = agent_email
+                name = agent_name
+                participant_by_role[docuseal_role] = listing_agent
+            else:
+                # Unknown role - skip
+                continue
+            
+            # Check if this role should be auto-completed
+            is_auto_complete = docuseal_role in auto_complete_roles
+            
+            submitters.append(Submitter(
+                role=docuseal_role,
+                email=email,
+                name=name,
+                fields=fields_by_docuseal_role.get(docuseal_role, []),
+                completed=is_auto_complete
+            ))
+        
+        if not submitters:
+            flash('No valid submitters could be created. Please check participant information.', 'error')
+            return redirect(url_for('transactions.preview_all_documents', id=id))
         
         # Step 4: Create ONE submission from the merged template
         result = DocuSealClient.create_submission(
@@ -1485,12 +1539,8 @@ def send_all_for_signature(id):
             
             # Create signature records for each signer
             for submitter_data in result.get('submitters', []):
-                participant = None
                 role = submitter_data.get('role')
-                if role == 'Seller':
-                    participant = seller
-                elif role == 'Broker':
-                    participant = listing_agent
+                participant = participant_by_role.get(role)
                 
                 signature = DocumentSignature(
                     document_id=doc.id,
@@ -1513,6 +1563,12 @@ def send_all_for_signature(id):
             flash(f'{doc_count} document(s) sent as one envelope to signers!', 'success')
         
         return redirect(url_for('transactions.view_transaction', id=id))
+    
+    except DocuSealAPIError as e:
+        db.session.rollback()
+        error_detail = e.response_body if e.response_body else str(e)
+        flash(f'DocuSeal error: {error_detail}', 'error')
+        return redirect(url_for('transactions.preview_all_documents', id=id))
         
     except Exception as e:
         db.session.rollback()
