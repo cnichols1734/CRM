@@ -42,12 +42,14 @@ class RoleDefinition:
         email_source: Source path for email (e.g., "user.email")
         name_source: Source path for display name (e.g., "user.full_name")
         optional: If True, skip this role when source resolves to None
+        auto_complete: If True, auto-complete this submitter (for roles with only readonly/pre-filled fields)
     """
     role_key: str
     docuseal_role: str
     email_source: str
     name_source: str
     optional: bool = False
+    auto_complete: bool = False
 
 
 @dataclass(frozen=True)
@@ -141,7 +143,8 @@ class DocumentDefinition:
                 docuseal_role=role_data['docuseal_role'],
                 email_source=role_data['email_source'],
                 name_source=role_data['name_source'],
-                optional=role_data.get('optional', False)
+                optional=role_data.get('optional', False),
+                auto_complete=role_data.get('auto_complete', False)
             ))
         
         # Parse fields
@@ -203,13 +206,18 @@ class Submitter:
     email: str
     name: str
     fields: List[Dict[str, Any]]  # List of {name, default_value}
+    completed: bool = False  # If True, auto-complete this submitter via API
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to DocuSeal API format."""
-        return {
+        result = {
             'role': self.role,
             'email': self.email,
             'name': self.name,
             'fields': self.fields
         }
+        # Only include completed if True (to avoid sending unnecessary data)
+        if self.completed:
+            result['completed'] = True
+        return result
 

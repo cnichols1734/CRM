@@ -5,6 +5,7 @@
 # Calculates expected proceeds from sale after all deductions
 # 
 # This is a form-driven document with a custom UI for data entry.
+# Template ID: 2490157
 # =============================================================================
 
 schema_version: "1.0"
@@ -43,67 +44,323 @@ roles:
 # =============================================================================
 # FIELDS
 # =============================================================================
-# Financial calculation fields from seller_net_proceeds_fields.html
+# Mapped from docuseal_mappings/seller-net-proceeds.yml (working pre-refactor)
+# Form field names match HTML: field_{field_key}
 # =============================================================================
 
 fields:
-  # Property information
+  # Seller and property information
+  - field_key: seller_name
+    docuseal_field: "Seller 1"
+    role_key: seller
+    source: form.seller_name
+
   - field_key: property_address
-    docuseal_field: "Property Address"
+    docuseal_field: "Address"
     role_key: seller
     source: form.property_address
 
-  # Financial fields
+  - field_key: closing_date
+    docuseal_field: "Anticipated Closing Date"
+    role_key: seller
+    source: form.closing_date
+    transform: date_short
+
+  - field_key: annual_property_taxes
+    docuseal_field: "Estimated Annual Property Taxes"
+    role_key: seller
+    source: form.annual_property_taxes
+    transform: currency
+
+  - field_key: annual_maintenance_fees
+    docuseal_field: "Estimated Annual Maintenance Fees"
+    role_key: seller
+    source: form.annual_maintenance_fees
+    transform: currency
+
+  # Financing options (checkboxes)
+  - field_key: financing_conventional
+    docuseal_field: "Conventional Option"
+    role_key: seller
+    source: form.financing_conventional
+    transform: checkbox
+
+  - field_key: financing_va
+    docuseal_field: "VA Option"
+    role_key: seller
+    source: form.financing_va
+    transform: checkbox
+
+  - field_key: financing_fha
+    docuseal_field: "FHA Option"
+    role_key: seller
+    source: form.financing_fha
+    transform: checkbox
+
+  - field_key: financing_usda
+    docuseal_field: "USDA Option"
+    role_key: seller
+    source: form.financing_usda
+    transform: checkbox
+
+  - field_key: financing_reverse
+    docuseal_field: "Reverse Mortgage Option"
+    role_key: seller
+    source: form.financing_reverse
+    transform: checkbox
+
+  - field_key: financing_assumption
+    docuseal_field: "Assumption Option"
+    role_key: seller
+    source: form.financing_assumption
+    transform: checkbox
+
+  - field_key: financing_owner
+    docuseal_field: "Owner Option"
+    role_key: seller
+    source: form.financing_owner
+    transform: checkbox
+
+  - field_key: financing_cash
+    docuseal_field: "Cash Option"
+    role_key: seller
+    source: form.financing_cash
+    transform: checkbox
+
+  # Estimated Costs
+  - field_key: attorneys_fees
+    docuseal_field: "Attorney's Fees"
+    role_key: seller
+    source: form.attorneys_fees
+    transform: currency
+
+  - field_key: brokers_fee_percent
+    docuseal_field: "Brokers Percentage"
+    role_key: seller
+    source: form.brokers_fee_percent
+
+  - field_key: brokers_fee
+    docuseal_field: "Brokers Fee Calculated"
+    role_key: seller
+    source: form.brokers_fee
+    transform: currency
+
+  - field_key: condo_transfer_fee
+    docuseal_field: "Condo Transfer Fee"
+    role_key: seller
+    source: form.condo_transfer_fee
+    transform: currency
+
+  - field_key: courier_fees
+    docuseal_field: "Courier Fee"
+    role_key: seller
+    source: form.courier_fees
+    transform: currency
+
+  - field_key: escrow_fee
+    docuseal_field: "Escrow Fee"
+    role_key: seller
+    source: form.escrow_fee
+    transform: currency
+
+  # Prorations
+  - field_key: prorated_days
+    docuseal_field: "Prorated For"
+    role_key: seller
+    source: form.prorated_days
+
+  - field_key: prorated_taxes
+    docuseal_field: "Taxes Amt"
+    role_key: seller
+    source: form.prorated_taxes
+    transform: currency
+
+  - field_key: prorated_interest
+    docuseal_field: "Interest Assumptions"
+    role_key: seller
+    source: form.prorated_interest
+    transform: currency
+
+  - field_key: prorated_maintenance
+    docuseal_field: "Maintenance Fees"
+    role_key: seller
+    source: form.prorated_maintenance
+    transform: currency
+
+  - field_key: assessments
+    docuseal_field: "Assessments"
+    role_key: seller
+    source: form.assessments
+    transform: currency
+
+  - field_key: rents
+    docuseal_field: "Rents fee"
+    role_key: seller
+    source: form.rents
+    transform: currency
+
+  - field_key: recording_fees
+    docuseal_field: "Recording Fees"
+    role_key: seller
+    source: form.recording_fees
+    transform: currency
+
+  - field_key: repairs_buyer
+    docuseal_field: "Repairs Required by Buyer"
+    role_key: seller
+    source: form.repairs_buyer
+    transform: currency
+
+  - field_key: repairs_lender
+    docuseal_field: "Repairs Required by Lender"
+    role_key: seller
+    source: form.repairs_lender
+    transform: currency
+
+  - field_key: residential_service
+    docuseal_field: "Res Service Contract"
+    role_key: seller
+    source: form.residential_service
+    transform: currency
+
+  - field_key: seller_allowances
+    docuseal_field: "Nonallowables"
+    role_key: seller
+    source: form.seller_allowances
+    transform: currency
+
+  - field_key: survey_fee
+    docuseal_field: "Survey Fee"
+    role_key: seller
+    source: form.survey_fee
+    transform: currency
+
+  - field_key: tax_cert_fee
+    docuseal_field: "Tax Certificate Fee"
+    role_key: seller
+    source: form.tax_cert_fee
+    transform: currency
+
+  - field_key: title_policy
+    docuseal_field: "Title Policy Owner"
+    role_key: seller
+    source: form.title_policy
+    transform: currency
+
+  - field_key: wiring_fees
+    docuseal_field: "Wiring Fees"
+    role_key: seller
+    source: form.wiring_fees
+    transform: currency
+
+  # Custom cost rows
+  - field_key: custom_label_1
+    docuseal_field: "Additional Cost txt 1"
+    role_key: seller
+    source: form.custom_label_1
+
+  - field_key: custom_amount_1
+    docuseal_field: "Additional Cost $ 1"
+    role_key: seller
+    source: form.custom_amount_1
+    transform: currency
+
+  - field_key: custom_label_2
+    docuseal_field: "Additional Cost txt 2"
+    role_key: seller
+    source: form.custom_label_2
+
+  - field_key: custom_amount_2
+    docuseal_field: "Additional Cost $ 2"
+    role_key: seller
+    source: form.custom_amount_2
+    transform: currency
+
+  - field_key: custom_label_3
+    docuseal_field: "Additional Cost txt 3"
+    role_key: seller
+    source: form.custom_label_3
+
+  - field_key: custom_amount_3
+    docuseal_field: "Additional Cost $ 3"
+    role_key: seller
+    source: form.custom_amount_3
+    transform: currency
+
+  - field_key: custom_label_4
+    docuseal_field: "Additional Cost txt 4"
+    role_key: seller
+    source: form.custom_label_4
+
+  - field_key: custom_amount_4
+    docuseal_field: "Additional Cost $ 4"
+    role_key: seller
+    source: form.custom_amount_4
+    transform: currency
+
+  - field_key: total_costs
+    docuseal_field: "Total Estimated Costs"
+    role_key: seller
+    source: form.total_costs
+    transform: currency
+
+  # Estimated Proceeds to Seller
   - field_key: sales_price
     docuseal_field: "Sales Price"
     role_key: seller
     source: form.sales_price
     transform: currency
 
-  - field_key: first_mortgage
-    docuseal_field: "First Mortgage"
+  - field_key: less_costs
+    docuseal_field: "Less Estimated Costs"
     role_key: seller
-    source: form.first_mortgage
+    source: form.less_costs
     transform: currency
 
-  - field_key: second_mortgage
-    docuseal_field: "Second Mortgage"
+  - field_key: loan_payoff
+    docuseal_field: "Loan Payoff"
     role_key: seller
-    source: form.second_mortgage
+    source: form.loan_payoff
     transform: currency
 
-  - field_key: commission
-    docuseal_field: "Commission"
-    role_key: seller
-    source: form.commission
-    transform: currency
-
-  - field_key: title_insurance
-    docuseal_field: "Title Insurance"
-    role_key: seller
-    source: form.title_insurance
-    transform: currency
-
-  - field_key: closing_costs
-    docuseal_field: "Closing Costs"
-    role_key: seller
-    source: form.closing_costs
-    transform: currency
-
-  - field_key: estimated_net
+  - field_key: net_proceeds
     docuseal_field: "Estimated Net Proceeds"
     role_key: seller
-    source: form.estimated_net
+    source: form.net_proceeds
     transform: currency
 
-  # Signature fields - handled by DocuSeal
-  - field_key: seller_signature
-    docuseal_field: "Seller Signature"
+  # After Closing Refunds
+  - field_key: unused_insurance
+    docuseal_field: "Unused Insurance"
+    role_key: seller
+    source: form.unused_insurance
+    transform: currency
+
+  - field_key: escrow_balance
+    docuseal_field: "Escrow Balance"
+    role_key: seller
+    source: form.escrow_balance
+    transform: currency
+
+  - field_key: total_refunds
+    docuseal_field: "Total Estimated Refunds"
+    role_key: seller
+    source: form.total_refunds
+    transform: currency
+
+  # Prepared by
+  - field_key: prepared_by
+    docuseal_field: "Prepared By"
+    role_key: seller
+    source: form.prepared_by
+
+  # Signature fields - filled during e-signature (no source = manual)
+  - field_key: seller_initials
+    docuseal_field: "Seller Initials 1"
     role_key: seller
     source: null
 
-  - field_key: seller_2_signature
-    docuseal_field: "Seller 2 Signature"
+  - field_key: seller_2_initials
+    docuseal_field: "Seller 2 Initials"
     role_key: seller_2
     source: null
-

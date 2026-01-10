@@ -73,12 +73,19 @@ class RoleBuilder:
         cls,
         role_def: RoleDefinition,
         fields: List[ResolvedField],
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        for_send: bool = False
     ) -> Optional[Submitter]:
         """
         Build a single submitter from a role definition.
         
         Returns None if the role is optional and has no valid data.
+        
+        Args:
+            role_def: The role definition
+            fields: List of resolved fields for this role
+            context: Data context
+            for_send: If True, apply auto_complete flag for roles that should be auto-signed
         """
         # Resolve email and name from context
         email = FieldResolver.resolve_single(role_def.email_source, context)
@@ -102,11 +109,19 @@ class RoleBuilder:
             if field_dict:  # Skip None (manual fields)
                 docuseal_fields.append(field_dict)
         
+        # Determine if this submitter should be auto-completed
+        # Only apply auto_complete when sending (not preview)
+        completed = for_send and role_def.auto_complete
+        
+        if completed:
+            logger.debug(f"Role '{role_def.role_key}' will be auto-completed")
+        
         return Submitter(
             role=role_def.docuseal_role,
             email=email,
             name=name or email,
-            fields=docuseal_fields
+            fields=docuseal_fields,
+            completed=completed
         )
     
     @classmethod
@@ -191,6 +206,7 @@ class RoleBuilder:
         
         Unlike preview, this uses actual participant emails and
         excludes optional roles without valid email addresses.
+        Also applies auto_complete for roles that only have readonly/pre-filled fields.
         
         Args:
             definition: Document definition
@@ -200,7 +216,27 @@ class RoleBuilder:
         Returns:
             List of Submitter objects for sending
         """
-        # For send, we use the standard build which already handles
-        # optional roles correctly (skips them if no email)
-        return cls.build(definition, resolved_fields, context)
+        submitters = []
+        
+        # Group fields by role_key
+        fields_by_role: Dict[str, List[ResolvedField]] = {}
+        for field in resolved_fields:
+            if field.role_key not in fields_by_role:
+                fields_by_role[field.role_key] = []
+            fields_by_role[field.role_key].append(field)
+        
+        # Build submitter for each role
+        for role_def in definition.roles:
+            submitter = cls._build_submitter(
+                role_def=role_def,
+                fields=fields_by_role.get(role_def.role_key, []),
+                context=context,
+                for_send=True  # Apply auto_complete for send mode
+            )
+            
+            if submitter:
+                submitters.append(submitter)
+        
+        logger.debug(f"Built {len(submitters)} submitter(s) for sending {definition.slug}")
+        return submitters
 

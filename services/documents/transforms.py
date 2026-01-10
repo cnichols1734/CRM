@@ -25,26 +25,27 @@ TransformFunc = Callable[[Any], str]
 
 def transform_currency(value: Any) -> str:
     """
-    Format a number as US currency.
+    Clean currency value for DocuSeal - strip $ and commas.
+    
+    DocuSeal expects raw numbers, it adds its own currency formatting.
     
     Examples:
-        500000 -> "$500,000.00"
-        1234.5 -> "$1,234.50"
-        "500000" -> "$500,000.00"
+        "$500,000.00" -> "500000.00"
+        "1,234.50" -> "1234.50"
+        500000 -> "500000"
     """
     if value is None:
         return ""
     
     try:
-        # Handle string input
+        # Handle string input - strip formatting
         if isinstance(value, str):
-            # Remove existing formatting
             value = value.replace('$', '').replace(',', '').strip()
             if not value:
                 return ""
-            value = float(value)
         
-        return f"${value:,.2f}"
+        # Return as plain number string
+        return str(value)
     except (ValueError, TypeError):
         logger.warning(f"Could not format as currency: {value}")
         return str(value) if value else ""
@@ -52,11 +53,11 @@ def transform_currency(value: Any) -> str:
 
 def transform_currency_no_cents(value: Any) -> str:
     """
-    Format a number as US currency without cents.
+    Clean currency value for DocuSeal - strip $ and commas, round to whole number.
     
     Examples:
-        500000 -> "$500,000"
-        1234.5 -> "$1,235"
+        "$500,000.00" -> "500000"
+        "1,234.50" -> "1235"
     """
     if value is None:
         return ""
@@ -68,7 +69,7 @@ def transform_currency_no_cents(value: Any) -> str:
                 return ""
             value = float(value)
         
-        return f"${int(round(value)):,}"
+        return str(int(round(value)))
     except (ValueError, TypeError):
         logger.warning(f"Could not format as currency: {value}")
         return str(value) if value else ""
@@ -224,6 +225,32 @@ def transform_trim(value: Any) -> str:
     return str(value).strip()
 
 
+def transform_checkbox(value: Any) -> str:
+    """
+    Convert checkbox/boolean values to 'X' for DocuSeal checkbox fields.
+    
+    Examples:
+        True -> "X"
+        "1" -> "X"
+        "on" -> "X"
+        False -> ""
+        None -> ""
+    """
+    if value is None:
+        return ""
+    
+    # Convert to string and check for truthy values
+    str_val = str(value).lower().strip()
+    if str_val in ('true', '1', 'on', 'yes', 'x', 'checked'):
+        return "X"
+    
+    # Also check for boolean True
+    if value is True:
+        return "X"
+    
+    return ""
+
+
 def transform_none(value: Any) -> str:
     """No transformation - just convert to string."""
     if value is None:
@@ -243,6 +270,7 @@ TRANSFORMS: Dict[str, TransformFunc] = {
     'lowercase': transform_lowercase,
     'titlecase': transform_titlecase,
     'trim': transform_trim,
+    'checkbox': transform_checkbox,
     'none': transform_none,
 }
 
