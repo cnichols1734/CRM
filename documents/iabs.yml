@@ -1,0 +1,121 @@
+# =============================================================================
+# IABS (Information About Brokerage Services)
+# =============================================================================
+# TXR-2501 - Required disclosure document for Texas real estate transactions
+# 
+# This is a PDF-preview document - no custom form UI.
+# Agent/supervisor fields are auto-populated from the user's profile.
+# Sellers provide initials and date during e-signature.
+# =============================================================================
+
+schema_version: "1.0"
+slug: iabs
+name: "Information About Brokerage Services"
+docuseal_template_id: 2508644
+type: pdf-preview
+
+display:
+  color: "#6B7280"
+  icon: "fas fa-info-circle"
+  sort_order: 10
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Broker, Seller, Agent, Seller 2
+# 
+# - Broker: Pre-filled in DocuSeal template (brokerage info)
+# - Agent: Auto-filled from user profile (agent/supervisor info)
+# - Seller/Seller 2: Provide initials and date during e-signature
+# =============================================================================
+
+roles:
+  - role_key: agent
+    docuseal_role: Agent
+    email_source: user.email
+    name_source: user.full_name
+
+  - role_key: broker
+    docuseal_role: Broker
+    email_source: user.email
+    name_source: user.full_name
+
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# All fields belong to the "agent" role and are auto-populated from the
+# user's profile. Seller fields are left null (manual entry during signing).
+# =============================================================================
+
+fields:
+  # Agent information (from user profile)
+  - field_key: agent_name
+    docuseal_field: "Sales Agent Name"
+    role_key: agent
+    source: user.full_name
+
+  - field_key: agent_license
+    docuseal_field: "Sales Agent License number"
+    role_key: agent
+    source: user.license_number
+
+  - field_key: agent_email
+    docuseal_field: "Sales Agent email"
+    role_key: agent
+    source: user.email
+
+  - field_key: agent_phone
+    docuseal_field: "Sales Agent Phone Number"
+    role_key: agent
+    source: user.phone
+    transform: phone
+
+  # Supervisor information (from user profile)
+  - field_key: supervisor_name
+    docuseal_field: "Supervisor of Agent Name"
+    role_key: agent
+    source: user.licensed_supervisor
+
+  - field_key: supervisor_license
+    docuseal_field: "Supervisor of agent license number"
+    role_key: agent
+    source: user.licensed_supervisor_license
+
+  - field_key: supervisor_email
+    docuseal_field: "Supervisor of agent email"
+    role_key: agent
+    source: user.licensed_supervisor_email
+
+  - field_key: supervisor_phone
+    docuseal_field: "Supervisor of agent Phone number"
+    role_key: agent
+    source: user.licensed_supervisor_phone
+    transform: phone
+
+  # Seller initials - filled during e-signature (no source = manual)
+  - field_key: seller_initials
+    docuseal_field: "Seller 1 Initials"
+    role_key: seller
+    source: null
+
+  - field_key: seller_2_initials
+    docuseal_field: "Seller 2 Initials"
+    role_key: seller_2
+    source: null
+
+  - field_key: buyer_tenant_initials
+    docuseal_field: "Buyer/Tenant/Seller/Landlord initials"
+    role_key: seller
+    source: null
+

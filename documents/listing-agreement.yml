@@ -1,0 +1,113 @@
+# =============================================================================
+# LISTING AGREEMENT
+# =============================================================================
+# Residential Real Estate Listing Agreement - Exclusive Right to Sell
+# 
+# This is a form-driven document with a custom UI for data entry.
+# Form data is stored in TransactionDocument.field_data and mapped
+# to DocuSeal fields for e-signature.
+# =============================================================================
+
+schema_version: "1.0"
+slug: listing-agreement
+name: "Listing Agreement"
+docuseal_template_id: 2468023
+type: form-driven
+
+display:
+  color: "#F97316"
+  icon: "fas fa-file-contract"
+  sort_order: 1
+
+form:
+  template: listing_agreement_form.html
+  partial: listing_agreement_fields.html
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Seller 2
+# Both sellers sign the listing agreement
+# =============================================================================
+
+roles:
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Form fields are stored in TransactionDocument.field_data
+# Map them to DocuSeal template fields here
+# 
+# Note: This is a placeholder - fields will be added as the form is built out
+# =============================================================================
+
+fields:
+  # Property information
+  - field_key: property_address
+    docuseal_field: "Property Address"
+    role_key: seller
+    source: form.property_address
+
+  - field_key: legal_description
+    docuseal_field: "Legal Description"
+    role_key: seller
+    source: form.legal_description
+
+  - field_key: list_price
+    docuseal_field: "List Price"
+    role_key: seller
+    source: form.list_price
+    transform: currency
+
+  # Commission
+  - field_key: commission_rate
+    docuseal_field: "Commission Rate"
+    role_key: seller
+    source: form.commission_rate
+    transform: percent
+
+  # Listing period
+  - field_key: listing_begin_date
+    docuseal_field: "Listing Begin Date"
+    role_key: seller
+    source: form.listing_begin_date
+    transform: date_short
+
+  - field_key: listing_end_date
+    docuseal_field: "Listing End Date"
+    role_key: seller
+    source: form.listing_end_date
+    transform: date_short
+
+  # Seller information (Seller 1)
+  - field_key: seller_1_name
+    docuseal_field: "Seller 1 Name"
+    role_key: seller
+    source: transaction.primary_seller.display_name
+
+  - field_key: seller_1_email
+    docuseal_field: "Seller 1 Email"
+    role_key: seller
+    source: transaction.primary_seller.display_email
+
+  # Seller information (Seller 2) - optional
+  - field_key: seller_2_name
+    docuseal_field: "Seller 2 Name"
+    role_key: seller_2
+    source: transaction.sellers[1].display_name
+
+  - field_key: seller_2_email
+    docuseal_field: "Seller 2 Email"
+    role_key: seller_2
+    source: transaction.sellers[1].display_email
+
