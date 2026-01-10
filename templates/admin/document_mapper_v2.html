@@ -1,0 +1,318 @@
+{% extends "base.html" %}
+
+{% block title %}Map: {{ doc_info.name }} - Document Mapper v2{% endblock %}
+
+{% block head_scripts %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<link href="{{ url_for('static', filename='css/document_mapper.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="mapper-container">
+    <!-- Header -->
+    <div class="mapper-header">
+        <div class="header-left">
+            <a href="{{ url_for('admin.document_mapper_v2_list') }}" class="back-link">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <div>
+                <h1>{{ doc_info.name }}</h1>
+                <span class="doc-slug">{{ slug }}</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button id="btnAutoMap" class="btn-action btn-auto-map" title="Auto-map fields">
+                <i class="fas fa-magic"></i> Auto-Map
+            </button>
+            <button id="btnPreviewYaml" class="btn-action btn-preview">
+                <i class="fas fa-code"></i> Preview YAML
+            </button>
+            <button id="btnSave" class="btn-action btn-save" disabled>
+                <i class="fas fa-save"></i> Save YAML
+            </button>
+        </div>
+    </div>
+
+    <!-- Main 3-Column Layout -->
+    <div class="mapper-main">
+        <!-- Left Panel: HTML Form Fields -->
+        <div class="panel panel-html">
+            <div class="panel-header">
+                <h2><i class="fab fa-html5"></i> HTML Form Fields</h2>
+                <span class="badge badge-count">{{ html_fields|length }}</span>
+            </div>
+            <div class="panel-toolbar">
+                <input type="text" id="searchHtml" class="search-input" placeholder="Search fields...">
+            </div>
+            <div class="panel-body" id="htmlFieldsList">
+                {% for field in html_fields %}
+                <div class="field-item html-field" 
+                     data-name="{{ field.name }}" 
+                     data-type="{{ field.html_type|default('text') }}"
+                     draggable="true">
+                    <div class="field-name">{{ field.name }}</div>
+                    <div class="field-meta">
+                        <span class="field-type type-{{ field.html_type|default('text') }}">
+                            {{ field.html_type|default('text') }}
+                        </span>
+                    </div>
+                    <div class="field-status">
+                        <i class="fas fa-link status-mapped" style="display: none;"></i>
+                        <i class="fas fa-unlink status-unmapped"></i>
+                    </div>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-inbox"></i>
+                    <p>No HTML fields found</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Center Panel: Mappings -->
+        <div class="panel panel-mappings">
+            <div class="panel-header">
+                <h2><i class="fas fa-exchange-alt"></i> Field Mappings</h2>
+                <span class="badge badge-count" id="mappingCount">0</span>
+            </div>
+            <div class="panel-toolbar">
+                <button id="btnClearMappings" class="btn-toolbar btn-danger">
+                    <i class="fas fa-trash"></i> Clear All
+                </button>
+            </div>
+            <div class="panel-body" id="mappingsList">
+                <div class="drop-zone" id="dropZone">
+                    <i class="fas fa-arrows-alt"></i>
+                    <p>Drag HTML fields here or use Auto-Map</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel: DocuSeal Fields -->
+        <div class="panel panel-docuseal">
+            <div class="panel-header">
+                <h2><i class="fas fa-file-signature"></i> DocuSeal Fields</h2>
+                <span class="badge badge-count">{{ docuseal_data.fields|length }}</span>
+            </div>
+            <div class="panel-toolbar">
+                <input type="text" id="searchDocuseal" class="search-input" placeholder="Search fields...">
+            </div>
+            <div class="panel-body" id="docusealFieldsList">
+                {% if docuseal_data.fields %}
+                    {% for role, fields in docuseal_data.fields_by_role.items() %}
+                    <div class="role-group">
+                        <div class="role-header">
+                            <i class="fas fa-user"></i> {{ role }}
+                            <span class="badge badge-count">{{ fields|length }}</span>
+                        </div>
+                        {% for field in fields %}
+                        <div class="field-item docuseal-field" 
+                             data-name="{{ field.name }}" 
+                             data-type="{{ field.type }}"
+                             data-role="{{ role }}"
+                             data-required="{{ field.required|lower }}">
+                            <div class="field-name">{{ field.name }}</div>
+                            <div class="field-meta">
+                                <span class="field-type type-{{ field.type }}">{{ field.type }}</span>
+                                {% if field.required %}
+                                <span class="field-required">required</span>
+                                {% endif %}
+                            </div>
+                            <div class="field-status">
+                                <i class="fas fa-link status-mapped" style="display: none;"></i>
+                                <i class="fas fa-unlink status-unmapped"></i>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-cloud-download-alt"></i>
+                    <p>Enter a template ID to fetch fields</p>
+                    <div class="fetch-template">
+                        <input type="number" id="templateIdInput" 
+                               value="{{ template_id or '' }}" 
+                               placeholder="Template ID">
+                        <button id="btnFetchTemplate" class="btn-toolbar">
+                            <i class="fas fa-sync"></i> Fetch
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel: Configuration -->
+    <div class="config-panel">
+        <!-- Roles Configuration Tab -->
+        <div class="config-section" id="rolesConfig">
+            <h3><i class="fas fa-users"></i> Role Configuration</h3>
+            <div class="roles-grid" id="rolesGrid">
+                {% for role in docuseal_data.submitters %}
+                <div class="role-card" data-role="{{ role }}">
+                    <div class="role-card-header">
+                        <span class="role-name">{{ role }}</span>
+                        <span class="role-key">{{ role|lower|replace(' ', '_') }}</span>
+                    </div>
+                    <div class="role-card-body">
+                        <div class="form-group">
+                            <label>Email Source</label>
+                            <select class="role-email-source">
+                                <option value="transaction.primary_seller.display_email" {% if 'seller' in role|lower and '2' not in role %}selected{% endif %}>Primary Seller Email</option>
+                                <option value="transaction.sellers[1].display_email" {% if 'seller' in role|lower and '2' in role %}selected{% endif %}>Seller 2 Email</option>
+                                <option value="transaction.primary_buyer.display_email" {% if 'buyer' in role|lower and '2' not in role %}selected{% endif %}>Primary Buyer Email</option>
+                                <option value="transaction.buyers[1].display_email" {% if 'buyer' in role|lower and '2' in role %}selected{% endif %}>Buyer 2 Email</option>
+                                <option value="user.email" {% if 'agent' in role|lower or 'broker' in role|lower %}selected{% endif %}>Agent/User Email</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Name Source</label>
+                            <select class="role-name-source">
+                                <option value="transaction.primary_seller.display_name" {% if 'seller' in role|lower and '2' not in role %}selected{% endif %}>Primary Seller Name</option>
+                                <option value="transaction.sellers[1].display_name" {% if 'seller' in role|lower and '2' in role %}selected{% endif %}>Seller 2 Name</option>
+                                <option value="transaction.primary_buyer.display_name" {% if 'buyer' in role|lower and '2' not in role %}selected{% endif %}>Primary Buyer Name</option>
+                                <option value="transaction.buyers[1].display_name" {% if 'buyer' in role|lower and '2' in role %}selected{% endif %}>Buyer 2 Name</option>
+                                <option value="user.full_name" {% if 'agent' in role|lower or 'broker' in role|lower %}selected{% endif %}>Agent/User Name</option>
+                            </select>
+                        </div>
+                        <div class="role-flags">
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="role-optional" {% if '2' in role or 'co' in role|lower %}checked{% endif %}>
+                                Optional (skip if missing)
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" class="role-auto-complete" {% if 'agent' in role|lower or 'broker' in role|lower %}checked{% endif %}>
+                                Auto-complete (pre-filled)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- YAML Preview Modal -->
+    <div class="yaml-modal" id="yamlModal" style="display: none;">
+        <div class="yaml-modal-content">
+            <div class="yaml-modal-header">
+                <h3><i class="fas fa-code"></i> Generated YAML</h3>
+                <div class="yaml-modal-actions">
+                    <span id="validationStatus" class="validation-status"></span>
+                    <button id="btnCopyYaml" class="btn-toolbar">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                    <button id="btnCloseModal" class="btn-toolbar">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="yaml-modal-body">
+                <pre><code id="yamlPreview" class="language-yaml"></code></pre>
+            </div>
+            <div class="yaml-modal-footer">
+                <div id="validationErrors" class="validation-errors"></div>
+                <button id="btnSaveFromModal" class="btn-action btn-save">
+                    <i class="fas fa-save"></i> Save to documents/{{ slug }}.yml
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mapping Edit Modal -->
+    <div class="edit-modal" id="editModal" style="display: none;">
+        <div class="edit-modal-content">
+            <div class="edit-modal-header">
+                <h3><i class="fas fa-edit"></i> Configure Field Mapping</h3>
+                <button class="btn-close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="edit-modal-body">
+                <div class="form-group">
+                    <label>Field Key</label>
+                    <input type="text" id="editFieldKey" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>DocuSeal Field</label>
+                    <input type="text" id="editDocusealField" class="form-input" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Source Path</label>
+                    <select id="editSource" class="form-input">
+                        <option value="">Select source...</option>
+                        <optgroup label="Form Data">
+                            <option value="form.">form.[field_name]</option>
+                        </optgroup>
+                        <optgroup label="Transaction">
+                            <option value="transaction.full_address">transaction.full_address</option>
+                            <option value="transaction.street_address">transaction.street_address</option>
+                            <option value="transaction.city">transaction.city</option>
+                            <option value="transaction.state">transaction.state</option>
+                            <option value="transaction.zip_code">transaction.zip_code</option>
+                        </optgroup>
+                        <optgroup label="User/Agent">
+                            <option value="user.email">user.email</option>
+                            <option value="user.full_name">user.full_name</option>
+                            <option value="user.phone">user.phone</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Transform</label>
+                    <select id="editTransform" class="form-input">
+                        <option value="">None</option>
+                        {% for transform in available_transforms %}
+                        <option value="{{ transform }}">{{ transform }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="editHasCondition">
+                        Conditional field
+                    </label>
+                </div>
+                <div id="conditionFields" style="display: none;">
+                    <div class="form-group">
+                        <label>Condition Field</label>
+                        <input type="text" id="editConditionField" class="form-input" placeholder="e.g., doc_responsibility">
+                    </div>
+                    <div class="form-group">
+                        <label>Condition Equals</label>
+                        <input type="text" id="editConditionEquals" class="form-input" placeholder="e.g., seller">
+                    </div>
+                </div>
+            </div>
+            <div class="edit-modal-footer">
+                <button id="btnRemoveMapping" class="btn-action btn-danger">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+                <button id="btnSaveMapping" class="btn-action btn-save">
+                    <i class="fas fa-check"></i> Apply
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pass data to JS -->
+<script>
+    window.mapperData = {
+        slug: "{{ slug }}",
+        name: "{{ doc_info.name }}",
+        templateId: {{ template_id or 'null' }},
+        htmlFields: {{ html_fields|tojson|safe }},
+        docusealFields: {{ docuseal_data.fields|tojson|safe }},
+        docusealSubmitters: {{ docuseal_data.submitters|tojson|safe }},
+        fieldsbyRole: {{ docuseal_data.fields_by_role|tojson|safe }},
+        availableTransforms: {{ available_transforms|tojson|safe }},
+        csrfToken: "{{ csrf_token() if csrf_token is defined else '' }}"
+    };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script src="{{ url_for('static', filename='js/document_mapper.js') }}"></script>
+{% endblock %}
+

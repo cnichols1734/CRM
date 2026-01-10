@@ -307,3 +307,189 @@ def document_mapping_save_full(slug):
             return jsonify({'success': False, 'error': 'Failed to save mappings'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# DOCUMENT MAPPER V2 - New YAML-based system
+# =============================================================================
+
+@admin_bp.route('/admin/document-mapper-v2')
+@login_required
+@admin_required
+def document_mapper_v2_list():
+    """Landing page for Document Mapper v2 - shows all available documents."""
+    from services.documents import DocumentLoader
+    
+    documents = []
+    for slug, info in DOCUMENT_FORMS.items():
+        # Check if new-style YAML exists in documents/ folder
+        definition = DocumentLoader.get(slug)
+        has_new_yaml = definition is not None
+        
+        # Get template ID from new or old system
+        template_id = None
+        if has_new_yaml:
+            template_id = definition.docuseal_template_id
+        elif has_yaml_mapping(slug):
+            template_id = get_yaml_template_id(slug)
+        else:
+            template_id = info.get('template_id')
+        
+        documents.append({
+            'slug': slug,
+            'name': info['name'],
+            'description': info.get('description', ''),
+            'template_id': template_id,
+            'has_new_yaml': has_new_yaml,
+            'has_old_yaml': has_yaml_mapping(slug)
+        })
+    
+    return render_template('admin/document_mapper_v2_list.html', documents=documents)
+
+
+@admin_bp.route('/admin/document-mapper-v2/<slug>')
+@login_required
+@admin_required
+def document_mapper_v2_edit(slug):
+    """Document Mapper v2 UI for a specific document."""
+    if slug not in DOCUMENT_FORMS:
+        flash('Document type not found.', 'error')
+        return redirect(url_for('admin.document_mapper_v2_list'))
+    
+    doc_info = DOCUMENT_FORMS[slug]
+    
+    # Parse HTML form fields
+    html_fields = parse_form_fields(slug)
+    
+    # Get existing new-style YAML if it exists
+    from services.documents import DocumentLoader
+    existing_definition = DocumentLoader.get(slug)
+    
+    # Get template ID
+    template_id = None
+    if existing_definition:
+        template_id = existing_definition.docuseal_template_id
+    elif has_yaml_mapping(slug):
+        template_id = get_yaml_template_id(slug)
+    else:
+        template_id = doc_info.get('template_id')
+    
+    # Fetch DocuSeal fields if we have a template ID
+    docuseal_data = {'fields': [], 'submitters': [], 'fields_by_role': {}}
+    if template_id:
+        try:
+            template_data = get_template(template_id)
+            submitters = template_data.get('submitters', [])
+            submitter_map = {s['uuid']: s['name'] for s in submitters}
+            
+            fields_by_role = {}
+            all_fields = []
+            for field in template_data.get('fields', []):
+                role_name = submitter_map.get(field.get('submitter_uuid', ''), 'Unknown')
+                field_data = {
+                    'name': field.get('name', ''),
+                    'type': field.get('type', 'text'),
+                    'required': field.get('required', False),
+                    'role': role_name
+                }
+                all_fields.append(field_data)
+                
+                if role_name not in fields_by_role:
+                    fields_by_role[role_name] = []
+                fields_by_role[role_name].append(field_data)
+            
+            docuseal_data = {
+                'template_name': template_data.get('name', ''),
+                'fields': all_fields,
+                'submitters': [s['name'] for s in submitters],
+                'fields_by_role': fields_by_role
+            }
+        except Exception as e:
+            flash(f'Could not fetch DocuSeal template: {str(e)}', 'warning')
+    
+    # Get available transforms
+    from services.documents.transforms import TRANSFORMS
+    available_transforms = list(TRANSFORMS.keys())
+    
+    return render_template(
+        'admin/document_mapper_v2.html',
+        doc_info=doc_info,
+        slug=slug,
+        html_fields=html_fields,
+        docuseal_data=docuseal_data,
+        template_id=template_id,
+        existing_definition=existing_definition,
+        available_transforms=available_transforms
+    )
+
+
+@admin_bp.route('/api/mapper/auto-map', methods=['POST'])
+@login_required
+@admin_required
+def api_mapper_auto_map():
+    """Run auto-mapping algorithm between HTML and DocuSeal fields."""
+    data = request.get_json()
+    html_fields = data.get('html_fields', [])
+    docuseal_fields = data.get('docuseal_fields', [])
+    
+    try:
+        from services.documents.auto_mapper import AutoMapper
+        mappings = AutoMapper.auto_map(html_fields, docuseal_fields)
+        return jsonify({'success': True, 'mappings': mappings})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/api/mapper/generate-yaml', methods=['POST'])
+@login_required
+@admin_required
+def api_mapper_generate_yaml():
+    """Generate YAML from mapping configuration."""
+    data = request.get_json()
+    
+    try:
+        from services.documents.yaml_generator import YamlGenerator
+        yaml_content = YamlGenerator.generate(data)
+        
+        # Validate against schema
+        from services.documents.loader import DocumentLoader
+        errors = DocumentLoader.validate_yaml_content(yaml_content)
+        
+        return jsonify({
+            'success': True,
+            'yaml': yaml_content,
+            'valid': len(errors) == 0,
+            'errors': errors
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/api/mapper/save', methods=['POST'])
+@login_required
+@admin_required
+def api_mapper_save():
+    """Save generated YAML to documents/ folder."""
+    data = request.get_json()
+    slug = data.get('slug')
+    yaml_content = data.get('yaml_content')
+    
+    if not slug or not yaml_content:
+        return jsonify({'success': False, 'error': 'Missing slug or yaml_content'}), 400
+    
+    try:
+        from pathlib import Path
+        documents_dir = Path(__file__).parent.parent / 'documents'
+        yaml_path = documents_dir / f'{slug}.yml'
+        
+        # Write YAML file
+        with open(yaml_path, 'w', encoding='utf-8') as f:
+            f.write(yaml_content)
+        
+        # Reload document definitions
+        from services.documents import DocumentLoader
+        DocumentLoader.reload()
+        
+        return jsonify({'success': True, 'message': f'Saved to documents/{slug}.yml'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500

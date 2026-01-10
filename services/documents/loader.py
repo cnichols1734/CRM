@@ -277,4 +277,62 @@ class DocumentLoader:
         """Clear all cached definitions. Mainly for testing."""
         cls._definitions.clear()
         cls._validated = False
+    
+    @classmethod
+    def reload(cls) -> None:
+        """Reload all document definitions. Used after saving new YAML."""
+        cls.clear()
+        try:
+            cls.load_all()
+        except ConfigurationError as e:
+            logger.error(f"Failed to reload documents: {e}")
+            raise
+    
+    @classmethod
+    def validate_yaml_content(cls, yaml_content: str) -> List[str]:
+        """
+        Validate YAML content without saving.
+        
+        Args:
+            yaml_content: Raw YAML string to validate
+            
+        Returns:
+            List of validation error messages (empty if valid)
+        """
+        errors = []
+        
+        try:
+            # Parse YAML
+            raw = yaml.safe_load(yaml_content)
+            
+            if not raw:
+                return ["Empty document definition"]
+            
+            # Schema validation
+            schema_version = raw.get('schema_version', '1.0')
+            if jsonschema and cls._schemas:
+                try:
+                    schema = cls._get_schema(schema_version)
+                    jsonschema.validate(raw, schema)
+                except jsonschema.ValidationError as e:
+                    errors.append(f"Schema validation: {e.message}")
+            
+            # Referential integrity
+            try:
+                cls._validate_references(raw)
+            except ValidationError as e:
+                errors.append(str(e))
+            
+            # Business rules
+            try:
+                cls._validate_business_rules(raw)
+            except ValidationError as e:
+                errors.append(str(e))
+                
+        except yaml.YAMLError as e:
+            errors.append(f"YAML syntax error: {e}")
+        except Exception as e:
+            errors.append(f"Unexpected error: {e}")
+        
+        return errors
 

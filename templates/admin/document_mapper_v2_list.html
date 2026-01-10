@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Document Mapper v2 - Admin{% endblock %}
+
+{% block head_scripts %}
+<style>
+    .mapper-header {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6e 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+    
+    .mapper-header h1 {
+        margin: 0 0 0.5rem 0;
+        font-weight: 700;
+    }
+    
+    .mapper-header p {
+        margin: 0;
+        opacity: 0.85;
+    }
+    
+    .doc-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .doc-card {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 1.5rem;
+        transition: all 0.2s ease;
+    }
+    
+    .doc-card:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+    
+    .doc-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+    
+    .doc-name {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0 0 0.25rem 0;
+    }
+    
+    .doc-slug {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+    
+    .doc-badges {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    
+    .badge-new {
+        background: #dcfce7;
+        color: #15803d;
+    }
+    
+    .badge-old {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .badge-none {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+    
+    .doc-description {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+        min-height: 2.5rem;
+    }
+    
+    .doc-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 1rem;
+        border-top: 1px solid #f3f4f6;
+    }
+    
+    .doc-template-id {
+        font-family: 'Roboto Mono', monospace;
+        font-size: 0.8rem;
+        color: #9ca3af;
+    }
+    
+    .btn-map {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.875rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+    
+    .btn-map:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #6b7280;
+        text-decoration: none;
+        margin-bottom: 1rem;
+    }
+    
+    .back-link:hover {
+        color: #3b82f6;
+    }
+    
+    .legend {
+        display: flex;
+        gap: 1.5rem;
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .legend-item .badge {
+        font-size: 0.65rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <a href="{{ url_for('main.dashboard') }}" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Back to Dashboard
+    </a>
+    
+    <div class="mapper-header">
+        <h1><i class="fas fa-magic me-2"></i>Document Mapper v2</h1>
+        <p>Create and edit YAML document definitions with the new schema-driven system</p>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <span class="badge badge-new">New YAML</span>
+                <span>Using new document system</span>
+            </div>
+            <div class="legend-item">
+                <span class="badge badge-old">Legacy</span>
+                <span>Using old mapping format</span>
+            </div>
+            <div class="legend-item">
+                <span class="badge badge-none">Unmapped</span>
+                <span>No configuration yet</span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="doc-grid">
+        {% for doc in documents %}
+        <div class="doc-card">
+            <div class="doc-card-header">
+                <div>
+                    <h3 class="doc-name">{{ doc.name }}</h3>
+                    <div class="doc-slug">{{ doc.slug }}</div>
+                </div>
+                <div class="doc-badges">
+                    {% if doc.has_new_yaml %}
+                    <span class="badge badge-new">New YAML</span>
+                    {% elif doc.has_old_yaml %}
+                    <span class="badge badge-old">Legacy</span>
+                    {% else %}
+                    <span class="badge badge-none">Unmapped</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="doc-description">
+                {{ doc.description or 'No description available' }}
+            </div>
+            
+            <div class="doc-meta">
+                <span class="doc-template-id">
+                    {% if doc.template_id %}
+                    <i class="fas fa-link"></i> Template #{{ doc.template_id }}
+                    {% else %}
+                    <i class="fas fa-unlink"></i> No template
+                    {% endif %}
+                </span>
+                <a href="{{ url_for('admin.document_mapper_v2_edit', slug=doc.slug) }}" class="btn-map">
+                    <i class="fas fa-edit"></i>
+                    {% if doc.has_new_yaml %}Edit{% else %}Map{% endif %}
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
