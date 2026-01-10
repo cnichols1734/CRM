@@ -135,6 +135,14 @@
           "transform": {
             "type": "string",
             "description": "Optional transform function name"
+          },
+          "condition_field": {
+            "type": "string",
+            "description": "Field to check for conditional inclusion (e.g., 'form.doc_responsibility')"
+          },
+          "condition_equals": {
+            "type": "string",
+            "description": "Value that condition_field must equal for this field to be included"
           }
         },
         "additionalProperties": false
