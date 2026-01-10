@@ -206,7 +206,7 @@ class FieldResolver:
             - Object attributes (getattr)
             - Dict keys
             - List/tuple indices via bracket notation
-            - Special computed properties (full_name)
+            - Special computed properties (full_name, full_address)
         """
         # Check for bracket notation: sellers[0]
         bracket_match = cls.BRACKET_PATTERN.match(part)
@@ -234,6 +234,9 @@ class FieldResolver:
         # Handle special computed properties
         if part == 'full_name':
             return cls._get_full_name(obj)
+        
+        if part == 'full_address':
+            return cls._get_full_address(obj)
         
         # Standard attribute/key access
         return cls._get_attr_or_key(obj, part)
@@ -275,6 +278,41 @@ class FieldResolver:
                 return display
         
         full = f"{first} {last}".strip()
+        return full if full else None
+    
+    @classmethod
+    def _get_full_address(cls, obj: Any) -> Optional[str]:
+        """
+        Compute full_address from street_address, city, state, zip_code.
+        
+        This is a computed property for Transaction objects.
+        Returns format: "123 Main St, Austin, TX 78701"
+        """
+        street = cls._get_attr_or_key(obj, 'street_address') or ''
+        city = cls._get_attr_or_key(obj, 'city') or ''
+        state = cls._get_attr_or_key(obj, 'state') or 'TX'
+        zip_code = cls._get_attr_or_key(obj, 'zip_code') or ''
+        
+        # Build address parts
+        parts = []
+        if street:
+            parts.append(street)
+        
+        # City, State Zip
+        location_parts = []
+        if city:
+            location_parts.append(city)
+        if state:
+            location_parts.append(state)
+        
+        location = ', '.join(location_parts)
+        if zip_code:
+            location = f"{location} {zip_code}".strip()
+        
+        if location:
+            parts.append(location)
+        
+        full = ', '.join(parts)
         return full if full else None
     
     @classmethod

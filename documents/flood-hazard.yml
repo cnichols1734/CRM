@@ -46,21 +46,21 @@ roles:
 # =============================================================================
 
 fields:
-  # Property address fields
+  # Property address fields (computed from transaction: street, city, state zip)
   - field_key: property_address_1
     docuseal_field: "Property address 1"
     role_key: seller
-    source: form.property_address
+    source: transaction.full_address
 
   - field_key: property_address_2
     docuseal_field: "Property address 2"
     role_key: seller
-    source: form.property_address
+    source: transaction.full_address
 
   - field_key: property_address_3
     docuseal_field: "Property address 3"
     role_key: seller
-    source: form.property_address
+    source: transaction.full_address
 
   # Signature fields - handled by DocuSeal
   - field_key: seller_signature
