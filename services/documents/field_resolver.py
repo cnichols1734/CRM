@@ -86,8 +86,22 @@ class FieldResolver:
             context: Dict with data sources
             
         Returns:
-            ResolvedField with value populated
+            ResolvedField with value populated, or None value if condition not met
         """
+        # Check condition if specified
+        if field_def.condition_field and field_def.condition_equals is not None:
+            condition_value = cls.resolve_path(field_def.condition_field, context)
+            if str(condition_value) != str(field_def.condition_equals):
+                # Condition not met - return field with None value (won't be sent)
+                logger.debug(f"Condition not met for {field_def.field_key}: {condition_value} != {field_def.condition_equals}")
+                return ResolvedField(
+                    field_key=field_def.field_key,
+                    docuseal_field=field_def.docuseal_field,
+                    role_key=field_def.role_key,
+                    value=None,
+                    is_manual=False
+                )
+        
         # Manual entry fields have no source
         if field_def.source is None:
             return ResolvedField(

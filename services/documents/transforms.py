@@ -229,26 +229,45 @@ def transform_checkbox(value: Any) -> str:
     """
     Convert checkbox/boolean values to 'X' for DocuSeal checkbox fields.
     
+    For conditional checkbox fields (where condition_field/condition_equals are used),
+    this is called only when the condition is met, so any truthy value returns "X".
+    
+    Note: We don't treat "no" as falsy because it could be a valid selection value
+    (e.g., user selected "No" option in a radio group).
+    
     Examples:
         True -> "X"
         "1" -> "X"
         "on" -> "X"
+        "seller" -> "X"
+        "no" -> "X" (valid selection value, not boolean false)
+        "yes" -> "X"
         False -> ""
         None -> ""
+        "" -> ""
+        "0" -> ""
+        "false" -> ""
     """
     if value is None:
         return ""
     
-    # Convert to string and check for truthy values
+    # Check for boolean False
+    if value is False:
+        return ""
+    
+    # Convert to string
     str_val = str(value).lower().strip()
-    if str_val in ('true', '1', 'on', 'yes', 'x', 'checked'):
-        return "X"
     
-    # Also check for boolean True
-    if value is True:
-        return "X"
+    # Empty string is falsy
+    if not str_val:
+        return ""
     
-    return ""
+    # Explicit boolean-like false values (but NOT "no" which could be a selection)
+    if str_val in ('false', '0', 'off'):
+        return ""
+    
+    # Any other non-empty value is truthy -> return X
+    return "X"
 
 
 def transform_none(value: Any) -> str:

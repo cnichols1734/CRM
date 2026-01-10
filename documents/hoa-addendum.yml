@@ -5,6 +5,7 @@
 # TREC Form
 # 
 # This is a form-driven document with a custom UI for data entry.
+# Template ID: 2469165
 # =============================================================================
 
 schema_version: "1.0"
@@ -45,41 +46,129 @@ roles:
 # FIELDS
 # =============================================================================
 # Form fields from hoa_addendum_fields.html
-# Note: Computed fields (combining multiple form values) are handled separately
+# Uses conditional fields for options that depend on doc_responsibility selection
 # =============================================================================
 
 fields:
-  # Property address (computed from multiple fields in old system)
+  # Property address
   - field_key: street_address
     docuseal_field: "Street address"
     role_key: seller
     source: form.property_address
 
-  # HOA information
+  # HOA information (combines name and phone)
   - field_key: association_info
     docuseal_field: "Association name & phone"
     role_key: seller
     source: form.hoa_name
 
-  # Section A - Document delivery options
+  # =============================================================================
+  # Section A - Document delivery options (radio buttons)
+  # doc_responsibility determines which option gets an "X"
+  # =============================================================================
+
+  # Option checkboxes - only one gets "X" based on selection
+  - field_key: option_1_checkbox
+    docuseal_field: "Option 1"
+    role_key: seller
+    source: form.doc_responsibility
+    transform: checkbox
+    condition_field: form.doc_responsibility
+    condition_equals: seller
+
+  - field_key: option_2_checkbox
+    docuseal_field: "Option 2"
+    role_key: seller
+    source: form.doc_responsibility
+    transform: checkbox
+    condition_field: form.doc_responsibility
+    condition_equals: buyer
+
+  - field_key: option_3_checkbox
+    docuseal_field: "Option 3"
+    role_key: seller
+    source: form.doc_responsibility
+    transform: checkbox
+    condition_field: form.doc_responsibility
+    condition_equals: already_received
+
+  - field_key: option_4_checkbox
+    docuseal_field: "Option 4"
+    role_key: seller
+    source: form.doc_responsibility
+    transform: checkbox
+    condition_field: form.doc_responsibility
+    condition_equals: not_required
+
+  # Days fields - conditional based on which option is selected
   - field_key: option_1_days
     docuseal_field: "1. Days after effective date"
     role_key: seller
     source: form.seller_delivery_days
+    condition_field: form.doc_responsibility
+    condition_equals: seller
 
   - field_key: option_2_days
     docuseal_field: "2. Days after effective date"
     role_key: seller
     source: form.buyer_delivery_days
+    condition_field: form.doc_responsibility
+    condition_equals: buyer
 
+  # =============================================================================
+  # Option 3 sub-options (require updated resale certificate)
+  # =============================================================================
+
+  - field_key: buyer_does_require
+    docuseal_field: "Buyer does"
+    role_key: seller
+    source: form.require_updated_resale
+    transform: checkbox
+    condition_field: form.require_updated_resale
+    condition_equals: "yes"
+
+  - field_key: buyer_does_not_require
+    docuseal_field: "Buyer does not"
+    role_key: seller
+    source: form.require_updated_resale
+    transform: checkbox
+    condition_field: form.require_updated_resale
+    condition_equals: "no"
+
+  # =============================================================================
   # Section C - Fees
+  # =============================================================================
+
   - field_key: buyer_fee_cap
     docuseal_field: "C. Buyer paid transfer fee"
     role_key: seller
     source: form.buyer_fee_cap
     transform: currency
 
+  # =============================================================================
+  # Section D - Additional document fees
+  # =============================================================================
+
+  - field_key: buyer_pays_additional
+    docuseal_field: "D. Buyer pays"
+    role_key: seller
+    source: form.additional_doc_fee_paid_by
+    transform: checkbox
+    condition_field: form.additional_doc_fee_paid_by
+    condition_equals: buyer
+
+  - field_key: seller_pays_additional
+    docuseal_field: "D. Seller pays"
+    role_key: seller
+    source: form.additional_doc_fee_paid_by
+    transform: checkbox
+    condition_field: form.additional_doc_fee_paid_by
+    condition_equals: seller
+
+  # =============================================================================
   # Signature fields - handled by DocuSeal
+  # =============================================================================
+
   - field_key: seller_signature
     docuseal_field: "Seller signature 1"
     role_key: seller
@@ -89,4 +178,3 @@ fields:
     docuseal_field: "Signature Field 2"
     role_key: seller_2
     source: null
-

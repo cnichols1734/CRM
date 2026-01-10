@@ -63,12 +63,16 @@ class FieldDefinition:
         role_key: Which role this field belongs to
         source: Data source path (e.g., "user.email", "form.list_price", null for manual)
         transform: Optional transform function name (e.g., "currency", "date")
+        condition_field: Optional field to check for conditional inclusion
+        condition_equals: Value that condition_field must equal for field to be included
     """
     field_key: str
     docuseal_field: str
     role_key: str
     source: Optional[str] = None  # None means manual entry in DocuSeal
     transform: Optional[str] = None
+    condition_field: Optional[str] = None  # e.g., "form.doc_responsibility"
+    condition_equals: Optional[str] = None  # e.g., "seller"
 
 
 @dataclass(frozen=True)
@@ -155,7 +159,9 @@ class DocumentDefinition:
                 docuseal_field=field_data['docuseal_field'],
                 role_key=field_data['role_key'],
                 source=field_data.get('source'),  # Can be None
-                transform=field_data.get('transform')
+                transform=field_data.get('transform'),
+                condition_field=field_data.get('condition_field'),
+                condition_equals=field_data.get('condition_equals')
             ))
         
         return cls(
