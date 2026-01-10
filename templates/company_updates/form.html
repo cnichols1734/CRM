@@ -7,13 +7,21 @@
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 <style>
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
     }
-    
+
     /* Quill editor styling */
     #editor-container {
         height: 400px;
@@ -22,27 +30,32 @@
         border-top: none;
         border-radius: 0 0 0.75rem 0.75rem;
     }
+
     .ql-toolbar {
         border: 2px solid #e2e8f0;
         border-radius: 0.75rem 0.75rem 0 0;
         background: #f8fafc;
     }
+
     .ql-container {
         font-size: 1rem;
         font-family: inherit;
     }
+
     .ql-editor {
         min-height: 350px;
     }
+
     .ql-editor.ql-blank::before {
         color: #94a3b8;
         font-style: normal;
     }
-    
+
     /* Premium input styling */
     .premium-input {
         transition: all 0.2s ease;
     }
+
     .premium-input:focus {
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
@@ -52,11 +65,11 @@
 {% block content %}
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
-        
+
         <!-- Header -->
         <div class="animate-fade-in-up mb-8">
             <a href="{{ url_for('company_updates.list_updates') }}"
-               class="inline-flex items-center text-slate-600 hover:text-slate-900 font-medium transition-colors mb-4">
+                class="inline-flex items-center text-slate-600 hover:text-slate-900 font-medium transition-colors mb-4">
                 <i class="fas fa-arrow-left mr-2"></i>
                 Back to Updates
             </a>
@@ -73,38 +86,75 @@
         </div>
 
         <!-- Form -->
-        <form method="POST" class="animate-fade-in-up space-y-6" id="update-form">
+        <form method="POST" enctype="multipart/form-data" class="animate-fade-in-up space-y-6" id="update-form">
             <!-- Title -->
             <div>
                 <label for="title" class="block text-sm font-semibold text-slate-700 mb-2">
                     Title <span class="text-red-500">*</span>
                 </label>
-                <input type="text" 
-                       name="title" 
-                       id="title"
-                       value="{{ update.title if update else '' }}"
-                       placeholder="Enter update title..."
-                       required
-                       class="premium-input w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200">
+                <input type="text" name="title" id="title" value="{{ update.title if update else '' }}"
+                    placeholder="Enter update title..." required
+                    class="premium-input w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200">
             </div>
-            
-            <!-- Cover Image URL -->
+
+            <!-- Cover Image Upload -->
             <div>
-                <label for="cover_image_url" class="block text-sm font-semibold text-slate-700 mb-2">
-                    Cover Image URL <span class="text-slate-400 font-normal">(optional)</span>
+                <label class="block text-sm font-semibold text-slate-700 mb-2">
+                    Cover Image <span class="text-slate-400 font-normal">(optional)</span>
                 </label>
-                <input type="url" 
-                       name="cover_image_url" 
-                       id="cover_image_url"
-                       value="{{ update.cover_image_url if update and update.cover_image_url else '' }}"
-                       placeholder="https://example.com/image.jpg"
-                       class="premium-input w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-white text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200">
-                <p class="mt-1.5 text-sm text-slate-500">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    Paste a direct link to an image (Imgur, Google Drive, etc.)
-                </p>
+
+                {% if update and update.cover_image_url %}
+                <!-- Existing image preview -->
+                <div id="existing-image-container" class="mb-4">
+                    <div class="relative inline-block">
+                        <img src="{{ update.cover_image_url }}" alt="Current cover image"
+                            class="w-48 h-32 object-cover rounded-xl border-2 border-slate-200">
+                        <div class="absolute -top-2 -right-2">
+                            <label
+                                class="flex items-center justify-center w-6 h-6 bg-red-500 hover:bg-red-600 rounded-full cursor-pointer transition-colors"
+                                title="Remove image">
+                                <input type="checkbox" name="remove_image" value="1" id="remove-image-checkbox"
+                                    class="hidden" onchange="toggleExistingImage(this)">
+                                <i class="fas fa-times text-white text-xs"></i>
+                            </label>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-sm text-slate-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Click the X to remove, or upload a new image to replace
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- File Upload Input -->
+                <div id="upload-container" class="{% if update and update.cover_image_url %}hidden{% endif %}">
+                    <label for="cover_image"
+                        class="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-all duration-200">
+                        <div id="upload-placeholder" class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <i class="fas fa-cloud-upload-alt text-3xl text-slate-400 mb-3"></i>
+                            <p class="mb-2 text-sm text-slate-500">
+                                <span class="font-semibold text-blue-600">Click to upload</span> or drag and drop
+                            </p>
+                            <p class="text-xs text-slate-400">PNG, JPG, GIF, WEBP (max 10MB)</p>
+                        </div>
+                        <div id="preview-container" class="hidden flex items-center gap-4 p-4">
+                            <img id="image-preview" src="" alt="Preview" class="w-20 h-20 object-cover rounded-lg">
+                            <div>
+                                <p id="file-name" class="text-sm font-medium text-slate-700"></p>
+                                <p id="file-size" class="text-xs text-slate-400"></p>
+                            </div>
+                        </div>
+                        <input type="file" name="cover_image" id="cover_image"
+                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" class="hidden"
+                            onchange="previewImage(this)">
+                    </label>
+                    <button type="button" id="clear-upload" class="hidden mt-2 text-sm text-red-500 hover:text-red-700"
+                        onclick="clearUpload()">
+                        <i class="fas fa-times mr-1"></i>Clear selected image
+                    </button>
+                </div>
             </div>
-            
+
             <!-- Content Editor -->
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-2">
@@ -117,66 +167,128 @@
             <!-- Actions -->
             <div class="flex items-center justify-end space-x-4 pt-6 border-t border-slate-200">
                 <a href="{{ url_for('company_updates.list_updates') }}"
-                   class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-all duration-200">
+                    class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-medium hover:bg-slate-50 transition-all duration-200">
                     Cancel
                 </a>
                 <button type="submit"
-                        class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200">
+                    class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-200">
                     <i class="fas fa-save mr-2"></i>
                     {% if update %}Save Changes{% else %}Publish Update{% endif %}
                 </button>
             </div>
         </form>
+
     </div>
 </div>
 
 <!-- Quill.js -->
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Quill editor
-    const quill = new Quill('#editor-container', {
-        theme: 'snow',
-        placeholder: 'Write your update here...',
-        modules: {
-            toolbar: [
-                [{ 'header': [1, 2, 3, false] }],
-                ['bold', 'italic', 'underline', 'strike'],
-                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                ['link', 'image'],
-                ['blockquote'],
-                ['clean']
-            ]
+    // Image preview function
+    function previewImage(input) {
+        const placeholder = document.getElementById('upload-placeholder');
+        const previewContainer = document.getElementById('preview-container');
+        const preview = document.getElementById('image-preview');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const clearBtn = document.getElementById('clear-upload');
+
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                preview.src = e.target.result;
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
+
+                placeholder.classList.add('hidden');
+                previewContainer.classList.remove('hidden');
+                clearBtn.classList.remove('hidden');
+            };
+
+            reader.readAsDataURL(file);
         }
-    });
-    
-    // Load existing content if editing
-    {% if update and update.content %}
-    quill.root.innerHTML = {{ update.content | tojson | safe }};
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function clearUpload() {
+        const input = document.getElementById('cover_image');
+        const placeholder = document.getElementById('upload-placeholder');
+        const previewContainer = document.getElementById('preview-container');
+        const clearBtn = document.getElementById('clear-upload');
+
+        input.value = '';
+        placeholder.classList.remove('hidden');
+        previewContainer.classList.add('hidden');
+        clearBtn.classList.add('hidden');
+    }
+
+    function toggleExistingImage(checkbox) {
+        const container = document.getElementById('existing-image-container');
+        const uploadContainer = document.getElementById('upload-container');
+
+        if (checkbox.checked) {
+            container.style.opacity = '0.4';
+            container.style.textDecoration = 'line-through';
+            uploadContainer.classList.remove('hidden');
+        } else {
+            container.style.opacity = '1';
+            container.style.textDecoration = 'none';
+            uploadContainer.classList.add('hidden');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize Quill editor
+        const quill = new Quill('#editor-container', {
+            theme: 'snow',
+            placeholder: 'Write your update here...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['link', 'image'],
+                    ['blockquote'],
+                    ['clean']
+                ]
+            }
+        });
+        // Load existing content if editing
+        {% if update and update.content %}
+        quill.root.innerHTML = {{ update.content | tojson | safe }};
     {% endif %}
-    
+
     // Handle form submission
     const form = document.getElementById('update-form');
     const contentInput = document.getElementById('content-input');
-    
-    form.addEventListener('submit', function(e) {
+
+    form.addEventListener('submit', function (e) {
         // Get Quill content as HTML
         const content = quill.root.innerHTML;
-        
+
         // Check if content is empty (only contains empty paragraph)
         if (content === '<p><br></p>' || content.trim() === '') {
             e.preventDefault();
             alert('Please add some content to your update.');
             return false;
         }
-        
+
         // Set the hidden input value
         contentInput.value = content;
     });
-    
+
     // Custom image handler - prompt for URL
     const toolbar = quill.getModule('toolbar');
-    toolbar.addHandler('image', function() {
+    toolbar.addHandler('image', function () {
         const url = prompt('Enter image URL:');
         if (url) {
             const range = quill.getSelection();
@@ -186,4 +298,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
