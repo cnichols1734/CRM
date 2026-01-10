@@ -97,6 +97,11 @@
             "type": "boolean",
             "default": false,
             "description": "Skip if source resolves to null"
+          },
+          "auto_complete": {
+            "type": "boolean",
+            "default": false,
+            "description": "Auto-complete this submitter (for roles with only readonly/pre-filled fields)"
           }
         },
         "additionalProperties": false

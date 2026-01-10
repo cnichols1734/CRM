@@ -30,21 +30,27 @@ display:
 # =============================================================================
 
 roles:
+  # Agent role: Pre-filled and auto-completed (no manual signing needed)
   - role_key: agent
     docuseal_role: Agent
     email_source: user.email
     name_source: user.full_name
+    auto_complete: true  # All fields are readonly/pre-filled
 
+  # Broker role: Pre-filled in DocuSeal template, auto-completed
   - role_key: broker
     docuseal_role: Broker
     email_source: user.email
     name_source: user.full_name
+    auto_complete: true  # All fields are readonly/pre-filled
 
+  # Seller role: Must provide initials and date
   - role_key: seller
     docuseal_role: Seller
     email_source: transaction.primary_seller.display_email
     name_source: transaction.primary_seller.display_name
 
+  # Seller 2 role: Optional second seller
   - role_key: seller_2
     docuseal_role: "Seller 2"
     email_source: transaction.sellers[1].display_email
