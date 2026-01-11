@@ -92,9 +92,14 @@ def create_app():
 
     return app
 
+import os
+
 app = create_app()
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(host='0.0.0.0', port=5011, debug=True)
+    # Only use debug mode when running locally via python app.py
+    # In production (Gunicorn), this code block is never executed
+    debug_mode = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=5011, debug=debug_mode)
