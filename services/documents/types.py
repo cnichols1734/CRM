@@ -56,12 +56,20 @@ class RoleDefinition:
 class FieldDefinition:
     """
     A field mapping between data sources and DocuSeal fields.
-    
+
+    Supports two modes:
+    1. Single field: Use 'source' for a single data source path
+    2. Combined field: Use 'sources' + 'template' for multiple sources combined together
+
     Attributes:
         field_key: Stable internal identifier (snake_case)
         docuseal_field: Exact field name in DocuSeal template
         role_key: Which role this field belongs to
-        source: Data source path (e.g., "user.email", "form.list_price", null for manual)
+        source: Single data source path (e.g., "user.email", "form.list_price", null for manual)
+        sources: Multiple source paths for combined fields (e.g., address components)
+        template: Format template for combined fields. Supports:
+                  - Positional: "{0}, {1}, {2}"
+                  - Named: "{street}, {city}, {state}" (uses last part of source path)
         transform: Optional transform function name (e.g., "currency", "date")
         condition_field: Optional field to check for conditional inclusion
         condition_equals: Value that condition_field must equal for field to be included
@@ -70,9 +78,16 @@ class FieldDefinition:
     docuseal_field: str
     role_key: str
     source: Optional[str] = None  # None means manual entry in DocuSeal
+    sources: Optional[tuple] = None  # Multiple sources for combined fields
+    template: Optional[str] = None  # Format template like "{0}, {1}, {2}"
     transform: Optional[str] = None
     condition_field: Optional[str] = None  # e.g., "form.doc_responsibility"
     condition_equals: Optional[str] = None  # e.g., "seller"
+
+    @property
+    def is_combined(self) -> bool:
+        """Check if this is a combined field (multiple sources)."""
+        return self.sources is not None and len(self.sources) > 0
 
 
 @dataclass(frozen=True)
@@ -154,11 +169,18 @@ class DocumentDefinition:
         # Parse fields
         fields = []
         for field_data in data.get('fields', []):
+            # Handle sources as tuple for immutability
+            sources = field_data.get('sources')
+            if sources is not None:
+                sources = tuple(sources)
+
             fields.append(FieldDefinition(
                 field_key=field_data['field_key'],
                 docuseal_field=field_data['docuseal_field'],
                 role_key=field_data['role_key'],
                 source=field_data.get('source'),  # Can be None
+                sources=sources,  # Tuple of source paths for combined fields
+                template=field_data.get('template'),  # Format template
                 transform=field_data.get('transform'),
                 condition_field=field_data.get('condition_field'),
                 condition_equals=field_data.get('condition_equals')

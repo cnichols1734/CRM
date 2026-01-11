@@ -101,33 +101,42 @@ class YamlGenerator:
     def _build_fields(cls, fields_config: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Build the fields list for the document."""
         fields = []
-        
+
         for field in fields_config:
             field_def = {
                 'field_key': field.get('field_key', ''),
                 'docuseal_field': field.get('docuseal_field', ''),
                 'role_key': field.get('role_key', 'seller'),
             }
-            
-            # Add source (can be None for manual fields)
-            source = field.get('source')
-            if source:
-                field_def['source'] = source
+
+            # Check if this is a combined field (multiple sources)
+            sources = field.get('sources')
+            template = field.get('template')
+
+            if sources and len(sources) >= 2 and template:
+                # Combined field - use sources and template
+                field_def['sources'] = sources
+                field_def['template'] = template
             else:
-                field_def['source'] = None
-            
+                # Single field - use source
+                source = field.get('source')
+                if source:
+                    field_def['source'] = source
+                else:
+                    field_def['source'] = None
+
             # Add optional transform
             if field.get('transform'):
                 field_def['transform'] = field['transform']
-            
+
             # Add conditional fields
             if field.get('condition_field'):
                 field_def['condition_field'] = field['condition_field']
             if field.get('condition_equals'):
                 field_def['condition_equals'] = field['condition_equals']
-            
+
             fields.append(field_def)
-        
+
         return fields
     
     @classmethod
@@ -203,20 +212,27 @@ class YamlGenerator:
             lines.append(f'  - field_key: {field["field_key"]}')
             lines.append(f'    docuseal_field: "{field["docuseal_field"]}"')
             lines.append(f'    role_key: {field["role_key"]}')
-            
-            if field.get('source'):
+
+            # Handle combined fields (sources + template) vs single fields (source)
+            if field.get('sources') and field.get('template'):
+                # Combined field - output sources array and template
+                lines.append('    sources:')
+                for source in field['sources']:
+                    lines.append(f'      - {source}')
+                lines.append(f'    template: "{field["template"]}"')
+            elif field.get('source'):
                 lines.append(f'    source: {field["source"]}')
             else:
                 lines.append('    source: null')
-            
+
             if field.get('transform'):
                 lines.append(f'    transform: {field["transform"]}')
-            
+
             if field.get('condition_field'):
                 lines.append(f'    condition_field: {field["condition_field"]}')
             if field.get('condition_equals'):
                 lines.append(f'    condition_equals: "{field["condition_equals"]}"')
-            
+
             lines.append('')
         
         return '\n'.join(lines)

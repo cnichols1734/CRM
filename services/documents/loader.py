@@ -194,11 +194,31 @@ class DocumentLoader:
         
         # Validate source path syntax (bracket notation for arrays)
         for field in raw.get('fields', []):
+            field_key = field.get('field_key', 'unknown')
+
+            # Check single source
             source = field.get('source')
             if source and cls._has_invalid_array_syntax(source):
                 raise ValidationError(
-                    f"Field '{field.get('field_key')}' has invalid source syntax: '{source}'. "
+                    f"Field '{field_key}' has invalid source syntax: '{source}'. "
                     f"Use bracket notation for arrays (e.g., 'sellers[0]' not 'sellers.0')"
+                )
+
+            # Check combined field sources
+            sources = field.get('sources')
+            if sources:
+                for src in sources:
+                    if cls._has_invalid_array_syntax(src):
+                        raise ValidationError(
+                            f"Field '{field_key}' has invalid source syntax in sources: '{src}'. "
+                            f"Use bracket notation for arrays (e.g., 'sellers[0]' not 'sellers.0')"
+                        )
+
+            # Validate combined field has template if it has sources
+            if sources and not field.get('template'):
+                raise ValidationError(
+                    f"Field '{field_key}' has 'sources' but missing 'template'. "
+                    f"Combined fields require both 'sources' and 'template'."
                 )
         
         for role in raw.get('roles', []):
