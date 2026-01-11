@@ -6,9 +6,12 @@ load_dotenv()  # Load .env file before any other imports
 import os
 nr_license = os.environ.get('NR_LICENSE_KEY')
 if nr_license:
-    os.environ['NEW_RELIC_LICENSE_KEY'] = nr_license  # Set for New Relic agent
-    import newrelic.agent
-    newrelic.agent.initialize('newrelic.ini')
+    try:
+        os.environ['NEW_RELIC_LICENSE_KEY'] = nr_license
+        import newrelic.agent
+        newrelic.agent.initialize('newrelic.ini')
+    except ImportError:
+        print("Warning: newrelic package not installed, skipping APM initialization")
 
 import warnings
 import html

@@ -17,3 +17,4 @@ PyYAML>=6.0
 jsonschema>=4.0.0
 pytest>=7.0.0
 gunicorn>=21.0.0
+newrelic>=9.0.0
