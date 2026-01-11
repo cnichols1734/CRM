@@ -513,9 +513,11 @@
                                 <span class="relative z-10">Add To Do</span>
                             </button>
                         </div>
-                        <ul id="dashboardActiveTodoList" class="space-y-3">
-                            <!-- Active todos will be inserted here via JavaScript -->
-                        </ul>
+                        <div class="h-[228px] overflow-y-auto">
+                            <ul id="dashboardActiveTodoList" class="space-y-3">
+                                <!-- Active todos will be inserted here via JavaScript -->
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -671,7 +673,7 @@
 
 <!-- Todo Item Template -->
 <template id="todoItemTemplate">
-    <li class="todo-item group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
+    <li class="todo-item min-h-[76px] group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
         <div class="px-5 py-4 flex items-center justify-between">
             <div class="flex items-center flex-1 min-w-0">
                 <div class="flex-shrink-0 flex items-center space-x-3">
@@ -846,7 +848,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Todo Item Template -->
 <template id="todoItemTemplate">
-    <li class="todo-item group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
+    <li class="todo-item min-h-[76px] group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
         <div class="px-5 py-4 flex items-center justify-between">
             <div class="flex items-center flex-1 min-w-0">
                 <div class="flex-shrink-0 flex items-center space-x-3">
