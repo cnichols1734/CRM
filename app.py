@@ -1,6 +1,12 @@
 from dotenv import load_dotenv
 load_dotenv()  # Load .env file before any other imports
 
+# Initialize New Relic APM (must be before other imports to instrument them)
+import os
+if os.environ.get('NEW_RELIC_LICENSE_KEY'):
+    import newrelic.agent
+    newrelic.agent.initialize('newrelic.ini')
+
 import warnings
 import html
 import pytz
