@@ -22,8 +22,8 @@ def format_datetime_cst(utc_dt):
 
 def send_reset_email(user):
     token = user.get_reset_token()
-    msg = Message('Reset Your Origen Connect Password',
-                  sender=('Origen Connect', current_app.config['MAIL_USERNAME']),
+    msg = Message('Reset Your TechnolOG Password',
+                  sender=('TechnolOG', current_app.config['MAIL_USERNAME']),
                   recipients=[user.email])
     
     # HTML version of the email
@@ -179,13 +179,13 @@ def send_reset_email(user):
     <body>
         <div class="container">
             <div class="email-header">
-                <h1 class="header-logo">origen connect</h1>
+                <h1 class="header-logo">TechnolOG</h1>
             </div>
             
             <div class="card">
                 <h2 class="title">Reset Your Password</h2>
                 <p class="text">Hello {user.first_name},</p>
-                <p class="text">We received a request to reset your password for your Origen Connect account. Click the button below to reset it:</p>
+                <p class="text">We received a request to reset your password for your TechnolOG account. Click the button below to reset it:</p>
                 
                 <div class="button-container">
                     <a href="{url_for('auth.reset_password', token=token, _external=True)}" class="button">Reset Password</a>
@@ -203,7 +203,7 @@ def send_reset_email(user):
                     <a href="#" class="social-link">Contact</a>
                     <a href="#" class="social-link">Support</a>
                 </div>
-                <p class="footer">&copy; {datetime.now().year} Origen Connect. All rights reserved.</p>
+                <p class="footer">&copy; {datetime.now().year} TechnolOG. All rights reserved.</p>
                 <p class="footer" style="margin-top: 8px;">This is an automated message, please do not reply to this email.</p>
             </div>
         </div>
@@ -214,7 +214,7 @@ def send_reset_email(user):
     # Plain text version as fallback
     msg.body = f'''Hello {user.first_name},
 
-We received a request to reset your password for your Origen Connect account.
+We received a request to reset your password for your TechnolOG account.
 
 To reset your password, visit the following link:
 {url_for('auth.reset_password', token=token, _external=True)}
@@ -223,7 +223,7 @@ If you did not make this request, you can safely ignore this email.
 The link will expire in 30 minutes.
 
 Best regards,
-Origen Connect Team
+TechnolOG Team
 '''
     current_app.extensions['mail'].send(msg)
 

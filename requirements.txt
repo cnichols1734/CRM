@@ -35,3 +35,4 @@ newrelic==11.2.0
 
 # Testing
 pytest==9.0.2
+email_validator
