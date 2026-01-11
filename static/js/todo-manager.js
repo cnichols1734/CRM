@@ -311,24 +311,30 @@ class TodoManager {
             if (isChecked && !isInCompleted) {
                 // Moving to completed
                 if (this.completedList) {
+                    // If we have a completed list, move the item there
                     todoItem.remove();
                     this.completedList.appendChild(todoItem);
                     todoItem.style.opacity = '1';
                     todoItem.style.transform = 'translateX(0)';
+                    this.syncFromDOM();
+                    this.saveTodos();
+                } else {
+                    // No completed list (dashboard) - move from active to completed array
+                    const todoText = todoItem.querySelector('.todo-text').textContent;
+                    const activeIndex = this.todos.indexOf(todoText);
+                    if (activeIndex !== -1) {
+                        this.todos.splice(activeIndex, 1);
+                        this.completedTodos.push(todoText);
+                    }
+                    todoItem.remove();
+                    this.saveTodos();
                 }
-                this.syncFromDOM();
-                this.saveTodos();
             } else if (!isChecked && isInCompleted) {
                 // Moving back to active
                 todoItem.remove();
                 this.activeList.appendChild(todoItem);
                 todoItem.style.opacity = '1';
                 todoItem.style.transform = 'translateX(0)';
-                this.syncFromDOM();
-                this.saveTodos();
-            } else {
-                // Simple complete (no completed list - like dashboard)
-                todoItem.remove();
                 this.syncFromDOM();
                 this.saveTodos();
             }
