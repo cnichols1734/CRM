@@ -6,8 +6,15 @@
 <style>
     /* Document-style form styling */
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .animate-fade-in-up {
@@ -41,7 +48,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: radial-gradient(circle at 30% 50%, rgba(255,255,255,0.1) 0%, transparent 50%);
+        background: radial-gradient(circle at 30% 50%, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
         pointer-events: none;
     }
 
@@ -50,7 +57,7 @@
         font-weight: 700;
         letter-spacing: 0.05em;
         margin: 0;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
 
     .document-header .subtitle {
@@ -146,7 +153,7 @@
         border-radius: 0.75rem;
         padding: 1.25rem;
         background: #fafbfc;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
 
     .section-title {
@@ -669,6 +676,99 @@
     .modal-buttons .btn-confirm:hover {
         background: #d97706;
     }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .loading-overlay.show {
+        display: flex;
+        animation: overlayFadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes overlayFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem 3rem;
+        background: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: contentSlideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .spinner-ring {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 4px solid #f1f5f9;
+        border-top-color: #f97316;
+        border-right-color: #8b5cf6;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        margin-top: 1.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .loading-subtext {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
 </style>
 
 <!-- Progress Bar -->
@@ -680,7 +780,8 @@
 <div class="modal-overlay" id="salesPriceModal">
     <div class="modal-content">
         <h3><i class="fas fa-exclamation-triangle"></i> Change Sales Price?</h3>
-        <p>This value is different from the sales price on the transaction record. Are you sure you want to use a different amount for this estimate?</p>
+        <p>This value is different from the sales price on the transaction record. Are you sure you want to use a
+            different amount for this estimate?</p>
         <div class="modal-buttons">
             <button class="btn-cancel" onclick="cancelSalesPriceChange()">Cancel</button>
             <button class="btn-confirm" onclick="confirmSalesPriceChange()">Yes, Update It</button>
@@ -692,13 +793,14 @@
 <div class="min-h-full bg-gradient-to-br from-slate-100 via-white to-blue-50/30">
     <div class="p-4 md:p-6">
         <!-- Back Link -->
-        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-blue-600 text-sm mb-4 transition-colors animate-fade-in-up max-w-[850px] mx-auto block">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+            class="inline-flex items-center text-slate-500 hover:text-blue-600 text-sm mb-4 transition-colors animate-fade-in-up max-w-[850px] mx-auto block">
             <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
         </a>
 
         <!-- Main Form -->
-        <form id="netProceedsForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+        <form id="netProceedsForm" method="POST"
+            action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
             <div class="document-container animate-fade-in-up">
                 <!-- Document Header -->
                 <div class="document-header">
@@ -708,15 +810,16 @@
 
                 <div class="document-body">
                     <p class="disclaimer-text">
-                        The figures below are estimates. Actual costs and proceeds will vary. Estimates are not guaranteed.
+                        The figures below are estimates. Actual costs and proceeds will vary. Estimates are not
+                        guaranteed.
                     </p>
 
                     <!-- Seller Name -->
                     <div class="form-row">
                         <label>Seller:</label>
                         <div class="field-line">
-                            <input type="text" name="field_seller_name" class="doc-field" 
-                                   value="{{ prefill_data.get('seller_name', '') }}" readonly>
+                            <input type="text" name="field_seller_name" class="doc-field"
+                                value="{{ prefill_data.get('seller_name', '') }}" readonly>
                         </div>
                     </div>
 
@@ -724,8 +827,8 @@
                     <div class="form-row">
                         <label>Address:</label>
                         <div class="field-line">
-                            <input type="text" name="field_property_address" class="doc-field" 
-                                   value="{{ prefill_data.get('property_address', '') }}" readonly>
+                            <input type="text" name="field_property_address" class="doc-field"
+                                value="{{ prefill_data.get('property_address', '') }}" readonly>
                         </div>
                     </div>
 
@@ -734,8 +837,7 @@
                         <label>Anticipated Closing Date:</label>
                         <div class="field-line" style="max-width: 180px;">
                             <input type="date" name="field_closing_date" id="closingDate" class="doc-field"
-                                   value="{{ prefill_data.get('closing_date', '') }}"
-                                   onchange="recalculateAll()">
+                                value="{{ prefill_data.get('closing_date', '') }}" onchange="recalculateAll()">
                         </div>
                     </div>
 
@@ -744,10 +846,10 @@
                         <label>Estimated Annual Property Taxes:</label>
                         <div class="money-field-wrapper">
                             <span class="money-prefix">$</span>
-                            <input type="text" name="field_annual_property_taxes" id="annualPropertyTaxes" class="doc-field money-field"
-                                   value="{{ prefill_data.get('annual_property_taxes', '') }}"
-                                   placeholder="0.00"
-                                   oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateAll()">
+                            <input type="text" name="field_annual_property_taxes" id="annualPropertyTaxes"
+                                class="doc-field money-field"
+                                value="{{ prefill_data.get('annual_property_taxes', '') }}" placeholder="0.00"
+                                oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateAll()">
                         </div>
                     </div>
 
@@ -756,55 +858,56 @@
                         <label>Estimated Annual Maintenance Fees:</label>
                         <div class="money-field-wrapper">
                             <span class="money-prefix">$</span>
-                            <input type="text" name="field_annual_maintenance_fees" id="annualMaintenanceFees" class="doc-field money-field"
-                                   value="{{ prefill_data.get('annual_maintenance_fees', '') }}"
-                                   placeholder="0.00"
-                                   oninput="formatMoney(this)" onblur="formatMoneyOnBlur(this)">
+                            <input type="text" name="field_annual_maintenance_fees" id="annualMaintenanceFees"
+                                class="doc-field money-field"
+                                value="{{ prefill_data.get('annual_maintenance_fees', '') }}" placeholder="0.00"
+                                oninput="formatMoney(this)" onblur="formatMoneyOnBlur(this)">
                         </div>
                     </div>
 
                     <!-- Buyer's Anticipated Financing -->
                     <div style="margin-top: 1rem; margin-bottom: 1rem;">
-                        <label style="font-size: 0.875rem; font-weight: 500; color: #333;">Buyer's Anticipated Financing:</label>
+                        <label style="font-size: 0.875rem; font-weight: 500; color: #333;">Buyer's Anticipated
+                            Financing:</label>
                         <div class="financing-group">
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_conventional" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_conventional') else '' }}>
+                                <input type="checkbox" name="field_financing_conventional" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_conventional') else '' }}>
                                 <span>Conventional</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_va" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_va') else '' }}>
+                                <input type="checkbox" name="field_financing_va" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_va') else '' }}>
                                 <span>VA</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_fha" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_fha') else '' }}>
+                                <input type="checkbox" name="field_financing_fha" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_fha') else '' }}>
                                 <span>FHA</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_usda" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_usda') else '' }}>
+                                <input type="checkbox" name="field_financing_usda" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_usda') else '' }}>
                                 <span>USDA</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_reverse" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_reverse') else '' }}>
+                                <input type="checkbox" name="field_financing_reverse" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_reverse') else '' }}>
                                 <span>Reverse Mortgage</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_assumption" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_assumption') else '' }}>
+                                <input type="checkbox" name="field_financing_assumption" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_assumption') else '' }}>
                                 <span>Assumption</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_owner" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_owner') else '' }}>
+                                <input type="checkbox" name="field_financing_owner" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_owner') else '' }}>
                                 <span>Owner</span>
                             </label>
                             <label class="financing-option">
-                                <input type="checkbox" name="field_financing_cash" value="1"
-                                       {{ 'checked' if prefill_data.get('financing_cash') else '' }}>
+                                <input type="checkbox" name="field_financing_cash" value="1" {{ 'checked' if
+                                    prefill_data.get('financing_cash') else '' }}>
                                 <span>Cash</span>
                             </label>
                         </div>
@@ -815,261 +918,280 @@
                         <!-- Left Column: Estimated Costs -->
                         <div class="section-box">
                             <div class="section-title">Estimated Costs</div>
-                            
+
                             <div class="cost-row">
                                 <label>Attorney's Fees / Doc. Prep.</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_attorneys_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('attorneys_fees', '180.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('attorneys_fees', '180.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Brokers' Fees</label>
-                                <input type="text" name="field_brokers_fee_percent" id="brokersFeePercent" class="percent-input"
-                                       value="{{ prefill_data.get('brokers_fee_percent', '') }}"
-                                       placeholder="%" oninput="calculateBrokersFee()">
+                                <input type="text" name="field_brokers_fee_percent" id="brokersFeePercent"
+                                    class="percent-input" value="{{ prefill_data.get('brokers_fee_percent', '') }}"
+                                    placeholder="%" oninput="calculateBrokersFee()">
                                 <span style="font-size: 0.75rem; color: #64748b;">%</span>
                                 <div class="money-input-wrapper calculated">
                                     <span class="dollar-sign">$</span>
-                                    <input type="text" name="field_brokers_fee" id="brokersFee" class="money-input calculated cost-input"
-                                           value="{{ prefill_data.get('brokers_fee', '') }}"
-                                           placeholder="0" readonly>
+                                    <input type="text" name="field_brokers_fee" id="brokersFee"
+                                        class="money-input calculated cost-input"
+                                        value="{{ prefill_data.get('brokers_fee', '') }}" placeholder="0" readonly>
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Condo. Transfer Fee</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_condo_transfer_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('condo_transfer_fee', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('condo_transfer_fee', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Courier & Express Mail Fees</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_courier_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('courier_fees', '40.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('courier_fees', '40.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Escrow Fee (one-half)</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_escrow_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('escrow_fee', '80.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('escrow_fee', '80.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
-                            <div style="font-size: 0.8125rem; color: #475569; font-weight: 500; margin: 0.5rem 0 0.25rem;">Prorations*:</div>
-                            
+
+                            <div
+                                style="font-size: 0.8125rem; color: #475569; font-weight: 500; margin: 0.5rem 0 0.25rem;">
+                                Prorations*:</div>
+
                             <div class="cost-row" style="margin-left: 0.75rem;">
-                                <label>Taxes <span id="proratedDays" style="font-size: 0.75rem; color: #64748b;">Prorated for ___ days</span></label>
+                                <label>Taxes <span id="proratedDays"
+                                        style="font-size: 0.75rem; color: #64748b;">Prorated for ___ days</span></label>
                                 <div class="money-input-wrapper calculated">
                                     <span class="dollar-sign">$</span>
-                                    <input type="text" name="field_prorated_taxes" id="proratedTaxes" class="money-input calculated cost-input"
-                                           value="{{ prefill_data.get('prorated_taxes', '') }}"
-                                           placeholder="0" readonly>
+                                    <input type="text" name="field_prorated_taxes" id="proratedTaxes"
+                                        class="money-input calculated cost-input"
+                                        value="{{ prefill_data.get('prorated_taxes', '') }}" placeholder="0" readonly>
                                 </div>
                                 <!-- Hidden field to store the calculated prorated days for DocuSeal mapping -->
-                                <input type="hidden" name="field_prorated_days" id="proratedDaysValue" value="{{ prefill_data.get('prorated_days', '') }}">
+                                <input type="hidden" name="field_prorated_days" id="proratedDaysValue"
+                                    value="{{ prefill_data.get('prorated_days', '') }}">
                             </div>
-                            
+
                             <div class="cost-row" style="margin-left: 0.75rem;">
                                 <label>Interest (Assumptions)**</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_prorated_interest" class="money-input cost-input"
-                                           value="{{ prefill_data.get('prorated_interest', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('prorated_interest', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row" style="margin-left: 0.75rem;">
                                 <label>Maintenance Fees</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_prorated_maintenance" class="money-input cost-input"
-                                           value="{{ prefill_data.get('prorated_maintenance', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('prorated_maintenance', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row" style="margin-left: 0.75rem;">
                                 <label>Assessments</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_assessments" class="money-input cost-input"
-                                           value="{{ prefill_data.get('assessments', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('assessments', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row" style="margin-left: 0.75rem;">
                                 <label>Rents</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_rents" class="money-input cost-input"
-                                           value="{{ prefill_data.get('rents', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('rents', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Recording Fees</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_recording_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('recording_fees', '50.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('recording_fees', '50.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Repairs Required by Buyer</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_repairs_buyer" class="money-input cost-input"
-                                           value="{{ prefill_data.get('repairs_buyer', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('repairs_buyer', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Repairs Required by Lender</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_repairs_lender" class="money-input cost-input"
-                                           value="{{ prefill_data.get('repairs_lender', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('repairs_lender', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Residential Service Contract</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_residential_service" class="money-input cost-input"
-                                           value="{{ prefill_data.get('residential_service', '450.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('residential_service', '450.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Seller Allowances or FHA/VA Nonallowables (Para. 12)</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_seller_allowances" class="money-input cost-input"
-                                           value="{{ prefill_data.get('seller_allowances', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('seller_allowances', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Survey Fee</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_survey_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('survey_fee', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('survey_fee', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Tax Certificate Fee</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_tax_cert_fee" class="money-input cost-input"
-                                           value="{{ prefill_data.get('tax_cert_fee', '100.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('tax_cert_fee', '100.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Title Policy - Owner's</label>
                                 <div class="money-input-wrapper calculated">
                                     <span class="dollar-sign">$</span>
-                                    <input type="text" name="field_title_policy" id="titlePolicy" class="money-input calculated cost-input"
-                                           value="{{ prefill_data.get('title_policy', '') }}"
-                                           placeholder="0" readonly>
+                                    <input type="text" name="field_title_policy" id="titlePolicy"
+                                        class="money-input calculated cost-input"
+                                        value="{{ prefill_data.get('title_policy', '') }}" placeholder="0" readonly>
                                 </div>
                             </div>
-                            
+
                             <div class="cost-row">
                                 <label>Wiring Fees</label>
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_wiring_fees" class="money-input cost-input"
-                                           value="{{ prefill_data.get('wiring_fees', '40.00') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('wiring_fees', '40.00') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <!-- 4 Custom rows -->
                             <div class="custom-row">
                                 <input type="text" name="field_custom_label_1" class="custom-label-input"
-                                       value="{{ prefill_data.get('custom_label_1', '') }}"
-                                       placeholder="Other...">
+                                    value="{{ prefill_data.get('custom_label_1', '') }}" placeholder="Other...">
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_1" class="money-input cost-input"
-                                           value="{{ prefill_data.get('custom_amount_1', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('custom_amount_1', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="custom-row">
                                 <input type="text" name="field_custom_label_2" class="custom-label-input"
-                                       value="{{ prefill_data.get('custom_label_2', '') }}"
-                                       placeholder="Other...">
+                                    value="{{ prefill_data.get('custom_label_2', '') }}" placeholder="Other...">
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_2" class="money-input cost-input"
-                                           value="{{ prefill_data.get('custom_amount_2', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('custom_amount_2', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="custom-row">
                                 <input type="text" name="field_custom_label_3" class="custom-label-input"
-                                       value="{{ prefill_data.get('custom_label_3', '') }}"
-                                       placeholder="Other...">
+                                    value="{{ prefill_data.get('custom_label_3', '') }}" placeholder="Other...">
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_3" class="money-input cost-input"
-                                           value="{{ prefill_data.get('custom_amount_3', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('custom_amount_3', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="custom-row">
                                 <input type="text" name="field_custom_label_4" class="custom-label-input"
-                                       value="{{ prefill_data.get('custom_label_4', '') }}"
-                                       placeholder="Other...">
+                                    value="{{ prefill_data.get('custom_label_4', '') }}" placeholder="Other...">
                                 <div class="money-input-wrapper">
                                     <span class="dollar-sign">$</span>
                                     <input type="text" name="field_custom_amount_4" class="money-input cost-input"
-                                           value="{{ prefill_data.get('custom_amount_4', '') }}"
-                                           placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateCosts()">
+                                        value="{{ prefill_data.get('custom_amount_4', '') }}" placeholder="0"
+                                        oninput="formatMoney(this);"
+                                        onblur="formatMoneyOnBlur(this); recalculateCosts()">
                                 </div>
                             </div>
-                            
+
                             <div class="total-row">
                                 <label>Total Estimated Costs</label>
                                 <div class="money-input-wrapper total-wrapper">
                                     <span class="dollar-sign">$</span>
-                                    <input type="text" name="field_total_costs" id="totalCosts" class="money-input" 
-                                           value="{{ prefill_data.get('total_costs', '') }}"
-                                           readonly>
+                                    <input type="text" name="field_total_costs" id="totalCosts" class="money-input"
+                                        value="{{ prefill_data.get('total_costs', '') }}" readonly>
                                 </div>
                             </div>
                         </div>
@@ -1078,87 +1200,91 @@
                         <div>
                             <div class="section-box" style="margin-bottom: 1rem;">
                                 <div class="section-title">Estimated Proceeds to Seller:</div>
-                                
+
                                 <div class="proceeds-row">
                                     <label>Sales Price</label>
                                     <div class="money-input-wrapper proceeds-money">
                                         <span class="dollar-sign">$</span>
                                         <input type="text" name="field_sales_price" id="salesPrice" class="money-input"
-                                               value="{{ prefill_data.get('sales_price', prefill_data.get('list_price', '')) }}"
-                                               placeholder="0"
-                                               onfocus="checkSalesPriceEdit(this)"
-                                               oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateAll()">
+                                            value="{{ prefill_data.get('sales_price', prefill_data.get('list_price', '')) }}"
+                                            placeholder="0" onfocus="checkSalesPriceEdit(this)"
+                                            oninput="formatMoney(this);"
+                                            onblur="formatMoneyOnBlur(this); recalculateAll()">
                                     </div>
-                                    <input type="hidden" id="originalSalesPrice" value="{{ prefill_data.get('list_price', '') }}">
+                                    <input type="hidden" id="originalSalesPrice"
+                                        value="{{ prefill_data.get('list_price', '') }}">
                                 </div>
-                                
+
                                 <div class="proceeds-row">
                                     <label>Less Estimated Costs</label>
                                     <div class="parentheses">
                                         <div class="money-input-wrapper calculated">
                                             <span class="dollar-sign">$</span>
-                                            <input type="text" name="field_less_costs" id="lessCosts" class="money-input calculated"
-                                                   value="{{ prefill_data.get('less_costs', '') }}"
-                                                   readonly>
+                                            <input type="text" name="field_less_costs" id="lessCosts"
+                                                class="money-input calculated"
+                                                value="{{ prefill_data.get('less_costs', '') }}" readonly>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="proceeds-row">
                                     <label>Less Estimated Loan Payoff</label>
                                     <div class="parentheses">
                                         <div class="money-input-wrapper">
                                             <span class="dollar-sign">$</span>
-                                            <input type="text" name="field_loan_payoff" id="loanPayoff" class="money-input"
-                                                   value="{{ prefill_data.get('loan_payoff', '') }}"
-                                                   placeholder="0"
-                                                   oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateNetProceeds()">
+                                            <input type="text" name="field_loan_payoff" id="loanPayoff"
+                                                class="money-input" value="{{ prefill_data.get('loan_payoff', '') }}"
+                                                placeholder="0" oninput="formatMoney(this);"
+                                                onblur="formatMoneyOnBlur(this); recalculateNetProceeds()">
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <div class="net-proceeds-row">
                                     <label>Estimated Net Proceeds:</label>
                                     <div class="money-input-wrapper net-proceeds-wrapper">
                                         <span class="dollar-sign">$</span>
-                                        <input type="text" name="field_net_proceeds" id="netProceeds" class="money-input"
-                                               value="{{ prefill_data.get('net_proceeds', '') }}"
-                                               readonly>
+                                        <input type="text" name="field_net_proceeds" id="netProceeds"
+                                            class="money-input" value="{{ prefill_data.get('net_proceeds', '') }}"
+                                            readonly>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- After Closing Refunds -->
                             <div class="section-box">
                                 <div class="section-title">After Closing Refunds</div>
-                                
+
                                 <div class="cost-row">
                                     <label>Estimated Unused Insurance</label>
                                     <div class="money-input-wrapper">
                                         <span class="dollar-sign">$</span>
-                                        <input type="text" name="field_unused_insurance" class="money-input refund-input"
-                                               value="{{ prefill_data.get('unused_insurance', '') }}"
-                                               placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateRefunds()">
+                                        <input type="text" name="field_unused_insurance"
+                                            class="money-input refund-input"
+                                            value="{{ prefill_data.get('unused_insurance', '') }}" placeholder="0"
+                                            oninput="formatMoney(this);"
+                                            onblur="formatMoneyOnBlur(this); recalculateRefunds()">
                                     </div>
                                 </div>
-                                
+
                                 <div class="cost-row">
                                     <label>Estimated Escrow Balance</label>
                                     <div class="money-input-wrapper">
                                         <span class="dollar-sign">$</span>
                                         <input type="text" name="field_escrow_balance" class="money-input refund-input"
-                                               value="{{ prefill_data.get('escrow_balance', '') }}"
-                                               placeholder="0" oninput="formatMoney(this);" onblur="formatMoneyOnBlur(this); recalculateRefunds()">
+                                            value="{{ prefill_data.get('escrow_balance', '') }}" placeholder="0"
+                                            oninput="formatMoney(this);"
+                                            onblur="formatMoneyOnBlur(this); recalculateRefunds()">
                                     </div>
                                 </div>
-                                
+
                                 <div class="total-row">
                                     <label>Total Estimated Refunds:</label>
                                     <div class="money-input-wrapper total-wrapper">
                                         <span class="dollar-sign">$</span>
-                                        <input type="text" name="field_total_refunds" id="totalRefunds" class="money-input"
-                                               value="{{ prefill_data.get('total_refunds', '') }}"
-                                               readonly>
+                                        <input type="text" name="field_total_refunds" id="totalRefunds"
+                                            class="money-input" value="{{ prefill_data.get('total_refunds', '') }}"
+                                            readonly>
                                     </div>
                                 </div>
                             </div>
@@ -1168,7 +1294,8 @@
                     <!-- Notes Section -->
                     <div class="notes-section">
                         <p class="note-text">
-                            <strong>Note:</strong> Seller may be required to pay some costs directly to the service providers before closing.
+                            <strong>Note:</strong> Seller may be required to pay some costs directly to the service
+                            providers before closing.
                         </p>
                         <p class="note-text" style="margin-top: 0.5rem;">
                             * Prorations are calculated through the closing date.<br>
@@ -1180,7 +1307,8 @@
                     <div class="prepared-by-section">
                         <label>Prepared by:</label>
                         <span class="agent-name">{{ current_user.first_name }} {{ current_user.last_name }}</span>
-                        <input type="hidden" name="field_prepared_by" value="{{ current_user.first_name }} {{ current_user.last_name }}">
+                        <input type="hidden" name="field_prepared_by"
+                            value="{{ current_user.first_name }} {{ current_user.last_name }}">
                     </div>
                 </div>
             </div>
@@ -1188,21 +1316,21 @@
             <!-- Spacer for floating action bar -->
             <div class="form-bottom-spacer"></div>
         </form>
-        
+
         <!-- Floating Action Bar -->
         <div class="floating-action-bar">
-            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-               class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
                 Cancel
             </a>
             <div class="w-px h-8 bg-slate-200"></div>
-            <button type="submit" form="netProceedsForm" name="submit_action" value="save" 
-                    class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+            <button type="submit" form="netProceedsForm" name="submit_action" value="save"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
                 <i class="fas fa-save text-slate-500"></i>
                 Save Draft
             </button>
-            <button type="button" onclick="saveAndPreview()" 
-                    class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+            <button type="button" onclick="saveAndPreview()"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-emerald-600 hover:from-blue-700 hover:to-emerald-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
                 <i class="fas fa-check-circle"></i>
                 Save & Continue
             </button>
@@ -1210,9 +1338,19 @@
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-ring"></div>
+        <div class="loading-text">Generating Document...</div>
+        <div class="loading-subtext">This may take a few moments</div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
-    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+    <div id="toastContent"
+        class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
         <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
@@ -1222,291 +1360,300 @@
 <script src="{{ url_for('static', filename='js/texas_title_policy.js') }}"></script>
 
 <script>
-// =============================================================================
-// INITIALIZATION
-// =============================================================================
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
 
-let salesPriceEditAllowed = false;
-let pendingSalesPriceValue = '';
+    let salesPriceEditAllowed = false;
+    let pendingSalesPriceValue = '';
 
-document.addEventListener('DOMContentLoaded', function() {
-    recalculateAll();
-    updateProgress();
-    
-    // Add input listeners for progress tracking
-    document.querySelectorAll('input').forEach(el => {
-        el.addEventListener('change', updateProgress);
-        el.addEventListener('input', updateProgress);
+    document.addEventListener('DOMContentLoaded', function () {
+        recalculateAll();
+        updateProgress();
+
+        // Add input listeners for progress tracking
+        document.querySelectorAll('input').forEach(el => {
+            el.addEventListener('change', updateProgress);
+            el.addEventListener('input', updateProgress);
+        });
     });
-});
 
-// =============================================================================
-// MONEY FORMATTING
-// =============================================================================
+    // =============================================================================
+    // MONEY FORMATTING
+    // =============================================================================
 
-function formatMoney(input) {
-    // Remove all non-numeric except decimal
-    let value = input.value.replace(/[^0-9.]/g, '');
-    
-    // Ensure only one decimal point
-    const parts = value.split('.');
-    if (parts.length > 2) {
-        value = parts[0] + '.' + parts.slice(1).join('');
-    }
-    
-    // Parse and format - add commas while typing but don't force .00 yet
-    if (value) {
-        const num = parseFloat(value);
-        if (!isNaN(num)) {
-            // Format with commas, preserve user's decimal input while typing
-            const hasDecimal = value.includes('.');
-            const formatted = num.toLocaleString('en-US', {
-                minimumFractionDigits: hasDecimal ? Math.min(parts[1]?.length || 0, 2) : 0,
-                maximumFractionDigits: 2
-            });
-            // Preserve trailing decimal point if user just typed it
-            input.value = formatted + (value.endsWith('.') && !formatted.includes('.') ? '.' : '');
+    function formatMoney(input) {
+        // Remove all non-numeric except decimal
+        let value = input.value.replace(/[^0-9.]/g, '');
+
+        // Ensure only one decimal point
+        const parts = value.split('.');
+        if (parts.length > 2) {
+            value = parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        // Parse and format - add commas while typing but don't force .00 yet
+        if (value) {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                // Format with commas, preserve user's decimal input while typing
+                const hasDecimal = value.includes('.');
+                const formatted = num.toLocaleString('en-US', {
+                    minimumFractionDigits: hasDecimal ? Math.min(parts[1]?.length || 0, 2) : 0,
+                    maximumFractionDigits: 2
+                });
+                // Preserve trailing decimal point if user just typed it
+                input.value = formatted + (value.endsWith('.') && !formatted.includes('.') ? '.' : '');
+            }
         }
     }
-}
 
-function formatMoneyOnBlur(input) {
-    // On blur, ensure we have .00 format
-    let value = input.value.replace(/[^0-9.]/g, '');
-    if (value) {
-        const num = parseFloat(value);
-        if (!isNaN(num)) {
-            input.value = num.toLocaleString('en-US', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            });
+    function formatMoneyOnBlur(input) {
+        // On blur, ensure we have .00 format
+        let value = input.value.replace(/[^0-9.]/g, '');
+        if (value) {
+            const num = parseFloat(value);
+            if (!isNaN(num)) {
+                input.value = num.toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
         }
     }
-}
 
-function parseMoneyValue(str) {
-    if (!str) return 0;
-    // Remove $ and commas, then parse
-    const cleaned = str.replace(/[$,]/g, '');
-    return parseFloat(cleaned) || 0;
-}
-
-function formatAsMoney(num) {
-    return num.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-
-// =============================================================================
-// SALES PRICE EDIT WARNING
-// =============================================================================
-
-function checkSalesPriceEdit(input) {
-    const original = document.getElementById('originalSalesPrice').value;
-    if (original && !salesPriceEditAllowed) {
-        input.blur();
-        pendingSalesPriceValue = input.value;
-        document.getElementById('salesPriceModal').classList.add('show');
+    function parseMoneyValue(str) {
+        if (!str) return 0;
+        // Remove $ and commas, then parse
+        const cleaned = str.replace(/[$,]/g, '');
+        return parseFloat(cleaned) || 0;
     }
-}
 
-function cancelSalesPriceChange() {
-    document.getElementById('salesPriceModal').classList.remove('show');
-    document.getElementById('salesPrice').value = pendingSalesPriceValue;
-}
-
-function confirmSalesPriceChange() {
-    document.getElementById('salesPriceModal').classList.remove('show');
-    salesPriceEditAllowed = true;
-    document.getElementById('salesPrice').focus();
-}
-
-// =============================================================================
-// CALCULATIONS
-// =============================================================================
-
-function recalculateAll() {
-    calculateProratedTaxes();
-    calculateBrokersFee();
-    calculateTitlePolicy();
-    recalculateCosts();
-    recalculateRefunds();
-    recalculateNetProceeds();
-    updateProgress();
-}
-
-function calculateTitlePolicy() {
-    const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
-    const titlePolicyInput = document.getElementById('titlePolicy');
-    
-    if (!salesPrice || salesPrice <= 0) {
-        titlePolicyInput.value = '';
-        return;
+    function formatAsMoney(num) {
+        return num.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
     }
-    
-    // Use the Texas Title Policy calculator (from texas_title_policy.js)
-    if (typeof calculateTexasTitlePremium === 'function') {
-        const premium = calculateTexasTitlePremium(salesPrice);
-        titlePolicyInput.value = formatAsMoney(premium);
-    }
-}
 
-function calculateProratedTaxes() {
-    const closingDateStr = document.getElementById('closingDate').value;
-    const annualTaxes = parseMoneyValue(document.getElementById('annualPropertyTaxes').value);
-    
-    if (!closingDateStr || !annualTaxes) {
-        document.getElementById('proratedTaxes').value = '';
-        document.getElementById('proratedDays').textContent = 'Prorated for ___ days';
-        document.getElementById('proratedDaysValue').value = '';
-        return;
-    }
-    
-    // Calculate days from Jan 1 to closing date
-    const closingDate = new Date(closingDateStr);
-    const yearStart = new Date(closingDate.getFullYear(), 0, 1); // January 1
-    const diffTime = closingDate - yearStart;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include closing day
-    
-    // Calculate prorated taxes
-    const dailyRate = annualTaxes / 365;
-    const proratedAmount = dailyRate * diffDays;
-    
-    document.getElementById('proratedDays').textContent = `Prorated for ${diffDays} days`;
-    document.getElementById('proratedTaxes').value = formatAsMoney(proratedAmount);
-    // Store the days value in hidden field for DocuSeal mapping
-    document.getElementById('proratedDaysValue').value = diffDays;
-    
-    recalculateCosts();
-}
+    // =============================================================================
+    // SALES PRICE EDIT WARNING
+    // =============================================================================
 
-function calculateBrokersFee() {
-    const percentStr = document.getElementById('brokersFeePercent').value;
-    const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
-    
-    if (!percentStr || !salesPrice) {
-        document.getElementById('brokersFee').value = '';
+    function checkSalesPriceEdit(input) {
+        const original = document.getElementById('originalSalesPrice').value;
+        if (original && !salesPriceEditAllowed) {
+            input.blur();
+            pendingSalesPriceValue = input.value;
+            document.getElementById('salesPriceModal').classList.add('show');
+        }
+    }
+
+    function cancelSalesPriceChange() {
+        document.getElementById('salesPriceModal').classList.remove('show');
+        document.getElementById('salesPrice').value = pendingSalesPriceValue;
+    }
+
+    function confirmSalesPriceChange() {
+        document.getElementById('salesPriceModal').classList.remove('show');
+        salesPriceEditAllowed = true;
+        document.getElementById('salesPrice').focus();
+    }
+
+    // =============================================================================
+    // CALCULATIONS
+    // =============================================================================
+
+    function recalculateAll() {
+        calculateProratedTaxes();
+        calculateBrokersFee();
+        calculateTitlePolicy();
         recalculateCosts();
-        return;
+        recalculateRefunds();
+        recalculateNetProceeds();
+        updateProgress();
     }
-    
-    const percent = parseFloat(percentStr) || 0;
-    const fee = (salesPrice * percent) / 100;
-    
-    document.getElementById('brokersFee').value = formatAsMoney(fee);
-    recalculateCosts();
-}
 
-function recalculateCosts() {
-    const costInputs = document.querySelectorAll('.cost-input');
-    let total = 0;
-    
-    costInputs.forEach(input => {
-        total += parseMoneyValue(input.value);
-    });
-    
-    document.getElementById('totalCosts').value = formatAsMoney(total);
-    document.getElementById('lessCosts').value = formatAsMoney(total);
-    
-    recalculateNetProceeds();
-}
+    function calculateTitlePolicy() {
+        const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
+        const titlePolicyInput = document.getElementById('titlePolicy');
 
-function recalculateRefunds() {
-    const refundInputs = document.querySelectorAll('.refund-input');
-    let total = 0;
-    
-    refundInputs.forEach(input => {
-        total += parseMoneyValue(input.value);
-    });
-    
-    document.getElementById('totalRefunds').value = formatAsMoney(total);
-}
-
-function recalculateNetProceeds() {
-    const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
-    const lessCosts = parseMoneyValue(document.getElementById('lessCosts').value);
-    const loanPayoff = parseMoneyValue(document.getElementById('loanPayoff').value);
-    
-    const netProceeds = salesPrice - lessCosts - loanPayoff;
-    
-    document.getElementById('netProceeds').value = formatAsMoney(netProceeds);
-}
-
-// =============================================================================
-// PROGRESS TRACKING
-// =============================================================================
-
-function updateProgress() {
-    const form = document.getElementById('netProceedsForm');
-    const allInputs = form.querySelectorAll('input:not([type="hidden"]):not([readonly])');
-    let filledCount = 0;
-    let totalCount = 0;
-    
-    allInputs.forEach(input => {
-        if (input.type === 'checkbox') {
-            // Don't count checkboxes toward progress
-        } else if (input.value && input.value.trim()) {
-            filledCount++;
-            totalCount++;
-        } else {
-            totalCount++;
+        if (!salesPrice || salesPrice <= 0) {
+            titlePolicyInput.value = '';
+            return;
         }
-    });
-    
-    const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
-    document.getElementById('progressFill').style.width = progress + '%';
-}
 
-// =============================================================================
-// FORM SUBMISSION
-// =============================================================================
-
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    const icon = document.getElementById('toastIcon');
-    document.getElementById('toastMessage').textContent = message;
-    
-    icon.className = 'fas';
-    if (type === 'success') {
-        icon.classList.add('fa-check-circle', 'text-green-500');
-    } else if (type === 'error') {
-        icon.classList.add('fa-exclamation-circle', 'text-red-500');
-    } else if (type === 'warning') {
-        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
-    } else {
-        icon.classList.add('fa-info-circle', 'text-blue-500');
+        // Use the Texas Title Policy calculator (from texas_title_policy.js)
+        if (typeof calculateTexasTitlePremium === 'function') {
+            const premium = calculateTexasTitlePremium(salesPrice);
+            titlePolicyInput.value = formatAsMoney(premium);
+        }
     }
-    
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
-}
 
-function saveAndPreview() {
-    const form = document.getElementById('netProceedsForm');
-    const formData = new FormData(form);
-    
-    showToast('Saving document...', 'info');
-    
-    fetch(form.action, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (response.ok) {
-            showToast('Opening preview...', 'success');
-            setTimeout(() => {
-                window.location.href = "{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}";
-            }, 500);
-        } else {
-            showToast('Error saving form. Please try again.', 'error');
+    function calculateProratedTaxes() {
+        const closingDateStr = document.getElementById('closingDate').value;
+        const annualTaxes = parseMoneyValue(document.getElementById('annualPropertyTaxes').value);
+
+        if (!closingDateStr || !annualTaxes) {
+            document.getElementById('proratedTaxes').value = '';
+            document.getElementById('proratedDays').textContent = 'Prorated for ___ days';
+            document.getElementById('proratedDaysValue').value = '';
+            return;
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('Error saving form. Please try again.', 'error');
-    });
-}
+
+        // Calculate days from Jan 1 to closing date
+        const closingDate = new Date(closingDateStr);
+        const yearStart = new Date(closingDate.getFullYear(), 0, 1); // January 1
+        const diffTime = closingDate - yearStart;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include closing day
+
+        // Calculate prorated taxes
+        const dailyRate = annualTaxes / 365;
+        const proratedAmount = dailyRate * diffDays;
+
+        document.getElementById('proratedDays').textContent = `Prorated for ${diffDays} days`;
+        document.getElementById('proratedTaxes').value = formatAsMoney(proratedAmount);
+        // Store the days value in hidden field for DocuSeal mapping
+        document.getElementById('proratedDaysValue').value = diffDays;
+
+        recalculateCosts();
+    }
+
+    function calculateBrokersFee() {
+        const percentStr = document.getElementById('brokersFeePercent').value;
+        const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
+
+        if (!percentStr || !salesPrice) {
+            document.getElementById('brokersFee').value = '';
+            recalculateCosts();
+            return;
+        }
+
+        const percent = parseFloat(percentStr) || 0;
+        const fee = (salesPrice * percent) / 100;
+
+        document.getElementById('brokersFee').value = formatAsMoney(fee);
+        recalculateCosts();
+    }
+
+    function recalculateCosts() {
+        const costInputs = document.querySelectorAll('.cost-input');
+        let total = 0;
+
+        costInputs.forEach(input => {
+            total += parseMoneyValue(input.value);
+        });
+
+        document.getElementById('totalCosts').value = formatAsMoney(total);
+        document.getElementById('lessCosts').value = formatAsMoney(total);
+
+        recalculateNetProceeds();
+    }
+
+    function recalculateRefunds() {
+        const refundInputs = document.querySelectorAll('.refund-input');
+        let total = 0;
+
+        refundInputs.forEach(input => {
+            total += parseMoneyValue(input.value);
+        });
+
+        document.getElementById('totalRefunds').value = formatAsMoney(total);
+    }
+
+    function recalculateNetProceeds() {
+        const salesPrice = parseMoneyValue(document.getElementById('salesPrice').value);
+        const lessCosts = parseMoneyValue(document.getElementById('lessCosts').value);
+        const loanPayoff = parseMoneyValue(document.getElementById('loanPayoff').value);
+
+        const netProceeds = salesPrice - lessCosts - loanPayoff;
+
+        document.getElementById('netProceeds').value = formatAsMoney(netProceeds);
+    }
+
+    // =============================================================================
+    // PROGRESS TRACKING
+    // =============================================================================
+
+    function updateProgress() {
+        const form = document.getElementById('netProceedsForm');
+        const allInputs = form.querySelectorAll('input:not([type="hidden"]):not([readonly])');
+        let filledCount = 0;
+        let totalCount = 0;
+
+        allInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                // Don't count checkboxes toward progress
+            } else if (input.value && input.value.trim()) {
+                filledCount++;
+                totalCount++;
+            } else {
+                totalCount++;
+            }
+        });
+
+        const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
+        document.getElementById('progressFill').style.width = progress + '%';
+    }
+
+    // =============================================================================
+    // FORM SUBMISSION
+    // =============================================================================
+
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        document.getElementById('toastMessage').textContent = message;
+
+        icon.className = 'fas';
+        if (type === 'success') {
+            icon.classList.add('fa-check-circle', 'text-green-500');
+        } else if (type === 'error') {
+            icon.classList.add('fa-exclamation-circle', 'text-red-500');
+        } else if (type === 'warning') {
+            icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+        } else {
+            icon.classList.add('fa-info-circle', 'text-blue-500');
+        }
+
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+    }
+
+    function saveAndPreview() {
+        const form = document.getElementById('netProceedsForm');
+        const formData = new FormData(form);
+
+        // Show loading overlay
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+        }
+
+        showToast('Generating document preview...', 'info');
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (response.ok) {
+                    showToast('Opening preview...', 'success');
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}";
+                    }, 500);
+                } else {
+                    // Hide overlay on error
+                    if (overlay) overlay.classList.remove('show');
+                    showToast('Error saving form. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Hide overlay on error
+                if (overlay) overlay.classList.remove('show');
+                showToast('Error saving form. Please try again.', 'error');
+            });
+    }
 </script>
 {% endblock %}
-

@@ -1,6 +1,7 @@
 <!-- templates/base.html -->
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,13 +14,17 @@
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <!-- Add Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap"
+        rel="stylesheet">
     <!-- Add AI Chat Widget styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
+    <!-- Loading Overlay styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay.css') }}">
     <style>
         body {
             font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
         }
+
         .company-name {
             font-family: "Outfit", sans-serif;
             letter-spacing: 2px;
@@ -27,33 +32,41 @@
             font-size: 1.15rem;
             font-weight: 700;
         }
+
         :root {
             --sidebar-width: 4rem;
             --sidebar-expanded-width: 11rem;
         }
+
         .toast-message {
             transition: opacity 0.5s ease-out;
         }
+
         .toast-message.fade-out {
             opacity: 0;
         }
+
         /* Add sidebar specific styles */
         #sidebar .sidebar-link {
             padding: 0.625rem 0.75rem;
         }
+
         #sidebar .sidebar-text {
             margin-left: 0.75rem;
             font-size: 0.875rem;
         }
+
         /* Hide Agent Resources chevron when sidebar is collapsed */
         html:not(.sidebar-expanded) #agentResourcesChevron {
             display: none;
         }
+
         @media (max-width: 768px) {
             .content-wrapper {
                 min-height: calc(100vh - 3.5rem);
                 transition: opacity 0.15s ease;
             }
+
             .content-wrapper.loading {
                 opacity: 0.5;
             }
@@ -61,7 +74,7 @@
     </style>
     <!-- Initialize sidebar state immediately before DOM loads -->
     <script>
-        (function() {
+        (function () {
             const isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
             if (isExpanded) {
                 document.documentElement.style.setProperty('--sidebar-width', 'var(--sidebar-expanded-width)');
@@ -79,415 +92,432 @@
     </script>
     {% block head_scripts %}{% endblock %}
 </head>
+
 <body class="h-screen flex flex-col bg-[#2d3e50]">
 
-<!-- Top Header - Hidden on Mobile -->
-<header class="text-white h-14 items-center justify-between hidden md:flex">
-    <div class="pl-4">
-        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-24 w-auto object-contain mt-2.5" />
-    </div>
-    <div class="flex items-center space-x-4 pr-4 relative">
-        {% if current_user.is_authenticated %}
+    <!-- Top Header - Hidden on Mobile -->
+    <header class="text-white h-14 items-center justify-between hidden md:flex">
+        <div class="pl-4">
+            <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect"
+                class="block h-24 w-auto object-contain mt-2.5" />
+        </div>
+        <div class="flex items-center space-x-4 pr-4 relative">
+            {% if current_user.is_authenticated %}
             <i class="fas fa-bell h-5 w-5"></i>
             <i class="fas fa-question-circle h-5 w-5"></i>
             <i class="fas fa-cog h-5 w-5"></i>
-        {% else %}
+            {% else %}
             <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
                 <i class="fas fa-sign-in-alt h-5 w-5"></i>
             </a>
-        {% endif %}
-    </div>
-</header>
+            {% endif %}
+        </div>
+    </header>
 
-<!-- Mobile Header -->
-<header class="text-white h-14 flex items-center justify-between px-2 md:hidden">
-    <div class="flex items-center">
-        {% if current_user.is_authenticated %}
-        <button
-            id="mobileMenuToggle"
-            onclick="toggleMobileNavMenu()"
-            class="w-10 h-10 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg transition-colors flex-shrink-0"
-        >
-            <i class="fas fa-bars text-xl"></i>
-        </button>
-        {% endif %}
-        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect" class="block h-10 w-auto object-contain" />
-    </div>
-    <div class="flex items-center space-x-3">
-        {% if current_user.is_authenticated %}
-            <button
-                id="mobileUserIcon"
-                onclick="toggleMobileUserMenu()"
-                class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold"
-            >
+    <!-- Mobile Header -->
+    <header class="text-white h-14 flex items-center justify-between px-2 md:hidden">
+        <div class="flex items-center">
+            {% if current_user.is_authenticated %}
+            <button id="mobileMenuToggle" onclick="toggleMobileNavMenu()"
+                class="w-10 h-10 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg transition-colors flex-shrink-0">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+            {% endif %}
+            <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen Connect"
+                class="block h-10 w-auto object-contain" />
+        </div>
+        <div class="flex items-center space-x-3">
+            {% if current_user.is_authenticated %}
+            <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
+                class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
             </button>
-        {% else %}
+            {% else %}
             <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
                 <i class="fas fa-sign-in-alt h-5 w-5"></i>
             </a>
-        {% endif %}
-    </div>
-</header>
+            {% endif %}
+        </div>
+    </header>
 
-<!-- Mobile User Menu (Slides down from top) -->
-{% if current_user.is_authenticated %}
-<div id="mobileUserMenu"
-     class="fixed inset-x-0 top-0 z-50 transform -translate-y-full transition-transform duration-300 ease-in-out md:hidden opacity-0 pointer-events-none">
-    <div class="bg-white shadow-lg">
-        <!-- User Info Section -->
-        <div class="p-6 border-b border-gray-200">
-            <div class="flex items-center space-x-4">
-                <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
-                    <span class="text-blue-600 text-lg font-semibold">
-                        {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
-                    </span>
+    <!-- Mobile User Menu (Slides down from top) -->
+    {% if current_user.is_authenticated %}
+    <div id="mobileUserMenu"
+        class="fixed inset-x-0 top-0 z-50 transform -translate-y-full transition-transform duration-300 ease-in-out md:hidden opacity-0 pointer-events-none">
+        <div class="bg-white shadow-lg">
+            <!-- User Info Section -->
+            <div class="p-6 border-b border-gray-200">
+                <div class="flex items-center space-x-4">
+                    <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                        <span class="text-blue-600 text-lg font-semibold">
+                            {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                        </span>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{
+                            current_user.last_name }}</div>
+                        <div class="text-sm text-gray-500 truncate">{{ current_user.email }}</div>
+                    </div>
+                    <button onclick="toggleMobileUserMenu()" class="p-2 rounded-full hover:bg-gray-100">
+                        <i class="fas fa-times text-gray-400"></i>
+                    </button>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{ current_user.last_name }}</div>
-                    <div class="text-sm text-gray-500 truncate">{{ current_user.email }}</div>
+                <div class="mt-3 text-sm text-gray-500">
+                    Role: <span class="font-medium capitalize">{{ current_user.role }}</span>
                 </div>
-                <button onclick="toggleMobileUserMenu()" class="p-2 rounded-full hover:bg-gray-100">
-                    <i class="fas fa-times text-gray-400"></i>
+            </div>
+
+            <!-- Navigation Links -->
+            <div class="py-2">
+                <a href="{{ url_for('auth.view_user_profile') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
+                    Profile Settings
+                </a>
+
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('auth.manage_users') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
+                    Manage Users
+                </a>
+                <a href="{{ url_for('admin.manage_groups') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
+                    Manage Groups
+                </a>
+                <a href="{{ url_for('marketing.templates_list') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
+                    Email Templates
+                </a>
+                <a href="{{ url_for('admin.document_mapper_v2_list') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
+                    Document Mapping
+                </a>
+                {% endif %}
+
+                <a href="#" class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
+                    Notifications
+                </a>
+
+                <a href="#" class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
+                    Change Password
+                </a>
+            </div>
+
+            <!-- Divider -->
+            <div class="border-t border-gray-200"></div>
+
+            <!-- Logout -->
+            <div class="py-2">
+                <a href="{{ url_for('auth.logout') }}"
+                    class="flex items-center px-6 py-3 text-base text-red-600 hover:bg-red-50">
+                    <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Navigation Menu (Slides in from left) -->
+    <div id="mobileNavMenu"
+        class="fixed inset-0 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileNavMenu()"></div>
+
+        <!-- Menu Panel -->
+        <div class="absolute left-0 top-0 bottom-0 w-72 bg-[#2d3e50] shadow-xl">
+            <!-- Header -->
+            <div class="h-14 flex items-center justify-between px-4 border-b border-[#3d4d63]">
+                <span class="text-white font-semibold">Menu</span>
+                <button onclick="toggleMobileNavMenu()"
+                    class="w-8 h-8 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="mt-3 text-sm text-gray-500">
-                Role: <span class="font-medium capitalize">{{ current_user.role }}</span>
-            </div>
-        </div>
 
-        <!-- Navigation Links -->
-        <div class="py-2">
-            <a href="{{ url_for('auth.view_user_profile') }}"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
-                Profile Settings
-            </a>
-
-            {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('auth.manage_users') }}"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
-                Manage Users
-            </a>
-            <a href="{{ url_for('admin.manage_groups') }}"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
-                Manage Groups
-            </a>
-            <a href="{{ url_for('marketing.templates_list') }}"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
-                Email Templates
-            </a>
-            <a href="{{ url_for('admin.document_mapper_v2_list') }}"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
-                Document Mapping
-            </a>
-            {% endif %}
-
-            <a href="#"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
-                Notifications
-            </a>
-
-            <a href="#"
-               class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
-                Change Password
-            </a>
-        </div>
-
-        <!-- Divider -->
-        <div class="border-t border-gray-200"></div>
-
-        <!-- Logout -->
-        <div class="py-2">
-            <a href="{{ url_for('auth.logout') }}"
-               class="flex items-center px-6 py-3 text-base text-red-600 hover:bg-red-50">
-                <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
-                Logout
-            </a>
+            <!-- Navigation Links -->
+            <nav class="py-4">
+                <a href="{{ url_for('main.dashboard') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-chart-line w-6 mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="{{ url_for('main.index') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-address-book w-6 mr-3"></i>
+                    Contacts
+                </a>
+                {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('transactions.list_transactions') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-file-contract w-6 mr-3"></i>
+                    Transactions
+                </a>
+                {% endif %}
+                <a href="{{ url_for('tasks.tasks') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-tasks w-6 mr-3"></i>
+                    Client Tasks
+                </a>
+                <a href="{{ url_for('user_todo.user_todo') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-check-square w-6 mr-3"></i>
+                    To Do List
+                </a>
+                <a href="{{ url_for('main.marketing') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-bullhorn w-6 mr-3"></i>
+                    Marketing
+                </a>
+                <a href="{{ url_for('action_plan.action_plan') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-rocket w-6 mr-3"></i>
+                    OG Action Plan
+                </a>
+                <a href="{{ url_for('company_updates.list_updates') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-newspaper w-6 mr-3"></i>
+                    Company Updates
+                </a>
+            </nav>
         </div>
     </div>
-</div>
+    {% endif %}
 
-<!-- Mobile Navigation Menu (Slides in from left) -->
-<div id="mobileNavMenu"
-     class="fixed inset-0 z-50 transform -translate-x-full transition-transform duration-300 ease-in-out md:hidden">
-    <!-- Backdrop -->
-    <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileNavMenu()"></div>
-    
-    <!-- Menu Panel -->
-    <div class="absolute left-0 top-0 bottom-0 w-72 bg-[#2d3e50] shadow-xl">
-        <!-- Header -->
-        <div class="h-14 flex items-center justify-between px-4 border-b border-[#3d4d63]">
-            <span class="text-white font-semibold">Menu</span>
-            <button onclick="toggleMobileNavMenu()" class="w-8 h-8 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        
-        <!-- Navigation Links -->
-        <nav class="py-4">
-            <a href="{{ url_for('main.dashboard') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-chart-line w-6 mr-3"></i>
-                Dashboard
-            </a>
-            <a href="{{ url_for('main.index') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-address-book w-6 mr-3"></i>
-                Contacts
-            </a>
-            {% if current_user.role == 'admin' %}
-            <a href="{{ url_for('transactions.list_transactions') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-file-contract w-6 mr-3"></i>
-                Transactions
-            </a>
-            {% endif %}
-            <a href="{{ url_for('tasks.tasks') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-tasks w-6 mr-3"></i>
-                Client Tasks
-            </a>
-            <a href="{{ url_for('user_todo.user_todo') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-check-square w-6 mr-3"></i>
-                To Do List
-            </a>
-            <a href="{{ url_for('main.marketing') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-bullhorn w-6 mr-3"></i>
-                Marketing
-            </a>
-            <a href="{{ url_for('action_plan.action_plan') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-rocket w-6 mr-3"></i>
-                OG Action Plan
-            </a>
-            <a href="{{ url_for('company_updates.list_updates') }}"
-               class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
-                <i class="fas fa-newspaper w-6 mr-3"></i>
-                Company Updates
-            </a>
-        </nav>
-    </div>
-</div>
-{% endif %}
-
-<!-- Flash Messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <!-- Full-width container with flex + justify-center to center messages -->
-        <div class="fixed top-4 w-full flex justify-center z-50">
-            <div>
-                {% for category, message in messages %}
-                    <div class="toast-message mb-4 p-4 rounded-md
+    <!-- Full-width container with flex + justify-center to center messages -->
+    <div class="fixed top-4 w-full flex justify-center z-50">
+        <div>
+            {% for category, message in messages %}
+            <div class="toast-message mb-4 p-4 rounded-md
                         {% if category == 'error' %}
                             bg-red-100 text-red-700
                         {% else %}
                             bg-green-100 text-green-700
                         {% endif %}
                     ">
-                        {{ message }}
-                    </div>
-                {% endfor %}
+                {{ message }}
             </div>
+            {% endfor %}
         </div>
+    </div>
     {% endif %}
-{% endwith %}
+    {% endwith %}
 
-<div class="flex flex-1 overflow-hidden relative">
-    <!-- Sidebar - Hidden on Mobile -->
-    <aside id="sidebar" class="w-16 transition-all duration-300 ease-in-out flex-col items-center py-4 z-10 hidden md:flex">
-        <!-- Toggle Button -->
-        <div class="w-full flex justify-center mb-8">
-            <button id="sidebarToggle" class="p-2.5 rounded-lg hover:bg-[#3d4d63] text-white">
-                <i class="fas fa-bars"></i>
-            </button>
-        </div>
-
-        <!-- Dashboard Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('main.dashboard') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Dashboard</span>
-                </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Dashboard
+    <div class="flex flex-1 overflow-hidden relative">
+        <!-- Sidebar - Hidden on Mobile -->
+        <aside id="sidebar"
+            class="w-16 transition-all duration-300 ease-in-out flex-col items-center py-4 z-10 hidden md:flex">
+            <!-- Toggle Button -->
+            <div class="w-full flex justify-center mb-8">
+                <button id="sidebarToggle" class="p-2.5 rounded-lg hover:bg-[#3d4d63] text-white">
+                    <i class="fas fa-bars"></i>
+                </button>
             </div>
-        </div>
 
-        <!-- Contacts Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('main.index') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-address-book"></i>
+            <!-- Dashboard Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('main.dashboard') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Dashboard</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Contacts</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Dashboard
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Contacts
             </div>
-        </div>
 
-        <!-- Transactions Icon with Tooltip (Admin Only) -->
-        {% if current_user.is_authenticated and current_user.role == 'admin' %}
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('transactions.list_transactions') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-file-contract"></i>
+            <!-- Contacts Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('main.index') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.index' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-address-book"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Contacts</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Transactions</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Contacts
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Transactions
             </div>
-        </div>
-        {% endif %}
 
-        <!-- Tasks Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('tasks.tasks') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-tasks"></i>
+            <!-- Transactions Icon with Tooltip (Admin Only) -->
+            {% if current_user.is_authenticated and current_user.role == 'admin' %}
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('transactions.list_transactions') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-file-contract"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Transactions</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Client Tasks</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Transactions
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Client Tasks
             </div>
-        </div>
+            {% endif %}
 
-        <!-- Todo List Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('user_todo.user_todo') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-check-square"></i>
+            <!-- Tasks Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('tasks.tasks') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Client
+                            Tasks</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">To Do List</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Client Tasks
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                To Do List
             </div>
-        </div>
 
-        <!-- Marketing Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('main.marketing') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-bullhorn"></i>
+            <!-- Todo List Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('user_todo.user_todo') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-check-square"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">To
+                            Do List</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Marketing</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    To Do List
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Marketing
             </div>
-        </div>
 
-        <!-- OG Action Plan Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('action_plan.action_plan') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-rocket"></i>
+            <!-- Marketing Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('main.marketing') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Marketing</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">OG Action Plan</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Marketing
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                OG Action Plan
             </div>
-        </div>
 
-        <!-- Company Updates Icon with Tooltip -->
-        <div class="relative group mb-8 w-full px-3">
-            <a href="{{ url_for('company_updates.list_updates') }}" class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}text-orange-500{% else %}text-white{% endif %}">
-                <div class="w-full flex items-center">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-newspaper"></i>
+            <!-- OG Action Plan Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('action_plan.action_plan') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-rocket"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">OG
+                            Action Plan</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Updates</span>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    OG Action Plan
                 </div>
-            </a>
-            <div class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                Company Updates
             </div>
-        </div>
 
-        <!-- Agent Resources Accordion -->
-        <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
-            <button
-                id="agentResourcesBtn"
-                type="button"
-                class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white"
-                aria-controls="agentResourcesPanel"
-                aria-expanded="false"
-            >
-                <div class="w-full flex items-center relative pr-6">
-                    <div class="flex justify-center w-[24px]">
-                        <i class="fas fa-book"></i>
+            <!-- Company Updates Icon with Tooltip -->
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('company_updates.list_updates') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-newspaper"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Updates</span>
                     </div>
-                    <span class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Resources</span>
-                    <i id="agentResourcesChevron" aria-hidden="true" class="fas fa-chevron-down transition-transform duration-200 absolute right-2"></i>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Company Updates
                 </div>
-            </button>
-            <div
-                id="agentResourcesPanel"
-                role="region"
-                aria-labelledby="agentResourcesBtn"
-                class="hidden mt-2 ml-3 pl-3 border-l border-gray-700"
-            >
-                <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
             </div>
-        </div>
 
-        <!-- Spacer to push user icon to bottom -->
-        <div class="flex-1"></div>
+            <!-- Agent Resources Accordion -->
+            <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
+                <button id="agentResourcesBtn" type="button"
+                    class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white"
+                    aria-controls="agentResourcesPanel" aria-expanded="false">
+                    <div class="w-full flex items-center relative pr-6">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Resources</span>
+                        <i id="agentResourcesChevron" aria-hidden="true"
+                            class="fas fa-chevron-down transition-transform duration-200 absolute right-2"></i>
+                    </div>
+                </button>
+                <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
+                    class="hidden mt-2 ml-3 pl-3 border-l border-gray-700">
+                    <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
+                </div>
+            </div>
 
-        <!-- User Icon and Dropdown -->
-        {% if current_user.is_authenticated %}
+            <!-- Spacer to push user icon to bottom -->
+            <div class="flex-1"></div>
+
+            <!-- User Icon and Dropdown -->
+            {% if current_user.is_authenticated %}
             <div class="relative w-full flex justify-center">
-                <button
-                    id="userIcon"
-                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200 cursor-pointer"
-                >
+                <button id="userIcon"
+                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200 cursor-pointer">
                     {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
                 </button>
 
                 <!-- Dropdown -->
-                <div
-                    id="userDropdown"
-                    class="hidden absolute bottom-0 left-full ml-4 w-80 bg-gray-50 rounded-md shadow-lg border border-gray-200 z-50 transition-opacity duration-300 opacity-0"
-                >
+                <div id="userDropdown"
+                    class="hidden absolute bottom-0 left-full ml-4 w-80 bg-gray-50 rounded-md shadow-lg border border-gray-200 z-50 transition-opacity duration-300 opacity-0">
                     <!-- User Info Section -->
                     <div class="p-6 border-b border-gray-200">
                         <div class="flex items-center space-x-4">
-                            <div class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                            <div
+                                class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
                                 <span class="text-blue-600 text-lg font-semibold">
                                     {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
                                 </span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+                                <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{
+                                    current_user.last_name }}</div>
                                 <div class="text-sm text-gray-500 truncate">{{ current_user.email }}</div>
                             </div>
                         </div>
@@ -499,42 +529,40 @@
                     <!-- Navigation Links -->
                     <div class="py-2">
                         <a href="{{ url_for('auth.view_user_profile') }}"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
                             Profile Settings
                         </a>
 
                         {% if current_user.role == 'admin' %}
                         <a href="{{ url_for('auth.manage_users') }}"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-users-cog w-5 mr-3 text-gray-400"></i>
                             Manage Users
                         </a>
                         <a href="{{ url_for('admin.manage_groups') }}"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
                             Manage Groups
                         </a>
                         <a href="{{ url_for('marketing.templates_list') }}"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
                             Email Templates
                         </a>
                         <a href="{{ url_for('admin.document_mapper_v2_list') }}"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
                             Document Mapping
                         </a>
                         {% endif %}
 
-                        <a href="#"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                        <a href="#" class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
                             Notifications
                         </a>
 
-                        <a href="#"
-                           class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                        <a href="#" class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
                             Change Password
                         </a>
@@ -546,44 +574,49 @@
                     <!-- Logout -->
                     <div class="py-2">
                         <a href="{{ url_for('auth.logout') }}"
-                           class="flex items-center px-6 py-2 text-sm text-red-600 hover:bg-white">
+                            class="flex items-center px-6 py-2 text-sm text-red-600 hover:bg-white">
                             <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
                             Logout
                         </a>
                     </div>
                 </div>
             </div>
-        {% endif %}
-    </aside>
+            {% endif %}
+        </aside>
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300" id="mainContent">
-        <div class="content-wrapper">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
+        <!-- Main Content -->
+        <main
+            class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300"
+            id="mainContent">
+            <div class="content-wrapper">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
 
-</div>
+    </div>
 
-<!-- Add this right after the body tag -->
-<div class="page-transition"></div>
+    <!-- Add this right after the body tag -->
+    <div class="page-transition"></div>
 
-<!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
-<script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
+    <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
-{% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated %}
     <!-- AI Chat Widget will be injected here by JavaScript -->
-{% endif %}
+    {% endif %}
 
-<!-- Add AI Chat Widget script -->
-{% if current_user.is_authenticated %}
+    <!-- Add AI Chat Widget script -->
+    {% if current_user.is_authenticated %}
     <script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
-{% endif %}
+    {% endif %}
 
-<!-- Include JavaScript files -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
-<script src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
+    <!-- Include JavaScript files -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
+    <!-- Loading Overlay (document spinner) -->
+    <script src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>
 
 </body>
+
 </html>

@@ -1,0 +1,81 @@
+/**
+ * Loading Overlay Styles
+ * 
+ * Premium animated loading overlay for document generation/preview.
+ * Include this CSS in any page that uses the loading overlay.
+ */
+
+/* Loading Overlay Container */
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.loading-overlay.show {
+    display: flex;
+    animation: overlayFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes overlayFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Content Card */
+.loading-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2.5rem 3rem;
+    background: white;
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: contentSlideUp 0.4s ease-out forwards;
+}
+
+@keyframes contentSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Spinner Ring */
+.spinner-ring {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 4px solid #f1f5f9;
+    border-top-color: #f97316;
+    border-right-color: #8b5cf6;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Text Styles */
+.loading-text {
+    margin-top: 1.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.loading-subtext {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #64748b;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}

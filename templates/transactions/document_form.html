@@ -6,8 +6,15 @@
 <style>
     /* Premium animations */
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .animate-fade-in-up {
@@ -34,12 +41,12 @@
         background: white;
         border-radius: 1rem;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         transition: all 0.2s ease-out;
     }
 
     .premium-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     /* Premium button */
@@ -127,10 +134,25 @@
         letter-spacing: 0.025em;
     }
 
-    .status-pending { background: #f1f5f9; color: #64748b; }
-    .status-filled { background: #dbeafe; color: #1e40af; }
-    .status-sent { background: #fef3c7; color: #92400e; }
-    .status-signed { background: #dcfce7; color: #166534; }
+    .status-pending {
+        background: #f1f5f9;
+        color: #64748b;
+    }
+
+    .status-filled {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .status-sent {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-signed {
+        background: #dcfce7;
+        color: #166534;
+    }
 
     /* Input with icon */
     .input-with-icon {
@@ -178,21 +200,116 @@
     .form-group {
         margin-bottom: 0;
     }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .loading-overlay.show {
+        display: flex;
+        animation: overlayFadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes overlayFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem 3rem;
+        background: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: contentSlideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .spinner-ring {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 4px solid #f1f5f9;
+        border-top-color: #f97316;
+        border-right-color: #8b5cf6;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        margin-top: 1.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .loading-subtext {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
 </style>
 
 <!-- Premium gradient background -->
 <div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
     <div class="p-4 md:p-6 max-w-4xl mx-auto">
         <!-- Back Link -->
-        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+            class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
             <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
         </a>
-        
+
         <!-- Header Section -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 animate-fade-in-up">
+        <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 animate-fade-in-up">
             <div class="flex items-start space-x-4">
-                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 items-center justify-center shadow-lg flex-shrink-0">
+                <div
+                    class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 items-center justify-center shadow-lg flex-shrink-0">
                     <i class="fas fa-file-alt text-white text-xl"></i>
                 </div>
                 <div>
@@ -206,8 +323,9 @@
         </div>
 
         <!-- Document Form -->
-        <form id="documentForm" method="POST" action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
-            
+        <form id="documentForm" method="POST"
+            action="{{ url_for('transactions.save_document_form', id=transaction.id, doc_id=document.id) }}">
+
             <!-- Property Information Section -->
             <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-1">
                 <div class="flex items-center gap-3 mb-5">
@@ -216,45 +334,40 @@
                     </div>
                     <h2 class="text-lg font-bold text-slate-800">Property Information</h2>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2 form-group">
                         <label class="form-label">Street Address</label>
-                        <input type="text" name="field_property_address" 
-                               value="{{ prefill_data.get('property_address', '') }}"
-                               class="premium-input" readonly>
+                        <input type="text" name="field_property_address"
+                            value="{{ prefill_data.get('property_address', '') }}" class="premium-input" readonly>
                     </div>
                     <div class="form-group">
                         <label class="form-label">City</label>
-                        <input type="text" name="field_property_city" 
-                               value="{{ prefill_data.get('property_city', '') }}"
-                               class="premium-input" readonly>
+                        <input type="text" name="field_property_city"
+                            value="{{ prefill_data.get('property_city', '') }}" class="premium-input" readonly>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div class="form-group">
                             <label class="form-label">State</label>
-                            <input type="text" name="field_property_state" 
-                                   value="{{ prefill_data.get('property_state', 'TX') }}"
-                                   class="premium-input" readonly>
+                            <input type="text" name="field_property_state"
+                                value="{{ prefill_data.get('property_state', 'TX') }}" class="premium-input" readonly>
                         </div>
                         <div class="form-group">
                             <label class="form-label">ZIP</label>
-                            <input type="text" name="field_property_zip" 
-                                   value="{{ prefill_data.get('property_zip', '') }}"
-                                   class="premium-input" readonly>
+                            <input type="text" name="field_property_zip"
+                                value="{{ prefill_data.get('property_zip', '') }}" class="premium-input" readonly>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">County</label>
-                        <input type="text" name="field_property_county" 
-                               value="{{ prefill_data.get('property_county', '') }}"
-                               class="premium-input">
+                        <input type="text" name="field_property_county"
+                            value="{{ prefill_data.get('property_county', '') }}" class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Legal Description</label>
-                        <input type="text" name="field_legal_description" 
-                               value="{{ prefill_data.get('legal_description', '') }}"
-                               class="premium-input" placeholder="Lot/Block/Survey">
+                        <input type="text" name="field_legal_description"
+                            value="{{ prefill_data.get('legal_description', '') }}" class="premium-input"
+                            placeholder="Lot/Block/Survey">
                     </div>
                 </div>
             </div>
@@ -267,37 +380,34 @@
                     </div>
                     <h2 class="text-lg font-bold text-slate-800">Seller Information</h2>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="form-group">
                         <label class="form-label">Seller Name</label>
-                        <input type="text" name="field_seller_name" 
-                               value="{{ prefill_data.get('seller_name', '') }}"
-                               class="premium-input">
+                        <input type="text" name="field_seller_name" value="{{ prefill_data.get('seller_name', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Co-Seller Name</label>
-                        <input type="text" name="field_co_seller_name" 
-                               value="{{ prefill_data.get('co_seller_name', '') }}"
-                               class="premium-input" placeholder="If applicable">
+                        <input type="text" name="field_co_seller_name"
+                            value="{{ prefill_data.get('co_seller_name', '') }}" class="premium-input"
+                            placeholder="If applicable">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Seller Email</label>
-                        <input type="email" name="field_seller_email" 
-                               value="{{ prefill_data.get('seller_email', '') }}"
-                               class="premium-input">
+                        <input type="email" name="field_seller_email" value="{{ prefill_data.get('seller_email', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Seller Phone</label>
-                        <input type="tel" name="field_seller_phone" 
-                               value="{{ prefill_data.get('seller_phone', '') }}"
-                               class="premium-input">
+                        <input type="tel" name="field_seller_phone" value="{{ prefill_data.get('seller_phone', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="md:col-span-2 form-group">
                         <label class="form-label">Seller Mailing Address</label>
-                        <input type="text" name="field_seller_mailing_address" 
-                               value="{{ prefill_data.get('seller_mailing_address', '') }}"
-                               class="premium-input" placeholder="If different from property">
+                        <input type="text" name="field_seller_mailing_address"
+                            value="{{ prefill_data.get('seller_mailing_address', '') }}" class="premium-input"
+                            placeholder="If different from property">
                     </div>
                 </div>
             </div>
@@ -310,43 +420,37 @@
                     </div>
                     <h2 class="text-lg font-bold text-slate-800">Agent/Broker Information</h2>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="form-group">
                         <label class="form-label">Listing Agent</label>
-                        <input type="text" name="field_agent_name" 
-                               value="{{ prefill_data.get('agent_name', '') }}"
-                               class="premium-input">
+                        <input type="text" name="field_agent_name" value="{{ prefill_data.get('agent_name', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Agent License #</label>
-                        <input type="text" name="field_agent_license" 
-                               value="{{ prefill_data.get('agent_license', '') }}"
-                               class="premium-input">
+                        <input type="text" name="field_agent_license"
+                            value="{{ prefill_data.get('agent_license', '') }}" class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Agent Email</label>
-                        <input type="email" name="field_agent_email" 
-                               value="{{ prefill_data.get('agent_email', '') }}"
-                               class="premium-input">
+                        <input type="email" name="field_agent_email" value="{{ prefill_data.get('agent_email', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Agent Phone</label>
-                        <input type="tel" name="field_agent_phone" 
-                               value="{{ prefill_data.get('agent_phone', '') }}"
-                               class="premium-input">
+                        <input type="tel" name="field_agent_phone" value="{{ prefill_data.get('agent_phone', '') }}"
+                            class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Broker Name</label>
-                        <input type="text" name="field_broker_name" 
-                               value="{{ prefill_data.get('broker_name', 'Origen Realty') }}"
-                               class="premium-input">
+                        <input type="text" name="field_broker_name"
+                            value="{{ prefill_data.get('broker_name', 'Origen Realty') }}" class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Broker License #</label>
-                        <input type="text" name="field_broker_license" 
-                               value="{{ prefill_data.get('broker_license', '') }}"
-                               class="premium-input">
+                        <input type="text" name="field_broker_license"
+                            value="{{ prefill_data.get('broker_license', '') }}" class="premium-input">
                     </div>
                 </div>
             </div>
@@ -360,52 +464,48 @@
                     </div>
                     <h2 class="text-lg font-bold text-slate-800">Listing Terms</h2>
                 </div>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="form-group">
                         <label class="form-label">List Price</label>
                         <div class="input-with-icon">
                             <span class="input-icon-left">$</span>
-                            <input type="text" name="field_list_price" 
-                                   value="{{ prefill_data.get('list_price', '') }}"
-                                   class="premium-input input-padded-left" placeholder="0.00">
+                            <input type="text" name="field_list_price" value="{{ prefill_data.get('list_price', '') }}"
+                                class="premium-input input-padded-left" placeholder="0.00">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Commission Rate</label>
                         <div class="input-with-icon">
-                            <input type="text" name="field_commission_rate" 
-                                   value="{{ prefill_data.get('commission_rate', '') }}"
-                                   class="premium-input input-padded-right" placeholder="6">
+                            <input type="text" name="field_commission_rate"
+                                value="{{ prefill_data.get('commission_rate', '') }}"
+                                class="premium-input input-padded-right" placeholder="6">
                             <span class="input-icon-right">%</span>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Listing Start Date</label>
-                        <input type="date" name="field_listing_start_date" 
-                               value="{{ prefill_data.get('listing_start_date', '') }}"
-                               class="premium-input">
+                        <input type="date" name="field_listing_start_date"
+                            value="{{ prefill_data.get('listing_start_date', '') }}" class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Listing End Date</label>
-                        <input type="date" name="field_listing_end_date" 
-                               value="{{ prefill_data.get('listing_end_date', '') }}"
-                               class="premium-input">
+                        <input type="date" name="field_listing_end_date"
+                            value="{{ prefill_data.get('listing_end_date', '') }}" class="premium-input">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Buyer's Agent Commission</label>
                         <div class="input-with-icon">
-                            <input type="text" name="field_buyers_agent_commission" 
-                                   value="{{ prefill_data.get('buyers_agent_commission', '') }}"
-                                   class="premium-input input-padded-right" placeholder="3">
+                            <input type="text" name="field_buyers_agent_commission"
+                                value="{{ prefill_data.get('buyers_agent_commission', '') }}"
+                                class="premium-input input-padded-right" placeholder="3">
                             <span class="input-icon-right">%</span>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">MLS #</label>
-                        <input type="text" name="field_mls_number" 
-                               value="{{ prefill_data.get('mls_number', '') }}"
-                               class="premium-input" placeholder="Will be assigned">
+                        <input type="text" name="field_mls_number" value="{{ prefill_data.get('mls_number', '') }}"
+                            class="premium-input" placeholder="Will be assigned">
                     </div>
                 </div>
             </div>
@@ -419,28 +519,28 @@
                     </div>
                     <h2 class="text-lg font-bold text-slate-800">Additional Notes</h2>
                 </div>
-                
+
                 <div>
-                    <textarea name="field_notes" 
-                              class="premium-textarea" rows="4"
-                              placeholder="Any additional notes or special conditions...">{{ prefill_data.get('notes', '') }}</textarea>
+                    <textarea name="field_notes" class="premium-textarea" rows="4"
+                        placeholder="Any additional notes or special conditions...">{{ prefill_data.get('notes', '') }}</textarea>
                 </div>
             </div>
 
             <!-- Actions -->
-            <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 animate-fade-in-up-delay-3">
-                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-                   class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 text-center order-3 sm:order-1">
+            <div
+                class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 animate-fade-in-up-delay-3">
+                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                    class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 text-center order-3 sm:order-1">
                     Cancel
                 </a>
                 <div class="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
-                    <button type="submit" name="action" value="save" 
-                            class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2">
+                    <button type="submit" name="action" value="save"
+                        class="premium-btn px-6 py-3 text-sm font-medium text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-2">
                         <i class="fas fa-save text-slate-500"></i>
                         Save Draft
                     </button>
-                    <button type="button" onclick="saveAndPreview()" 
-                            class="premium-btn px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md flex items-center justify-center gap-2">
+                    <button type="button" onclick="saveAndPreview()"
+                        class="premium-btn px-6 py-3 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-md flex items-center justify-center gap-2">
                         <i class="fas fa-eye"></i>
                         Save & Preview
                     </button>
@@ -450,76 +550,96 @@
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-ring"></div>
+        <div class="loading-text">Generating Document...</div>
+        <div class="loading-subtext">This may take a few moments</div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
-    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+    <div id="toastContent"
+        class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
         <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
 </div>
 
 <script>
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    const icon = document.getElementById('toastIcon');
-    document.getElementById('toastMessage').textContent = message;
-    
-    icon.className = 'fas';
-    if (type === 'success') {
-        icon.classList.add('fa-check-circle', 'text-green-500');
-    } else if (type === 'error') {
-        icon.classList.add('fa-exclamation-circle', 'text-red-500');
-    } else if (type === 'warning') {
-        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
-    } else {
-        icon.classList.add('fa-info-circle', 'text-blue-500');
-    }
-    
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
-}
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        document.getElementById('toastMessage').textContent = message;
 
-function saveAndPreview() {
-    // Save the form first
-    const form = document.getElementById('documentForm');
-    const formData = new FormData(form);
-    
-    showToast('Saving document...', 'info');
-    
-    fetch(form.action, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
-        if (response.ok) {
-            showToast('PDF preview coming soon with DocuSeal integration!', 'info');
-            setTimeout(() => {
-                window.location.href = "{{ url_for('transactions.view_transaction', id=transaction.id) }}";
-            }, 2000);
+        icon.className = 'fas';
+        if (type === 'success') {
+            icon.classList.add('fa-check-circle', 'text-green-500');
+        } else if (type === 'error') {
+            icon.classList.add('fa-exclamation-circle', 'text-red-500');
+        } else if (type === 'warning') {
+            icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
         } else {
-            showToast('Error saving form. Please try again.', 'error');
+            icon.classList.add('fa-info-circle', 'text-blue-500');
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showToast('Error saving form. Please try again.', 'error');
-    });
-}
 
-// Auto-format currency fields
-document.querySelectorAll('input[name*="price"], input[name*="commission"]').forEach(input => {
-    input.addEventListener('blur', function() {
-        const value = this.value.replace(/[^0-9.]/g, '');
-        if (value && !isNaN(value)) {
-            // Don't format percentage fields
-            if (!this.name.includes('rate') && !this.name.includes('commission')) {
-                this.value = parseFloat(value).toLocaleString('en-US', {
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0
-                });
-            }
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
+    }
+
+    function saveAndPreview() {
+        // Save the form first
+        const form = document.getElementById('documentForm');
+        const formData = new FormData(form);
+
+        // Show loading overlay
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
         }
+
+        showToast('Generating document preview...', 'info');
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (response.ok) {
+                    showToast('PDF preview coming soon with DocuSeal integration!', 'info');
+                    setTimeout(() => {
+                        window.location.href = "{{ url_for('transactions.view_transaction', id=transaction.id) }}";
+                    }, 2000);
+                } else {
+                    // Hide overlay on error
+                    if (overlay) overlay.classList.remove('show');
+                    showToast('Error saving form. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Hide overlay on error
+                if (overlay) overlay.classList.remove('show');
+                showToast('Error saving form. Please try again.', 'error');
+            });
+    }
+
+    // Auto-format currency fields
+    document.querySelectorAll('input[name*="price"], input[name*="commission"]').forEach(input => {
+        input.addEventListener('blur', function () {
+            const value = this.value.replace(/[^0-9.]/g, '');
+            if (value && !isNaN(value)) {
+                // Don't format percentage fields
+                if (!this.name.includes('rate') && !this.name.includes('commission')) {
+                    this.value = parseFloat(value).toLocaleString('en-US', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0
+                    });
+                }
+            }
+        });
     });
-});
 </script>
 {% endblock %}

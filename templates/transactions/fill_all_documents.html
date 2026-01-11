@@ -6,13 +6,27 @@
 <style>
     /* Premium animations */
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     @keyframes slideInFromRight {
-        from { opacity: 0; transform: translateX(50px); }
-        to { opacity: 1; transform: translateX(0); }
+        from {
+            opacity: 0;
+            transform: translateX(50px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
 
     .animate-fade-in-up {
@@ -56,7 +70,7 @@
         border-radius: 9999px;
         font-weight: 600;
         font-size: 0.875rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 
     /* Dynamic document badge colors - generated from registry config */
@@ -64,34 +78,42 @@
         background: linear-gradient(135deg, #f97316, #ea580c);
         color: white;
     }
+
     .document-badge-violet {
         background: linear-gradient(135deg, #8b5cf6, #7c3aed);
         color: white;
     }
+
     .document-badge-blue {
         background: linear-gradient(135deg, #3b82f6, #2563eb);
         color: white;
     }
+
     .document-badge-emerald {
         background: linear-gradient(135deg, #10b981, #059669);
         color: white;
     }
+
     .document-badge-rose {
         background: linear-gradient(135deg, #f43f5e, #e11d48);
         color: white;
     }
+
     .document-badge-amber {
         background: linear-gradient(135deg, #f59e0b, #d97706);
         color: white;
     }
+
     .document-badge-cyan {
         background: linear-gradient(135deg, #06b6d4, #0891b2);
         color: white;
     }
+
     .document-badge-indigo {
         background: linear-gradient(135deg, #6366f1, #4f46e5);
         color: white;
     }
+
     .document-badge-default {
         background: linear-gradient(135deg, #64748b, #475569);
         color: white;
@@ -102,12 +124,12 @@
         background: white;
         border-radius: 1rem;
         border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         transition: all 0.3s ease-out;
     }
 
     .premium-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     /* Section styling */
@@ -126,7 +148,11 @@
     }
 
     /* Document color themes - CSS variables set dynamically via style attribute */
-    .doc-section { --section-color: #64748b; }  /* Default, overridden per-doc */
+    .doc-section {
+        --section-color: #64748b;
+    }
+
+    /* Default, overridden per-doc */
 
     /* Section header */
     .section-header {
@@ -383,7 +409,7 @@
         background: white;
         padding: 0.75rem 1.25rem;
         border-radius: 9999px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         border: 1px solid #e2e8f0;
         z-index: 100;
         font-size: 0.875rem;
@@ -442,7 +468,7 @@
         box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
         outline: none;
     }
-    
+
     .form-bottom-spacer {
         height: 100px;
     }
@@ -480,6 +506,99 @@
         margin-right: 0.75rem;
         accent-color: var(--section-color, #f97316);
     }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .loading-overlay.show {
+        display: flex;
+        animation: overlayFadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes overlayFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem 3rem;
+        background: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: contentSlideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .spinner-ring {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 4px solid #f1f5f9;
+        border-top-color: #f97316;
+        border-right-color: #8b5cf6;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        margin-top: 1.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .loading-subtext {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
+    }
 </style>
 
 <!-- Progress Bar -->
@@ -496,21 +615,24 @@
 <div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
     <div class="p-4 md:p-6 max-w-4xl mx-auto">
         <!-- Back Link -->
-        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+            class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
             <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
         </a>
-        
+
         <!-- Header Section -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 animate-fade-in-up">
+        <div
+            class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 animate-fade-in-up">
             <div class="flex items-start space-x-4">
-                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 items-center justify-center shadow-lg flex-shrink-0">
+                <div
+                    class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 items-center justify-center shadow-lg flex-shrink-0">
                     <i class="fas fa-layer-group text-white text-xl"></i>
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Fill All Documents</h1>
                     <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
-                    <p class="text-xs text-slate-400 mt-1">{{ documents|length }} document{{ 's' if documents|length != 1 }} to fill</p>
+                    <p class="text-xs text-slate-400 mt-1">{{ documents|length }} document{{ 's' if documents|length !=
+                        1 }} to fill</p>
                 </div>
             </div>
         </div>
@@ -521,7 +643,8 @@
                 <span class="text-sm font-medium text-slate-600">Documents included:</span>
                 {% for doc in documents %}
                 {% set config = doc_configs.get(doc.template_slug) %}
-                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold
+                <span
+                    class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold
                     {% if config %}bg-{{ config.color }}-100 text-{{ config.color }}-700{% else %}bg-slate-100 text-slate-700{% endif %}">
                     <i class="fas {{ config.icon if config else 'fa-file-alt' }} mr-1.5"></i>{{ doc.template_name }}
                 </span>
@@ -530,11 +653,12 @@
         </div>
 
         <!-- Main Form -->
-        <form id="fillAllForm" method="POST" action="{{ url_for('transactions.save_all_documents', id=transaction.id) }}">
-            
+        <form id="fillAllForm" method="POST"
+            action="{{ url_for('transactions.save_all_documents', id=transaction.id) }}">
+
             {% for doc in documents %}
             {% set config = doc_configs.get(doc.template_slug) %}
-            
+
             <!-- Document Divider (not on first) -->
             {% if not loop.first %}
             <div class="document-divider">
@@ -554,7 +678,7 @@
                 </span>
             </div>
             {% endif %}
-            
+
             <!-- Include the form content from registry-defined partial template -->
             {% if config %}
             <div class="doc-section" style="--section-color: {{ config.section_color_var }}">
@@ -563,14 +687,15 @@
             {% else %}
             <!-- No specialized form for this document type -->
             <div class="premium-card p-6 mb-6">
-                <p class="text-slate-500">No specialized form available for {{ doc.template_name }}. Use the individual document form.</p>
+                <p class="text-slate-500">No specialized form available for {{ doc.template_name }}. Use the individual
+                    document form.</p>
             </div>
             {% endif %}
-            
+
             {% endfor %}
 
         </form>
-        
+
         <!-- Preview-Only Documents Section -->
         {% if has_preview_docs and preview_data %}
         <div class="preview-documents-section mt-8">
@@ -583,15 +708,15 @@
                     </span>
                 </div>
             </div>
-            
+
             <p class="text-sm text-slate-500 text-center mb-6">
                 These documents are auto-populated from your profile. Review the preview below.
             </p>
-            
+
             {% for preview in preview_data %}
             {% set config = preview.config %}
             {% set doc = preview.doc %}
-            
+
             <!-- Preview Document Card -->
             <div class="premium-card p-6 mb-6" style="--section-color: {{ config.section_color_var }}">
                 <!-- Document Header -->
@@ -603,23 +728,26 @@
                         <h3 class="section-title">{{ doc.template_name }}</h3>
                         <p class="section-subtitle">Auto-populated from your agent profile</p>
                     </div>
-                    <span class="ml-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                    <span
+                        class="ml-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                         <i class="fas fa-check-circle mr-1"></i>
                         Ready
                     </span>
                 </div>
-                
+
                 <!-- DocuSeal Preview Embed -->
-                <div class="preview-embed-container rounded-lg overflow-hidden border border-slate-200" style="min-height: 600px;">
+                <div class="preview-embed-container rounded-lg overflow-hidden border border-slate-200"
+                    style="min-height: 600px;">
                     {% if preview.mock_mode %}
                     <!-- Mock mode placeholder -->
-                    <div class="flex flex-col items-center justify-center h-full min-h-[400px] bg-gradient-to-br from-slate-50 to-indigo-50 p-8">
+                    <div
+                        class="flex flex-col items-center justify-center h-full min-h-[400px] bg-gradient-to-br from-slate-50 to-indigo-50 p-8">
                         <div class="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mb-4">
                             <i class="fas fa-file-pdf text-4xl text-indigo-500"></i>
                         </div>
                         <h4 class="text-lg font-semibold text-slate-800 mb-2">{{ doc.template_name }}</h4>
                         <p class="text-slate-500 text-center max-w-md mb-6">
-                            Document preview is available in production mode. This document has been 
+                            Document preview is available in production mode. This document has been
                             pre-filled with your agent and supervisor information.
                         </p>
                         <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-sm text-left">
@@ -648,10 +776,7 @@
                     {% elif preview.embed_src %}
                     <!-- Real DocuSeal embed preview -->
                     <script src="https://cdn.docuseal.com/js/form.js"></script>
-                    <docuseal-form
-                        data-src="{{ preview.embed_src }}"
-                        data-preview="true"
-                        data-readonly="true"
+                    <docuseal-form data-src="{{ preview.embed_src }}" data-preview="true" data-readonly="true"
                         style="min-height: 600px;">
                     </docuseal-form>
                     {% elif preview.error %}
@@ -671,7 +796,8 @@
                         </div>
                         <h4 class="text-lg font-semibold text-slate-700 mb-2">Preview Not Available</h4>
                         <p class="text-slate-500 text-center max-w-md">
-                            The document preview could not be generated. The document will still be included when sent for signature.
+                            The document preview could not be generated. The document will still be included when sent
+                            for signature.
                         </p>
                     </div>
                     {% endif %}
@@ -683,21 +809,21 @@
 
         <!-- Spacer for floating action bar -->
         <div class="form-bottom-spacer"></div>
-        
+
         <!-- Floating Action Bar -->
         <div class="floating-action-bar">
-            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-               class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
                 Cancel
             </a>
             <div class="w-px h-8 bg-slate-200"></div>
-            <button type="submit" form="fillAllForm" name="submit_action" value="save" 
-                    class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+            <button type="submit" form="fillAllForm" name="submit_action" value="save"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
                 <i class="fas fa-save text-slate-500"></i>
                 Save All Drafts
             </button>
-            <button type="submit" form="fillAllForm" name="submit_action" value="continue" 
-                    class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-violet-600 hover:from-orange-600 hover:to-violet-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
+            <button type="submit" form="fillAllForm" name="submit_action" value="continue"
+                class="premium-btn px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-violet-600 hover:from-orange-600 hover:to-violet-700 rounded-lg flex items-center gap-2 shadow-sm transition-colors">
                 <i class="fas fa-check-circle"></i>
                 Save All & Continue
             </button>
@@ -705,266 +831,307 @@
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-ring"></div>
+        <div class="loading-text">Generating Documents...</div>
+        <div class="loading-subtext">This may take a few moments</div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
-    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+    <div id="toastContent"
+        class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
         <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
 </div>
 
 <script>
-// =============================================================================
-// INITIALIZATION
-// =============================================================================
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize all conditional sections based on current values
-    initializeConditionalSections();
-    
-    // Initialize option cards styling
-    initializeOptionCards();
-    
-    // Update progress bar
-    updateProgress();
-    
-    // Add input listeners for progress tracking
-    document.querySelectorAll('input, select, textarea').forEach(el => {
-        el.addEventListener('change', updateProgress);
-        el.addEventListener('input', updateProgress);
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize all conditional sections based on current values
+        initializeConditionalSections();
+
+        // Initialize option cards styling
+        initializeOptionCards();
+
+        // Update progress bar
+        updateProgress();
+
+        // Add input listeners for progress tracking
+        document.querySelectorAll('input, select, textarea').forEach(el => {
+            el.addEventListener('change', updateProgress);
+            el.addEventListener('input', updateProgress);
+        });
     });
-});
 
-function initializeConditionalSections() {
-    // Check all radio buttons and apply their conditional logic
-    document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
-        const fieldName = radio.name.replace(/^doc_\d+_field_/, '');
-        handleConditionalLogic(fieldName, radio.value, radio);
-    });
-}
-
-function initializeOptionCards() {
-    document.querySelectorAll('.option-card').forEach(card => {
-        const input = card.querySelector('input[type="radio"], input[type="checkbox"]');
-        if (input && input.checked) {
-            card.classList.add('selected');
-        }
-    });
-}
-
-// =============================================================================
-// OPTION SELECTION
-// =============================================================================
-
-function selectOption(element, fieldName, value) {
-    // Update visual state for radio buttons in the same group
-    const container = element.closest('.grid, .flex');
-    if (container) {
-        container.querySelectorAll('.option-card').forEach(card => {
-            card.classList.remove('selected');
+    function initializeConditionalSections() {
+        // Check all radio buttons and apply their conditional logic
+        document.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
+            const fieldName = radio.name.replace(/^doc_\d+_field_/, '');
+            handleConditionalLogic(fieldName, radio.value, radio);
         });
     }
-    element.classList.add('selected');
-    
-    // Handle conditional logic
-    const input = element.querySelector('input');
-    handleConditionalLogic(fieldName, value, input);
-}
 
-function handleConditionalLogic(fieldName, value, inputEl) {
-    // Get the document context (which document's conditional sections to update)
-    const docContainer = inputEl ? inputEl.closest('.doc-section') : null;
-    
-    // Extract the base field name without doc prefix
-    const baseFieldName = fieldName.replace(/^doc_\d+_field_/, '');
-    
-    switch(baseFieldName) {
-        case 'doc_responsibility':
-            handleDocResponsibility(value, docContainer);
-            break;
-        case 'has_exclusions':
-            toggleConditional('exclusionsSection', value === 'yes', docContainer);
-            break;
-        case 'offer_buyer_agent_comp':
-            toggleConditional('section5A', value === 'yes', docContainer);
-            toggleConditional('section5B', value === 'no', docContainer);
-            break;
-        case 'enter_mls':
-            toggleConditional('mlsYesSection', value === 'yes', docContainer);
-            toggleConditional('mlsNoSection', value === 'no', docContainer);
-            break;
-        case 'mls_timing':
-            toggleConditional('mlsDelaySection', value === 'delayed', docContainer);
-            break;
-        case 'internet_display':
-            toggleConditional('internetYesSection', value === 'yes', docContainer);
-            break;
-        case 'has_liens':
-            toggleConditional('liensSection', value === 'yes', docContainer);
-            break;
-        case 'has_delinquencies':
-            toggleConditional('delinquenciesSection', value === 'yes', docContainer);
-            break;
-        case 'has_special_districts':
-            toggleConditional('specialDistrictsSection', value === 'yes', docContainer);
-            break;
-        case 'is_foreign_seller':
-            toggleConditional('firptaWarningSection', value === 'yes' || value === 'not_sure', docContainer);
-            break;
-        case 'is_condo':
-            toggleConditional('condoCallout', value === 'yes', docContainer);
-            break;
-    }
-    
-    updateProgress();
-}
-
-function toggleConditional(sectionId, show, container) {
-    let section;
-    if (container) {
-        section = container.querySelector('#' + sectionId);
-    }
-    if (!section) {
-        section = document.getElementById(sectionId);
-    }
-    if (section) {
-        section.classList.toggle('show', show);
-        if (section.style) {
-            section.style.display = show ? 'block' : 'none';
-        }
-    }
-}
-
-function handleDocResponsibility(value, container) {
-    toggleConditional('sellerDaysSection', value === 'seller', container);
-    toggleConditional('buyerDaysSection', value === 'buyer', container);
-    toggleConditional('updatedResaleSection', value === 'already_received', container);
-    toggleConditional('notRequiredWarning', value === 'not_required', container);
-    
-    // Clear sub-option fields when their parent option is deselected
-    if (value !== 'already_received') {
-        // Clear the require_updated_resale radio buttons within this container
-        const searchRoot = container || document;
-        searchRoot.querySelectorAll('input[name*="require_updated_resale"]').forEach(radio => {
-            radio.checked = false;
-            // Also remove the 'selected' class from option cards
-            const card = radio.closest('.option-card');
-            if (card) card.classList.remove('selected');
+    function initializeOptionCards() {
+        document.querySelectorAll('.option-card').forEach(card => {
+            const input = card.querySelector('input[type="radio"], input[type="checkbox"]');
+            if (input && input.checked) {
+                card.classList.add('selected');
+            }
         });
     }
-}
 
-// =============================================================================
-// PROGRESS TRACKING
-// =============================================================================
+    // =============================================================================
+    // OPTION SELECTION
+    // =============================================================================
 
-function updateProgress() {
-    const form = document.getElementById('fillAllForm');
-    const allInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
-    let filledCount = 0;
-    let totalCount = 0;
-    
-    allInputs.forEach(input => {
-        if (input.type === 'radio') {
-            const name = input.name;
-            if (!form.querySelector(`[name="${name}"][data-counted]`)) {
-                totalCount++;
-                if (form.querySelector(`[name="${name}"]:checked`)) {
-                    filledCount++;
+    function selectOption(element, fieldName, value) {
+        // Update visual state for radio buttons in the same group
+        const container = element.closest('.grid, .flex');
+        if (container) {
+            container.querySelectorAll('.option-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+        }
+        element.classList.add('selected');
+
+        // Handle conditional logic
+        const input = element.querySelector('input');
+        handleConditionalLogic(fieldName, value, input);
+    }
+
+    function handleConditionalLogic(fieldName, value, inputEl) {
+        // Get the document context (which document's conditional sections to update)
+        const docContainer = inputEl ? inputEl.closest('.doc-section') : null;
+
+        // Extract the base field name without doc prefix
+        const baseFieldName = fieldName.replace(/^doc_\d+_field_/, '');
+
+        switch (baseFieldName) {
+            case 'doc_responsibility':
+                handleDocResponsibility(value, docContainer);
+                break;
+            case 'has_exclusions':
+                toggleConditional('exclusionsSection', value === 'yes', docContainer);
+                break;
+            case 'offer_buyer_agent_comp':
+                toggleConditional('section5A', value === 'yes', docContainer);
+                toggleConditional('section5B', value === 'no', docContainer);
+                break;
+            case 'enter_mls':
+                toggleConditional('mlsYesSection', value === 'yes', docContainer);
+                toggleConditional('mlsNoSection', value === 'no', docContainer);
+                break;
+            case 'mls_timing':
+                toggleConditional('mlsDelaySection', value === 'delayed', docContainer);
+                break;
+            case 'internet_display':
+                toggleConditional('internetYesSection', value === 'yes', docContainer);
+                break;
+            case 'has_liens':
+                toggleConditional('liensSection', value === 'yes', docContainer);
+                break;
+            case 'has_delinquencies':
+                toggleConditional('delinquenciesSection', value === 'yes', docContainer);
+                break;
+            case 'has_special_districts':
+                toggleConditional('specialDistrictsSection', value === 'yes', docContainer);
+                break;
+            case 'is_foreign_seller':
+                toggleConditional('firptaWarningSection', value === 'yes' || value === 'not_sure', docContainer);
+                break;
+            case 'is_condo':
+                toggleConditional('condoCallout', value === 'yes', docContainer);
+                break;
+        }
+
+        updateProgress();
+    }
+
+    function toggleConditional(sectionId, show, container) {
+        let section;
+        if (container) {
+            section = container.querySelector('#' + sectionId);
+        }
+        if (!section) {
+            section = document.getElementById(sectionId);
+        }
+        if (section) {
+            section.classList.toggle('show', show);
+            if (section.style) {
+                section.style.display = show ? 'block' : 'none';
+            }
+        }
+    }
+
+    function handleDocResponsibility(value, container) {
+        toggleConditional('sellerDaysSection', value === 'seller', container);
+        toggleConditional('buyerDaysSection', value === 'buyer', container);
+        toggleConditional('updatedResaleSection', value === 'already_received', container);
+        toggleConditional('notRequiredWarning', value === 'not_required', container);
+
+        // Clear sub-option fields when their parent option is deselected
+        if (value !== 'already_received') {
+            // Clear the require_updated_resale radio buttons within this container
+            const searchRoot = container || document;
+            searchRoot.querySelectorAll('input[name*="require_updated_resale"]').forEach(radio => {
+                radio.checked = false;
+                // Also remove the 'selected' class from option cards
+                const card = radio.closest('.option-card');
+                if (card) card.classList.remove('selected');
+            });
+        }
+    }
+
+    // =============================================================================
+    // PROGRESS TRACKING
+    // =============================================================================
+
+    function updateProgress() {
+        const form = document.getElementById('fillAllForm');
+        const allInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
+        let filledCount = 0;
+        let totalCount = 0;
+
+        allInputs.forEach(input => {
+            if (input.type === 'radio') {
+                const name = input.name;
+                if (!form.querySelector(`[name="${name}"][data-counted]`)) {
+                    totalCount++;
+                    if (form.querySelector(`[name="${name}"]:checked`)) {
+                        filledCount++;
+                    }
+                    input.setAttribute('data-counted', 'true');
                 }
-                input.setAttribute('data-counted', 'true');
+            } else if (input.type === 'checkbox') {
+                // Don't count checkboxes toward progress
+            } else if (input.value && input.value.trim()) {
+                filledCount++;
+                totalCount++;
+            } else if (input.required) {
+                totalCount++;
             }
-        } else if (input.type === 'checkbox') {
-            // Don't count checkboxes toward progress
-        } else if (input.value && input.value.trim()) {
-            filledCount++;
-            totalCount++;
-        } else if (input.required) {
-            totalCount++;
-        }
-    });
-    
-    // Reset counted flags
-    form.querySelectorAll('[data-counted]').forEach(el => el.removeAttribute('data-counted'));
-    
-    const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
-    document.getElementById('progressFill').style.width = progress + '%';
-}
+        });
 
-// =============================================================================
-// CURRENCY FORMATTING
-// =============================================================================
+        // Reset counted flags
+        form.querySelectorAll('[data-counted]').forEach(el => el.removeAttribute('data-counted'));
 
-function formatCurrency(input) {
-    let value = input.value.replace(/[^0-9]/g, '');
-    if (value) {
-        value = parseInt(value, 10).toLocaleString('en-US');
-        input.value = value;
+        const progress = totalCount > 0 ? Math.min((filledCount / totalCount) * 100, 100) : 0;
+        document.getElementById('progressFill').style.width = progress + '%';
     }
-}
 
-// =============================================================================
-// DATE CALCULATIONS
-// =============================================================================
+    // =============================================================================
+    // CURRENCY FORMATTING
+    // =============================================================================
 
-function updateEndDateFromStart(startInput) {
-    // Find the corresponding end date input in the same form section
-    const section = startInput.closest('.premium-card') || startInput.closest('.form-section');
-    if (section) {
-        const endInput = section.querySelector('.listing-end-date');
-        if (endInput && startInput.value) {
-            // Only update if end date is empty or hasn't been manually changed
-            if (!endInput.value || endInput.dataset.autoSet === 'true') {
-                const startDate = new Date(startInput.value);
-                // Add 6 months
-                startDate.setMonth(startDate.getMonth() + 6);
-                // Format as YYYY-MM-DD for input[type="date"]
-                const year = startDate.getFullYear();
-                const month = String(startDate.getMonth() + 1).padStart(2, '0');
-                const day = String(startDate.getDate()).padStart(2, '0');
-                endInput.value = `${year}-${month}-${day}`;
-                endInput.dataset.autoSet = 'true';
-            }
+    function formatCurrency(input) {
+        let value = input.value.replace(/[^0-9]/g, '');
+        if (value) {
+            value = parseInt(value, 10).toLocaleString('en-US');
+            input.value = value;
         }
     }
-}
 
-// Initialize end date listeners to clear auto-set flag when user manually changes
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.listing-end-date').forEach(function(endInput) {
-        endInput.addEventListener('input', function() {
-            this.dataset.autoSet = 'false';
+    // =============================================================================
+    // DATE CALCULATIONS
+    // =============================================================================
+
+    function updateEndDateFromStart(startInput) {
+        // Find the corresponding end date input in the same form section
+        const section = startInput.closest('.premium-card') || startInput.closest('.form-section');
+        if (section) {
+            const endInput = section.querySelector('.listing-end-date');
+            if (endInput && startInput.value) {
+                // Only update if end date is empty or hasn't been manually changed
+                if (!endInput.value || endInput.dataset.autoSet === 'true') {
+                    const startDate = new Date(startInput.value);
+                    // Add 6 months
+                    startDate.setMonth(startDate.getMonth() + 6);
+                    // Format as YYYY-MM-DD for input[type="date"]
+                    const year = startDate.getFullYear();
+                    const month = String(startDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(startDate.getDate()).padStart(2, '0');
+                    endInput.value = `${year}-${month}-${day}`;
+                    endInput.dataset.autoSet = 'true';
+                }
+            }
+        }
+    }
+
+    // Initialize end date listeners to clear auto-set flag when user manually changes
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.listing-end-date').forEach(function (endInput) {
+            endInput.addEventListener('input', function () {
+                this.dataset.autoSet = 'false';
+            });
         });
     });
-});
 
-// =============================================================================
-// TOAST NOTIFICATIONS
-// =============================================================================
+    // =============================================================================
+    // TOAST NOTIFICATIONS
+    // =============================================================================
 
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    const icon = document.getElementById('toastIcon');
-    document.getElementById('toastMessage').textContent = message;
-    
-    icon.className = 'fas';
-    if (type === 'success') {
-        icon.classList.add('fa-check-circle', 'text-green-500');
-    } else if (type === 'error') {
-        icon.classList.add('fa-exclamation-circle', 'text-red-500');
-    } else if (type === 'warning') {
-        icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
-    } else {
-        icon.classList.add('fa-info-circle', 'text-blue-500');
+    function showToast(message, type = 'info') {
+        const toast = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        document.getElementById('toastMessage').textContent = message;
+
+        icon.className = 'fas';
+        if (type === 'success') {
+            icon.classList.add('fa-check-circle', 'text-green-500');
+        } else if (type === 'error') {
+            icon.classList.add('fa-exclamation-circle', 'text-red-500');
+        } else if (type === 'warning') {
+            icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+        } else {
+            icon.classList.add('fa-info-circle', 'text-blue-500');
+        }
+
+        toast.classList.remove('hidden');
+        setTimeout(() => toast.classList.add('hidden'), 4000);
     }
-    
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
-}
 
-function toggleCheckbox(element) {
-    element.classList.toggle('checked');
-}
+    function toggleCheckbox(element) {
+        element.classList.toggle('checked');
+    }
+
+    // =============================================================================
+    // LOADING OVERLAY
+    // =============================================================================
+
+    function showLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.add('show');
+        }
+    }
+
+    function hideLoadingOverlay() {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay) {
+            overlay.classList.remove('show');
+        }
+    }
+
+    // Intercept form submission for "Save All & Continue" button
+    document.addEventListener('DOMContentLoaded', function () {
+        // The continue button is OUTSIDE the form (in floating action bar)
+        // It uses form="fillAllForm" attribute to submit the form
+        const continueBtn = document.querySelector('button[form="fillAllForm"][value="continue"]');
+
+        if (continueBtn) {
+            continueBtn.addEventListener('click', function (e) {
+                // Show loading overlay before form submits
+                showLoadingOverlay();
+            });
+        }
+    });
 </script>
 {% endblock %}
-
