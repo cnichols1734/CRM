@@ -5,14 +5,21 @@
 {% block content %}
 <style>
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    
+
     .animate-fade-in-up {
         animation: fadeInUp 0.6s ease-out forwards;
     }
-    
+
     .preview-embed-container {
         min-height: 700px;
         border-radius: 12px;
@@ -20,16 +27,109 @@
         border: 1px solid #e2e8f0;
         background: #f9fafb;
     }
-    
+
     .preview-embed-container docuseal-form {
         display: block;
         width: 100%;
         min-height: 700px;
     }
-    
+
     /* Hide DocuSeal submit button in preview mode */
     docuseal-form::part(submit-button) {
         display: none !important;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .loading-overlay.show {
+        display: flex;
+        animation: overlayFadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes overlayFadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem 3rem;
+        background: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: contentSlideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .spinner-ring {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 4px solid #f1f5f9;
+        border-top-color: #f97316;
+        border-right-color: #8b5cf6;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .loading-text {
+        margin-top: 1.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .loading-subtext {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
     }
 </style>
 
@@ -40,8 +140,8 @@
             <div class="flex items-center justify-between h-16">
                 <!-- Back button and title -->
                 <div class="flex items-center gap-4">
-                    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-                       class="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors">
+                    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                        class="flex items-center gap-2 text-slate-600 hover:text-indigo-600 transition-colors">
                         <i class="fas fa-arrow-left"></i>
                         <span class="hidden sm:inline">Back to Transaction</span>
                     </a>
@@ -51,10 +151,11 @@
                         <p class="text-xs text-slate-500">{{ transaction.street_address }}</p>
                     </div>
                 </div>
-                
+
                 <!-- Status badge -->
                 <div class="flex items-center gap-3">
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                    <span
+                        class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
                         <i class="fas fa-check-circle mr-1.5"></i>
                         Auto-Populated
                     </span>
@@ -62,14 +163,14 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Info banner -->
     <div class="bg-indigo-50 border-b border-indigo-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div class="flex items-center gap-3 text-indigo-800">
                 <i class="fas fa-info-circle text-indigo-500"></i>
                 <p class="text-sm">
-                    <strong>Preview Mode:</strong> 
+                    <strong>Preview Mode:</strong>
                     This document has been auto-populated from your agent profile. Review the document below.
                     {% if preview_info.mock_mode %}
                     <span class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Test Mode</span>
@@ -78,7 +179,7 @@
             </div>
         </div>
     </div>
-    
+
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Document Info Card -->
         <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden mb-6 animate-fade-in-up">
@@ -94,7 +195,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- Pre-filled data summary -->
             <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
                 <h3 class="text-sm font-medium text-slate-700 mb-3">Pre-Filled Information:</h3>
@@ -106,26 +207,30 @@
                         <div class="space-y-1.5 text-sm">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-user text-indigo-400 w-4"></i>
-                                <span class="text-slate-700">{{ document.field_data.get('agent_name', 'Not set') }}</span>
+                                <span class="text-slate-700">{{ document.field_data.get('agent_name', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-id-card text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('agent_license', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('agent_license', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-envelope text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('agent_email', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('agent_email', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-phone text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('agent_phone', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('agent_phone', 'Not set')
+                                    }}</span>
                             </div>
                         </div>
                         {% else %}
                         <p class="text-slate-500 text-sm">No agent data available</p>
                         {% endif %}
                     </div>
-                    
+
                     <!-- Supervisor Info -->
                     <div class="bg-white rounded-lg border border-slate-200 p-4">
                         <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Supervisor</h4>
@@ -133,19 +238,23 @@
                         <div class="space-y-1.5 text-sm">
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-user-tie text-indigo-400 w-4"></i>
-                                <span class="text-slate-700">{{ document.field_data.get('supervisor_name', 'Not set') }}</span>
+                                <span class="text-slate-700">{{ document.field_data.get('supervisor_name', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-id-card text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('supervisor_license', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('supervisor_license', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-envelope text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('supervisor_email', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('supervisor_email', 'Not set')
+                                    }}</span>
                             </div>
                             <div class="flex items-center gap-2">
                                 <i class="fas fa-phone text-indigo-400 w-4"></i>
-                                <span class="text-slate-600">{{ document.field_data.get('supervisor_phone', 'Not set') }}</span>
+                                <span class="text-slate-600">{{ document.field_data.get('supervisor_phone', 'Not set')
+                                    }}</span>
                             </div>
                         </div>
                         {% else %}
@@ -153,14 +262,15 @@
                         {% endif %}
                     </div>
                 </div>
-                
+
                 {% if not document.field_data or not document.field_data.get('supervisor_name') %}
                 <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                     <div class="flex items-start gap-2 text-amber-800">
                         <i class="fas fa-exclamation-triangle mt-0.5"></i>
                         <div class="text-sm">
-                            <strong>Missing Profile Information:</strong> 
-                            Please update your <a href="{{ url_for('auth.update_profile') }}" class="underline hover:text-amber-900">agent profile</a> 
+                            <strong>Missing Profile Information:</strong>
+                            Please update your <a href="{{ url_for('auth.update_profile') }}"
+                                class="underline hover:text-amber-900">agent profile</a>
                             with your license number and supervisor details for this document to be properly filled.
                         </div>
                     </div>
@@ -168,9 +278,10 @@
                 {% endif %}
             </div>
         </div>
-        
+
         <!-- DocuSeal Preview Embed -->
-        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden animate-fade-in-up" style="animation-delay: 0.1s;">
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden animate-fade-in-up"
+            style="animation-delay: 0.1s;">
             <!-- Preview header -->
             <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
                 <div class="flex items-center justify-between">
@@ -189,19 +300,20 @@
                     </div>
                 </div>
             </div>
-            
+
             <!-- DocuSeal Embed -->
             <div class="preview-embed-container">
                 {% if preview_info.mock_mode %}
                 <!-- Mock mode placeholder -->
-                <div class="flex flex-col items-center justify-center h-full min-h-[500px] bg-gradient-to-br from-slate-50 to-indigo-50 p-8">
+                <div
+                    class="flex flex-col items-center justify-center h-full min-h-[500px] bg-gradient-to-br from-slate-50 to-indigo-50 p-8">
                     <div class="w-24 h-24 rounded-full bg-indigo-100 flex items-center justify-center mb-6">
                         <i class="fas fa-file-pdf text-5xl text-indigo-500"></i>
                     </div>
                     <h3 class="text-xl font-semibold text-slate-800 mb-2">Document Preview</h3>
                     <p class="text-slate-500 text-center max-w-lg mb-6">
-                        The actual PDF document preview is available in production mode. 
-                        This document will be populated with your agent and supervisor information 
+                        The actual PDF document preview is available in production mode.
+                        This document will be populated with your agent and supervisor information
                         and will be ready for signature.
                     </p>
                     <div class="bg-white rounded-xl border border-slate-200 p-6 max-w-md text-left">
@@ -228,10 +340,7 @@
                 {% elif preview_info.embed_src %}
                 <!-- Real DocuSeal embed -->
                 <script src="https://cdn.docuseal.com/js/form.js"></script>
-                <docuseal-form
-                    data-src="{{ preview_info.embed_src }}"
-                    data-preview="true"
-                    data-readonly="true">
+                <docuseal-form data-src="{{ preview_info.embed_src }}" data-preview="true" data-readonly="true">
                 </docuseal-form>
                 {% elif preview_info.error %}
                 <!-- Error state -->
@@ -250,35 +359,58 @@
                     </div>
                     <h3 class="text-xl font-semibold text-slate-700 mb-2">Preview Not Available</h3>
                     <p class="text-slate-500 text-center max-w-md">
-                        The document preview could not be generated. The document will still be included when sent for signature.
+                        The document preview could not be generated. The document will still be included when sent for
+                        signature.
                     </p>
                 </div>
                 {% endif %}
             </div>
         </div>
-        
+
         <!-- Spacer for floating action bar -->
         <div class="h-24"></div>
     </div>
 </div>
 
 <!-- Floating Action Bar -->
-<div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 z-50 flex items-center gap-3">
-    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-       class="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+<div
+    class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 z-50 flex items-center gap-3">
+    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+        class="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
         Cancel
     </a>
     <div class="w-px h-8 bg-slate-200"></div>
-    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-       class="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+        class="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
         <i class="fas fa-save text-slate-500"></i>
         Save Draft
     </a>
-    <a href="{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}" 
-       class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-lg flex items-center gap-2 shadow-sm transition-all">
+    <a href="{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}" id="continueBtn"
+        onclick="showLoadingOverlay('Generating Preview...', 'This may take a few moments')"
+        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 rounded-lg flex items-center gap-2 shadow-sm transition-all">
         <i class="fas fa-check-circle"></i>
         Save & Continue
     </a>
 </div>
-{% endblock %}
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-ring"></div>
+        <div class="loading-text" id="loadingText">Generating Preview...</div>
+        <div class="loading-subtext" id="loadingSubtext">This may take a few moments</div>
+    </div>
+</div>
+
+<script>
+    function showLoadingOverlay(message, submessage) {
+        if (message) {
+            document.getElementById('loadingText').textContent = message;
+        }
+        if (submessage) {
+            document.getElementById('loadingSubtext').textContent = submessage;
+        }
+        document.getElementById('loadingOverlay').classList.add('show');
+    }
+</script>
+{% endblock %}
