@@ -2,8 +2,11 @@ from dotenv import load_dotenv
 load_dotenv()  # Load .env file before any other imports
 
 # Initialize New Relic APM (must be before other imports to instrument them)
+# Using NR_LICENSE_KEY to avoid Railway/Nixpacks auto-detection at build time
 import os
-if os.environ.get('NEW_RELIC_LICENSE_KEY'):
+nr_license = os.environ.get('NR_LICENSE_KEY')
+if nr_license:
+    os.environ['NEW_RELIC_LICENSE_KEY'] = nr_license  # Set for New Relic agent
     import newrelic.agent
     newrelic.agent.initialize('newrelic.ini')
 
