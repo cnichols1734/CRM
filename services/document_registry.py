@@ -142,15 +142,7 @@ DOCUMENT_REGISTRY: Dict[str, DocumentConfig] = {
     #     partial_template='transactions/partials/sellers_disclosure_fields.html',
     #     color='emerald',
     #     icon='fa-clipboard-list',
-    #     sort_order=3,
-    # ),
-    # 'lead-paint': DocumentConfig(
-    #     slug='lead-paint',
-    #     name='Lead-Based Paint Disclosure',
-    #     partial_template='transactions/partials/lead_paint_fields.html',
-    #     color='blue',
-    #     icon='fa-paint-roller',
-    #     sort_order=4,
+    #     sort_order=6,
     # ),
     # 'wire-fraud-warning': DocumentConfig(
     #     slug='wire-fraud-warning',
@@ -158,7 +150,7 @@ DOCUMENT_REGISTRY: Dict[str, DocumentConfig] = {
     #     partial_template='transactions/partials/wire_fraud_fields.html',
     #     color='rose',
     #     icon='fa-exclamation-triangle',
-    #     sort_order=5,
+    #     sort_order=7,
     # ),
 }
 
@@ -311,6 +303,15 @@ PREVIEW_DOCUMENT_REGISTRY: Dict[str, PreviewDocumentConfig] = {
         icon='fa-handshake',
         sort_order=100,  # High number ensures it appears after form UI docs
         description='TXR-2501 Information About Brokerage Services'
+    ),
+    'lead-paint': PreviewDocumentConfig(
+        slug='lead-paint',
+        name='Lead-Based Paint Disclosure',
+        docuseal_template_id=2530549,
+        color='blue',
+        icon='fa-paint-roller',
+        sort_order=101,
+        description='Addendum for Seller\'s Disclosure of Information on Lead-Based Paint'
     ),
     # Future preview-only documents can be added here:
     # 'wire-fraud-warning': PreviewDocumentConfig(...),

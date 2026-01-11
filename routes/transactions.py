@@ -822,13 +822,17 @@ def document_form(id, doc_id):
             if field.value:
                 field_data_for_display[field.field_key] = field.value
         
-        # Update document field_data if needed
-        if not doc.field_data or not doc.field_data.get('agent_name'):
+        # Update document field_data
+        # For IABS check agent_name, for others just check if we have any resolved fields
+        if not doc.field_data or (doc.template_slug == 'iabs' and not doc.field_data.get('agent_name')):
             doc.field_data = field_data_for_display
             doc.status = 'filled'
             db.session.commit()
-        else:
+        elif field_data_for_display:
             doc.field_data = field_data_for_display
+            if doc.status == 'pending':
+                doc.status = 'filled'
+                db.session.commit()
         
         preview_info = {
             'embed_src': None,
@@ -861,8 +865,15 @@ def document_form(id, doc_id):
             'icon': definition.display.icon
         })()
         
+        # Use appropriate preview template based on document type
+        # IABS needs agent/supervisor info display, others just need simple preview
+        if doc.template_slug == 'iabs':
+            template_name = 'transactions/iabs_preview.html'
+        else:
+            template_name = 'transactions/simple_preview.html'
+        
         return render_template(
-            'transactions/iabs_preview.html',
+            template_name,
             transaction=transaction,
             document=doc,
             config=config,

@@ -54,9 +54,9 @@ TEMPLATE_MAP = {
     'listing-agreement': 2468023,  # Listing Agreement template
     'hoa-addendum': 2469165,  # HOA Addendum template (https://docuseal.com/d/b3S4Ryi2HCjoh4)
     'iabs': 2508644,  # TXR-2501 Information About Brokerage Services (preview-only)
+    'lead-paint': 2530549,  # Lead-Based Paint Addendum
     'sellers-disclosure': None,
     'wire-fraud-warning': None,
-    'lead-paint': None,
     'flood-hazard': None,
     'water-district': None,
     't47-affidavit': None,
@@ -93,6 +93,12 @@ DOCUMENT_FORMS = {
         'form_template': 'transactions/seller_net_proceeds_form.html',
         'template_id': None,  # Set when DocuSeal template is created
         'description': 'TXR-1935 Seller\'s Estimated Net Proceeds'
+    },
+    'lead-paint': {
+        'name': 'Lead-Based Paint Disclosure',
+        'form_template': None,  # Preview-only document, seller fills in DocuSeal
+        'template_id': 2530549,
+        'description': 'Addendum for Seller\'s Disclosure of Information on Lead-Based Paint (auto-populated address only)'
     },
     'iabs': {
         'name': 'Information About Brokerage Services',
