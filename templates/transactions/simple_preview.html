@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}{{ document.template_name }} - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .preview-embed-container {
+        min-height: 700px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #e2e8f0;
+        background: #f9fafb;
+    }
+
+    .preview-embed-container docuseal-form {
+        display: block;
+        width: 100%;
+        min-height: 700px;
+    }
+
+    /* Hide DocuSeal submit button in preview mode */
+    docuseal-form::part(submit-button) {
+        display: none !important;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .loading-overlay.show {
+        display: flex;
+        animation: overlayFadeIn 0.3s ease-out forwards;
+    }
+
+    @keyframes overlayFadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2.5rem 3rem;
+        background: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: contentSlideUp 0.4s ease-out forwards;
+    }
+
+    @keyframes contentSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .spinner-ring {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        border: 4px solid #f1f5f9;
+        border-top-color: #3b82f6;
+        border-right-color: #60a5fa;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+        margin-top: 1.5rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .loading-subtext {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: #64748b;
+        animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Back button and title -->
+                <div class="flex items-center gap-4">
+                    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                        class="flex items-center gap-2 text-slate-600 hover:text-blue-600 transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                        <span class="hidden sm:inline">Back to Transaction</span>
+                    </a>
+                    <div class="h-6 w-px bg-slate-200"></div>
+                    <div>
+                        <h1 class="text-lg font-semibold text-slate-800">{{ document.template_name }}</h1>
+                        <p class="text-xs text-slate-500">{{ transaction.street_address }}</p>
+                    </div>
+                </div>
+
+                <!-- Status badge -->
+                <div class="flex items-center gap-3">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        <i class="fas fa-check-circle mr-1.5"></i>
+                        Ready for Signing
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info banner -->
+    <div class="bg-blue-50 border-b border-blue-100">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div class="flex items-center gap-3 text-blue-800">
+                <i class="fas fa-info-circle text-blue-500"></i>
+                <p class="text-sm">
+                    <strong>Preview Mode:</strong>
+                    Property address has been pre-filled. The seller will complete and sign this document when sent for e-signature.
+                    {% if preview_info.mock_mode %}
+                    <span class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Test Mode</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Document Info Card -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden mb-6 animate-fade-in-up">
+            <!-- Document header -->
+            <div class="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                        <i class="fas {{ config.icon if config else 'fa-file-alt' }} text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-semibold text-white text-lg">{{ document.template_name }}</h2>
+                        <p class="text-blue-100 text-sm">Pre-filled with property address</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pre-filled data summary -->
+            <div class="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                <h3 class="text-sm font-medium text-slate-700 mb-3">Pre-Filled Information:</h3>
+                <div class="bg-white rounded-lg border border-slate-200 p-4">
+                    <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Property Address</h4>
+                    <div class="flex items-center gap-2 text-sm">
+                        <i class="fas fa-map-marker-alt text-blue-400 w-4"></i>
+                        <span class="text-slate-700">{{ document.field_data.get('property_address', transaction.full_address) if document.field_data else transaction.full_address }}</span>
+                    </div>
+                </div>
+                
+                <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-start gap-2 text-blue-800">
+                        <i class="fas fa-pen-fancy mt-0.5"></i>
+                        <div class="text-sm">
+                            <strong>Seller Completes This Form:</strong>
+                            When sent for e-signature, the seller will fill out the disclosure questions and sign. 
+                            The agent will also sign to acknowledge.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DocuSeal Preview Embed -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden animate-fade-in-up"
+            style="animation-delay: 0.1s;">
+            <!-- Preview header -->
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                            <i class="fas fa-file-pdf text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-slate-800">Document Preview</h2>
+                            <p class="text-xs text-slate-500">Scroll to review all pages</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 text-sm text-slate-500">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Read-only preview</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DocuSeal embed -->
+            <div class="p-4">
+                {% if preview_info.embed_src %}
+                <div class="preview-embed-container">
+                    <docuseal-form 
+                        data-src="{{ preview_info.embed_src }}"
+                        data-preview="true"
+                        data-go-to-last="false"
+                        data-expand="true">
+                    </docuseal-form>
+                </div>
+                {% elif preview_info.mock_mode %}
+                <div class="preview-embed-container flex items-center justify-center bg-slate-100">
+                    <div class="text-center p-8">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+                            <i class="fas fa-flask text-amber-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-700 mb-2">Test Mode Active</h3>
+                        <p class="text-slate-500 text-sm max-w-md">
+                            DocuSeal preview is not available in test mode. 
+                            In production, the document preview will appear here.
+                        </p>
+                    </div>
+                </div>
+                {% elif preview_info.error %}
+                <div class="preview-embed-container flex items-center justify-center bg-red-50">
+                    <div class="text-center p-8">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-red-700 mb-2">Preview Error</h3>
+                        <p class="text-red-600 text-sm max-w-md">{{ preview_info.error }}</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="preview-embed-container flex items-center justify-center">
+                    <div class="text-center p-8">
+                        <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-200 flex items-center justify-center">
+                            <i class="fas fa-file-alt text-slate-400 text-2xl"></i>
+                        </div>
+                        <h3 class="font-semibold text-slate-700 mb-2">Loading Preview...</h3>
+                        <p class="text-slate-500 text-sm">Please wait while we generate the document preview.</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Spacer for floating action bar -->
+        <div class="h-24"></div>
+    </div>
+</div>
+
+<!-- Floating Action Bar -->
+<div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 z-50 flex items-center gap-3">
+    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+        class="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+        Cancel
+    </a>
+    <div class="w-px h-8 bg-slate-200"></div>
+    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+        class="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
+        <i class="fas fa-save text-slate-500"></i>
+        Save Draft
+    </a>
+    <a href="{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}"
+        onclick="showLoadingOverlay('Generating Preview...', 'This may take a few moments')"
+        class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg flex items-center gap-2 shadow-sm transition-all">
+        <i class="fas fa-paper-plane"></i>
+        Continue to Send
+    </a>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner-ring"></div>
+        <div class="loading-text" id="loadingText">Processing...</div>
+        <div class="loading-subtext" id="loadingSubtext">Please wait</div>
+    </div>
+</div>
+
+<!-- DocuSeal JS -->
+<script src="https://cdn.docuseal.com/js/form.js"></script>
+
+<script>
+    function showLoadingOverlay(message, submessage) {
+        if (message) {
+            document.getElementById('loadingText').textContent = message;
+        }
+        if (submessage) {
+            document.getElementById('loadingSubtext').textContent = submessage;
+        }
+        document.getElementById('loadingOverlay').classList.add('show');
+    }
+</script>
+{% endblock %}

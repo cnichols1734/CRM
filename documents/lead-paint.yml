@@ -1,0 +1,70 @@
+# =============================================================================
+# LEAD-BASED PAINT DISCLOSURE
+# =============================================================================
+# Addendum for Seller's Disclosure of Information on Lead-Based Paint
+# As Required by Federal Law
+#
+# This is a PDF-preview document - no custom form UI.
+# Property address is auto-populated. Seller fills out the disclosure
+# questions (checkboxes) and signs via DocuSeal. Agent also signs.
+#
+# Template ID: 2530549
+# =============================================================================
+
+schema_version: "1.0"
+slug: lead-paint
+name: "Lead-Based Paint Disclosure"
+docuseal_template_id: 2530549
+type: pdf-preview
+
+display:
+  color: "#3B82F6"
+  icon: "fas fa-paint-roller"
+  sort_order: 6
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Agent, Seller 2
+# 
+# - Seller: Fills out disclosure questions and signs
+# - Agent: Signs to acknowledge seller's obligations
+# - Seller 2: Optional second seller (signs if present)
+# =============================================================================
+
+roles:
+  # Seller role: Fills out disclosure and signs
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  # Agent role: Signs to acknowledge (no form fields to fill)
+  - role_key: agent
+    docuseal_role: Agent
+    email_source: user.email
+    name_source: user.full_name
+
+  # Seller 2 role: Optional second seller
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Only the property address is pre-filled.
+# Seller fills out the disclosure questions in DocuSeal during signing.
+# =============================================================================
+
+fields:
+  # Property Address - pre-filled and readonly
+  - field_key: property_address
+    docuseal_field: "Property address"
+    role_key: seller
+    source: transaction.full_address
+
+  # All other fields (checkboxes, explanations, signatures, dates) are
+  # handled by the seller/agent during the DocuSeal signing process
