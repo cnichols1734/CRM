@@ -60,54 +60,15 @@ roles:
 # =============================================================================
 # FIELDS
 # =============================================================================
-# Broker fields use static Origen Realty company info.
 # Agent fields are auto-populated from the user's profile.
+# Broker fields are pre-filled in the DocuSeal template (Origen Realty info).
 # Seller fields are left null (manual entry during signing).
+#
+# NOTE: To add broker fields here, get the exact field names from DocuSeal
+# template UI and use "source: static:value" syntax.
 # =============================================================================
 
 fields:
-  # Broker/Brokerage information (static Origen Realty company info)
-  - field_key: broker_name
-    docuseal_field: "Broker name"
-    role_key: broker
-    source: static:Origen Realty
-
-  - field_key: broker_license
-    docuseal_field: "Broker license"
-    role_key: broker
-    source: static:9003104
-
-  - field_key: broker_email
-    docuseal_field: "Broker email"
-    role_key: broker
-    source: static:cassie@origenrealty.com
-
-  - field_key: broker_phone
-    docuseal_field: "Broker Phone"
-    role_key: broker
-    source: static:(832) 419-0296
-
-  # Designated Broker information
-  - field_key: designated_broker_name
-    docuseal_field: "Designated Broker Name"
-    role_key: broker
-    source: static:Cassie Nichols
-
-  - field_key: designated_broker_license
-    docuseal_field: "Designated Broker license"
-    role_key: broker
-    source: static:633754
-
-  - field_key: designated_broker_email
-    docuseal_field: "Designated Broker email"
-    role_key: broker
-    source: static:cassie@origenrealty.com
-
-  - field_key: designated_broker_phone
-    docuseal_field: "Designated Broker Phone"
-    role_key: broker
-    source: static:(832) 419-0296
-
   # Agent information (from user profile)
   - field_key: agent_name
     docuseal_field: "Sales Agent Name"
