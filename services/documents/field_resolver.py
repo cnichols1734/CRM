@@ -112,6 +112,17 @@ class FieldResolver:
                 is_manual=True
             )
         
+        # Static values use "static:" prefix (e.g., "static:Origen Realty")
+        if field_def.source.startswith('static:'):
+            static_value = field_def.source[7:]  # Remove "static:" prefix
+            return ResolvedField(
+                field_key=field_def.field_key,
+                docuseal_field=field_def.docuseal_field,
+                role_key=field_def.role_key,
+                value=static_value,
+                is_manual=False
+            )
+        
         # Resolve the source path
         raw_value = cls.resolve_path(field_def.source, context)
         
