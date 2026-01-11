@@ -31,7 +31,7 @@ jsonschema==4.26.0
 gunicorn==23.0.0
 
 # Observability
-newrelic==9.15.0
+newrelic==11.2.0
 
 # Testing
 pytest==9.0.2
