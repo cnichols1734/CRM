@@ -153,6 +153,12 @@ def parse_form_fields(template_slug: str) -> List[Dict[str, Any]]:
         return []
     
     form_template = DOCUMENT_FORMS[template_slug]['form_template']
+
+    # Some documents are preview-only and don't have form templates
+    if form_template is None:
+        logger.info(f"Template {template_slug} is preview-only with no form template")
+        return []
+
     template_path = TEMPLATES_DIR / form_template
     
     if not template_path.exists():
