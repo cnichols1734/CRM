@@ -102,7 +102,12 @@ class FieldResolver:
                     is_manual=False
                 )
         
-        # Manual entry fields have no source
+        # Check if this is a combined field (multiple sources) - check this FIRST
+        # before the "source is None" check since combined fields have sources not source
+        if field_def.is_combined:
+            return cls.resolve_combined_field(field_def, context)
+
+        # Manual entry fields have no source (and no sources for combined fields)
         if field_def.source is None:
             return ResolvedField(
                 field_key=field_def.field_key,
@@ -111,7 +116,7 @@ class FieldResolver:
                 value=None,
                 is_manual=True
             )
-        
+
         # Static values use "static:" prefix (e.g., "static:Origen Realty")
         if field_def.source.startswith('static:'):
             static_value = field_def.source[7:]  # Remove "static:" prefix
@@ -122,13 +127,13 @@ class FieldResolver:
                 value=static_value,
                 is_manual=False
             )
-        
-        # Resolve the source path
+
+        # Resolve the source path (single source)
         raw_value = cls.resolve_path(field_def.source, context)
-        
+
         # Apply transform if specified
         transformed_value = apply_transform(raw_value, field_def.transform)
-        
+
         return ResolvedField(
             field_key=field_def.field_key,
             docuseal_field=field_def.docuseal_field,
@@ -136,6 +141,99 @@ class FieldResolver:
             value=transformed_value if transformed_value else None,
             is_manual=False
         )
+
+    @classmethod
+    def resolve_combined_field(
+        cls,
+        field_def: FieldDefinition,
+        context: Dict[str, Any]
+    ) -> ResolvedField:
+        """
+        Resolve a combined field with multiple sources.
+
+        Uses the template to combine values from multiple source paths.
+        Supports both positional ({0}, {1}) and named ({field_name}) placeholders.
+
+        Args:
+            field_def: The field definition with sources and template
+            context: Dict with data sources
+
+        Returns:
+            ResolvedField with combined and formatted value
+        """
+        if not field_def.sources or not field_def.template:
+            logger.warning(f"Combined field {field_def.field_key} missing sources or template")
+            return ResolvedField(
+                field_key=field_def.field_key,
+                docuseal_field=field_def.docuseal_field,
+                role_key=field_def.role_key,
+                value=None,
+                is_manual=False
+            )
+
+        # Resolve all source paths
+        resolved_values = []
+        named_values = {}
+
+        for source_path in field_def.sources:
+            value = cls.resolve_path(source_path, context)
+            # Convert None to empty string for template interpolation
+            str_value = str(value) if value is not None else ''
+            resolved_values.append(str_value)
+
+            # Extract field name for named placeholders (last part of path)
+            # e.g., "form.property_city" -> "property_city"
+            field_name = source_path.split('.')[-1] if '.' in source_path else source_path
+            named_values[field_name] = str_value
+
+        # Apply template interpolation
+        combined_value = cls._apply_template(field_def.template, resolved_values, named_values)
+
+        # Apply transform if specified (after combining)
+        if field_def.transform:
+            combined_value = apply_transform(combined_value, field_def.transform)
+
+        return ResolvedField(
+            field_key=field_def.field_key,
+            docuseal_field=field_def.docuseal_field,
+            role_key=field_def.role_key,
+            value=combined_value if combined_value else None,
+            is_manual=False
+        )
+
+    @classmethod
+    def _apply_template(
+        cls,
+        template: str,
+        positional_values: List[str],
+        named_values: Dict[str, str]
+    ) -> str:
+        """
+        Apply template interpolation with both positional and named placeholders.
+
+        Supports:
+            - Positional: {0}, {1}, {2}
+            - Named: {field_name}, {city}, {state}
+
+        Args:
+            template: The format template string
+            positional_values: List of values for positional placeholders
+            named_values: Dict of field_name -> value for named placeholders
+
+        Returns:
+            The interpolated string
+        """
+        result = template
+
+        # First, replace positional placeholders {0}, {1}, etc.
+        for i, value in enumerate(positional_values):
+            result = result.replace(f'{{{i}}}', value)
+
+        # Then, replace named placeholders {field_name}
+        for name, value in named_values.items():
+            result = result.replace(f'{{{name}}}', value)
+
+        return result
     
     @classmethod
     def resolve_path(cls, source_path: str, context: Dict[str, Any]) -> Any:

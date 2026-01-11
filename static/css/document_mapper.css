@@ -869,15 +869,594 @@
     background: var(--mapper-text-muted);
 }
 
+/* =============================================================================
+   COMBINED FIELD SUPPORT - NEW STYLES
+   ============================================================================= */
+
+/* Field Checkbox for Multi-Select */
+.field-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--mapper-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.html-field.selected {
+    border-color: var(--mapper-primary) !important;
+    background: rgba(59, 130, 246, 0.15) !important;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+/* Combine Button */
+.btn-combine {
+    background: linear-gradient(135deg, var(--mapper-primary) 0%, #2563eb 100%);
+    color: white;
+    border: none !important;
+}
+
+.btn-combine:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* Combined Mapping Card */
+.mapping-combined {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.mapping-combined:hover {
+    border-color: var(--mapper-primary);
+}
+
+.mapping-html-combined {
+    flex: 1.5;
+    padding: 0.75rem;
+    background: rgba(249, 115, 22, 0.08);
+}
+
+.combined-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.combined-source-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    background: rgba(249, 115, 22, 0.2);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--mapper-html);
+}
+
+.combined-template-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.5rem;
+    background: var(--mapper-surface);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--mapper-text-muted);
+}
+
+.combined-template-display i {
+    color: var(--mapper-primary);
+}
+
+/* Drop Zone Hint */
+.drop-zone-hint {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    opacity: 0.7;
+}
+
+/* =============================================================================
+   PICKER MODAL
+   ============================================================================= */
+.picker-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 2rem;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.picker-modal-content {
+    background: var(--mapper-surface);
+    border-radius: var(--panel-radius);
+    border: 1px solid var(--mapper-border);
+    width: 100%;
+    max-width: 550px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.picker-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: var(--mapper-surface-hover);
+    border-bottom: 1px solid var(--mapper-border);
+}
+
+.picker-modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.picker-modal-body {
+    padding: 1rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.picker-source {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--mapper-bg);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.picker-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--mapper-text-muted);
+}
+
+.picker-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.picker-field-html {
+    background: rgba(249, 115, 22, 0.15);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    color: var(--mapper-html);
+}
+
+.picker-field-docuseal {
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    color: var(--mapper-docuseal);
+}
+
+.picker-search {
+    margin-bottom: 0.75rem;
+}
+
+.picker-search input {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border-radius: 6px;
+    border: 1px solid var(--mapper-border);
+    background: var(--mapper-bg);
+    color: var(--mapper-text);
+    font-size: 0.9rem;
+}
+
+.picker-search input:focus {
+    outline: none;
+    border-color: var(--mapper-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.picker-fields {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 350px;
+}
+
+.picker-role-group {
+    margin-bottom: 1rem;
+}
+
+.picker-role-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--mapper-docuseal);
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.picker-field-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.625rem 0.875rem;
+    background: var(--mapper-bg);
+    border-radius: 6px;
+    margin-bottom: 0.375rem;
+    cursor: pointer;
+    transition: var(--transition);
+    border: 1px solid transparent;
+}
+
+.picker-field-option:hover {
+    border-color: var(--mapper-primary);
+    background: var(--mapper-surface-hover);
+}
+
+.picker-field-option.good-match {
+    border-color: rgba(16, 185, 129, 0.4);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.picker-field-option.partial-match {
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.picker-field-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.picker-field-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.match-score {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    font-weight: 600;
+}
+
+.field-role {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    background: rgba(139, 92, 246, 0.2);
+    color: #a78bfa;
+}
+
+/* =============================================================================
+   COMBINE MODAL
+   ============================================================================= */
+.combine-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 2rem;
+}
+
+.combine-modal-content {
+    background: var(--mapper-surface);
+    border-radius: var(--panel-radius);
+    border: 1px solid var(--mapper-border);
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.combine-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+    border-bottom: 1px solid var(--mapper-border);
+}
+
+.combine-modal-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--mapper-primary);
+}
+
+.combine-modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+}
+
+.combine-section {
+    margin-bottom: 1.25rem;
+}
+
+.combine-section:last-child {
+    margin-bottom: 0;
+}
+
+.combine-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--mapper-text);
+    margin-bottom: 0.5rem;
+}
+
+.combine-fields-list {
+    background: var(--mapper-bg);
+    border-radius: 8px;
+    border: 1px solid var(--mapper-border);
+    overflow: hidden;
+}
+
+.combine-field-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: var(--mapper-bg);
+    border-bottom: 1px solid var(--mapper-border);
+    cursor: grab;
+    transition: var(--transition);
+}
+
+.combine-field-item:last-child {
+    border-bottom: none;
+}
+
+.combine-field-item:hover {
+    background: var(--mapper-surface-hover);
+}
+
+.combine-field-item.dragging {
+    opacity: 0.5;
+    background: var(--mapper-surface);
+}
+
+.combine-field-handle {
+    color: var(--mapper-text-muted);
+    cursor: grab;
+}
+
+.combine-field-index {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--mapper-primary);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.combine-field-name {
+    flex: 1;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--mapper-html);
+}
+
+.combine-field-remove {
+    background: none;
+    border: none;
+    color: var(--mapper-text-muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: var(--transition);
+}
+
+.combine-field-remove:hover {
+    color: var(--mapper-danger);
+}
+
+/* Preset and Separator Buttons */
+.preset-buttons,
+.separator-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.preset-btn,
+.separator-btn {
+    padding: 0.5rem 0.875rem;
+    border-radius: 6px;
+    border: 1px solid var(--mapper-border);
+    background: var(--mapper-bg);
+    color: var(--mapper-text);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.preset-btn:hover,
+.separator-btn:hover {
+    border-color: var(--mapper-primary);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--mapper-primary);
+}
+
+.separator-btn {
+    font-family: 'Roboto Mono', monospace;
+}
+
+/* Combine Input */
+.combine-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--mapper-border);
+    background: var(--mapper-bg);
+    color: var(--mapper-text);
+    font-size: 0.9rem;
+    font-family: 'Roboto Mono', monospace;
+}
+
+.combine-input:focus {
+    outline: none;
+    border-color: var(--mapper-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.template-help {
+    font-size: 0.75rem;
+    color: var(--mapper-text-muted);
+    margin-top: 0.5rem;
+}
+
+.template-help code {
+    background: var(--mapper-surface-hover);
+    padding: 0.15rem 0.375rem;
+    border-radius: 3px;
+    font-family: 'Roboto Mono', monospace;
+    color: var(--mapper-primary);
+}
+
+/* Combine Preview */
+.combine-preview {
+    padding: 1rem;
+    background: var(--mapper-bg);
+    border-radius: 8px;
+    border: 1px solid var(--mapper-border);
+}
+
+.combine-preview code {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--mapper-success);
+}
+
+/* Combine Select */
+.combine-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--mapper-border);
+    background: var(--mapper-bg);
+    color: var(--mapper-text);
+    font-size: 0.9rem;
+}
+
+.combine-select:focus {
+    outline: none;
+    border-color: var(--mapper-primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Combine Modal Footer */
+.combine-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: var(--mapper-surface-hover);
+    border-top: 1px solid var(--mapper-border);
+}
+
+.btn-cancel {
+    background: var(--mapper-surface);
+    color: var(--mapper-text);
+    border: 1px solid var(--mapper-border);
+}
+
+.btn-cancel:hover {
+    background: var(--mapper-surface-hover);
+}
+
+/* Edit Sources List in Edit Modal */
+.edit-sources-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    padding: 0.75rem;
+    background: var(--mapper-bg);
+    border-radius: 6px;
+    border: 1px solid var(--mapper-border);
+}
+
+.source-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.625rem;
+    background: rgba(249, 115, 22, 0.15);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--mapper-html);
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .mapper-main {
         grid-template-columns: 1fr;
         height: auto;
     }
-    
+
     .panel {
         max-height: 400px;
+    }
+}
+
+@media (max-width: 600px) {
+    .combine-modal-content,
+    .picker-modal-content {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 0;
+    }
+
+    .preset-buttons,
+    .separator-buttons {
+        flex-direction: column;
+    }
+
+    .preset-btn,
+    .separator-btn {
+        width: 100%;
+        text-align: center;
     }
 }
 

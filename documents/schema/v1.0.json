@@ -130,11 +130,21 @@
           },
           "source": {
             "type": ["string", "null"],
-            "description": "Data source path (null = manual entry)"
+            "description": "Single data source path (null = manual entry). Use 'source' for single fields, 'sources' for combined fields."
+          },
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2,
+            "description": "Multiple source paths for combined fields (e.g., address components). Use with 'template'."
+          },
+          "template": {
+            "type": "string",
+            "description": "Format template for combined fields. Supports positional ({0}, {1}) or named ({field_name}) placeholders."
           },
           "transform": {
             "type": "string",
-            "description": "Optional transform function name"
+            "description": "Optional transform function name (applied after combining for combined fields)"
           },
           "condition_field": {
             "type": "string",
@@ -145,7 +155,19 @@
             "description": "Value that condition_field must equal for this field to be included"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "properties": {
+              "source": { "type": ["string", "null"] }
+            },
+            "not": { "required": ["sources"] }
+          },
+          {
+            "required": ["sources", "template"],
+            "not": { "required": ["source"] }
+          }
+        ]
       }
     }
   },
