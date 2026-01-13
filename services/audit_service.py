@@ -44,7 +44,7 @@ def get_current_actor_id():
 
 
 def log_event(event_type, transaction_id=None, document_id=None, signature_id=None,
-              description=None, metadata=None, source='app', actor_id=None):
+              description=None, event_data=None, source='app', actor_id=None):
     """
     Log an audit event with automatic context extraction.
 
@@ -73,7 +73,7 @@ def log_event(event_type, transaction_id=None, document_id=None, signature_id=No
         signature_id=signature_id,
         actor_id=actor_id,
         description=description,
-        metadata=metadata or {},
+        event_data=event_data or {},
         source=source,
         ip_address=ip_address,
         user_agent=user_agent
@@ -92,7 +92,7 @@ def log_transaction_created(transaction, actor_id=None):
         event_type=AuditEvent.TRANSACTION_CREATED,
         transaction_id=transaction.id,
         description=f"Transaction created for {transaction.street_address}",
-        metadata={
+        event_data={
             'transaction_type': transaction.transaction_type.name if transaction.transaction_type else None,
             'address': transaction.full_address,
             'status': transaction.status
@@ -107,7 +107,7 @@ def log_transaction_updated(transaction, changed_fields, actor_id=None):
         event_type=AuditEvent.TRANSACTION_UPDATED,
         transaction_id=transaction.id,
         description=f"Transaction updated",
-        metadata={
+        event_data={
             'changed_fields': changed_fields
         },
         actor_id=actor_id
@@ -120,7 +120,7 @@ def log_transaction_status_changed(transaction, old_status, new_status, actor_id
         event_type=AuditEvent.TRANSACTION_STATUS_CHANGED,
         transaction_id=transaction.id,
         description=f"Status changed from '{old_status}' to '{new_status}'",
-        metadata={
+        event_data={
             'old_status': old_status,
             'new_status': new_status
         },
@@ -134,7 +134,7 @@ def log_transaction_deleted(transaction_id, address, actor_id=None):
         event_type=AuditEvent.TRANSACTION_DELETED,
         transaction_id=transaction_id,
         description=f"Transaction deleted: {address}",
-        metadata={
+        event_data={
             'address': address
         },
         actor_id=actor_id
@@ -151,7 +151,7 @@ def log_participant_added(transaction, participant, actor_id=None):
         event_type=AuditEvent.PARTICIPANT_ADDED,
         transaction_id=transaction.id,
         description=f"Added {participant.role}: {participant.display_name}",
-        metadata={
+        event_data={
             'participant_id': participant.id,
             'role': participant.role,
             'name': participant.display_name,
@@ -169,7 +169,7 @@ def log_participant_removed(transaction, participant, actor_id=None):
         event_type=AuditEvent.PARTICIPANT_REMOVED,
         transaction_id=transaction.id,
         description=f"Removed {participant.role}: {participant.display_name}",
-        metadata={
+        event_data={
             'participant_id': participant.id,
             'role': participant.role,
             'name': participant.display_name,
@@ -190,7 +190,7 @@ def log_document_added(document, reason=None, actor_id=None):
         transaction_id=document.transaction_id,
         document_id=document.id,
         description=f"Document added: {document.template_name}",
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'template_name': document.template_name,
             'included_reason': reason or document.included_reason
@@ -206,7 +206,7 @@ def log_document_removed(transaction_id, document_id, template_name, actor_id=No
         transaction_id=transaction_id,
         document_id=document_id,
         description=f"Document removed: {template_name}",
-        metadata={
+        event_data={
             'template_name': template_name
         },
         actor_id=actor_id
@@ -220,7 +220,7 @@ def log_document_filled(document, changed_fields=None, actor_id=None):
         transaction_id=document.transaction_id,
         document_id=document.id,
         description=f"Document form saved: {document.template_name}",
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'changed_fields': changed_fields,
             'field_count': len(document.field_data) if document.field_data else 0
@@ -236,7 +236,7 @@ def log_document_generated(document, actor_id=None):
         transaction_id=document.transaction_id,
         document_id=document.id,
         description=f"Document preview generated: {document.template_name}",
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'docuseal_submission_id': document.docuseal_submission_id
         },
@@ -251,7 +251,7 @@ def log_document_package_generated(transaction, documents, actor_id=None):
         event_type=AuditEvent.DOCUMENT_PACKAGE_GENERATED,
         transaction_id=transaction.id,
         description=f"Document package generated with {len(documents)} documents",
-        metadata={
+        event_data={
             'document_count': len(documents),
             'documents': doc_names
         },
@@ -265,7 +265,7 @@ def log_intake_saved(transaction, intake_data, actor_id=None):
         event_type=AuditEvent.INTAKE_SAVED,
         transaction_id=transaction.id,
         description="Intake questionnaire saved",
-        metadata={
+        event_data={
             'question_count': len(intake_data) if intake_data else 0,
             'questions_answered': list(intake_data.keys()) if intake_data else []
         },
@@ -279,17 +279,27 @@ def log_intake_saved(transaction, intake_data, actor_id=None):
 
 def log_document_sent(document, signers, submission_id, actor_id=None):
     """Log when a document is sent for signature."""
-    signer_info = [{'email': s.get('email'), 'role': s.get('role')} for s in signers]
+    signer_info = [{
+        'email': s.get('email'),
+        'name': s.get('name', ''),
+        'role': s.get('role')
+    } for s in signers]
+    
+    # Build a readable list of recipients
+    recipient_list = ', '.join([f"{s.get('name', s.get('email'))} ({s.get('role', 'Signer')})" for s in signers])
+    
     return log_event(
         event_type=AuditEvent.DOCUMENT_SENT,
         transaction_id=document.transaction_id,
         document_id=document.id,
-        description=f"Document sent for signature: {document.template_name}",
-        metadata={
+        description=f"Sent to: {recipient_list}",
+        event_data={
             'template_slug': document.template_slug,
+            'template_name': document.template_name,
             'docuseal_submission_id': submission_id,
             'signers': signer_info,
-            'signer_count': len(signers)
+            'signer_count': len(signers),
+            'recipient_summary': recipient_list
         },
         actor_id=actor_id
     )
@@ -298,18 +308,29 @@ def log_document_sent(document, signers, submission_id, actor_id=None):
 def log_envelope_sent(transaction, documents, signers, submission_id, actor_id=None):
     """Log when multiple documents are sent as one envelope."""
     doc_names = [d.template_name for d in documents]
-    signer_info = [{'email': s.email if hasattr(s, 'email') else s.get('email'),
-                    'role': s.role if hasattr(s, 'role') else s.get('role')} for s in signers]
+    signer_info = [{
+        'email': s.email if hasattr(s, 'email') else s.get('email'),
+        'name': s.name if hasattr(s, 'name') else s.get('name', ''),
+        'role': s.role if hasattr(s, 'role') else s.get('role')
+    } for s in signers]
+    
+    # Build a readable list of recipients
+    recipient_list = ', '.join([
+        f"{s.get('name') or s.get('email')} ({s.get('role', 'Signer')})" 
+        for s in signer_info
+    ])
+    
     return log_event(
         event_type=AuditEvent.ENVELOPE_SENT,
         transaction_id=transaction.id,
-        description=f"Document package sent for signature ({len(documents)} documents)",
-        metadata={
+        description=f"{len(documents)} docs sent to: {recipient_list}",
+        event_data={
             'docuseal_submission_id': submission_id,
             'documents': doc_names,
             'document_count': len(documents),
             'signers': signer_info,
-            'signer_count': len(signers)
+            'signer_count': len(signers),
+            'recipient_summary': recipient_list
         },
         actor_id=actor_id
     )
@@ -322,7 +343,7 @@ def log_document_resent(document, resent_count, actor_id=None):
         transaction_id=document.transaction_id,
         document_id=document.id,
         description=f"Signature request resent for: {document.template_name}",
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'docuseal_submission_id': document.docuseal_submission_id,
             'resent_count': resent_count
@@ -338,7 +359,7 @@ def log_document_voided(document, actor_id=None):
         transaction_id=document.transaction_id,
         document_id=document.id,
         description=f"Document voided: {document.template_name}",
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'previous_submission_id': document.docuseal_submission_id
         },
@@ -354,7 +375,7 @@ def log_document_viewed(document, signature, webhook_data=None):
         document_id=document.id,
         signature_id=signature.id if signature else None,
         description=f"Document viewed by {signature.signer_name if signature else 'signer'}",
-        metadata={
+        event_data={
             'signer_email': signature.signer_email if signature else None,
             'signer_role': signature.signer_role if signature else None,
             'webhook_data': webhook_data
@@ -373,7 +394,7 @@ def log_document_signed(document, signature=None, webhook_data=None):
         signature_id=signature.id if signature else None,
         description=f"Document signed: {document.template_name}" +
                     (f" by {signature.signer_name}" if signature else ""),
-        metadata={
+        event_data={
             'template_slug': document.template_slug,
             'signer_email': signature.signer_email if signature else None,
             'signer_role': signature.signer_role if signature else None,
@@ -404,7 +425,7 @@ def log_webhook_received(transaction_id, document_id, event_type, raw_payload):
         transaction_id=transaction_id,
         document_id=document_id,
         description=f"Webhook received: {event_type}",
-        metadata={
+        event_data={
             'webhook_event_type': event_type,
             'payload_summary': sanitized_payload
         },
@@ -513,7 +534,7 @@ def format_event_for_display(event):
         'id': event.id,
         'event_type': event.event_type,
         'description': event.description,
-        'metadata': event.metadata,
+        'event_data': event.event_data,
         'source': event.source,
         'created_at': event.created_at.isoformat() if event.created_at else None,
         'actor_id': event.actor_id,

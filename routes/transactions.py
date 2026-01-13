@@ -1983,6 +1983,13 @@ def send_for_signature(id, doc_id):
             )
             db.session.add(signature)
         
+        # Track who sent the document
+        doc.sent_by_id = current_user.id
+        
+        # Log audit event for document sent (must be before commit)
+        signer_info = [{'email': s.get('email'), 'name': s.get('name', ''), 'role': s.get('role')} for s in submission.get('submitters', [])]
+        audit_service.log_document_sent(doc, signer_info, submission['id'])
+        
         db.session.commit()
         
         return jsonify({

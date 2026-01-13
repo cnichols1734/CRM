@@ -4,156 +4,78 @@
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
     }
 
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-
-    /* Premium card styling */
-    .premium-card {
-        background: white;
-        border-radius: 1rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        transition: all 0.2s ease-out;
-    }
-
-    .premium-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-
-    /* Timeline styling */
-    .timeline {
-        position: relative;
-    }
-
-    .timeline::before {
-        content: '';
-        position: absolute;
-        left: 1.5rem;
-        top: 0;
-        bottom: 0;
-        width: 2px;
-        background: linear-gradient(to bottom, #f97316, #ea580c);
-        opacity: 0.2;
-    }
-
-    .timeline-item {
-        position: relative;
-        padding-left: 4rem;
-        padding-bottom: 1.5rem;
-    }
-
-    .timeline-item:last-child {
-        padding-bottom: 0;
-    }
-
-    .timeline-icon {
-        position: absolute;
-        left: 0;
-        width: 3rem;
-        height: 3rem;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.875rem;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    .timeline-icon.success { background: #dcfce7; color: #166534; }
-    .timeline-icon.info { background: #dbeafe; color: #1e40af; }
-    .timeline-icon.warning { background: #fef3c7; color: #92400e; }
-    .timeline-icon.danger { background: #fee2e2; color: #991b1b; }
-    .timeline-icon.primary { background: #fed7aa; color: #c2410c; }
-    .timeline-icon.secondary { background: #f1f5f9; color: #475569; }
-
-    .timeline-content {
-        background: #f8fafc;
-        border-radius: 0.75rem;
-        padding: 1rem 1.25rem;
-        border: 1px solid #e2e8f0;
-        transition: all 0.2s ease-out;
-    }
-
-    .timeline-content:hover {
-        background: white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .timeline-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 0.5rem;
-    }
-
-    .timeline-label {
-        font-weight: 600;
-        color: #1e293b;
-        font-size: 0.9375rem;
-    }
-
-    .timeline-time {
+    .history-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
         font-size: 0.75rem;
-        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
         white-space: nowrap;
     }
 
-    .timeline-description {
-        color: #64748b;
+    .history-table td {
+        padding: 0.875rem 1rem;
         font-size: 0.875rem;
-        line-height: 1.5;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: top;
     }
 
-    .timeline-actor {
+    .history-table tbody tr:hover {
+        background: #fefce8;
+    }
+
+    .history-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .event-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.375rem;
-        font-size: 0.75rem;
-        color: #94a3b8;
-        margin-top: 0.5rem;
-    }
-
-    .timeline-actor i {
-        font-size: 0.625rem;
-    }
-
-    .timeline-metadata {
-        margin-top: 0.75rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid #e2e8f0;
-    }
-
-    .metadata-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        font-size: 0.75rem;
-        color: #64748b;
-        background: #f1f5f9;
         padding: 0.25rem 0.625rem;
         border-radius: 9999px;
-        margin-right: 0.375rem;
-        margin-bottom: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
     }
 
-    /* Filter buttons */
+    .event-badge.success { background: #dcfce7; color: #166534; }
+    .event-badge.info { background: #dbeafe; color: #1e40af; }
+    .event-badge.warning { background: #fef3c7; color: #92400e; }
+    .event-badge.danger { background: #fee2e2; color: #991b1b; }
+    .event-badge.primary { background: #fed7aa; color: #c2410c; }
+    .event-badge.secondary { background: #f1f5f9; color: #475569; }
+
+    .detail-tag {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+    }
+
     .filter-btn {
         padding: 0.5rem 1rem;
-        border-radius: 9999px;
+        border-radius: 0.5rem;
         font-size: 0.75rem;
         font-weight: 500;
         border: 1px solid #e2e8f0;
         background: white;
         color: #64748b;
-        transition: all 0.2s ease-out;
+        transition: all 0.15s ease;
         cursor: pointer;
     }
 
@@ -163,12 +85,17 @@
     }
 
     .filter-btn.active {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: #f97316;
         color: white;
-        border-color: transparent;
+        border-color: #f97316;
     }
 
-    /* Loading spinner */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #94a3b8;
+    }
+
     .loading-spinner {
         display: inline-block;
         width: 1.5rem;
@@ -184,23 +111,40 @@
         100% { transform: rotate(360deg); }
     }
 
-    /* Empty state */
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #94a3b8;
-    }
+    @media (max-width: 768px) {
+        .history-table thead {
+            display: none;
+        }
 
-    .empty-state i {
-        font-size: 3rem;
-        margin-bottom: 1rem;
-        opacity: 0.5;
+        .history-table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .history-table td {
+            display: block;
+            padding: 0.375rem 0;
+            border: none;
+        }
+
+        .history-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #64748b;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
     }
 </style>
 
-<div class="max-w-6xl mx-auto px-4 py-8">
+<div class="max-w-7xl mx-auto px-4 py-8">
     <!-- Header -->
-    <div class="animate-fade-in-up mb-6">
+    <div class="mb-6">
         <div class="flex items-center gap-3 mb-2">
             <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
                class="text-gray-400 hover:text-gray-600 transition-colors">
@@ -212,7 +156,7 @@
     </div>
 
     <!-- Filters -->
-    <div class="premium-card p-4 mb-6 animate-fade-in-up" style="animation-delay: 0.1s;">
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div class="flex flex-wrap items-center gap-2">
             <span class="text-sm text-gray-500 mr-2">Filter:</span>
             <button class="filter-btn active" data-filter="all">All Events</button>
@@ -223,16 +167,32 @@
         </div>
     </div>
 
-    <!-- Timeline -->
-    <div class="premium-card p-6 animate-fade-in-up" style="animation-delay: 0.2s;">
-        <div id="timeline-container">
-            <div class="flex justify-center py-8">
-                <div class="loading-spinner"></div>
-            </div>
+    <!-- History Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Event</th>
+                        <th>Description</th>
+                        <th>Document</th>
+                        <th>User</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="loading-spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
         <!-- Pagination -->
-        <div id="pagination-container" class="hidden mt-6 pt-4 border-t border-gray-100">
+        <div id="pagination-container" class="hidden border-t border-gray-100 px-4 py-3">
             <div class="flex justify-between items-center">
                 <span class="text-sm text-gray-500">
                     Showing <span id="showing-count">0</span> of <span id="total-count">0</span> events
@@ -264,10 +224,9 @@ document.addEventListener('DOMContentLoaded', function() {
         'webhook': ['webhook_received']
     };
 
-    // Fetch and render events
     async function loadEvents(page = 1) {
-        const container = document.getElementById('timeline-container');
-        container.innerHTML = '<div class="flex justify-center py-8"><div class="loading-spinner"></div></div>';
+        const tbody = document.getElementById('history-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8"><div class="loading-spinner"></div></td></tr>';
 
         try {
             const response = await fetch(`{{ url_for('transactions.transaction_history', id=transaction.id) }}?page=${page}&per_page=50`);
@@ -284,120 +243,137 @@ document.addEventListener('DOMContentLoaded', function() {
                 events = events.filter(e => filterMap[currentFilter].includes(e.event_type));
             }
 
-            renderTimeline(events);
+            renderTable(events);
             updatePagination(data.pagination, events.length);
 
         } catch (error) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <p>Error loading activity history</p>
-                    <p class="text-sm mt-2">${error.message}</p>
-                </div>
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>Error loading activity history</p>
+                        <p class="text-sm mt-2">${error.message}</p>
+                    </td>
+                </tr>
             `;
         }
     }
 
-    function renderTimeline(events) {
-        const container = document.getElementById('timeline-container');
+    function renderTable(events) {
+        const tbody = document.getElementById('history-body');
 
         if (events.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-history"></i>
-                    <p>No activity recorded yet</p>
-                    <p class="text-sm mt-2">Events will appear here as you work with this transaction</p>
-                </div>
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-history text-3xl mb-2 block"></i>
+                        <p>No activity recorded yet</p>
+                        <p class="text-sm mt-2">Events will appear here as you work with this transaction</p>
+                    </td>
+                </tr>
             `;
             return;
         }
 
-        let html = '<div class="timeline">';
+        let html = '';
 
         events.forEach(event => {
-            const time = formatTime(event.created_at);
-            const metadata = renderMetadata(event);
+            const dateTime = formatDateTime(event.created_at);
+            const details = formatDetails(event.event_data);
+            const docName = event.event_data?.template_name || event.event_data?.documents?.join(', ') || '-';
 
             html += `
-                <div class="timeline-item" data-event-type="${event.event_type}">
-                    <div class="timeline-icon ${event.color}">
-                        <i class="${event.icon}"></i>
-                    </div>
-                    <div class="timeline-content">
-                        <div class="timeline-header">
-                            <span class="timeline-label">${event.label}</span>
-                            <span class="timeline-time">${time}</span>
-                        </div>
-                        <p class="timeline-description">${event.description || ''}</p>
-                        ${event.actor_name ? `
-                            <div class="timeline-actor">
-                                <i class="fas fa-user"></i>
-                                ${event.actor_name}
-                            </div>
-                        ` : ''}
-                        ${metadata}
-                    </div>
-                </div>
+                <tr data-event-type="${event.event_type}">
+                    <td data-label="Date & Time">
+                        <div class="font-medium text-gray-800">${dateTime.date}</div>
+                        <div class="text-xs text-gray-500">${dateTime.time}</div>
+                    </td>
+                    <td data-label="Event">
+                        <span class="event-badge ${event.color}">
+                            <i class="${event.icon}"></i>
+                            ${event.label}
+                        </span>
+                    </td>
+                    <td data-label="Description">
+                        ${event.description || '-'}
+                    </td>
+                    <td data-label="Document">
+                        ${docName}
+                    </td>
+                    <td data-label="User">
+                        ${event.actor_name || '<span class="text-gray-400">System</span>'}
+                    </td>
+                    <td data-label="Details">
+                        ${details || '-'}
+                    </td>
+                </tr>
             `;
         });
 
-        html += '</div>';
-        container.innerHTML = html;
+        tbody.innerHTML = html;
     }
 
-    function renderMetadata(event) {
-        const meta = event.metadata;
+    function formatDateTime(isoString) {
+        if (!isoString) return { date: '-', time: '' };
+        const date = new Date(isoString);
+
+        return {
+            date: date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }),
+            time: date.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            })
+        };
+    }
+
+    function formatDetails(meta) {
         if (!meta || Object.keys(meta).length === 0) return '';
 
-        let items = [];
+        let tags = [];
 
-        // Document-related
-        if (meta.template_name) items.push(`<span class="metadata-item"><i class="fas fa-file"></i> ${meta.template_name}</span>`);
-        if (meta.document_count) items.push(`<span class="metadata-item"><i class="fas fa-copy"></i> ${meta.document_count} documents</span>`);
-
-        // Participant-related
-        if (meta.role) items.push(`<span class="metadata-item"><i class="fas fa-user-tag"></i> ${meta.role}</span>`);
-        if (meta.name && !event.description.includes(meta.name)) items.push(`<span class="metadata-item"><i class="fas fa-user"></i> ${meta.name}</span>`);
-
-        // Status changes
+        // Status change
         if (meta.old_status && meta.new_status) {
-            items.push(`<span class="metadata-item"><i class="fas fa-exchange-alt"></i> ${formatStatus(meta.old_status)} → ${formatStatus(meta.new_status)}</span>`);
+            tags.push(`<span class="detail-tag">${formatStatus(meta.old_status)} → ${formatStatus(meta.new_status)}</span>`);
         }
 
-        // Signers
-        if (meta.signer_count) items.push(`<span class="metadata-item"><i class="fas fa-signature"></i> ${meta.signer_count} signers</span>`);
-        if (meta.signer_email) items.push(`<span class="metadata-item"><i class="fas fa-envelope"></i> ${meta.signer_email}</span>`);
+        // Participant info (for participant added/removed)
+        if (meta.role && meta.name && !meta.signers) {
+            tags.push(`<span class="detail-tag">${meta.role}: ${meta.name}</span>`);
+        }
 
-        // Resend count
-        if (meta.resent_count !== undefined) items.push(`<span class="metadata-item"><i class="fas fa-redo"></i> ${meta.resent_count} emails resent</span>`);
+        // Signers info (for document/envelope sent)
+        if (meta.signers && meta.signers.length > 0) {
+            meta.signers.forEach(s => {
+                const name = s.name || s.email;
+                const role = s.role || 'Signer';
+                tags.push(`<span class="detail-tag"><i class="fas fa-user text-xs mr-1"></i>${name} (${role})</span>`);
+            });
+        } else if (meta.signer_email) {
+            // Fallback for single signer info
+            tags.push(`<span class="detail-tag">${meta.signer_email}</span>`);
+        }
 
-        // DocuSeal ID
-        if (meta.docuseal_submission_id) items.push(`<span class="metadata-item"><i class="fas fa-hashtag"></i> ${meta.docuseal_submission_id}</span>`);
+        // Document count (for envelope)
+        if (meta.document_count && meta.document_count > 1) {
+            tags.push(`<span class="detail-tag"><i class="fas fa-copy text-xs mr-1"></i>${meta.document_count} docs</span>`);
+        }
 
-        if (items.length === 0) return '';
+        // Submission ID
+        if (meta.docuseal_submission_id) {
+            tags.push(`<span class="detail-tag">ID: ${meta.docuseal_submission_id}</span>`);
+        }
 
-        return `<div class="timeline-metadata">${items.join('')}</div>`;
-    }
+        // IP address (for webhooks/compliance)
+        if (meta.ip_address) {
+            tags.push(`<span class="detail-tag">IP: ${meta.ip_address}</span>`);
+        }
 
-    function formatTime(isoString) {
-        if (!isoString) return '';
-        const date = new Date(isoString);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffMins = Math.floor(diffMs / 60000);
-        const diffHours = Math.floor(diffMs / 3600000);
-        const diffDays = Math.floor(diffMs / 86400000);
-
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays < 7) return `${diffDays}d ago`;
-
-        return date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-        });
+        return tags.join('');
     }
 
     function formatStatus(status) {

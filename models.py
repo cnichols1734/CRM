@@ -641,13 +641,13 @@ class AuditEvent(db.Model):
     # Human-readable description
     description = db.Column(db.String(500))
 
-    # Detailed metadata (JSON) - stores context-specific data
+    # Detailed event data (JSON) - stores context-specific data
     # Examples:
     # - For status changes: {"old_status": "pending", "new_status": "sent"}
     # - For field changes: {"changed_fields": ["seller_name", "price"]}
     # - For webhooks: {"raw_payload": {...}, "ip_address": "..."}
     # - For signatures: {"signer_email": "...", "signer_role": "Seller"}
-    metadata = db.Column(db.JSON, default={})
+    event_data = db.Column(db.JSON, default={})
 
     # Source of the event
     source = db.Column(db.String(50), default='app')  # app, webhook, system, api
@@ -700,7 +700,7 @@ class AuditEvent(db.Model):
 
     @classmethod
     def log(cls, event_type, transaction_id=None, document_id=None, signature_id=None,
-            actor_id=None, description=None, metadata=None, source='app',
+            actor_id=None, description=None, event_data=None, source='app',
             ip_address=None, user_agent=None):
         """
         Convenience method to create and save an audit event.
@@ -713,7 +713,7 @@ class AuditEvent(db.Model):
             signature_id=signature_id,
             actor_id=actor_id,
             description=description,
-            metadata=metadata or {},
+            event_data=event_data or {},
             source=source,
             ip_address=ip_address,
             user_agent=user_agent

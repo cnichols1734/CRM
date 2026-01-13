@@ -46,7 +46,7 @@ def upgrade():
             sa.Column('actor_id', sa.Integer(), nullable=True),
             sa.Column('event_type', sa.String(length=50), nullable=False),
             sa.Column('description', sa.String(length=500), nullable=True),
-            sa.Column('metadata', sa.JSON(), nullable=True),
+            sa.Column('event_data', sa.JSON(), nullable=True),
             sa.Column('source', sa.String(length=50), nullable=True, server_default='app'),
             sa.Column('ip_address', sa.String(length=45), nullable=True),
             sa.Column('user_agent', sa.String(length=500), nullable=True),
