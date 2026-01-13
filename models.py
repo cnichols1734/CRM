@@ -554,6 +554,9 @@ class TransactionDocument(db.Model):
     # DocuSeal integration fields (nullable, for future use)
     docuseal_template_id = db.Column(db.String(100))  # DocuSeal template ID
     docuseal_submission_id = db.Column(db.String(100))  # DocuSeal submission ID when sent
+
+    # Who sent this document for signature
+    sent_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -564,7 +567,8 @@ class TransactionDocument(db.Model):
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
-    
+    sent_by = db.relationship('User', foreign_keys=[sent_by_id], backref='sent_documents')
+
     def __repr__(self):
         return f'<TransactionDocument {self.template_name} ({self.status})>'
 
@@ -606,3 +610,116 @@ class DocumentSignature(db.Model):
     
     def __repr__(self):
         return f'<DocumentSignature {self.signer_name} ({self.status})>'
+
+
+class AuditEvent(db.Model):
+    """
+    Comprehensive audit trail for transactions and documents.
+    Tracks all significant actions for compliance and reporting.
+    """
+    __tablename__ = 'audit_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # What was affected
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    signature_id = db.Column(db.Integer, db.ForeignKey('document_signatures.id', ondelete='SET NULL'), nullable=True)
+
+    # Who performed the action (null for system/webhook events)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    # What happened
+    event_type = db.Column(db.String(50), nullable=False)
+    # Event types:
+    # Transaction: transaction_created, transaction_updated, transaction_deleted, transaction_status_changed
+    # Participants: participant_added, participant_removed, participant_updated
+    # Documents: document_added, document_removed, document_filled, document_generated
+    # E-Sign: document_sent, document_resent, document_voided, document_viewed, document_signed
+    # Webhook: webhook_received
+
+    # Human-readable description
+    description = db.Column(db.String(500))
+
+    # Detailed metadata (JSON) - stores context-specific data
+    # Examples:
+    # - For status changes: {"old_status": "pending", "new_status": "sent"}
+    # - For field changes: {"changed_fields": ["seller_name", "price"]}
+    # - For webhooks: {"raw_payload": {...}, "ip_address": "..."}
+    # - For signatures: {"signer_email": "...", "signer_role": "Seller"}
+    metadata = db.Column(db.JSON, default={})
+
+    # Source of the event
+    source = db.Column(db.String(50), default='app')  # app, webhook, system, api
+
+    # IP address for web requests (useful for compliance)
+    ip_address = db.Column(db.String(45))  # Supports IPv6
+
+    # User agent for web requests
+    user_agent = db.Column(db.String(500))
+
+    # Timestamp
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    # Relationships
+    transaction = db.relationship('Transaction', backref=db.backref('audit_events', lazy='dynamic', cascade='all, delete-orphan'))
+    document = db.relationship('TransactionDocument', backref=db.backref('audit_events', lazy='dynamic'))
+    signature = db.relationship('DocumentSignature', backref=db.backref('audit_events', lazy='dynamic'))
+    actor = db.relationship('User', backref=db.backref('audit_actions', lazy='dynamic'))
+
+    # Event type constants for consistency
+    # Transaction events
+    TRANSACTION_CREATED = 'transaction_created'
+    TRANSACTION_UPDATED = 'transaction_updated'
+    TRANSACTION_DELETED = 'transaction_deleted'
+    TRANSACTION_STATUS_CHANGED = 'transaction_status_changed'
+
+    # Participant events
+    PARTICIPANT_ADDED = 'participant_added'
+    PARTICIPANT_REMOVED = 'participant_removed'
+    PARTICIPANT_UPDATED = 'participant_updated'
+
+    # Document lifecycle events
+    DOCUMENT_ADDED = 'document_added'
+    DOCUMENT_REMOVED = 'document_removed'
+    DOCUMENT_FILLED = 'document_filled'
+    DOCUMENT_GENERATED = 'document_generated'
+    DOCUMENT_PACKAGE_GENERATED = 'document_package_generated'
+
+    # E-signature events
+    DOCUMENT_SENT = 'document_sent'
+    DOCUMENT_RESENT = 'document_resent'
+    DOCUMENT_VOIDED = 'document_voided'
+    DOCUMENT_VIEWED = 'document_viewed'
+    DOCUMENT_SIGNED = 'document_signed'
+    ENVELOPE_SENT = 'envelope_sent'
+
+    # System events
+    WEBHOOK_RECEIVED = 'webhook_received'
+    INTAKE_SAVED = 'intake_saved'
+
+    @classmethod
+    def log(cls, event_type, transaction_id=None, document_id=None, signature_id=None,
+            actor_id=None, description=None, metadata=None, source='app',
+            ip_address=None, user_agent=None):
+        """
+        Convenience method to create and save an audit event.
+        Returns the created event.
+        """
+        event = cls(
+            event_type=event_type,
+            transaction_id=transaction_id,
+            document_id=document_id,
+            signature_id=signature_id,
+            actor_id=actor_id,
+            description=description,
+            metadata=metadata or {},
+            source=source,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+        db.session.add(event)
+        return event
+
+    def __repr__(self):
+        return f'<AuditEvent {self.event_type} tx={self.transaction_id} at {self.created_at}>'
