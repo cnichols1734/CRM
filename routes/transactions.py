@@ -2453,6 +2453,28 @@ def docuseal_webhook():
 
             db.session.commit()
 
+        elif event_type == 'form.declined':
+            # Signer declined to sign
+            decline_reason = submitter_data.get('decline_reason', '')
+            signer_name = submitter_data.get('name', '')
+            
+            doc.status = 'declined'
+            
+            # Update the specific signature record that declined
+            if signature:
+                signature.status = 'declined'
+            
+            # Log document declined event
+            audit_service.log_document_declined(doc, signature, {
+                'signer_email': signer_email,
+                'signer_name': signer_name,
+                'signer_role': signer_role,
+                'decline_reason': decline_reason,
+                'submission_id': submission_id
+            })
+
+            db.session.commit()
+
         return jsonify({
             'received': True,
             'event': event_type,

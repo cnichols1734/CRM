@@ -406,6 +406,39 @@ def log_document_signed(document, signature=None, webhook_data=None):
     )
 
 
+def log_document_declined(document, signature=None, webhook_data=None):
+    """Log when a signer declines to sign a document."""
+    signer_name = webhook_data.get('signer_name', '') if webhook_data else ''
+    signer_email = webhook_data.get('signer_email', '') if webhook_data else ''
+    decline_reason = webhook_data.get('decline_reason', '') if webhook_data else ''
+    
+    description = f"Document declined: {document.template_name}"
+    if signer_name:
+        description += f" by {signer_name}"
+    if decline_reason:
+        description += f" - Reason: {decline_reason}"
+    
+    return log_event(
+        event_type=AuditEvent.DOCUMENT_DECLINED,
+        transaction_id=document.transaction_id,
+        document_id=document.id,
+        signature_id=signature.id if signature else None,
+        description=description,
+        event_data={
+            'template_slug': document.template_slug,
+            'template_name': document.template_name,
+            'signer_email': signer_email,
+            'signer_name': signer_name,
+            'signer_role': webhook_data.get('signer_role') if webhook_data else None,
+            'decline_reason': decline_reason,
+            'docuseal_submission_id': document.docuseal_submission_id,
+            'webhook_data': webhook_data
+        },
+        source='webhook',
+        actor_id=None  # Webhook events have no app actor
+    )
+
+
 # =============================================================================
 # WEBHOOK EVENTS
 # =============================================================================
@@ -520,6 +553,7 @@ def format_event_for_display(event):
         AuditEvent.DOCUMENT_VOIDED: {'icon': 'fas fa-ban', 'color': 'danger', 'label': 'Document Voided'},
         AuditEvent.DOCUMENT_VIEWED: {'icon': 'fas fa-eye', 'color': 'info', 'label': 'Viewed'},
         AuditEvent.DOCUMENT_SIGNED: {'icon': 'fas fa-signature', 'color': 'success', 'label': 'Signed'},
+        AuditEvent.DOCUMENT_DECLINED: {'icon': 'fas fa-times-circle', 'color': 'danger', 'label': 'Declined'},
         AuditEvent.WEBHOOK_RECEIVED: {'icon': 'fas fa-webhook', 'color': 'secondary', 'label': 'Webhook'},
         AuditEvent.INTAKE_SAVED: {'icon': 'fas fa-clipboard-check', 'color': 'info', 'label': 'Intake Saved'},
     }

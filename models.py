@@ -692,6 +692,7 @@ class AuditEvent(db.Model):
     DOCUMENT_VOIDED = 'document_voided'
     DOCUMENT_VIEWED = 'document_viewed'
     DOCUMENT_SIGNED = 'document_signed'
+    DOCUMENT_DECLINED = 'document_declined'
     ENVELOPE_SENT = 'envelope_sent'
 
     # System events
