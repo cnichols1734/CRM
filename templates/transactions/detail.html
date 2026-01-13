@@ -296,12 +296,21 @@
                 </div>
             </div>
             
-            <!-- Delete Button -->
-            <button onclick="confirmDelete()" 
-                    class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
-                <i class="fas fa-trash-alt"></i>
-                <span class="hidden sm:inline">Delete</span>
-            </button>
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2">
+                <!-- History Button -->
+                <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
+                   class="premium-btn px-4 py-2 text-sm border-2 border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 flex items-center gap-2">
+                    <i class="fas fa-history"></i>
+                    <span class="hidden sm:inline">History</span>
+                </a>
+                <!-- Delete Button -->
+                <button onclick="confirmDelete()"
+                        class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="hidden sm:inline">Delete</span>
+                </button>
+            </div>
         </div>
 
         <!-- Prominent Type & Status Badges -->
@@ -776,52 +785,112 @@
                     </div>
                 </div>
 
-                <!-- Transaction Timeline Card -->
+                <!-- Recent Activity Card -->
                 <div class="premium-card p-6 animate-fade-in-up-delay-2">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                            <i class="fas fa-history text-white"></i>
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                                <i class="fas fa-clock-rotate-left text-white"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">Recent Activity</h2>
                         </div>
-                        <h2 class="text-lg font-bold text-slate-800">Timeline</h2>
+                        <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}" 
+                           class="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors">
+                            View All
+                            <i class="fas fa-arrow-right text-[10px]"></i>
+                        </a>
                     </div>
                     
-                    <div class="space-y-4">
-                        <div class="flex gap-3">
-                            <div class="w-2 h-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
-                            <div>
-                                <div class="text-sm font-medium text-slate-800">Transaction Created</div>
-                                <div class="text-xs text-slate-500">{{ transaction.created_at.strftime('%b %d, %Y at %I:%M %p') }}</div>
-                            </div>
+                    <div id="activity-feed" class="space-y-3">
+                        <div class="flex justify-center py-4">
+                            <div class="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin"></div>
                         </div>
-                        {% if transaction.intake_data %}
-                        <div class="flex gap-3">
-                            <div class="w-2 h-2 rounded-full bg-purple-500 mt-2 flex-shrink-0"></div>
-                            <div>
-                                <div class="text-sm font-medium text-slate-800">Questionnaire Completed</div>
-                                <div class="text-xs text-slate-500">Property details gathered</div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if documents|length > 0 %}
-                        <div class="flex gap-3">
-                            <div class="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
-                            <div>
-                                <div class="text-sm font-medium text-slate-800">{{ documents|length }} Document{% if documents|length != 1 %}s{% endif %} Added</div>
-                                <div class="text-xs text-slate-500">Document package created</div>
-                            </div>
-                        </div>
-                        {% endif %}
-                        {% if transaction.status == 'closed' and transaction.actual_close_date %}
-                        <div class="flex gap-3">
-                            <div class="w-2 h-2 rounded-full bg-emerald-500 mt-2 flex-shrink-0"></div>
-                            <div>
-                                <div class="text-sm font-medium text-slate-800">Transaction Closed</div>
-                                <div class="text-xs text-slate-500">{{ transaction.actual_close_date.strftime('%b %d, %Y') }}</div>
-                            </div>
-                        </div>
-                        {% endif %}
+                    </div>
+                    
+                    <div id="activity-footer" class="hidden pt-4 mt-4 border-t border-gray-100">
+                        <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}" 
+                           class="flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-800 rounded-lg text-sm font-medium transition-colors">
+                            <i class="fas fa-history"></i>
+                            View Full Activity History
+                        </a>
                     </div>
                 </div>
+                
+                <script>
+                (function() {
+                    const feed = document.getElementById('activity-feed');
+                    const footer = document.getElementById('activity-footer');
+                    
+                    fetch('{{ url_for("transactions.transaction_history", id=transaction.id) }}?per_page=5')
+                        .then(r => r.json())
+                        .then(data => {
+                            if (!data.success || !data.events.length) {
+                                feed.innerHTML = `
+                                    <div class="text-center py-4 text-gray-400">
+                                        <i class="fas fa-inbox text-2xl mb-2"></i>
+                                        <p class="text-sm">No activity yet</p>
+                                    </div>
+                                `;
+                                return;
+                            }
+                            
+                            const colorMap = {
+                                success: 'bg-green-500',
+                                info: 'bg-blue-500',
+                                warning: 'bg-amber-500',
+                                danger: 'bg-red-500',
+                                primary: 'bg-orange-500',
+                                secondary: 'bg-gray-400'
+                            };
+                            
+                            let html = data.events.map(e => {
+                                const dotColor = colorMap[e.color] || 'bg-gray-400';
+                                const time = formatRelativeTime(e.created_at);
+                                return `
+                                    <div class="flex gap-3 group">
+                                        <div class="w-2 h-2 rounded-full ${dotColor} mt-1.5 flex-shrink-0 ring-4 ring-white"></div>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <span class="text-sm font-medium text-gray-800 truncate">${e.label}</span>
+                                                <span class="text-[11px] text-gray-400 whitespace-nowrap">${time}</span>
+                                            </div>
+                                            <p class="text-xs text-gray-500 truncate">${e.description || ''}</p>
+                                            ${e.actor_name ? `<p class="text-[11px] text-gray-400 mt-0.5"><i class="fas fa-user mr-1"></i>${e.actor_name}</p>` : ''}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            feed.innerHTML = html;
+                            
+                            if (data.pagination.total > 5) {
+                                footer.classList.remove('hidden');
+                            }
+                        })
+                        .catch(err => {
+                            feed.innerHTML = `
+                                <div class="text-center py-4 text-gray-400">
+                                    <i class="fas fa-exclamation-circle text-2xl mb-2"></i>
+                                    <p class="text-sm">Unable to load activity</p>
+                                </div>
+                            `;
+                        });
+                    
+                    function formatRelativeTime(iso) {
+                        if (!iso) return '';
+                        const date = new Date(iso);
+                        const now = new Date();
+                        const diff = Math.floor((now - date) / 1000);
+                        
+                        if (diff < 60) return 'Just now';
+                        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+                        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+                        if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+                        
+                        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }
+                })();
+                </script>
             </div>
         </div>
     </div>

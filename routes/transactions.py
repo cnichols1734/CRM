@@ -10,9 +10,10 @@ from flask_login import login_required, current_user
 from functools import wraps
 from models import (
     db, Transaction, TransactionType, TransactionParticipant,
-    TransactionDocument, DocumentSignature, Contact, User
+    TransactionDocument, DocumentSignature, Contact, User, AuditEvent
 )
 from feature_flags import can_access_transactions
+from services import audit_service
 
 transactions_bp = Blueprint('transactions', __name__, url_prefix='/transactions')
 
@@ -224,11 +225,18 @@ def create_transaction():
             )
             db.session.add(agent_participant)
         
+        # Log transaction creation
+        audit_service.log_transaction_created(transaction)
+
+        # Log participant additions
+        for participant in transaction.participants.all():
+            audit_service.log_participant_added(transaction, participant)
+
         db.session.commit()
-        
+
         flash('Transaction created successfully!', 'success')
         return redirect(url_for('transactions.view_transaction', id=transaction.id))
-        
+
     except Exception as e:
         db.session.rollback()
         flash(f'Error creating transaction: {str(e)}', 'error')
@@ -297,14 +305,18 @@ def delete_transaction(id):
     try:
         # Get transaction address for flash message
         address = transaction.street_address
-        
+        transaction_id = transaction.id
+
+        # Log deletion before actually deleting
+        audit_service.log_transaction_deleted(transaction_id, address)
+
         # Delete the transaction - cascade will handle:
         # - TransactionParticipants (cascade='all, delete-orphan')
         # - TransactionDocuments (cascade='all, delete-orphan')
         #   - DocumentSignatures (cascade='all, delete-orphan' via TransactionDocument)
         db.session.delete(transaction)
         db.session.commit()
-        
+
         flash(f'Transaction for "{address}" has been deleted.', 'success')
         return redirect(url_for('transactions.list_transactions'))
         
@@ -320,36 +332,78 @@ def delete_transaction(id):
 def update_transaction(id):
     """Update a transaction."""
     from datetime import datetime as dt
-    
+
     transaction = Transaction.query.get_or_404(id)
-    
+
     if transaction.created_by_id != current_user.id:
         abort(403)
-    
+
     try:
-        # Update fields
-        transaction.street_address = request.form.get('street_address', transaction.street_address)
-        transaction.city = request.form.get('city') or None
-        transaction.state = request.form.get('state', transaction.state)
-        transaction.zip_code = request.form.get('zip_code') or None
-        transaction.county = request.form.get('county') or None
-        transaction.ownership_status = request.form.get('ownership_status') or None
-        transaction.status = request.form.get('status', transaction.status)
-        
+        # Track changes for audit
+        old_status = transaction.status
+        changed_fields = []
+
+        # Check each field for changes
+        new_address = request.form.get('street_address', transaction.street_address)
+        if new_address != transaction.street_address:
+            changed_fields.append('street_address')
+        transaction.street_address = new_address
+
+        new_city = request.form.get('city') or None
+        if new_city != transaction.city:
+            changed_fields.append('city')
+        transaction.city = new_city
+
+        new_state = request.form.get('state', transaction.state)
+        if new_state != transaction.state:
+            changed_fields.append('state')
+        transaction.state = new_state
+
+        new_zip = request.form.get('zip_code') or None
+        if new_zip != transaction.zip_code:
+            changed_fields.append('zip_code')
+        transaction.zip_code = new_zip
+
+        new_county = request.form.get('county') or None
+        if new_county != transaction.county:
+            changed_fields.append('county')
+        transaction.county = new_county
+
+        new_ownership = request.form.get('ownership_status') or None
+        if new_ownership != transaction.ownership_status:
+            changed_fields.append('ownership_status')
+        transaction.ownership_status = new_ownership
+
+        new_status = request.form.get('status', transaction.status)
+        if new_status != transaction.status:
+            changed_fields.append('status')
+        transaction.status = new_status
+
         # Parse expected close date if provided
         expected_close = request.form.get('expected_close_date')
-        if expected_close:
-            transaction.expected_close_date = dt.strptime(expected_close, '%Y-%m-%d').date()
-        else:
-            transaction.expected_close_date = None
-        
+        new_expected = dt.strptime(expected_close, '%Y-%m-%d').date() if expected_close else None
+        if new_expected != transaction.expected_close_date:
+            changed_fields.append('expected_close_date')
+        transaction.expected_close_date = new_expected
+
         # Parse actual close date if provided
         actual_close = request.form.get('actual_close_date')
-        if actual_close:
-            transaction.actual_close_date = dt.strptime(actual_close, '%Y-%m-%d').date()
-        else:
-            transaction.actual_close_date = None
-        
+        new_actual = dt.strptime(actual_close, '%Y-%m-%d').date() if actual_close else None
+        if new_actual != transaction.actual_close_date:
+            changed_fields.append('actual_close_date')
+        transaction.actual_close_date = new_actual
+
+        # Log audit events
+        if changed_fields:
+            # Log status change separately if status changed
+            if 'status' in changed_fields and old_status != new_status:
+                audit_service.log_transaction_status_changed(transaction, old_status, new_status)
+                changed_fields.remove('status')
+
+            # Log other field changes
+            if changed_fields:
+                audit_service.log_transaction_updated(transaction, changed_fields)
+
         db.session.commit()
         flash('Transaction updated successfully!', 'success')
         
@@ -396,8 +450,13 @@ def add_participant(id):
             is_primary=False
         )
         db.session.add(participant)
+        db.session.flush()  # Get participant ID
+
+        # Log audit event
+        audit_service.log_participant_added(transaction, participant)
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'participant': {
@@ -407,7 +466,7 @@ def add_participant(id):
                 'email': participant.display_email
             }
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -419,16 +478,19 @@ def add_participant(id):
 def remove_participant(id, participant_id):
     """Remove a participant from a transaction."""
     transaction = Transaction.query.get_or_404(id)
-    
+
     if transaction.created_by_id != current_user.id:
         abort(403)
-    
+
     participant = TransactionParticipant.query.get_or_404(participant_id)
-    
+
     if participant.transaction_id != transaction.id:
         abort(404)
-    
+
     try:
+        # Log audit event before deletion
+        audit_service.log_participant_removed(transaction, participant)
+
         db.session.delete(participant)
         db.session.commit()
         return jsonify({'success': True})
@@ -608,14 +670,18 @@ def save_intake(id):
     try:
         # Save the intake data
         transaction.intake_data = intake_data
+
+        # Log audit event
+        audit_service.log_intake_saved(transaction, intake_data)
+
         db.session.commit()
-        
+
         if request.is_json:
             return jsonify({'success': True, 'intake_data': intake_data})
         else:
             flash('Questionnaire saved successfully!', 'success')
             return redirect(url_for('transactions.view_transaction', id=id))
-            
+
     except Exception as e:
         db.session.rollback()
         if request.is_json:
@@ -691,9 +757,19 @@ def generate_document_package(id):
                 tx_doc.field_data = field_data
             
             db.session.add(tx_doc)
-        
+
+        db.session.flush()  # Get document IDs
+
+        # Log audit event for package generation
+        created_docs = transaction.documents.all()
+        audit_service.log_document_package_generated(transaction, created_docs)
+
+        # Also log each individual document addition
+        for doc in created_docs:
+            audit_service.log_document_added(doc, doc.included_reason)
+
         db.session.commit()
-        
+
         flash(f'Document package generated with {len(required_docs)} documents!', 'success')
         return redirect(url_for('transactions.view_transaction', id=id))
         
@@ -742,8 +818,13 @@ def add_document(id):
             status='pending'
         )
         db.session.add(doc)
+        db.session.flush()  # Get doc ID
+
+        # Log audit event
+        audit_service.log_document_added(doc, reason)
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'document': {
@@ -752,7 +833,7 @@ def add_document(id):
                 'status': doc.status
             }
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -764,16 +845,19 @@ def add_document(id):
 def remove_document(id, doc_id):
     """Remove a document from a transaction."""
     transaction = Transaction.query.get_or_404(id)
-    
+
     if transaction.created_by_id != current_user.id:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
     doc = TransactionDocument.query.get_or_404(doc_id)
-    
+
     if doc.transaction_id != transaction.id:
         return jsonify({'success': False, 'error': 'Document not found'}), 404
-    
+
     try:
+        # Log audit event before deletion
+        audit_service.log_document_removed(transaction.id, doc.id, doc.template_name)
+
         db.session.delete(doc)
         db.session.commit()
         return jsonify({'success': True})
@@ -974,17 +1058,26 @@ def save_document_form(id, doc_id):
                 if key.startswith('field_'):
                     field_data[key[6:]] = request.form.get(key)
         
+        # Track changed fields for audit
+        old_fields = set(doc.field_data.keys()) if doc.field_data else set()
+        new_fields = set(field_data.keys())
+        changed_fields = list(new_fields - old_fields) if old_fields != new_fields else list(new_fields)
+
         # Save field data
         doc.field_data = field_data
         doc.status = 'filled'
+
+        # Log audit event
+        audit_service.log_document_filled(doc, changed_fields)
+
         db.session.commit()
-        
+
         if request.is_json:
             return jsonify({'success': True, 'status': doc.status})
         else:
             # Check if this is "Save & Continue" (redirect to preview) or just "Save Draft"
             action = request.form.get('submit_action', 'save')
-            
+
             if action == 'continue':
                 # Redirect to document preview
                 return redirect(url_for('transactions.document_preview', id=id, doc_id=doc_id))
@@ -1547,12 +1640,13 @@ def send_all_for_signature(id):
             doc.status = 'sent'
             doc.docuseal_submission_id = str(submission_id)
             doc.sent_at = datetime.utcnow()
-            
+            doc.sent_by_id = current_user.id  # Track who sent
+
             # Create signature records for each signer
             for submitter_data in result.get('submitters', []):
                 role = submitter_data.get('role')
                 participant = participant_by_role.get(role)
-                
+
                 signature = DocumentSignature(
                     document_id=doc.id,
                     participant_id=participant.id if participant else None,
@@ -1564,7 +1658,11 @@ def send_all_for_signature(id):
                     sent_at=datetime.utcnow()
                 )
                 db.session.add(signature)
-        
+
+        # Log audit event for envelope sent
+        signer_info = [{'email': s.email, 'role': s.role} for s in submitters]
+        audit_service.log_envelope_sent(transaction, documents, submitters, submission_id)
+
         db.session.commit()
         
         doc_count = len(documents)
@@ -1885,6 +1983,13 @@ def send_for_signature(id, doc_id):
             )
             db.session.add(signature)
         
+        # Track who sent the document
+        doc.sent_by_id = current_user.id
+        
+        # Log audit event for document sent (must be before commit)
+        signer_info = [{'email': s.get('email'), 'name': s.get('name', ''), 'role': s.get('role')} for s in submission.get('submitters', [])]
+        audit_service.log_document_sent(doc, signer_info, submission['id'])
+        
         db.session.commit()
         
         return jsonify({
@@ -1984,22 +2089,26 @@ def void_document(id, doc_id):
         }), 400
     
     try:
+        # Log audit event before voiding
+        audit_service.log_document_voided(doc)
+
         # Clear DocuSeal submission info
         doc.docuseal_submission_id = None
         doc.sent_at = None
+        doc.sent_by_id = None
         doc.status = 'filled'  # Reset to filled so they can preview again
-        
+
         # Delete any signature records
         DocumentSignature.query.filter_by(document_id=doc.id).delete()
-        
+
         db.session.commit()
-        
+
         return jsonify({
             'success': True,
             'message': 'Document voided. You can now edit and resend.',
             'new_status': 'filled'
         })
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -2014,29 +2123,29 @@ def resend_signature_request(id, doc_id):
     This uses the existing DocuSeal submission without creating a new one.
     """
     from services.docuseal_service import resend_signature_emails, DOCUSEAL_MOCK_MODE
-    
+
     transaction = Transaction.query.get_or_404(id)
-    
+
     if transaction.created_by_id != current_user.id:
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
     doc = TransactionDocument.query.get_or_404(doc_id)
-    
+
     if doc.transaction_id != transaction.id:
         return jsonify({'success': False, 'error': 'Document not found'}), 404
-    
+
     if doc.status != 'sent':
         return jsonify({
             'success': False,
             'error': f'Cannot resend document in "{doc.status}" status. Document must be in "sent" status.'
         }), 400
-    
+
     if not doc.docuseal_submission_id:
         return jsonify({
             'success': False,
             'error': 'Document has not been sent for signature'
         }), 400
-    
+
     try:
         # Resend emails to pending submitters
         result = resend_signature_emails(
@@ -2046,7 +2155,10 @@ def resend_signature_request(id, doc_id):
                 'body': f'This is a reminder to sign the {doc.template_name} for {transaction.street_address}. Click here to sign: {{{{submitter.link}}}}'
             }
         )
-        
+
+        # Log audit event
+        audit_service.log_document_resent(doc, result.get('resent_count', 0))
+
         return jsonify({
             'success': True,
             'resent_count': result.get('resent_count', 0),
@@ -2253,63 +2365,198 @@ def docuseal_status():
 def docuseal_webhook():
     """
     Receive webhooks from DocuSeal for signature events.
-    
+
     Configure this URL in DocuSeal: https://yourdomain.com/transactions/webhook/docuseal
-    
+
     Events:
     - form.viewed: Signer opened the document
     - form.started: Signer began filling
     - form.completed: All signers finished
     """
     from services.docuseal_service import process_webhook
-    
+
     try:
         payload = request.get_json()
-        
+
         if not payload:
             return jsonify({'error': 'No payload'}), 400
-        
+
         # Process the webhook
         result = process_webhook(payload)
         event_type = result.get('event_type')
         submission_id = result.get('submission_id')
-        
+
+        # Extract signer info from payload
+        submitter_data = payload.get('data', {})
+        signer_email = submitter_data.get('email')
+        signer_role = submitter_data.get('role')
+
         # Find the document by submission ID
         doc = TransactionDocument.query.filter_by(
             docuseal_submission_id=str(submission_id)
         ).first()
-        
+
         if not doc:
-            # Log but don't error - might be from a different source
+            # Log webhook received even if no matching doc (for debugging)
+            audit_service.log_webhook_received(None, None, event_type, payload)
             return jsonify({'received': True, 'matched': False})
-        
+
+        # Log webhook received for audit trail
+        audit_service.log_webhook_received(doc.transaction_id, doc.id, event_type, payload)
+
+        # Find matching signature record if possible
+        signature = None
+        if signer_email:
+            signature = DocumentSignature.query.filter_by(
+                document_id=doc.id,
+                signer_email=signer_email
+            ).first()
+
         # Update based on event type
         if event_type == 'form.viewed':
-            # Update signature record
-            pass  # Optionally track viewed_at
-            
+            # Update signature record with viewed timestamp
+            if signature:
+                signature.viewed_at = datetime.utcnow()
+                signature.status = 'viewed'
+
+            # Log document viewed event
+            audit_service.log_document_viewed(doc, signature, {
+                'signer_email': signer_email,
+                'signer_role': signer_role,
+                'submission_id': submission_id
+            })
+
+            db.session.commit()
+
         elif event_type == 'form.started':
-            # Signer started filling
+            # Signer started filling - just log
             pass
-            
+
         elif event_type == 'form.completed':
-            # All signers finished!
+            # Check if this is a single signer completion or all signers
+            # For now assume all signers finished
             doc.status = 'signed'
-            doc.signed_at = db.func.now()
-            
+            doc.signed_at = datetime.utcnow()
+
             # Update all signature records
             signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
             for sig in signatures:
-                sig.signed_at = db.func.now()
-            
+                sig.signed_at = datetime.utcnow()
+                sig.status = 'signed'
+
+            # Log document signed event
+            audit_service.log_document_signed(doc, signature, {
+                'signer_email': signer_email,
+                'signer_role': signer_role,
+                'submission_id': submission_id
+            })
+
             db.session.commit()
-        
+
         return jsonify({
             'received': True,
             'event': event_type,
             'document_id': doc.id if doc else None
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+# =============================================================================
+# AUDIT HISTORY API
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/history')
+@login_required
+@transactions_required
+def transaction_history(id):
+    """
+    Get the audit history for a transaction.
+    Returns a paginated list of all events related to this transaction.
+    """
+    transaction = Transaction.query.get_or_404(id)
+
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+
+    # Get pagination params
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 100)  # Max 100 per page
+
+    # Get events
+    events = audit_service.get_transaction_history(
+        transaction_id=id,
+        limit=per_page,
+        offset=(page - 1) * per_page
+    )
+
+    # Format for display
+    formatted_events = [audit_service.format_event_for_display(e) for e in events]
+
+    # Get total count for pagination
+    total = AuditEvent.query.filter_by(transaction_id=id).count()
+
+    return jsonify({
+        'success': True,
+        'events': formatted_events,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'pages': (total + per_page - 1) // per_page
+        }
+    })
+
+
+@transactions_bp.route('/<int:id>/history/view')
+@login_required
+@transactions_required
+def view_transaction_history(id):
+    """
+    Render the transaction history page.
+    """
+    transaction = Transaction.query.get_or_404(id)
+
+    if transaction.created_by_id != current_user.id:
+        abort(403)
+
+    return render_template(
+        'transactions/history.html',
+        transaction=transaction
+    )
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/history')
+@login_required
+@transactions_required
+def document_history(id, doc_id):
+    """
+    Get the audit history for a specific document.
+    """
+    transaction = Transaction.query.get_or_404(id)
+
+    if transaction.created_by_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    doc = TransactionDocument.query.get_or_404(doc_id)
+
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+
+    # Get events for this document
+    events = audit_service.get_document_history(document_id=doc_id)
+
+    # Format for display
+    formatted_events = [audit_service.format_event_for_display(e) for e in events]
+
+    return jsonify({
+        'success': True,
+        'document': {
+            'id': doc.id,
+            'name': doc.template_name,
+            'status': doc.status
+        },
+        'events': formatted_events
+    })

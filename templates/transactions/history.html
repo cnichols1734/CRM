@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block title %}Activity History - {{ transaction.street_address }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .history-table th {
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .history-table td {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+        color: #334155;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: top;
+    }
+
+    .history-table tbody tr:hover {
+        background: #fefce8;
+    }
+
+    .history-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .event-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        padding: 0.25rem 0.625rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .event-badge.success { background: #dcfce7; color: #166534; }
+    .event-badge.info { background: #dbeafe; color: #1e40af; }
+    .event-badge.warning { background: #fef3c7; color: #92400e; }
+    .event-badge.danger { background: #fee2e2; color: #991b1b; }
+    .event-badge.primary { background: #fed7aa; color: #c2410c; }
+    .event-badge.secondary { background: #f1f5f9; color: #475569; }
+
+    .detail-tag {
+        display: inline-block;
+        padding: 0.125rem 0.5rem;
+        background: #f1f5f9;
+        color: #64748b;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        margin-right: 0.25rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid #e2e8f0;
+        background: white;
+        color: #64748b;
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+
+    .filter-btn:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .filter-btn.active {
+        background: #f97316;
+        color: white;
+        border-color: #f97316;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: #94a3b8;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #f97316;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+        .history-table thead {
+            display: none;
+        }
+
+        .history-table tbody tr {
+            display: block;
+            margin-bottom: 1rem;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .history-table td {
+            display: block;
+            padding: 0.375rem 0;
+            border: none;
+        }
+
+        .history-table td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #64748b;
+            display: block;
+            margin-bottom: 0.25rem;
+        }
+    }
+</style>
+
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center gap-3 mb-2">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+               class="text-gray-400 hover:text-gray-600 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-2xl font-bold text-gray-800">Activity History</h1>
+        </div>
+        <p class="text-gray-500 ml-7">{{ transaction.street_address }}</p>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-gray-500 mr-2">Filter:</span>
+            <button class="filter-btn active" data-filter="all">All Events</button>
+            <button class="filter-btn" data-filter="transaction">Transaction</button>
+            <button class="filter-btn" data-filter="document">Documents</button>
+            <button class="filter-btn" data-filter="signature">Signatures</button>
+            <button class="filter-btn" data-filter="webhook">System</button>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Event</th>
+                        <th>Description</th>
+                        <th>Document</th>
+                        <th>User</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr>
+                        <td colspan="6" class="text-center py-8">
+                            <div class="loading-spinner"></div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div id="pagination-container" class="hidden border-t border-gray-100 px-4 py-3">
+            <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-500">
+                    Showing <span id="showing-count">0</span> of <span id="total-count">0</span> events
+                </span>
+                <div class="flex gap-2">
+                    <button id="prev-page" class="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-1"></i> Previous
+                    </button>
+                    <button id="next-page" class="px-4 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentPage = 1;
+    let currentFilter = 'all';
+    let totalPages = 1;
+
+    const filterMap = {
+        'all': null,
+        'transaction': ['transaction_created', 'transaction_updated', 'transaction_status_changed', 'transaction_deleted', 'participant_added', 'participant_removed'],
+        'document': ['document_added', 'document_removed', 'document_filled', 'document_generated', 'document_package_generated', 'intake_saved'],
+        'signature': ['document_sent', 'envelope_sent', 'document_resent', 'document_voided', 'document_viewed', 'document_signed'],
+        'webhook': ['webhook_received']
+    };
+
+    async function loadEvents(page = 1) {
+        const tbody = document.getElementById('history-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8"><div class="loading-spinner"></div></td></tr>';
+
+        try {
+            const response = await fetch(`{{ url_for('transactions.transaction_history', id=transaction.id) }}?page=${page}&per_page=50`);
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load events');
+            }
+
+            let events = data.events;
+
+            // Apply filter
+            if (currentFilter !== 'all' && filterMap[currentFilter]) {
+                events = events.filter(e => filterMap[currentFilter].includes(e.event_type));
+            }
+
+            renderTable(events);
+            updatePagination(data.pagination, events.length);
+
+        } catch (error) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-exclamation-circle text-3xl mb-2"></i>
+                        <p>Error loading activity history</p>
+                        <p class="text-sm mt-2">${error.message}</p>
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderTable(events) {
+        const tbody = document.getElementById('history-body');
+
+        if (events.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="empty-state">
+                        <i class="fas fa-history text-3xl mb-2 block"></i>
+                        <p>No activity recorded yet</p>
+                        <p class="text-sm mt-2">Events will appear here as you work with this transaction</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        events.forEach(event => {
+            const dateTime = formatDateTime(event.created_at);
+            const details = formatDetails(event.event_data);
+            const docName = event.event_data?.template_name || event.event_data?.documents?.join(', ') || '-';
+
+            html += `
+                <tr data-event-type="${event.event_type}">
+                    <td data-label="Date & Time">
+                        <div class="font-medium text-gray-800">${dateTime.date}</div>
+                        <div class="text-xs text-gray-500">${dateTime.time}</div>
+                    </td>
+                    <td data-label="Event">
+                        <span class="event-badge ${event.color}">
+                            <i class="${event.icon}"></i>
+                            ${event.label}
+                        </span>
+                    </td>
+                    <td data-label="Description">
+                        ${event.description || '-'}
+                    </td>
+                    <td data-label="Document">
+                        ${docName}
+                    </td>
+                    <td data-label="User">
+                        ${event.actor_name || '<span class="text-gray-400">System</span>'}
+                    </td>
+                    <td data-label="Details">
+                        ${details || '-'}
+                    </td>
+                </tr>
+            `;
+        });
+
+        tbody.innerHTML = html;
+    }
+
+    function formatDateTime(isoString) {
+        if (!isoString) return { date: '-', time: '' };
+        const date = new Date(isoString);
+
+        return {
+            date: date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            }),
+            time: date.toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            })
+        };
+    }
+
+    function formatDetails(meta) {
+        if (!meta || Object.keys(meta).length === 0) return '';
+
+        let tags = [];
+
+        // Status change
+        if (meta.old_status && meta.new_status) {
+            tags.push(`<span class="detail-tag">${formatStatus(meta.old_status)} → ${formatStatus(meta.new_status)}</span>`);
+        }
+
+        // Participant info (for participant added/removed)
+        if (meta.role && meta.name && !meta.signers) {
+            tags.push(`<span class="detail-tag">${meta.role}: ${meta.name}</span>`);
+        }
+
+        // Signers info (for document/envelope sent)
+        if (meta.signers && meta.signers.length > 0) {
+            meta.signers.forEach(s => {
+                const name = s.name || s.email;
+                const role = s.role || 'Signer';
+                tags.push(`<span class="detail-tag"><i class="fas fa-user text-xs mr-1"></i>${name} (${role})</span>`);
+            });
+        } else if (meta.signer_email) {
+            // Fallback for single signer info
+            tags.push(`<span class="detail-tag">${meta.signer_email}</span>`);
+        }
+
+        // Document count (for envelope)
+        if (meta.document_count && meta.document_count > 1) {
+            tags.push(`<span class="detail-tag"><i class="fas fa-copy text-xs mr-1"></i>${meta.document_count} docs</span>`);
+        }
+
+        // Submission ID
+        if (meta.docuseal_submission_id) {
+            tags.push(`<span class="detail-tag">ID: ${meta.docuseal_submission_id}</span>`);
+        }
+
+        // IP address (for webhooks/compliance)
+        if (meta.ip_address) {
+            tags.push(`<span class="detail-tag">IP: ${meta.ip_address}</span>`);
+        }
+
+        return tags.join('');
+    }
+
+    function formatStatus(status) {
+        return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function updatePagination(pagination, filteredCount) {
+        const paginationContainer = document.getElementById('pagination-container');
+        const showingCount = document.getElementById('showing-count');
+        const totalCount = document.getElementById('total-count');
+        const prevBtn = document.getElementById('prev-page');
+        const nextBtn = document.getElementById('next-page');
+
+        totalPages = pagination.pages;
+        currentPage = pagination.page;
+
+        showingCount.textContent = filteredCount;
+        totalCount.textContent = pagination.total;
+
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+
+        paginationContainer.classList.remove('hidden');
+    }
+
+    // Event listeners for filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentFilter = this.dataset.filter;
+            currentPage = 1;
+            loadEvents(1);
+        });
+    });
+
+    // Pagination
+    document.getElementById('prev-page').addEventListener('click', function() {
+        if (currentPage > 1) {
+            currentPage--;
+            loadEvents(currentPage);
+        }
+    });
+
+    document.getElementById('next-page').addEventListener('click', function() {
+        if (currentPage < totalPages) {
+            currentPage++;
+            loadEvents(currentPage);
+        }
+    });
+
+    // Initial load
+    loadEvents(1);
+});
+</script>
+{% endblock %}
