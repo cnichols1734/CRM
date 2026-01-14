@@ -1,8 +1,9 @@
-from flask import Blueprint, jsonify, request, url_for, session
+from flask import Blueprint, jsonify, request, url_for, session, Response, stream_with_context
 from flask_login import login_required, current_user
 from config import Config
 from models import Contact, Task, TaskType, TaskSubtype
 from services.ai_service import generate_chat_response
+import openai
 import re
 import json
 from pprint import pprint
@@ -276,6 +277,181 @@ def chat():
         return jsonify({
             "error": str(e)
         }), 500
+
+@ai_chat.route('/api/ai-chat/stream', methods=['POST'])
+@login_required
+def chat_stream():
+    """Stream AI chat response using GPT-5.1 with Server-Sent Events"""
+    try:
+        data = request.json
+        user_message = data.get('message')
+        page_content = data.get('pageContent', '')
+        current_url = data.get('currentUrl', '')
+        clear_history = data.get('clearHistory', False)
+
+        # Initialize or clear session history if requested
+        if clear_history or 'chat_history' not in session:
+            session['chat_history'] = []
+
+        # Get contact and task data if viewing a contact
+        contact_data = get_contact_and_tasks(current_url)
+        
+        # Prepare the context message with agent info
+        context_message = f"""
+# Agent Context
+- **Name**: {current_user.first_name} {current_user.last_name}
+- **Email**: {current_user.email}
+- **Role**: {current_user.role}
+- **Current View**: {current_url}
+
+# Page Context
+{page_content[:2000]}
+"""
+        
+        if contact_data:
+            context_message += f"""
+# Contact Details
+- **Full Name**: {contact_data['contact']['name']}
+- **Email**: {contact_data['contact']['email']}
+- **Phone**: {contact_data['contact']['phone']}
+- **Location**: {contact_data['contact']['address']}
+- **Potential Commission**: ${contact_data['contact']['potential_commission']}
+
+# Contact Notes
+{contact_data['contact']['notes']}
+
+# Related Tasks ({len(contact_data['tasks'])} total)
+"""
+            # Add task summary (simplified for streaming context)
+            for task in contact_data['tasks'][:5]:  # Limit to 5 tasks for context
+                context_message += f"- {task['type']}: {task['subject']} (Due: {task['due_date'] or 'Not set'})\n"
+
+        # Build conversation for the AI
+        conversation_history = ""
+        for msg in session.get('chat_history', []):
+            role = "User" if msg['role'] == 'user' else "BOB"
+            conversation_history += f"\n{role}: {msg['content']}\n"
+
+        # Full user prompt with context
+        full_user_prompt = f"""
+{context_message}
+
+# Conversation History
+{conversation_history}
+
+# Current User Message
+{user_message}
+"""
+
+        def generate():
+            """Generator that yields SSE events"""
+            full_response = ""
+            
+            try:
+                client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+                
+                # Use GPT-5.1 Responses API with streaming
+                stream = client.responses.create(
+                    model="gpt-5.1",
+                    instructions=SYSTEM_PROMPT,
+                    input=full_user_prompt,
+                    stream=True
+                )
+                
+                for event in stream:
+                    # Handle different event types from Responses API
+                    if hasattr(event, 'type'):
+                        if event.type == "response.output_text.delta":
+                            chunk = event.delta
+                            full_response += chunk
+                            # Escape newlines for SSE
+                            escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
+                            yield f"data: {escaped}\n\n"
+                        elif event.type == "response.completed":
+                            # Stream completed
+                            pass
+                    elif hasattr(event, 'delta') and event.delta:
+                        # Fallback for different event structure
+                        chunk = event.delta
+                        full_response += chunk
+                        escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
+                        yield f"data: {escaped}\n\n"
+                
+            except Exception as e:
+                print(f"Streaming error with GPT-5.1: {e}")
+                # Fallback to GPT-4o with Chat Completions streaming
+                try:
+                    client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+                    stream = client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": full_user_prompt}
+                        ],
+                        stream=True
+                    )
+                    
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            full_response += content
+                            escaped = content.replace('\n', '\\n').replace('\r', '\\r')
+                            yield f"data: {escaped}\n\n"
+                            
+                except Exception as fallback_error:
+                    print(f"Fallback streaming error: {fallback_error}")
+                    yield f"data: Sorry, I encountered an error. Please try again.\n\n"
+            
+            # Signal completion and send the full response for history
+            yield f"data: [DONE]\n\n"
+            yield f"data: [FULL_RESPONSE]{full_response}[/FULL_RESPONSE]\n\n"
+
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'  # Disable nginx buffering
+            }
+        )
+
+    except Exception as e:
+        print(f"Error in chat_stream: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_chat.route('/api/ai-chat/history', methods=['POST'])
+@login_required
+def save_chat_history():
+    """Save a message exchange to chat history (called after streaming completes)"""
+    try:
+        data = request.json
+        user_message = data.get('userMessage')
+        assistant_response = data.get('assistantResponse')
+        
+        if 'chat_history' not in session:
+            session['chat_history'] = []
+        
+        # Add the exchange to history
+        session['chat_history'].append({
+            "role": "user",
+            "content": user_message
+        })
+        session['chat_history'].append({
+            "role": "assistant",
+            "content": assistant_response
+        })
+        
+        # Keep only the last 10 exchanges (20 messages)
+        if len(session['chat_history']) > 20:
+            session['chat_history'] = session['chat_history'][-20:]
+        
+        session.modified = True
+        
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @ai_chat.route('/api/ai-chat/clear', methods=['POST'])
 @login_required

@@ -24,7 +24,7 @@ class AIChatWidget {
     createChatBox() {
         const chatBox = document.createElement('div');
         chatBox.className = 'ai-chat-box';
-        chatBox.style.display = 'none';
+        // Using CSS classes for smooth animation instead of display:none
         chatBox.innerHTML = `
             <div class="ai-chat-header">
                 <span>B.O.B. - Your Business Optimization Buddy</span>
@@ -73,7 +73,12 @@ class AIChatWidget {
     async toggleChat() {
         const chatBox = document.querySelector('.ai-chat-box');
         this.isOpen = !this.isOpen;
-        chatBox.style.display = this.isOpen ? 'flex' : 'none';
+        
+        if (this.isOpen) {
+            chatBox.classList.add('open');
+        } else {
+            chatBox.classList.remove('open');
+        }
         
         // Clear chat history when closing
         if (!this.isOpen) {
@@ -147,6 +152,7 @@ class AIChatWidget {
         // Disable input while processing
         textarea.disabled = true;
         sendButton.disabled = true;
+        this.isTyping = true;
 
         // Clear any existing typing indicators first
         this.hideTypingIndicator();
@@ -155,20 +161,38 @@ class AIChatWidget {
         this.addMessageToChat('user', message);
         textarea.value = '';
 
-        // Show typing indicator after user message
-        this.showTypingIndicator();
+        // Create AI message element for streaming (start empty)
+        const aiMessageElement = this.createStreamingMessage();
+        const messagesDiv = document.querySelector('.ai-chat-messages');
+        
+        // Track if user is scrolling
+        let userScrolled = false;
+        let lastScrollTop = messagesDiv.scrollTop;
+        
+        const scrollHandler = () => {
+            // If user scrolled up (away from bottom), stop auto-scrolling
+            const isAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 50;
+            if (!isAtBottom && messagesDiv.scrollTop < lastScrollTop) {
+                userScrolled = true;
+            } else if (isAtBottom) {
+                userScrolled = false;
+            }
+            lastScrollTop = messagesDiv.scrollTop;
+        };
+        
+        messagesDiv.addEventListener('scroll', scrollHandler);
 
         try {
-            const response = await fetch('/api/ai-chat', {
+            const response = await fetch('/api/ai-chat/stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     message: message,
-                    pageContent: document.body.innerText,
+                    pageContent: document.body.innerText.substring(0, 3000),
                     currentUrl: window.location.href,
-                    clearHistory: false  // Add this flag
+                    clearHistory: false
                 })
             });
 
@@ -176,25 +200,113 @@ class AIChatWidget {
                 throw new Error('Network response was not ok');
             }
 
-            const data = await response.json();
+            // Read the stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = '';
+            let buffer = '';
+            let pendingUpdate = '';
+            let updateScheduled = false;
 
-            // Artificial delay to ensure typing indicator is visible
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Batch updates for smoother rendering
+            const scheduleUpdate = () => {
+                if (!updateScheduled && pendingUpdate) {
+                    updateScheduled = true;
+                    requestAnimationFrame(() => {
+                        fullResponse += pendingUpdate;
+                        pendingUpdate = '';
+                        updateScheduled = false;
+                        
+                        // Update the message element with formatted content
+                        aiMessageElement.innerHTML = this.formatMessage(fullResponse) + '<span class="streaming-cursor">▌</span>';
+                        
+                        // Only auto-scroll if user hasn't scrolled up
+                        if (!userScrolled) {
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        }
+                    });
+                }
+            };
 
-            // Hide typing indicator and show response
-            this.hideTypingIndicator();
-            this.addMessageToChat('ai', data.response);
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Process complete SSE messages
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        
+                        // Check for completion signals
+                        if (data === '[DONE]') {
+                            continue;
+                        }
+                        
+                        // Check for full response (for history)
+                        if (data.startsWith('[FULL_RESPONSE]')) {
+                            const match = data.match(/\[FULL_RESPONSE\]([\s\S]*)\[\/FULL_RESPONSE\]/);
+                            if (match) {
+                                fullResponse = match[1];
+                            }
+                            continue;
+                        }
+                        
+                        // Unescape newlines and batch for smooth update
+                        const unescaped = data.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+                        pendingUpdate += unescaped;
+                        scheduleUpdate();
+                    }
+                }
+            }
+
+            // Final update - remove cursor
+            aiMessageElement.innerHTML = this.formatMessage(fullResponse);
+            aiMessageElement.classList.remove('streaming');
+            
+            // Remove scroll handler
+            messagesDiv.removeEventListener('scroll', scrollHandler);
+
+            // Save to chat history after streaming completes
+            if (fullResponse) {
+                await fetch('/api/ai-chat/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userMessage: message,
+                        assistantResponse: fullResponse
+                    })
+                });
+            }
 
         } catch (error) {
             console.error('Error:', error);
-            this.hideTypingIndicator();
-            this.addMessageToChat('ai', 'Sorry, I encountered an error. Please try again.');
+            aiMessageElement.innerHTML = this.formatMessage('Sorry, I encountered an error. Please try again.');
+            aiMessageElement.classList.remove('streaming');
+            messagesDiv.removeEventListener('scroll', scrollHandler);
         } finally {
             // Re-enable input
+            this.isTyping = false;
             textarea.disabled = false;
             sendButton.disabled = false;
             textarea.focus();
         }
+    }
+
+    createStreamingMessage() {
+        const messagesDiv = document.querySelector('.ai-chat-messages');
+        const messageElement = document.createElement('div');
+        messageElement.className = 'ai-message streaming';
+        messageElement.innerHTML = '<span class="streaming-cursor">▌</span>';
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        return messageElement;
     }
 
     formatMessage(text) {

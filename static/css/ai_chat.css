@@ -453,4 +453,41 @@
 .ai-chat-input textarea:disabled {
     opacity: 0.6;
     cursor: not-allowed;
-} 
+}
+
+/* Streaming message styles */
+.ai-message.streaming {
+    min-height: 40px;
+}
+
+.streaming-cursor {
+    display: inline;
+    animation: blink 0.8s infinite;
+    color: #a855f7;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+@keyframes blink {
+    0%, 40% { opacity: 1; }
+    41%, 100% { opacity: 0; }
+}
+
+/* Smooth scroll behavior for chat messages */
+.ai-chat-messages {
+    scroll-behavior: smooth;
+}
+
+/* Smooth open/close animation for chat box */
+.ai-chat-box {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    pointer-events: none;
+    transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+}
+
+.ai-chat-box.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
