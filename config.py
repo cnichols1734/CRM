@@ -16,7 +16,7 @@ class Config:
         SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///instance/crm_dev.db')
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    PERMANENT_SESSION_LIFETIME = timedelta(minutes=30)
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=24)  # 24-hour sliding expiration
 
     # Mail settings
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')

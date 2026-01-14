@@ -281,8 +281,12 @@ def login():
             # Update last_login timestamp at the moment of login
             user.last_login = datetime.utcnow()
             db.session.commit()
-            next_page = request.args.get('next')
-            return redirect(next_page) if next_page else redirect(url_for('main.dashboard'))
+            # Check for return URL in query args (Flask-Login) or form data (session expiry)
+            next_page = request.args.get('next') or request.form.get('next')
+            # Basic security check - only allow relative URLs
+            if next_page and (next_page.startswith('/') and not next_page.startswith('//')):
+                return redirect(next_page)
+            return redirect(url_for('main.dashboard'))
         else:
             flash('Invalid username/email or password', 'error')
 

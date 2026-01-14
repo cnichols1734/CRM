@@ -1,7 +1,87 @@
 /**
  * Base JavaScript functionality for CRM application
- * Handles: sidebar toggle, flash messages, user dropdown, tooltips, mobile menu
+ * Handles: sidebar toggle, flash messages, user dropdown, tooltips, mobile menu, session expiry
  */
+
+/**
+ * Global fetch wrapper to detect session expiry
+ * Intercepts all fetch responses and redirects to login if session has expired
+ */
+(function() {
+    const originalFetch = window.fetch;
+    
+    window.fetch = async function(...args) {
+        try {
+            const response = await originalFetch.apply(this, args);
+            
+            // Check if we were redirected to the login page (session expired)
+            if (response.redirected && response.url.includes('/login')) {
+                handleSessionExpiry();
+                // Return a rejected promise to stop further processing
+                return Promise.reject(new Error('Session expired'));
+            }
+            
+            // Check if response is HTML containing login form (fallback detection)
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                // Clone response to check content without consuming it
+                const clone = response.clone();
+                const text = await clone.text();
+                
+                // Check for login form indicators
+                if (text.includes('action="/login"') || text.includes('name="csrf_token"') && text.includes('Sign in to access')) {
+                    handleSessionExpiry();
+                    return Promise.reject(new Error('Session expired'));
+                }
+            }
+            
+            return response;
+        } catch (error) {
+            // Re-throw the error but check if it's a session expiry we already handled
+            if (error.message === 'Session expired') {
+                throw error;
+            }
+            throw error;
+        }
+    };
+    
+    function handleSessionExpiry() {
+        // Only handle once - check if we're already on the login page
+        if (window.location.pathname === '/login') {
+            return;
+        }
+        
+        // Store current URL for redirect after login
+        sessionStorage.setItem('returnUrl', window.location.href);
+        
+        // Show session expired notification
+        showSessionExpiredToast();
+        
+        // Redirect to login after a brief delay so user sees the message
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 1500);
+    }
+    
+    function showSessionExpiredToast() {
+        // Remove any existing session expired toasts
+        const existingToast = document.getElementById('session-expired-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+        
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.id = 'session-expired-toast';
+        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] bg-amber-100 text-amber-800 px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3';
+        toast.innerHTML = `
+            <i class="fas fa-clock text-amber-600"></i>
+            <span class="font-medium">Your session has expired. Redirecting to login...</span>
+        `;
+        
+        document.body.appendChild(toast);
+    }
+})();
 
 document.addEventListener('DOMContentLoaded', function() {
     const flashMessages = document.querySelectorAll('.toast-message');
