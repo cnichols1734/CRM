@@ -147,6 +147,7 @@ class AIChatWidget {
         // Disable input while processing
         textarea.disabled = true;
         sendButton.disabled = true;
+        this.isTyping = true;
 
         // Clear any existing typing indicators first
         this.hideTypingIndicator();
@@ -155,20 +156,20 @@ class AIChatWidget {
         this.addMessageToChat('user', message);
         textarea.value = '';
 
-        // Show typing indicator after user message
-        this.showTypingIndicator();
+        // Create AI message element for streaming (start empty)
+        const aiMessageElement = this.createStreamingMessage();
 
         try {
-            const response = await fetch('/api/ai-chat', {
+            const response = await fetch('/api/ai-chat/stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     message: message,
-                    pageContent: document.body.innerText,
+                    pageContent: document.body.innerText.substring(0, 3000),
                     currentUrl: window.location.href,
-                    clearHistory: false  // Add this flag
+                    clearHistory: false
                 })
             });
 
@@ -176,25 +177,88 @@ class AIChatWidget {
                 throw new Error('Network response was not ok');
             }
 
-            const data = await response.json();
+            // Read the stream
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullResponse = '';
+            let buffer = '';
 
-            // Artificial delay to ensure typing indicator is visible
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-            // Hide typing indicator and show response
-            this.hideTypingIndicator();
-            this.addMessageToChat('ai', data.response);
+                buffer += decoder.decode(value, { stream: true });
+                
+                // Process complete SSE messages
+                const lines = buffer.split('\n');
+                buffer = lines.pop(); // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        const data = line.slice(6);
+                        
+                        // Check for completion signals
+                        if (data === '[DONE]') {
+                            continue;
+                        }
+                        
+                        // Check for full response (for history)
+                        if (data.startsWith('[FULL_RESPONSE]')) {
+                            const match = data.match(/\[FULL_RESPONSE\]([\s\S]*)\[\/FULL_RESPONSE\]/);
+                            if (match) {
+                                fullResponse = match[1];
+                            }
+                            continue;
+                        }
+                        
+                        // Unescape newlines and append to response
+                        const unescaped = data.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+                        fullResponse += unescaped;
+                        
+                        // Update the message element with formatted content
+                        aiMessageElement.innerHTML = this.formatMessage(fullResponse);
+                        
+                        // Scroll to bottom
+                        const messagesDiv = document.querySelector('.ai-chat-messages');
+                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    }
+                }
+            }
+
+            // Save to chat history after streaming completes
+            if (fullResponse) {
+                await fetch('/api/ai-chat/history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userMessage: message,
+                        assistantResponse: fullResponse
+                    })
+                });
+            }
 
         } catch (error) {
             console.error('Error:', error);
-            this.hideTypingIndicator();
-            this.addMessageToChat('ai', 'Sorry, I encountered an error. Please try again.');
+            aiMessageElement.innerHTML = this.formatMessage('Sorry, I encountered an error. Please try again.');
         } finally {
             // Re-enable input
+            this.isTyping = false;
             textarea.disabled = false;
             sendButton.disabled = false;
             textarea.focus();
         }
+    }
+
+    createStreamingMessage() {
+        const messagesDiv = document.querySelector('.ai-chat-messages');
+        const messageElement = document.createElement('div');
+        messageElement.className = 'ai-message streaming';
+        messageElement.innerHTML = '<span class="streaming-cursor">▌</span>';
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        return messageElement;
     }
 
     formatMessage(text) {
