@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile
 from feature_flags import can_access_transactions
 from forms import ContactForm
+from services import supabase_storage
 import csv
 from io import StringIO
 from sqlalchemy import func
@@ -120,6 +121,11 @@ def view_contact(contact_id):
             TransactionParticipant.contact_id == contact.id
         ).order_by(Transaction.created_at.desc()).all()
 
+    # Get contact files
+    contact_files = ContactFile.query.filter_by(contact_id=contact.id).order_by(
+        ContactFile.created_at.desc()
+    ).all()
+
     return render_template('contacts/view.html', 
                          contact=contact, 
                          all_groups=all_groups,
@@ -127,7 +133,8 @@ def view_contact(contact_id):
                          prev_contact=prev_contact,
                          now=now,
                          related_transactions=related_transactions,
-                         show_transactions=show_transactions)
+                         show_transactions=show_transactions,
+                         contact_files=contact_files)
 
 
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
@@ -582,3 +589,187 @@ def export_contacts():
             "Content-Type": "text/csv",
         }
     )
+
+
+# =============================================================================
+# CONTACT FILE MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@contacts_bp.route('/contact/<int:contact_id>/files', methods=['POST'])
+@login_required
+def upload_contact_file(contact_id):
+    """Upload a file to a contact."""
+    contact = Contact.query.get_or_404(contact_id)
+    
+    # Check permission
+    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Check if file was provided
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Validate file extension
+    if not ContactFile.allowed_file(file.filename):
+        allowed = ', '.join(ContactFile.ALLOWED_EXTENSIONS)
+        return jsonify({
+            'success': False, 
+            'error': f'File type not allowed. Allowed types: {allowed}'
+        }), 400
+    
+    # Read file data
+    file_data = file.read()
+    
+    # Check file size
+    if len(file_data) > ContactFile.MAX_FILE_SIZE:
+        max_mb = ContactFile.MAX_FILE_SIZE / (1024 * 1024)
+        return jsonify({
+            'success': False, 
+            'error': f'File too large. Maximum size is {max_mb:.0f} MB'
+        }), 400
+    
+    try:
+        # Upload to Supabase Storage
+        result = supabase_storage.upload_file(
+            contact_id=contact_id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type=file.content_type
+        )
+        
+        # Create database record
+        contact_file = ContactFile(
+            contact_id=contact_id,
+            user_id=current_user.id,
+            filename=result['filename'],
+            original_filename=file.filename,
+            file_type=file.content_type,
+            file_size=result['size'],
+            storage_path=result['path']
+        )
+        db.session.add(contact_file)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'file': {
+                'id': contact_file.id,
+                'original_filename': contact_file.original_filename,
+                'file_type': contact_file.file_type,
+                'file_size': supabase_storage.format_file_size(contact_file.file_size),
+                'created_at': contact_file.created_at.strftime('%b %d, %Y'),
+                'is_image': contact_file.is_image,
+                'icon': supabase_storage.get_file_icon(contact_file.file_extension)
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"File upload failed: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Upload failed. Please try again.'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/files/<int:file_id>/download')
+@login_required
+def download_contact_file(contact_id, file_id):
+    """Get a signed URL for downloading a contact file."""
+    contact = Contact.query.get_or_404(contact_id)
+    
+    # Check permission
+    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get the file record
+    contact_file = ContactFile.query.filter_by(
+        id=file_id, 
+        contact_id=contact_id
+    ).first_or_404()
+    
+    try:
+        # Generate signed URL (valid for 1 hour)
+        signed_url = supabase_storage.get_signed_url(
+            contact_file.storage_path, 
+            expires_in=3600
+        )
+        
+        return jsonify({
+            'success': True,
+            'url': signed_url,
+            'filename': contact_file.original_filename
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Failed to generate download URL: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Could not generate download link'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/files/<int:file_id>', methods=['DELETE'])
+@login_required
+def delete_contact_file(contact_id, file_id):
+    """Delete a contact file."""
+    contact = Contact.query.get_or_404(contact_id)
+    
+    # Check permission
+    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get the file record
+    contact_file = ContactFile.query.filter_by(
+        id=file_id, 
+        contact_id=contact_id
+    ).first_or_404()
+    
+    try:
+        # Delete from Supabase Storage
+        supabase_storage.delete_file(contact_file.storage_path)
+        
+        # Delete database record
+        db.session.delete(contact_file)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        current_app.logger.error(f"Failed to delete file: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Could not delete file'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/files')
+@login_required
+def list_contact_files(contact_id):
+    """List all files for a contact (JSON API)."""
+    contact = Contact.query.get_or_404(contact_id)
+    
+    # Check permission
+    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    files = ContactFile.query.filter_by(contact_id=contact_id).order_by(
+        ContactFile.created_at.desc()
+    ).all()
+    
+    return jsonify({
+        'success': True,
+        'files': [{
+            'id': f.id,
+            'original_filename': f.original_filename,
+            'file_type': f.file_type,
+            'file_size': supabase_storage.format_file_size(f.file_size),
+            'created_at': f.created_at.strftime('%b %d, %Y'),
+            'is_image': f.is_image,
+            'icon': supabase_storage.get_file_icon(f.file_extension)
+        } for f in files]
+    })
