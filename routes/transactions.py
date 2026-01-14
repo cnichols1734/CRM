@@ -37,14 +37,20 @@ def transactions_required(f):
 @login_required
 @transactions_required
 def list_transactions():
-    """List all transactions for the current user."""
+    """List all transactions for the current user (or all for admins)."""
     # Get filter params
     status_filter = request.args.get('status', '')
     type_filter = request.args.get('type', '')
     search_query = request.args.get('q', '').strip()
     
-    # Base query - transactions created by current user
-    query = Transaction.query.filter_by(created_by_id=current_user.id)
+    # Admin view toggle - allow admins to see all transactions
+    show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+    
+    # Base query - filter by user unless admin viewing all
+    if show_all:
+        query = Transaction.query
+    else:
+        query = Transaction.query.filter_by(created_by_id=current_user.id)
     
     # Apply filters
     if status_filter:
@@ -110,7 +116,8 @@ def list_transactions():
         transaction_contacts=transaction_contacts,
         status_filter=status_filter,
         type_filter=type_filter,
-        search_query=search_query
+        search_query=search_query,
+        show_all=show_all
     )
 
 
@@ -254,8 +261,8 @@ def view_transaction(id):
     """View a single transaction."""
     transaction = Transaction.query.get_or_404(id)
     
-    # Ensure user owns this transaction
-    if transaction.created_by_id != current_user.id:
+    # Ensure user owns this transaction or is admin
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get participants grouped by role
