@@ -153,12 +153,31 @@
             </a>
         </div>
 
+        <!-- Filter Tabs - Admin Only -->
+        {% if current_user.role == 'admin' %}
+        <div class="mb-6 animate-fade-in-up-delay-1">
+            <div class="inline-flex items-center p-1 bg-slate-100 rounded-xl">
+                <button
+                    class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if show_all %}active{% else %}text-slate-600{% endif %}"
+                    onclick="window.location.href='{{ url_for('transactions.list_transactions', view='all') }}';">
+                    All transactions
+                </button>
+                <button
+                    class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if not show_all %}active{% else %}text-slate-600{% endif %}"
+                    onclick="window.location.href='{{ url_for('transactions.list_transactions', view='my') }}';">
+                    My transactions
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Search and Filters Bar -->
         <div class="mb-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 animate-fade-in-up-delay-1">
             <!-- Search Input -->
             <div class="relative flex-1 max-w-md">
                 <form method="GET" id="searchForm">
                     <!-- Preserve filter params -->
+                    {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
                     {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
                     {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
                     <input type="text" 
@@ -182,7 +201,8 @@
             <!-- Filter Dropdowns -->
             <div class="flex flex-wrap items-center gap-3">
                 <form method="GET" id="filterForm" class="flex flex-wrap items-center gap-3">
-                    <!-- Preserve search param -->
+                    <!-- Preserve search and view params -->
+                    {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
                     {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
                     
                     <select name="type" 
@@ -209,7 +229,7 @@
                 </form>
 
                 {% if status_filter or type_filter or search_query %}
-                <a href="{{ url_for('transactions.list_transactions') }}" 
+                <a href="{{ url_for('transactions.list_transactions', view='all' if show_all else none) }}" 
                    class="premium-btn text-sm px-4 py-2.5 border-2 border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center space-x-2">
                     <i class="fas fa-times-circle"></i>
                     <span class="hidden sm:inline">Clear All</span>
@@ -226,7 +246,7 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-700 border border-orange-200">
                 <i class="fas fa-search mr-2 text-orange-500"></i>
                 "{{ search_query }}"
-                <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter) }}" 
+                <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter, view='all' if show_all else none) }}" 
                    class="ml-2 text-orange-500 hover:text-orange-700">
                     <i class="fas fa-times"></i>
                 </a>
@@ -238,7 +258,7 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700 border border-purple-200">
                 <i class="fas fa-tag mr-2 text-purple-500"></i>
                 {{ tt.display_name }}
-                <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query) }}" 
+                <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query, view='all' if show_all else none) }}" 
                    class="ml-2 text-purple-500 hover:text-purple-700">
                     <i class="fas fa-times"></i>
                 </a>
@@ -257,7 +277,7 @@
             <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 border border-blue-200">
                 <i class="fas fa-circle mr-2 text-blue-500"></i>
                 {{ filter_status_labels.get(status_filter, status_filter|replace('_', ' ')|title) }}
-                <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query) }}" 
+                <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query, view='all' if show_all else none) }}" 
                    class="ml-2 text-blue-500 hover:text-blue-700">
                     <i class="fas fa-times"></i>
                 </a>
@@ -276,6 +296,9 @@
                             <tr>
                                 <th class="px-6 py-4 text-left">Property</th>
                                 <th class="px-4 py-4 text-left border-l border-slate-200">Contact</th>
+                                {% if current_user.role == 'admin' and show_all %}
+                                <th class="px-4 py-4 text-left border-l border-slate-200">Owner</th>
+                                {% endif %}
                                 <th class="px-4 py-4 text-left border-l border-slate-200">Type</th>
                                 <th class="px-4 py-4 text-left border-l border-slate-200">Status</th>
                                 <th class="px-4 py-4 text-left border-l border-slate-200">Created</th>
@@ -308,6 +331,18 @@
                                         <span class="text-slate-400 text-sm">No contact</span>
                                     {% endif %}
                                 </td>
+                                {% if current_user.role == 'admin' and show_all %}
+                                <td class="px-4 py-4 border-l border-slate-100">
+                                    <div class="flex items-center">
+                                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs mr-2 flex-shrink-0 font-medium text-slate-600">
+                                            {{ tx.created_by.first_name[0] }}{{ tx.created_by.last_name[0] }}
+                                        </div>
+                                        <span class="text-slate-600 text-sm">
+                                            {{ tx.created_by.first_name }} {{ tx.created_by.last_name }}
+                                        </span>
+                                    </div>
+                                </td>
+                                {% endif %}
                                 <td class="px-4 py-4 border-l border-slate-100">
                                     <span class="type-badge type-{{ tx.transaction_type.name }}">
                                         {{ tx.transaction_type.display_name }}
