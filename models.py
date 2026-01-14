@@ -410,7 +410,8 @@ class Transaction(db.Model):
     ownership_status = db.Column(db.String(50))
     
     # Transaction status
-    # Values: preparing_to_list, active, under_contract, closed, cancelled
+    # Seller statuses: preparing_to_list, active, under_contract, closed, cancelled
+    # Buyer statuses: showing, under_contract, closed, cancelled
     status = db.Column(db.String(50), default='preparing_to_list')
     
     # Key dates

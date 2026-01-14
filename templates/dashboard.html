@@ -72,6 +72,103 @@
             gap: 0.5rem;
         }
     }
+    
+    /* Transaction Pipeline Styles */
+    @keyframes countUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes slideInCard {
+        from { opacity: 0; transform: translateX(-10px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .pipeline-value-animate {
+        animation: countUp 0.8s ease-out forwards;
+    }
+    
+    .pipeline-card {
+        animation: slideInCard 0.4s ease-out forwards;
+        opacity: 0;
+    }
+    
+    .pipeline-card:nth-child(1) { animation-delay: 0.1s; }
+    .pipeline-card:nth-child(2) { animation-delay: 0.15s; }
+    .pipeline-card:nth-child(3) { animation-delay: 0.2s; }
+    .pipeline-card:nth-child(4) { animation-delay: 0.25s; }
+    .pipeline-card:nth-child(5) { animation-delay: 0.3s; }
+    
+    .pipeline-column {
+        min-width: 280px;
+        max-width: 320px;
+    }
+    
+    @media (min-width: 1024px) {
+        .pipeline-column {
+            min-width: 0;
+            max-width: none;
+            flex: 1;
+        }
+    }
+    
+    .pipeline-scroll-container {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
+    }
+    
+    .pipeline-scroll-container::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .pipeline-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .pipeline-scroll-container::-webkit-scrollbar-thumb {
+        background: rgba(203, 213, 225, 0.5);
+        border-radius: 3px;
+    }
+    
+    .pipeline-scroll-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(203, 213, 225, 0.8);
+    }
+    
+    /* Glassmorphism effect for deal cards */
+    .deal-card {
+        backdrop-filter: blur(8px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .deal-card:hover {
+        transform: translateY(-3px) scale(1.02);
+    }
+    
+    /* Column-specific hover glows */
+    .deal-card-preparing:hover {
+        box-shadow: 0 8px 25px -5px rgba(100, 116, 139, 0.25);
+    }
+    
+    .deal-card-active:hover {
+        box-shadow: 0 8px 25px -5px rgba(16, 185, 129, 0.25);
+    }
+    
+    .deal-card-contract:hover {
+        box-shadow: 0 8px 25px -5px rgba(245, 158, 11, 0.25);
+    }
+    
+    .deal-card-closed:hover {
+        box-shadow: 0 8px 25px -5px rgba(59, 130, 246, 0.25);
+    }
+    
+    /* Scroll fade indicators */
+    .pipeline-fade-left {
+        background: linear-gradient(to right, rgba(248, 250, 252, 1), transparent);
+    }
+    
+    .pipeline-fade-right {
+        background: linear-gradient(to left, rgba(248, 250, 252, 1), transparent);
+    }
 </style>
 {% endblock %}
 
@@ -247,6 +344,329 @@
                 </div>
             </div>
         </div>
+
+        {% if show_transactions %}
+        <!-- Transaction Pipeline Section -->
+        <div class="mb-6 md:mb-8 animate-fade-in-up-delay-2">
+            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+                <!-- Pipeline Header -->
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <!-- Left side: Icon, Title, and Pipeline Value -->
+                        <div class="flex items-center gap-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-rose-500 via-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                                    <i class="fas fa-hand-holding-usd text-white text-lg md:text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-base md:text-lg font-bold text-slate-800">Transaction Pipeline</h3>
+                                    <p class="text-xs md:text-sm text-slate-500 hidden sm:block">Your deals in motion</p>
+                                </div>
+                            </div>
+                            <!-- Pipeline Value Badge -->
+                            <div class="hidden sm:flex items-center gap-3 ml-4 pl-4 border-l border-slate-200">
+                                <div class="pipeline-value-animate">
+                                    <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pipeline Value</div>
+                                    <div class="flex items-baseline gap-1">
+                                        <span id="pipelineValueCounter" class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent" data-value="{{ pipeline_value }}">
+                                            $0
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if ytd_closed_value > 0 %}
+                                <div class="hidden lg:block pl-3 border-l border-slate-200">
+                                    <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Closed YTD</div>
+                                    <div class="text-lg font-bold text-blue-600">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Right side: View All Button -->
+                        <a href="{{ url_for('transactions.list_transactions') }}" 
+                           class="group inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-semibold text-white rounded-xl transition-all duration-300 shadow-lg shadow-slate-800/20 hover:shadow-slate-800/30 hover:-translate-y-0.5">
+                            <span>View All Transactions</span>
+                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                    </div>
+                    
+                    <!-- Mobile Pipeline Value -->
+                    <div class="sm:hidden mt-4 flex items-center gap-4">
+                        <div class="flex-1 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
+                            <div class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Pipeline</div>
+                            <div class="text-xl font-bold text-emerald-600">${{ "{:,.0f}".format(pipeline_value) }}</div>
+                        </div>
+                        {% if ytd_closed_value > 0 %}
+                        <div class="flex-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
+                            <div class="text-xs font-medium text-blue-700 uppercase tracking-wide">Closed YTD</div>
+                            <div class="text-xl font-bold text-blue-600">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Pipeline Kanban Board -->
+                <div class="p-4 md:p-6 bg-gradient-to-b from-slate-50/50 to-white">
+                    {% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count %}
+                    
+                    {% if total_deals > 0 %}
+                    <!-- Kanban Columns -->
+                    <div class="relative">
+                        <!-- Scroll fade indicators (mobile) -->
+                        <div class="lg:hidden absolute left-0 top-0 bottom-0 w-8 pipeline-fade-left z-10 pointer-events-none"></div>
+                        <div class="lg:hidden absolute right-0 top-0 bottom-0 w-8 pipeline-fade-right z-10 pointer-events-none"></div>
+                        
+                        <div class="pipeline-scroll-container flex gap-4 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
+                            
+                            <!-- Preparing Column (includes Preparing to List + Showing) -->
+                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
+                                <div class="bg-gradient-to-b from-slate-100 to-slate-50 rounded-xl border border-slate-200/80 overflow-hidden h-full">
+                                    <!-- Column Header -->
+                                    <div class="px-4 py-3 bg-gradient-to-r from-slate-500 to-slate-600 flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-clipboard-list text-white/90 text-sm"></i>
+                                            <span class="font-semibold text-white text-sm">Preparing</span>
+                                        </div>
+                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                            {{ transactions_by_status.preparing.count }}
+                                        </span>
+                                    </div>
+                                    <!-- Column Body -->
+                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
+                                        {% for tx in transactions_by_status.preparing.transactions %}
+                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
+                                           class="pipeline-card deal-card deal-card-preparing block bg-white rounded-xl p-4 border border-slate-200 shadow-sm cursor-pointer">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <div class="font-semibold text-slate-800 text-sm truncate flex-1 mr-2" title="{{ tx.address }}">
+                                                    {{ tx.address[:25] }}{% if tx.address|length > 25 %}...{% endif %}
+                                                </div>
+                                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {% if tx.status == 'showing' %}bg-purple-100 text-purple-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                                    {{ tx.status_label }}
+                                                </span>
+                                            </div>
+                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                <i class="fas fa-user text-slate-400"></i>
+                                                {{ tx.client_name }}
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                {% if tx.expected_close_date %}
+                                                <span class="text-xs text-slate-500">
+                                                    <i class="far fa-calendar-alt mr-1"></i>
+                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
+                                                    {% if days_to_close > 0 %}
+                                                        Closes in {{ days_to_close }}d
+                                                    {% elif days_to_close == 0 %}
+                                                        Closes today
+                                                    {% else %}
+                                                        {{ tx.expected_close_date.strftime('%b %d') }}
+                                                    {% endif %}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-xs text-slate-400">No close date</span>
+                                                {% endif %}
+                                                <span class="text-xs font-bold bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 py-0.5 rounded-full">
+                                                    ${{ "{:,.0f}".format(tx.commission) }}
+                                                </span>
+                                            </div>
+                                        </a>
+                                        {% else %}
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
+                                            <i class="fas fa-inbox text-2xl mb-2"></i>
+                                            <span class="text-xs">No deals</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Active Column -->
+                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
+                                <div class="bg-gradient-to-b from-emerald-50 to-white rounded-xl border border-emerald-200/80 overflow-hidden h-full">
+                                    <!-- Column Header -->
+                                    <div class="px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-home text-white/90 text-sm"></i>
+                                            <span class="font-semibold text-white text-sm">Active</span>
+                                        </div>
+                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                            {{ transactions_by_status.active.count }}
+                                        </span>
+                                    </div>
+                                    <!-- Column Body -->
+                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
+                                        {% for tx in transactions_by_status.active.transactions %}
+                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
+                                           class="pipeline-card deal-card deal-card-active block bg-white rounded-xl p-4 border border-emerald-100 shadow-sm cursor-pointer">
+                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
+                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
+                                            </div>
+                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                <i class="fas fa-user text-emerald-500"></i>
+                                                {{ tx.client_name }}
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                {% if tx.expected_close_date %}
+                                                <span class="text-xs text-slate-500">
+                                                    <i class="far fa-calendar-alt mr-1"></i>
+                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
+                                                    {% if days_to_close > 0 %}
+                                                        Closes in {{ days_to_close }}d
+                                                    {% elif days_to_close == 0 %}
+                                                        Closes today
+                                                    {% else %}
+                                                        {{ tx.expected_close_date.strftime('%b %d') }}
+                                                    {% endif %}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-xs text-slate-400">No close date</span>
+                                                {% endif %}
+                                                <span class="text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-2 py-0.5 rounded-full">
+                                                    ${{ "{:,.0f}".format(tx.commission) }}
+                                                </span>
+                                            </div>
+                                        </a>
+                                        {% else %}
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-emerald-400">
+                                            <i class="fas fa-inbox text-2xl mb-2"></i>
+                                            <span class="text-xs">No deals</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Under Contract Column -->
+                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
+                                <div class="bg-gradient-to-b from-amber-50 to-white rounded-xl border border-amber-200/80 overflow-hidden h-full">
+                                    <!-- Column Header -->
+                                    <div class="px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-file-signature text-white/90 text-sm"></i>
+                                            <span class="font-semibold text-white text-sm">Under Contract</span>
+                                        </div>
+                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                            {{ transactions_by_status.under_contract.count }}
+                                        </span>
+                                    </div>
+                                    <!-- Column Body -->
+                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
+                                        {% for tx in transactions_by_status.under_contract.transactions %}
+                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
+                                           class="pipeline-card deal-card deal-card-contract block bg-white rounded-xl p-4 border border-amber-100 shadow-sm cursor-pointer">
+                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
+                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
+                                            </div>
+                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                <i class="fas fa-user text-amber-500"></i>
+                                                {{ tx.client_name }}
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                {% if tx.expected_close_date %}
+                                                <span class="text-xs text-slate-500">
+                                                    <i class="far fa-calendar-alt mr-1"></i>
+                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
+                                                    {% if days_to_close > 0 %}
+                                                        Closes in {{ days_to_close }}d
+                                                    {% elif days_to_close == 0 %}
+                                                        Closes today
+                                                    {% else %}
+                                                        {{ tx.expected_close_date.strftime('%b %d') }}
+                                                    {% endif %}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-xs text-slate-400">No close date</span>
+                                                {% endif %}
+                                                <span class="text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full">
+                                                    ${{ "{:,.0f}".format(tx.commission) }}
+                                                </span>
+                                            </div>
+                                        </a>
+                                        {% else %}
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-amber-400">
+                                            <i class="fas fa-inbox text-2xl mb-2"></i>
+                                            <span class="text-xs">No deals</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Closed YTD Column -->
+                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
+                                <div class="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-200/80 overflow-hidden h-full">
+                                    <!-- Column Header -->
+                                    <div class="px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-between">
+                                        <div class="flex items-center gap-2">
+                                            <i class="fas fa-check-circle text-white/90 text-sm"></i>
+                                            <span class="font-semibold text-white text-sm">Closed YTD</span>
+                                        </div>
+                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                            {{ transactions_by_status.closed.count }}
+                                        </span>
+                                    </div>
+                                    <!-- Column Body -->
+                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
+                                        {% for tx in transactions_by_status.closed.transactions %}
+                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
+                                           class="pipeline-card deal-card deal-card-closed block bg-white rounded-xl p-4 border border-blue-100 shadow-sm cursor-pointer">
+                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
+                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
+                                            </div>
+                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
+                                                <i class="fas fa-user text-blue-500"></i>
+                                                {{ tx.client_name }}
+                                            </div>
+                                            <div class="flex items-center justify-between">
+                                                {% if tx.actual_close_date %}
+                                                <span class="text-xs text-blue-600 font-medium">
+                                                    <i class="fas fa-check mr-1"></i>
+                                                    Closed {{ tx.actual_close_date.strftime('%b %d') }}
+                                                </span>
+                                                {% else %}
+                                                <span class="text-xs text-blue-500">Closed</span>
+                                                {% endif %}
+                                                <span class="text-xs font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-2 py-0.5 rounded-full">
+                                                    ${{ "{:,.0f}".format(tx.commission) }}
+                                                </span>
+                                            </div>
+                                        </a>
+                                        {% else %}
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-blue-400">
+                                            <i class="fas fa-inbox text-2xl mb-2"></i>
+                                            <span class="text-xs">No deals</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                    {% else %}
+                    <!-- Empty State -->
+                    <div class="py-12 flex flex-col items-center justify-center text-center">
+                        <div class="relative mb-6">
+                            <div class="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl flex items-center justify-center shadow-inner">
+                                <i class="fas fa-home-lg-alt text-4xl text-orange-400"></i>
+                            </div>
+                            <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
+                                <i class="fas fa-dollar-sign text-white text-lg"></i>
+                            </div>
+                        </div>
+                        <h4 class="text-xl font-bold text-slate-800 mb-2">No Active Deals Yet</h4>
+                        <p class="text-slate-500 text-sm mb-6 max-w-sm">Start tracking your transactions to see your deals flow through the pipeline and watch your commissions grow!</p>
+                        <a href="{{ url_for('transactions.create_transaction') }}" 
+                           class="group inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                            <i class="fas fa-plus mr-2"></i>
+                            Start Your First Transaction
+                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Upcoming Tasks and Todos Section -->
         <div class="mb-6 md:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 animate-fade-in-up-delay-2">
@@ -797,6 +1217,42 @@ document.addEventListener('click', function(event) {
     if (!isClickInsideMenu && !isClickOnPriorityButton) {
         const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
         allMenus.forEach(menu => menu.classList.add('hidden'));
+    }
+});
+
+// Pipeline Value Counter Animation
+document.addEventListener('DOMContentLoaded', function() {
+    const counterEl = document.getElementById('pipelineValueCounter');
+    if (counterEl) {
+        const targetValue = parseFloat(counterEl.dataset.value) || 0;
+        const duration = 1500; // ms
+        const startTime = performance.now();
+        
+        function formatCurrency(value) {
+            return '$' + Math.round(value).toLocaleString('en-US');
+        }
+        
+        function easeOutExpo(t) {
+            return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+        }
+        
+        function animate(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const easedProgress = easeOutExpo(progress);
+            const currentValue = targetValue * easedProgress;
+            
+            counterEl.textContent = formatCurrency(currentValue);
+            
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            }
+        }
+        
+        // Start animation after a small delay for effect
+        setTimeout(() => {
+            requestAnimationFrame(animate);
+        }, 300);
     }
 });
 
