@@ -158,6 +158,24 @@ class AIChatWidget {
 
         // Create AI message element for streaming (start empty)
         const aiMessageElement = this.createStreamingMessage();
+        const messagesDiv = document.querySelector('.ai-chat-messages');
+        
+        // Track if user is scrolling
+        let userScrolled = false;
+        let lastScrollTop = messagesDiv.scrollTop;
+        
+        const scrollHandler = () => {
+            // If user scrolled up (away from bottom), stop auto-scrolling
+            const isAtBottom = messagesDiv.scrollHeight - messagesDiv.scrollTop - messagesDiv.clientHeight < 50;
+            if (!isAtBottom && messagesDiv.scrollTop < lastScrollTop) {
+                userScrolled = true;
+            } else if (isAtBottom) {
+                userScrolled = false;
+            }
+            lastScrollTop = messagesDiv.scrollTop;
+        };
+        
+        messagesDiv.addEventListener('scroll', scrollHandler);
 
         try {
             const response = await fetch('/api/ai-chat/stream', {
@@ -182,6 +200,28 @@ class AIChatWidget {
             const decoder = new TextDecoder();
             let fullResponse = '';
             let buffer = '';
+            let pendingUpdate = '';
+            let updateScheduled = false;
+
+            // Batch updates for smoother rendering
+            const scheduleUpdate = () => {
+                if (!updateScheduled && pendingUpdate) {
+                    updateScheduled = true;
+                    requestAnimationFrame(() => {
+                        fullResponse += pendingUpdate;
+                        pendingUpdate = '';
+                        updateScheduled = false;
+                        
+                        // Update the message element with formatted content
+                        aiMessageElement.innerHTML = this.formatMessage(fullResponse) + '<span class="streaming-cursor">▌</span>';
+                        
+                        // Only auto-scroll if user hasn't scrolled up
+                        if (!userScrolled) {
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        }
+                    });
+                }
+            };
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -211,19 +251,20 @@ class AIChatWidget {
                             continue;
                         }
                         
-                        // Unescape newlines and append to response
+                        // Unescape newlines and batch for smooth update
                         const unescaped = data.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-                        fullResponse += unescaped;
-                        
-                        // Update the message element with formatted content
-                        aiMessageElement.innerHTML = this.formatMessage(fullResponse);
-                        
-                        // Scroll to bottom
-                        const messagesDiv = document.querySelector('.ai-chat-messages');
-                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                        pendingUpdate += unescaped;
+                        scheduleUpdate();
                     }
                 }
             }
+
+            // Final update - remove cursor
+            aiMessageElement.innerHTML = this.formatMessage(fullResponse);
+            aiMessageElement.classList.remove('streaming');
+            
+            // Remove scroll handler
+            messagesDiv.removeEventListener('scroll', scrollHandler);
 
             // Save to chat history after streaming completes
             if (fullResponse) {
@@ -242,6 +283,8 @@ class AIChatWidget {
         } catch (error) {
             console.error('Error:', error);
             aiMessageElement.innerHTML = this.formatMessage('Sorry, I encountered an error. Please try again.');
+            aiMessageElement.classList.remove('streaming');
+            messagesDiv.removeEventListener('scroll', scrollHandler);
         } finally {
             // Re-enable input
             this.isTyping = false;
