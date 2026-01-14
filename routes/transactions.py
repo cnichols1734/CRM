@@ -286,7 +286,7 @@ def edit_transaction(id):
     """Show edit form for a transaction."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     transaction_types = TransactionType.query.filter_by(is_active=True)\
@@ -306,7 +306,7 @@ def delete_transaction(id):
     """Delete a transaction and all related data."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     try:
@@ -342,7 +342,7 @@ def update_transaction(id):
 
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
 
     try:
@@ -432,7 +432,7 @@ def add_participant(id):
     """Add a participant to a transaction."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     try:
@@ -486,7 +486,7 @@ def remove_participant(id, participant_id):
     """Remove a participant from a transaction."""
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
 
     participant = TransactionParticipant.query.get_or_404(participant_id)
@@ -546,7 +546,7 @@ def get_signers(id):
     """Get list of signers for a transaction document."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'signers': [], 'error': 'Unauthorized'}), 403
     
     participants = transaction.participants.all()
@@ -581,7 +581,7 @@ def update_status(id):
     """Update transaction status via AJAX."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     data = request.get_json()
@@ -613,7 +613,7 @@ def intake_questionnaire(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get the intake schema based on transaction type and ownership status
@@ -643,7 +643,7 @@ def save_intake(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get the schema
@@ -708,7 +708,7 @@ def generate_document_package(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get the schema
@@ -797,7 +797,7 @@ def add_document(id):
     """Add a document to a transaction."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     try:
@@ -853,7 +853,7 @@ def remove_document(id, doc_id):
     """Remove a document from a transaction."""
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -884,7 +884,7 @@ def document_form(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -1046,7 +1046,7 @@ def save_document_form(id, doc_id):
     """Save the document form data."""
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -1124,7 +1124,7 @@ def fill_all_documents(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get all loaded document definitions
@@ -1268,7 +1268,7 @@ def save_all_documents(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get form-driven document slugs from new system
@@ -1331,7 +1331,7 @@ def preview_all_documents(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get all document slugs from new system
@@ -1489,7 +1489,7 @@ def send_all_for_signature(id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     # Get all document slugs from new system
@@ -1817,7 +1817,7 @@ def document_preview(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -1904,7 +1904,7 @@ def send_for_signature(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2021,7 +2021,7 @@ def check_signature_status(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2081,7 +2081,7 @@ def void_document(id, doc_id):
     """
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2133,7 +2133,7 @@ def resend_signature_request(id, doc_id):
 
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2197,7 +2197,7 @@ def simulate_signature(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2246,7 +2246,7 @@ def download_signed_document(id, doc_id):
     
     transaction = Transaction.query.get_or_404(id)
     
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
     doc = TransactionDocument.query.get_or_404(doc_id)
@@ -2506,7 +2506,7 @@ def transaction_history(id):
     """
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
 
     # Get pagination params
@@ -2548,7 +2548,7 @@ def view_transaction_history(id):
     """
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
 
     return render_template(
@@ -2566,7 +2566,7 @@ def document_history(id, doc_id):
     """
     transaction = Transaction.query.get_or_404(id)
 
-    if transaction.created_by_id != current_user.id:
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     doc = TransactionDocument.query.get_or_404(doc_id)
