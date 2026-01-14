@@ -685,6 +685,7 @@ class AuditEvent(db.Model):
     DOCUMENT_FILLED = 'document_filled'
     DOCUMENT_GENERATED = 'document_generated'
     DOCUMENT_PACKAGE_GENERATED = 'document_package_generated'
+    DOCUMENT_PACKAGE_SYNCED = 'document_package_synced'
 
     # E-signature events
     DOCUMENT_SENT = 'document_sent'

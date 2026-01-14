@@ -350,8 +350,290 @@
     </div>
 </div>
 
+<!-- Document Changes Preview Modal -->
+<div id="previewModal" class="fixed inset-0 z-50 hidden">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onclick="closePreviewModal()"></div>
+    
+    <!-- Modal Content -->
+    <div class="absolute inset-4 md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-full md:max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+        <!-- Header -->
+        <div class="px-6 pt-6 pb-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-slate-800">Review Changes</h3>
+                <button onclick="closePreviewModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Body (scrollable) -->
+        <div class="flex-1 overflow-y-auto px-6 pb-4" id="previewModalBody">
+            <!-- Content will be injected by JavaScript -->
+        </div>
+        
+        <!-- Footer -->
+        <div class="px-6 py-4 bg-gradient-to-t from-white via-white to-transparent">
+            <div class="flex gap-3">
+                <button onclick="closePreviewModal()" 
+                        class="flex-1 px-4 py-3 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                    Cancel
+                </button>
+                <button onclick="confirmAndGenerate()" id="confirmBtn"
+                        class="flex-1 px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 transition-all">
+                    <i class="fas fa-check"></i>
+                    <span id="confirmBtnText">Apply Changes</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function saveAndGenerate() {
+    const form = document.getElementById('intakeForm');
+    const formData = new FormData(form);
+    
+    showToast('Checking document changes...', 'info');
+    
+    // First, preview what changes will be made
+    fetch('{{ url_for("transactions.preview_document_changes", id=transaction.id) }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            showToast(data.error || 'Error previewing changes', 'error');
+            return;
+        }
+        
+        // Show the preview modal with the diff
+        showPreviewModal(data);
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error checking changes. Please try again.', 'error');
+    });
+}
+
+function showPreviewModal(data) {
+    const modal = document.getElementById('previewModal');
+    const body = document.getElementById('previewModalBody');
+    const confirmBtnText = document.getElementById('confirmBtnText');
+    
+    let html = '';
+    
+    if (data.is_initial) {
+        // Initial generation - show what will be created
+        confirmBtnText.textContent = 'Generate Documents';
+        html = `
+            <div class="text-center mb-6">
+                <div class="w-20 h-20 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-xl shadow-orange-500/30">
+                    <i class="fas fa-layer-group text-white text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold text-slate-800">Create Document Package</h4>
+                <p class="text-slate-500 mt-2">${data.summary.total_docs} documents based on your answers</p>
+            </div>
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+                ${data.additions.map((doc, i) => `
+                    <div class="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl hover:border-orange-200 hover:bg-orange-50/30 transition-colors">
+                        <div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                            <span class="text-xs font-bold text-orange-600">${i + 1}</span>
+                        </div>
+                        <span class="text-sm font-medium text-slate-700">${doc.name}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    } else if (!data.has_changes) {
+        // No changes needed
+        confirmBtnText.textContent = 'Done';
+        html = `
+            <div class="text-center py-6">
+                <div class="w-20 h-20 mx-auto mb-5 rounded-3xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-xl shadow-emerald-500/30">
+                    <i class="fas fa-check text-white text-3xl"></i>
+                </div>
+                <h4 class="text-xl font-bold text-slate-800">Already Up to Date</h4>
+                <p class="text-slate-500 mt-2 max-w-xs mx-auto">Your answers haven't changed in a way that affects your documents.</p>
+                <div class="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-slate-100 rounded-2xl text-sm font-medium text-slate-600">
+                    <i class="fas fa-folder-open"></i>
+                    ${data.summary.keeping} documents unchanged
+                </div>
+            </div>
+        `;
+    } else {
+        // Has changes - show diff with clear explanations
+        confirmBtnText.textContent = 'Apply Changes';
+        
+        html = '';
+        
+        // Removals first (most important to highlight)
+        if (data.removals.length > 0) {
+            html += `
+                <div class="mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/20">
+                            <i class="fas fa-minus text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="font-bold text-slate-800">Removing</h5>
+                            <p class="text-xs text-slate-500">${data.removals.length} document(s)</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.removals.map(doc => `
+                            <div class="group relative bg-white rounded-2xl border-2 border-red-100 p-4 hover:border-red-200 transition-colors">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-file-lines text-red-400"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-slate-800 leading-tight">${doc.name}</div>
+                                        ${doc.explanation ? `
+                                            <div class="mt-3 flex items-start gap-2 text-sm">
+                                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white flex-shrink-0 mt-0.5">
+                                                    <i class="fas fa-arrow-right text-xs"></i>
+                                                </span>
+                                                <span class="text-slate-600">${doc.explanation}</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Additions
+        if (data.additions.length > 0) {
+            html += `
+                <div class="mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                            <i class="fas fa-plus text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="font-bold text-slate-800">Adding</h5>
+                            <p class="text-xs text-slate-500">${data.additions.length} document(s)</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.additions.map(doc => `
+                            <div class="group relative bg-white rounded-2xl border-2 border-emerald-100 p-4 hover:border-emerald-200 transition-colors">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-file-lines text-emerald-400"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-slate-800 leading-tight">${doc.name}</div>
+                                        ${doc.explanation ? `
+                                            <div class="mt-3 flex items-start gap-2 text-sm">
+                                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500 text-white flex-shrink-0 mt-0.5">
+                                                    <i class="fas fa-arrow-right text-xs"></i>
+                                                </span>
+                                                <span class="text-slate-600">${doc.explanation}</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Blocked (can't remove) - warning style
+        if (data.blocked.length > 0) {
+            html += `
+                <div class="mb-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                            <i class="fas fa-lock text-white"></i>
+                        </div>
+                        <div>
+                            <h5 class="font-bold text-slate-800">Cannot Remove</h5>
+                            <p class="text-xs text-amber-600">Already sent for signature</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        ${data.blocked.map(doc => `
+                            <div class="bg-amber-50/50 rounded-2xl border-2 border-amber-200 p-4">
+                                <div class="flex items-start gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+                                        <i class="fas fa-file-shield text-amber-500"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="font-semibold text-slate-800 leading-tight">${doc.name}</div>
+                                        ${doc.explanation ? `
+                                            <div class="mt-3 flex items-start gap-2 text-sm">
+                                                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white flex-shrink-0 mt-0.5">
+                                                    <i class="fas fa-arrow-right text-xs"></i>
+                                                </span>
+                                                <span class="text-slate-600">${doc.explanation}</span>
+                                            </div>
+                                        ` : ''}
+                                        <div class="mt-3 text-sm text-amber-700 bg-amber-100 rounded-xl px-3 py-2">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            Void this document first to remove it
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Unchanged documents (collapsible)
+        if (data.kept.length > 0) {
+            html += `
+                <div class="border-t border-slate-100 pt-4">
+                    <button type="button" onclick="toggleKeptDocs()" class="w-full flex items-center justify-between text-left group">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
+                                <i class="fas fa-folder text-slate-400"></i>
+                            </div>
+                            <span class="text-sm font-medium text-slate-600">${data.summary.keeping} unchanged document(s)</span>
+                        </div>
+                        <i class="fas fa-chevron-down text-slate-400 group-hover:text-slate-600 transition-colors" id="keptChevron"></i>
+                    </button>
+                    <div class="hidden mt-3 space-y-2 pl-11" id="keptDocsList">
+                        ${data.kept.map(doc => `
+                            <div class="flex items-center gap-2 text-sm text-slate-500">
+                                <i class="fas fa-check text-slate-300 text-xs"></i>
+                                <span class="flex-1 truncate">${doc.name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    body.innerHTML = html;
+    modal.classList.remove('hidden');
+}
+
+function toggleKeptDocs() {
+    const list = document.getElementById('keptDocsList');
+    const chevron = document.getElementById('keptChevron');
+    list.classList.toggle('hidden');
+    chevron.classList.toggle('fa-chevron-down');
+    chevron.classList.toggle('fa-chevron-up');
+}
+
+function closePreviewModal() {
+    document.getElementById('previewModal').classList.add('hidden');
+}
+
+function confirmAndGenerate() {
+    closePreviewModal();
+    
     const form = document.getElementById('intakeForm');
     const formData = new FormData(form);
     
@@ -364,8 +646,8 @@ function saveAndGenerate() {
     })
     .then(response => {
         if (response.ok) {
-            showToast('Generating documents...', 'success');
-            // Then generate the document package
+            showToast('Applying changes...', 'success');
+            // Then generate/sync the document package
             const generateForm = document.createElement('form');
             generateForm.method = 'POST';
             generateForm.action = '{{ url_for("transactions.generate_document_package", id=transaction.id) }}';

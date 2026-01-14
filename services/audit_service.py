@@ -547,6 +547,7 @@ def format_event_for_display(event):
         AuditEvent.DOCUMENT_FILLED: {'icon': 'fas fa-file-alt', 'color': 'info', 'label': 'Document Filled'},
         AuditEvent.DOCUMENT_GENERATED: {'icon': 'fas fa-file-pdf', 'color': 'primary', 'label': 'Preview Generated'},
         AuditEvent.DOCUMENT_PACKAGE_GENERATED: {'icon': 'fas fa-folder-plus', 'color': 'success', 'label': 'Package Generated'},
+        AuditEvent.DOCUMENT_PACKAGE_SYNCED: {'icon': 'fas fa-sync-alt', 'color': 'info', 'label': 'Package Updated'},
         AuditEvent.DOCUMENT_SENT: {'icon': 'fas fa-paper-plane', 'color': 'primary', 'label': 'Sent for Signature'},
         AuditEvent.ENVELOPE_SENT: {'icon': 'fas fa-envelope', 'color': 'primary', 'label': 'Envelope Sent'},
         AuditEvent.DOCUMENT_RESENT: {'icon': 'fas fa-redo', 'color': 'warning', 'label': 'Resent'},
