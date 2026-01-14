@@ -1,0 +1,59 @@
+# =============================================================================
+# ON-SITE SEWER FACILITY DISCLOSURE
+# =============================================================================
+# Information About On-Site Sewer Facility (Seller Signed)
+# Required for properties with septic systems or on-site sewage facilities
+#
+# This is a PDF-preview document - no custom form UI.
+# Property address is auto-populated. Seller reviews and signs via DocuSeal.
+#
+# Template ID: 2555051
+# =============================================================================
+
+schema_version: "1.0"
+slug: sewer-facility
+name: "Information About On-Site Sewer Facility"
+docuseal_template_id: 2555051
+type: pdf-preview
+
+display:
+  color: "#14B8A6"
+  icon: "fas fa-toilet"
+  sort_order: 7
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Seller, Seller 2
+# 
+# - Seller: Reviews disclosure and signs
+# - Seller 2: Optional second seller (signs if present)
+# =============================================================================
+
+roles:
+  # Seller role: Reviews and signs
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  # Seller 2 role: Optional second seller
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Only the property address is pre-filled.
+# Seller reviews the disclosure information and signs in DocuSeal.
+# =============================================================================
+
+fields:
+  # Property Address - pre-filled and readonly
+  - field_key: property_address
+    docuseal_field: "Address"
+    role_key: seller
+    source: transaction.full_address
