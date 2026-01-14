@@ -571,7 +571,7 @@ def format_event_for_display(event):
         'description': event.description,
         'event_data': event.event_data,
         'source': event.source,
-        'created_at': event.created_at.isoformat() if event.created_at else None,
+        'created_at': event.created_at.isoformat() + 'Z' if event.created_at else None,  # Append Z to indicate UTC
         'actor_id': event.actor_id,
         'actor_name': f"{event.actor.first_name} {event.actor.last_name}" if event.actor else None,
         'document_id': event.document_id,
