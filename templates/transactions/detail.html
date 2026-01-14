@@ -266,7 +266,7 @@
 
 <!-- Premium gradient background -->
 <div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="p-4 md:p-6 max-w-7xl mx-auto">
+    <div class="p-4 md:p-6 max-w-[1600px] mx-auto">
         <!-- Back Link -->
         {% set ref = request.args.get('ref') %}
         {% set contact_id = request.args.get('contact_id') %}
@@ -418,9 +418,9 @@
         {% endif %}
 
         <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="flex flex-col lg:flex-row gap-8">
             <!-- Left Column - Main Info -->
-            <div class="lg:col-span-2 space-y-6">
+            <div class="flex-1 max-w-4xl space-y-6">
                 <!-- Property Details Card -->
                 <div class="premium-card p-6 animate-fade-in-up-delay-1">
                     <div class="flex justify-between items-center mb-5">
@@ -733,7 +733,7 @@
             </div>
 
             <!-- Right Column - Participants & Actions -->
-            <div class="space-y-6">
+            <div class="lg:w-[420px] xl:w-[480px] flex-shrink-0 space-y-6">
                 <!-- Participants Card -->
                 <div class="premium-card p-6 animate-fade-in-up-delay-1">
                     <div class="flex justify-between items-center mb-5">
