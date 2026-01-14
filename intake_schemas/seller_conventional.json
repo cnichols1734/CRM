@@ -38,6 +38,13 @@
           "required": true
         },
         {
+          "id": "has_septic",
+          "type": "boolean",
+          "label": "Does this property have a septic system or on-site sewer facility?",
+          "help_text": "Properties with septic tanks or on-site sewage systems require disclosure.",
+          "required": true
+        },
+        {
           "id": "referral_fee",
           "type": "boolean",
           "label": "Will another party get a referral fee from you for this transaction?",
@@ -85,6 +92,12 @@
       "reason": "Required for all seller transactions"
     },
     {
+      "slug": "seller-net-proceeds",
+      "name": "Seller's Estimated Net Proceeds",
+      "always": true,
+      "reason": "Required for all seller transactions"
+    },
+    {
       "slug": "lead-paint",
       "name": "Addendum for Seller's Disclosure of Information on Lead-Based Paint",
       "condition": {"field": "built_before_1978", "equals": true},
@@ -107,6 +120,12 @@
       "name": "Information About Special Flood Hazard Areas",
       "condition": {"field": "flood_hazard", "equals": true},
       "reason": "Property in flood hazard area"
+    },
+    {
+      "slug": "sewer-facility",
+      "name": "Information About On-Site Sewer Facility",
+      "condition": {"field": "has_septic", "equals": true},
+      "reason": "Property has septic system or on-site sewer facility"
     },
     {
       "slug": "referral-agreement",
