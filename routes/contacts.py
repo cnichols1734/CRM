@@ -130,6 +130,10 @@ def view_contact(contact_id):
 def create_contact():
     form = ContactForm()
     form.group_ids.choices = [(g.id, g.name) for g in ContactGroup.query.order_by('sort_order')]
+    
+    # Check for return_to parameter (for redirecting back to transaction)
+    return_to = request.args.get('return_to')
+    transaction_id = request.args.get('transaction_id', type=int)
 
     if form.validate_on_submit():
         contact = Contact(
@@ -164,10 +168,16 @@ def create_contact():
 
         db.session.add(contact)
         db.session.commit()
+        
+        # Handle return_to=transaction redirect
+        if return_to == 'transaction' and transaction_id:
+            flash('Contact created! You can now add them as a participant.', 'success')
+            return redirect(url_for('transactions.view_transaction', id=transaction_id, prompt_add_participant=1))
+        
         flash('Contact created successfully!', 'success')
         return redirect(url_for('main.index'))
 
-    return render_template('contacts/form.html', form=form)
+    return render_template('contacts/form.html', form=form, return_transaction_id=transaction_id)
 
 
 @contacts_bp.route('/contacts/<int:contact_id>/edit', methods=['POST'])

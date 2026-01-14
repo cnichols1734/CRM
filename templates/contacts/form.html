@@ -119,7 +119,7 @@
         <!-- Contact Form Card -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden premium-card animate-fade-in-up-delay-2">
             <div class="p-8">
-                <form method="POST" action="{{ url_for('contacts.create_contact') }}" class="space-y-8">
+                <form method="POST" action="{{ url_for('contacts.create_contact', return_to='transaction' if return_transaction_id else none, transaction_id=return_transaction_id) }}" class="space-y-8">
                     {{ form.hidden_tag() }}
 
                     <!-- Basic Information Section -->
@@ -417,11 +417,19 @@
 
                     <!-- Submit Buttons -->
                     <div class="pt-8 border-t border-slate-100 flex justify-end space-x-4">
+                        {% if return_transaction_id %}
+                        <a href="{{ url_for('transactions.view_transaction', id=return_transaction_id) }}" 
+                           class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-medium 
+                                  hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
+                            Cancel
+                        </a>
+                        {% else %}
                         <a href="{{ url_for('main.index') }}" 
                            class="px-6 py-3 rounded-xl border-2 border-slate-200 text-slate-700 font-medium 
                                   hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
                             Cancel
                         </a>
+                        {% endif %}
                         <button type="submit"
                                 class="relative px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 
                                        text-white font-semibold shadow-lg shadow-orange-500/25

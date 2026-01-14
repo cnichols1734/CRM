@@ -934,10 +934,12 @@
         <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10">
             <h3 class="text-xl font-bold text-slate-800 mb-5">Add Participant</h3>
             <form id="addParticipantForm">
+                <input type="hidden" name="contact_id" id="participantContactId">
                 <div class="space-y-4">
+                    <!-- Role Selection -->
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1.5">Role *</label>
-                        <select name="role" required class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                        <select name="role" id="participantRole" required class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
                             <option value="">Select role...</option>
                             <option value="seller">Seller</option>
                             <option value="co_seller">Co-Seller</option>
@@ -950,21 +952,52 @@
                             <option value="transaction_coordinator">Transaction Coordinator</option>
                         </select>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Name *</label>
-                        <input type="text" name="name" required class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    
+                    <!-- Contact Search -->
+                    <div class="relative">
+                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Search Contact *</label>
+                        <div class="relative">
+                            <input type="text" id="participantContactSearch" 
+                                   placeholder="Type to search contacts..."
+                                   autocomplete="off"
+                                   class="w-full px-4 py-2.5 pl-10 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                            <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        </div>
+                        <!-- Search Results Dropdown -->
+                        <div id="participantSearchResults" class="hidden absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-20">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-                        <input type="email" name="email" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    
+                    <!-- Selected Contact Preview -->
+                    <div id="selectedContactPreview" class="hidden">
+                        <div class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm" id="selectedContactInitials">
+                                    </div>
+                                    <div>
+                                        <div class="font-semibold text-slate-800" id="selectedContactName"></div>
+                                        <div class="text-sm text-slate-500" id="selectedContactEmail"></div>
+                                        <div class="text-sm text-slate-500" id="selectedContactPhone"></div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="clearSelectedContact()" class="text-slate-400 hover:text-red-500 transition-colors">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
-                        <input type="tel" name="phone" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Company</label>
-                        <input type="text" name="company" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                    
+                    <!-- Create Contact Link -->
+                    <div class="text-center pt-2">
+                        <p class="text-sm text-slate-500 mb-2">
+                            Can't find the contact you're looking for?
+                        </p>
+                        <a href="{{ url_for('contacts.create_contact', return_to='transaction', transaction_id=transaction.id) }}" 
+                           class="inline-flex items-center text-sm text-orange-600 hover:text-orange-700 font-medium transition-colors">
+                            <i class="fas fa-plus mr-1.5"></i>
+                            Create a New Contact
+                        </a>
                     </div>
                 </div>
                 <div class="flex gap-3 mt-6">
@@ -972,8 +1005,9 @@
                             class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
                         Cancel
                     </button>
-                    <button type="submit" 
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
+                    <button type="submit" id="addParticipantBtn"
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled>
                         Add Participant
                     </button>
                 </div>
@@ -1042,7 +1076,7 @@
 </div>
 
 <!-- Toast Notification -->
-<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+<div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
     <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
         <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
@@ -1051,6 +1085,25 @@
 
 <script>
 const transactionId = {{ transaction.id }};
+
+// =============================================================================
+// PAGE LOAD ACTIONS
+// =============================================================================
+
+// Check for prompt_add_participant flag (after creating contact from add participant modal)
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('prompt_add_participant') === '1') {
+        // Show toast after a brief delay
+        setTimeout(() => {
+            showToast('Contact created! You can now add them as a participant.', 'success');
+        }, 500);
+        
+        // Clean up URL without reloading
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+});
 
 // =============================================================================
 // STATUS DROPDOWN
@@ -1084,11 +1137,19 @@ function closeDeleteModal() {
 }
 
 function showAddParticipantModal() {
+    // Reset form and state
+    document.getElementById('addParticipantForm').reset();
+    document.getElementById('participantContactId').value = '';
+    document.getElementById('participantContactSearch').value = '';
+    document.getElementById('selectedContactPreview').classList.add('hidden');
+    document.getElementById('participantSearchResults').classList.add('hidden');
+    document.getElementById('addParticipantBtn').disabled = true;
     document.getElementById('addParticipantModal').classList.remove('hidden');
 }
 
 function closeParticipantModal() {
     document.getElementById('addParticipantModal').classList.add('hidden');
+    clearSelectedContact();
 }
 
 function showAddDocumentModal() {
@@ -1133,6 +1194,97 @@ function updateStatus(newStatus) {
 // =============================================================================
 // PARTICIPANT MANAGEMENT
 // =============================================================================
+
+// Contact search for participant modal
+let participantSearchTimeout;
+const participantContactSearch = document.getElementById('participantContactSearch');
+const participantSearchResults = document.getElementById('participantSearchResults');
+
+participantContactSearch.addEventListener('input', function() {
+    clearTimeout(participantSearchTimeout);
+    const query = this.value.trim();
+    
+    if (query.length < 2) {
+        participantSearchResults.classList.add('hidden');
+        return;
+    }
+    
+    participantSearchTimeout = setTimeout(() => {
+        fetch(`/transactions/api/contacts/search?q=${encodeURIComponent(query)}`)
+            .then(res => res.json())
+            .then(contacts => {
+                if (contacts.length === 0) {
+                    participantSearchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">No contacts found</div>';
+                } else {
+                    participantSearchResults.innerHTML = contacts.map(c => {
+                        const hasRequired = c.first_name && c.last_name && c.email;
+                        const missingBadge = !hasRequired ? '<span class="text-xs text-amber-600 ml-2"><i class="fas fa-exclamation-triangle"></i> Missing info</span>' : '';
+                        return `
+                            <div class="p-3 hover:bg-orange-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0" 
+                                 onclick='selectParticipantContact(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+                                <div class="font-medium text-slate-800">${c.name}${missingBadge}</div>
+                                <div class="text-sm text-slate-500">${c.email || 'No email'}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                participantSearchResults.classList.remove('hidden');
+            });
+    }, 300);
+});
+
+// Close search results on outside click
+document.addEventListener('click', function(e) {
+    if (!participantContactSearch.contains(e.target) && !participantSearchResults.contains(e.target)) {
+        participantSearchResults.classList.add('hidden');
+    }
+});
+
+function selectParticipantContact(contact) {
+    // Validate contact has required fields
+    if (!contact.first_name || !contact.last_name) {
+        showToast('This contact is missing a name. Please update the contact first.', 'error');
+        return;
+    }
+    if (!contact.email) {
+        showToast('This contact is missing an email address. Please update the contact first.', 'error');
+        return;
+    }
+    
+    // Set the contact ID
+    document.getElementById('participantContactId').value = contact.id;
+    
+    // Show the preview
+    document.getElementById('selectedContactInitials').textContent = 
+        (contact.first_name[0] + contact.last_name[0]).toUpperCase();
+    document.getElementById('selectedContactName').textContent = contact.name;
+    document.getElementById('selectedContactEmail').textContent = contact.email || '';
+    document.getElementById('selectedContactPhone').textContent = contact.phone || '';
+    
+    document.getElementById('selectedContactPreview').classList.remove('hidden');
+    document.getElementById('participantContactSearch').classList.add('hidden');
+    participantSearchResults.classList.add('hidden');
+    
+    // Enable submit button
+    updateAddParticipantButton();
+}
+
+function clearSelectedContact() {
+    document.getElementById('participantContactId').value = '';
+    document.getElementById('selectedContactPreview').classList.add('hidden');
+    document.getElementById('participantContactSearch').classList.remove('hidden');
+    document.getElementById('participantContactSearch').value = '';
+    document.getElementById('addParticipantBtn').disabled = true;
+}
+
+function updateAddParticipantButton() {
+    const hasContact = document.getElementById('participantContactId').value !== '';
+    const hasRole = document.getElementById('participantRole').value !== '';
+    document.getElementById('addParticipantBtn').disabled = !(hasContact && hasRole);
+}
+
+// Update button state when role changes
+document.getElementById('participantRole').addEventListener('change', updateAddParticipantButton);
 
 document.getElementById('addParticipantForm').addEventListener('submit', function(e) {
     e.preventDefault();
