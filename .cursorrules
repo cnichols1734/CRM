@@ -1,10 +1,16 @@
 # CRM Project - Cursor AI Rules
 
+## Plan Mode
+
+- Make the plan extremely concise. Sacrifice grammar for the sake of concision.
+- At the end of each plan, give me a list of unresolved questions to answer, if any.
+
+
 ## Project Overview
 This is a Flask-based CRM application for Origen Realty real estate agents.
 - **Framework**: Flask with SQLAlchemy
 - **Database**: Supabase PostgreSQL (connection string in `.env`)
-- **Hosting**: PythonAnywhere (www.origentechnolog.com)
+- **Hosting**: Railway
 - **Repo**: https://github.com/cnichols1734/CRM
 
 ## Local Development
@@ -25,6 +31,8 @@ When testing features locally, read the `.env` file to get these credentials, th
 1. Navigate to http://127.0.0.1:5011
 2. Login with the test credentials
 3. Test the feature
+
+**Browser Login Form Note**: When filling the login form, use separate `browser_type` calls for username and password fields. Do NOT use `browser_fill_form` - it times out. Fill each field individually then click Sign in.
 
 ## AI Features
 All AI features use a centralized service with GPT-5.1 fallback chain:
@@ -57,12 +65,10 @@ After pushing changes to GitHub:
 ## Feature Flags
 Toggle features on/off in `feature_flags.py`. Changes deploy with git pull - no need to edit .env on server.
 
-Current flags:
-- `SHOW_DASHBOARD_JOKE` - Dashboard joke of the day (fetches from external APIs)
 
 ## Database
 - **Production**: Supabase PostgreSQL
-- **Local test DB**: `instance/crm.db` (SQLite, for quick testing only)
+- **Local test DB**: is the same db in supabase that we use for prod so be careful
 - **Production data backup**: `instance/crm (1).db`
 
 ## PR & Commit Rules

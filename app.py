@@ -52,6 +52,8 @@ def create_app():
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Your session has expired. Please log in again to continue.'
+    login_manager.login_message_category = 'info'
 
     # Add custom filters for templates
     app.jinja_env.filters['abs'] = abs

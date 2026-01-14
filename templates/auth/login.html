@@ -81,8 +81,10 @@
         <div class="animate-fade-in-up-delay-1">
             <div class="gradient-border shadow-2xl shadow-orange-500/10">
                 <div class="gradient-border-inner p-6 md:p-8">
-                    <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-5">
+                    <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-5" id="loginForm">
                         {{ form.hidden_tag() }}
+                        <!-- Hidden field for return URL after session expiry -->
+                        <input type="hidden" name="next" id="nextUrl" value="{{ request.args.get('next', '') }}">
                         
                         <!-- Username/Email Field -->
                         <div class="space-y-2">
@@ -150,4 +152,26 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Restore return URL from sessionStorage (set when session expired during AJAX request)
+    document.addEventListener('DOMContentLoaded', function() {
+        const nextUrlField = document.getElementById('nextUrl');
+        const storedReturnUrl = sessionStorage.getItem('returnUrl');
+        
+        // Only use sessionStorage URL if no URL already set via query param
+        if (storedReturnUrl && (!nextUrlField.value || nextUrlField.value === '')) {
+            // Extract just the path from the full URL
+            try {
+                const url = new URL(storedReturnUrl);
+                nextUrlField.value = url.pathname + url.search + url.hash;
+            } catch (e) {
+                // If it's already a relative path, use as-is
+                nextUrlField.value = storedReturnUrl;
+            }
+            // Clear from sessionStorage so it doesn't persist across multiple logins
+            sessionStorage.removeItem('returnUrl');
+        }
+    });
+</script>
 {% endblock %}
