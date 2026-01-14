@@ -478,6 +478,16 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedContacts.appendChild(contactEl);
     }
 
+    // Pre-select contact if passed from contact page
+    {% if preselected_contact %}
+    addContact({
+        id: {{ preselected_contact.id }},
+        name: "{{ preselected_contact.first_name }} {{ preselected_contact.last_name }}",
+        email: "{{ preselected_contact.email or '' }}",
+        phone: "{{ preselected_contact.phone or '' }}"
+    });
+    {% endif %}
+
     // Remove contact
     selectedContacts.addEventListener('click', function(e) {
         const removeBtn = e.target.closest('.remove-contact');

@@ -138,10 +138,20 @@ def new_transaction():
     contacts = Contact.query.filter_by(user_id=current_user.id)\
         .order_by(Contact.last_name, Contact.first_name).all()
     
+    # Check if a contact_id was passed to pre-select
+    preselected_contact = None
+    contact_id = request.args.get('contact_id', type=int)
+    if contact_id:
+        preselected_contact = Contact.query.filter_by(
+            id=contact_id, 
+            user_id=current_user.id
+        ).first()
+    
     return render_template(
         'transactions/create.html',
         transaction_types=transaction_types,
-        contacts=contacts
+        contacts=contacts,
+        preselected_contact=preselected_contact
     )
 
 
@@ -438,22 +448,38 @@ def add_participant(id):
     try:
         role = request.form.get('role')
         contact_id = request.form.get('contact_id')
-        name = request.form.get('name')
-        email = request.form.get('email')
-        phone = request.form.get('phone')
-        company = request.form.get('company')
         
         if not role:
             return jsonify({'success': False, 'error': 'Role is required'}), 400
         
+        if not contact_id:
+            return jsonify({'success': False, 'error': 'Please select a contact'}), 400
+        
+        # Get and validate the contact
+        contact = Contact.query.filter_by(id=int(contact_id), user_id=current_user.id).first()
+        if not contact:
+            return jsonify({'success': False, 'error': 'Contact not found'}), 404
+        
+        # Validate contact has required fields
+        if not contact.first_name or not contact.last_name:
+            return jsonify({
+                'success': False, 
+                'error': 'This contact is missing a name. Please update the contact first.'
+            }), 400
+        
+        if not contact.email:
+            return jsonify({
+                'success': False, 
+                'error': 'This contact is missing an email address. Please update the contact first.'
+            }), 400
+        
         participant = TransactionParticipant(
             transaction_id=transaction.id,
             role=role,
-            contact_id=int(contact_id) if contact_id else None,
-            name=name,
-            email=email,
-            phone=phone,
-            company=company,
+            contact_id=contact.id,
+            name=f'{contact.first_name} {contact.last_name}',
+            email=contact.email,
+            phone=contact.phone,
             is_primary=False
         )
         db.session.add(participant)
@@ -533,6 +559,8 @@ def search_contacts():
     
     return jsonify([{
         'id': c.id,
+        'first_name': c.first_name,
+        'last_name': c.last_name,
         'name': f'{c.first_name} {c.last_name}',
         'email': c.email,
         'phone': c.phone
