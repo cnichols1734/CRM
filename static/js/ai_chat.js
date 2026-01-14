@@ -24,7 +24,7 @@ class AIChatWidget {
     createChatBox() {
         const chatBox = document.createElement('div');
         chatBox.className = 'ai-chat-box';
-        chatBox.style.display = 'none';
+        // Using CSS classes for smooth animation instead of display:none
         chatBox.innerHTML = `
             <div class="ai-chat-header">
                 <span>B.O.B. - Your Business Optimization Buddy</span>
@@ -73,7 +73,12 @@ class AIChatWidget {
     async toggleChat() {
         const chatBox = document.querySelector('.ai-chat-box');
         this.isOpen = !this.isOpen;
-        chatBox.style.display = this.isOpen ? 'flex' : 'none';
+        
+        if (this.isOpen) {
+            chatBox.classList.add('open');
+        } else {
+            chatBox.classList.remove('open');
+        }
         
         // Clear chat history when closing
         if (!this.isOpen) {
