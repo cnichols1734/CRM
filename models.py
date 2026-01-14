@@ -613,6 +613,68 @@ class DocumentSignature(db.Model):
         return f'<DocumentSignature {self.signer_name} ({self.status})>'
 
 
+class ContactFile(db.Model):
+    """
+    Files uploaded and attached to contacts.
+    Stored in Supabase Storage with metadata in this table.
+    """
+    __tablename__ = 'contact_files'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    
+    # File metadata
+    filename = db.Column(db.String(255), nullable=False)  # Stored filename (UUID-based)
+    original_filename = db.Column(db.String(255), nullable=False)  # Original upload name
+    file_type = db.Column(db.String(100))  # MIME type
+    file_size = db.Column(db.Integer)  # Size in bytes
+    storage_path = db.Column(db.String(500), nullable=False)  # Full path in Supabase Storage
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    contact = db.relationship('Contact', backref=db.backref('files', lazy='dynamic', cascade='all, delete-orphan'))
+    uploaded_by = db.relationship('User', backref=db.backref('uploaded_files', lazy='dynamic'))
+    
+    # Allowed file extensions
+    ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'csv', 'xlsx', 'xls'}
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+    
+    @property
+    def file_extension(self):
+        """Get file extension from original filename."""
+        if '.' in self.original_filename:
+            return self.original_filename.rsplit('.', 1)[1].lower()
+        return ''
+    
+    @property
+    def is_image(self):
+        """Check if file is an image."""
+        return self.file_extension in {'jpg', 'jpeg', 'png', 'gif'}
+    
+    @property
+    def human_file_size(self):
+        """Return human-readable file size."""
+        if not self.file_size:
+            return 'Unknown'
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if self.file_size < 1024:
+                return f"{self.file_size:.1f} {unit}"
+            self.file_size /= 1024
+        return f"{self.file_size:.1f} TB"
+    
+    @classmethod
+    def allowed_file(cls, filename):
+        """Check if filename has an allowed extension."""
+        return '.' in filename and filename.rsplit('.', 1)[1].lower() in cls.ALLOWED_EXTENSIONS
+    
+    def __repr__(self):
+        return f'<ContactFile {self.original_filename} for contact {self.contact_id}>'
+
+
 class AuditEvent(db.Model):
     """
     Comprehensive audit trail for transactions and documents.

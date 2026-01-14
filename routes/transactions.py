@@ -10,7 +10,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 from models import (
     db, Transaction, TransactionType, TransactionParticipant,
-    TransactionDocument, DocumentSignature, Contact, User, AuditEvent
+    TransactionDocument, DocumentSignature, Contact, User, AuditEvent, ContactFile
 )
 from feature_flags import can_access_transactions
 from services import audit_service
@@ -285,11 +285,20 @@ def view_transaction(id):
     # Get documents
     documents = transaction.documents.order_by(TransactionDocument.created_at).all()
     
+    # Get files from all contacts associated with this transaction
+    contact_ids = [p.contact_id for p in participants if p.contact_id]
+    contact_files = []
+    if contact_ids:
+        contact_files = ContactFile.query.filter(
+            ContactFile.contact_id.in_(contact_ids)
+        ).order_by(ContactFile.created_at.desc()).all()
+    
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
         participants=participants,
-        documents=documents
+        documents=documents,
+        contact_files=contact_files
     )
 
 

@@ -796,6 +796,69 @@
                     </div>
                 </div>
 
+                <!-- Contact Files Card -->
+                {% if contact_files %}
+                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                                <i class="fas fa-folder-open text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-800">Contact Files</h2>
+                                <p class="text-xs text-slate-500">Files from associated contacts</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        {% for file in contact_files %}
+                        <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
+                            <!-- File Icon -->
+                            {% if file.is_image %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <i class="fas fa-file-image text-white text-sm"></i>
+                            </div>
+                            {% elif file.file_extension == 'pdf' %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <i class="fas fa-file-pdf text-white text-sm"></i>
+                            </div>
+                            {% elif file.file_extension in ['doc', 'docx'] %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <i class="fas fa-file-word text-white text-sm"></i>
+                            </div>
+                            {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <i class="fas fa-file-excel text-white text-sm"></i>
+                            </div>
+                            {% else %}
+                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                                <i class="fas fa-file text-white text-sm"></i>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- File Info -->
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-slate-800 truncate">{{ file.original_filename }}</p>
+                                <div class="flex items-center gap-2 text-xs text-slate-500">
+                                    <span>{{ file.contact.first_name }} {{ file.contact.last_name }}</span>
+                                    <span>•</span>
+                                    <span>{{ file.human_file_size }}</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Download Button -->
+                            <button onclick="downloadContactFileFromTx({{ file.contact_id }}, {{ file.id }})" 
+                                    class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                    title="Download">
+                                <i class="fas fa-download"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Recent Activity Card -->
                 <div class="premium-card p-6 animate-fade-in-up-delay-2">
                     <div class="flex items-center justify-between mb-5">
@@ -1572,6 +1635,26 @@ function fillAllForms() {
 
 function generateAllPDFs() {
     showToast('PDF generation coming soon with DocuSeal integration.', 'info');
+}
+
+// =============================================================================
+// CONTACT FILE DOWNLOAD
+// =============================================================================
+
+function downloadContactFileFromTx(contactId, fileId) {
+    fetch(`/contact/${contactId}/files/${fileId}/download`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.open(data.url, '_blank');
+        } else {
+            showToast(data.error || 'Download failed', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Download failed. Please try again.', 'error');
+        console.error('Download error:', error);
+    });
 }
 </script>
 {% endblock %}
