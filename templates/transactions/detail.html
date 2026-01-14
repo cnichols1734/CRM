@@ -94,6 +94,8 @@
 
     .status-preparing_to_list { background: #fef3c7; color: #92400e; }
     .status-preparing_to_list:hover { background: #fde68a; }
+    .status-showing { background: #f3e8ff; color: #7c3aed; }
+    .status-showing:hover { background: #e9d5ff; }
     .status-active { background: #dcfce7; color: #166534; }
     .status-active:hover { background: #bbf7d0; }
     .status-under_contract { background: #dbeafe; color: #1e40af; }
@@ -325,13 +327,14 @@
             <div class="status-dropdown" id="statusDropdown">
                 {% set status_labels = {
                     'preparing_to_list': 'Preparing to List',
+                    'showing': 'Showing',
                     'active': 'Active',
                     'under_contract': 'Under Contract',
                     'closed': 'Closed',
                     'cancelled': 'Cancelled/Withdrawn'
                 } %}
                 <button onclick="toggleStatusDropdown(event)" class="prominent-badge status-{{ transaction.status }} flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
-                    <i class="fas fa-{% if transaction.status == 'closed' %}check-circle{% elif transaction.status == 'cancelled' %}times-circle{% elif transaction.status == 'active' %}broadcast-tower{% elif transaction.status == 'under_contract' %}file-signature{% else %}clipboard-list{% endif %}"></i>
+                    <i class="fas fa-{% if transaction.status == 'closed' %}check-circle{% elif transaction.status == 'cancelled' %}times-circle{% elif transaction.status == 'active' %}broadcast-tower{% elif transaction.status == 'under_contract' %}file-signature{% elif transaction.status == 'showing' %}eye{% else %}clipboard-list{% endif %}"></i>
                     {{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
                     <i class="fas fa-chevron-down text-xs opacity-50 ml-1"></i>
                 </button>
@@ -350,15 +353,22 @@
         <!-- Status Progress Tracker (Pizza Tracker) -->
         {% if transaction.status != 'cancelled' %}
         <div class="premium-card p-6 mb-6 animate-fade-in-up">
-            {% set statuses = ['preparing_to_list', 'active', 'under_contract', 'closed'] %}
+            {# Different status flows for buyers vs sellers #}
+            {% if transaction.transaction_type.name == 'buyer' %}
+                {% set statuses = ['showing', 'under_contract', 'closed'] %}
+            {% else %}
+                {% set statuses = ['preparing_to_list', 'active', 'under_contract', 'closed'] %}
+            {% endif %}
             {% set status_icons = {
                 'preparing_to_list': 'clipboard-list',
+                'showing': 'eye',
                 'active': 'broadcast-tower',
                 'under_contract': 'file-signature',
                 'closed': 'check-circle'
             } %}
             {% set status_labels_tracker = {
                 'preparing_to_list': 'Preparing',
+                'showing': 'Showing',
                 'active': 'Active',
                 'under_contract': 'Under Contract',
                 'closed': 'Closed'
@@ -446,6 +456,7 @@
                             <span class="info-value">
                                 {% set detail_status_labels = {
                                     'preparing_to_list': 'Preparing to List',
+                                    'showing': 'Showing',
                                     'active': 'Active',
                                     'under_contract': 'Under Contract',
                                     'closed': 'Closed',

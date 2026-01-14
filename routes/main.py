@@ -1,10 +1,10 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from models import Contact, ContactGroup, Task, User, CompanyUpdate
-from feature_flags import is_enabled
-from datetime import datetime, timedelta, timezone
+from models import Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant
+from feature_flags import is_enabled, can_access_transactions
+from datetime import datetime, timedelta, timezone, date
 import pytz
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from sqlalchemy.orm import joinedload
 from sqlalchemy import or_, case
 
@@ -204,6 +204,101 @@ def dashboard():
     # Get latest company update for dashboard teaser
     latest_update = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).first()
 
+    # Transaction Pipeline Data (only for users with access)
+    show_transactions = can_access_transactions(current_user)
+    transactions_by_status = {}
+    pipeline_value = 0
+    ytd_closed_value = 0
+    
+    if show_transactions:
+        # Get current year for YTD filter
+        current_year = now.year
+        
+        # Query all transactions for the user (or all for admin viewing all)
+        if current_user.role == 'admin' and show_all:
+            tx_query = Transaction.query
+        else:
+            tx_query = Transaction.query.filter_by(created_by_id=current_user.id)
+        
+        all_transactions = tx_query.order_by(Transaction.created_at.desc()).all()
+        
+        # Define Kanban columns - 'preparing' combines preparing_to_list and showing
+        status_config = {
+            'preparing': {'label': 'Preparing', 'order': 1, 'statuses': ['preparing_to_list', 'showing']},
+            'active': {'label': 'Active', 'order': 2, 'statuses': ['active']},
+            'under_contract': {'label': 'Under Contract', 'order': 3, 'statuses': ['under_contract']},
+            'closed': {'label': 'Closed YTD', 'order': 4, 'statuses': ['closed']},
+        }
+        
+        # Status display labels for cards
+        status_labels = {
+            'preparing_to_list': 'Preparing to List',
+            'showing': 'Showing',
+            'active': 'Active',
+            'under_contract': 'Under Contract',
+            'closed': 'Closed'
+        }
+        
+        # Group transactions by Kanban column
+        for column_key in status_config.keys():
+            transactions_by_status[column_key] = {
+                'label': status_config[column_key]['label'],
+                'transactions': [],
+                'count': 0
+            }
+        
+        for tx in all_transactions:
+            # For closed deals, only include YTD
+            if tx.status == 'closed':
+                if tx.actual_close_date and tx.actual_close_date.year == current_year:
+                    pass  # Include it
+                elif tx.created_at and tx.created_at.year == current_year:
+                    pass  # Fallback to created_at year
+                else:
+                    continue  # Skip non-YTD closed deals
+            
+            # Get primary client participant
+            primary_client = tx.participants.filter(
+                TransactionParticipant.is_primary == True,
+                TransactionParticipant.role.in_(['seller', 'buyer', 'landlord', 'tenant'])
+            ).first()
+            
+            # Calculate commission from contact's potential_commission
+            commission = 0
+            client_name = "No client"
+            if primary_client and primary_client.contact:
+                commission = float(primary_client.contact.potential_commission or 0)
+                client_name = f"{primary_client.contact.first_name} {primary_client.contact.last_name}"
+            elif primary_client:
+                client_name = primary_client.display_name
+            
+            # Build transaction data for template
+            tx_data = {
+                'id': tx.id,
+                'address': tx.street_address,
+                'city': tx.city,
+                'client_name': client_name,
+                'expected_close_date': tx.expected_close_date,
+                'actual_close_date': tx.actual_close_date,
+                'commission': commission,
+                'status': tx.status,
+                'status_label': status_labels.get(tx.status, tx.status.replace('_', ' ').title()),
+                'type': tx.transaction_type.display_name if tx.transaction_type else 'Unknown'
+            }
+            
+            # Find which Kanban column this transaction belongs to
+            for column_key, column_config in status_config.items():
+                if tx.status in column_config['statuses']:
+                    transactions_by_status[column_key]['transactions'].append(tx_data)
+                    transactions_by_status[column_key]['count'] += 1
+                    break
+            
+            # Calculate pipeline value (non-closed deals only)
+            if tx.status != 'closed':
+                pipeline_value += commission
+            else:
+                ytd_closed_value += commission
+
     return render_template('dashboard.html',
                          show_all=show_all,
                          total_commission=total_commission,
@@ -214,7 +309,11 @@ def dashboard():
                          upcoming_tasks=upcoming_tasks,
                          latest_update=latest_update,
                          now=now,
-                         show_dashboard_joke=is_enabled('SHOW_DASHBOARD_JOKE'))
+                         show_dashboard_joke=is_enabled('SHOW_DASHBOARD_JOKE'),
+                         show_transactions=show_transactions,
+                         transactions_by_status=transactions_by_status,
+                         pipeline_value=pipeline_value,
+                         ytd_closed_value=ytd_closed_value)
 
 @main_bp.route('/marketing')
 @login_required

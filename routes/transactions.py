@@ -184,6 +184,13 @@ def create_transaction():
             flash('Please select at least one contact.', 'error')
             return redirect(url_for('transactions.new_transaction'))
         
+        # Get the transaction type to determine participant role and default status
+        tx_type = TransactionType.query.get(int(transaction_type_id))
+        
+        # Determine default status based on transaction type
+        # Buyer transactions start with 'showing', sellers start with 'preparing_to_list'
+        default_status = 'showing' if tx_type and tx_type.name == 'buyer' else 'preparing_to_list'
+        
         # Create the transaction
         transaction = Transaction(
             created_by_id=current_user.id,
@@ -194,13 +201,10 @@ def create_transaction():
             zip_code=zip_code,
             county=county,
             ownership_status=ownership_status,
-            status='preparing_to_list'
+            status=default_status
         )
         db.session.add(transaction)
         db.session.flush()  # Get the transaction ID
-        
-        # Get the transaction type to determine participant role
-        tx_type = TransactionType.query.get(int(transaction_type_id))
         
         # Determine the role based on transaction type
         role_map = {
@@ -615,7 +619,7 @@ def update_status(id):
     data = request.get_json()
     new_status = data.get('status')
     
-    valid_statuses = ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled']
+    valid_statuses = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled']
     if new_status not in valid_statuses:
         return jsonify({'success': False, 'error': 'Invalid status'}), 400
     
