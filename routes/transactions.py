@@ -293,12 +293,56 @@ def view_transaction(id):
             ContactFile.contact_id.in_(contact_ids)
         ).order_by(ContactFile.created_at.desc()).all()
     
+    # For seller transactions, extract listing info from the listing agreement document
+    listing_info = None
+    if transaction.transaction_type.name == 'seller':
+        # Find the listing agreement document
+        listing_doc = transaction.documents.filter_by(template_slug='listing-agreement').first()
+        if listing_doc and listing_doc.status != 'pending' and listing_doc.field_data:
+            field_data = listing_doc.field_data
+            # Build listing info from field data
+            # Buyer side commission: prefer percentage, fallback to flat fee
+            buyer_commission = field_data.get('buyer_agent_percent')
+            if buyer_commission:
+                buyer_commission = f"{buyer_commission}%"
+            else:
+                buyer_flat = field_data.get('buyer_agent_flat')
+                if buyer_flat:
+                    buyer_commission = f"${buyer_flat}"
+            
+            # Format dates as "January 14, 2026"
+            def format_date(date_str):
+                if not date_str:
+                    return None
+                try:
+                    from datetime import datetime
+                    dt = datetime.strptime(date_str, '%Y-%m-%d')
+                    return dt.strftime('%B %d, %Y')
+                except (ValueError, TypeError):
+                    return date_str
+            
+            listing_info = {
+                'list_price': field_data.get('list_price'),
+                'listing_start_date': format_date(field_data.get('listing_start_date')),
+                'listing_end_date': format_date(field_data.get('listing_end_date')),
+                'total_commission': field_data.get('total_commission'),
+                'buyer_commission': buyer_commission,
+            }
+    
+    # Get lockbox combo from extra_data (always available for seller transactions)
+    lockbox_combo = None
+    if transaction.transaction_type.name == 'seller':
+        extra_data = transaction.extra_data or {}
+        lockbox_combo = extra_data.get('lockbox_combo')
+    
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
         participants=participants,
         documents=documents,
-        contact_files=contact_files
+        contact_files=contact_files,
+        listing_info=listing_info,
+        lockbox_combo=lockbox_combo
     )
 
 
@@ -642,6 +686,40 @@ def update_status(id):
         
         db.session.commit()
         return jsonify({'success': True, 'status': new_status})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/lockbox-combo', methods=['POST'])
+@login_required
+@transactions_required
+def update_lockbox_combo(id):
+    """Update the lockbox combo for a seller transaction."""
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    # Only allow for seller transactions
+    if transaction.transaction_type.name != 'seller':
+        return jsonify({'success': False, 'error': 'Lockbox combo only available for seller transactions'}), 400
+    
+    data = request.get_json()
+    lockbox_combo = data.get('lockbox_combo', '').strip()
+    
+    try:
+        # Initialize extra_data if None
+        if transaction.extra_data is None:
+            transaction.extra_data = {}
+        
+        # Update the lockbox combo
+        extra_data = dict(transaction.extra_data)  # Make a mutable copy
+        extra_data['lockbox_combo'] = lockbox_combo
+        transaction.extra_data = extra_data
+        
+        db.session.commit()
+        return jsonify({'success': True, 'lockbox_combo': lockbox_combo})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -859,7 +859,146 @@
                 </div>
                 {% endif %}
 
-                <!-- Recent Activity Card -->
+                {% if transaction.transaction_type.name == 'seller' %}
+                <!-- Listing Info Card (Seller Transactions Only) -->
+                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                    <div class="flex items-center justify-between mb-5">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                                <i class="fas fa-clipboard-list text-white"></i>
+                            </div>
+                            <h2 class="text-lg font-bold text-slate-800">Listing Info</h2>
+                        </div>
+                    </div>
+                    
+                    {% if listing_info %}
+                    <div class="space-y-0">
+                        <div class="info-row">
+                            <span class="info-label">List Price</span>
+                            <span class="info-value text-emerald-600 font-semibold">
+                                {% if listing_info.list_price %}${{ listing_info.list_price }}{% else %}—{% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Listing Start Date</span>
+                            <span class="info-value">{{ listing_info.listing_start_date or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Listing Expiration Date</span>
+                            <span class="info-value">{{ listing_info.listing_end_date or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Total Commission</span>
+                            <span class="info-value">{{ listing_info.total_commission or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Buyer Side Commission</span>
+                            <span class="info-value">{{ listing_info.buyer_commission or '—' }}</span>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-6 mb-4">
+                        <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-file-alt text-slate-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500">Complete the Listing Agreement to populate this section</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Lockbox Combo (always editable) -->
+                    <div class="{% if listing_info %}pt-4 mt-4 border-t border-slate-100{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600 text-sm">Lockbox Combo</span>
+                            <div class="flex items-center gap-2">
+                                <input type="text" 
+                                       id="lockboxComboInput" 
+                                       data-saved-value="{{ lockbox_combo or '' }}"
+                                       value="{{ lockbox_combo or '' }}" 
+                                       placeholder="—"
+                                       class="w-24 px-2 py-1.5 text-sm text-center bg-slate-50 border border-slate-200 rounded-lg focus:border-orange-400 focus:ring-1 focus:ring-orange-200 transition-all font-mono placeholder:text-slate-300 placeholder:font-sans">
+                                <button onclick="saveLockboxCombo()" 
+                                        id="lockboxSaveBtn"
+                                        class="hidden px-3 py-1.5 text-xs font-medium text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition-all transform scale-100">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <script>
+                (function() {
+                    const input = document.getElementById('lockboxComboInput');
+                    const btn = document.getElementById('lockboxSaveBtn');
+                    
+                    // Check if value has changed and show/hide save button
+                    function checkForChanges() {
+                        const savedValue = input.dataset.savedValue || '';
+                        const currentValue = input.value;
+                        
+                        if (currentValue !== savedValue) {
+                            btn.classList.remove('hidden');
+                            input.classList.add('border-orange-300', 'bg-orange-50');
+                            input.classList.remove('border-slate-200', 'bg-slate-50');
+                        } else {
+                            btn.classList.add('hidden');
+                            input.classList.remove('border-orange-300', 'bg-orange-50');
+                            input.classList.add('border-slate-200', 'bg-slate-50');
+                        }
+                    }
+                    
+                    // Listen for input changes
+                    input.addEventListener('input', checkForChanges);
+                    
+                    // Save function
+                    window.saveLockboxCombo = function() {
+                        const originalText = btn.textContent;
+                        
+                        btn.disabled = true;
+                        btn.textContent = '...';
+                        
+                        fetch(`/transactions/${transactionId}/lockbox-combo`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ lockbox_combo: input.value })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update the saved value
+                                input.dataset.savedValue = input.value;
+                                
+                                // Show success state briefly
+                                btn.textContent = 'Saved!';
+                                btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+                                btn.classList.add('bg-green-500');
+                                
+                                // Reset input styling
+                                input.classList.remove('border-orange-300', 'bg-orange-50');
+                                input.classList.add('border-slate-200', 'bg-slate-50');
+                                
+                                setTimeout(() => {
+                                    btn.textContent = originalText;
+                                    btn.classList.remove('bg-green-500');
+                                    btn.classList.add('bg-orange-500', 'hover:bg-orange-600', 'hidden');
+                                    btn.disabled = false;
+                                }, 1200);
+                            } else {
+                                showToast('Error saving lockbox combo: ' + data.error, 'error');
+                                btn.textContent = originalText;
+                                btn.disabled = false;
+                            }
+                        })
+                        .catch(err => {
+                            showToast('Error saving lockbox combo', 'error');
+                            btn.textContent = originalText;
+                            btn.disabled = false;
+                        });
+                    };
+                })();
+                </script>
+                {% else %}
+                <!-- Recent Activity Card (Non-Seller Transactions) -->
                 <div class="premium-card p-6 animate-fade-in-up-delay-2">
                     <div class="flex items-center justify-between mb-5">
                         <div class="flex items-center gap-3">
@@ -965,6 +1104,7 @@
                     }
                 })();
                 </script>
+                {% endif %}
             </div>
         </div>
     </div>
