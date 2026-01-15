@@ -350,6 +350,13 @@ def view_transaction(id):
         extra_data = transaction.extra_data or {}
         lockbox_combo = extra_data.get('lockbox_combo')
     
+    # Get RentCast data for buyer transactions
+    rentcast_data = None
+    rentcast_fetched_at = None
+    if transaction.transaction_type.name == 'buyer':
+        rentcast_data = transaction.rentcast_data
+        rentcast_fetched_at = transaction.rentcast_fetched_at
+    
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
@@ -357,7 +364,9 @@ def view_transaction(id):
         documents=documents,
         contact_files=contact_files,
         listing_info=listing_info,
-        lockbox_combo=lockbox_combo
+        lockbox_combo=lockbox_combo,
+        rentcast_data=rentcast_data,
+        rentcast_fetched_at=rentcast_fetched_at
     )
 
 
@@ -738,6 +747,133 @@ def update_lockbox_combo(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# RENTCAST PROPERTY INTELLIGENCE
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/rentcast-data', methods=['POST'])
+@login_required
+@transactions_required
+def fetch_rentcast_data(id):
+    """
+    Fetch or return cached RentCast property intelligence data.
+    
+    For buyer transactions only. Implements a cooldown period to prevent
+    excessive API usage (default 48 hours between fetches).
+    
+    Returns:
+        - success: bool
+        - data: dict (property data)
+        - fetched_at: ISO timestamp
+        - cached: bool (True if returning cached data within cooldown)
+        - message: str (optional message for cached responses)
+    """
+    from datetime import timedelta
+    from config import Config
+    from services.rentcast_service import fetch_property_data
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    # Authorization check
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    # Only allow for buyer transactions
+    if transaction.transaction_type.name != 'buyer':
+        return jsonify({
+            'success': False, 
+            'error': 'Property Intelligence is only available for Buyer Representation transactions.'
+        }), 400
+    
+    # Check if we have cached data within the cooldown period
+    refresh_hours = Config.RENTCAST_REFRESH_HOURS
+    now = datetime.utcnow()
+    
+    if transaction.rentcast_data and transaction.rentcast_fetched_at:
+        time_since_fetch = now - transaction.rentcast_fetched_at
+        cooldown_period = timedelta(hours=refresh_hours)
+        
+        if time_since_fetch < cooldown_period:
+            # Return cached data - still within cooldown
+            return jsonify({
+                'success': True,
+                'data': transaction.rentcast_data,
+                'fetched_at': transaction.rentcast_fetched_at.isoformat(),
+                'cached': True,
+                'message': 'You have the most current data available.'
+            })
+    
+    # Fetch fresh data from RentCast API
+    result = fetch_property_data(
+        street_address=transaction.street_address,
+        city=transaction.city,
+        state=transaction.state,
+        zip_code=transaction.zip_code
+    )
+    
+    if not result['success']:
+        return jsonify({
+            'success': False,
+            'error': result['error']
+        }), 400
+    
+    # Store the data in the transaction
+    try:
+        transaction.rentcast_data = result['data']
+        transaction.rentcast_fetched_at = now
+        db.session.commit()
+        
+        # Log the fetch event
+        audit_service.log_event(
+            event_type='rentcast_data_fetched',
+            transaction_id=transaction.id,
+            actor_id=current_user.id,
+            description=f"Fetched property intelligence data for {transaction.street_address}",
+            event_data={'address_used': result.get('address_used')}
+        )
+        
+        return jsonify({
+            'success': True,
+            'data': result['data'],
+            'fetched_at': now.isoformat(),
+            'cached': False
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/rentcast-data', methods=['GET'])
+@login_required
+@transactions_required
+def get_rentcast_data(id):
+    """
+    Get cached RentCast data for a transaction (if available).
+    Does not trigger a new API fetch - use POST for that.
+    """
+    transaction = Transaction.query.get_or_404(id)
+    
+    # Authorization check
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    if transaction.rentcast_data and transaction.rentcast_fetched_at:
+        return jsonify({
+            'success': True,
+            'data': transaction.rentcast_data,
+            'fetched_at': transaction.rentcast_fetched_at.isoformat(),
+            'has_data': True
+        })
+    else:
+        return jsonify({
+            'success': True,
+            'data': None,
+            'fetched_at': None,
+            'has_data': False
+        })
 
 
 # =============================================================================

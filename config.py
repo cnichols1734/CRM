@@ -32,4 +32,8 @@ class Config:
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
     # SendGrid configuration
-    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY') 
+    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+
+    # RentCast API configuration
+    RENTCAST_API_KEY = os.getenv('RENTCAST_API_KEY')
+    RENTCAST_REFRESH_HOURS = int(os.getenv('RENTCAST_REFRESH_HOURS', 48))  # Hours before allowing re-fetch

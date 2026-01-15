@@ -424,6 +424,10 @@ class Transaction(db.Model):
     # Flexible extra data for additional fields
     extra_data = db.Column(db.JSON, default={})
     
+    # RentCast property intelligence data (buyer transactions)
+    rentcast_data = db.Column(db.JSON, default=None)  # Full API response
+    rentcast_fetched_at = db.Column(db.DateTime)  # When data was last fetched
+    
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
