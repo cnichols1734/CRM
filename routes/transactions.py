@@ -184,6 +184,21 @@ def create_transaction():
             flash('Please select at least one contact.', 'error')
             return redirect(url_for('transactions.new_transaction'))
         
+        # Validate all selected contacts have required fields (name and email)
+        for contact_id in contact_ids:
+            contact = Contact.query.get(int(contact_id))
+            if not contact or contact.user_id != current_user.id:
+                flash('One or more selected contacts could not be found.', 'error')
+                return redirect(url_for('transactions.new_transaction'))
+            
+            if not contact.first_name or not contact.last_name:
+                flash(f'Contact "{contact.first_name or ""} {contact.last_name or ""}" is missing a name. Please update the contact first.', 'error')
+                return redirect(url_for('transactions.new_transaction'))
+            
+            if not contact.email:
+                flash(f'Contact "{contact.first_name} {contact.last_name}" is missing an email address. Please update the contact first.', 'error')
+                return redirect(url_for('transactions.new_transaction'))
+        
         # Get the transaction type to determine participant role and default status
         tx_type = TransactionType.query.get(int(transaction_type_id))
         
