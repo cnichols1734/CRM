@@ -400,3 +400,96 @@ def upload_scanned_document(
         original_filename,
         content_type
     )
+
+
+# =============================================================================
+# EXTERNAL DOCUMENT STORAGE
+# =============================================================================
+# Functions for storing external documents (uploaded from other parties)
+
+def generate_external_document_path(transaction_id: int, original_filename: str) -> tuple[str, str]:
+    """
+    Generate a unique storage path for an external document.
+    
+    Args:
+        transaction_id: The transaction ID
+        original_filename: Original filename from upload
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    ext = ''
+    if '.' in original_filename:
+        ext = '.' + original_filename.rsplit('.', 1)[1].lower()
+    
+    # Generate unique filename
+    unique_filename = f"{uuid.uuid4().hex[:12]}{ext}"
+    
+    # Organize by transaction_id/external/
+    storage_path = f"transactions/{transaction_id}/external/{unique_filename}"
+    
+    return storage_path, unique_filename
+
+
+def upload_external_document(
+    transaction_id: int,
+    file_data: bytes,
+    original_filename: str,
+    content_type: str = 'application/pdf'
+) -> dict:
+    """
+    Upload an external document to Supabase Storage.
+    
+    Used when agents upload documents from other parties for signature.
+    
+    Args:
+        transaction_id: The transaction ID
+        file_data: The PDF content as bytes
+        original_filename: Original filename from upload
+        content_type: MIME type (defaults to application/pdf)
+    
+    Returns:
+        dict with 'path', 'filename', 'size' keys on success
+    """
+    storage_path, unique_filename = generate_external_document_path(
+        transaction_id, original_filename
+    )
+    return upload_file(
+        TRANSACTION_DOCUMENTS_BUCKET,
+        storage_path,
+        file_data,
+        original_filename,
+        content_type
+    )
+
+
+def download_document(storage_path: str) -> bytes:
+    """
+    Download a document from Supabase Storage.
+    
+    Args:
+        storage_path: Path to the file in storage
+    
+    Returns:
+        File content as bytes
+    """
+    client = get_supabase_client()
+    response = client.storage.from_(TRANSACTION_DOCUMENTS_BUCKET).download(storage_path)
+    return response
+
+
+def get_document_as_base64(storage_path: str) -> str:
+    """
+    Get a document from Supabase Storage as a base64-encoded string.
+    
+    This is useful for sending documents to external APIs like DocuSeal.
+    
+    Args:
+        storage_path: Path to the file in storage
+    
+    Returns:
+        Base64-encoded string of the file content
+    """
+    import base64
+    file_data = download_document(storage_path)
+    return base64.b64encode(file_data).decode('utf-8')

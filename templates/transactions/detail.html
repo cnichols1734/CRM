@@ -696,10 +696,17 @@
                                 <p class="text-xs text-slate-500">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
                             </div>
                         </div>
-                        <button onclick="showAddDocumentModal()" 
-                                class="text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
-                            <i class="fas fa-plus mr-2"></i>Add
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="showAddExternalModal()" 
+                                    class="text-sm px-3 py-2 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors font-medium"
+                                    title="Upload document from other party">
+                                <i class="fas fa-file-import mr-1"></i>External
+                            </button>
+                            <button onclick="showAddDocumentModal()" 
+                                    class="text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
+                                <i class="fas fa-plus mr-2"></i>Add
+                            </button>
+                        </div>
                     </div>
                     
                     {% if documents %}
@@ -725,7 +732,14 @@
                                     {% endif %}
                                 </div>
                                 <div>
-                                    <div class="font-medium text-slate-800">{{ doc.template_name }}</div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium text-slate-800">{{ doc.template_name }}</span>
+                                        {% if doc.document_source == 'external' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">External</span>
+                                        {% elif doc.document_source == 'hybrid' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">Hybrid</span>
+                                        {% endif %}
+                                    </div>
                                     {% if doc.included_reason %}
                                     <div class="text-xs text-slate-500 mt-0.5">
                                         <i class="fas fa-info-circle mr-1 text-slate-400"></i>{{ doc.included_reason }}
@@ -778,8 +792,25 @@
                                     <div id="docActionsMenu-{{ doc.id }}" 
                                          class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-2">
                                         
-                                        <!-- PENDING: Fill Form -->
-                                        {% if doc.status == 'pending' %}
+                                        <!-- EXTERNAL/HYBRID DOCUMENTS: Edit Fields -->
+                                        {% if doc.document_source in ['external', 'hybrid'] %}
+                                        <a href="{{ url_for('transactions.document_field_editor', id=transaction.id, doc_id=doc.id) }}" 
+                                           class="flex items-center px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
+                                            <i class="fas fa-pen-ruler w-5"></i>
+                                            <span class="ml-2">Edit Signature Fields</span>
+                                        </a>
+                                        {% if doc.field_placements and doc.field_placements|length > 0 and doc.status != 'sent' and doc.status != 'signed' %}
+                                        <button onclick="sendAdhocDocument({{ doc.id }})"
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
+                                            <i class="fas fa-paper-plane w-5"></i>
+                                            <span class="ml-2">Send for Signature</span>
+                                        </button>
+                                        {% endif %}
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        {% endif %}
+                                        
+                                        <!-- PENDING: Fill Form (Template docs only) -->
+                                        {% if doc.status == 'pending' and doc.document_source != 'external' %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
                                             <i class="fas fa-edit w-5"></i>
@@ -860,6 +891,15 @@
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                                             <i class="fas fa-sync-alt w-5 text-slate-400"></i>
                                             <span class="ml-2">Replace Scan</span>
+                                        </button>
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                            Additional Signatures
+                                        </div>
+                                        <button onclick="convertToHybrid({{ doc.id }})"
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
+                                            <i class="fas fa-user-plus w-5"></i>
+                                            <span class="ml-2">Add E-Signatures</span>
                                         </button>
                                         {% endif %}
                                         {% else %}
@@ -1722,6 +1762,83 @@
     </div>
 </div>
 
+<!-- Upload External Document Modal -->
+<div id="uploadExternalModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeExternalModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-file-import text-purple-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800">Upload External Document</h3>
+                    <p class="text-sm text-slate-500">Upload a document from another party for signature</p>
+                </div>
+            </div>
+            
+            <form id="uploadExternalForm" enctype="multipart/form-data">
+                <!-- Document Name -->
+                <div class="mb-4">
+                    <label for="externalDocName" class="block text-sm font-medium text-slate-700 mb-2">Document Name</label>
+                    <input type="text" id="externalDocName" name="document_name" 
+                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                           placeholder="e.g., 1-4 Family Residential Contract">
+                </div>
+                
+                <!-- Drop Zone -->
+                <div id="externalDropZone" 
+                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors mb-4"
+                     onclick="document.getElementById('externalFileInput').click()">
+                    <div id="externalDropContent">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                    </div>
+                    <div id="externalFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                        <p id="externalFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="externalFileSize" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                </div>
+                <input type="file" id="externalFileInput" name="file" accept=".pdf" class="hidden" onchange="handleExternalFileSelect(this)">
+                
+                <!-- Upload Progress -->
+                <div id="externalProgress" class="hidden mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="externalPercent" class="font-medium text-purple-600">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="externalProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="externalError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p id="externalErrorText" class="text-sm text-red-600"></p>
+                </div>
+                
+                <p class="text-xs text-slate-400 mb-4">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    After upload, you'll place signature fields on the document.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeExternalModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="uploadExternalBtn" disabled
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload & Edit
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
     <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
@@ -2407,8 +2524,169 @@ document.addEventListener('keydown', function(e) {
         closeParticipantModal();
         closeDocumentModal();
         closeUploadScanModal();
+        closeExternalModal();
     }
 });
+
+// =============================================================================
+// UPLOAD EXTERNAL DOCUMENT MODAL
+// =============================================================================
+
+function showAddExternalModal() {
+    // Reset form state
+    document.getElementById('externalDocName').value = '';
+    document.getElementById('externalFileInput').value = '';
+    document.getElementById('externalDropContent').classList.remove('hidden');
+    document.getElementById('externalFileInfo').classList.add('hidden');
+    document.getElementById('externalProgress').classList.add('hidden');
+    document.getElementById('externalError').classList.add('hidden');
+    document.getElementById('uploadExternalBtn').disabled = true;
+    
+    document.getElementById('uploadExternalModal').classList.remove('hidden');
+}
+
+function closeExternalModal() {
+    document.getElementById('uploadExternalModal').classList.add('hidden');
+}
+
+function handleExternalFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showExternalError('Please select a PDF file.');
+        return;
+    }
+    
+    // Validate file size (25MB max)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showExternalError('File too large. Maximum size is 25MB.');
+        return;
+    }
+    
+    // Show selected file info
+    document.getElementById('externalDropContent').classList.add('hidden');
+    document.getElementById('externalFileInfo').classList.remove('hidden');
+    document.getElementById('externalFileName').textContent = file.name;
+    document.getElementById('externalFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('externalError').classList.add('hidden');
+    document.getElementById('uploadExternalBtn').disabled = false;
+    
+    // Auto-fill document name if empty
+    const docNameInput = document.getElementById('externalDocName');
+    if (!docNameInput.value.trim()) {
+        const nameWithoutExt = file.name.replace(/\.pdf$/i, '');
+        docNameInput.value = nameWithoutExt;
+    }
+}
+
+function showExternalError(message) {
+    document.getElementById('externalError').classList.remove('hidden');
+    document.getElementById('externalErrorText').textContent = message;
+    document.getElementById('uploadExternalBtn').disabled = true;
+}
+
+// Handle drag and drop for external upload
+const externalDropZone = document.getElementById('externalDropZone');
+if (externalDropZone) {
+    externalDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-purple-400', 'bg-purple-50/30');
+    });
+    
+    externalDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+    });
+    
+    externalDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('externalFileInput');
+            fileInput.files = files;
+            handleExternalFileSelect(fileInput);
+        }
+    });
+}
+
+// Handle external document form submission
+const externalForm = document.getElementById('uploadExternalForm');
+if (externalForm) {
+    externalForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('externalFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showExternalError('Please select a file first.');
+            return;
+        }
+        
+        const documentName = document.getElementById('externalDocName').value.trim();
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('document_name', documentName);
+        
+        // Show progress
+        document.getElementById('externalProgress').classList.remove('hidden');
+        document.getElementById('uploadExternalBtn').disabled = true;
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('externalPercent').textContent = percent + '%';
+                document.getElementById('externalProgressBar').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Document uploaded! Redirecting to field editor...', 'success');
+                    closeExternalModal();
+                    // Redirect to field editor
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        location.reload();
+                    }
+                } else {
+                    showExternalError(data.error || 'Upload failed');
+                    document.getElementById('externalProgress').classList.add('hidden');
+                    document.getElementById('uploadExternalBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showExternalError(data.error || 'Upload failed');
+                } catch (err) {
+                    showExternalError('Upload failed. Please try again.');
+                }
+                document.getElementById('externalProgress').classList.add('hidden');
+                document.getElementById('uploadExternalBtn').disabled = false;
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            showExternalError('Network error. Please try again.');
+            document.getElementById('externalProgress').classList.add('hidden');
+            document.getElementById('uploadExternalBtn').disabled = false;
+        });
+        
+        xhr.open('POST', `/transactions/${transactionId}/documents/upload-external`);
+        xhr.send(formData);
+    });
+}
 
 // =============================================================================
 // STATUS MANAGEMENT
@@ -2681,6 +2959,48 @@ function sendForSignature(docId) {
         if (data.success) {
             showToast(`Document sent to ${data.submitters} signer(s)!`, 'success');
             setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function sendAdhocDocument(docId) {
+    if (!confirm('Send this document for signature?')) return;
+    
+    showToast('Sending document...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/send-adhoc`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Document sent for signature!', 'success');
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(err => showToast('Error: ' + err.message, 'error'));
+}
+
+function convertToHybrid(docId) {
+    if (!confirm('Convert this wet-signed document for additional e-signatures? You will place signature fields for the remaining signers.')) return;
+    
+    showToast('Preparing document...', 'info');
+    
+    fetch(`/transactions/${transactionId}/documents/${docId}/convert-hybrid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Redirecting to field editor...', 'success');
+            window.location.href = data.redirect_url;
         } else {
             showToast('Error: ' + data.error, 'error');
         }

@@ -1,0 +1,1102 @@
+{% extends "base.html" %}
+
+{% block title %}Field Editor - {{ document.template_name }} - TechnolOG{% endblock %}
+
+{% block content %}
+<style>
+    /* Editor Layout */
+    .editor-container {
+        display: flex;
+        height: calc(100vh - 120px);
+        background: #f1f5f9;
+    }
+    
+    /* PDF Viewer Area */
+    .pdf-viewer {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        background: #64748b;
+    }
+    
+    .pdf-canvas-container {
+        flex: 1;
+        overflow: auto;
+        display: flex;
+        justify-content: center;
+        padding: 1.5rem;
+        position: relative;
+    }
+    
+    .pdf-page-wrapper {
+        position: relative;
+        background: white;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    #pdfCanvas {
+        display: block;
+    }
+    
+    /* Field overlay layer */
+    .field-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+    }
+    
+    .field-overlay.active {
+        pointer-events: auto;
+        cursor: crosshair;
+    }
+    
+    /* Placed fields */
+    .placed-field {
+        position: absolute;
+        border: 2px solid;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 600;
+        cursor: move;
+        user-select: none;
+        pointer-events: auto;
+        transition: box-shadow 0.15s ease;
+    }
+    
+    .placed-field:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .placed-field.selected {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    }
+    
+    .placed-field .field-label {
+        padding: 2px 6px;
+        background: inherit;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .placed-field .delete-btn {
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        width: 18px;
+        height: 18px;
+        background: #ef4444;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+    
+    .placed-field:hover .delete-btn {
+        opacity: 1;
+    }
+    
+    /* Resize handles */
+    .resize-handle {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: white;
+        border: 2px solid #3b82f6;
+        border-radius: 2px;
+        opacity: 0;
+    }
+    
+    .placed-field.selected .resize-handle {
+        opacity: 1;
+    }
+    
+    .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+    .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+    .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+    .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+    
+    /* Signer colors */
+    .signer-seller { border-color: #14b8a6; background: rgba(20, 184, 166, 0.15); color: #0d9488; }
+    .signer-co_seller { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+    .signer-buyer { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+    .signer-co_buyer { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+    .signer-listing_agent { border-color: #f97316; background: rgba(249, 115, 22, 0.15); color: #ea580c; }
+    .signer-default { border-color: #64748b; background: rgba(100, 116, 139, 0.15); color: #475569; }
+    
+    /* Page navigation */
+    .page-nav {
+        background: #1e293b;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+    }
+    
+    .page-nav button {
+        padding: 0.5rem 1rem;
+        background: #334155;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    
+    .page-nav button:hover:not(:disabled) {
+        background: #475569;
+    }
+    
+    .page-nav button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .page-nav .page-info {
+        color: white;
+        font-size: 0.875rem;
+    }
+    
+    /* Signing Tools Panel */
+    .tools-panel {
+        width: 320px;
+        background: white;
+        border-left: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .tools-header {
+        padding: 1.25rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #14b8a6, #0d9488);
+        color: white;
+    }
+    
+    .tools-header h2 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .tools-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    
+    /* Signer selector */
+    .signer-selector {
+        margin-bottom: 1.5rem;
+    }
+    
+    .signer-selector label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    
+    .signer-selector select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: white;
+        cursor: pointer;
+        transition: border-color 0.15s;
+    }
+    
+    .signer-selector select:focus {
+        outline: none;
+        border-color: #14b8a6;
+    }
+    
+    /* Tool sections */
+    .tool-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .tool-section-title {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.75rem;
+    }
+    
+    .tool-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+    
+    .tool-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: #f8fafc;
+        border: 2px solid #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #334155;
+        cursor: pointer;
+        transition: all 0.15s;
+    }
+    
+    .tool-btn:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+    }
+    
+    .tool-btn.active {
+        background: #14b8a6;
+        border-color: #14b8a6;
+        color: white;
+    }
+    
+    .tool-btn i {
+        font-size: 1rem;
+        width: 1.25rem;
+        text-align: center;
+    }
+    
+    /* Placed fields list */
+    .placed-fields-section {
+        margin-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 1rem;
+    }
+    
+    .placed-field-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.625rem 0.75rem;
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.8125rem;
+    }
+    
+    .placed-field-item .field-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .placed-field-item .field-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+    
+    .placed-field-item .delete-field {
+        padding: 0.25rem;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: color 0.15s;
+    }
+    
+    .placed-field-item .delete-field:hover {
+        color: #ef4444;
+    }
+    
+    /* Action buttons */
+    .tools-footer {
+        padding: 1rem;
+        border-top: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    
+    .action-btn {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: none;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .action-btn.primary {
+        background: linear-gradient(135deg, #14b8a6, #0d9488);
+        color: white;
+    }
+    
+    .action-btn.primary:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(20, 184, 166, 0.3);
+    }
+    
+    .action-btn.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .action-btn.secondary {
+        background: white;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .action-btn.secondary:hover {
+        background: #f1f5f9;
+    }
+    
+    /* Top bar */
+    .editor-topbar {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 0.75rem 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .editor-topbar .back-link {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #64748b;
+        text-decoration: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: color 0.15s;
+    }
+    
+    .editor-topbar .back-link:hover {
+        color: #14b8a6;
+    }
+    
+    .editor-topbar .doc-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .editor-topbar .doc-badge {
+        padding: 0.25rem 0.75rem;
+        background: #8b5cf6;
+        color: white;
+        border-radius: 9999px;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Loading state */
+    .pdf-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: white;
+    }
+    
+    .pdf-loading i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    /* Tooltip for disabled send button */
+    .send-tooltip {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+</style>
+
+<!-- Top Bar -->
+<div class="editor-topbar">
+    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" class="back-link">
+        <i class="fas fa-arrow-left"></i>
+        Back to Transaction
+    </a>
+    <div class="flex items-center gap-3">
+        <span class="doc-name">{{ document.template_name }}</span>
+        {% if document.document_source == 'external' %}
+        <span class="doc-badge">External</span>
+        {% elif document.document_source == 'hybrid' %}
+        <span class="doc-badge" style="background: #f97316;">Hybrid</span>
+        {% endif %}
+    </div>
+    <div></div>
+</div>
+
+<!-- Main Editor -->
+<div class="editor-container">
+    <!-- PDF Viewer -->
+    <div class="pdf-viewer">
+        <div class="pdf-canvas-container" id="pdfContainer">
+            {% if pdf_url %}
+            <div class="pdf-page-wrapper" id="pageWrapper">
+                <canvas id="pdfCanvas"></canvas>
+                <div class="field-overlay" id="fieldOverlay"></div>
+            </div>
+            {% else %}
+            <div class="pdf-loading">
+                <i class="fas fa-exclamation-triangle" style="animation: none;"></i>
+                <p>PDF not available</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Page Navigation -->
+        <div class="page-nav">
+            <button id="prevPage" disabled>
+                <i class="fas fa-chevron-left"></i> Previous
+            </button>
+            <span class="page-info">
+                Page <span id="currentPage">1</span> of <span id="totalPages">1</span>
+            </span>
+            <button id="nextPage" disabled>
+                Next <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+    </div>
+    
+    <!-- Signing Tools Panel -->
+    <div class="tools-panel">
+        <div class="tools-header">
+            <h2><i class="fas fa-pen-fancy"></i> Signing Tools</h2>
+        </div>
+        
+        <div class="tools-body">
+            <!-- Signer Selector -->
+            <div class="signer-selector">
+                <label>Place fields for</label>
+                <select id="signerSelect">
+                    {% for participant in participants %}
+                    <option value="{{ participant.role }}" 
+                            data-name="{{ participant.display_name }}"
+                            data-email="{{ participant.email }}">
+                        {{ participant.display_name }} ({{ participant.role|replace('_', ' ')|title }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Signer Actions -->
+            <div class="tool-section">
+                <div class="tool-section-title">Signer Actions</div>
+                <div class="tool-grid">
+                    <button class="tool-btn" data-field-type="signature" title="Signature field">
+                        <i class="fas fa-signature"></i>
+                        Sign Here
+                    </button>
+                    <button class="tool-btn" data-field-type="initials" title="Initials field">
+                        <i class="fas fa-pen"></i>
+                        Initials
+                    </button>
+                    <button class="tool-btn" data-field-type="text" title="Text input field">
+                        <i class="fas fa-font"></i>
+                        Text Line
+                    </button>
+                    <button class="tool-btn" data-field-type="date" title="Date field">
+                        <i class="fas fa-calendar"></i>
+                        Date
+                    </button>
+                    <button class="tool-btn" data-field-type="checkbox" title="Checkbox field">
+                        <i class="fas fa-check-square"></i>
+                        Checkbox
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Signer Fields (Auto-populated) -->
+            <div class="tool-section">
+                <div class="tool-section-title">Signer Fields</div>
+                <div class="tool-grid">
+                    <button class="tool-btn" data-field-type="full_name" title="Auto-populated full name">
+                        <i class="fas fa-user"></i>
+                        Full Name
+                    </button>
+                    <button class="tool-btn" data-field-type="email" title="Auto-populated email">
+                        <i class="fas fa-envelope"></i>
+                        Email
+                    </button>
+                    <button class="tool-btn" data-field-type="auto_date" title="Auto-filled date when signed">
+                        <i class="fas fa-clock"></i>
+                        Auto Date
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Placed Fields List -->
+            <div class="placed-fields-section">
+                <div class="tool-section-title">
+                    Placed Fields (<span id="fieldCount">0</span>)
+                </div>
+                <div id="placedFieldsList">
+                    <p class="text-sm text-slate-400 text-center py-4">
+                        No fields placed yet.<br>
+                        Select a tool and click on the PDF.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="tools-footer">
+            <button class="action-btn secondary" id="saveBtn">
+                <i class="fas fa-save"></i>
+                Save Draft
+            </button>
+            <button class="action-btn primary" id="sendBtn" disabled>
+                <i class="fas fa-paper-plane"></i>
+                Send for Signature
+            </button>
+            <p class="send-tooltip" id="sendTooltip">
+                Place at least one signature, initials, or date field to enable sending.
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Include PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    // Set PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    
+    // Configuration
+    const transactionId = {{ transaction.id }};
+    const documentId = {{ document.id }};
+    const pdfUrl = {{ pdf_url|tojson }};
+    const initialPlacementsRaw = {{ field_placements|tojson }};
+    
+    // Handle both old format (array) and new format (object with fields key)
+    const initialPlacements = Array.isArray(initialPlacementsRaw) 
+        ? initialPlacementsRaw 
+        : (initialPlacementsRaw?.fields || []);
+    
+    // State
+    let pdfDoc = null;
+    let currentPage = 1;
+    let totalPages = 0;
+    let scale = 1.5;
+    let selectedTool = null;
+    let placedFields = [...initialPlacements];
+    let selectedField = null;
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    
+    // Store page dimensions for coordinate normalization
+    // Key: page number, Value: {width, height} at scale 1.0 (native PDF units)
+    let pageDimensions = {};
+    
+    // Field type configurations
+    const fieldConfigs = {
+        signature: { w: 200, h: 50, label: 'Sign', icon: 'fa-signature' },
+        initials: { w: 80, h: 40, label: 'Init', icon: 'fa-pen' },
+        text: { w: 200, h: 25, label: 'Text', icon: 'fa-font' },
+        date: { w: 120, h: 30, label: 'Date', icon: 'fa-calendar' },
+        checkbox: { w: 20, h: 20, label: '', icon: 'fa-check-square' },
+        full_name: { w: 180, h: 25, label: 'Name', icon: 'fa-user' },
+        email: { w: 200, h: 25, label: 'Email', icon: 'fa-envelope' },
+        auto_date: { w: 100, h: 25, label: 'Date', icon: 'fa-clock' }
+    };
+    
+    // Signer colors
+    const signerColors = {
+        seller: 'signer-seller',
+        co_seller: 'signer-co_seller',
+        buyer: 'signer-buyer',
+        co_buyer: 'signer-co_buyer',
+        listing_agent: 'signer-listing_agent'
+    };
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        if (pdfUrl) {
+            loadPdf();
+        }
+        setupToolButtons();
+        setupEventListeners();
+        updateFieldsList();
+        updateSendButton();
+    });
+    
+    // Load PDF
+    async function loadPdf() {
+        try {
+            pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+            totalPages = pdfDoc.numPages;
+            document.getElementById('totalPages').textContent = totalPages;
+            
+            await renderPage(currentPage);
+            
+            // Enable navigation if multiple pages
+            updateNavButtons();
+        } catch (error) {
+            console.error('Error loading PDF:', error);
+            document.getElementById('pdfContainer').innerHTML = `
+                <div class="pdf-loading">
+                    <i class="fas fa-exclamation-triangle" style="animation: none;"></i>
+                    <p>Error loading PDF: ${error.message}</p>
+                </div>
+            `;
+        }
+    }
+    
+    // Render a specific page
+    async function renderPage(pageNum) {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale: scale });
+        
+        // Store native page dimensions (at scale 1.0) for coordinate normalization
+        const nativeViewport = page.getViewport({ scale: 1.0 });
+        pageDimensions[pageNum] = {
+            width: nativeViewport.width,
+            height: nativeViewport.height
+        };
+        
+        const canvas = document.getElementById('pdfCanvas');
+        const context = canvas.getContext('2d');
+        
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        
+        // Update wrapper size
+        const wrapper = document.getElementById('pageWrapper');
+        wrapper.style.width = viewport.width + 'px';
+        wrapper.style.height = viewport.height + 'px';
+        
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+        
+        // Render placed fields for this page
+        renderPlacedFields();
+        
+        document.getElementById('currentPage').textContent = pageNum;
+    }
+    
+    // Update navigation buttons
+    function updateNavButtons() {
+        document.getElementById('prevPage').disabled = currentPage <= 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    }
+    
+    // Setup tool buttons
+    function setupToolButtons() {
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const fieldType = this.dataset.fieldType;
+                
+                // Toggle active state
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                
+                if (selectedTool === fieldType) {
+                    selectedTool = null;
+                    document.getElementById('fieldOverlay').classList.remove('active');
+                } else {
+                    selectedTool = fieldType;
+                    this.classList.add('active');
+                    document.getElementById('fieldOverlay').classList.add('active');
+                }
+            });
+        });
+    }
+    
+    // Setup event listeners
+    function setupEventListeners() {
+        // Page navigation
+        document.getElementById('prevPage').addEventListener('click', async () => {
+            if (currentPage > 1) {
+                currentPage--;
+                await renderPage(currentPage);
+                updateNavButtons();
+            }
+        });
+        
+        document.getElementById('nextPage').addEventListener('click', async () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                await renderPage(currentPage);
+                updateNavButtons();
+            }
+        });
+        
+        // Field overlay click (place new field)
+        document.getElementById('fieldOverlay').addEventListener('click', function(e) {
+            if (!selectedTool) return;
+            if (e.target !== this) return; // Ignore clicks on existing fields
+            
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            placeField(x, y);
+        });
+        
+        // Save button
+        document.getElementById('saveBtn').addEventListener('click', saveFields);
+        
+        // Send button
+        document.getElementById('sendBtn').addEventListener('click', sendForSignature);
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Delete' && selectedField !== null) {
+                removeField(selectedField);
+            }
+            if (e.key === 'Escape') {
+                selectedTool = null;
+                selectedField = null;
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('fieldOverlay').classList.remove('active');
+                renderPlacedFields();
+            }
+        });
+    }
+    
+    // Place a new field
+    function placeField(x, y) {
+        const signerSelect = document.getElementById('signerSelect');
+        const role = signerSelect.value;
+        const signerName = signerSelect.options[signerSelect.selectedIndex].dataset.name;
+        
+        const config = fieldConfigs[selectedTool];
+        
+        // Center the field on click position
+        const field = {
+            id: Date.now(),
+            type: selectedTool,
+            role: role,
+            signerName: signerName,
+            page: currentPage,
+            x: x - config.w / 2,
+            y: y - config.h / 2,
+            w: config.w,
+            h: config.h,
+            required: true
+        };
+        
+        placedFields.push(field);
+        renderPlacedFields();
+        updateFieldsList();
+        updateSendButton();
+        
+        // Deselect tool after placing
+        selectedTool = null;
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('fieldOverlay').classList.remove('active');
+    }
+    
+    // Render all placed fields for current page
+    function renderPlacedFields() {
+        const overlay = document.getElementById('fieldOverlay');
+        
+        // Remove existing field elements (keep overlay)
+        overlay.querySelectorAll('.placed-field').forEach(el => el.remove());
+        
+        // Add fields for current page
+        placedFields.filter(f => f.page === currentPage).forEach(field => {
+            const el = createFieldElement(field);
+            overlay.appendChild(el);
+        });
+    }
+    
+    // Create a field DOM element
+    function createFieldElement(field) {
+        const config = fieldConfigs[field.type];
+        const colorClass = signerColors[field.role] || 'signer-default';
+        
+        const el = document.createElement('div');
+        el.className = `placed-field ${colorClass}`;
+        if (selectedField === field.id) {
+            el.classList.add('selected');
+        }
+        el.style.left = field.x + 'px';
+        el.style.top = field.y + 'px';
+        el.style.width = field.w + 'px';
+        el.style.height = field.h + 'px';
+        el.dataset.fieldId = field.id;
+        
+        // Get initials from signer name
+        const initials = field.signerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        
+        el.innerHTML = `
+            <span class="field-label">${initials}-${config.label || field.type}</span>
+            <span class="delete-btn" onclick="removeField(${field.id}); event.stopPropagation();"><i class="fas fa-times"></i></span>
+            <div class="resize-handle se"></div>
+        `;
+        
+        // Drag handling
+        el.addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('resize-handle')) {
+                // Handle resize
+                startResize(e, field);
+            } else if (e.target.classList.contains('delete-btn') || e.target.closest('.delete-btn')) {
+                return;
+            } else {
+                // Handle drag
+                startDrag(e, field);
+            }
+        });
+        
+        // Selection
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            selectedField = field.id;
+            renderPlacedFields();
+        });
+        
+        return el;
+    }
+    
+    // Drag handling
+    function startDrag(e, field) {
+        isDragging = true;
+        selectedField = field.id;
+        
+        const rect = e.target.closest('.placed-field').getBoundingClientRect();
+        const overlayRect = document.getElementById('fieldOverlay').getBoundingClientRect();
+        
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+        
+        function onMouseMove(e) {
+            if (!isDragging) return;
+            
+            const overlayRect = document.getElementById('fieldOverlay').getBoundingClientRect();
+            let newX = e.clientX - overlayRect.left - dragOffset.x;
+            let newY = e.clientY - overlayRect.top - dragOffset.y;
+            
+            // Keep within bounds
+            newX = Math.max(0, Math.min(newX, overlayRect.width - field.w));
+            newY = Math.max(0, Math.min(newY, overlayRect.height - field.h));
+            
+            field.x = newX;
+            field.y = newY;
+            
+            renderPlacedFields();
+        }
+        
+        function onMouseUp() {
+            isDragging = false;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        
+        renderPlacedFields();
+    }
+    
+    // Resize handling
+    function startResize(e, field) {
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = field.w;
+        const startH = field.h;
+        
+        function onMouseMove(e) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            field.w = Math.max(40, startW + dx);
+            field.h = Math.max(20, startH + dy);
+            
+            renderPlacedFields();
+        }
+        
+        function onMouseUp() {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        }
+        
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+    
+    // Remove a field
+    function removeField(fieldId) {
+        placedFields = placedFields.filter(f => f.id !== fieldId);
+        if (selectedField === fieldId) {
+            selectedField = null;
+        }
+        renderPlacedFields();
+        updateFieldsList();
+        updateSendButton();
+    }
+    
+    // Update the placed fields list
+    function updateFieldsList() {
+        const list = document.getElementById('placedFieldsList');
+        const count = document.getElementById('fieldCount');
+        
+        count.textContent = placedFields.length;
+        
+        if (placedFields.length === 0) {
+            list.innerHTML = `
+                <p class="text-sm text-slate-400 text-center py-4">
+                    No fields placed yet.<br>
+                    Select a tool and click on the PDF.
+                </p>
+            `;
+            return;
+        }
+        
+        list.innerHTML = placedFields.map(field => {
+            const config = fieldConfigs[field.type];
+            const colorClass = signerColors[field.role] || 'signer-default';
+            const dotColor = getComputedStyle(document.documentElement).getPropertyValue('--' + field.role + '-color') || '#64748b';
+            
+            return `
+                <div class="placed-field-item">
+                    <div class="field-info">
+                        <span class="field-dot ${colorClass}" style="background: currentColor;"></span>
+                        <span>${field.signerName}: ${config.label || field.type}</span>
+                        <span class="text-slate-400 text-xs">p${field.page}</span>
+                    </div>
+                    <span class="delete-field" onclick="removeField(${field.id})">
+                        <i class="fas fa-trash"></i>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    // Update send button state
+    function updateSendButton() {
+        const sendBtn = document.getElementById('sendBtn');
+        const tooltip = document.getElementById('sendTooltip');
+        
+        // Check if we have at least one actionable field
+        const actionableTypes = ['signature', 'initials', 'date', 'auto_date'];
+        const hasActionableField = placedFields.some(f => actionableTypes.includes(f.type));
+        
+        sendBtn.disabled = !hasActionableField;
+        tooltip.style.display = hasActionableField ? 'none' : 'block';
+    }
+    
+    // Save fields to database
+    async function saveFields() {
+        const saveBtn = document.getElementById('saveBtn');
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+        
+        try {
+            const response = await fetch(`/transactions/${transactionId}/documents/${documentId}/field-placements`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    field_placements: placedFields,
+                    page_dimensions: pageDimensions,
+                    render_scale: scale
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Fields saved successfully!', 'success');
+            } else {
+                showToast(data.error || 'Error saving fields', 'error');
+            }
+        } catch (error) {
+            showToast('Error saving fields: ' + error.message, 'error');
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Draft';
+        }
+    }
+    
+    // Send for signature
+    async function sendForSignature() {
+        // First save the fields
+        await saveFields();
+        
+        const sendBtn = document.getElementById('sendBtn');
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        
+        try {
+            const response = await fetch(`/transactions/${transactionId}/documents/${documentId}/send-adhoc`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast('Document sent for signature!', 'success');
+                // Redirect back to transaction detail
+                setTimeout(() => {
+                    window.location.href = `/transactions/${transactionId}`;
+                }, 1500);
+            } else {
+                showToast(data.error || 'Error sending document', 'error');
+                sendBtn.disabled = false;
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send for Signature';
+            }
+        } catch (error) {
+            showToast('Error sending document: ' + error.message, 'error');
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send for Signature';
+        }
+    }
+    
+    // Toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed top-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-4 rounded-xl shadow-2xl text-white font-medium ${type === 'success' ? 'bg-teal-500' : 'bg-red-500'}`;
+        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+</script>
+{% endblock %}

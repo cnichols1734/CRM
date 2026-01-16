@@ -172,6 +172,95 @@ class DocuSealClient:
             )
     
     @classmethod
+    def create_submission_from_pdf(
+        cls,
+        pdf_base64: str,
+        document_name: str,
+        fields: List[Dict[str, Any]],
+        submitters: List[Submitter],
+        send_email: bool = True,
+        order: str = 'preserved'
+    ) -> Dict[str, Any]:
+        """
+        Create a submission from an arbitrary PDF with custom field placements.
+        
+        This is used for ad-hoc document signing (external documents or hybrid flows)
+        where we don't use a DocuSeal template but instead upload a PDF and specify
+        where signature fields should be placed.
+        
+        Args:
+            pdf_base64: Base64-encoded PDF content
+            document_name: Name for the document
+            fields: List of field definitions, each with:
+                - name: Field name (e.g., 'signature_seller')
+                - type: Field type ('signature', 'initials', 'date', 'text')
+                - role: Which submitter role this field belongs to
+                - areas: List of placement areas [{x, y, w, h, page}]
+            submitters: List of Submitter objects
+            send_email: Whether to send email invitations
+            order: 'preserved' (sequential) or 'random' (all at once)
+            
+        Returns:
+            Submission data with ID and submitter details
+        """
+        if DOCUSEAL_MOCK_MODE:
+            return cls._mock_submission_from_pdf(document_name, submitters)
+        
+        # Build the payload for /submissions/pdf endpoint
+        payload = {
+            'name': document_name,
+            'send_email': send_email,
+            'order': order,
+            'documents': [{
+                'name': document_name,
+                'file': pdf_base64,
+                'fields': fields
+            }],
+            'submitters': [s.to_dict() for s in submitters]
+        }
+        
+        try:
+            response = requests.post(
+                f"{DOCUSEAL_API_URL}/submissions/pdf",
+                headers=cls._get_headers(),
+                json=payload,
+                timeout=60  # Longer timeout for PDF upload
+            )
+            response.raise_for_status()
+            
+            result = response.json()
+            
+            # DocuSeal returns a list of submitter results
+            if isinstance(result, list):
+                return {
+                    'id': result[0].get('submission_id') if result else None,
+                    'submitters': result
+                }
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            error_body = None
+            status_code = None
+            
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                try:
+                    error_body = e.response.text
+                except Exception:
+                    pass
+            
+            logger.error(f"DocuSeal submission from PDF failed: {e}")
+            if error_body:
+                logger.error(f"Response body: {error_body}")
+            
+            raise DocuSealAPIError(
+                f"Failed to create submission from PDF: {e}",
+                status_code=status_code,
+                response_body=error_body
+            )
+    
+    @classmethod
     def create_preview_submission(
         cls,
         template_id: int,
@@ -389,6 +478,33 @@ class DocuSealClient:
         
         return {
             'id': 12345,
+            'submitters': submitter_results
+        }
+    
+    @classmethod
+    def _mock_submission_from_pdf(
+        cls,
+        document_name: str,
+        submitters: List[Submitter]
+    ) -> Dict[str, Any]:
+        """Return mock submission data for PDF upload testing."""
+        import uuid
+        
+        submitter_results = []
+        for i, sub in enumerate(submitters):
+            mock_slug = f"mock-pdf-{uuid.uuid4().hex[:8]}"
+            submitter_results.append({
+                'id': i + 1,
+                'submission_id': 12346,
+                'email': sub.email,
+                'role': sub.role,
+                'slug': mock_slug,
+                'embed_src': f"https://docuseal.com/s/{mock_slug}",
+                'status': 'pending'
+            })
+        
+        return {
+            'id': 12346,
             'submitters': submitter_results
         }
 
