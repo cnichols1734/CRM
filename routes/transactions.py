@@ -2787,8 +2787,13 @@ def simulate_signature(id, doc_id):
 @login_required
 @transactions_required
 def download_signed_document(id, doc_id):
-    """Get the download URL for a signed document."""
+    """
+    Get the download URL for a signed document.
+    
+    Prefers locally stored copy in Supabase, falls back to DocuSeal API.
+    """
     from services.docuseal_service import get_signed_document_urls, DOCUSEAL_MOCK_MODE
+    from services.supabase_storage import get_transaction_document_url
     
     transaction = Transaction.query.get_or_404(id)
     
@@ -2807,12 +2812,72 @@ def download_signed_document(id, doc_id):
         }), 400
     
     try:
+        # Prefer locally stored copy if available
+        if doc.signed_file_path:
+            signed_url = get_transaction_document_url(doc.signed_file_path, expires_in=3600)
+            return jsonify({
+                'success': True,
+                'documents': [{
+                    'name': f'{doc.template_name}_signed.pdf',
+                    'url': signed_url
+                }],
+                'source': 'local',
+                'file_size': doc.signed_file_size,
+                'mock_mode': False
+            })
+        
+        # Fall back to DocuSeal API
         documents = get_signed_document_urls(doc.docuseal_submission_id)
         
         return jsonify({
             'success': True,
             'documents': documents,
+            'source': 'docuseal',
             'mock_mode': DOCUSEAL_MOCK_MODE
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/view-signed')
+@login_required
+@transactions_required
+def view_stored_signed_document(id, doc_id):
+    """
+    Get a signed URL for viewing the locally stored signed document.
+    
+    Returns a direct URL for embedding/viewing in browser.
+    """
+    from services.supabase_storage import get_transaction_document_url, format_file_size
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if not doc.signed_file_path:
+        return jsonify({
+            'success': False,
+            'error': 'No local copy available. Use download endpoint to fetch from DocuSeal.'
+        }), 404
+    
+    try:
+        # Generate signed URL valid for 1 hour
+        signed_url = get_transaction_document_url(doc.signed_file_path, expires_in=3600)
+        
+        return jsonify({
+            'success': True,
+            'url': signed_url,
+            'filename': f'{doc.template_name}_signed.pdf',
+            'file_size': doc.signed_file_size,
+            'file_size_formatted': format_file_size(doc.signed_file_size) if doc.signed_file_size else None,
+            'downloaded_at': doc.signed_file_downloaded_at.isoformat() if doc.signed_file_downloaded_at else None
         })
         
     except Exception as e:
@@ -2911,6 +2976,86 @@ def docuseal_status():
 
 
 # =============================================================================
+# WEBHOOK HELPERS
+# =============================================================================
+
+def download_and_store_signed_document(doc: TransactionDocument, documents: list) -> bool:
+    """
+    Download signed PDF from DocuSeal and store in Supabase.
+    
+    Called by the webhook handler when a document is completed.
+    
+    Args:
+        doc: The TransactionDocument record
+        documents: List of document dicts from webhook payload with 'url' and 'name'
+    
+    Returns:
+        True if successfully stored, False otherwise
+    """
+    import requests
+    import logging
+    from services.supabase_storage import (
+        upload_transaction_document,
+        generate_transaction_storage_path
+    )
+    
+    logger = logging.getLogger(__name__)
+    
+    if not documents:
+        logger.warning(f"No documents in webhook payload for doc {doc.id}")
+        return False
+    
+    for doc_info in documents:
+        url = doc_info.get('url')
+        filename = doc_info.get('name', f'{doc.template_slug}_signed.pdf')
+        
+        if not url:
+            logger.warning(f"No URL for document in webhook payload: {doc_info}")
+            continue
+        
+        try:
+            # Download PDF from DocuSeal
+            logger.info(f"Downloading signed document from: {url[:50]}...")
+            response = requests.get(url, timeout=60)
+            response.raise_for_status()
+            pdf_bytes = response.content
+            
+            if not pdf_bytes:
+                logger.error(f"Empty response when downloading document for doc {doc.id}")
+                continue
+            
+            # Upload to Supabase
+            storage_path, _ = generate_transaction_storage_path(
+                doc.transaction_id, doc.id, filename
+            )
+            
+            result = upload_transaction_document(
+                doc.transaction_id,
+                doc.id,
+                pdf_bytes,
+                filename,
+                'application/pdf'
+            )
+            
+            # Update document record with storage info
+            doc.signed_file_path = result['path']
+            doc.signed_file_size = result['size']
+            doc.signed_file_downloaded_at = datetime.utcnow()
+            
+            logger.info(f"Stored signed document for doc {doc.id}: {result['path']} ({result['size']} bytes)")
+            return True
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to download signed document for doc {doc.id}: {e}")
+            continue
+        except Exception as e:
+            logger.error(f"Failed to store signed document for doc {doc.id}: {e}")
+            continue
+    
+    return False
+
+
+# =============================================================================
 # WEBHOOK ENDPOINT
 # =============================================================================
 
@@ -2997,11 +3142,24 @@ def docuseal_webhook():
                 sig.signed_at = datetime.utcnow()
                 sig.status = 'signed'
 
+            # Download and store the signed document in Supabase
+            documents_list = payload.get('data', {}).get('documents', [])
+            if documents_list:
+                try:
+                    download_and_store_signed_document(doc, documents_list)
+                except Exception as e:
+                    # Log error but don't fail the webhook - status still updated
+                    import logging
+                    logging.getLogger(__name__).error(
+                        f"Failed to store signed document for doc {doc.id}: {e}"
+                    )
+
             # Log document signed event
             audit_service.log_document_signed(doc, signature, {
                 'signer_email': signer_email,
                 'signer_role': signer_role,
-                'submission_id': submission_id
+                'submission_id': submission_id,
+                'signed_file_stored': bool(doc.signed_file_path)
             })
 
             db.session.commit()

@@ -17,6 +17,7 @@ _supabase_client: Client = None
 # Bucket names
 CONTACT_FILES_BUCKET = 'contact-files'
 COMPANY_UPDATES_BUCKET = 'company-updates'
+TRANSACTION_DOCUMENTS_BUCKET = 'transaction-documents'
 
 
 def get_supabase_client() -> Client:
@@ -244,3 +245,93 @@ def format_file_size(size_bytes: int) -> str:
         size_bytes /= 1024
     
     return f"{size_bytes:.1f} TB"
+
+
+# =============================================================================
+# TRANSACTION DOCUMENT STORAGE
+# =============================================================================
+# Functions for storing signed documents from DocuSeal
+
+def generate_transaction_storage_path(transaction_id: int, doc_id: int, original_filename: str) -> tuple[str, str]:
+    """
+    Generate a unique storage path for a signed transaction document.
+    
+    Args:
+        transaction_id: The transaction ID
+        doc_id: The TransactionDocument ID
+        original_filename: Original filename from DocuSeal
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    # Get file extension (usually .pdf)
+    ext = ''
+    if '.' in original_filename:
+        ext = '.' + original_filename.rsplit('.', 1)[1].lower()
+    
+    # Generate unique filename with doc ID for traceability
+    unique_filename = f"{doc_id}_{uuid.uuid4().hex[:8]}{ext}"
+    
+    # Organize by transaction_id/signed/ for clarity
+    storage_path = f"transactions/{transaction_id}/signed/{unique_filename}"
+    
+    return storage_path, unique_filename
+
+
+def upload_transaction_document(
+    transaction_id: int,
+    doc_id: int,
+    file_data: bytes,
+    original_filename: str,
+    content_type: str = 'application/pdf'
+) -> dict:
+    """
+    Upload a signed transaction document to Supabase Storage.
+    
+    Args:
+        transaction_id: The transaction ID
+        doc_id: The TransactionDocument ID
+        file_data: The PDF content as bytes
+        original_filename: Original filename from DocuSeal
+        content_type: MIME type (defaults to application/pdf)
+    
+    Returns:
+        dict with 'path', 'filename', 'size' keys on success
+    """
+    storage_path, unique_filename = generate_transaction_storage_path(
+        transaction_id, doc_id, original_filename
+    )
+    return upload_file(
+        TRANSACTION_DOCUMENTS_BUCKET,
+        storage_path,
+        file_data,
+        original_filename,
+        content_type
+    )
+
+
+def get_transaction_document_url(storage_path: str, expires_in: int = 3600) -> str:
+    """
+    Get a signed URL for a transaction document.
+    
+    Args:
+        storage_path: Path in Supabase storage
+        expires_in: URL expiry time in seconds (default: 1 hour)
+    
+    Returns:
+        Signed URL string for viewing/downloading the document
+    """
+    return get_signed_url(TRANSACTION_DOCUMENTS_BUCKET, storage_path, expires_in)
+
+
+def delete_transaction_document(storage_path: str) -> bool:
+    """
+    Delete a transaction document from storage.
+    
+    Args:
+        storage_path: Path to the file in storage
+    
+    Returns:
+        True on success, False on failure
+    """
+    return delete_file(TRANSACTION_DOCUMENTS_BUCKET, storage_path)
