@@ -292,9 +292,67 @@ def send_all_for_signature(id):
         
         merged_template_id = merged_template.get('id')
         
+        # Get valid roles and fields from merged template
+        merged_submitters = merged_template.get('submitters', [])
+        merged_fields = merged_template.get('fields', [])
+        
+        # Build set of valid role names from merged template
+        valid_roles = {s.get('name') for s in merged_submitters}
+        
+        # Build mapping: submitter_uuid -> role name
+        submitter_uuid_to_role = {s.get('uuid'): s.get('name') for s in merged_submitters}
+        
+        # Build set of valid field names per role from merged template
+        valid_fields_by_role = {}
+        for field in merged_fields:
+            field_name = field.get('name')
+            submitter_uuid = field.get('submitter_uuid')
+            role_name = submitter_uuid_to_role.get(submitter_uuid)
+            if role_name and field_name:
+                if role_name not in valid_fields_by_role:
+                    valid_fields_by_role[role_name] = set()
+                valid_fields_by_role[role_name].add(field_name)
+        
         # Step 3: Build submitters for each unique role
         agent_email = listing_agent.display_email if listing_agent else current_user.email
         agent_name = listing_agent.display_name if listing_agent else f"{current_user.first_name} {current_user.last_name}"
+        
+        # Normalize Agent/Broker - merged templates may consolidate roles
+        # Check what roles actually exist in the merged template
+        has_agent = 'Agent' in valid_roles
+        has_broker = 'Broker' in valid_roles
+        
+        # Merge Broker fields into Agent if only Agent exists in merged template
+        if 'Broker' in unique_docuseal_roles and has_agent and not has_broker:
+            broker_fields = fields_by_docuseal_role.get('Broker', [])
+            agent_fields = fields_by_docuseal_role.get('Agent', [])
+            fields_by_docuseal_role['Agent'] = agent_fields + broker_fields
+            unique_docuseal_roles.discard('Broker')
+            # Also merge auto_complete status
+            if 'Broker' in auto_complete_roles:
+                auto_complete_roles.add('Agent')
+                auto_complete_roles.discard('Broker')
+        elif 'Broker' in unique_docuseal_roles and not has_broker:
+            # Broker doesn't exist in merged template, try Agent
+            if has_agent:
+                fields_by_docuseal_role['Agent'] = fields_by_docuseal_role.get('Broker', [])
+                unique_docuseal_roles.add('Agent')
+            unique_docuseal_roles.discard('Broker')
+            if 'Broker' in auto_complete_roles:
+                auto_complete_roles.add('Agent')
+                auto_complete_roles.discard('Broker')
+        
+        # Filter fields to only those that exist in the merged template
+        for role_name in list(fields_by_docuseal_role.keys()):
+            valid_field_names = valid_fields_by_role.get(role_name, set())
+            if valid_field_names:
+                fields_by_docuseal_role[role_name] = [
+                    f for f in fields_by_docuseal_role[role_name]
+                    if f.get('name') in valid_field_names
+                ]
+        
+        # Only use roles that exist in the merged template
+        unique_docuseal_roles = unique_docuseal_roles & valid_roles
         
         submitters = []
         participant_by_role = {}  # Track participant for each role for signature records
@@ -312,11 +370,11 @@ def send_all_for_signature(id):
                 email = co_seller.display_email
                 name = co_seller.display_name
                 participant_by_role['Seller 2'] = co_seller
-            elif docuseal_role in ['Agent', 'Broker']:
-                # Agent and Broker both use the listing agent/current user
+            elif docuseal_role == 'Agent':
+                # Agent (and normalized Broker) uses the listing agent/current user
                 email = agent_email
                 name = agent_name
-                participant_by_role[docuseal_role] = listing_agent
+                participant_by_role['Agent'] = listing_agent
             else:
                 # Unknown role - skip
                 continue
