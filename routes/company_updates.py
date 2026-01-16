@@ -4,15 +4,14 @@ Admin users can create, edit, and delete posts.
 Includes reactions, comments, and view tracking for engagement.
 """
 import os
-import uuid
 from functools import wraps
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
 from models import db, CompanyUpdate, CompanyUpdateReaction, CompanyUpdateComment, CompanyUpdateView
 from datetime import datetime
 import re
 import html
+from services import supabase_storage
 
 company_updates_bp = Blueprint('company_updates', __name__)
 
@@ -27,34 +26,45 @@ def allowed_file(filename):
 
 
 def save_uploaded_image(file):
-    """Save an uploaded image file and return the URL path."""
+    """Upload an image file to Supabase Storage and return its storage path."""
     if file and file.filename and allowed_file(file.filename):
-        # Create a unique filename to prevent overwrites
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"{uuid.uuid4().hex}.{ext}"
-        
-        # Ensure upload directory exists
-        upload_path = os.path.join(current_app.root_path, UPLOAD_FOLDER)
-        os.makedirs(upload_path, exist_ok=True)
-        
-        # Save the file
-        file_path = os.path.join(upload_path, unique_filename)
-        file.save(file_path)
-        
-        # Return the URL path (relative to static)
-        return f"/{UPLOAD_FOLDER}/{unique_filename}"
+        try:
+            file_data = file.read()
+            if not file_data:
+                return None
+            
+            result = supabase_storage.upload_company_update_image(
+                file_data=file_data,
+                original_filename=file.filename,
+                content_type=file.content_type
+            )
+            return result['path']
+        except Exception as e:
+            current_app.logger.error(f"Failed to upload cover image: {e}")
+            return None
     return None
 
 
 def delete_uploaded_image(image_url):
-    """Delete an uploaded image file from the server."""
-    if image_url and image_url.startswith(f"/{UPLOAD_FOLDER}/"):
+    """Delete an uploaded image from Supabase or legacy local storage."""
+    if not image_url:
+        return
+    
+    # Legacy local cleanup for existing posts
+    if image_url.startswith(f"/{UPLOAD_FOLDER}/"):
         try:
             file_path = os.path.join(current_app.root_path, image_url.lstrip('/'))
             if os.path.exists(file_path):
                 os.remove(file_path)
         except Exception as e:
-            current_app.logger.error(f"Failed to delete image {image_url}: {e}")
+            current_app.logger.error(f"Failed to delete local image {image_url}: {e}")
+        return
+    
+    # Supabase cleanup for new uploads
+    try:
+        supabase_storage.delete_company_update_image(image_url)
+    except Exception as e:
+        current_app.logger.error(f"Failed to delete Supabase image {image_url}: {e}")
 
 
 def admin_required(f):
@@ -173,6 +183,9 @@ def create_update():
             if file and file.filename:
                 if allowed_file(file.filename):
                     cover_image_url = save_uploaded_image(file)
+                    if not cover_image_url:
+                        flash('Image upload failed. Please try again.', 'error')
+                        return render_template('company_updates/form.html', update=None)
                 else:
                     flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
                     return render_template('company_updates/form.html', update=None)
@@ -221,11 +234,17 @@ def edit_update(update_id):
             file = request.files['cover_image']
             if file and file.filename:
                 if allowed_file(file.filename):
-                    # Delete old image if it exists and was uploaded to our server
+                    new_cover_image = save_uploaded_image(file)
+                    if not new_cover_image:
+                        flash('Image upload failed. Please try again.', 'error')
+                        return render_template('company_updates/form.html', update=update)
+                    
+                    # Delete old image if it exists
                     if update.cover_image_url:
                         delete_uploaded_image(update.cover_image_url)
+                    
                     # Save new image
-                    update.cover_image_url = save_uploaded_image(file)
+                    update.cover_image_url = new_cover_image
                 else:
                     flash('Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP', 'error')
                     return render_template('company_updates/form.html', update=update)

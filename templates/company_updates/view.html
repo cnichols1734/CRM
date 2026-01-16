@@ -142,9 +142,9 @@
         <!-- Article -->
         <article class="animate-fade-in-up-delay-1 bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden">
             <!-- Cover Image -->
-            {% if update.cover_image_url %}
+            {% if update.cover_image_signed_url %}
             <div class="w-full h-64 md:h-80 bg-slate-100">
-                <img src="{{ update.cover_image_url }}" alt="{{ update.title }}" 
+                <img src="{{ update.cover_image_signed_url }}" alt="{{ update.title }}" 
                      class="w-full h-full object-cover">
             </div>
             {% endif %}

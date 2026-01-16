@@ -136,9 +136,9 @@
 
                     <!-- Main content area - clickable -->
                     <a href="{{ url_for('company_updates.view_update', update_id=update.id) }}" class="block group">
-                        {% if update.cover_image_url %}
+                        {% if update.cover_image_signed_url %}
                         <div class="w-full h-48 rounded-xl overflow-hidden bg-slate-100 mb-4">
-                            <img src="{{ update.cover_image_url }}" alt="{{ update.title }}"
+                            <img src="{{ update.cover_image_signed_url }}" alt="{{ update.title }}"
                                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
                         </div>
                         {% endif %}

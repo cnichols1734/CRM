@@ -635,7 +635,7 @@ def upload_contact_file(contact_id):
     
     try:
         # Upload to Supabase Storage
-        result = supabase_storage.upload_file(
+        result = supabase_storage.upload_contact_file(
             contact_id=contact_id,
             file_data=file_data,
             original_filename=file.filename,
@@ -695,6 +695,7 @@ def download_contact_file(contact_id, file_id):
     try:
         # Generate signed URL (valid for 1 hour)
         signed_url = supabase_storage.get_signed_url(
+            supabase_storage.CONTACT_FILES_BUCKET,
             contact_file.storage_path, 
             expires_in=3600
         )
@@ -731,7 +732,7 @@ def delete_contact_file(contact_id, file_id):
     
     try:
         # Delete from Supabase Storage
-        supabase_storage.delete_file(contact_file.storage_path)
+        supabase_storage.delete_file(supabase_storage.CONTACT_FILES_BUCKET, contact_file.storage_path)
         
         # Delete database record
         db.session.delete(contact_file)

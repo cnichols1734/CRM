@@ -14,8 +14,9 @@ from flask import current_app
 # Supabase client singleton
 _supabase_client: Client = None
 
-# Bucket name for contact files
-BUCKET_NAME = 'contact-files'
+# Bucket names
+CONTACT_FILES_BUCKET = 'contact-files'
+COMPANY_UPDATES_BUCKET = 'company-updates'
 
 
 def get_supabase_client() -> Client:
@@ -61,12 +62,13 @@ def generate_storage_path(contact_id: int, original_filename: str) -> tuple[str,
     return storage_path, unique_filename
 
 
-def upload_file(contact_id: int, file_data: bytes, original_filename: str, content_type: str = None) -> dict:
+def upload_file(bucket: str, storage_path: str, file_data: bytes, original_filename: str, content_type: str = None) -> dict:
     """
-    Upload a file to Supabase Storage.
+    Upload a file to a Supabase Storage bucket.
     
     Args:
-        contact_id: The contact this file belongs to
+        bucket: Target bucket name
+        storage_path: Path within the bucket
         file_data: The file content as bytes
         original_filename: The original filename from the upload
         content_type: MIME type of the file (optional)
@@ -79,15 +81,12 @@ def upload_file(contact_id: int, file_data: bytes, original_filename: str, conte
     """
     client = get_supabase_client()
     
-    storage_path, unique_filename = generate_storage_path(contact_id, original_filename)
-    
     # Set file options
     file_options = {}
     if content_type:
         file_options['content-type'] = content_type
     
-    # Upload to Supabase Storage
-    response = client.storage.from_(BUCKET_NAME).upload(
+    client.storage.from_(bucket).upload(
         path=storage_path,
         file=file_data,
         file_options=file_options
@@ -95,16 +94,17 @@ def upload_file(contact_id: int, file_data: bytes, original_filename: str, conte
     
     return {
         'path': storage_path,
-        'filename': unique_filename,
+        'filename': storage_path.rsplit('/', 1)[-1],
         'size': len(file_data)
     }
 
 
-def get_signed_url(storage_path: str, expires_in: int = 3600) -> str:
+def get_signed_url(bucket: str, storage_path: str, expires_in: int = 3600) -> str:
     """
     Generate a signed URL for private file access.
     
     Args:
+        bucket: Bucket name containing the file
         storage_path: The path to the file in storage
         expires_in: URL expiry time in seconds (default: 1 hour)
     
@@ -113,7 +113,7 @@ def get_signed_url(storage_path: str, expires_in: int = 3600) -> str:
     """
     client = get_supabase_client()
     
-    response = client.storage.from_(BUCKET_NAME).create_signed_url(
+    response = client.storage.from_(bucket).create_signed_url(
         path=storage_path,
         expires_in=expires_in
     )
@@ -121,11 +121,12 @@ def get_signed_url(storage_path: str, expires_in: int = 3600) -> str:
     return response['signedURL']
 
 
-def delete_file(storage_path: str) -> bool:
+def delete_file(bucket: str, storage_path: str) -> bool:
     """
     Delete a file from Supabase Storage.
     
     Args:
+        bucket: Bucket name containing the file
         storage_path: The path to the file in storage
     
     Returns:
@@ -134,11 +135,69 @@ def delete_file(storage_path: str) -> bool:
     client = get_supabase_client()
     
     try:
-        client.storage.from_(BUCKET_NAME).remove([storage_path])
+        client.storage.from_(bucket).remove([storage_path])
         return True
     except Exception as e:
         current_app.logger.error(f"Failed to delete file {storage_path}: {e}")
         return False
+
+
+def generate_contact_storage_path(contact_id: int, original_filename: str) -> tuple[str, str]:
+    """
+    Generate a unique storage path for a contact file.
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    return generate_storage_path(contact_id, original_filename)
+
+
+def upload_contact_file(contact_id: int, file_data: bytes, original_filename: str, content_type: str = None) -> dict:
+    """Convenience wrapper for uploading contact files."""
+    storage_path, unique_filename = generate_storage_path(contact_id, original_filename)
+    return upload_file(CONTACT_FILES_BUCKET, storage_path, file_data, original_filename, content_type)
+
+
+def get_contact_file_url(storage_path: str, expires_in: int = 3600) -> str:
+    """Get a signed URL for a contact file."""
+    return get_signed_url(CONTACT_FILES_BUCKET, storage_path, expires_in)
+
+
+def delete_contact_file(storage_path: str) -> bool:
+    """Delete a contact file from storage."""
+    return delete_file(CONTACT_FILES_BUCKET, storage_path)
+
+
+def generate_company_update_path(original_filename: str, folder: str = 'images') -> tuple[str, str]:
+    """
+    Generate a unique storage path for a company update image.
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    ext = ''
+    if '.' in original_filename:
+        ext = '.' + original_filename.rsplit('.', 1)[1].lower()
+    
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    storage_path = f"{folder}/{unique_filename}"
+    return storage_path, unique_filename
+
+
+def upload_company_update_image(file_data: bytes, original_filename: str, content_type: str = None) -> dict:
+    """Upload a company update cover image to Supabase Storage."""
+    storage_path, unique_filename = generate_company_update_path(original_filename)
+    return upload_file(COMPANY_UPDATES_BUCKET, storage_path, file_data, original_filename, content_type)
+
+
+def get_company_update_image_url(storage_path: str, expires_in: int = 3600) -> str:
+    """Get a signed URL for a company update image."""
+    return get_signed_url(COMPANY_UPDATES_BUCKET, storage_path, expires_in)
+
+
+def delete_company_update_image(storage_path: str) -> bool:
+    """Delete a company update image from storage."""
+    return delete_file(COMPANY_UPDATES_BUCKET, storage_path)
 
 
 def get_file_icon(file_extension: str) -> str:
