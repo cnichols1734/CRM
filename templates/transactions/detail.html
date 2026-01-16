@@ -777,6 +777,11 @@
                                             <i class="fas fa-edit w-5 text-slate-400"></i>
                                             <span class="ml-2">Edit Form</span>
                                         </a>
+                                        <a href="{{ url_for('transactions.document_preview', id=transaction.id, doc_id=doc.id) }}" 
+                                           class="flex items-center px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
+                                            <i class="fas fa-eye w-5"></i>
+                                            <span class="ml-2">View & Print</span>
+                                        </a>
                                         {% endif %}
                                         
                                         <!-- Mock DocuSeal Test Section -->

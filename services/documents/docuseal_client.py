@@ -180,14 +180,14 @@ class DocuSealClient:
         """
         Create a preview submission (no email sent).
         
-        Returns the first submitter's embed info for displaying the preview.
+        Returns the submission ID and first submitter's embed info for displaying the preview.
         
         Args:
             template_id: DocuSeal template ID
             submitters: List of Submitter objects
             
         Returns:
-            Dict with 'slug' and 'embed_src' for embedding, or None in mock mode
+            Dict with 'id', 'slug' and 'embed_src' for embedding, or None in mock mode
         """
         if DOCUSEAL_MOCK_MODE:
             return None
@@ -204,6 +204,7 @@ class DocuSealClient:
             if submitter_results:
                 first = submitter_results[0]
                 return {
+                    'id': result.get('id'),  # Include submission ID for PDF fetching
                     'slug': first.get('slug', ''),
                     'embed_src': first.get('embed_src', f"https://docuseal.com/s/{first.get('slug', '')}")
                 }
@@ -215,6 +216,62 @@ class DocuSealClient:
         except Exception as e:
             logger.error(f"Error creating preview submission: {e}")
             return None
+    
+    @classmethod
+    def get_submission_documents(cls, submission_id: int, merge: bool = False) -> List[Dict[str, Any]]:
+        """
+        Get documents (PDFs) from a submission.
+        
+        Works for both completed and partially-filled submissions.
+        Each document includes a downloadable URL.
+        
+        Args:
+            submission_id: DocuSeal submission ID
+            merge: If True, merges all documents into a single PDF
+            
+        Returns:
+            List of document objects with 'name' and 'url' for download
+        """
+        if DOCUSEAL_MOCK_MODE:
+            return [{
+                'name': f'mock_document_{submission_id}.pdf',
+                'url': f'https://docuseal.com/downloads/mock/{submission_id}.pdf'
+            }]
+        
+        try:
+            # Build URL with optional merge parameter
+            url = f"{DOCUSEAL_API_URL}/submissions/{submission_id}/documents"
+            if merge:
+                url += "?merge=true"
+            
+            response = requests.get(
+                url,
+                headers=cls._get_headers(),
+                timeout=DEFAULT_TIMEOUT
+            )
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            error_body = None
+            status_code = None
+            
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                try:
+                    error_body = e.response.text
+                except Exception:
+                    pass
+            
+            logger.error(f"Failed to get submission documents: {e}")
+            if error_body:
+                logger.error(f"Response body: {error_body}")
+            
+            raise DocuSealAPIError(
+                f"Failed to get submission documents: {e}",
+                status_code=status_code,
+                response_body=error_body
+            )
     
     @classmethod
     def merge_templates(

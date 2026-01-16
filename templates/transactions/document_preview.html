@@ -23,16 +23,26 @@
                 </div>
                 
                 <!-- Action buttons -->
-                <div class="flex items-center gap-3">
-                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
-                       class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2">
-                        <i class="fas fa-edit"></i>
-                        Edit Form
+                <div class="flex items-center gap-2 sm:gap-3">
+                    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+                       class="px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-2 no-print">
+                        <i class="fas fa-times"></i>
+                        <span class="hidden sm:inline">Close</span>
                     </a>
+                    <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
+                       class="px-3 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 no-print">
+                        <i class="fas fa-edit"></i>
+                        <span class="hidden sm:inline">Edit Form</span>
+                    </a>
+                    <button onclick="printDocument()" 
+                            class="px-3 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-2 no-print">
+                        <i class="fas fa-print"></i>
+                        <span class="hidden sm:inline">Print</span>
+                    </button>
                     <button onclick="confirmAndSend()" 
-                            class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all flex items-center gap-2">
+                            class="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all flex items-center gap-2 no-print">
                         <i class="fas fa-paper-plane"></i>
-                        Send for Signature
+                        <span class="hidden sm:inline">Send for Signature</span>
                     </button>
                 </div>
             </div>
@@ -40,13 +50,13 @@
     </div>
     
     <!-- Preview info banner -->
-    <div class="bg-blue-50 border-b border-blue-100">
+    <div class="bg-blue-50 border-b border-blue-100 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div class="flex items-center gap-3 text-blue-800">
                 <i class="fas fa-eye text-blue-500"></i>
                 <p class="text-sm">
                     <strong>Preview Mode:</strong> 
-                    Review the document below. When ready, click "Send for Signature" to email it to signers.
+                    Review the document below. Print for physical signature, or click "Send for Signature" for e-signing.
                     {% if mock_mode %}
                     <span class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Test Mode</span>
                     {% endif %}
@@ -131,12 +141,20 @@
     </div>
     
     <!-- Floating action bar for mobile -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 sm:hidden z-50">
-        <div class="flex gap-3">
-            <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
-               class="flex-1 px-4 py-3 text-center text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                <i class="fas fa-edit mr-2"></i>Edit
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 sm:hidden z-50 no-print">
+        <div class="flex gap-2">
+            <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
+               class="px-3 py-3 text-center text-sm font-medium text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
+                <i class="fas fa-times"></i>
             </a>
+            <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=document.id) }}" 
+               class="px-3 py-3 text-center text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                <i class="fas fa-edit"></i>
+            </a>
+            <button onclick="printDocument()" 
+                    class="px-3 py-3 text-center text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                <i class="fas fa-print"></i>
+            </button>
             <button onclick="confirmAndSend()" 
                     class="flex-1 px-4 py-3 text-center text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-lg shadow-sm transition-all">
                 <i class="fas fa-paper-plane mr-2"></i>Send
@@ -198,6 +216,60 @@
 }
 .animate-fade-in-up {
     animation: fade-in-up 0.3s ease-out forwards;
+}
+
+/* Print styles - hide UI elements when printing */
+@media print {
+    /* Hide navigation, action buttons, modals, and info banners */
+    .sticky, .fixed, #sendModal, .no-print { 
+        display: none !important; 
+    }
+    
+    /* Hide the blue info banner */
+    .bg-blue-50.border-b { 
+        display: none !important; 
+    }
+    
+    /* Maximize document area for printing */
+    .max-w-5xl { 
+        max-width: 100% !important; 
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    /* Remove shadow and border for cleaner print */
+    .shadow-lg, .rounded-2xl {
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+    
+    /* Hide document preview header bar */
+    .bg-slate-50.border-b.border-slate-200.px-6.py-4 {
+        display: none !important;
+    }
+    
+    /* Ensure background colors print */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    
+    /* Remove min-height constraint */
+    #docuseal-container {
+        min-height: auto !important;
+    }
+    
+    /* Remove page margins for maximum content */
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Hide the gradient background */
+    .min-h-screen.bg-gradient-to-br {
+        background: white !important;
+        min-height: auto !important;
+    }
 }
 </style>
 
@@ -303,6 +375,43 @@ function showToast(message, type) {
         toast.style.transition = 'all 0.3s ease-out';
         setTimeout(() => toast.remove(), 300);
     }, 3000);
+}
+
+function printDocument() {
+    // Show loading state
+    showToast('Preparing document for print...', 'info');
+    
+    // Fetch the actual PDF from DocuSeal
+    fetch(`/transactions/${transactionId}/documents/${documentId}/print-pdf`)
+        .then(resp => resp.json())
+        .then(data => {
+            if (data.success && data.url) {
+                // Open PDF in new tab for printing
+                // This ensures ALL pages print correctly with filled data
+                const printWindow = window.open(data.url, '_blank');
+                if (printWindow) {
+                    showToast('PDF opened in new tab. Use browser print (Ctrl/Cmd+P)', 'success');
+                } else {
+                    // Popup blocked - provide direct link
+                    showToast('Pop-up blocked. Click the link below to open PDF.', 'error');
+                    // Create a temporary link
+                    const link = document.createElement('a');
+                    link.href = data.url;
+                    link.target = '_blank';
+                    link.textContent = 'Click here to open PDF';
+                    link.className = 'fixed bottom-32 right-6 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-xl z-50';
+                    link.onclick = () => setTimeout(() => link.remove(), 1000);
+                    document.body.appendChild(link);
+                    setTimeout(() => link.remove(), 10000);
+                }
+            } else {
+                showToast(data.error || 'Failed to get printable PDF', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Print error:', err);
+            showToast('Failed to prepare document for printing', 'error');
+        });
 }
 </script>
 {% endblock %}
