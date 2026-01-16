@@ -536,3 +536,112 @@ def save_all_documents(id):
         db.session.rollback()
         flash(f'Error saving documents: {str(e)}', 'error')
         return redirect(url_for('transactions.fill_all_documents', id=id))
+
+
+# =============================================================================
+# UPLOAD SCANNED SIGNED DOCUMENT
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/upload-scan', methods=['POST'])
+@login_required
+@transactions_required
+def upload_scanned_document(id, doc_id):
+    """
+    Upload a scanned signed document for physical signature workflow.
+    
+    Accepts a PDF file upload when an agent has printed, gotten physical
+    signatures, and scanned the signed document.
+    """
+    from datetime import datetime
+    from services.supabase_storage import upload_scanned_document as upload_scan
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    # Document must be filled/generated to upload a scan
+    if doc.status not in ['filled', 'generated']:
+        return jsonify({
+            'success': False,
+            'error': f'Cannot upload scan for document in "{doc.status}" status. Document must be filled first.'
+        }), 400
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Validate file type (PDF only for legal documents)
+    allowed_extensions = {'pdf'}
+    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': 'Only PDF files are allowed for scanned documents'
+        }), 400
+    
+    # Read file data
+    file_data = file.read()
+    file_size = len(file_data)
+    
+    # Validate file size (max 25MB for scanned documents)
+    max_size = 25 * 1024 * 1024  # 25 MB
+    if file_size > max_size:
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 25MB.'
+        }), 400
+    
+    try:
+        # Upload to Supabase
+        result = upload_scan(
+            transaction_id=transaction.id,
+            doc_id=doc.id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type='application/pdf'
+        )
+        
+        # Update document record
+        doc.signed_file_path = result['path']
+        doc.signed_file_size = result['size']
+        doc.signed_at = datetime.utcnow()
+        doc.status = 'signed'
+        doc.signing_method = 'physical'
+        
+        # Log audit event
+        audit_service.log_document_signed_physical(
+            document=doc,
+            file_size=file_size,
+            original_filename=file.filename,
+            actor_id=current_user.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Scanned document uploaded successfully',
+            'document': {
+                'id': doc.id,
+                'status': doc.status,
+                'signing_method': doc.signing_method,
+                'signed_at': doc.signed_at.isoformat() if doc.signed_at else None,
+                'file_size': file_size
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

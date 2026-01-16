@@ -594,6 +594,9 @@ class TransactionDocument(db.Model):
     signed_file_size = db.Column(db.Integer)  # Size in bytes
     signed_file_downloaded_at = db.Column(db.DateTime)  # When downloaded from DocuSeal
     
+    # Signing method: 'esign', 'physical', or null (not yet signed)
+    signing_method = db.Column(db.String(20), nullable=True)
+    
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
@@ -785,6 +788,7 @@ class AuditEvent(db.Model):
     DOCUMENT_VOIDED = 'document_voided'
     DOCUMENT_VIEWED = 'document_viewed'
     DOCUMENT_SIGNED = 'document_signed'
+    DOCUMENT_SIGNED_PHYSICAL = 'document_signed_physical'
     DOCUMENT_DECLINED = 'document_declined'
     ENVELOPE_SENT = 'envelope_sent'
 
