@@ -712,7 +712,9 @@
                                     {% elif doc.status == 'sent' %}bg-blue-100
                                     {% elif doc.status == 'filled' %}bg-purple-100
                                     {% else %}bg-slate-100{% endif %}">
-                                    {% if doc.status == 'signed' %}
+                                    {% if doc.status == 'signed' and doc.signing_method == 'physical' %}
+                                    <i class="fas fa-pen-nib text-green-600 text-lg"></i>
+                                    {% elif doc.status == 'signed' %}
                                     <i class="fas fa-file-signature text-green-600 text-lg"></i>
                                     {% elif doc.status == 'sent' %}
                                     <i class="fas fa-paper-plane text-blue-600 text-lg"></i>
@@ -735,8 +737,12 @@
                                 {% if doc.status == 'signed' and doc.signed_file_path %}
                                 <!-- Signed with local copy stored -->
                                 <div class="flex items-center gap-2">
-                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                                        {{ doc.status|title }}
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex items-center gap-1">
+                                        {% if doc.signing_method == 'physical' %}
+                                        <i class="fas fa-pen-nib"></i>Wet Signed
+                                        {% else %}
+                                        <i class="fas fa-signature"></i>E-Signed
+                                        {% endif %}
                                     </span>
                                     <span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 flex items-center gap-1" 
                                           title="Local copy stored in Supabase{% if doc.signed_file_size %} ({{ (doc.signed_file_size / 1024)|round(1) }} KB){% endif %}">
@@ -744,10 +750,18 @@
                                         Stored
                                     </span>
                                 </div>
+                                {% elif doc.status == 'signed' %}
+                                <!-- Signed but not yet stored locally -->
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex items-center gap-1">
+                                    {% if doc.signing_method == 'physical' %}
+                                    <i class="fas fa-pen-nib"></i>Wet Signed
+                                    {% else %}
+                                    <i class="fas fa-signature"></i>E-Signed
+                                    {% endif %}
+                                </span>
                                 {% else %}
                                 <span class="px-3 py-1 rounded-full text-xs font-semibold
-                                    {% if doc.status == 'signed' %}bg-green-100 text-green-700
-                                    {% elif doc.status == 'sent' %}bg-blue-100 text-blue-700
+                                    {% if doc.status == 'sent' %}bg-blue-100 text-blue-700
                                     {% elif doc.status == 'filled' %}bg-purple-100 text-purple-700
                                     {% elif doc.status == 'generated' %}bg-indigo-100 text-indigo-700
                                     {% else %}bg-slate-100 text-slate-600{% endif %}">
@@ -762,16 +776,19 @@
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div id="docActionsMenu-{{ doc.id }}" 
-                                         class="hidden absolute right-0 top-full mt-1 w-52 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-2">
+                                         class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-2">
                                         
-                                        <!-- Form Actions -->
+                                        <!-- PENDING: Fill Form -->
                                         {% if doc.status == 'pending' %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
                                             <i class="fas fa-edit w-5"></i>
                                             <span class="ml-2">Fill Form</span>
                                         </a>
-                                        {% elif doc.status in ['filled', 'generated'] %}
+                                        {% endif %}
+                                        
+                                        <!-- FILLED/GENERATED: Edit, Preview, Signing Options -->
+                                        {% if doc.status in ['filled', 'generated'] %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                                             <i class="fas fa-edit w-5 text-slate-400"></i>
@@ -782,90 +799,84 @@
                                             <i class="fas fa-eye w-5"></i>
                                             <span class="ml-2">View & Print</span>
                                         </a>
-                                        {% endif %}
                                         
-                                        <!-- Mock DocuSeal Test Section -->
                                         <div class="border-t border-slate-100 my-2"></div>
                                         <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                            Mock DocuSeal Test
+                                            Get Signatures
                                         </div>
-                                        
-                                        {% if doc.status in ['filled', 'generated'] %}
                                         <button onclick="sendForSignature({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
                                             <i class="fas fa-paper-plane w-5"></i>
-                                            <span class="ml-2">Send for Signature</span>
+                                            <span class="ml-2">Send for E-Signature</span>
                                         </button>
-                                        {% elif doc.status == 'pending' %}
-                                        <span class="flex items-center px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed">
-                                            <i class="fas fa-paper-plane w-5"></i>
-                                            <span class="ml-2">Send for Signature</span>
-                                            <span class="ml-auto text-xs">(fill first)</span>
-                                        </span>
+                                        <button onclick='showUploadScanModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-teal-600 hover:bg-teal-50 transition-colors">
+                                            <i class="fas fa-upload w-5"></i>
+                                            <span class="ml-2">Upload Signed Scan</span>
+                                        </button>
                                         {% endif %}
                                         
+                                        <!-- SENT: Awaiting Signatures -->
                                         {% if doc.status == 'sent' %}
+                                        <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                            Awaiting Signatures
+                                        </div>
                                         <button onclick="checkSignatureStatus({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
                                             <i class="fas fa-clock w-5"></i>
                                             <span class="ml-2">Check Status</span>
                                         </button>
                                         <button onclick="resendDocument({{ doc.id }})" 
-                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
-                                            <i class="fas fa-envelope w-5"></i>
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-envelope w-5 text-slate-400"></i>
                                             <span class="ml-2">Resend Email</span>
                                         </button>
+                                        <div class="border-t border-slate-100 my-2"></div>
                                         <button onclick="voidDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors">
                                             <i class="fas fa-undo w-5"></i>
                                             <span class="ml-2">Void & Re-edit</span>
                                         </button>
-                                        <button onclick="simulateSignature({{ doc.id }})" 
-                                                class="w-full flex items-center px-4 py-2.5 text-sm text-orange-600 hover:bg-orange-50 transition-colors">
-                                            <i class="fas fa-magic w-5"></i>
-                                            <span class="ml-2">Simulate Signing</span>
-                                        </button>
-                                        {% elif doc.status not in ['signed'] %}
-                                        <span class="flex items-center px-4 py-2.5 text-sm text-slate-300 cursor-not-allowed">
-                                            <i class="fas fa-magic w-5"></i>
-                                            <span class="ml-2">Simulate Signing</span>
-                                            <span class="ml-auto text-xs">(send first)</span>
-                                        </span>
                                         {% endif %}
                                         
+                                        <!-- SIGNED: View/Download -->
                                         {% if doc.status == 'signed' %}
-                                        <div class="border-t border-slate-100 my-2"></div>
                                         <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                            Signed Document
+                                            {% if doc.signing_method == 'physical' %}Wet Signed{% else %}E-Signed{% endif %}
                                         </div>
                                         {% if doc.signed_file_path %}
-                                        <!-- Local copy available -->
                                         <button onclick="viewStoredDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 transition-colors">
                                             <i class="fas fa-eye w-5"></i>
-                                            <span class="ml-2">View (Local Copy)</span>
+                                            <span class="ml-2">View Document</span>
                                         </button>
                                         <button onclick="downloadDocument({{ doc.id }})" 
-                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-download w-5 text-slate-400"></i>
+                                            <span class="ml-2">Download</span>
+                                        </button>
+                                        {% if doc.signing_method == 'physical' %}
+                                        <button onclick='showUploadScanModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-sync-alt w-5 text-slate-400"></i>
+                                            <span class="ml-2">Replace Scan</span>
+                                        </button>
+                                        {% endif %}
+                                        {% else %}
+                                        <button onclick="downloadDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-emerald-600 hover:bg-emerald-50 transition-colors">
                                             <i class="fas fa-download w-5"></i>
                                             <span class="ml-2">Download</span>
                                         </button>
-                                        {% else %}
-                                        <!-- No local copy - fetch from DocuSeal -->
-                                        <button onclick="downloadDocument({{ doc.id }})" 
-                                                class="w-full flex items-center px-4 py-2.5 text-sm text-green-600 hover:bg-green-50 transition-colors">
-                                            <i class="fas fa-download w-5"></i>
-                                            <span class="ml-2">Download from DocuSeal</span>
-                                        </button>
                                         <button onclick="viewSignedDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                                            <i class="fas fa-eye w-5 text-slate-400"></i>
+                                            <i class="fas fa-external-link-alt w-5 text-slate-400"></i>
                                             <span class="ml-2">View in DocuSeal</span>
                                         </button>
                                         {% endif %}
                                         {% endif %}
                                         
-                                        <!-- Remove -->
+                                        <!-- Remove Document -->
                                         <div class="border-t border-slate-100 my-2"></div>
                                         <button onclick="removeDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
@@ -1639,6 +1650,78 @@
     </div>
 </div>
 
+<!-- Upload Scanned Document Modal -->
+<div id="uploadScanModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeUploadScanModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-upload text-teal-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Upload Signed Scan</h3>
+                    <p id="uploadDocName" class="text-sm text-slate-500"></p>
+                </div>
+            </div>
+            
+            <form id="uploadScanForm" enctype="multipart/form-data">
+                <input type="hidden" id="uploadDocId" name="doc_id" value="">
+                
+                <!-- Drag and Drop Zone -->
+                <div id="dropZone" 
+                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors mb-4"
+                     onclick="document.getElementById('scanFileInput').click()">
+                    <div id="dropZoneContent">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your scanned PDF here</p>
+                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                    </div>
+                    <div id="selectedFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                        <p id="selectedFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="selectedFileSize" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                </div>
+                <input type="file" id="scanFileInput" name="file" accept=".pdf" class="hidden" onchange="handleFileSelect(this)">
+                
+                <!-- Upload Progress -->
+                <div id="uploadProgress" class="hidden mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="uploadPercent" class="font-medium text-teal-600">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="uploadProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="uploadError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p id="uploadErrorText" class="text-sm text-red-600"></p>
+                </div>
+                
+                <!-- Info Text -->
+                <p class="text-xs text-slate-400 mb-4">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeUploadScanModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="uploadScanBtn" disabled
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
     <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
@@ -2160,12 +2243,170 @@ function closeDocumentModal() {
     document.getElementById('addDocumentModal').classList.add('hidden');
 }
 
+// =============================================================================
+// UPLOAD SCANNED DOCUMENT MODAL
+// =============================================================================
+
+let currentUploadDocId = null;
+
+function showUploadScanModal(docId, docName) {
+    currentUploadDocId = docId;
+    document.getElementById('uploadDocId').value = docId;
+    document.getElementById('uploadDocName').textContent = docName;
+    
+    // Reset form state
+    document.getElementById('scanFileInput').value = '';
+    document.getElementById('dropZoneContent').classList.remove('hidden');
+    document.getElementById('selectedFileInfo').classList.add('hidden');
+    document.getElementById('uploadProgress').classList.add('hidden');
+    document.getElementById('uploadError').classList.add('hidden');
+    document.getElementById('uploadScanBtn').disabled = true;
+    
+    document.getElementById('uploadScanModal').classList.remove('hidden');
+}
+
+function closeUploadScanModal() {
+    document.getElementById('uploadScanModal').classList.add('hidden');
+    currentUploadDocId = null;
+}
+
+function handleFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showUploadError('Please select a PDF file.');
+        return;
+    }
+    
+    // Validate file size (25MB max)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showUploadError('File too large. Maximum size is 25MB.');
+        return;
+    }
+    
+    // Show selected file info
+    document.getElementById('dropZoneContent').classList.add('hidden');
+    document.getElementById('selectedFileInfo').classList.remove('hidden');
+    document.getElementById('selectedFileName').textContent = file.name;
+    document.getElementById('selectedFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('uploadError').classList.add('hidden');
+    document.getElementById('uploadScanBtn').disabled = false;
+}
+
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function showUploadError(message) {
+    document.getElementById('uploadError').classList.remove('hidden');
+    document.getElementById('uploadErrorText').textContent = message;
+    document.getElementById('uploadScanBtn').disabled = true;
+}
+
+// Handle drag and drop
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    dropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('scanFileInput');
+            fileInput.files = files;
+            handleFileSelect(fileInput);
+        }
+    });
+}
+
+// Handle form submission
+const uploadForm = document.getElementById('uploadScanForm');
+if (uploadForm) {
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('scanFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showUploadError('Please select a file first.');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Show progress
+        document.getElementById('uploadProgress').classList.remove('hidden');
+        document.getElementById('uploadScanBtn').disabled = true;
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('uploadPercent').textContent = percent + '%';
+                document.getElementById('uploadProgressBar').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Scanned document uploaded successfully!', 'success');
+                    closeUploadScanModal();
+                    location.reload();
+                } else {
+                    showUploadError(data.error || 'Upload failed');
+                    document.getElementById('uploadProgress').classList.add('hidden');
+                    document.getElementById('uploadScanBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showUploadError(data.error || 'Upload failed');
+                } catch (err) {
+                    showUploadError('Upload failed. Please try again.');
+                }
+                document.getElementById('uploadProgress').classList.add('hidden');
+                document.getElementById('uploadScanBtn').disabled = false;
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            showUploadError('Network error. Please try again.');
+            document.getElementById('uploadProgress').classList.add('hidden');
+            document.getElementById('uploadScanBtn').disabled = false;
+        });
+        
+        xhr.open('POST', `/transactions/${transactionId}/documents/${currentUploadDocId}/upload-scan`);
+        xhr.send(formData);
+    });
+}
+
 // Close modals on Escape key
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeDeleteModal();
         closeParticipantModal();
         closeDocumentModal();
+        closeUploadScanModal();
     }
 });
 

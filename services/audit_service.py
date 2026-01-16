@@ -406,6 +406,26 @@ def log_document_signed(document, signature=None, webhook_data=None):
     )
 
 
+def log_document_signed_physical(document, file_size, original_filename=None, actor_id=None):
+    """Log when a scanned signed document is uploaded (physical signature)."""
+    return log_event(
+        event_type=AuditEvent.DOCUMENT_SIGNED_PHYSICAL,
+        transaction_id=document.transaction_id,
+        document_id=document.id,
+        description=f"Scanned signed document uploaded: {document.template_name}",
+        event_data={
+            'template_slug': document.template_slug,
+            'template_name': document.template_name,
+            'file_size': file_size,
+            'original_filename': original_filename,
+            'signed_file_path': document.signed_file_path,
+            'signing_method': 'physical'
+        },
+        source='app',
+        actor_id=actor_id
+    )
+
+
 def log_document_declined(document, signature=None, webhook_data=None):
     """Log when a signer declines to sign a document."""
     signer_name = webhook_data.get('signer_name', '') if webhook_data else ''
@@ -554,6 +574,7 @@ def format_event_for_display(event):
         AuditEvent.DOCUMENT_VOIDED: {'icon': 'fas fa-ban', 'color': 'danger', 'label': 'Document Voided'},
         AuditEvent.DOCUMENT_VIEWED: {'icon': 'fas fa-eye', 'color': 'info', 'label': 'Viewed'},
         AuditEvent.DOCUMENT_SIGNED: {'icon': 'fas fa-signature', 'color': 'success', 'label': 'Signed'},
+        AuditEvent.DOCUMENT_SIGNED_PHYSICAL: {'icon': 'fas fa-pen-nib', 'color': 'success', 'label': 'Wet Signed'},
         AuditEvent.DOCUMENT_DECLINED: {'icon': 'fas fa-times-circle', 'color': 'danger', 'label': 'Declined'},
         AuditEvent.WEBHOOK_RECEIVED: {'icon': 'fas fa-webhook', 'color': 'secondary', 'label': 'Webhook'},
         AuditEvent.INTAKE_SAVED: {'icon': 'fas fa-clipboard-check', 'color': 'info', 'label': 'Intake Saved'},

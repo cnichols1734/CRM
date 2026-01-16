@@ -335,3 +335,68 @@ def delete_transaction_document(storage_path: str) -> bool:
         True on success, False on failure
     """
     return delete_file(TRANSACTION_DOCUMENTS_BUCKET, storage_path)
+
+
+# =============================================================================
+# SCANNED DOCUMENT STORAGE
+# =============================================================================
+# Functions for storing scanned signed documents (physical signatures)
+
+def generate_scanned_document_path(transaction_id: int, doc_id: int, original_filename: str) -> tuple[str, str]:
+    """
+    Generate a unique storage path for a scanned signed document.
+    
+    Args:
+        transaction_id: The transaction ID
+        doc_id: The TransactionDocument ID
+        original_filename: Original filename from upload
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    # Get file extension (usually .pdf)
+    ext = ''
+    if '.' in original_filename:
+        ext = '.' + original_filename.rsplit('.', 1)[1].lower()
+    
+    # Generate unique filename with doc ID for traceability
+    unique_filename = f"{doc_id}_{uuid.uuid4().hex[:8]}{ext}"
+    
+    # Organize by transaction_id/scanned/ to separate from e-signed docs
+    storage_path = f"transactions/{transaction_id}/scanned/{unique_filename}"
+    
+    return storage_path, unique_filename
+
+
+def upload_scanned_document(
+    transaction_id: int,
+    doc_id: int,
+    file_data: bytes,
+    original_filename: str,
+    content_type: str = 'application/pdf'
+) -> dict:
+    """
+    Upload a scanned signed document to Supabase Storage.
+    
+    Used when agents get physical signatures and scan the signed document.
+    
+    Args:
+        transaction_id: The transaction ID
+        doc_id: The TransactionDocument ID
+        file_data: The PDF/image content as bytes
+        original_filename: Original filename from upload
+        content_type: MIME type (defaults to application/pdf)
+    
+    Returns:
+        dict with 'path', 'filename', 'size' keys on success
+    """
+    storage_path, unique_filename = generate_scanned_document_path(
+        transaction_id, doc_id, original_filename
+    )
+    return upload_file(
+        TRANSACTION_DOCUMENTS_BUCKET,
+        storage_path,
+        file_data,
+        original_filename,
+        content_type
+    )

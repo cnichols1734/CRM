@@ -180,6 +180,7 @@ def docuseal_webhook():
             # For now assume all signers finished
             doc.status = 'signed'
             doc.signed_at = datetime.utcnow()
+            doc.signing_method = 'esign'
 
             # Update all signature records
             signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()

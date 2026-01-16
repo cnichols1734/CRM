@@ -879,6 +879,7 @@ def simulate_signature(id, doc_id):
         # Update document status
         doc.status = 'signed'
         doc.signed_at = db.func.now()
+        doc.signing_method = 'esign'
         
         # Update signature records
         signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
