@@ -597,6 +597,15 @@ class TransactionDocument(db.Model):
     # Signing method: 'esign', 'physical', or null (not yet signed)
     signing_method = db.Column(db.String(20), nullable=True)
     
+    # Document source: 'template' (our generated), 'external' (uploaded from other party), 'hybrid' (wet+esign combo)
+    document_source = db.Column(db.String(20), default='template')
+    
+    # For external/hybrid docs: path to the uploaded source PDF in Supabase
+    source_file_path = db.Column(db.String(500), nullable=True)
+    
+    # Manual field placements for ad-hoc signing: [{type, role, page, x, y, w, h, required}]
+    field_placements = db.Column(db.JSON, nullable=True)
+    
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
@@ -789,6 +798,9 @@ class AuditEvent(db.Model):
     DOCUMENT_VIEWED = 'document_viewed'
     DOCUMENT_SIGNED = 'document_signed'
     DOCUMENT_SIGNED_PHYSICAL = 'document_signed_physical'
+    DOCUMENT_UPLOADED_EXTERNAL = 'document_uploaded_external'
+    DOCUMENT_SENT_ADHOC = 'document_sent_adhoc'
+    DOCUMENT_CONVERTED_HYBRID = 'document_converted_hybrid'
     DOCUMENT_DECLINED = 'document_declined'
     ENVELOPE_SENT = 'envelope_sent'
 
