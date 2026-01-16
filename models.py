@@ -275,6 +275,26 @@ class CompanyUpdate(db.Model):
     comments = db.relationship('CompanyUpdateComment', backref='update', lazy='dynamic', cascade='all, delete-orphan', order_by='CompanyUpdateComment.created_at')
     views = db.relationship('CompanyUpdateView', backref='update', lazy='dynamic', cascade='all, delete-orphan')
     
+    @property
+    def cover_image_signed_url(self):
+        """Return signed URL for Supabase images, fallback to legacy local URLs."""
+        if not self.cover_image_url:
+            return None
+        
+        # Legacy local images already have a full path
+        if self.cover_image_url.startswith('/'):
+            return self.cover_image_url
+        
+        try:
+            from services import supabase_storage
+            return supabase_storage.get_signed_url(
+                supabase_storage.COMPANY_UPDATES_BUCKET,
+                self.cover_image_url,
+                expires_in=3600
+            )
+        except Exception:
+            return self.cover_image_url
+    
     def get_reaction_counts(self):
         """Get count of each reaction type."""
         from sqlalchemy import func

@@ -103,11 +103,11 @@
                     Cover Image <span class="text-slate-400 font-normal">(optional)</span>
                 </label>
 
-                {% if update and update.cover_image_url %}
+                {% if update and update.cover_image_signed_url %}
                 <!-- Existing image preview -->
                 <div id="existing-image-container" class="mb-4">
                     <div class="relative inline-block">
-                        <img src="{{ update.cover_image_url }}" alt="Current cover image"
+                        <img src="{{ update.cover_image_signed_url }}" alt="Current cover image"
                             class="w-48 h-32 object-cover rounded-xl border-2 border-slate-200">
                         <div class="absolute -top-2 -right-2">
                             <label
@@ -127,7 +127,7 @@
                 {% endif %}
 
                 <!-- File Upload Input -->
-                <div id="upload-container" class="{% if update and update.cover_image_url %}hidden{% endif %}">
+                <div id="upload-container" class="{% if update and update.cover_image_signed_url %}hidden{% endif %}">
                     <label for="cover_image"
                         class="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-300 rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-blue-400 transition-all duration-200">
                         <div id="upload-placeholder" class="flex flex-col items-center justify-center pt-5 pb-6">
