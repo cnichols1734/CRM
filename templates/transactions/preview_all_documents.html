@@ -154,6 +154,15 @@
             opacity: 0.5;
         }
     }
+    
+    @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-fade-in-up {
+        animation: fade-in-up 0.3s ease-out forwards;
+    }
 </style>
 {% endblock %}
 
@@ -201,8 +210,7 @@
                 <i class="fas fa-eye text-blue-500"></i>
                 <p class="text-sm">
                     <strong>Preview Mode:</strong>
-                    Review each document below. When ready, scroll down and click "Send All for Signature" to email to
-                    signers.
+                    Review each document below. Print for physical signatures, or click "Send All for Signature" for e-signing.
                 </p>
             </div>
         </div>
@@ -418,10 +426,15 @@
         <!-- Action Buttons -->
         <div class="flex flex-col sm:flex-row gap-4">
             <a href="{{ url_for('transactions.fill_all_documents', id=transaction.id) }}"
-                class="flex-1 px-6 py-4 text-center text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                class="px-6 py-4 text-center text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
                 <i class="fas fa-edit"></i>
                 Edit Forms
             </a>
+            <button type="button" onclick="printAllDocuments()"
+                class="px-6 py-4 text-center text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl font-medium transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-print"></i>
+                Print All
+            </button>
             <form action="{{ url_for('transactions.send_all_for_signature', id=transaction.id) }}" method="POST"
                 class="flex-1">
                 <button type="submit" {% if not signers %}disabled{% endif %}
@@ -517,5 +530,103 @@
     document.addEventListener('DOMContentLoaded', function () {
         updateNavButtons();
     });
+    
+    // Document IDs for printing
+    const transactionId = {{ transaction.id }};
+    const documentIds = [{% for doc in documents %}{{ doc.id }}{% if not loop.last %}, {% endif %}{% endfor %}];
+    
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-6 right-6 px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 ${
+            type === 'success' ? 'bg-green-600 text-white' : 
+            type === 'error' ? 'bg-red-600 text-white' : 
+            'bg-slate-800 text-white'
+        }`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            toast.style.transition = 'all 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    }
+    
+    async function printAllDocuments() {
+        showToast('Preparing combined document for printing...', 'info');
+        
+        try {
+            // Fetch the COMBINED PDF URL (all docs merged into one)
+            const response = await fetch(`/transactions/${transactionId}/documents/print-all-pdf`);
+            const data = await response.json();
+            
+            if (data.success && data.url) {
+                // Open the combined PDF in a new tab
+                const printWindow = window.open(data.url, '_blank');
+                if (printWindow) {
+                    showToast(`Combined PDF opened (${data.document_count} documents). Use browser print (Ctrl/Cmd+P).`, 'success');
+                } else {
+                    // Popup blocked - show link
+                    showPrintLink(data.url, data.filename);
+                }
+            } else {
+                showToast(data.error || 'Failed to prepare combined PDF for printing.', 'error');
+            }
+        } catch (err) {
+            console.error('Error fetching combined PDF:', err);
+            showToast('Failed to prepare documents for printing. Please try again.', 'error');
+        }
+    }
+    
+    function showPrintLink(url, filename) {
+        // Remove any existing modal
+        const existingModal = document.getElementById('printModal');
+        if (existingModal) existingModal.remove();
+        
+        // Create modal with single link
+        const modal = document.createElement('div');
+        modal.id = 'printModal';
+        modal.className = 'fixed inset-0 z-50 flex items-center justify-center';
+        modal.innerHTML = `
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closePrintModal()"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 animate-fade-in-up">
+                <button onclick="closePrintModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+                
+                <div class="text-center mb-6">
+                    <div class="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-exclamation-triangle text-2xl text-amber-600"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-800">Pop-up Blocked</h3>
+                    <p class="text-slate-600 mt-2">
+                        Your browser blocked the PDF. Click below to open it manually.
+                    </p>
+                </div>
+                
+                <a href="${url}" target="_blank" onclick="closePrintModal()"
+                   class="flex items-center justify-center gap-3 w-full p-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-medium">
+                    <i class="fas fa-file-pdf"></i>
+                    Open Combined PDF
+                    <i class="fas fa-external-link-alt text-sm"></i>
+                </a>
+                
+                <p class="text-xs text-slate-500 text-center mt-4">
+                    Use your browser's print function (Ctrl/Cmd+P) after opening.
+                </p>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+    }
+    
+    function closePrintModal() {
+        const modal = document.getElementById('printModal');
+        if (modal) modal.remove();
+    }
 </script>
 {% endblock %}

@@ -115,6 +115,60 @@
         0%, 100% { opacity: 1; }
         50% { opacity: 0.5; }
     }
+    
+    /* Print styles - hide UI elements when printing */
+    @media print {
+        /* Hide navigation, action buttons, and overlays */
+        .sticky, .fixed, .loading-overlay, .no-print { 
+            display: none !important; 
+        }
+        
+        /* Hide the blue info banner */
+        .bg-blue-50.border-b { 
+            display: none !important; 
+        }
+        
+        /* Maximize document area for printing */
+        .max-w-5xl { 
+            max-width: 100% !important; 
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        
+        /* Remove shadow and border for cleaner print */
+        .shadow-lg, .shadow-2xl, .rounded-2xl {
+            box-shadow: none !important;
+            border-radius: 0 !important;
+        }
+        
+        /* Ensure background colors print */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        
+        /* Remove min-height constraint */
+        .preview-embed-container {
+            min-height: auto !important;
+        }
+        
+        /* Remove page margins for maximum content */
+        body {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        
+        /* Hide the gradient background */
+        .min-h-screen.bg-gradient-to-br {
+            background: white !important;
+            min-height: auto !important;
+        }
+        
+        /* Hide spacer for floating action bar */
+        .h-24 {
+            display: none !important;
+        }
+    }
 </style>
 
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
@@ -148,13 +202,13 @@
     </div>
 
     <!-- Info banner -->
-    <div class="bg-blue-50 border-b border-blue-100">
+    <div class="bg-blue-50 border-b border-blue-100 no-print">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div class="flex items-center gap-3 text-blue-800">
                 <i class="fas fa-info-circle text-blue-500"></i>
                 <p class="text-sm">
                     <strong>Preview Mode:</strong>
-                    Property address has been pre-filled. The seller will complete and sign this document when sent for e-signature.
+                    Property address has been pre-filled. Print for physical signature, or continue to send for e-signature.
                     {% if preview_info.mock_mode %}
                     <span class="ml-2 px-2 py-0.5 text-xs bg-amber-100 text-amber-700 rounded-full">Test Mode</span>
                     {% endif %}
@@ -279,17 +333,17 @@
 </div>
 
 <!-- Floating Action Bar -->
-<div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 z-50 flex items-center gap-3">
+<div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-200 z-50 flex items-center gap-3 no-print">
     <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
         class="px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
-        Cancel
+        Close
     </a>
     <div class="w-px h-8 bg-slate-200"></div>
-    <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+    <button onclick="printDocument()"
         class="px-5 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg flex items-center gap-2 transition-colors">
-        <i class="fas fa-save text-slate-500"></i>
-        Save Draft
-    </a>
+        <i class="fas fa-print text-slate-500"></i>
+        Print
+    </button>
     <a href="{{ url_for('transactions.document_preview', id=transaction.id, doc_id=document.id) }}"
         onclick="showLoadingOverlay('Generating Preview...', 'This may take a few moments')"
         class="px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg flex items-center gap-2 shadow-sm transition-all">
@@ -311,6 +365,9 @@
 <script src="https://cdn.docuseal.com/js/form.js"></script>
 
 <script>
+    const transactionId = {{ transaction.id }};
+    const documentId = {{ document.id }};
+    
     function showLoadingOverlay(message, submessage) {
         if (message) {
             document.getElementById('loadingText').textContent = message;
@@ -319,6 +376,58 @@
             document.getElementById('loadingSubtext').textContent = submessage;
         }
         document.getElementById('loadingOverlay').classList.add('show');
+    }
+    
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-24 right-6 px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 ${
+            type === 'success' ? 'bg-green-600 text-white' : 
+            type === 'error' ? 'bg-red-600 text-white' : 
+            'bg-slate-800 text-white'
+        }`;
+        toast.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            toast.style.transition = 'all 0.3s ease-out';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    
+    function printDocument() {
+        showToast('Preparing document for print...', 'info');
+        
+        fetch(`/transactions/${transactionId}/documents/${documentId}/print-pdf`)
+            .then(resp => resp.json())
+            .then(data => {
+                if (data.success && data.url) {
+                    const printWindow = window.open(data.url, '_blank');
+                    if (printWindow) {
+                        showToast('PDF opened in new tab. Use browser print (Ctrl/Cmd+P)', 'success');
+                    } else {
+                        showToast('Pop-up blocked. Click the link below to open PDF.', 'error');
+                        const link = document.createElement('a');
+                        link.href = data.url;
+                        link.target = '_blank';
+                        link.textContent = 'Click here to open PDF';
+                        link.className = 'fixed bottom-32 right-6 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-xl z-50';
+                        link.onclick = () => setTimeout(() => link.remove(), 1000);
+                        document.body.appendChild(link);
+                        setTimeout(() => link.remove(), 10000);
+                    }
+                } else {
+                    showToast(data.error || 'Failed to get printable PDF', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Print error:', err);
+                showToast('Failed to prepare document for printing', 'error');
+            });
     }
 </script>
 {% endblock %}
