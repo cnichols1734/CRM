@@ -589,6 +589,11 @@ class TransactionDocument(db.Model):
     sent_at = db.Column(db.DateTime)  # When sent for signature
     signed_at = db.Column(db.DateTime)  # When all signatures complete
     
+    # Signed document storage (Supabase)
+    signed_file_path = db.Column(db.String(500))  # Path in Supabase storage
+    signed_file_size = db.Column(db.Integer)  # Size in bytes
+    signed_file_downloaded_at = db.Column(db.DateTime)  # When downloaded from DocuSeal
+    
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
