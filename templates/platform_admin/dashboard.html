@@ -3,129 +3,260 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Platform Admin Dashboard</h1>
-        <p class="mt-2 text-gray-600">Aggregate metrics across all organizations (no PII shown)</p>
-    </div>
-    
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                    <i class="fas fa-building text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Total Organizations</p>
-                    <p class="text-2xl font-semibold text-gray-900">{{ total_orgs }}</p>
-                </div>
-            </div>
+    <div class="mb-8 flex justify-between items-start">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900">Platform Admin Dashboard</h1>
+            <p class="mt-2 text-gray-600">Complete visibility across all organizations</p>
         </div>
-        
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-green-100 text-green-600">
-                    <i class="fas fa-check-circle text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Active Organizations</p>
-                    <p class="text-2xl font-semibold text-gray-900">{{ active_orgs }}</p>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center">
-                <div class="p-3 rounded-full bg-amber-100 text-amber-600">
-                    <i class="fas fa-clock text-xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Pending Approval</p>
-                    <p class="text-2xl font-semibold text-gray-900">{{ pending_approval }}</p>
-                </div>
-            </div>
-            {% if pending_approval > 0 %}
-            <a href="{{ url_for('platform.pending_orgs') }}" class="mt-2 block text-sm text-blue-600 hover:underline">
-                Review pending →
+        <div class="flex space-x-3">
+            <a href="{{ url_for('platform.pending_orgs') }}" class="bg-amber-500 text-white px-4 py-2 rounded-md hover:bg-amber-600 flex items-center">
+                <i class="fas fa-inbox mr-2"></i>
+                Pending
+                {% if pending_approval_orgs > 0 %}
+                <span class="ml-2 bg-white text-amber-600 rounded-full px-2 py-0.5 text-xs font-bold">{{ pending_approval_orgs }}</span>
+                {% endif %}
             </a>
-            {% endif %}
+            <a href="{{ url_for('platform.audit_log') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 flex items-center">
+                <i class="fas fa-history mr-2"></i>Audit Log
+            </a>
+            <form action="{{ url_for('platform.refresh_metrics') }}" method="POST" class="inline">
+                <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 flex items-center">
+                    <i class="fas fa-sync mr-2"></i>Refresh All Metrics
+                </button>
+            </form>
         </div>
-        
-        <div class="bg-white rounded-lg shadow p-6">
+    </div>
+    
+    <!-- =========================================================================== -->
+    <!-- ORIGEN REALTY (Platform Owner) Section -->
+    <!-- =========================================================================== -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-800 rounded-xl shadow-lg p-6 mb-8 text-white">
+        <div class="flex items-center justify-between mb-4">
             <div class="flex items-center">
-                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                    <i class="fas fa-users text-xl"></i>
+                <div class="bg-white/20 p-3 rounded-lg mr-4">
+                    <i class="fas fa-crown text-2xl text-yellow-300"></i>
                 </div>
-                <div class="ml-4">
-                    <p class="text-sm font-medium text-gray-500">Total Users</p>
-                    <p class="text-2xl font-semibold text-gray-900">{{ total_users }}</p>
+                <div>
+                    <h2 class="text-xl font-bold">{{ origen_stats.name }}</h2>
+                    <p class="text-blue-200 text-sm">Platform Owner • Enterprise Tier</p>
+                </div>
+            </div>
+            <span class="bg-yellow-400 text-yellow-900 px-3 py-1 rounded-full text-xs font-bold uppercase">Platform Admin</span>
+        </div>
+        <div class="grid grid-cols-3 gap-6">
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-blue-200 text-sm">Users</p>
+                <p class="text-3xl font-bold">{{ origen_stats.users }}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-blue-200 text-sm">Contacts</p>
+                <p class="text-3xl font-bold">{{ "{:,}".format(origen_stats.contacts) }}</p>
+            </div>
+            <div class="bg-white/10 rounded-lg p-4">
+                <p class="text-blue-200 text-sm">Transactions</p>
+                <p class="text-3xl font-bold">{{ origen_stats.transactions }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- =========================================================================== -->
+    <!-- CUSTOMER ORGANIZATIONS Section -->
+    <!-- =========================================================================== -->
+    <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+            <i class="fas fa-building text-gray-400 mr-2"></i>Customer Organizations
+        </h2>
+    </div>
+    
+    <!-- Customer Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-6">
+        <!-- Status Cards -->
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
+            <p class="text-xs font-medium text-gray-500 uppercase">Active</p>
+            <p class="text-2xl font-bold text-gray-900">{{ active_customer_orgs }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pending</p>
+            <p class="text-2xl font-bold text-gray-900">{{ pending_approval_orgs }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+            <p class="text-xs font-medium text-gray-500 uppercase">Suspended</p>
+            <p class="text-2xl font-bold text-gray-900">{{ suspended_orgs }}</p>
+        </div>
+        <!-- Tier Cards -->
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-gray-400">
+            <p class="text-xs font-medium text-gray-500 uppercase">Free Tier</p>
+            <p class="text-2xl font-bold text-gray-900">{{ free_tier_orgs }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
+            <p class="text-xs font-medium text-gray-500 uppercase">Pro Tier</p>
+            <p class="text-2xl font-bold text-gray-900">{{ pro_tier_orgs }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-purple-500">
+            <p class="text-xs font-medium text-gray-500 uppercase">Enterprise</p>
+            <p class="text-2xl font-bold text-gray-900">{{ enterprise_tier_orgs }}</p>
+        </div>
+    </div>
+    
+    <!-- Customer Aggregate Metrics -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-5 border border-purple-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-purple-600 font-medium">Customer Users</p>
+                    <p class="text-3xl font-bold text-purple-900">{{ customer_stats.users }}</p>
+                </div>
+                <div class="bg-purple-200 p-3 rounded-full">
+                    <i class="fas fa-users text-purple-600 text-xl"></i>
+                </div>
+            </div>
+            <p class="text-xs text-purple-500 mt-2">Across {{ total_customer_orgs }} customer org{{ 's' if total_customer_orgs != 1 }}</p>
+        </div>
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-5 border border-green-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-green-600 font-medium">Customer Contacts</p>
+                    <p class="text-3xl font-bold text-green-900">{{ "{:,}".format(customer_stats.contacts) }}</p>
+                </div>
+                <div class="bg-green-200 p-3 rounded-full">
+                    <i class="fas fa-address-book text-green-600 text-xl"></i>
+                </div>
+            </div>
+        </div>
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-5 border border-blue-200">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-blue-600 font-medium">Customer Transactions</p>
+                    <p class="text-3xl font-bold text-blue-900">{{ customer_stats.transactions }}</p>
+                </div>
+                <div class="bg-blue-200 p-3 rounded-full">
+                    <i class="fas fa-file-contract text-blue-600 text-xl"></i>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- Secondary Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Total Contacts (all orgs)</p>
-            <p class="text-xl font-semibold text-gray-900">{{ "{:,}".format(total_contacts) }}</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Total Transactions (all orgs)</p>
-            <p class="text-xl font-semibold text-gray-900">{{ "{:,}".format(total_transactions) }}</p>
-        </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Pending Deletion</p>
-            <p class="text-xl font-semibold text-gray-900">{{ pending_deletion }}</p>
+    <!-- =========================================================================== -->
+    <!-- PLATFORM TOTALS (Combined) -->
+    <!-- =========================================================================== -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8 text-white">
+        <h3 class="text-lg font-semibold mb-4 flex items-center">
+            <i class="fas fa-chart-line mr-2 text-gray-400"></i>
+            Platform Totals (Origen + All Customers)
+        </h3>
+        <div class="grid grid-cols-4 gap-6">
+            <div>
+                <p class="text-gray-400 text-sm">Total Organizations</p>
+                <p class="text-2xl font-bold">{{ platform_stats.total_orgs }}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm">Total Users</p>
+                <p class="text-2xl font-bold">{{ platform_stats.users }}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm">Total Contacts</p>
+                <p class="text-2xl font-bold">{{ "{:,}".format(platform_stats.contacts) }}</p>
+            </div>
+            <div>
+                <p class="text-gray-400 text-sm">Total Transactions</p>
+                <p class="text-2xl font-bold">{{ platform_stats.transactions }}</p>
+            </div>
         </div>
     </div>
     
-    <!-- Actions -->
-    <div class="mb-8 flex space-x-4">
-        <a href="{{ url_for('platform.pending_orgs') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-            <i class="fas fa-inbox mr-2"></i>Review Pending
-        </a>
-        <a href="{{ url_for('platform.audit_log') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
-            <i class="fas fa-history mr-2"></i>Audit Log
-        </a>
-        <form action="{{ url_for('platform.refresh_metrics') }}" method="POST" class="inline">
-            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                <i class="fas fa-sync mr-2"></i>Refresh Metrics
-            </button>
-        </form>
-    </div>
-    
-    <!-- Organizations List -->
+    <!-- =========================================================================== -->
+    <!-- ORGANIZATION LIST with Filters -->
+    <!-- =========================================================================== -->
     <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-800">Recent Organizations</h2>
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <h2 class="text-xl font-semibold text-gray-800">All Organizations</h2>
+                
+                <!-- Filters -->
+                <form method="GET" class="flex flex-wrap items-center gap-3">
+                    <!-- Status Filter -->
+                    <select name="status" onchange="this.form.submit()" 
+                            class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                        <option value="pending_approval" {% if status_filter == 'pending_approval' %}selected{% endif %}>Pending Approval</option>
+                        <option value="suspended" {% if status_filter == 'suspended' %}selected{% endif %}>Suspended</option>
+                        <option value="pending_deletion" {% if status_filter == 'pending_deletion' %}selected{% endif %}>Pending Deletion</option>
+                    </select>
+                    
+                    <!-- Tier Filter -->
+                    <select name="tier" onchange="this.form.submit()"
+                            class="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="all" {% if tier_filter == 'all' %}selected{% endif %}>All Tiers</option>
+                        <option value="free" {% if tier_filter == 'free' %}selected{% endif %}>Free</option>
+                        <option value="pro" {% if tier_filter == 'pro' %}selected{% endif %}>Pro</option>
+                        <option value="enterprise" {% if tier_filter == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                    </select>
+                    
+                    <!-- Include Origen Toggle -->
+                    <label class="flex items-center text-sm text-gray-600 cursor-pointer">
+                        <input type="checkbox" name="include_origen" value="true" 
+                               {% if include_origen %}checked{% endif %}
+                               onchange="this.form.submit()"
+                               class="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        Include Origen
+                    </label>
+                    
+                    {% if status_filter != 'all' or tier_filter != 'all' or include_origen %}
+                    <a href="{{ url_for('platform.dashboard') }}" class="text-sm text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times mr-1"></i>Clear Filters
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
         </div>
+        
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacts</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Activity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Active</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for org in orgs %}
-                    <tr>
+                    <tr class="{% if org.is_platform_admin %}bg-blue-50{% endif %} hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ org.name }}</div>
-                            <div class="text-sm text-gray-500">{{ org.slug }}</div>
+                            <div class="flex items-center">
+                                {% if org.is_platform_admin %}
+                                <i class="fas fa-crown text-yellow-500 mr-2" title="Platform Admin"></i>
+                                {% endif %}
+                                <div>
+                                    <div class="text-sm font-medium text-gray-900">{{ org.name }}</div>
+                                    <div class="text-sm text-gray-500">{{ org.slug }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            {% if org.is_platform_admin %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                                Platform
+                            </span>
+                            {% else %}
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                Customer
+                            </span>
+                            {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                                 {% if org.subscription_tier == 'enterprise' %}bg-purple-100 text-purple-800
                                 {% elif org.subscription_tier == 'pro' %}bg-blue-100 text-blue-800
                                 {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ org.subscription_tier|capitalize }}
+                                {{ (org.subscription_tier or 'free')|capitalize }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -138,28 +269,104 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ org.user_count or 0 }} / {{ org.max_users or '∞' }}
+                            <span class="{% if org.user_count and org.max_users and org.user_count >= org.max_users %}text-red-600 font-semibold{% endif %}">
+                                {{ org.user_count or 0 }}
+                            </span>
+                            <span class="text-gray-400">/ {{ org.max_users if org.max_users else '∞' }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ org.contact_count or 0 }}
+                            {{ "{:,}".format(org.contact_count or 0) }}
+                            {% if org.max_contacts %}
+                            <span class="text-gray-400">/ {{ "{:,}".format(org.max_contacts) }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ org.transaction_count or 0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {% if org.last_user_login_at %}
                                 {{ org.last_user_login_at.strftime('%b %d, %Y') }}
                             {% else %}
-                                Never
+                                <span class="text-gray-400">Never</span>
                             {% endif %}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('platform.view_org', org_id=org.id) }}" class="text-blue-600 hover:text-blue-900">
+                            <a href="{{ url_for('platform.view_org', org_id=org.id) }}" 
+                               class="text-blue-600 hover:text-blue-900 mr-3">
                                 View
                             </a>
+                            {% if not org.is_platform_admin %}
+                            {% if org.status == 'active' %}
+                            <button onclick="confirmSuspend({{ org.id }}, '{{ org.name }}')" 
+                                    class="text-red-600 hover:text-red-900">
+                                Suspend
+                            </button>
+                            {% elif org.status == 'suspended' %}
+                            <form action="{{ url_for('platform.reactivate_org', org_id=org.id) }}" method="POST" class="inline">
+                                <button type="submit" class="text-green-600 hover:text-green-900">
+                                    Reactivate
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
+                    
+                    {% if not orgs %}
+                    <tr>
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                            <i class="fas fa-building text-4xl text-gray-300 mb-3"></i>
+                            <p>No organizations found matching your filters.</p>
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
             </table>
         </div>
+        
+        <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 text-sm text-gray-500">
+            Showing {{ orgs|length }} organization{{ 's' if orgs|length != 1 }}
+        </div>
     </div>
 </div>
+
+<!-- Suspend Modal -->
+<div id="suspendModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Suspend Organization</h3>
+        <p class="text-gray-600 mb-4">Are you sure you want to suspend <strong id="suspendOrgName"></strong>? All users will be logged out immediately.</p>
+        <form id="suspendForm" method="POST">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+                <textarea name="reason" rows="2" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"></textarea>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="closeSuspendModal()" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    Suspend Organization
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function confirmSuspend(orgId, orgName) {
+    document.getElementById('suspendOrgName').textContent = orgName;
+    document.getElementById('suspendForm').action = '/platform-admin/orgs/' + orgId + '/suspend';
+    document.getElementById('suspendModal').classList.remove('hidden');
+}
+
+function closeSuspendModal() {
+    document.getElementById('suspendModal').classList.add('hidden');
+}
+
+// Close modal on escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeSuspendModal();
+});
+</script>
 {% endblock %}

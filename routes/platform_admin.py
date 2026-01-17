@@ -37,37 +37,81 @@ def log_platform_action(action: str, target_org_id: int = None, details: dict = 
 @platform_admin_required
 def dashboard():
     """
-    Platform dashboard - aggregates ONLY.
-    NEVER query tenant tables (contact, task, transaction) directly.
+    Platform dashboard with clear separation of Origen vs Customer data.
+    Includes filtering and comprehensive metrics.
     """
     
-    # Organization counts (from organizations table, not tenant data)
-    total_orgs = Organization.query.filter(
-        Organization.is_platform_admin == False
-    ).count()
+    # Get filter from query params
+    status_filter = request.args.get('status', 'all')
+    tier_filter = request.args.get('tier', 'all')
+    include_origen = request.args.get('include_origen', 'false') == 'true'
     
-    pending_approval = Organization.query.filter_by(
-        status='pending_approval'
-    ).count()
+    # ==========================================================================
+    # ORIGEN (Platform Admin) Stats - Always shown separately
+    # ==========================================================================
+    origen = Organization.query.filter_by(is_platform_admin=True).first()
+    origen_metrics = OrganizationMetrics.query.filter_by(
+        organization_id=origen.id
+    ).first() if origen else None
     
-    active_orgs = Organization.query.filter_by(
-        status='active',
-        is_platform_admin=False
-    ).count()
+    origen_stats = {
+        'name': origen.name if origen else 'N/A',
+        'users': origen_metrics.user_count if origen_metrics else 0,
+        'contacts': origen_metrics.contact_count if origen_metrics else 0,
+        'transactions': origen_metrics.transaction_count if origen_metrics else 0,
+    }
     
-    pending_deletion = Organization.query.filter_by(
-        status='pending_deletion'
-    ).count()
+    # ==========================================================================
+    # CUSTOMER Organizations Stats (excluding Origen)
+    # ==========================================================================
     
-    # Get aggregates from organization_metrics table ONLY
-    totals = db.session.query(
+    # Base query for customer orgs
+    customer_base = Organization.query.filter(Organization.is_platform_admin == False)
+    
+    # Counts by status
+    total_customer_orgs = customer_base.count()
+    active_customer_orgs = customer_base.filter_by(status='active').count()
+    pending_approval_orgs = customer_base.filter_by(status='pending_approval').count()
+    suspended_orgs = customer_base.filter_by(status='suspended').count()
+    pending_deletion_orgs = customer_base.filter_by(status='pending_deletion').count()
+    
+    # Counts by tier
+    free_tier_orgs = customer_base.filter_by(subscription_tier='free').count()
+    pro_tier_orgs = customer_base.filter_by(subscription_tier='pro').count()
+    enterprise_tier_orgs = customer_base.filter_by(subscription_tier='enterprise').count()
+    
+    # Customer metrics (excluding Origen)
+    customer_metrics = db.session.query(
         func.sum(OrganizationMetrics.user_count).label('users'),
         func.sum(OrganizationMetrics.contact_count).label('contacts'),
         func.sum(OrganizationMetrics.transaction_count).label('transactions')
+    ).join(
+        Organization,
+        OrganizationMetrics.organization_id == Organization.id
+    ).filter(
+        Organization.is_platform_admin == False
     ).first()
     
-    # Org list - metadata only, NO PII
-    orgs = db.session.query(
+    customer_stats = {
+        'users': customer_metrics.users or 0,
+        'contacts': customer_metrics.contacts or 0,
+        'transactions': customer_metrics.transactions or 0,
+    }
+    
+    # ==========================================================================
+    # COMBINED Stats (Platform Total)
+    # ==========================================================================
+    platform_stats = {
+        'total_orgs': total_customer_orgs + (1 if origen else 0),
+        'users': (origen_stats['users'] or 0) + (customer_stats['users'] or 0),
+        'contacts': (origen_stats['contacts'] or 0) + (customer_stats['contacts'] or 0),
+        'transactions': (origen_stats['transactions'] or 0) + (customer_stats['transactions'] or 0),
+    }
+    
+    # ==========================================================================
+    # Organization List with Filters
+    # ==========================================================================
+    org_query = db.session.query(
         Organization.id,
         Organization.name,
         Organization.slug,
@@ -75,24 +119,49 @@ def dashboard():
         Organization.status,
         Organization.created_at,
         Organization.max_users,
+        Organization.max_contacts,
+        Organization.is_platform_admin,
         OrganizationMetrics.user_count,
         OrganizationMetrics.contact_count,
+        OrganizationMetrics.transaction_count,
         OrganizationMetrics.last_user_login_at
     ).outerjoin(
         OrganizationMetrics,
         Organization.id == OrganizationMetrics.organization_id
-    ).filter(
-        Organization.is_platform_admin == False
-    ).order_by(Organization.created_at.desc()).limit(50).all()
+    )
+    
+    # Apply filters
+    if not include_origen:
+        org_query = org_query.filter(Organization.is_platform_admin == False)
+    
+    if status_filter != 'all':
+        org_query = org_query.filter(Organization.status == status_filter)
+    
+    if tier_filter != 'all':
+        org_query = org_query.filter(Organization.subscription_tier == tier_filter)
+    
+    orgs = org_query.order_by(Organization.created_at.desc()).all()
     
     return render_template('platform_admin/dashboard.html',
-        total_orgs=total_orgs,
-        pending_approval=pending_approval,
-        active_orgs=active_orgs,
-        pending_deletion=pending_deletion,
-        total_users=totals.users or 0,
-        total_contacts=totals.contacts or 0,
-        total_transactions=totals.transactions or 0,
+        # Origen stats
+        origen_stats=origen_stats,
+        # Customer stats
+        total_customer_orgs=total_customer_orgs,
+        active_customer_orgs=active_customer_orgs,
+        pending_approval_orgs=pending_approval_orgs,
+        suspended_orgs=suspended_orgs,
+        pending_deletion_orgs=pending_deletion_orgs,
+        free_tier_orgs=free_tier_orgs,
+        pro_tier_orgs=pro_tier_orgs,
+        enterprise_tier_orgs=enterprise_tier_orgs,
+        customer_stats=customer_stats,
+        # Platform totals
+        platform_stats=platform_stats,
+        # Filters
+        status_filter=status_filter,
+        tier_filter=tier_filter,
+        include_origen=include_origen,
+        # Org list
         orgs=orgs
     )
 
