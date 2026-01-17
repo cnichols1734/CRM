@@ -1,94 +1,270 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="text-center mb-12">
-        <h1 class="text-4xl font-bold text-gray-900 mb-4">Upgrade to Pro</h1>
-        <p class="text-xl text-gray-600">Unlock the full power of your CRM</p>
+<!-- Premium Upgrade Page - Coming Soon -->
+<div class="min-h-screen bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 py-12 px-4 -mt-4 -mx-4 sm:-mx-6 lg:-mx-8">
+    
+    <!-- Floating orbs background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-20 left-10 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse" style="animation-delay: 1s;"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-3xl"></div>
     </div>
     
-    <div class="grid md:grid-cols-2 gap-8">
-        <!-- Free Tier -->
-        <div class="bg-white rounded-lg shadow p-8 border-2 border-gray-200">
-            <h3 class="text-2xl font-bold text-gray-900 mb-2">Free</h3>
-            <p class="text-gray-600 mb-6">For individual agents getting started</p>
-            <p class="text-4xl font-bold mb-6">$0<span class="text-lg text-gray-500">/month</span></p>
-            
-            <ul class="space-y-4 mb-8">
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>1 user
-                </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Up to 200 contacts
-                </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Task management
-                </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Dashboard & reporting
-                </li>
-                <li class="flex items-center text-gray-400">
-                    <i class="fas fa-times text-gray-300 mr-3"></i>AI features
-                </li>
-                <li class="flex items-center text-gray-400">
-                    <i class="fas fa-times text-gray-300 mr-3"></i>Transaction management
-                </li>
-                <li class="flex items-center text-gray-400">
-                    <i class="fas fa-times text-gray-300 mr-3"></i>Document generation
-                </li>
-            </ul>
-            
-            <button disabled class="w-full py-3 border-2 border-gray-300 text-gray-500 rounded-lg cursor-not-allowed">
-                Current Plan
-            </button>
+    <div class="max-w-5xl mx-auto relative">
+        
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 rounded-full text-amber-300 text-sm font-medium mb-6 backdrop-blur-sm">
+                <i class="fas fa-clock"></i>
+                Coming Soon
+            </div>
+            <h1 class="text-4xl sm:text-5xl font-bold text-white mb-4">
+                Upgrade to <span class="bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400 bg-clip-text text-transparent">Pro</span>
+            </h1>
+            <p class="text-xl text-slate-400 max-w-2xl mx-auto">
+                Unlock the full power of your CRM with advanced features designed for growing teams and serious agents.
+            </p>
         </div>
         
-        <!-- Pro Tier -->
-        <div class="bg-white rounded-lg shadow-lg p-8 border-2 border-blue-500 relative">
-            <div class="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 rounded-bl-lg text-sm font-medium">
-                Recommended
-            </div>
+        <!-- Main Content Grid -->
+        <div class="grid lg:grid-cols-2 gap-8 mb-12">
             
-            <h3 class="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
-            <p class="text-gray-600 mb-6">For growing teams and agencies</p>
-            <p class="text-4xl font-bold mb-2">$49<span class="text-lg text-gray-500">/user/month</span></p>
-            <p class="text-sm text-gray-500 mb-6">Billed monthly</p>
-            
-            <ul class="space-y-4 mb-8">
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Up to 25 users
+            <!-- Your Current Plan -->
+            <div class="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 relative overflow-hidden">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-500 to-slate-600"></div>
+                
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-seedling text-slate-400 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-slate-500 text-sm font-medium">Your Current Plan</p>
+                        <h3 class="text-2xl font-bold text-white">Free</h3>
+                    </div>
+                </div>
+                
+                <ul class="space-y-4 mb-6">
+                    <li class="flex items-center gap-3 text-slate-300">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>1 user</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i><strong>Unlimited</strong> contacts
+                    <li class="flex items-center gap-3 text-slate-300">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>Up to 200 contacts</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Task management
+                    <li class="flex items-center gap-3 text-slate-300">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>Task management</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-green-500 mr-3"></i>Dashboard & reporting
+                    <li class="flex items-center gap-3 text-slate-300">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>Dashboard & reporting</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>AI features</strong> (B.O.B., Daily Todo, Action Plan)
+                    <li class="flex items-center gap-3 text-slate-500">
+                        <div class="w-6 h-6 rounded-full bg-slate-700/50 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-lock text-slate-500 text-xs"></i>
+                        </div>
+                        <span>AI features</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>Transaction management</strong>
+                    <li class="flex items-center gap-3 text-slate-500">
+                        <div class="w-6 h-6 rounded-full bg-slate-700/50 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-lock text-slate-500 text-xs"></i>
+                        </div>
+                        <span>Transaction management</span>
                 </li>
-                <li class="flex items-center text-gray-600">
-                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>Document generation & e-signing</strong>
+                    <li class="flex items-center gap-3 text-slate-500">
+                        <div class="w-6 h-6 rounded-full bg-slate-700/50 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-lock text-slate-500 text-xs"></i>
+                        </div>
+                        <span>Document generation</span>
                 </li>
             </ul>
             
-            <a href="mailto:support@origenrealty.com?subject=Upgrade%20to%20Pro" 
-               class="block w-full py-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700">
-                Contact Us to Upgrade
-            </a>
+                <div class="pt-4 border-t border-white/10">
+                    <p class="text-3xl font-bold text-white">$0<span class="text-lg text-slate-500 font-normal">/month</span></p>
+                    <p class="text-sm text-slate-500">Forever free</p>
+        </div>
+            </div>
+            
+            <!-- Pro Plan -->
+            <div class="bg-gradient-to-br from-blue-600/20 via-indigo-600/20 to-purple-600/20 backdrop-blur-xl rounded-2xl border border-blue-400/30 p-8 relative overflow-hidden">
+                <!-- Shimmer accent -->
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400"></div>
+                
+                <!-- Recommended badge -->
+                <div class="absolute top-4 right-4">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-bold rounded-full shadow-lg">
+                        <i class="fas fa-star text-[10px]"></i> RECOMMENDED
+                    </span>
+                </div>
+                
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <i class="fas fa-rocket text-white text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-blue-300 text-sm font-medium">Upgrade to</p>
+                        <h3 class="text-2xl font-bold text-white">Pro</h3>
+                    </div>
+                </div>
+                
+                <ul class="space-y-4 mb-6">
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span><strong>Up to 25 users</strong></span>
+                    </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span><strong>Unlimited</strong> contacts</span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>Task management</span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-emerald-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-check text-emerald-400 text-xs"></i>
+                        </div>
+                        <span>Dashboard & reporting</span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-sparkles text-blue-400 text-xs"></i>
+                        </div>
+                        <span><strong>AI Features</strong> — B.O.B., Daily Todo, Action Plan</span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-sparkles text-blue-400 text-xs"></i>
+                        </div>
+                        <span><strong>Transaction management</strong></span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-sparkles text-blue-400 text-xs"></i>
+                        </div>
+                        <span><strong>Document generation & e-signing</strong></span>
+                </li>
+                    <li class="flex items-center gap-3 text-white">
+                        <div class="w-6 h-6 rounded-full bg-blue-500/30 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-sparkles text-blue-400 text-xs"></i>
+                        </div>
+                        <span><strong>Team invites</strong> & member management</span>
+                </li>
+            </ul>
+                
+                <div class="pt-4 border-t border-white/10">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="text-2xl font-bold text-white">Pricing Coming Soon</span>
+                    </div>
+                    <p class="text-sm text-blue-200">Be the first to know when Pro launches</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Pro Features Showcase -->
+        <div class="mb-12">
+            <h2 class="text-2xl font-bold text-white text-center mb-8">What's included in Pro</h2>
+            
+            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- AI Features -->
+                <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:border-blue-400/50 hover:bg-white/10 transition-all duration-300">
+                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/20">
+                        <i class="fas fa-brain text-white text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-white mb-2">AI-Powered Tools</h3>
+                    <p class="text-sm text-slate-400">B.O.B. assistant, smart daily todos, and personalized action plans.</p>
+                </div>
+                
+                <!-- Transactions -->
+                <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:border-blue-400/50 hover:bg-white/10 transition-all duration-300">
+                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
+                        <i class="fas fa-file-contract text-white text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-white mb-2">Transaction Management</h3>
+                    <p class="text-sm text-slate-400">Track deals from listing to close with full timeline visibility.</p>
+                </div>
+                
+                <!-- Documents -->
+                <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:border-blue-400/50 hover:bg-white/10 transition-all duration-300">
+                    <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+                        <i class="fas fa-file-signature text-white text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-white mb-2">Document Generation</h3>
+                    <p class="text-sm text-slate-400">Auto-generate contracts and collect e-signatures seamlessly.</p>
+                </div>
+                
+                <!-- Team -->
+                <div class="bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 p-5 hover:border-blue-400/50 hover:bg-white/10 transition-all duration-300">
+                    <div class="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
+                        <i class="fas fa-users text-white text-xl"></i>
+                    </div>
+                    <h3 class="font-bold text-white mb-2">Team Collaboration</h3>
+                    <p class="text-sm text-slate-400">Invite team members with role-based access and permissions.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Contact CTA -->
+        <div class="bg-gradient-to-r from-blue-600/30 via-indigo-600/30 to-purple-600/30 backdrop-blur-xl rounded-2xl border border-blue-400/30 p-8 text-center relative overflow-hidden">
+            <!-- Background glow -->
+            <div class="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10"></div>
+            
+            <div class="relative">
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-500/30">
+                    <i class="fas fa-envelope text-white text-2xl"></i>
+                </div>
+                
+                <h2 class="text-2xl font-bold text-white mb-3">Interested in Pro?</h2>
+                <p class="text-slate-300 mb-6 max-w-lg mx-auto">
+                    We're finalizing Pro pricing and would love to hear from you. 
+                    Reach out to learn more or get notified when Pro becomes available.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <a href="mailto:chris@origenrealty.com?subject=Interested%20in%20Pro%20Plan" 
+                       class="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5 transition-all duration-200">
+                        <i class="fas fa-paper-plane"></i>
+                        Contact Us
+                    </a>
+                    <a href="{{ url_for('org.settings') }}" 
+                       class="inline-flex items-center gap-2 px-6 py-4 bg-white/10 text-white font-semibold rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-200">
+                        <i class="fas fa-arrow-left"></i>
+                        Back to Settings
+                    </a>
+                </div>
         </div>
     </div>
     
-    <div class="mt-12 text-center">
-        <p class="text-gray-600">
-            Questions? Contact us at <a href="mailto:support@origenrealty.com" class="text-blue-600 hover:underline">support@origenrealty.com</a>
-        </p>
+        <!-- Footer note -->
+        <div class="mt-8 text-center">
+            <p class="text-slate-500 text-sm">
+                <i class="fas fa-shield-alt mr-2"></i>
+                Your data is safe. You won't be charged anything until you explicitly upgrade.
+            </p>
+        </div>
     </div>
 </div>
+
+<style>
+@keyframes pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+}
+</style>
 {% endblock %}

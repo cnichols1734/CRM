@@ -2,219 +2,470 @@
 
 {% block content %}
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
+    @keyframes fadeInLeft {
+        from { opacity: 0; transform: translateX(-20px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
     @keyframes float {
         0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-10px); }
+        50% { transform: translateY(-8px); }
     }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
+    @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
     }
-    .animate-fade-in-up-delay-1 { 
-        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
-        opacity: 0; 
+    @keyframes pulse-soft {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 0.8; }
     }
-    .animate-fade-in-up-delay-2 { 
-        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
-        opacity: 0; 
+    @keyframes glow {
+        0%, 100% { box-shadow: 0 0 20px rgba(249, 115, 22, 0.3); }
+        50% { box-shadow: 0 0 40px rgba(249, 115, 22, 0.5); }
+    }
+    
+    .register-panel {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    .animate-fade-in-left { animation: fadeInLeft 0.6s ease-out forwards; }
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    .delay-4 { animation-delay: 0.4s; opacity: 0; }
+    
+    /* Geometric background patterns */
+    .hero-pattern {
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    
+    .feature-card {
+        transition: all 0.3s ease;
+    }
+    .feature-card:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Right panel background */
+    .right-bg {
+        background: 
+            radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 100% 100%, rgba(45, 62, 80, 0.04) 0%, transparent 50%),
+            linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    /* Premium card */
+    .premium-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 
+            0 0 0 1px rgba(0, 0, 0, 0.03),
+            0 2px 4px rgba(0, 0, 0, 0.02),
+            0 8px 16px rgba(0, 0, 0, 0.04),
+            0 24px 48px rgba(0, 0, 0, 0.06);
+        transition: all 0.3s ease;
+    }
+    .premium-card:hover {
+        box-shadow: 
+            0 0 0 1px rgba(0, 0, 0, 0.03),
+            0 2px 4px rgba(0, 0, 0, 0.02),
+            0 12px 24px rgba(0, 0, 0, 0.06),
+            0 32px 64px rgba(0, 0, 0, 0.08);
+    }
+    
+    /* Input styling */
+    .input-group {
+        position: relative;
+    }
+    .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        transition: color 0.2s ease;
+        pointer-events: none;
+        font-size: 14px;
+    }
+    .premium-input {
+        padding-left: 42px;
+        height: 52px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+    }
+    .premium-input:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
     }
     .premium-input:focus {
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+        border-color: #2d3e50;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
+        outline: none;
     }
-    .gradient-border {
-        background: linear-gradient(135deg, #f97316, #ea580c, #f59e0b);
-        padding: 2px;
-        border-radius: 1.25rem;
+    .premium-input:focus + .input-icon,
+    .input-group:focus-within .input-icon {
+        color: #2d3e50;
     }
-    .gradient-border-inner {
-        background: white;
-        border-radius: calc(1.25rem - 2px);
+    
+    /* Simple input (no icon) */
+    .simple-input {
+        height: 52px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+        padding: 0 16px;
     }
-    .shape-1 {
+    .simple-input:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
+    }
+    .simple-input:focus {
+        border-color: #2d3e50;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
+        outline: none;
+    }
+    
+    /* Premium button */
+    .premium-btn {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
+        transition: all 0.3s ease;
+    }
+    .premium-btn::before {
+        content: '';
         position: absolute;
-        width: 300px;
-        height: 300px;
-        background: linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(234, 88, 12, 0.05) 100%);
-        border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
-        top: -100px;
-        right: -100px;
-        animation: float 8s ease-in-out infinite;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.5s ease;
     }
-    .shape-2 {
+    .premium-btn:hover::before {
+        left: 100%;
+    }
+    .premium-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
+    }
+    
+    /* Accent line */
+    .accent-line {
+        height: 4px;
+        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
+        background-size: 200% 100%;
+        animation: shimmer 3s linear infinite;
+    }
+    
+    /* Floating orbs */
+    .orb {
         position: absolute;
+        border-radius: 50%;
+        filter: blur(40px);
+        animation: pulse-soft 4s ease-in-out infinite;
+    }
+    .orb-1 {
         width: 200px;
         height: 200px;
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%);
-        border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
-        bottom: -50px;
-        left: -50px;
-        animation: float 10s ease-in-out infinite reverse;
+        background: rgba(249, 115, 22, 0.15);
+        top: -50px;
+        right: -50px;
+    }
+    .orb-2 {
+        width: 150px;
+        height: 150px;
+        background: rgba(45, 62, 80, 0.1);
+        bottom: -30px;
+        left: -30px;
+        animation-delay: 2s;
+    }
+    
+    /* Benefits badges */
+    .benefit-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+        border: 1px solid #bbf7d0;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #166534;
+    }
+    
+    /* Divider with text */
+    .divider-text {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: #94a3b8;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+    }
+    .divider-text::before,
+    .divider-text::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
     }
 </style>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 flex items-center justify-center px-4 py-12 relative overflow-hidden">
-    <!-- Decorative shapes -->
-    <div class="shape-1 hidden md:block"></div>
-    <div class="shape-2 hidden md:block"></div>
-    
-    <div class="w-full max-w-md relative z-10">
+<div class="min-h-screen flex register-panel">
+    <!-- Left Panel - Hero/Benefits Section -->
+    <div class="hidden lg:flex lg:w-[45%] xl:w-1/2 bg-gradient-to-br from-[#2d3e50] via-[#1a2634] to-[#0f1419] relative overflow-hidden">
+        <!-- Background pattern -->
+        <div class="absolute inset-0 hero-pattern"></div>
+        
+        <!-- Gradient overlays -->
+        <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-500/20 to-transparent rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-full blur-3xl"></div>
+        
+        <!-- Content -->
+        <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
         <!-- Logo and Header -->
-        <div class="text-center mb-8 animate-fade-in-up">
-            <div class="flex justify-center mb-6">
-                <div class="w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-xl">
-                    <i class="fas fa-building text-white text-3xl"></i>
+            <div class="animate-fade-in-left">
+                <div class="flex items-center space-x-4 mb-16">
+                    <div class="w-14 h-14 bg-gradient-to-br from-[#3d4d63] to-[#2d3e50] rounded-xl flex items-center justify-center shadow-xl border border-white/10">
+                        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="TechnolOG" class="h-12 w-auto object-contain" />
+                    </div>
+                </div>
+                
+                <h1 class="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
+                    Grow Your Real Estate<br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">Business Today</span>
+                </h1>
+                
+                <p class="text-xl text-slate-300 leading-relaxed max-w-lg">
+                    Join hundreds of top-performing agents using TechnolOG to manage contacts, close more deals, and scale their business.
+                </p>
+            </div>
+            
+            <!-- Feature Cards -->
+            <div class="space-y-4 my-12 animate-fade-in-left delay-2">
+                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-address-book text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-semibold text-lg">Smart Contact Management</h3>
+                        <p class="text-slate-400 text-sm mt-1">Organize up to 200 contacts with groups, notes, and activity tracking</p>
+                    </div>
+                </div>
+                
+                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-tasks text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-semibold text-lg">Task & Follow-up System</h3>
+                        <p class="text-slate-400 text-sm mt-1">Never miss a follow-up with built-in task management and reminders</p>
+                    </div>
+                </div>
+                
+                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
+                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-chart-line text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-white font-semibold text-lg">Performance Dashboard</h3>
+                        <p class="text-slate-400 text-sm mt-1">Track your pipeline, activities, and growth with real-time analytics</p>
+                    </div>
                 </div>
             </div>
-            <h1 class="text-3xl font-bold text-slate-800 mb-2">Start Your Free Trial</h1>
-            <p class="text-slate-500">Create your organization and get started with the CRM</p>
+            
+            <!-- Trust indicators -->
+            <div class="animate-fade-in-left delay-4">
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="flex -space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-sm font-semibold border-2 border-[#2d3e50]">JD</div>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center text-white text-sm font-semibold border-2 border-[#2d3e50]">SM</div>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-500 flex items-center justify-center text-white text-sm font-semibold border-2 border-[#2d3e50]">TH</div>
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-500 flex items-center justify-center text-white text-sm font-semibold border-2 border-[#2d3e50]">+</div>
+                    </div>
+                    <div>
+                        <div class="text-white font-medium">Trusted by agents nationwide</div>
+                        <div class="text-slate-400 text-sm">Join our growing community</div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6 text-slate-400 text-sm">
+                    <span class="flex items-center"><i class="fas fa-shield-alt text-emerald-400 mr-2"></i> Secure & Private</span>
+                    <span class="flex items-center"><i class="fas fa-clock text-blue-400 mr-2"></i> Quick Setup</span>
+                    <span class="flex items-center"><i class="fas fa-headset text-purple-400 mr-2"></i> Support Included</span>
+                </div>
+            </div>
         </div>
+    </div>
+    
+    <!-- Right Panel - Registration Form -->
+    <div class="w-full lg:w-[55%] xl:w-1/2 right-bg flex items-center justify-center px-6 py-10 lg:px-10 xl:px-16 relative overflow-hidden">
+        <!-- Floating orbs -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
         
-        <!-- Register Card -->
-        <div class="animate-fade-in-up-delay-1">
-            <div class="gradient-border shadow-2xl shadow-orange-500/10">
-                <div class="gradient-border-inner p-8">
-                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-5">
+        <div class="w-full max-w-[420px] relative z-10 animate-fade-in-up">
+            <!-- Mobile logo -->
+            <div class="lg:hidden text-center mb-8">
+                <div class="flex justify-center mb-4">
+                    <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-lg">
+                        <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="TechnolOG" class="h-14 w-auto object-contain" />
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Form Card -->
+            <div class="premium-card rounded-2xl overflow-hidden">
+                <!-- Accent line at top -->
+                <div class="accent-line"></div>
+                
+                <div class="p-8 lg:p-10">
+                    <!-- Header -->
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Get Started Free</h2>
+                        <p class="text-slate-500">Create your account in 60 seconds</p>
+                    </div>
+                    
+                    <!-- Benefits badges -->
+                    <div class="flex flex-wrap justify-center gap-2 mb-8">
+                        <span class="benefit-badge"><i class="fas fa-check-circle mr-1.5"></i>200 Contacts</span>
+                        <span class="benefit-badge"><i class="fas fa-infinity mr-1.5"></i>Free Forever</span>
+                        <span class="benefit-badge"><i class="fas fa-bolt mr-1.5"></i>Instant Setup</span>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4">
                         {{ form.hidden_tag() }}
                         
-                        <!-- Organization Name - NEW FIELD -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">
-                                <i class="fas fa-building text-orange-500 mr-2"></i>Organization / Company Name
-                            </label>
+                        <!-- Organization Name -->
+                        <div class="input-group">
                             <input type="text" name="company_name" required
-                                class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200"
-                                placeholder="Acme Realty Group" />
-                            <p class="text-xs text-slate-400">This will be your organization's display name</p>
+                                class="premium-input block w-full text-slate-900 placeholder-slate-400"
+                                placeholder="Your brokerage or team name" />
+                            <i class="input-icon fas fa-building"></i>
                         </div>
                         
-                        <hr class="border-slate-200">
-                        
-                        <p class="text-sm text-slate-500 font-medium">Your account details</p>
+                        <div class="divider-text my-6">
+                            <span>Your Details</span>
+                        </div>
                         
                         <!-- Name Fields -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    First Name
-                                </label>
-                                {{ form.first_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="John") }}
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                {{ form.first_name(class="simple-input block w-full text-slate-900 placeholder-slate-400", placeholder="First name") }}
                                 {% if form.first_name.errors %}
                                     {% for error in form.first_name.errors %}
-                                        <p class="text-red-500 text-xs">{{ error }}</p>
+                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
-
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    Last Name
-                                </label>
-                                {{ form.last_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Doe") }}
+                            <div>
+                                {{ form.last_name(class="simple-input block w-full text-slate-900 placeholder-slate-400", placeholder="Last name") }}
                                 {% if form.last_name.errors %}
                                     {% for error in form.last_name.errors %}
-                                        <p class="text-red-500 text-xs">{{ error }}</p>
+                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
                         </div>
 
                         <!-- Email -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">
-                                <i class="fas fa-envelope text-slate-400 mr-2"></i>Email Address
-                            </label>
-                            {{ form.email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="you@yourcompany.com") }}
+                        <div class="input-group">
+                            {{ form.email(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Work email") }}
+                            <i class="input-icon fas fa-envelope"></i>
                             {% if form.email.errors %}
                                 {% for error in form.email.errors %}
-                                    <p class="text-red-500 text-xs">{{ error }}</p>
+                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                 {% endfor %}
                             {% endif %}
                         </div>
 
                         <!-- Phone -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">
-                                <i class="fas fa-phone text-slate-400 mr-2"></i>Phone Number
-                            </label>
-                            {{ form.phone(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="(555) 123-4567") }}
+                        <div class="input-group">
+                            {{ form.phone(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Phone number") }}
+                            <i class="input-icon fas fa-phone"></i>
                             {% if form.phone.errors %}
                                 {% for error in form.phone.errors %}
-                                    <p class="text-red-500 text-xs">{{ error }}</p>
+                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                 {% endfor %}
                             {% endif %}
                         </div>
 
                         <!-- Password Fields -->
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-lock text-slate-400 mr-2"></i>Password
-                                </label>
-                                {{ form.password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="input-group">
+                                {{ form.password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Password") }}
+                                <i class="input-icon fas fa-lock"></i>
                                 {% if form.password.errors %}
                                     {% for error in form.password.errors %}
-                                        <p class="text-red-500 text-xs">{{ error }}</p>
+                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
-
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    Confirm
-                                </label>
-                                {{ form.confirm_password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
+                            <div class="input-group">
+                                {{ form.confirm_password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Confirm") }}
+                                <i class="input-icon fas fa-lock"></i>
                                 {% if form.confirm_password.errors %}
                                     {% for error in form.confirm_password.errors %}
-                                        <p class="text-red-500 text-xs">{{ error }}</p>
+                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <!-- What You Get -->
-                        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
-                            <p class="text-sm font-semibold text-emerald-800 mb-2">
-                                <i class="fas fa-gift mr-2"></i>Free tier includes:
-                            </p>
-                            <ul class="text-xs text-emerald-700 space-y-1">
-                                <li><i class="fas fa-check mr-2"></i>Up to 200 contacts</li>
-                                <li><i class="fas fa-check mr-2"></i>Task management</li>
-                                <li><i class="fas fa-check mr-2"></i>Contact groups & notes</li>
-                                <li><i class="fas fa-check mr-2"></i>Dashboard & reporting</li>
-                            </ul>
                         </div>
 
                         <!-- Submit Button -->
-                        <div class="pt-2">
-                            <button type="submit" 
-                                class="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-base font-semibold text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5">
-                                <i class="fas fa-rocket mr-2"></i>Create My Organization
+                        <div class="pt-4">
+                            <button type="submit" class="premium-btn w-full h-14 rounded-xl text-base font-semibold text-white">
+                                <span class="relative z-10 flex items-center justify-center">
+                                    Create My Account
+                                    <i class="fas fa-arrow-right ml-2"></i>
+                                </span>
                             </button>
                         </div>
-                        
-                        <p class="text-xs text-center text-slate-400">
-                            By signing up, you agree to our Terms of Service
-                        </p>
                     </form>
-                </div>
+                    
+                    <!-- Footer text -->
+                    <p class="text-center text-xs text-slate-400 mt-6">
+                        By creating an account, you agree to our 
+                        <a href="#" class="text-slate-600 hover:text-slate-900 font-medium">Terms</a> 
+                        & <a href="#" class="text-slate-600 hover:text-slate-900 font-medium">Privacy Policy</a>
+                    </p>
             </div>
         </div>
 
-        <!-- Login Link -->
-        <div class="text-center mt-8 animate-fade-in-up-delay-2">
+            <!-- Sign in link -->
+            <div class="text-center mt-8">
             <p class="text-slate-600">
                 Already have an account?
-                <a href="{{ url_for('auth.login') }}" class="font-semibold text-orange-600 hover:text-orange-700 transition-colors ml-1">
-                    Sign in <i class="fas fa-arrow-right ml-1"></i>
+                    <a href="{{ url_for('auth.login') }}" class="font-semibold text-[#2d3e50] hover:text-orange-600 transition-colors ml-1">
+                        Sign in <i class="fas fa-arrow-right text-xs ml-1"></i>
                 </a>
             </p>
-            <p class="text-slate-500 text-sm mt-2">
-                <i class="fas fa-envelope mr-1"></i>
-                Have an invite link? <a href="#" class="text-orange-600 hover:text-orange-700">Use it here</a>
-            </p>
+            </div>
+            
+            <!-- Trust badge -->
+            <div class="text-center mt-6">
+                <div class="inline-flex items-center text-xs text-slate-400">
+                    <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>
+                    256-bit SSL encryption · Your data stays private
+                </div>
+            </div>
         </div>
     </div>
 </div>

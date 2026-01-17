@@ -29,13 +29,15 @@
     return LINKS;
   }
 
-  function renderLinks(listElement) {
+  function renderLinks(listElement, isMobile = false) {
     if (!listElement) return;
     listElement.innerHTML = '';
     
     if (LINKS.length === 0) {
       const li = document.createElement('li');
-      li.className = 'text-white/60 text-sm px-1.5 py-1 italic';
+      li.className = isMobile 
+        ? 'text-white/60 text-sm py-1 italic'
+        : 'text-white/60 text-sm px-1.5 py-1 italic';
       li.textContent = 'No resources configured';
       listElement.appendChild(li);
       return;
@@ -49,7 +51,9 @@
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.textContent = label;
-      a.className = 'block text-white/90 hover:text-orange-500 text-sm px-1.5 py-1 rounded focus:outline-none focus:ring-2 focus:ring-orange-500';
+      a.className = isMobile
+        ? 'block text-white/90 hover:text-orange-500 text-sm py-2 rounded focus:outline-none'
+        : 'block text-white/90 hover:text-orange-500 text-sm px-1.5 py-1 rounded focus:outline-none focus:ring-2 focus:ring-orange-500';
       li.appendChild(a);
       listElement.appendChild(li);
     });
@@ -63,12 +67,20 @@
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    // Mobile elements
+    const mobileList = $('mobileResourcesList');
 
     if (!button || !panel || !list || !chevron) return;
 
     // Fetch resources from API first
     await fetchResources();
     renderLinks(list);
+    
+    // Also render to mobile list if it exists
+    if (mobileList) {
+      renderLinks(mobileList, true);
+    }
 
     function setExpanded(expanded) {
       button.setAttribute('aria-expanded', String(expanded));
