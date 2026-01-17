@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, flash, redirect,
 from flask_login import login_required, current_user
 from models import db, ContactGroup
 from functools import wraps
+from services.tenant_service import org_query
 from services.docuseal_service import (
     DOCUMENT_FORMS, 
     MAPPINGS_DIR,
@@ -31,7 +32,8 @@ def admin_required(f):
 @login_required
 @admin_required
 def manage_groups():
-    groups = ContactGroup.query.order_by(ContactGroup.category, ContactGroup.sort_order).all()
+    # Multi-tenant: filter groups by organization
+    groups = org_query(ContactGroup).order_by(ContactGroup.category, ContactGroup.sort_order).all()
     categories = sorted(set(group.category for group in groups))
     return render_template('admin/groups.html', groups=groups, categories=categories)
 
