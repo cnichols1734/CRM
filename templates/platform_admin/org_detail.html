@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8 flex items-center justify-between">
+        <div>
+            <a href="{{ url_for('platform.dashboard') }}" class="text-blue-600 hover:underline text-sm">
+                ← Back to Dashboard
+            </a>
+            <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ org.name }}</h1>
+            <p class="text-gray-600">{{ org.slug }}</p>
+        </div>
+        <div>
+            <span class="px-3 py-1 inline-flex text-sm font-semibold rounded-full
+                {% if org.status == 'active' %}bg-green-100 text-green-800
+                {% elif org.status == 'pending_approval' %}bg-amber-100 text-amber-800
+                {% elif org.status == 'suspended' %}bg-red-100 text-red-800
+                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {{ org.status|replace('_', ' ')|title }}
+            </span>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Main Info -->
+        <div class="lg:col-span-2 space-y-6">
+            <!-- Metrics (from organization_metrics table only) -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Usage Metrics</h3>
+                {% if metrics %}
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded p-4">
+                        <p class="text-sm text-gray-500">Users</p>
+                        <p class="text-2xl font-semibold">{{ metrics.user_count }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4">
+                        <p class="text-sm text-gray-500">Contacts</p>
+                        <p class="text-2xl font-semibold">{{ metrics.contact_count }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4">
+                        <p class="text-sm text-gray-500">Tasks</p>
+                        <p class="text-2xl font-semibold">{{ metrics.task_count }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded p-4">
+                        <p class="text-sm text-gray-500">Transactions</p>
+                        <p class="text-2xl font-semibold">{{ metrics.transaction_count }}</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-4">Last updated: {{ metrics.updated_at.strftime('%b %d, %Y %I:%M %p') if metrics.updated_at else 'Never' }}</p>
+                {% else %}
+                <p class="text-gray-500">No metrics available yet.</p>
+                {% endif %}
+            </div>
+            
+            <!-- Audit Log -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Recent Admin Actions</h3>
+                {% if audit_logs %}
+                <div class="space-y-3">
+                    {% for log in audit_logs %}
+                    <div class="border-b border-gray-100 pb-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-gray-900">{{ log.action|replace('_', ' ')|title }}</span>
+                            <span class="text-xs text-gray-500">{{ log.created_at.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        {% if log.details %}
+                        <p class="text-xs text-gray-500">{{ log.details }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-500">No admin actions yet.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Actions Sidebar -->
+        <div class="space-y-6">
+            <!-- Subscription -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Subscription</h3>
+                <p class="text-sm text-gray-600 mb-2">
+                    Current Tier: <span class="font-semibold capitalize">{{ org.subscription_tier }}</span>
+                </p>
+                <p class="text-sm text-gray-600 mb-4">
+                    Max Users: {{ org.max_users or 'Unlimited' }}<br>
+                    Max Contacts: {{ org.max_contacts or 'Unlimited' }}<br>
+                    Can Invite: {{ 'Yes' if org.can_invite_users else 'No' }}
+                </p>
+                <form action="{{ url_for('platform.update_org_tier', org_id=org.id) }}" method="POST">
+                    <select name="tier" class="w-full rounded-md border-gray-300 mb-3">
+                        {% for tier_name in tier_defaults.keys() %}
+                        <option value="{{ tier_name }}" {% if tier_name == org.subscription_tier %}selected{% endif %}>
+                            {{ tier_name|capitalize }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                        Update Tier
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Status Actions -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">Status Actions</h3>
+                {% if org.status == 'pending_approval' %}
+                <form action="{{ url_for('platform.approve_org', org_id=org.id) }}" method="POST" class="mb-2">
+                    <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Approve Organization
+                    </button>
+                </form>
+                {% elif org.status == 'active' %}
+                <form action="{{ url_for('platform.suspend_org', org_id=org.id) }}" method="POST" class="mb-2">
+                    <input type="hidden" name="reason" value="Admin action">
+                    <button type="submit" class="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                        Suspend Organization
+                    </button>
+                </form>
+                {% elif org.status in ['suspended', 'pending_deletion'] %}
+                <form action="{{ url_for('platform.reactivate_org', org_id=org.id) }}" method="POST" class="mb-2">
+                    <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        Reactivate Organization
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            
+            <!-- Org Info -->
+            <div class="bg-gray-50 rounded-lg p-6 text-sm">
+                <p class="text-gray-600"><strong>Created:</strong> {{ org.created_at.strftime('%B %d, %Y') }}</p>
+                {% if org.approved_at %}
+                <p class="text-gray-600 mt-1"><strong>Approved:</strong> {{ org.approved_at.strftime('%B %d, %Y') }}</p>
+                {% endif %}
+                {% if org.deletion_scheduled_at %}
+                <p class="text-red-600 mt-1"><strong>Deletion Date:</strong> {{ org.deletion_scheduled_at.strftime('%B %d, %Y') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

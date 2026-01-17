@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import User, db, Contact, ActionPlan
+from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 from flask_mail import Message
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
+from utils import generate_unique_slug
 import pytz
 
 auth_bp = Blueprint('auth', __name__)
@@ -238,28 +239,77 @@ def admin_required(f):
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    """
+    Multi-tenant registration.
+    Creates a new organization in pending_approval status and the owner user.
+    """
     if current_user.is_authenticated:
         return redirect(url_for('main.index'))
 
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Get or use company name (add to form if not present)
+        company_name = request.form.get('company_name', '').strip()
+        if not company_name:
+            # Use user's name as company name if not provided
+            company_name = f"{form.first_name.data} {form.last_name.data} Realty"
+        
+        # Generate unique slug with collision handling
+        slug = generate_unique_slug(company_name)
+        
+        # Create org in pending_approval status (free tier)
+        org = Organization(
+            name=company_name,
+            slug=slug,
+            subscription_tier='free',
+            status='pending_approval',
+            max_users=1,
+            max_contacts=200,
+            can_invite_users=False
+        )
+        db.session.add(org)
+        db.session.flush()  # Get org.id
+        
+        # Auto-generate username from email if not provided
+        username = form.username.data
+        if not username:
+            # Use email prefix as username, ensure uniqueness
+            base_username = form.email.data.split('@')[0]
+            username = base_username
+            counter = 1
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}{counter}"
+                counter += 1
+        
+        # Create user as owner of the new org
         user = User(
-            username=form.username.data,
+            organization_id=org.id,
+            org_role='owner',
+            username=username,
             email=form.email.data,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
-            phone=form.phone.data,
-            license_number=form.license_number.data,
-            licensed_supervisor=form.licensed_supervisor.data,
-            licensed_supervisor_license=form.licensed_supervisor_license.data,
-            licensed_supervisor_email=form.licensed_supervisor_email.data,
-            licensed_supervisor_phone=form.licensed_supervisor_phone.data,
-            role='agent'
+            phone=form.phone.data if form.phone.data else None,
+            license_number=form.license_number.data if form.license_number.data else None,
+            licensed_supervisor=form.licensed_supervisor.data if form.licensed_supervisor.data else None,
+            licensed_supervisor_license=form.licensed_supervisor_license.data if form.licensed_supervisor_license.data else None,
+            licensed_supervisor_email=form.licensed_supervisor_email.data if form.licensed_supervisor_email.data else None,
+            licensed_supervisor_phone=form.licensed_supervisor_phone.data if form.licensed_supervisor_phone.data else None,
+            role='admin',  # Org owners get admin role for legacy compatibility
+            is_super_admin=False
         )
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('Registration successful!', 'success')
+        
+        # TODO: Notify platform admins for approval
+        # notify_platform_admins_new_org_registration(org, user)
+        
+        flash(
+            'Registration submitted! You will receive an email once approved '
+            '(typically within 24 hours).', 
+            'success'
+        )
         return redirect(url_for('auth.login'))
 
     return render_template('auth/register.html', form=form)
@@ -277,6 +327,22 @@ def login():
         ).first()
 
         if user and user.check_password(form.password.data):
+            # Multi-tenant: Check organization status before login
+            if user.organization:
+                org = user.organization
+                if org.status == 'pending_approval':
+                    flash('Your organization is pending approval. Please wait for confirmation.', 'warning')
+                    return render_template('auth/login.html', form=form)
+                elif org.status == 'suspended':
+                    flash('Your organization has been suspended. Please contact support.', 'error')
+                    return render_template('auth/login.html', form=form)
+                elif org.status == 'pending_deletion':
+                    flash('Your organization is scheduled for deletion.', 'error')
+                    return render_template('auth/login.html', form=form)
+                elif org.status != 'active':
+                    flash('Your organization is not active. Please contact support.', 'error')
+                    return render_template('auth/login.html', form=form)
+            
             login_user(user)
             # Update last_login timestamp at the moment of login
             user.last_login = datetime.utcnow()
@@ -297,6 +363,118 @@ def login():
 def logout():
     logout_user()
     flash('You have been logged out successfully.', 'success')
+    return redirect(url_for('auth.login'))
+
+
+# =============================================================================
+# MULTI-TENANT: Registration Status & Invite Acceptance
+# =============================================================================
+
+@auth_bp.route('/registration-status')
+def registration_status():
+    """Check registration status without logging in."""
+    email = request.args.get('email', '').strip()
+    
+    if not email:
+        return render_template('auth/registration_status.html', org=None, message=None)
+    
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return render_template('auth/registration_status.html', 
+                             org=None, 
+                             message="No registration found for this email.")
+    
+    org = user.organization
+    status_messages = {
+        'pending_approval': 'Your registration is pending approval. We typically review within 24 hours.',
+        'active': 'Your organization is approved! You can log in now.',
+        'suspended': 'Your organization has been suspended. Please contact support.',
+        'pending_deletion': 'Your organization is scheduled for deletion.',
+        'rejected': 'Your registration was not approved. Please contact support for details.'
+    }
+    
+    return render_template('auth/registration_status.html',
+                         org=org,
+                         message=status_messages.get(org.status, 'Unknown status') if org else 'No organization found')
+
+
+@auth_bp.route('/invite/<token>')
+def accept_invite(token):
+    """Accept an organization invite."""
+    if current_user.is_authenticated:
+        logout_user()
+    
+    invite = OrganizationInvite.query.filter_by(token=token).first()
+    
+    if not invite:
+        flash('Invalid invitation link.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    if not invite.is_valid:
+        if invite.used_at:
+            flash('This invitation has already been used.', 'error')
+        else:
+            flash('This invitation has expired.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Store invite token in session for the registration form
+    from flask import session
+    session['invite_token'] = token
+    
+    return render_template('auth/accept_invite.html', invite=invite)
+
+
+@auth_bp.route('/invite/<token>/complete', methods=['POST'])
+def complete_invite(token):
+    """Complete registration via invite."""
+    invite = OrganizationInvite.query.filter_by(token=token).first()
+    
+    if not invite or not invite.is_valid:
+        flash('Invalid or expired invitation.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Validate form data
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+    first_name = request.form.get('first_name', '').strip()
+    last_name = request.form.get('last_name', '').strip()
+    
+    if not all([username, password, first_name, last_name]):
+        flash('All fields are required.', 'error')
+        return render_template('auth/accept_invite.html', invite=invite)
+    
+    # Check username not taken
+    if User.query.filter_by(username=username).first():
+        flash('Username already taken.', 'error')
+        return render_template('auth/accept_invite.html', invite=invite)
+    
+    # Check email not already registered
+    if User.query.filter_by(email=invite.email).first():
+        flash('An account with this email already exists.', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Create user
+    user = User(
+        organization_id=invite.organization_id,
+        org_role=invite.role,
+        username=username,
+        email=invite.email,
+        first_name=first_name,
+        last_name=last_name,
+        phone=request.form.get('phone', ''),
+        license_number=request.form.get('license_number', ''),
+        role='agent',  # Legacy field
+        is_super_admin=False
+    )
+    user.set_password(password)
+    
+    # Mark invite as used
+    invite.used_at = datetime.utcnow()
+    
+    db.session.add(user)
+    db.session.commit()
+    
+    flash('Account created! You can now log in.', 'success')
     return redirect(url_for('auth.login'))
 
 @auth_bp.route('/profile')
@@ -344,14 +522,7 @@ def update_profile():
 
     return redirect(url_for('auth.view_user_profile'))
 
-# Debug routes - should be removed in production
-@auth_bp.route('/debug_users')
-def debug_users():
-    users = User.query.all()
-    output = []
-    for user in users:
-        output.append(f"Username: {user.username}, Email: {user.email}")
-    return "<br>".join(output)
+# Debug route removed for multi-tenant security
 
 @auth_bp.route('/test_password/<username>/<password>')
 def test_password(username, password):
@@ -395,7 +566,11 @@ def reset_password(token):
 @login_required
 @admin_required
 def manage_users():
-    users = User.query.order_by(User.created_at.desc()).all()
+    # CRITICAL: Filter users by current user's organization only!
+    users = User.query.filter_by(
+        organization_id=current_user.organization_id
+    ).order_by(User.created_at.desc()).all()
+    
     # Get action plan status for each user
     action_plan_status = {}
     for user in users:
@@ -408,7 +583,8 @@ def manage_users():
 @admin_required
 def view_user_action_plan(user_id):
     """Admin-only route to view a specific user's action plan."""
-    user = User.query.get_or_404(user_id)
+    # CRITICAL: Only allow viewing users from same organization
+    user = User.query.filter_by(id=user_id, organization_id=current_user.organization_id).first_or_404()
     plan = ActionPlan.get_for_user(user_id)
     
     if not plan or not plan.ai_generated_plan:
@@ -422,7 +598,8 @@ def view_user_action_plan(user_id):
 @login_required
 @admin_required
 def update_user_role(user_id):
-    user = User.query.get_or_404(user_id)
+    # CRITICAL: Only allow modifying users from same organization
+    user = User.query.filter_by(id=user_id, organization_id=current_user.organization_id).first_or_404()
     new_role = request.form.get('role')
     
     if new_role not in ['admin', 'agent']:
@@ -442,7 +619,8 @@ def update_user_role(user_id):
 @login_required
 @admin_required
 def edit_user(user_id):
-    user = User.query.get_or_404(user_id)
+    # CRITICAL: Only allow editing users from same organization
+    user = User.query.filter_by(id=user_id, organization_id=current_user.organization_id).first_or_404()
     if request.method == 'POST':
         try:
             user.first_name = request.form.get('first_name')
@@ -477,7 +655,8 @@ def delete_user(user_id):
         flash('You cannot delete your own account.', 'error')
         return redirect(url_for('auth.manage_users'))
     
-    user = User.query.get_or_404(user_id)
+    # CRITICAL: Only allow deleting users from same organization
+    user = User.query.filter_by(id=user_id, organization_id=current_user.organization_id).first_or_404()
     try:
         # Delete all contacts associated with the user
         Contact.query.filter_by(user_id=user.id).delete()

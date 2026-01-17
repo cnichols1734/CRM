@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h1 class="text-2xl font-semibold text-gray-800">Usage & Limits</h1>
+        </div>
+        
+        <div class="p-6 space-y-6">
+            <!-- Users -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Users</h3>
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-600">{{ org.user_limit_display }}</span>
+                    </div>
+                    {% if org.max_users %}
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        {% set user_pct = (org.users.count() / org.max_users * 100)|int %}
+                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ user_pct }}%"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Contacts -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Contacts</h3>
+                <div class="bg-gray-100 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-600">{{ org.contact_limit_display }}</span>
+                    </div>
+                    {% if org.max_contacts %}
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        {% set contact_pct = min(100, (org.is_at_contact_limit and 100 or 50)) %}
+                        <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ contact_pct }}%"></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Features -->
+            <div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">Features</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <span class="text-sm font-medium">AI Features</span>
+                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
+                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
+                        </span>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <span class="text-sm font-medium">Transactions</span>
+                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
+                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
+                        </span>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <span class="text-sm font-medium">Document Generation</span>
+                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
+                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
+                        </span>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <span class="text-sm font-medium">Team Invites</span>
+                        <span class="float-right {% if org.can_invite_users %}text-green-600{% else %}text-gray-400{% endif %}">
+                            {% if org.can_invite_users %}✓ Enabled{% else %}✗ Pro only{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            
+            {% if org.subscription_tier == 'free' %}
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
+                <p class="text-sm text-blue-700">
+                    <strong>Upgrade to Pro</strong> for unlimited contacts, AI features, transaction management, and more.
+                    <a href="{{ url_for('org.upgrade') }}" class="underline">Learn more →</a>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

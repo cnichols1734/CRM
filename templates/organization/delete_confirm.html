@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+    <div class="bg-white rounded-lg shadow-lg p-8">
+        <div class="text-center mb-6">
+            <div class="mx-auto h-16 w-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-red-600">Delete Organization</h2>
+        </div>
+        
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p class="text-sm text-red-700 mb-2">
+                <strong>Warning:</strong> This action will:
+            </p>
+            <ul class="text-sm text-red-700 list-disc list-inside space-y-1">
+                <li>Schedule your organization for deletion in 30 days</li>
+                <li>Immediately log out all users</li>
+                <li>Prevent any new logins during the grace period</li>
+                <li>Permanently delete all data after 30 days</li>
+            </ul>
+        </div>
+        
+        <form action="{{ url_for('org.request_deletion') }}" method="POST">
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">
+                    Type <strong>{{ org.name }}</strong> to confirm:
+                </label>
+                <input type="text" name="confirm" required
+                       class="w-full rounded-md border-gray-300 shadow-sm focus:border-red-500 focus:ring-red-500"
+                       placeholder="Type organization name">
+            </div>
+            
+            <div class="flex space-x-4">
+                <a href="{{ url_for('org.settings') }}" 
+                   class="flex-1 py-2 border border-gray-300 text-gray-700 text-center rounded-md hover:bg-gray-50">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="flex-1 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">
+                    Delete Organization
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

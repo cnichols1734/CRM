@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from config import Config
 from models import db, Contact, Task, DailyTodoList, User
+from feature_flags import feature_required
 from sqlalchemy import desc
 from datetime import datetime, timedelta
 from services.ai_service import generate_ai_response
@@ -226,6 +227,7 @@ def get_todo_data(user_id):
 
 @daily_todo.route('/api/daily-todo/generate', methods=['POST'])
 @login_required
+@feature_required('AI_DAILY_TODO')
 def generate_todo():
     """Generate a new daily todo list using GPT"""
     try:
@@ -262,6 +264,7 @@ def generate_todo():
         try:
             new_todo = DailyTodoList(
                 user_id=current_user.id,
+                organization_id=current_user.organization_id,
                 todo_content=todo_content
             )
             db.session.add(new_todo)
@@ -281,6 +284,7 @@ def generate_todo():
 
 @daily_todo.route('/api/daily-todo/latest', methods=['GET'])
 @login_required
+@feature_required('AI_DAILY_TODO')
 def get_latest_todo():
     """Get the most recent todo list for the current user"""
     latest = DailyTodoList.get_latest_for_user(current_user.id)

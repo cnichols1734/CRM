@@ -101,6 +101,7 @@ def create_task():
             utc_due_date = convert_to_utc(due_date, user_tz)
 
             task = Task(
+                organization_id=current_user.organization_id,
                 contact_id=contact_id,
                 assigned_to_id=request.form.get('assigned_to_id', current_user.id),
                 created_by_id=current_user.id,
@@ -131,9 +132,14 @@ def create_task():
             flash(f'Error creating task: {str(e)}', 'error')
             return redirect(url_for('tasks.tasks'))
 
-    contacts = Contact.query.filter_by(user_id=current_user.id).all()
-    task_types = TaskType.query.all()
-    users = User.query.all() if current_user.role == 'admin' else [current_user]
+    # Filter by organization for multi-tenancy
+    contacts = Contact.query.filter_by(
+        user_id=current_user.id,
+        organization_id=current_user.organization_id
+    ).all()
+    task_types = TaskType.query.filter_by(organization_id=current_user.organization_id).all()
+    # Only show users from the same organization
+    users = User.query.filter_by(organization_id=current_user.organization_id).all() if current_user.role == 'admin' else [current_user]
 
     return render_template('tasks/create.html',
                          contacts=contacts,
@@ -224,12 +230,13 @@ def get_task_subtypes(type_id):
 @tasks_bp.route('/tasks/<int:task_id>')
 @login_required
 def view_task(task_id):
+    # CRITICAL: Filter by organization for multi-tenancy
     task = Task.query.options(
         joinedload(Task.contact),
         joinedload(Task.task_type),
         joinedload(Task.task_subtype),
         joinedload(Task.assigned_to)
-    ).get_or_404(task_id)
+    ).filter_by(id=task_id, organization_id=current_user.organization_id).first_or_404()
 
     user_tz = get_user_timezone()
 
@@ -239,8 +246,9 @@ def view_task(task_id):
     if task.scheduled_time:
         task.scheduled_time = convert_to_local(task.scheduled_time, user_tz)
 
-    contacts = Contact.query.all()
-    task_types = TaskType.query.all()
+    # Filter by organization for multi-tenancy
+    contacts = Contact.query.filter_by(organization_id=current_user.organization_id).all()
+    task_types = TaskType.query.filter_by(organization_id=current_user.organization_id).all()
     task_subtypes = TaskSubtype.query.filter_by(task_type_id=task.task_type.id).all()
 
     # Check if it's an AJAX request

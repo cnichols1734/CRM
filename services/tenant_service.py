@@ -1,0 +1,331 @@
+# services/tenant_service.py
+"""
+Tenant isolation helpers for multi-tenant SaaS.
+ALWAYS use org_query() for tenant-scoped models.
+RLS is the safety net, but application code should be correct too.
+"""
+
+from flask_login import current_user
+from functools import wraps
+from flask import abort, flash, redirect, url_for
+
+
+# Models that require org scoping
+TENANT_MODELS = [
+    'Contact', 'ContactGroup', 'Task', 'Transaction', 'TransactionDocument',
+    'TransactionParticipant', 'DocumentSignature', 'ActionPlan',
+    'DailyTodoList', 'UserTodo', 'CompanyUpdate', 'ContactFile', 'SendGridTemplate'
+]
+
+
+# =============================================================================
+# QUERY HELPERS
+# =============================================================================
+
+def org_query(model):
+    """
+    Return query filtered to current user's organization.
+    ALWAYS use this for tenant-scoped models instead of Model.query.
+    
+    Example:
+        contacts = org_query(Contact).filter_by(user_id=current_user.id).all()
+    
+    Args:
+        model: SQLAlchemy model class with organization_id column
+        
+    Returns:
+        Query object filtered to current user's organization
+        
+    Raises:
+        RuntimeError: If called without authenticated user
+    """
+    if not current_user.is_authenticated:
+        raise RuntimeError("org_query() requires authenticated user")
+    
+    return model.query.filter_by(organization_id=current_user.organization_id)
+
+
+def org_query_for_id(model, org_id: int):
+    """
+    Return query filtered to a specific organization.
+    Use in background jobs where current_user is not available.
+    
+    Args:
+        model: SQLAlchemy model class with organization_id column
+        org_id: Organization ID to filter by
+        
+    Returns:
+        Query object filtered to the specified organization
+    """
+    return model.query.filter_by(organization_id=org_id)
+
+
+# =============================================================================
+# PERMISSION CHECKS
+# =============================================================================
+
+def can_view_all_org_data():
+    """Check if user can see all data in their org (owner/admin)."""
+    if not current_user.is_authenticated:
+        return False
+    return current_user.org_role in ('owner', 'admin')
+
+
+def is_platform_admin():
+    """Check if user is Origen super admin."""
+    if not current_user.is_authenticated:
+        return False
+    if not current_user.is_super_admin:
+        return False
+    org = current_user.organization
+    return org and org.is_platform_admin
+
+
+def is_org_owner():
+    """Check if user is owner of their organization."""
+    if not current_user.is_authenticated:
+        return False
+    return current_user.org_role == 'owner'
+
+
+def is_org_admin():
+    """Check if user is admin or owner of their organization."""
+    if not current_user.is_authenticated:
+        return False
+    return current_user.org_role in ('owner', 'admin')
+
+
+# =============================================================================
+# LIMIT CHECKS
+# =============================================================================
+
+def org_can_add_user() -> tuple[bool, str]:
+    """
+    Check if org can add another user.
+    
+    Returns:
+        Tuple of (allowed: bool, message: str)
+    """
+    org = current_user.organization
+    
+    if not org.can_invite_users:
+        return False, "Your plan does not allow inviting users. Upgrade to Pro."
+    
+    current_count = org.users.count()
+    if org.max_users and current_count >= org.max_users:
+        return False, f"User limit reached ({org.max_users}). Contact support to increase."
+    
+    return True, ""
+
+
+def org_can_add_contact() -> tuple[bool, str]:
+    """
+    Check if org can add another contact.
+    
+    Returns:
+        Tuple of (allowed: bool, message: str)
+    """
+    from models import Contact
+    
+    org = current_user.organization
+    
+    if org.max_contacts is None:
+        return True, ""  # Unlimited
+    
+    current_count = org_query(Contact).count()
+    if current_count >= org.max_contacts:
+        return False, f"Contact limit reached ({org.max_contacts}). Upgrade to Pro for unlimited."
+    
+    return True, ""
+
+
+def get_contacts_remaining() -> int | None:
+    """
+    Get number of contacts remaining before limit.
+    
+    Returns:
+        Number of contacts remaining, or None if unlimited
+    """
+    from models import Contact
+    
+    org = current_user.organization
+    
+    if org.max_contacts is None:
+        return None  # Unlimited
+    
+    current_count = org_query(Contact).count()
+    return max(0, org.max_contacts - current_count)
+
+
+# =============================================================================
+# ROLE MANAGEMENT
+# =============================================================================
+
+ROLE_HIERARCHY = {'owner': 3, 'admin': 2, 'agent': 1}
+
+
+def get_role_level(role: str) -> int:
+    """Get numeric level for a role."""
+    return ROLE_HIERARCHY.get(role, 0)
+
+
+def can_assign_role(assigner_role: str, target_role: str) -> bool:
+    """
+    Check if assigner can assign target_role.
+    Can only assign roles BELOW your level.
+    
+    Args:
+        assigner_role: Role of the user assigning the role
+        target_role: Role being assigned
+        
+    Returns:
+        True if assignment is allowed
+    """
+    return ROLE_HIERARCHY.get(assigner_role, 0) > ROLE_HIERARCHY.get(target_role, 0)
+
+
+def can_modify_user(modifier, target_user) -> bool:
+    """
+    Check if modifier can change target_user's role or remove them.
+    
+    Args:
+        modifier: User attempting the modification
+        target_user: User being modified
+        
+    Returns:
+        True if modification is allowed
+    """
+    if modifier.id == target_user.id:
+        return False  # Cannot modify self
+    if modifier.organization_id != target_user.organization_id:
+        return False  # Must be same org
+    return ROLE_HIERARCHY.get(modifier.org_role, 0) > ROLE_HIERARCHY.get(target_user.org_role, 0)
+
+
+def validate_last_owner(org, user_being_modified, new_role=None, removing=False):
+    """
+    Prevent removing or demoting the last owner.
+    
+    Args:
+        org: Organization model instance
+        user_being_modified: User being changed
+        new_role: New role being assigned (if demoting)
+        removing: True if user is being removed from org
+        
+    Raises:
+        ValueError: If modification would leave org without an owner
+    """
+    if user_being_modified.org_role != 'owner':
+        return  # Not an owner, no restriction
+    
+    owner_count = org.users.filter_by(org_role='owner').count()
+    
+    if owner_count <= 1:
+        if removing:
+            raise ValueError("Cannot remove the last owner of the organization.")
+        if new_role and new_role != 'owner':
+            raise ValueError("Cannot demote the last owner. Promote someone else to owner first.")
+
+
+# =============================================================================
+# DECORATORS
+# =============================================================================
+
+def org_owner_required(f):
+    """Decorator to require org owner role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if not is_org_owner():
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def org_admin_required(f):
+    """Decorator to require org admin or owner role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if not is_org_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def platform_admin_required(f):
+    """Decorator to require Origen platform super admin."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if not is_platform_admin():
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# =============================================================================
+# VALIDATION HELPERS
+# =============================================================================
+
+def validate_org_member(user_id: int) -> bool:
+    """
+    Validate that a user belongs to the current user's organization.
+    
+    Args:
+        user_id: User ID to check
+        
+    Returns:
+        True if user is in the same organization
+    """
+    from models import User
+    
+    user = User.query.get(user_id)
+    if not user:
+        return False
+    return user.organization_id == current_user.organization_id
+
+
+def validate_org_resource(model, resource_id: int) -> bool:
+    """
+    Validate that a resource belongs to the current user's organization.
+    
+    Args:
+        model: SQLAlchemy model class
+        resource_id: ID of the resource to check
+        
+    Returns:
+        True if resource belongs to user's organization
+    """
+    resource = model.query.get(resource_id)
+    if not resource:
+        return False
+    if hasattr(resource, 'organization_id'):
+        return resource.organization_id == current_user.organization_id
+    return False
+
+
+def get_or_404_org(model, resource_id: int):
+    """
+    Get a resource by ID or abort 404 if not found or wrong org.
+    
+    Args:
+        model: SQLAlchemy model class
+        resource_id: ID of the resource
+        
+    Returns:
+        The resource if found and belongs to user's org
+        
+    Raises:
+        404: If resource not found or belongs to different org
+    """
+    resource = model.query.get(resource_id)
+    if not resource:
+        abort(404)
+    if hasattr(resource, 'organization_id'):
+        if resource.organization_id != current_user.organization_id:
+            abort(404)
+    return resource

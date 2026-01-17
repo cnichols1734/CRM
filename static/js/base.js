@@ -46,8 +46,11 @@
     };
     
     function handleSessionExpiry() {
-        // Only handle once - check if we're already on the login page
-        if (window.location.pathname === '/login') {
+        // Don't redirect on public pages (login, register, password reset, etc.)
+        const publicPaths = ['/login', '/register', '/auth/register', '/forgot-password', '/reset-password', '/accept-invite'];
+        const currentPath = window.location.pathname;
+        
+        if (publicPaths.some(path => currentPath.startsWith(path))) {
             return;
         }
         

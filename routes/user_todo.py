@@ -43,6 +43,7 @@ def save_todos():
     for i, text in enumerate(data.get('active', [])):
         todo = UserTodo(
             user_id=current_user.id,
+            organization_id=current_user.organization_id,
             text=text,
             completed=False,
             order=i
@@ -53,6 +54,7 @@ def save_todos():
     for i, text in enumerate(data.get('completed', [])):
         todo = UserTodo(
             user_id=current_user.id,
+            organization_id=current_user.organization_id,
             text=text,
             completed=True,
             order=i

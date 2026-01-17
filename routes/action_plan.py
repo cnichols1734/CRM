@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from models import db, ActionPlan
+from feature_flags import feature_required
 from config import Config
 from services.ai_service import generate_ai_response
 import json
@@ -303,6 +304,7 @@ def format_responses_for_ai(responses):
 
 @action_plan_bp.route('/action-plan')
 @login_required
+@feature_required('AI_ACTION_PLAN')
 def action_plan():
     """Main page - shows form if no plan exists, shows plan if exists."""
     existing_plan = ActionPlan.get_for_user(current_user.id)
@@ -343,6 +345,7 @@ def submit_action_plan():
         else:
             new_plan = ActionPlan(
                 user_id=current_user.id,
+                organization_id=current_user.organization_id,
                 questionnaire_responses=responses,
                 ai_generated_plan=generated_plan
             )

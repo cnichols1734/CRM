@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
 from models import Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant
-from feature_flags import is_enabled, can_access_transactions
+from feature_flags import is_enabled, can_access_transactions, org_has_feature, feature_required
+from services.tenant_service import org_query, can_view_all_org_data
 from datetime import datetime, timedelta, timezone, date
 import pytz
 from sqlalchemy import func, extract
@@ -13,7 +14,8 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 @login_required
 def index():
-    show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+    # Multi-tenant: Use org_query and check org_role instead of legacy role
+    show_all = request.args.get('view') == 'all' and can_view_all_org_data()
     sort_by = request.args.get('sort', 'name')
     sort_dir = request.args.get('dir', 'asc')
     search_query = request.args.get('q', '').strip()
@@ -23,9 +25,11 @@ def index():
     per_page = request.args.get('per_page', 50, type=int)
 
     if show_all:
-        query = Contact.query
+        # Show all contacts in this organization (for org admins/owners)
+        query = org_query(Contact)
     else:
-        query = Contact.query.filter_by(user_id=current_user.id)
+        # Show only current user's contacts
+        query = org_query(Contact).filter_by(user_id=current_user.id)
 
     if search_query:
         search_filter = (
@@ -94,11 +98,15 @@ def index():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     contacts = pagination.items
 
-    all_groups = ContactGroup.query.order_by(ContactGroup.name).all()
+    # Multi-tenant: Query contact groups within this org
+    all_groups = org_query(ContactGroup).order_by(ContactGroup.name).all()
 
+    # Get all users in this organization (for admin filters)
     all_owners = []
-    if current_user.role == 'admin':
-        all_owners = User.query.order_by(User.first_name, User.last_name).all()
+    if can_view_all_org_data():
+        all_owners = User.query.filter_by(
+            organization_id=current_user.organization_id
+        ).order_by(User.first_name, User.last_name).all()
 
     return render_template('index.html',
                          contacts=contacts,
@@ -116,15 +124,17 @@ def index():
 def dashboard():
     view = request.args.get('view', 'my')
 
-    if current_user.role != 'admin':
+    # Multi-tenant: Use org_query and check org_role
+    if not can_view_all_org_data():
         show_all = False
-        contacts = Contact.query.filter_by(user_id=current_user.id).all()
+        contacts = org_query(Contact).filter_by(user_id=current_user.id).all()
     else:
         show_all = view == 'all'
         if show_all:
-            contacts = Contact.query.all()
+            # All contacts in this organization
+            contacts = org_query(Contact).all()
         else:
-            contacts = Contact.query.filter_by(user_id=current_user.id).all()
+            contacts = org_query(Contact).filter_by(user_id=current_user.id).all()
 
     total_contacts = len(contacts)
     total_commission = sum(c.potential_commission or 0 for c in contacts)
@@ -136,7 +146,8 @@ def dashboard():
         reverse=True
     )[:5]
 
-    groups = ContactGroup.query.all()
+    # Multi-tenant: Query contact groups within this org
+    groups = org_query(ContactGroup).all()
     group_stats = []
     for group in groups:
         contact_count = len([c for c in contacts if group in c.groups])
@@ -157,8 +168,9 @@ def dashboard():
     utc_now = now.astimezone(timezone.utc)
     utc_seven_days = seven_days.astimezone(timezone.utc)
 
-    if current_user.role == 'admin' and show_all:
-        upcoming_tasks = Task.query.filter(
+    # Multi-tenant: Query tasks within this org
+    if can_view_all_org_data() and show_all:
+        upcoming_tasks = org_query(Task).filter(
             or_(
                 # Past due tasks
                 Task.due_date < utc_now,
@@ -175,7 +187,7 @@ def dashboard():
             Task.due_date.asc()
         ).limit(5).all()
     else:
-        upcoming_tasks = Task.query.filter(
+        upcoming_tasks = org_query(Task).filter(
             Task.assigned_to_id == current_user.id,
             or_(
                 # Past due tasks
@@ -201,8 +213,8 @@ def dashboard():
         if task.scheduled_time:
             task.scheduled_time = task.scheduled_time.replace(tzinfo=timezone.utc).astimezone(user_tz)
 
-    # Get latest company update for dashboard teaser
-    latest_update = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).first()
+    # Get latest company update for dashboard teaser (within this org)
+    latest_update = org_query(CompanyUpdate).order_by(CompanyUpdate.created_at.desc()).first()
 
     # Transaction Pipeline Data (only for users with access)
     show_transactions = can_access_transactions(current_user)
@@ -214,11 +226,11 @@ def dashboard():
         # Get current year for YTD filter
         current_year = now.year
         
-        # Query all transactions for the user (or all for admin viewing all)
-        if current_user.role == 'admin' and show_all:
-            tx_query = Transaction.query
+        # Multi-tenant: Query transactions within this org
+        if can_view_all_org_data() and show_all:
+            tx_query = org_query(Transaction)
         else:
-            tx_query = Transaction.query.filter_by(created_by_id=current_user.id)
+            tx_query = org_query(Transaction).filter_by(created_by_id=current_user.id)
         
         all_transactions = tx_query.order_by(Transaction.created_at.desc()).all()
         
@@ -317,5 +329,6 @@ def dashboard():
 
 @main_bp.route('/marketing')
 @login_required
+@feature_required('MARKETING')
 def marketing():
     return render_template('marketing.html')

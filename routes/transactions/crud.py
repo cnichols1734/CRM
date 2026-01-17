@@ -194,6 +194,7 @@ def create_transaction():
         
         # Create the transaction
         transaction = Transaction(
+            organization_id=current_user.organization_id,
             created_by_id=current_user.id,
             transaction_type_id=int(transaction_type_id),
             street_address=street_address,
@@ -222,6 +223,7 @@ def create_transaction():
             contact = Contact.query.get(int(contact_id))
             if contact and contact.user_id == current_user.id:
                 participant = TransactionParticipant(
+                    organization_id=current_user.organization_id,
                     transaction_id=transaction.id,
                     contact_id=contact.id,
                     role=participant_role if i == 0 else f'co_{participant_role}',
@@ -232,6 +234,7 @@ def create_transaction():
         # Add current user as listing agent (for seller/landlord transactions)
         if tx_type.name in ['seller', 'landlord']:
             agent_participant = TransactionParticipant(
+                organization_id=current_user.organization_id,
                 transaction_id=transaction.id,
                 user_id=current_user.id,
                 role='listing_agent',
@@ -240,6 +243,7 @@ def create_transaction():
             db.session.add(agent_participant)
         elif tx_type.name in ['buyer', 'tenant']:
             agent_participant = TransactionParticipant(
+                organization_id=current_user.organization_id,
                 transaction_id=transaction.id,
                 user_id=current_user.id,
                 role='buyers_agent',

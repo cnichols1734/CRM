@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">Upgrade to Pro</h1>
+        <p class="text-xl text-gray-600">Unlock the full power of your CRM</p>
+    </div>
+    
+    <div class="grid md:grid-cols-2 gap-8">
+        <!-- Free Tier -->
+        <div class="bg-white rounded-lg shadow p-8 border-2 border-gray-200">
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Free</h3>
+            <p class="text-gray-600 mb-6">For individual agents getting started</p>
+            <p class="text-4xl font-bold mb-6">$0<span class="text-lg text-gray-500">/month</span></p>
+            
+            <ul class="space-y-4 mb-8">
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>1 user
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Up to 200 contacts
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Task management
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Dashboard & reporting
+                </li>
+                <li class="flex items-center text-gray-400">
+                    <i class="fas fa-times text-gray-300 mr-3"></i>AI features
+                </li>
+                <li class="flex items-center text-gray-400">
+                    <i class="fas fa-times text-gray-300 mr-3"></i>Transaction management
+                </li>
+                <li class="flex items-center text-gray-400">
+                    <i class="fas fa-times text-gray-300 mr-3"></i>Document generation
+                </li>
+            </ul>
+            
+            <button disabled class="w-full py-3 border-2 border-gray-300 text-gray-500 rounded-lg cursor-not-allowed">
+                Current Plan
+            </button>
+        </div>
+        
+        <!-- Pro Tier -->
+        <div class="bg-white rounded-lg shadow-lg p-8 border-2 border-blue-500 relative">
+            <div class="absolute top-0 right-0 bg-blue-500 text-white px-3 py-1 rounded-bl-lg text-sm font-medium">
+                Recommended
+            </div>
+            
+            <h3 class="text-2xl font-bold text-gray-900 mb-2">Pro</h3>
+            <p class="text-gray-600 mb-6">For growing teams and agencies</p>
+            <p class="text-4xl font-bold mb-2">$49<span class="text-lg text-gray-500">/user/month</span></p>
+            <p class="text-sm text-gray-500 mb-6">Billed monthly</p>
+            
+            <ul class="space-y-4 mb-8">
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Up to 25 users
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i><strong>Unlimited</strong> contacts
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Task management
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-green-500 mr-3"></i>Dashboard & reporting
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>AI features</strong> (B.O.B., Daily Todo, Action Plan)
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>Transaction management</strong>
+                </li>
+                <li class="flex items-center text-gray-600">
+                    <i class="fas fa-check text-blue-500 mr-3"></i><strong>Document generation & e-signing</strong>
+                </li>
+            </ul>
+            
+            <a href="mailto:support@origenrealty.com?subject=Upgrade%20to%20Pro" 
+               class="block w-full py-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700">
+                Contact Us to Upgrade
+            </a>
+        </div>
+    </div>
+    
+    <div class="mt-12 text-center">
+        <p class="text-gray-600">
+            Questions? Contact us at <a href="mailto:support@origenrealty.com" class="text-blue-600 hover:underline">support@origenrealty.com</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -44,6 +44,7 @@ def add_document(id):
             return jsonify({'success': False, 'error': 'This document already exists in the package'}), 400
         
         doc = TransactionDocument(
+            organization_id=current_user.organization_id,
             transaction_id=transaction.id,
             template_slug=template_slug,
             template_name=template_name,
@@ -720,6 +721,7 @@ def upload_external_document(id):
         
         # Create TransactionDocument record
         doc = TransactionDocument(
+            organization_id=current_user.organization_id,
             transaction_id=transaction.id,
             template_slug='external',  # Special slug for external docs
             template_name=document_name,
@@ -1048,6 +1050,7 @@ def send_adhoc_document(id, doc_id):
             sub_result = submitter_results[i] if i < len(submitter_results) else {}
             
             sig = DocumentSignature(
+                organization_id=current_user.organization_id,
                 document_id=doc.id,
                 signer_email=submitter.email,  # Use our submitter data, not DocuSeal response
                 signer_name=submitter.name,
