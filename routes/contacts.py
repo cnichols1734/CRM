@@ -149,7 +149,7 @@ def create_contact():
     allowed, message = org_can_add_contact()
     if not allowed:
         flash(message, 'error')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.contacts'))
     
     form = ContactForm()
     # Multi-tenant: Get groups within org
@@ -203,7 +203,7 @@ def create_contact():
             return redirect(url_for('transactions.view_transaction', id=transaction_id, prompt_add_participant=1))
         
         flash('Contact created successfully!', 'success')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.contacts'))
 
     return render_template('contacts/form.html', form=form, return_transaction_id=transaction_id)
 

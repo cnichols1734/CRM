@@ -24,7 +24,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'admin':
             flash('You must be an admin to access this page.', 'error')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.contacts'))
         return f(*args, **kwargs)
     return decorated_function
 
