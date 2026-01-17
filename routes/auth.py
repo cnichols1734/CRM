@@ -233,7 +233,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or current_user.role != 'admin':
             flash('You do not have permission to access this page.', 'error')
-            return redirect(url_for('main.index'))
+            return redirect(url_for('main.contacts'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -244,7 +244,7 @@ def register():
     Creates a new organization in pending_approval status and the owner user.
     """
     if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.contacts'))
 
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -539,7 +539,7 @@ def test_password(username, password):
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_request():
     if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.contacts'))
     form = RequestResetForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -554,7 +554,7 @@ def reset_request():
 @auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
     if current_user.is_authenticated:
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.contacts'))
     user = User.verify_reset_token(token)
     if user is None:
         flash('That is an invalid or expired token', 'error')

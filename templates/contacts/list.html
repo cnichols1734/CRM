@@ -267,13 +267,13 @@
                 {% if current_user.role == 'admin' %}
                 <button
                     class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if show_all %}active{% else %}text-slate-600{% endif %}"
-                    onclick="window.location.href='{{ url_for('main.index', view='all') }}';">
+                    onclick="window.location.href='{{ url_for('main.contacts', view='all') }}';">
                     All contacts
                 </button>
                 {% endif %}
                 <button
                     class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if not show_all %}active{% else %}text-slate-600{% endif %}"
-                    onclick="window.location.href = '{{ url_for('main.index', view='my') }}';">
+                    onclick="window.location.href = '{{ url_for('main.contacts', view='my') }}';">
                     My contacts
                 </button>
             </div>
@@ -1198,7 +1198,7 @@
         <div class="flex items-center justify-between mt-6 pb-20 md:pb-6">
             <div class="flex items-center space-x-1">
                 {% if pagination.has_prev %}
-                <a href="{{ url_for('main.index', page=pagination.prev_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
+                <a href="{{ url_for('main.contacts', page=pagination.prev_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
                     class="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium">
                     <i class="fas fa-chevron-left mr-1"></i> Prev
                 </a>
@@ -1217,7 +1217,7 @@
                         class="px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium shadow-sm">{{
                         page_num }}</span>
                     {% else %}
-                    <a href="{{ url_for('main.index', page=page_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
+                    <a href="{{ url_for('main.contacts', page=page_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
                         class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium">{{
                         page_num }}</a>
                     {% endif %}
@@ -1228,7 +1228,7 @@
                 </div>
 
                 {% if pagination.has_next %}
-                <a href="{{ url_for('main.index', page=pagination.next_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
+                <a href="{{ url_for('main.contacts', page=pagination.next_num, per_page=per_page, sort=current_sort, dir=current_dir, view=request.args.get('view'), q=request.args.get('q'), owners=request.args.get('owners'), groups=request.args.get('groups'), zips=request.args.get('zips'), commission=request.args.get('commission')) }}"
                     class="px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors font-medium">
                     Next <i class="fas fa-chevron-right ml-1"></i>
                 </a>

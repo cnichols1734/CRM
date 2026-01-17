@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, url_for
 from flask_login import login_required, current_user
 from models import Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant
 from feature_flags import is_enabled, can_access_transactions, org_has_feature, feature_required
@@ -11,9 +11,29 @@ from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
 
+
+# =============================================================================
+# LANDING PAGE (Public)
+# =============================================================================
+
 @main_bp.route('/')
+def landing():
+    """
+    Public landing page for non-authenticated visitors.
+    Logged-in users are redirected to their dashboard.
+    """
+    if current_user.is_authenticated:
+        return redirect(url_for('main.dashboard'))
+    return render_template('landing.html', current_year=datetime.now().year)
+
+
+# =============================================================================
+# CONTACTS LIST (Authenticated)
+# =============================================================================
+
+@main_bp.route('/contacts')
 @login_required
-def index():
+def contacts():
     # Multi-tenant: Use org_query and check org_role instead of legacy role
     show_all = request.args.get('view') == 'all' and can_view_all_org_data()
     sort_by = request.args.get('sort', 'name')
@@ -96,7 +116,7 @@ def index():
     # Apply pagination
     total_contacts = query.count()  # Get total count before pagination
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    contacts = pagination.items
+    contacts_list = pagination.items
 
     # Multi-tenant: Query contact groups within this org
     all_groups = org_query(ContactGroup).order_by(ContactGroup.name).all()
@@ -108,9 +128,9 @@ def index():
             organization_id=current_user.organization_id
         ).order_by(User.first_name, User.last_name).all()
 
-    return render_template('index.html',
-                         contacts=contacts,
-                         total_contacts=total_contacts,  # Pass total count to template
+    return render_template('contacts/list.html',
+                         contacts=contacts_list,
+                         total_contacts=total_contacts,
                          show_all=show_all,
                          current_sort=sort_by,
                          current_dir=sort_dir,
