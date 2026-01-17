@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="mb-6 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Manage Resources</h1>
+            <p class="text-gray-600 mt-1">Add external links for your team's sidebar resources section</p>
+        </div>
+        <button onclick="openAddModal()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center">
+            <i class="fas fa-plus mr-2"></i>Add Resource
+        </button>
+    </div>
+
+    {% if resources %}
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                        <i class="fas fa-grip-vertical text-gray-400"></i>
+                    </th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Label</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">URL</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="resourcesTableBody" class="bg-white divide-y divide-gray-200">
+                {% for resource in resources %}
+                <tr data-id="{{ resource.id }}" class="hover:bg-gray-50">
+                    <td class="px-6 py-4 cursor-move drag-handle">
+                        <i class="fas fa-grip-vertical text-gray-400"></i>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-external-link-alt text-gray-400 mr-2"></i>
+                            <span class="font-medium text-gray-900">{{ resource.label }}</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="{{ resource.url }}" target="_blank" class="text-blue-600 hover:underline text-sm truncate block max-w-xs" title="{{ resource.url }}">
+                            {{ resource.url[:50] }}{% if resource.url|length > 50 %}...{% endif %}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if resource.is_active %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                            Active
+                        </span>
+                        {% else %}
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
+                            Inactive
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-right text-sm font-medium">
+                        <button onclick="openEditModal({{ resource.id }}, '{{ resource.label|e }}', '{{ resource.url|e }}', {{ 'true' if resource.is_active else 'false' }})" 
+                                class="text-blue-600 hover:text-blue-900 mr-3">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button onclick="deleteResource({{ resource.id }}, '{{ resource.label|e }}')" 
+                                class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <p class="text-sm text-gray-500 mt-4">
+        <i class="fas fa-info-circle mr-1"></i>
+        Drag and drop rows to reorder. Resources appear in the sidebar under "Resources" accordion.
+    </p>
+    {% else %}
+    <div class="bg-white rounded-lg shadow p-12 text-center">
+        <i class="fas fa-link text-6xl text-gray-300 mb-4"></i>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Resources Yet</h3>
+        <p class="text-gray-500 mb-6">Add external links for your team to access quickly from the sidebar.</p>
+        <button onclick="openAddModal()" class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700">
+            <i class="fas fa-plus mr-2"></i>Add Your First Resource
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add/Edit Modal -->
+<div id="resourceModal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+        <h3 id="modalTitle" class="text-lg font-semibold text-gray-900 mb-4">Add Resource</h3>
+        <form id="resourceForm" onsubmit="saveResource(event)">
+            <input type="hidden" id="resourceId" value="">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Label *</label>
+                <input type="text" id="resourceLabel" required
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="e.g., MLS Portal">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">URL *</label>
+                <input type="text" id="resourceUrl" required
+                       class="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                       placeholder="www.example.com or example.com">
+                <p class="text-xs text-gray-500 mt-1">We'll add https:// automatically if needed</p>
+            </div>
+            
+            <div class="mb-6" id="activeToggleContainer" style="display: none;">
+                <label class="flex items-center">
+                    <input type="checkbox" id="resourceActive" checked
+                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-2">
+                    <span class="text-sm text-gray-700">Active (visible in sidebar)</span>
+                </label>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="closeModal()" class="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                    Save Resource
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// Modal functions
+function openAddModal() {
+    document.getElementById('modalTitle').textContent = 'Add Resource';
+    document.getElementById('resourceId').value = '';
+    document.getElementById('resourceLabel').value = '';
+    document.getElementById('resourceUrl').value = '';
+    document.getElementById('resourceActive').checked = true;
+    document.getElementById('activeToggleContainer').style.display = 'none';
+    document.getElementById('resourceModal').classList.remove('hidden');
+    document.getElementById('resourceLabel').focus();
+}
+
+function openEditModal(id, label, url, isActive) {
+    document.getElementById('modalTitle').textContent = 'Edit Resource';
+    document.getElementById('resourceId').value = id;
+    document.getElementById('resourceLabel').value = label;
+    document.getElementById('resourceUrl').value = url;
+    document.getElementById('resourceActive').checked = isActive;
+    document.getElementById('activeToggleContainer').style.display = 'block';
+    document.getElementById('resourceModal').classList.remove('hidden');
+    document.getElementById('resourceLabel').focus();
+}
+
+function closeModal() {
+    document.getElementById('resourceModal').classList.add('hidden');
+}
+
+function normalizeUrl(url) {
+    url = url.trim();
+    if (!url) return url;
+    
+    // If already has protocol, return as-is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url;
+    }
+    
+    // Add https:// prefix
+    return 'https://' + url;
+}
+
+async function saveResource(event) {
+    event.preventDefault();
+    
+    const id = document.getElementById('resourceId').value;
+    const label = document.getElementById('resourceLabel').value.trim();
+    let url = document.getElementById('resourceUrl').value.trim();
+    const isActive = document.getElementById('resourceActive').checked;
+    
+    // Normalize URL (add https:// if missing)
+    url = normalizeUrl(url);
+    
+    const endpoint = id ? `/admin/resources/${id}` : '/admin/resources/add';
+    const method = id ? 'PUT' : 'POST';
+    
+    try {
+        const response = await fetch(endpoint, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label, url, is_active: isActive })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error saving resource: ' + error.message);
+    }
+}
+
+async function deleteResource(id, label) {
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    
+    try {
+        const response = await fetch(`/admin/resources/${id}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        alert('Error deleting resource: ' + error.message);
+    }
+}
+
+// Initialize drag and drop
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('resourcesTableBody');
+    if (tbody) {
+        new Sortable(tbody, {
+            handle: '.drag-handle',
+            animation: 150,
+            onEnd: async function(evt) {
+                // Get new order
+                const rows = tbody.querySelectorAll('tr');
+                const order = Array.from(rows).map((row, index) => ({
+                    id: parseInt(row.dataset.id),
+                    sort_order: index
+                }));
+                
+                // Save new order
+                try {
+                    const response = await fetch('/admin/resources/reorder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(order)
+                    });
+                    
+                    const data = await response.json();
+                    if (!data.success) {
+                        console.error('Failed to save order');
+                    }
+                } catch (error) {
+                    console.error('Error saving order:', error);
+                }
+            }
+        });
+    }
+});
+
+// Close modal on escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+});
+</script>
+{% endblock %}

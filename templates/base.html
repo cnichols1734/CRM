@@ -186,6 +186,11 @@
                     <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
                     Manage Groups
                 </a>
+                <a href="{{ url_for('admin.manage_resources') }}"
+                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                    <i class="fas fa-link w-5 mr-3 text-gray-400"></i>
+                    Manage Resources
+                </a>
                 {% if org_has_feature('MARKETING') %}
                 <a href="{{ url_for('marketing.templates_list') }}"
                     class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
@@ -556,6 +561,11 @@
                             class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
                             Manage Groups
+                        </a>
+                        <a href="{{ url_for('admin.manage_resources') }}"
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            <i class="fas fa-link w-5 mr-3 text-gray-400"></i>
+                            Manage Resources
                         </a>
                         {% if org_has_feature('MARKETING') %}
                         <a href="{{ url_for('marketing.templates_list') }}"

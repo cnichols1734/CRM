@@ -1104,3 +1104,44 @@ class AuditEvent(db.Model):
 
     def __repr__(self):
         return f'<AuditEvent {self.event_type} tx={self.transaction_id} at {self.created_at}>'
+
+
+# =============================================================================
+# AGENT RESOURCES (Per-Organization)
+# =============================================================================
+
+class AgentResource(db.Model):
+    """
+    External resource links for agents within an organization.
+    Each org can configure their own set of useful links.
+    """
+    __tablename__ = 'agent_resources'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    label = db.Column(db.String(100), nullable=False)  # Display name
+    url = db.Column(db.String(2000), nullable=False)   # Resource URL
+    sort_order = db.Column(db.Integer, default=0)      # For custom ordering
+    is_active = db.Column(db.Boolean, default=True)    # Can disable without deleting
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    organization = db.relationship('Organization', backref=db.backref('agent_resources', lazy='dynamic'))
+    created_by = db.relationship('User', backref=db.backref('created_resources', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<AgentResource {self.label} org={self.organization_id}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization."""
+        return {
+            'id': self.id,
+            'label': self.label,
+            'url': self.url,
+            'sort_order': self.sort_order,
+            'is_active': self.is_active
+        }
