@@ -264,7 +264,7 @@ def register():
             subscription_tier='free',
             status='pending_approval',
             max_users=1,
-            max_contacts=200,
+            max_contacts=10000,
             can_invite_users=False
         )
         db.session.add(org)

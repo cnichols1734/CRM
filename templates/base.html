@@ -10,6 +10,38 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
     <!-- Include Tailwind CSS from CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#243b53',
+                            900: '#102a43',
+                        },
+                        accent: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
     <!-- Include DaisyUI from CDN -->
     <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
     <!-- Add Font Awesome for icons -->
@@ -573,6 +605,24 @@
             <!-- Spacer to push user icon to bottom -->
             <div class="flex-1"></div>
 
+            <!-- Support/Help Icon with Tooltip -->
+            <div class="relative group mb-6 w-full px-3">
+                <button onclick="openContactUsModal('app')"
+                    class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white transition-colors duration-200">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-hands-helping"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Support</span>
+                    </div>
+                </button>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Contact Support
+                </div>
+            </div>
+
             <!-- User Icon and Dropdown -->
             {% if current_user.is_authenticated %}
             <div class="relative w-full flex justify-center">
@@ -717,6 +767,9 @@
 
     <!-- Add this right after the body tag -->
     <div class="page-transition"></div>
+
+    <!-- Contact Us Modal - Available on all pages -->
+    {% include 'modals/contact_us_modal.html' %}
 
     <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>

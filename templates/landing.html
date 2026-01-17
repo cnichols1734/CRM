@@ -845,9 +845,9 @@
                         </li>
                     </ul>
                     
-                    <a href="mailto:chris@technolog.com?subject=Interested%20in%20Pro%20Plan" class="block w-full text-center px-6 py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-600 transition-colors mt-auto">
+                    <button onclick="openContactUsModal('landing')" class="block w-full text-center px-6 py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-600 transition-colors mt-auto">
                         Contact Us
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
@@ -875,10 +875,10 @@
                     Get Started Free
                     <i class="fas fa-arrow-right"></i>
                 </a>
-                <a href="mailto:chris@technolog.com" class="inline-flex items-center justify-center gap-2 px-10 py-4 bg-transparent text-white font-semibold text-lg rounded-xl border-2 border-white/40 hover:bg-white/10 transition-all">
+                <button onclick="openContactUsModal('landing')" class="inline-flex items-center justify-center gap-2 px-10 py-4 bg-transparent text-white font-semibold text-lg rounded-xl border-2 border-white/40 hover:bg-white/10 transition-all">
                     <i class="fas fa-envelope"></i>
                     Contact Us
-                </a>
+                </button>
             </div>
         </div>
     </section>
@@ -900,7 +900,7 @@
                 <div class="flex items-center gap-6 text-brand-400 text-sm">
                     <a href="{{ url_for('auth.login') }}" class="hover:text-white transition-colors">Login</a>
                     <a href="{{ url_for('auth.register') }}" class="hover:text-white transition-colors">Register</a>
-                    <a href="mailto:chris@technolog.com" class="hover:text-white transition-colors">Contact</a>
+                    <a href="#" onclick="openContactUsModal('landing'); return false;" class="hover:text-white transition-colors">Contact</a>
                 </div>
                 
                 <!-- Copyright -->
@@ -978,5 +978,9 @@
             });
         });
     </script>
+
+    <!-- Contact Us Modal -->
+    {% include 'modals/contact_us_modal.html' %}
+
 </body>
 </html>
