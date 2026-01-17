@@ -3,7 +3,7 @@ from wtforms import StringField, PasswordField, SubmitField, TextAreaField, Sele
 from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, Regexp
 
 class RegistrationForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=20)])
+    username = StringField('Username', validators=[Optional(), Length(min=4, max=20)])  # Optional for SaaS signup
     email = StringField('Email', validators=[DataRequired(), Email()])
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])

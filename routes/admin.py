@@ -51,7 +51,12 @@ def add_group():
     new_sort_order = highest_sort + 1
     
     try:
-        group = ContactGroup(name=name, category=category, sort_order=new_sort_order)
+        group = ContactGroup(
+            name=name, 
+            category=category, 
+            sort_order=new_sort_order,
+            organization_id=current_user.organization_id
+        )
         db.session.add(group)
         db.session.commit()
         return jsonify({
@@ -71,7 +76,8 @@ def add_group():
 @login_required
 @admin_required
 def update_group(group_id):
-    group = ContactGroup.query.get_or_404(group_id)
+    # CRITICAL: Only allow modifying groups from same organization
+    group = ContactGroup.query.filter_by(id=group_id, organization_id=current_user.organization_id).first_or_404()
     data = request.get_json()
     
     try:
@@ -100,7 +106,8 @@ def update_group(group_id):
 @login_required
 @admin_required
 def delete_group(group_id):
-    group = ContactGroup.query.get_or_404(group_id)
+    # CRITICAL: Only allow deleting groups from same organization
+    group = ContactGroup.query.filter_by(id=group_id, organization_id=current_user.organization_id).first_or_404()
     
     try:
         db.session.delete(group)
@@ -117,7 +124,11 @@ def reorder_groups():
     data = request.get_json()
     try:
         for item in data:
-            group = ContactGroup.query.get(item['id'])
+            # Filter by organization for multi-tenancy security
+            group = ContactGroup.query.filter_by(
+                id=item['id'],
+                organization_id=current_user.organization_id
+            ).first()
             if group:
                 group.sort_order = item['sort_order']
         db.session.commit()

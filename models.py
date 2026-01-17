@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import current_app
 from itsdangerous import URLSafeTimedSerializer as Serializer
+import secrets
 
 db = SQLAlchemy()
 
@@ -14,23 +15,224 @@ contact_groups = db.Table('contact_groups',
     db.Column('group_id', db.Integer, db.ForeignKey('contact_group.id'), primary_key=True)
 )
 
+
+# =============================================================================
+# MULTI-TENANT ORGANIZATION MODELS
+# =============================================================================
+
+class Organization(db.Model):
+    """
+    Represents a real estate agency/brokerage.
+    All tenant data is scoped to an organization.
+    """
+    __tablename__ = 'organizations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    slug = db.Column(db.String(100), unique=True, nullable=False)
+    logo_url = db.Column(db.String(500))
+    
+    # Subscription tier
+    subscription_tier = db.Column(db.String(50), default='free')  # free, pro, enterprise
+    
+    # Configurable limits (easily adjustable per-org)
+    max_users = db.Column(db.Integer, default=1)  # Free: 1, Pro: configurable
+    max_contacts = db.Column(db.Integer, default=200)  # Free: 200, Pro: unlimited (NULL)
+    can_invite_users = db.Column(db.Boolean, default=False)  # Free: False, Pro: True
+    
+    # Per-org feature overrides (beyond tier defaults)
+    feature_flags = db.Column(db.JSON, default=dict)
+    
+    # Platform admin flag (Origen only)
+    is_platform_admin = db.Column(db.Boolean, default=False)
+    
+    # Lifecycle status: pending_approval, active, suspended, pending_deletion
+    status = db.Column(db.String(30), default='pending_approval')
+    
+    deletion_scheduled_at = db.Column(db.DateTime, nullable=True)
+    
+    # Session invalidation - all sessions created before this time are invalid
+    session_invalidated_at = db.Column(db.DateTime, nullable=True)
+    
+    # Approval tracking
+    approved_at = db.Column(db.DateTime, nullable=True)
+    approved_by_id = db.Column(db.Integer, nullable=True)  # No FK to avoid circular
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships defined via backref in User model
+    
+    def upgrade_to_pro(self, max_users=25):
+        """Upgrade org to Pro tier with configurable limits."""
+        self.subscription_tier = 'pro'
+        self.max_users = max_users
+        self.max_contacts = None  # Unlimited
+        self.can_invite_users = True
+    
+    # -------------------------------------------------------------------------
+    # Limit Check Properties (for template upgrade prompts)
+    # -------------------------------------------------------------------------
+    
+    @property
+    def is_at_user_limit(self) -> bool:
+        """Check if org has reached user limit. Use in templates for upgrade banners."""
+        return self.max_users is not None and self.users.count() >= self.max_users
+    
+    @property
+    def is_at_contact_limit(self) -> bool:
+        """Check if org has reached contact limit. Use in templates for upgrade banners."""
+        if self.max_contacts is None:
+            return False  # Unlimited
+        # Import here to avoid circular imports
+        return Contact.query.filter_by(organization_id=self.id).count() >= self.max_contacts
+    
+    @property
+    def user_limit_display(self) -> str:
+        """Human-readable user limit for UI."""
+        current = self.users.count()
+        if self.max_users is None:
+            return f"{current} users (unlimited)"
+        return f"{current} / {self.max_users} users"
+    
+    @property
+    def contact_limit_display(self) -> str:
+        """Human-readable contact limit for UI."""
+        if self.max_contacts is None:
+            return "Unlimited contacts"
+        current = Contact.query.filter_by(organization_id=self.id).count()
+        return f"{current} / {self.max_contacts} contacts"
+    
+    def __repr__(self):
+        return f'<Organization {self.name}>'
+
+
+class OrganizationMetrics(db.Model):
+    """
+    Aggregate metrics ONLY - NO PII.
+    This is the ONLY table platform admin routes query for org data.
+    Updated by background job every 15-60 minutes.
+    """
+    __tablename__ = 'organization_metrics'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), unique=True, nullable=False)
+    
+    # Counts only - NEVER store PII here
+    user_count = db.Column(db.Integer, default=0)
+    contact_count = db.Column(db.Integer, default=0)
+    task_count = db.Column(db.Integer, default=0)
+    transaction_count = db.Column(db.Integer, default=0)
+    
+    # Activity timestamps (no PII, just timing)
+    last_user_login_at = db.Column(db.DateTime)
+    last_contact_created_at = db.Column(db.DateTime)
+    last_transaction_created_at = db.Column(db.DateTime)
+    
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    organization = db.relationship('Organization', backref=db.backref('metrics', uselist=False))
+    
+    def __repr__(self):
+        return f'<OrganizationMetrics org_id={self.organization_id}>'
+
+
+class OrganizationInvite(db.Model):
+    """Invites for Pro tier orgs only (free tier cannot invite)."""
+    __tablename__ = 'organization_invites'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    invited_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    role = db.Column(db.String(20), default='agent')  # agent or admin only, never owner
+    
+    # Security: cryptographically random, single-use
+    token = db.Column(db.String(64), unique=True, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)  # 72 hours max
+    used_at = db.Column(db.DateTime, nullable=True)  # Set when accepted
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    organization = db.relationship('Organization', backref=db.backref('invites', lazy='dynamic'))
+    invited_by = db.relationship('User', foreign_keys=[invited_by_id])
+    
+    @staticmethod
+    def generate_token():
+        """Generate a cryptographically secure token."""
+        return secrets.token_urlsafe(32)
+    
+    @property
+    def is_valid(self):
+        """Check if invite is still valid (not used, not expired)."""
+        if self.used_at is not None:
+            return False
+        if datetime.utcnow() > self.expires_at:
+            return False
+        return True
+    
+    def __repr__(self):
+        return f'<OrganizationInvite {self.email} to org {self.organization_id}>'
+
+
+class PlatformAuditLog(db.Model):
+    """Logs all platform admin actions on organizations."""
+    __tablename__ = 'platform_audit_log'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    admin_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    target_org_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                              ondelete='SET NULL'), nullable=True)
+    
+    action = db.Column(db.String(100), nullable=False)
+    # Actions: org_approved, org_suspended, tier_changed, feature_toggled,
+    #          limits_changed, org_deletion_initiated, etc.
+    
+    details = db.Column(db.JSON, default=dict)
+    ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(500))
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    admin = db.relationship('User', foreign_keys=[admin_user_id])
+    target_org = db.relationship('Organization', backref=db.backref('audit_logs', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<PlatformAuditLog {self.action} on org {self.target_org_id}>'
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(256))  # scrypt hashes can be 160+ chars
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
+    
+    # Legacy role field - kept for backwards compatibility during migration
+    # Will be removed after migration completes
     role = db.Column(db.String(20), nullable=False, default='agent')
+    
+    # Multi-tenant fields
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
+    org_role = db.Column(db.String(20), default='agent')  # owner, admin, agent
+    is_super_admin = db.Column(db.Boolean, default=False)  # Origen platform admins only
+    
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
-    # New optional profile fields
+    
+    # Optional profile fields
     phone = db.Column(db.String(20))
     license_number = db.Column(db.String(16))
     licensed_supervisor = db.Column(db.String(120))
     licensed_supervisor_license = db.Column(db.String(16))
     licensed_supervisor_email = db.Column(db.String(120))
     licensed_supervisor_phone = db.Column(db.String(20))
+    
+    # Organization relationship
+    organization = db.relationship('Organization', backref=db.backref('users', lazy='dynamic'),
+                                   foreign_keys=[organization_id])
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -50,23 +252,45 @@ class User(UserMixin, db.Model):
         except:
             return None
         return User.query.get(user_id)
+    
+    def __repr__(self):
+        return f'<User {self.username}>'
 
 class ContactGroup(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
+    
+    name = db.Column(db.String(100), nullable=False)  # Unique per org, not globally
     category = db.Column(db.String(50), nullable=False)
     sort_order = db.Column(db.Integer, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    # Updated relationship definition using the association table
+    # Relationship definition using the association table
     contacts = db.relationship('Contact',
                              secondary=contact_groups,
                              back_populates='groups',
                              lazy='dynamic')
+    
+    # Unique constraint: name must be unique within organization
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'name', name='uq_contact_group_org_name'),
+    )
 
 class Contact(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
+    
+    # Track who created this contact (useful for "my contacts" views)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id',
+                              ondelete='SET NULL'), nullable=True)
+    
     first_name = db.Column(db.String(80), nullable=False)
     last_name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120))
@@ -81,7 +305,7 @@ class Contact(db.Model):
                           onupdate=datetime.utcnow)
     potential_commission = db.Column(db.Numeric(10, 2), nullable=False, default=5000.00)
     
-    # New contact date tracking fields
+    # Contact date tracking fields
     last_email_date = db.Column(db.Date, nullable=True)
     last_text_date = db.Column(db.Date, nullable=True)
     last_phone_call_date = db.Column(db.Date, nullable=True)
@@ -94,8 +318,10 @@ class Contact(db.Model):
     financial_status = db.Column(db.Text, nullable=True)
     additional_notes = db.Column(db.Text, nullable=True)
 
-    # Update the relationship to use backref
-    owner = db.relationship('User', backref=db.backref('contacts', lazy=True))
+    # Relationships
+    owner = db.relationship('User', foreign_keys=[user_id], backref=db.backref('contacts', lazy=True))
+    created_by = db.relationship('User', foreign_keys=[created_by_id],
+                                 backref=db.backref('created_contacts', lazy='dynamic'))
     groups = db.relationship('ContactGroup',
                            secondary=contact_groups,
                            back_populates='contacts',
@@ -111,6 +337,7 @@ class Contact(db.Model):
 
 class Interaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     type = db.Column(db.String(50), nullable=False)
@@ -124,6 +351,7 @@ class Interaction(db.Model):
 
 class TaskType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     name = db.Column(db.String(50), nullable=False)  # e.g., 'Call', 'Email', 'Meeting', 'Showing', 'Follow-up'
     sort_order = db.Column(db.Integer, nullable=False)
     
@@ -132,12 +360,18 @@ class TaskType(db.Model):
 
 class TaskSubtype(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     task_type_id = db.Column(db.Integer, db.ForeignKey('task_type.id'), nullable=False)
     name = db.Column(db.String(50), nullable=False)  # e.g., for Call: 'Check-in', 'Schedule Showing', 'Discuss Offer'
     sort_order = db.Column(db.Integer, nullable=False)
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
+    
     contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -172,6 +406,11 @@ class Task(db.Model):
 
 class DailyTodoList(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
+    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     generated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     todo_content = db.Column(db.JSON, nullable=False)
@@ -199,6 +438,11 @@ class UserTodo(db.Model):
     __tablename__ = 'user_todos'
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
+    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     text = db.Column(db.String(500), nullable=False)
     completed = db.Column(db.Boolean, default=False, nullable=False)
@@ -216,6 +460,11 @@ class SendGridTemplate(db.Model):
     __tablename__ = 'sendgrid_template'
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping (future: org-specific email templates)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
+    
     sendgrid_id = db.Column(db.String(100), unique=True, nullable=False)
     name = db.Column(db.String(200), nullable=False)
     subject = db.Column(db.String(200))
@@ -236,6 +485,11 @@ class ActionPlan(db.Model):
     __tablename__ = 'action_plan'
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
+    
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), unique=True, nullable=False)
     questionnaire_responses = db.Column(db.JSON, nullable=False)  # All form answers as JSON
     ai_generated_plan = db.Column(db.Text, nullable=True)  # The plan generated by OpenAI
@@ -255,10 +509,15 @@ class ActionPlan(db.Model):
 
 
 class CompanyUpdate(db.Model):
-    """Company-wide updates/announcements visible to all users."""
+    """Organization-wide updates/announcements visible to all users in the org (Team Updates)."""
     __tablename__ = 'company_updates'
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
+    
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)  # HTML from Quill.js
     excerpt = db.Column(db.String(500))  # Short preview text
@@ -327,6 +586,7 @@ class CompanyUpdateReaction(db.Model):
     }
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     reaction_type = db.Column(db.String(20), nullable=False)  # thumbs_up, heart, raised_hands, fire, clap
@@ -347,6 +607,7 @@ class CompanyUpdateComment(db.Model):
     __tablename__ = 'company_update_comments'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     content = db.Column(db.Text, nullable=False)
@@ -364,6 +625,7 @@ class CompanyUpdateView(db.Model):
     __tablename__ = 'company_update_views'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     update_id = db.Column(db.Integer, db.ForeignKey('company_updates.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -390,7 +652,8 @@ class TransactionType(db.Model):
     __tablename__ = 'transaction_types'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50), unique=True, nullable=False)  # e.g., 'seller'
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    name = db.Column(db.String(50), nullable=False)  # e.g., 'seller' - no longer globally unique
     display_name = db.Column(db.String(100), nullable=False)  # e.g., 'Seller Representation'
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
@@ -411,6 +674,10 @@ class Transaction(db.Model):
     __tablename__ = 'transactions'
     
     id = db.Column(db.Integer, primary_key=True)
+    
+    # Multi-tenant: organization scoping
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
     
     # Who created/owns this transaction
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -496,6 +763,7 @@ class TransactionParticipant(db.Model):
     __tablename__ = 'transaction_participants'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
     
     # Can link to existing contact or user (both optional for external parties)
@@ -561,6 +829,7 @@ class TransactionDocument(db.Model):
     __tablename__ = 'transaction_documents'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
     
     # Document template info
@@ -623,6 +892,7 @@ class DocumentSignature(db.Model):
     __tablename__ = 'document_signatures'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'), nullable=False)
     
     # Link to transaction participant (optional)
@@ -662,6 +932,7 @@ class ContactFile(db.Model):
     __tablename__ = 'contact_files'
     
     id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     contact_id = db.Column(db.Integer, db.ForeignKey('contact.id', ondelete='CASCADE'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     

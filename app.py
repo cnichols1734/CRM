@@ -23,10 +23,11 @@ warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .*
 # Timezone for display (Central Time)
 CENTRAL_TZ = pytz.timezone('America/Chicago')
 
-from flask import Flask, render_template
-from flask_login import LoginManager
+from flask import Flask, render_template, session, redirect, url_for, flash
+from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
 from flask_migrate import Migrate
+from sqlalchemy import text
 from models import db, User
 from routes.main import main_bp
 from routes.auth import auth_bp
@@ -40,6 +41,8 @@ from routes.marketing import marketing
 from routes.action_plan import action_plan_bp
 from routes.company_updates import company_updates_bp
 from routes.transactions import transactions_bp
+from routes.organization import org_bp
+from routes.platform_admin import platform_bp
 
 def create_app():
     app = Flask(__name__)
@@ -70,6 +73,12 @@ def create_app():
     
     app.jinja_env.filters['to_central'] = to_central_time
 
+    # Context processor to make feature flags available in templates
+    @app.context_processor
+    def inject_feature_flags():
+        from feature_flags import org_has_feature
+        return dict(org_has_feature=org_has_feature)
+
     # Initialize Flask-Mail
     mail = Mail()
     mail.init_app(app)
@@ -91,6 +100,85 @@ def create_app():
     app.register_blueprint(action_plan_bp)
     app.register_blueprint(company_updates_bp)
     app.register_blueprint(transactions_bp)
+    app.register_blueprint(org_bp)
+    app.register_blueprint(platform_bp)
+
+    # =========================================================================
+    # MULTI-TENANT RLS CONTEXT
+    # =========================================================================
+    
+    @app.before_request
+    def set_tenant_context():
+        """
+        Set RLS context and validate org status with session caching.
+        This runs before every request to:
+        1. Check if the user's org is still active
+        2. Check if the user's session has been invalidated
+        3. Set the PostgreSQL app.current_org_id for RLS
+        """
+        if not current_user.is_authenticated:
+            return
+        
+        org_id = current_user.organization_id
+        
+        # Skip if no organization (shouldn't happen after migration)
+        if not org_id:
+            return
+        
+        # Cache org status in Flask session to reduce DB hits
+        cached_org_id = session.get('_org_id')
+        cached_org_status = session.get('_org_status')
+        cached_session_valid_at = session.get('_session_invalidated_at')
+        
+        # Refresh cache if org changed or cache is stale (every 5 minutes)
+        cache_age = session.get('_org_cache_time', 0)
+        now_ts = datetime.utcnow().timestamp()
+        
+        if cached_org_id != org_id or (now_ts - cache_age) > 300:
+            org = current_user.organization
+            if org:
+                session['_org_id'] = org.id
+                session['_org_status'] = org.status
+                session['_session_invalidated_at'] = (
+                    org.session_invalidated_at.timestamp() 
+                    if org.session_invalidated_at else 0
+                )
+                session['_org_cache_time'] = now_ts
+                cached_org_status = org.status
+                cached_session_valid_at = session['_session_invalidated_at']
+        
+        # Check org is active
+        if cached_org_status and cached_org_status != 'active':
+            logout_user()
+            session.clear()
+            flash('Your organization account is no longer active.', 'error')
+            return redirect(url_for('auth.login'))
+        
+        # Check session wasn't invalidated
+        session_created = session.get('_session_created_at', 0)
+        if cached_session_valid_at and session_created < cached_session_valid_at:
+            logout_user()
+            session.clear()
+            flash('Your session has expired. Please log in again.', 'info')
+            return redirect(url_for('auth.login'))
+        
+        # Set RLS context - SET LOCAL scopes to current transaction only
+        try:
+            db.session.execute(
+                text("SET LOCAL app.current_org_id = :org_id"),
+                {'org_id': org_id}
+            )
+        except Exception:
+            # If setting fails (e.g., not PostgreSQL), continue anyway
+            # RLS won't work but app-level filtering still protects data
+            pass
+
+    @app.after_request
+    def record_session_creation(response):
+        """Record when session was created for invalidation checks."""
+        if current_user.is_authenticated and '_session_created_at' not in session:
+            session['_session_created_at'] = datetime.utcnow().timestamp()
+        return response
 
     # Load and validate document definitions on startup
     # This ensures all YAML configs are valid before the app starts

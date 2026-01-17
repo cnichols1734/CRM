@@ -391,6 +391,7 @@ def generate_document_package(id):
             is_preview = definition and definition.is_pdf_preview
             
             tx_doc = TransactionDocument(
+                organization_id=current_user.organization_id,
                 transaction_id=transaction.id,
                 template_slug=slug,
                 template_name=doc_info['name'],

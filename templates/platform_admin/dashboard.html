@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Platform Admin Dashboard</h1>
+        <p class="mt-2 text-gray-600">Aggregate metrics across all organizations (no PII shown)</p>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                    <i class="fas fa-building text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Organizations</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ total_orgs }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                    <i class="fas fa-check-circle text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Active Organizations</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ active_orgs }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-amber-100 text-amber-600">
+                    <i class="fas fa-clock text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Pending Approval</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ pending_approval }}</p>
+                </div>
+            </div>
+            {% if pending_approval > 0 %}
+            <a href="{{ url_for('platform.pending_orgs') }}" class="mt-2 block text-sm text-blue-600 hover:underline">
+                Review pending →
+            </a>
+            {% endif %}
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex items-center">
+                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                    <i class="fas fa-users text-xl"></i>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Users</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ total_users }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Secondary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Total Contacts (all orgs)</p>
+            <p class="text-xl font-semibold text-gray-900">{{ "{:,}".format(total_contacts) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Total Transactions (all orgs)</p>
+            <p class="text-xl font-semibold text-gray-900">{{ "{:,}".format(total_transactions) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Pending Deletion</p>
+            <p class="text-xl font-semibold text-gray-900">{{ pending_deletion }}</p>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="mb-8 flex space-x-4">
+        <a href="{{ url_for('platform.pending_orgs') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+            <i class="fas fa-inbox mr-2"></i>Review Pending
+        </a>
+        <a href="{{ url_for('platform.audit_log') }}" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+            <i class="fas fa-history mr-2"></i>Audit Log
+        </a>
+        <form action="{{ url_for('platform.refresh_metrics') }}" method="POST" class="inline">
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                <i class="fas fa-sync mr-2"></i>Refresh Metrics
+            </button>
+        </form>
+    </div>
+    
+    <!-- Organizations List -->
+    <div class="bg-white rounded-lg shadow">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Recent Organizations</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Organization</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tier</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Users</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacts</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Activity</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for org in orgs %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">{{ org.name }}</div>
+                            <div class="text-sm text-gray-500">{{ org.slug }}</div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if org.subscription_tier == 'enterprise' %}bg-purple-100 text-purple-800
+                                {% elif org.subscription_tier == 'pro' %}bg-blue-100 text-blue-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ org.subscription_tier|capitalize }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                {% if org.status == 'active' %}bg-green-100 text-green-800
+                                {% elif org.status == 'pending_approval' %}bg-amber-100 text-amber-800
+                                {% elif org.status == 'suspended' %}bg-red-100 text-red-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ org.status|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ org.user_count or 0 }} / {{ org.max_users or '∞' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ org.contact_count or 0 }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {% if org.last_user_login_at %}
+                                {{ org.last_user_login_at.strftime('%b %d, %Y') }}
+                            {% else %}
+                                Never
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="{{ url_for('platform.view_org', org_id=org.id) }}" class="text-blue-600 hover:text-blue-900">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

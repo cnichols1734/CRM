@@ -54,6 +54,7 @@ def add_participant(id):
             }), 400
         
         participant = TransactionParticipant(
+            organization_id=current_user.organization_id,
             transaction_id=transaction.id,
             role=role,
             contact_id=contact.id,

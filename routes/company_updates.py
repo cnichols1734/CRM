@@ -95,7 +95,10 @@ def generate_excerpt(content, max_length=200):
 @login_required
 def list_updates():
     """List all company updates in reverse chronological order."""
-    updates = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).all()
+    # Filter by organization for multi-tenancy
+    updates = CompanyUpdate.query.filter_by(
+        organization_id=current_user.organization_id
+    ).order_by(CompanyUpdate.created_at.desc()).all()
     
     # Prepare engagement data for each update
     engagement_data = {}
@@ -116,7 +119,7 @@ def list_updates():
 @login_required
 def view_update(update_id):
     """View a single company update."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     # Track view (first view per user only)
     existing_view = CompanyUpdateView.query.filter_by(
@@ -125,16 +128,22 @@ def view_update(update_id):
     ).first()
     
     if not existing_view:
-        view = CompanyUpdateView(update_id=update_id, user_id=current_user.id)
+        view = CompanyUpdateView(
+            update_id=update_id, 
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
+        )
         db.session.add(view)
         db.session.commit()
     
-    # Get previous and next updates for navigation
+    # Get previous and next updates for navigation (filter by org)
     prev_update = CompanyUpdate.query.filter(
+        CompanyUpdate.organization_id == current_user.organization_id,
         CompanyUpdate.created_at > update.created_at
     ).order_by(CompanyUpdate.created_at.asc()).first()
     
     next_update = CompanyUpdate.query.filter(
+        CompanyUpdate.organization_id == current_user.organization_id,
         CompanyUpdate.created_at < update.created_at
     ).order_by(CompanyUpdate.created_at.desc()).first()
     
@@ -198,7 +207,8 @@ def create_update():
             content=content,
             excerpt=excerpt,
             cover_image_url=cover_image_url,
-            author_id=current_user.id
+            author_id=current_user.id,
+            organization_id=current_user.organization_id
         )
         
         db.session.add(update)
@@ -215,7 +225,7 @@ def create_update():
 @admin_required
 def edit_update(update_id):
     """Edit an existing company update."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     if request.method == 'POST':
         title = request.form.get('title', '').strip()
@@ -276,7 +286,7 @@ def edit_update(update_id):
 @admin_required
 def delete_update(update_id):
     """Delete a company update."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     db.session.delete(update)
     db.session.commit()
@@ -289,7 +299,10 @@ def delete_update(update_id):
 @login_required
 def get_latest_update():
     """API endpoint to get the latest update for dashboard teaser."""
-    update = CompanyUpdate.query.order_by(CompanyUpdate.created_at.desc()).first()
+    # Filter by organization for multi-tenancy
+    update = CompanyUpdate.query.filter_by(
+        organization_id=current_user.organization_id
+    ).order_by(CompanyUpdate.created_at.desc()).first()
     
     if update:
         return jsonify({
@@ -311,7 +324,7 @@ def get_latest_update():
 @login_required
 def toggle_reaction(update_id):
     """Toggle a reaction on an update. If exists, remove it. If not, add it."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     data = request.get_json()
     reaction_type = data.get('reaction_type')
@@ -336,7 +349,8 @@ def toggle_reaction(update_id):
         reaction = CompanyUpdateReaction(
             update_id=update_id,
             user_id=current_user.id,
-            reaction_type=reaction_type
+            reaction_type=reaction_type,
+            organization_id=current_user.organization_id
         )
         db.session.add(reaction)
         db.session.commit()
@@ -358,7 +372,7 @@ def toggle_reaction(update_id):
 @login_required
 def get_reactions(update_id):
     """Get all reactions for an update with user details."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     reactions_by_type = {}
     for reaction_type in CompanyUpdateReaction.REACTION_TYPES:
@@ -391,7 +405,7 @@ def get_reactions(update_id):
 @login_required
 def add_comment(update_id):
     """Add a comment to an update."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     data = request.get_json()
     content = data.get('content', '').strip()
@@ -405,7 +419,8 @@ def add_comment(update_id):
     comment = CompanyUpdateComment(
         update_id=update_id,
         user_id=current_user.id,
-        content=content
+        content=content,
+        organization_id=current_user.organization_id
     )
     db.session.add(comment)
     db.session.commit()
@@ -424,7 +439,7 @@ def add_comment(update_id):
 @login_required
 def get_comments(update_id):
     """Get all comments for an update."""
-    update = CompanyUpdate.query.get_or_404(update_id)
+    update = CompanyUpdate.query.filter_by(id=update_id, organization_id=current_user.organization_id).first_or_404()
     
     comments = update.comments.order_by(CompanyUpdateComment.created_at.asc()).all()
     
@@ -448,7 +463,7 @@ def get_comments(update_id):
 @login_required
 def delete_comment(comment_id):
     """Delete a comment. Users can delete their own, admins can delete any."""
-    comment = CompanyUpdateComment.query.get_or_404(comment_id)
+    comment = CompanyUpdateComment.query.filter_by(id=comment_id, organization_id=current_user.organization_id).first_or_404()
     
     # Check permission
     if comment.user_id != current_user.id and current_user.role != 'admin':
@@ -458,8 +473,11 @@ def delete_comment(comment_id):
     db.session.delete(comment)
     db.session.commit()
     
-    # Get new count
-    update = CompanyUpdate.query.get(update_id)
+    # Get new count (filter by org for safety)
+    update = CompanyUpdate.query.filter_by(
+        id=update_id,
+        organization_id=current_user.organization_id
+    ).first()
     
     return jsonify({
         'success': True,

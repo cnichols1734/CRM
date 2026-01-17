@@ -186,16 +186,20 @@
                     <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
                     Manage Groups
                 </a>
+                {% if org_has_feature('MARKETING') %}
                 <a href="{{ url_for('marketing.templates_list') }}"
                     class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
                     Email Templates
                 </a>
+                {% endif %}
+                {% if org_has_feature('DOCUMENT_GENERATION') %}
                 <a href="{{ url_for('admin.document_mapper_v2_list') }}"
                     class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
                     Document Mapping
                 </a>
+                {% endif %}
                 {% endif %}
 
                 <a href="#" class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
@@ -269,16 +273,20 @@
                     <i class="fas fa-check-square w-6 mr-3"></i>
                     To Do List
                 </a>
+                {% if org_has_feature('MARKETING') %}
                 <a href="{{ url_for('main.marketing') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-bullhorn w-6 mr-3"></i>
                     Marketing
                 </a>
+                {% endif %}
+                {% if org_has_feature('AI_ACTION_PLAN') %}
                 <a href="{{ url_for('action_plan.action_plan') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-rocket w-6 mr-3"></i>
                     OG Action Plan
                 </a>
+                {% endif %}
                 <a href="{{ url_for('company_updates.list_updates') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-newspaper w-6 mr-3"></i>
@@ -416,7 +424,8 @@
                 </div>
             </div>
 
-            <!-- Marketing Icon with Tooltip -->
+            <!-- Marketing Icon with Tooltip (Feature Gated) -->
+            {% if org_has_feature('MARKETING') %}
             <div class="relative group mb-8 w-full px-3">
                 <a href="{{ url_for('main.marketing') }}"
                     class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
@@ -433,8 +442,10 @@
                     Marketing
                 </div>
             </div>
+            {% endif %}
 
-            <!-- OG Action Plan Icon with Tooltip -->
+            <!-- OG Action Plan Icon with Tooltip (Feature Gated) -->
+            {% if org_has_feature('AI_ACTION_PLAN') %}
             <div class="relative group mb-8 w-full px-3">
                 <a href="{{ url_for('action_plan.action_plan') }}"
                     class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}text-orange-500{% else %}text-white{% endif %}">
@@ -452,6 +463,7 @@
                     OG Action Plan
                 </div>
             </div>
+            {% endif %}
 
             <!-- Company Updates Icon with Tooltip -->
             <div class="relative group mb-8 w-full px-3">
@@ -545,15 +557,47 @@
                             <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
                             Manage Groups
                         </a>
+                        {% if org_has_feature('MARKETING') %}
                         <a href="{{ url_for('marketing.templates_list') }}"
                             class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
                             Email Templates
                         </a>
+                        {% endif %}
+                        {% if org_has_feature('DOCUMENT_GENERATION') %}
                         <a href="{{ url_for('admin.document_mapper_v2_list') }}"
                             class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
                             <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
                             Document Mapping
+                        </a>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if current_user.org_role in ['owner', 'admin'] %}
+                        <div class="border-t border-gray-200 my-2"></div>
+                        <a href="{{ url_for('org.settings') }}"
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            <i class="fas fa-building w-5 mr-3 text-gray-400"></i>
+                            Organization Settings
+                        </a>
+                        <a href="{{ url_for('org.members') }}"
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            <i class="fas fa-user-friends w-5 mr-3 text-gray-400"></i>
+                            Manage Members
+                        </a>
+                        <a href="{{ url_for('org.usage') }}"
+                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
+                            <i class="fas fa-chart-pie w-5 mr-3 text-gray-400"></i>
+                            Usage & Limits
+                        </a>
+                        {% endif %}
+
+                        {% if current_user.is_super_admin %}
+                        <div class="border-t border-gray-200 my-2"></div>
+                        <a href="{{ url_for('platform.dashboard') }}"
+                            class="flex items-center px-6 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium">
+                            <i class="fas fa-crown w-5 mr-3 text-orange-500"></i>
+                            Platform Admin
                         </a>
                         {% endif %}
 
@@ -601,18 +645,20 @@
     <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
-    {% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
     <!-- AI Chat Widget will be injected here by JavaScript -->
     {% endif %}
 
-    <!-- Add AI Chat Widget script -->
-    {% if current_user.is_authenticated %}
+    <!-- Add AI Chat Widget script (Feature Gated) -->
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
     <script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
     {% endif %}
 
     <!-- Include JavaScript files -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% if current_user.is_authenticated and org_has_feature('AI_DAILY_TODO') %}
     <script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
+    {% endif %}
     <script src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
     <!-- Loading Overlay (document spinner) -->
     <script src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>

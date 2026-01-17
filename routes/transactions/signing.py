@@ -420,6 +420,7 @@ def send_all_for_signature(id):
                 participant = participant_by_role.get(role)
 
                 signature = DocumentSignature(
+                    organization_id=current_user.organization_id,
                     document_id=doc.id,
                     participant_id=participant.id if participant else None,
                     signer_email=submitter_data.get('email', ''),
@@ -639,6 +640,7 @@ def send_for_signature(id, doc_id):
             )
             
             signature = DocumentSignature(
+                organization_id=current_user.organization_id,
                 document_id=doc.id,
                 participant_id=participant.id if participant else None,
                 signer_email=sub.get('email'),

@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, url_for, session, Response, strea
 from flask_login import login_required, current_user
 from config import Config
 from models import Contact, Task, TaskType, TaskSubtype
+from feature_flags import feature_required
 from services.ai_service import generate_chat_response
 import openai
 import re
@@ -90,7 +91,11 @@ def get_contact_and_tasks(url):
         return None
     
     contact_id = contact_match.group(1)
-    contact = Contact.query.get(contact_id)
+    # Filter by organization for multi-tenancy security
+    contact = Contact.query.filter_by(
+        id=contact_id,
+        organization_id=current_user.organization_id
+    ).first()
     
     if not contact:
         return None
@@ -131,6 +136,7 @@ def get_contact_and_tasks(url):
 
 @ai_chat.route('/api/ai-chat', methods=['POST'])
 @login_required
+@feature_required('AI_CHAT')
 def chat():
     try:
         data = request.json
@@ -280,6 +286,7 @@ def chat():
 
 @ai_chat.route('/api/ai-chat/stream', methods=['POST'])
 @login_required
+@feature_required('AI_CHAT')
 def chat_stream():
     """Stream AI chat response using GPT-5.1 with Server-Sent Events"""
     try:

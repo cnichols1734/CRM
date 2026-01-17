@@ -4,6 +4,7 @@ from models import db, Contact, ContactGroup, User, Transaction, TransactionPart
 from feature_flags import can_access_transactions
 from forms import ContactForm
 from services import supabase_storage
+from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
 import csv
 from io import StringIO
 from sqlalchemy import func
@@ -38,31 +39,34 @@ def format_phone_number(phone):
 @contacts_bp.route('/contact/<int:contact_id>')
 @login_required
 def view_contact(contact_id):
-    contact = Contact.query.get_or_404(contact_id)
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission: admins can see all contacts in org, others only their own
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         abort(403)
 
-    # Get the next contact in alphabetical order
-    next_contact = Contact.query.filter(
+    # Multi-tenant: Get next/prev contacts within same user and org
+    next_contact = org_query(Contact).filter(
         Contact.user_id == contact.user_id,
         Contact.first_name > contact.first_name
     ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
 
     # If no next contact (we're at the end), get the first contact
     if not next_contact:
-        next_contact = Contact.query.filter(
+        next_contact = org_query(Contact).filter(
             Contact.user_id == contact.user_id
         ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
 
     # Get the previous contact in alphabetical order
-    prev_contact = Contact.query.filter(
+    prev_contact = org_query(Contact).filter(
         Contact.user_id == contact.user_id,
         Contact.first_name < contact.first_name
     ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
 
     # If no previous contact (we're at the start), get the last contact
     if not prev_contact:
-        prev_contact = Contact.query.filter(
+        prev_contact = org_query(Contact).filter(
             Contact.user_id == contact.user_id
         ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
 
@@ -109,7 +113,8 @@ def view_contact(contact_id):
             } for task in active_tasks]
         })
 
-    all_groups = ContactGroup.query.all()
+    # Multi-tenant: Get groups within org
+    all_groups = org_query(ContactGroup).all()
     user_tz = get_user_timezone()
     now = datetime.now(user_tz)
 
@@ -140,16 +145,26 @@ def view_contact(contact_id):
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
 @login_required
 def create_contact():
+    # Multi-tenant: Check contact limit
+    allowed, message = org_can_add_contact()
+    if not allowed:
+        flash(message, 'error')
+        return redirect(url_for('main.index'))
+    
     form = ContactForm()
-    form.group_ids.choices = [(g.id, g.name) for g in ContactGroup.query.order_by('sort_order')]
+    # Multi-tenant: Get groups within org
+    form.group_ids.choices = [(g.id, g.name) for g in org_query(ContactGroup).order_by(ContactGroup.sort_order)]
     
     # Check for return_to parameter (for redirecting back to transaction)
     return_to = request.args.get('return_to')
     transaction_id = request.args.get('transaction_id', type=int)
 
     if form.validate_on_submit():
+        # Multi-tenant: Set organization_id and created_by_id
         contact = Contact(
+            organization_id=current_user.organization_id,
             user_id=current_user.id,
+            created_by_id=current_user.id,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
             email=form.email.data,
@@ -173,7 +188,8 @@ def create_contact():
         # Update the last contact date
         contact.update_last_contact_date()
 
-        selected_groups = ContactGroup.query.filter(
+        # Multi-tenant: Get groups within org
+        selected_groups = org_query(ContactGroup).filter(
             ContactGroup.id.in_(form.group_ids.data)
         ).all()
         contact.groups = selected_groups
@@ -195,9 +211,11 @@ def create_contact():
 @contacts_bp.route('/contacts/<int:contact_id>/edit', methods=['POST'])
 @login_required
 def edit_contact(contact_id):
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
 
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    # Check permission: admins can edit all contacts in org, others only their own
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         abort(403)
 
     first_name = request.form.get('first_name')
@@ -243,7 +261,8 @@ def edit_contact(contact_id):
         contact.update_last_contact_date()
 
         selected_group_ids = request.form.getlist('group_ids')
-        contact.groups = ContactGroup.query.filter(
+        # Multi-tenant: Get groups within org
+        contact.groups = org_query(ContactGroup).filter(
             ContactGroup.id.in_(selected_group_ids)
         ).all()
 
@@ -261,9 +280,11 @@ def edit_contact(contact_id):
 def delete_contact(contact_id):
     from models import Task, Interaction
     
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
 
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         abort(403)
 
     # Check for associated data
@@ -314,7 +335,11 @@ def import_contacts():
         if requested_user_id:
             try:
                 requested_user_id_int = int(requested_user_id)
-                target_user = User.query.get(requested_user_id_int)
+                # CRITICAL: Only allow selecting users from the same organization
+                target_user = User.query.filter_by(
+                    id=requested_user_id_int,
+                    organization_id=current_user.organization_id
+                ).first()
                 if not target_user:
                     return {'status': 'error', 'message': 'Selected user not found'}, 400
                 target_user_id = target_user.id
@@ -464,7 +489,9 @@ def import_contacts():
                             continue
 
                 contact = Contact(
+                    organization_id=current_user.organization_id,
                     user_id=target_user_id,
+                    created_by_id=current_user.id,
                     first_name=first_name_val or '',
                     last_name=last_name_val or '',
                     email=candidate_email,
@@ -538,13 +565,14 @@ def import_contacts():
 @contacts_bp.route('/export-contacts')
 @login_required
 def export_contacts():
-    show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+    # Multi-tenant: Use org_query
+    show_all = request.args.get('view') == 'all' and can_view_all_org_data()
     search_query = request.args.get('q', '').strip()
 
     if show_all:
-        query = Contact.query
+        query = org_query(Contact)
     else:
-        query = Contact.query.filter_by(user_id=current_user.id)
+        query = org_query(Contact).filter_by(user_id=current_user.id)
 
     if search_query:
         search_filter = (
@@ -599,10 +627,11 @@ def export_contacts():
 @login_required
 def upload_contact_file(contact_id):
     """Upload a file to a contact."""
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
     
     # Check permission
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
     # Check if file was provided
@@ -644,6 +673,7 @@ def upload_contact_file(contact_id):
         
         # Create database record
         contact_file = ContactFile(
+            organization_id=current_user.organization_id,
             contact_id=contact_id,
             user_id=current_user.id,
             filename=result['filename'],
@@ -680,10 +710,11 @@ def upload_contact_file(contact_id):
 @login_required
 def download_contact_file(contact_id, file_id):
     """Get a signed URL for downloading a contact file."""
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
     
     # Check permission
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
     # Get the file record
@@ -718,10 +749,11 @@ def download_contact_file(contact_id, file_id):
 @login_required
 def delete_contact_file(contact_id, file_id):
     """Delete a contact file."""
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
     
     # Check permission
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
     # Get the file record
@@ -752,10 +784,11 @@ def delete_contact_file(contact_id, file_id):
 @login_required
 def list_contact_files(contact_id):
     """List all files for a contact (JSON API)."""
-    contact = Contact.query.get_or_404(contact_id)
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
     
     # Check permission
-    if not current_user.role == 'admin' and contact.user_id != current_user.id:
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
     files = ContactFile.query.filter_by(contact_id=contact_id).order_by(

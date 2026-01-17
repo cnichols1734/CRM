@@ -33,7 +33,6 @@
         background: white;
         border-radius: calc(1.25rem - 2px);
     }
-    /* Decorative shapes */
     .shape-1 {
         position: absolute;
         width: 300px;
@@ -54,89 +53,72 @@
         left: -50px;
         animation: float 10s ease-in-out infinite reverse;
     }
-    .shape-3 {
-        position: absolute;
-        width: 150px;
-        height: 150px;
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(5, 150, 105, 0.03) 100%);
-        border-radius: 50% 50% 30% 70% / 50% 50% 70% 30%;
-        top: 40%;
-        left: -80px;
-        animation: float 12s ease-in-out infinite;
-    }
 </style>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 flex items-center justify-center px-4 py-8 md:py-12 relative overflow-hidden">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 flex items-center justify-center px-4 py-12 relative overflow-hidden">
     <!-- Decorative shapes -->
     <div class="shape-1 hidden md:block"></div>
     <div class="shape-2 hidden md:block"></div>
-    <div class="shape-3 hidden md:block"></div>
     
-    <div class="w-full max-w-lg relative z-10">
+    <div class="w-full max-w-md relative z-10">
         <!-- Logo and Header -->
         <div class="text-center mb-8 animate-fade-in-up">
             <div class="flex justify-center mb-6">
-                <div class="w-28 h-28 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-2xl flex items-center justify-center shadow-xl">
-                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="TechnolOG" class="h-24 w-auto object-contain" />
+                <div class="w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-xl">
+                    <i class="fas fa-building text-white text-3xl"></i>
                 </div>
             </div>
-            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">Join TechnolOG</h1>
-            <p class="text-slate-500 font-medium">Create your account to get started</p>
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">Start Your Free Trial</h1>
+            <p class="text-slate-500">Create your organization and get started with the CRM</p>
         </div>
         
         <!-- Register Card -->
         <div class="animate-fade-in-up-delay-1">
             <div class="gradient-border shadow-2xl shadow-orange-500/10">
-                <div class="gradient-border-inner p-6 md:p-8">
-                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4">
+                <div class="gradient-border-inner p-8">
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-5">
                         {{ form.hidden_tag() }}
                         
-                        <!-- Two column grid for name fields -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- First Name -->
+                        <!-- Organization Name - NEW FIELD -->
+                        <div class="space-y-2">
+                            <label class="block text-sm font-semibold text-slate-700">
+                                <i class="fas fa-building text-orange-500 mr-2"></i>Organization / Company Name
+                            </label>
+                            <input type="text" name="company_name" required
+                                class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200"
+                                placeholder="Acme Realty Group" />
+                            <p class="text-xs text-slate-400">This will be your organization's display name</p>
+                        </div>
+                        
+                        <hr class="border-slate-200">
+                        
+                        <p class="text-sm text-slate-500 font-medium">Your account details</p>
+                        
+                        <!-- Name Fields -->
+                        <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-user text-slate-400 mr-2"></i>First Name
+                                    First Name
                                 </label>
                                 {{ form.first_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="John") }}
                                 {% if form.first_name.errors %}
                                     {% for error in form.first_name.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
+                                        <p class="text-red-500 text-xs">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
 
-                            <!-- Last Name -->
                             <div class="space-y-2">
                                 <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-user text-slate-400 mr-2"></i>Last Name
+                                    Last Name
                                 </label>
                                 {{ form.last_name(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Doe") }}
                                 {% if form.last_name.errors %}
                                     {% for error in form.last_name.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
+                                        <p class="text-red-500 text-xs">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
-                        </div>
-
-                        <!-- Username -->
-                        <div class="space-y-2">
-                            <label class="block text-sm font-semibold text-slate-700">
-                                <i class="fas fa-at text-slate-400 mr-2"></i>Username
-                            </label>
-                            {{ form.username(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="johndoe") }}
-                            {% if form.username.errors %}
-                                {% for error in form.username.errors %}
-                                    <p class="text-red-500 text-xs flex items-center mt-1">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                    </p>
-                                {% endfor %}
-                            {% endif %}
                         </div>
 
                         <!-- Email -->
@@ -144,16 +126,10 @@
                             <label class="block text-sm font-semibold text-slate-700">
                                 <i class="fas fa-envelope text-slate-400 mr-2"></i>Email Address
                             </label>
-                            {{ form.email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="name@origenrealty.com") }}
-                            <div class="flex items-center text-xs text-slate-500 mt-1 bg-slate-50 rounded-lg px-3 py-2">
-                                <i class="fas fa-building text-orange-400 mr-2"></i>
-                                Registration is limited to Origen Realty email addresses
-                            </div>
+                            {{ form.email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="you@yourcompany.com") }}
                             {% if form.email.errors %}
                                 {% for error in form.email.errors %}
-                                    <p class="text-red-500 text-xs flex items-center mt-1">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                    </p>
+                                    <p class="text-red-500 text-xs">{{ error }}</p>
                                 {% endfor %}
                             {% endif %}
                         </div>
@@ -166,97 +142,13 @@
                             {{ form.phone(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="(555) 123-4567") }}
                             {% if form.phone.errors %}
                                 {% for error in form.phone.errors %}
-                                    <p class="text-red-500 text-xs flex items-center mt-1">
-                                        <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                    </p>
+                                    <p class="text-red-500 text-xs">{{ error }}</p>
                                 {% endfor %}
                             {% endif %}
                         </div>
 
-                        <!-- License Info Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- License Number -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-id-card text-slate-400 mr-2"></i>License Number
-                                </label>
-                                {{ form.license_number(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", maxlength="16") }}
-                                {% if form.license_number.errors %}
-                                    {% for error in form.license_number.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-
-                            <!-- Licensed Supervisor -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-user-tie text-slate-400 mr-2"></i>Supervisor Name
-                                </label>
-                                {{ form.licensed_supervisor(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="Supervisor name") }}
-                                {% if form.licensed_supervisor.errors %}
-                                    {% for error in form.licensed_supervisor.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Licensed Supervisor Details Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <!-- Licensed Supervisor License Number -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-id-badge text-slate-400 mr-2"></i>Supervisor License #
-                                </label>
-                                {{ form.licensed_supervisor_license(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", maxlength="16") }}
-                                {% if form.licensed_supervisor_license.errors %}
-                                    {% for error in form.licensed_supervisor_license.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-
-                            <!-- Licensed Supervisor Email -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-envelope text-slate-400 mr-2"></i>Supervisor Email
-                                </label>
-                                {{ form.licensed_supervisor_email(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="supervisor@email.com") }}
-                                {% if form.licensed_supervisor_email.errors %}
-                                    {% for error in form.licensed_supervisor_email.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-
-                            <!-- Licensed Supervisor Phone -->
-                            <div class="space-y-2">
-                                <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-phone text-slate-400 mr-2"></i>Supervisor Phone
-                                </label>
-                                {{ form.licensed_supervisor_phone(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="(555) 123-4567") }}
-                                {% if form.licensed_supervisor_phone.errors %}
-                                    {% for error in form.licensed_supervisor_phone.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Password Fields Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <!-- Password -->
+                        <!-- Password Fields -->
+                        <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <label class="block text-sm font-semibold text-slate-700">
                                     <i class="fas fa-lock text-slate-400 mr-2"></i>Password
@@ -264,33 +156,48 @@
                                 {{ form.password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
                                 {% if form.password.errors %}
                                     {% for error in form.password.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
+                                        <p class="text-red-500 text-xs">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
 
-                            <!-- Confirm Password -->
                             <div class="space-y-2">
                                 <label class="block text-sm font-semibold text-slate-700">
-                                    <i class="fas fa-lock text-slate-400 mr-2"></i>Confirm Password
+                                    Confirm
                                 </label>
                                 {{ form.confirm_password(class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50/50 px-4 py-3 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200", placeholder="••••••••") }}
                                 {% if form.confirm_password.errors %}
                                     {% for error in form.confirm_password.errors %}
-                                        <p class="text-red-500 text-xs flex items-center mt-1">
-                                            <i class="fas fa-exclamation-circle mr-1"></i>{{ error }}
-                                        </p>
+                                        <p class="text-red-500 text-xs">{{ error }}</p>
                                     {% endfor %}
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Submit Button -->
-                        <div class="pt-4">
-                            {{ form.submit(class="group relative w-full overflow-hidden px-6 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-base font-semibold text-white focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer") }}
+                        <!-- What You Get -->
+                        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                            <p class="text-sm font-semibold text-emerald-800 mb-2">
+                                <i class="fas fa-gift mr-2"></i>Free tier includes:
+                            </p>
+                            <ul class="text-xs text-emerald-700 space-y-1">
+                                <li><i class="fas fa-check mr-2"></i>Up to 200 contacts</li>
+                                <li><i class="fas fa-check mr-2"></i>Task management</li>
+                                <li><i class="fas fa-check mr-2"></i>Contact groups & notes</li>
+                                <li><i class="fas fa-check mr-2"></i>Dashboard & reporting</li>
+                            </ul>
                         </div>
+
+                        <!-- Submit Button -->
+                        <div class="pt-2">
+                            <button type="submit" 
+                                class="w-full px-6 py-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-base font-semibold text-white shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5">
+                                <i class="fas fa-rocket mr-2"></i>Create My Organization
+                            </button>
+                        </div>
+                        
+                        <p class="text-xs text-center text-slate-400">
+                            By signing up, you agree to our Terms of Service
+                        </p>
                     </form>
                 </div>
             </div>
@@ -301,58 +208,14 @@
             <p class="text-slate-600">
                 Already have an account?
                 <a href="{{ url_for('auth.login') }}" class="font-semibold text-orange-600 hover:text-orange-700 transition-colors ml-1">
-                    Sign in here <i class="fas fa-arrow-right ml-1"></i>
+                    Sign in <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </p>
-        </div>
-        
-        <!-- Footer branding -->
-        <div class="text-center mt-8 animate-fade-in-up-delay-2">
-            <p class="text-xs text-slate-400">
-                <i class="fas fa-shield-alt mr-1"></i> Your data is protected by Origen TechnolOG
+            <p class="text-slate-500 text-sm mt-2">
+                <i class="fas fa-envelope mr-1"></i>
+                Have an invite link? <a href="#" class="text-orange-600 hover:text-orange-700">Use it here</a>
             </p>
         </div>
     </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const emailInput = document.querySelector('input[name="email"]');
-    const emailContainer = emailInput.closest('.space-y-2');
-    
-    form.addEventListener('submit', function(e) {
-        const email = emailInput.value.trim();
-        if (!email.toLowerCase().endsWith('@origenrealty.com')) {
-            e.preventDefault();
-            
-            // Remove any existing error message
-            const existingError = emailContainer.querySelector('.text-red-500');
-            if (existingError) {
-                existingError.remove();
-            }
-            
-            // Add new error message
-            const errorP = document.createElement('p');
-            errorP.className = 'text-red-500 text-xs flex items-center mt-1';
-            errorP.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i>Only @origenrealty.com email addresses are allowed';
-            emailContainer.appendChild(errorP);
-            
-            // Add error styling to input
-            emailInput.classList.add('border-red-500');
-            emailInput.classList.remove('border-slate-200');
-        }
-    });
-    
-    // Clear error when user starts typing
-    emailInput.addEventListener('input', function() {
-        const existingError = emailContainer.querySelector('.text-red-500');
-        if (existingError) {
-            existingError.remove();
-            emailInput.classList.remove('border-red-500');
-            emailInput.classList.add('border-slate-200');
-        }
-    });
-});
-</script>
 {% endblock %}
