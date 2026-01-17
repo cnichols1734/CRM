@@ -1,84 +1,326 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h1 class="text-2xl font-semibold text-gray-800">Usage & Limits</h1>
-        </div>
+<!-- Premium Usage & Limits Page -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
         
-        <div class="p-6 space-y-6">
-            <!-- Users -->
-            <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Users</h3>
-                <div class="bg-gray-100 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-gray-600">{{ org.user_limit_display }}</span>
+        <!-- Page Header -->
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fas fa-chart-pie text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Usage & Limits</h1>
+                    <p class="text-slate-500 text-sm">Monitor your organization's resource usage</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Plan Banner -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 p-6 mb-6 relative overflow-hidden">
+            <!-- Accent gradient -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center
+                        {% if org.subscription_tier == 'free' %}
+                        bg-gradient-to-br from-slate-100 to-slate-200
+                        {% elif org.subscription_tier == 'pro' %}
+                        bg-gradient-to-br from-blue-500 to-indigo-600
+                        {% else %}
+                        bg-gradient-to-br from-purple-500 to-pink-600
+                        {% endif %}
+                    ">
+                        {% if org.subscription_tier == 'free' %}
+                        <i class="fas fa-seedling text-slate-600 text-xl"></i>
+                        {% elif org.subscription_tier == 'pro' %}
+                        <i class="fas fa-rocket text-white text-xl"></i>
+                        {% else %}
+                        <i class="fas fa-crown text-white text-xl"></i>
+                        {% endif %}
                     </div>
-                    {% if org.max_users %}
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        {% set user_pct = (org.users.count() / org.max_users * 100)|int %}
-                        <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ user_pct }}%"></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Current Plan</p>
+                        <p class="text-2xl font-bold capitalize
+                            {% if org.subscription_tier == 'free' %}text-slate-700{% else %}text-blue-600{% endif %}
+                        ">{{ org.subscription_tier }}</p>
                     </div>
+                </div>
+                {% if org.subscription_tier == 'free' %}
+                <a href="{{ url_for('org.upgrade') }}" 
+                   class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 transition-all duration-200">
+                    <i class="fas fa-arrow-up"></i>
+                    Upgrade to Pro
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Usage Cards Grid -->
+        <div class="grid md:grid-cols-2 gap-6 mb-6">
+            
+            <!-- Users Card -->
+            <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-xl transition-shadow duration-300">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-blue-600"></div>
+                
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-users text-blue-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Users</h3>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="flex items-baseline justify-between">
+                        <span class="text-3xl font-bold text-slate-800">{{ org.users.count() }}</span>
+                        <span class="text-slate-500 font-medium">
+                            {% if org.max_users %}
+                            of {{ org.max_users }}
+                            {% else %}
+                            unlimited
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                {% if org.max_users %}
+                {% set user_count = org.users.count() %}
+                {% set user_pct = ((user_count / org.max_users) * 100)|int %}
+                {% set user_pct_display = user_pct if user_pct <= 100 else 100 %}
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div class="h-3 rounded-full transition-all duration-500 
+                        {% if user_pct >= 90 %}bg-gradient-to-r from-red-400 to-red-500
+                        {% elif user_pct >= 70 %}bg-gradient-to-r from-amber-400 to-orange-500
+                        {% else %}bg-gradient-to-r from-blue-400 to-blue-600{% endif %}" 
+                         style="width: {{ user_pct_display }}%"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">
+                    {% if user_pct >= 90 %}
+                    <i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>Nearly at limit
+                    {% elif user_pct >= 70 %}
+                    <i class="fas fa-info-circle text-amber-500 mr-1"></i>{{ 100 - user_pct }}% remaining
+                    {% else %}
+                    <i class="fas fa-check-circle text-green-500 mr-1"></i>Plenty of room
                     {% endif %}
-                </div>
-            </div>
-            
-            <!-- Contacts -->
-            <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Contacts</h3>
-                <div class="bg-gray-100 rounded-lg p-4">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm text-gray-600">{{ org.contact_limit_display }}</span>
-                    </div>
-                    {% if org.max_contacts %}
-                    <div class="w-full bg-gray-200 rounded-full h-2.5">
-                        {% set contact_pct = min(100, (org.is_at_contact_limit and 100 or 50)) %}
-                        <div class="bg-green-600 h-2.5 rounded-full" style="width: {{ contact_pct }}%"></div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            
-            <!-- Features -->
-            <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Features</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <span class="text-sm font-medium">AI Features</span>
-                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
-                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
-                        </span>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <span class="text-sm font-medium">Transactions</span>
-                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
-                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
-                        </span>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <span class="text-sm font-medium">Document Generation</span>
-                        <span class="float-right {% if org.subscription_tier != 'free' %}text-green-600{% else %}text-gray-400{% endif %}">
-                            {% if org.subscription_tier != 'free' %}✓ Enabled{% else %}✗ Pro only{% endif %}
-                        </span>
-                    </div>
-                    <div class="bg-gray-50 rounded-lg p-4">
-                        <span class="text-sm font-medium">Team Invites</span>
-                        <span class="float-right {% if org.can_invite_users %}text-green-600{% else %}text-gray-400{% endif %}">
-                            {% if org.can_invite_users %}✓ Enabled{% else %}✗ Pro only{% endif %}
-                        </span>
-                    </div>
-                </div>
-            </div>
-            
-            {% if org.subscription_tier == 'free' %}
-            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-6">
-                <p class="text-sm text-blue-700">
-                    <strong>Upgrade to Pro</strong> for unlimited contacts, AI features, transaction management, and more.
-                    <a href="{{ url_for('org.upgrade') }}" class="underline">Learn more →</a>
                 </p>
+                {% else %}
+                <div class="flex items-center gap-2 text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+                    <i class="fas fa-infinity"></i>
+                    <span class="text-sm font-medium">Unlimited users</span>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
+            
+            <!-- Contacts Card -->
+            <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 p-6 relative overflow-hidden group hover:shadow-xl transition-shadow duration-300">
+                <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-600"></div>
+                
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-address-book text-emerald-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Contacts</h3>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="flex items-baseline justify-between">
+                        {% if org.max_contacts %}
+                        {% set contact_display = org.contact_limit_display.split(' / ')[0] %}
+                        <span class="text-3xl font-bold text-slate-800">{{ contact_display }}</span>
+                        <span class="text-slate-500 font-medium">of {{ org.max_contacts }}</span>
+                        {% else %}
+                        <span class="text-3xl font-bold text-slate-800">∞</span>
+                        <span class="text-slate-500 font-medium">unlimited</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if org.max_contacts %}
+                {% set at_limit = org.is_at_contact_limit %}
+                {% set contact_pct = 100 if at_limit else 50 %}
+                <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div class="h-3 rounded-full transition-all duration-500 
+                        {% if at_limit %}bg-gradient-to-r from-red-400 to-red-500
+                        {% else %}bg-gradient-to-r from-emerald-400 to-teal-600{% endif %}" 
+                         style="width: {{ contact_pct }}%"></div>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">
+                    {% if at_limit %}
+                    <i class="fas fa-exclamation-triangle text-red-500 mr-1"></i>Limit reached
+                    {% else %}
+                    <i class="fas fa-check-circle text-green-500 mr-1"></i>Within limit
+                    {% endif %}
+                </p>
+                {% else %}
+                <div class="flex items-center gap-2 text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+                    <i class="fas fa-infinity"></i>
+                    <span class="text-sm font-medium">Unlimited contacts</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-puzzle-piece text-purple-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Features</h3>
+                </div>
+            </div>
+            
+            <div class="p-6">
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <!-- AI Features -->
+                    <div class="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200
+                        {% if org.subscription_tier != 'free' %}
+                        border-emerald-200 bg-emerald-50/50
+                        {% else %}
+                        border-slate-200 bg-slate-50
+                        {% endif %}
+                    ">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                                {% if org.subscription_tier != 'free' %}bg-emerald-100{% else %}bg-slate-200{% endif %}
+                            ">
+                                <i class="fas fa-brain {% if org.subscription_tier != 'free' %}text-emerald-600{% else %}text-slate-400{% endif %}"></i>
+                            </div>
+                            <span class="font-medium text-slate-700">AI Features</span>
+                        </div>
+                        {% if org.subscription_tier != 'free' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full">
+                            <i class="fas fa-check text-[10px]"></i> Enabled
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-300 text-slate-600 text-xs font-semibold rounded-full">
+                            <i class="fas fa-lock text-[10px]"></i> Pro
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Transactions -->
+                    <div class="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200
+                        {% if org.subscription_tier != 'free' %}
+                        border-emerald-200 bg-emerald-50/50
+                        {% else %}
+                        border-slate-200 bg-slate-50
+                        {% endif %}
+                    ">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                                {% if org.subscription_tier != 'free' %}bg-emerald-100{% else %}bg-slate-200{% endif %}
+                            ">
+                                <i class="fas fa-file-contract {% if org.subscription_tier != 'free' %}text-emerald-600{% else %}text-slate-400{% endif %}"></i>
+                            </div>
+                            <span class="font-medium text-slate-700">Transactions</span>
+                        </div>
+                        {% if org.subscription_tier != 'free' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full">
+                            <i class="fas fa-check text-[10px]"></i> Enabled
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-300 text-slate-600 text-xs font-semibold rounded-full">
+                            <i class="fas fa-lock text-[10px]"></i> Pro
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Document Generation -->
+                    <div class="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200
+                        {% if org.subscription_tier != 'free' %}
+                        border-emerald-200 bg-emerald-50/50
+                        {% else %}
+                        border-slate-200 bg-slate-50
+                        {% endif %}
+                    ">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                                {% if org.subscription_tier != 'free' %}bg-emerald-100{% else %}bg-slate-200{% endif %}
+                            ">
+                                <i class="fas fa-file-pdf {% if org.subscription_tier != 'free' %}text-emerald-600{% else %}text-slate-400{% endif %}"></i>
+                            </div>
+                            <span class="font-medium text-slate-700">Document Generation</span>
+                        </div>
+                        {% if org.subscription_tier != 'free' %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full">
+                            <i class="fas fa-check text-[10px]"></i> Enabled
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-300 text-slate-600 text-xs font-semibold rounded-full">
+                            <i class="fas fa-lock text-[10px]"></i> Pro
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Team Invites -->
+                    <div class="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-200
+                        {% if org.can_invite_users %}
+                        border-emerald-200 bg-emerald-50/50
+                        {% else %}
+                        border-slate-200 bg-slate-50
+                        {% endif %}
+                    ">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg flex items-center justify-center
+                                {% if org.can_invite_users %}bg-emerald-100{% else %}bg-slate-200{% endif %}
+                            ">
+                                <i class="fas fa-user-plus {% if org.can_invite_users %}text-emerald-600{% else %}text-slate-400{% endif %}"></i>
+                            </div>
+                            <span class="font-medium text-slate-700">Team Invites</span>
+                        </div>
+                        {% if org.can_invite_users %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-500 text-white text-xs font-semibold rounded-full">
+                            <i class="fas fa-check text-[10px]"></i> Enabled
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-300 text-slate-600 text-xs font-semibold rounded-full">
+                            <i class="fas fa-lock text-[10px]"></i> Pro
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upgrade CTA for Free Tier -->
+        {% if org.subscription_tier == 'free' %}
+        <div class="mt-6 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white relative overflow-hidden">
+            <!-- Background pattern -->
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                <div class="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/2"></div>
+            </div>
+            
+            <div class="relative flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="w-14 h-14 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
+                        <i class="fas fa-rocket text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">Ready to grow?</h3>
+                        <p class="text-blue-100">Upgrade to Pro for unlimited contacts, AI features, and more.</p>
+                    </div>
+                </div>
+                <a href="{{ url_for('org.upgrade') }}" 
+                   class="inline-flex items-center gap-2 px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 whitespace-nowrap">
+                    <i class="fas fa-arrow-up"></i>
+                    Upgrade Now
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Back Link -->
+        <div class="mt-6 text-center">
+            <a href="{{ url_for('org.settings') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                Back to Settings
+            </a>
         </div>
     </div>
 </div>

@@ -1,28 +1,48 @@
 // static/js/agent-resources.js
+// Fetches resources from API (org-specific)
 (function () {
   'use strict';
 
   const STORAGE_KEY = 'sidebar.agentResources.expanded';
 
-  const LINKS = [
-    { label: 'BackAgent', url: 'https://origen.workspace.lwolf.com/' },
-    { label: 'Zipforms', url: 'https://www.zipformplus.com/default.aspx' },
-    { label: 'Canva', url: 'https://www.canva.com' },
-    { label: 'HAR', url: 'https://www.har.com/memberonlyarea#member' },
-    { label: 'SABOR', url: 'https://sabor.mysolidearth.com/authenticate?redirect_to=eyJwYXJhbXMiOnt9LCJuYW1lIjoic2FtbC5hdXRoIiwicXVlcnkiOnsiU0FNTFJlcXVlc3QiOiJqWkpSYjlzZ0ZJWGZKKzAvSU40SmhHU0pnK0pVV2FOcWtib3RhdHc5N0dYQ21DVkk5c1hqNG5iOTl5WDJJcldhR3BVM0x1ZkNkdzUzZWZXM3FjbUREZWc4NUhROEVwUllNTDV5Y01qcGZYSERNbnExV3FKdTZsYXR1M2lFTy91bnN4aEo2Z05VL1VGT3V3REthM1NvUURjV1ZUUnF2LzU2cStSSXFEYjQ2STJ2NmRCeVdhd1JiWWlKaFpMdEpxZS9Nam5SVlZhS2VaYk5Nakd6eHNoU3lNbFUyNFV1eFhnK3JzUmNsTE5GT2Fma3g5bUZQTG5ZSW5aMkN4ZzF4RlFTOGhNVEN5YW1oWlJxT2xGQy9xUms5dy90czRQQjhDVzBjaENoK2xJVU83Yjd2aThvV1o5eHJ6MWcxOWl3dCtIQkdYdC9kNXZUWTR3dEtzNVJsejZNakc4NEpac1VuUU1kZTg3WGd1WUpmZTBxcTBNODl1cFR0bHluek9ud0FhcTNGRjRrLzk0c1YvK2pQTGJNZUlnV0ltL3I3dUFBZWVQQSthRGhZTm5wY2lZRncyUzRUbHQzQU9hQkwva0xqdk5VZkVzUGJ6ZTd4RzZleUxxdS9lTjFzRHJhbk1iUVdVcHVmR2gwdkl4NnFyaUsvZTZsS2lZSWRBbU5mdnhBM2xoOE5jQzhuc3JWTXc9PSIsIlJlbGF5U3RhdGUiOiJ3THIzSjJCbXJieVBjNGFGNzc1bTI5TU9GbVJrTmxabDlkWitCU1VEb2pzTlpjQzI1MEg0d2x3ZVU5T09RQWd3IiwiU2lnQWxnIjoiaHR0cDovL3d3dy53My5vcmcvMjAwMS8wNC94bWxkc2lnLW1vcmUjcnNhLXNoYTI1NiIsIlNpZ25hdHVyZSI6Ik5MWHhGQVpIRWQwbW9Mc25jaG5UWkI2KzBPc2dmVWRDNkVrZjRtbEJTOHZESlgzcThveXFiVVpmYXZLYzdEV0o1RTUrejZBSXBJNFA0MUIzNzd3MXczSE1BT3FpSnZYRFhjbnJKRFk5T0J6MmJoSkJNUWZCN2hpaEpFTUF4UGlXTkxhNklGT3dkbk5UaUdUYjdNcmNlb05YM2FsMmRlWFFtdml1NXY0YjM5TlB3Vm9xYlVBWXZTYzhMTi9ja2ltNDFlMWVSdHZvMnM5aEZJQkhCblNETS91cXhyOGh0UzJsWVRhME1udVZGT0ozTFBGL0xlTENaWUNFMTNQQmloREdjd25zQ2lnYjcydnZBdmR2SXlqdXBXa2ZJUW9KeHJkQWpoay9TV1BoYUFkcGRzcFQ3dnZOY21DZzZXTG9kbHJUZjRrcEhXWGR4Znp0TjJPL3VsT2RyQT09In19' },
-    { label: 'ShowingSmart', url: 'https://www.showingsmart.com/agent' },
-    { label: 'OG Google Drive', url: 'https://drive.google.com/drive/u/0/folders/17CfhrIqA0j4W68vjY7yTATjzjNNLZodW' },
-    { label: 'OG Training Videos', url: 'https://drive.google.com/drive/folders/12CPuRX4cOi3GiCT0XdQW1MDFuFZJqZ5J?usp=sharing' },
-    { label: 'Inman News', url: 'https://www.inman.com/' }
-  ];
+  // Resources will be fetched from API
+  let LINKS = [];
 
   function $(id) {
     return document.getElementById(id);
   }
 
-  function renderLinks(listElement) {
+  async function fetchResources() {
+    try {
+      const response = await fetch('/api/resources');
+      const data = await response.json();
+      if (data.success && data.resources) {
+        LINKS = data.resources.map(r => ({
+          label: r.label,
+          url: r.url
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch resources:', error);
+      LINKS = [];
+    }
+    return LINKS;
+  }
+
+  function renderLinks(listElement, isMobile = false) {
     if (!listElement) return;
     listElement.innerHTML = '';
+    
+    if (LINKS.length === 0) {
+      const li = document.createElement('li');
+      li.className = isMobile 
+        ? 'text-white/60 text-sm py-1 italic'
+        : 'text-white/60 text-sm px-1.5 py-1 italic';
+      li.textContent = 'No resources configured';
+      listElement.appendChild(li);
+      return;
+    }
+    
     const sorted = LINKS.slice().sort((a, b) => a.label.localeCompare(b.label));
     sorted.forEach(({ label, url }) => {
       const li = document.createElement('li');
@@ -31,13 +51,15 @@
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.textContent = label;
-      a.className = 'block text-white/90 hover:text-orange-500 text-sm px-1.5 py-1 rounded focus:outline-none focus:ring-2 focus:ring-orange-500';
+      a.className = isMobile
+        ? 'block text-white/90 hover:text-orange-500 text-sm py-2 rounded focus:outline-none'
+        : 'block text-white/90 hover:text-orange-500 text-sm px-1.5 py-1 rounded focus:outline-none focus:ring-2 focus:ring-orange-500';
       li.appendChild(a);
       listElement.appendChild(li);
     });
   }
 
-  function setupAccordion() {
+  async function setupAccordion() {
     const button = $('agentResourcesBtn');
     const panel = $('agentResourcesPanel');
     const list = $('agentResourcesList');
@@ -45,10 +67,20 @@
     const sidebar = document.getElementById('sidebar');
     const mainContent = document.getElementById('mainContent');
     const sidebarToggle = document.getElementById('sidebarToggle');
+    
+    // Mobile elements
+    const mobileList = $('mobileResourcesList');
 
     if (!button || !panel || !list || !chevron) return;
 
+    // Fetch resources from API first
+    await fetchResources();
     renderLinks(list);
+    
+    // Also render to mobile list if it exists
+    if (mobileList) {
+      renderLinks(mobileList, true);
+    }
 
     function setExpanded(expanded) {
       button.setAttribute('aria-expanded', String(expanded));
@@ -164,5 +196,3 @@
     setupAccordion();
   }
 })();
-
-

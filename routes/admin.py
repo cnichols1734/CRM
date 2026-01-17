@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
-from models import db, ContactGroup
+from models import db, ContactGroup, AgentResource
 from functools import wraps
 from services.tenant_service import org_query
 from services.docuseal_service import (
@@ -506,3 +506,154 @@ def api_mapper_save():
         return jsonify({'success': True, 'message': f'Saved to documents/{slug}.yml'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# AGENT RESOURCES MANAGEMENT
+# =============================================================================
+
+@admin_bp.route('/admin/resources')
+@login_required
+@admin_required
+def manage_resources():
+    """Admin page for managing agent resources (external links)."""
+    resources = org_query(AgentResource).order_by(AgentResource.sort_order, AgentResource.label).all()
+    return render_template('admin/resources.html', resources=resources)
+
+
+def normalize_url(url):
+    """Add https:// prefix if missing."""
+    url = url.strip()
+    if not url:
+        return url
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://' + url
+    return url
+
+
+@admin_bp.route('/admin/resources/add', methods=['POST'])
+@login_required
+@admin_required
+def add_resource():
+    """Add a new agent resource."""
+    data = request.get_json()
+    
+    label = data.get('label', '').strip()
+    url = normalize_url(data.get('url', ''))
+    
+    if not label or not url:
+        return jsonify({'success': False, 'error': 'Label and URL are required'}), 400
+    
+    # Get max sort order for this org
+    max_order = db.session.query(db.func.max(AgentResource.sort_order)).filter_by(
+        organization_id=current_user.organization_id
+    ).scalar() or 0
+    
+    try:
+        resource = AgentResource(
+            organization_id=current_user.organization_id,
+            label=label,
+            url=url,
+            sort_order=max_order + 1,
+            created_by_id=current_user.id
+        )
+        db.session.add(resource)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'resource': resource.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/admin/resources/<int:resource_id>', methods=['PUT'])
+@login_required
+@admin_required
+def update_resource(resource_id):
+    """Update an existing agent resource."""
+    resource = AgentResource.query.filter_by(
+        id=resource_id,
+        organization_id=current_user.organization_id
+    ).first_or_404()
+    
+    data = request.get_json()
+    
+    label = data.get('label', '').strip()
+    url = normalize_url(data.get('url', ''))
+    
+    if not label or not url:
+        return jsonify({'success': False, 'error': 'Label and URL are required'}), 400
+    
+    try:
+        resource.label = label
+        resource.url = url
+        if 'is_active' in data:
+            resource.is_active = data['is_active']
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'resource': resource.to_dict()
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/admin/resources/<int:resource_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def delete_resource(resource_id):
+    """Delete an agent resource."""
+    resource = AgentResource.query.filter_by(
+        id=resource_id,
+        organization_id=current_user.organization_id
+    ).first_or_404()
+    
+    try:
+        db.session.delete(resource)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/admin/resources/reorder', methods=['POST'])
+@login_required
+@admin_required
+def reorder_resources():
+    """Reorder agent resources."""
+    data = request.get_json()
+    
+    try:
+        for item in data:
+            resource = AgentResource.query.filter_by(
+                id=item['id'],
+                organization_id=current_user.organization_id
+            ).first()
+            if resource:
+                resource.sort_order = item['sort_order']
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# API endpoint for sidebar to fetch resources
+@admin_bp.route('/api/resources')
+@login_required
+def get_resources_api():
+    """API endpoint to get resources for sidebar - used by JavaScript."""
+    resources = org_query(AgentResource).filter_by(is_active=True).order_by(
+        AgentResource.sort_order, AgentResource.label
+    ).all()
+    
+    return jsonify({
+        'success': True,
+        'resources': [r.to_dict() for r in resources]
+    })

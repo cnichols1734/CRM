@@ -176,7 +176,7 @@ class CRMTestSuite:
             
             # Submit form
             self.log("Submitting form...", "step")
-            self.page.click('input[type="submit"]')
+            self.page.click('button[type="submit"]')
             self.log("", "ok")
             
             # Wait for navigation and verify dashboard

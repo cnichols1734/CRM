@@ -1,32 +1,398 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="max-w-md w-full bg-white rounded-lg shadow-md p-8">
-        <h2 class="text-2xl font-bold text-center mb-6">Registration Status</h2>
-        
-        {% if message %}
-        <div class="{% if org and org.status == 'active' %}bg-green-50 border-green-400 text-green-800{% elif org and org.status in ['suspended', 'pending_deletion', 'rejected'] %}bg-red-50 border-red-400 text-red-800{% else %}bg-amber-50 border-amber-400 text-amber-800{% endif %} border-l-4 p-4 mb-6">
-            <p>{{ message }}</p>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse-soft {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 0.8; }
+    }
+    @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    @keyframes bounce-subtle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+    }
+    @keyframes shimmer {
+        0% { background-position: -1000px 0; }
+        100% { background-position: 1000px 0; }
+    }
+    
+    .status-panel {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
+    .delay-1 { animation-delay: 0.1s; opacity: 0; }
+    .delay-2 { animation-delay: 0.2s; opacity: 0; }
+    .delay-3 { animation-delay: 0.3s; opacity: 0; }
+    
+    /* Background */
+    .status-bg {
+        background: 
+            radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
+            radial-gradient(ellipse at 100% 100%, rgba(45, 62, 80, 0.04) 0%, transparent 50%),
+            linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    }
+    
+    /* Floating orbs */
+    .orb {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(40px);
+        animation: pulse-soft 4s ease-in-out infinite;
+    }
+    .orb-1 {
+        width: 250px;
+        height: 250px;
+        background: rgba(249, 115, 22, 0.12);
+        top: -80px;
+        right: -80px;
+    }
+    .orb-2 {
+        width: 180px;
+        height: 180px;
+        background: rgba(45, 62, 80, 0.08);
+        bottom: -60px;
+        left: -60px;
+        animation-delay: 2s;
+    }
+    
+    /* Premium card */
+    .premium-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        box-shadow: 
+            0 0 0 1px rgba(0, 0, 0, 0.03),
+            0 2px 4px rgba(0, 0, 0, 0.02),
+            0 8px 16px rgba(0, 0, 0, 0.04),
+            0 24px 48px rgba(0, 0, 0, 0.06);
+    }
+    
+    /* Accent line */
+    .accent-line {
+        height: 4px;
+        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
+        background-size: 200% 100%;
+        animation: shimmer 3s linear infinite;
+    }
+    
+    /* Status indicator animations */
+    .status-pending .status-icon {
+        animation: bounce-subtle 2s ease-in-out infinite;
+    }
+    .status-pending .status-ring {
+        animation: spin-slow 3s linear infinite;
+    }
+    
+    /* Input styling */
+    .premium-input {
+        height: 52px;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 15px;
+        transition: all 0.2s ease;
+        background: #f8fafc;
+        padding: 0 16px 0 44px;
+    }
+    .premium-input:hover {
+        border-color: #cbd5e1;
+        background: #ffffff;
+    }
+    .premium-input:focus {
+        border-color: #2d3e50;
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
+        outline: none;
+    }
+    
+    .input-group {
+        position: relative;
+    }
+    .input-icon {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #94a3b8;
+        font-size: 14px;
+    }
+    
+    /* Premium button */
+    .premium-btn {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
+        transition: all 0.3s ease;
+    }
+    .premium-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.5s ease;
+    }
+    .premium-btn:hover::before {
+        left: 100%;
+    }
+    .premium-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
+    }
+    
+    /* Success button */
+    .success-btn {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    }
+    .success-btn:hover {
+        box-shadow: 0 12px 24px rgba(5, 150, 105, 0.3);
+    }
+    
+    /* Progress step */
+    .step-indicator {
+        position: relative;
+    }
+    .step-indicator::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        width: 2px;
+        height: 24px;
+        background: #e2e8f0;
+        transform: translateX(-50%);
+    }
+    .step-indicator.last::after {
+        display: none;
+    }
+    .step-indicator.complete::after {
+        background: #10b981;
+    }
+    .step-indicator.current::after {
+        background: linear-gradient(to bottom, #10b981, #e2e8f0);
+    }
+</style>
+
+<div class="min-h-screen status-bg flex items-center justify-center px-4 py-12 relative overflow-hidden status-panel">
+    <!-- Floating orbs -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    
+    <div class="w-full max-w-lg relative z-10">
+        <!-- Logo -->
+        <div class="text-center mb-8 animate-fade-in-up">
+            <div class="flex justify-center mb-6">
+                <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-xl">
+                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="TechnolOG" class="h-14 w-auto object-contain" />
+                </div>
+            </div>
         </div>
+        
+        {% if org %}
+            <!-- Status Card -->
+            <div class="animate-fade-in-up delay-1">
+                <div class="premium-card rounded-2xl overflow-hidden">
+                    <div class="accent-line"></div>
+                    
+                    <!-- Status Header -->
+                    {% if org.status == 'pending_approval' %}
+                    <div class="status-pending p-8 text-center">
+                        <div class="flex items-center justify-center mb-6">
+                            <div class="relative">
+                                <div class="status-ring absolute inset-[-8px] w-[calc(100%+16px)] h-[calc(100%+16px)] border-4 border-amber-200 rounded-full border-t-amber-500"></div>
+                                <div class="status-icon w-20 h-20 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center shadow-lg">
+                                    <i class="fas fa-hourglass-half text-white text-2xl"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Pending Approval</h2>
+                        <p class="text-slate-500">We're reviewing your registration</p>
+                    </div>
+                    
+                    {% elif org.status == 'active' %}
+                    <div class="p-8 text-center">
+                        <div class="flex items-center justify-center mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-emerald-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fas fa-check text-white text-3xl"></i>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">You're Approved!</h2>
+                        <p class="text-slate-500">Your account is ready to use</p>
+                    </div>
+                    
+                    {% elif org.status == 'suspended' %}
+                    <div class="p-8 text-center">
+                        <div class="flex items-center justify-center mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fas fa-pause text-white text-2xl"></i>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Account Suspended</h2>
+                        <p class="text-slate-500">Please contact support for assistance</p>
+                    </div>
+                    
+                    {% elif org.status == 'rejected' %}
+                    <div class="p-8 text-center">
+                        <div class="flex items-center justify-center mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fas fa-times text-white text-3xl"></i>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Not Approved</h2>
+                        <p class="text-slate-500">Please contact support for details</p>
+                    </div>
+                    
+                    {% else %}
+                    <div class="p-8 text-center">
+                        <div class="flex items-center justify-center mb-6">
+                            <div class="w-20 h-20 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center shadow-lg">
+                                <i class="fas fa-question text-white text-2xl"></i>
+                            </div>
+                        </div>
+                        <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ org.status|title }}</h2>
+                        <p class="text-slate-500">{{ message }}</p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Details Section -->
+                    <div class="px-8 pb-8">
+                        <!-- Organization Info -->
+                        <div class="bg-slate-50 rounded-xl p-4 mb-6">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center mr-3 shadow-sm">
+                                    <i class="fas fa-building text-slate-500"></i>
+                                </div>
+                                <div>
+                                    <p class="font-semibold text-slate-800">{{ org.name }}</p>
+                                    <p class="text-xs text-slate-500">{{ org.subscription_tier|title }} Plan</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if org.status == 'pending_approval' %}
+                        <!-- Progress Steps -->
+                        <div class="mb-6">
+                            <div class="flex justify-between items-start">
+                                <div class="flex-1 text-center">
+                                    <div class="step-indicator complete inline-flex items-center justify-center w-10 h-10 bg-emerald-500 rounded-full mb-2">
+                                        <i class="fas fa-check text-white text-sm"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-slate-700">Submitted</p>
+                                </div>
+                                <div class="flex-1 text-center">
+                                    <div class="step-indicator current inline-flex items-center justify-center w-10 h-10 bg-amber-500 rounded-full mb-2 animate-pulse">
+                                        <i class="fas fa-search text-white text-sm"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-slate-700">Reviewing</p>
+                                </div>
+                                <div class="flex-1 text-center">
+                                    <div class="step-indicator last inline-flex items-center justify-center w-10 h-10 bg-slate-200 rounded-full mb-2">
+                                        <i class="fas fa-rocket text-slate-400 text-sm"></i>
+                                    </div>
+                                    <p class="text-xs font-medium text-slate-400">Ready</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Timeline notice -->
+                        <div class="flex items-center justify-center text-sm text-slate-500 bg-blue-50 rounded-lg py-3 px-4">
+                            <i class="fas fa-clock text-blue-500 mr-2"></i>
+                            Usually approved within 24 hours
+                        </div>
+                        {% endif %}
+                        
+                        {% if org.status == 'active' %}
+                        <a href="{{ url_for('auth.login') }}" 
+                           class="premium-btn success-btn block w-full h-14 rounded-xl text-base font-semibold text-white text-center leading-[56px]">
+                            Sign In Now <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                        {% endif %}
+                        
+                        {% if org.status in ['suspended', 'rejected'] %}
+                        <a href="mailto:support@technolog.com" 
+                           class="block w-full text-center py-3 rounded-lg bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition-colors">
+                            <i class="fas fa-envelope mr-2"></i>Contact Support
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+        {% elif message %}
+            <!-- No org found -->
+            <div class="animate-fade-in-up delay-1">
+                <div class="premium-card rounded-2xl overflow-hidden">
+                    <div class="accent-line"></div>
+                    <div class="p-8 text-center">
+                        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-search text-slate-400 text-xl"></i>
+                        </div>
+                        <h2 class="text-xl font-bold text-slate-900 mb-2">No Registration Found</h2>
+                        <p class="text-slate-500 mb-6">{{ message }}</p>
+                        
+                        <a href="{{ url_for('auth.register') }}" 
+                           class="premium-btn block w-full h-14 rounded-xl text-base font-semibold text-white text-center leading-[56px]">
+                            Create Account <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
         {% else %}
-        <form method="GET" class="mb-6">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                Enter your email address to check registration status:
-            </label>
+            <!-- Email lookup form -->
+            <div class="animate-fade-in-up delay-1">
+                <div class="premium-card rounded-2xl overflow-hidden">
+                    <div class="accent-line"></div>
+                    <div class="p-8">
+                        <div class="text-center mb-6">
+                            <h2 class="text-2xl font-bold text-slate-900 mb-2">Check Your Status</h2>
+                            <p class="text-slate-500">Enter your email to see your approval status</p>
+                        </div>
+                        
+                        <form method="GET" class="space-y-4">
+                            <div class="input-group">
             <input type="email" name="email" required
-                   class="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                   placeholder="your@email.com">
-            <button type="submit" class="mt-4 w-full bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700">
+                                    class="premium-input block w-full text-slate-900 placeholder-slate-400"
+                                    placeholder="your@email.com" />
+                                <i class="input-icon fas fa-envelope"></i>
+                            </div>
+                            
+                            <button type="submit" class="premium-btn w-full h-14 rounded-xl text-base font-semibold text-white">
+                                <span class="relative z-10 flex items-center justify-center">
                 Check Status
+                                    <i class="fas fa-arrow-right ml-2"></i>
+                                </span>
             </button>
         </form>
+                    </div>
+                </div>
+            </div>
         {% endif %}
         
-        <div class="text-center">
-            <a href="{{ url_for('auth.login') }}" class="text-blue-600 hover:underline">
-                Back to Login
+        <!-- Back link -->
+        <div class="text-center mt-8 animate-fade-in-up delay-2">
+            <a href="{{ url_for('auth.login') }}" class="text-slate-500 hover:text-slate-700 transition-colors font-medium">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Sign In
             </a>
+        </div>
+        
+        <!-- Trust badge -->
+        <div class="text-center mt-6 animate-fade-in-up delay-3">
+            <div class="inline-flex items-center text-xs text-slate-400">
+                <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>
+                256-bit SSL encryption · Your data stays private
+            </div>
         </div>
     </div>
 </div>

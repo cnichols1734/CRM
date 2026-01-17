@@ -331,17 +331,22 @@ def login():
             if user.organization:
                 org = user.organization
                 if org.status == 'pending_approval':
-                    flash('Your organization is pending approval. Please wait for confirmation.', 'warning')
-                    return render_template('auth/login.html', form=form)
+                    return render_template('auth/login.html', form=form, 
+                                         pending_status='pending_approval',
+                                         org_name=org.name,
+                                         user_email=user.email)
                 elif org.status == 'suspended':
-                    flash('Your organization has been suspended. Please contact support.', 'error')
-                    return render_template('auth/login.html', form=form)
+                    return render_template('auth/login.html', form=form,
+                                         pending_status='suspended',
+                                         org_name=org.name)
                 elif org.status == 'pending_deletion':
-                    flash('Your organization is scheduled for deletion.', 'error')
-                    return render_template('auth/login.html', form=form)
+                    return render_template('auth/login.html', form=form,
+                                         pending_status='pending_deletion',
+                                         org_name=org.name)
                 elif org.status != 'active':
-                    flash('Your organization is not active. Please contact support.', 'error')
-                    return render_template('auth/login.html', form=form)
+                    return render_template('auth/login.html', form=form,
+                                         pending_status='inactive',
+                                         org_name=org.name)
             
             login_user(user)
             # Update last_login timestamp at the moment of login

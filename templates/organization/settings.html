@@ -1,100 +1,253 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h1 class="text-2xl font-semibold text-gray-800">Organization Settings</h1>
-        </div>
+<!-- Premium Organization Settings Page -->
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 py-8 px-4">
+    <div class="max-w-4xl mx-auto">
         
-        <div class="p-6 space-y-6">
-            <!-- Organization Info -->
-            <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Organization Information</h3>
-                <form action="{{ url_for('org.update_settings') }}" method="POST" class="space-y-4">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center shadow-lg">
+                    <i class="fas fa-cog text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-800">Organization Settings</h1>
+                    <p class="text-slate-500 text-sm">Manage your organization's profile and preferences</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Settings Card -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 overflow-hidden mb-6">
+            <!-- Accent gradient -->
+            <div class="h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
+            
+            <!-- Organization Info Section -->
+            <div class="p-6 border-b border-slate-100">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-building text-blue-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Organization Information</h3>
+                </div>
+                
+                <form action="{{ url_for('org.update_settings') }}" method="POST" class="space-y-5">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Organization Name</label>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">
+                            <i class="fas fa-tag text-slate-400 mr-2"></i>Organization Name
+                        </label>
                         <input type="text" name="name" value="{{ org.name }}" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50/50 
+                                      focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 
+                                      transition-all duration-200 text-slate-800 font-medium"
+                               placeholder="Your organization name">
                     </div>
+                    
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Logo URL</label>
+                        <label class="block text-sm font-semibold text-slate-700 mb-2">
+                            <i class="fas fa-image text-slate-400 mr-2"></i>Logo URL
+                        </label>
                         <input type="url" name="logo_url" value="{{ org.logo_url or '' }}" 
-                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl bg-slate-50/50 
+                                      focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 
+                                      transition-all duration-200 text-slate-800"
                                placeholder="https://example.com/logo.png">
+                        <p class="text-xs text-slate-500 mt-2">
+                            <i class="fas fa-info-circle mr-1"></i>Enter a URL to your organization's logo image
+                        </p>
                     </div>
+                    
                     {% if current_user.org_role == 'owner' %}
-                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Save Changes
-                    </button>
+                    <div class="pt-2">
+                        <button type="submit" 
+                                class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-900 
+                                       text-white font-semibold rounded-xl shadow-lg shadow-slate-500/25 
+                                       hover:shadow-xl hover:shadow-slate-500/30 hover:-translate-y-0.5 
+                                       transition-all duration-200">
+                            <i class="fas fa-save"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                    {% else %}
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                        <p class="text-sm text-amber-700">
+                            <i class="fas fa-lock mr-2"></i>Only the organization owner can modify these settings.
+                        </p>
+                    </div>
                     {% endif %}
                 </form>
             </div>
             
-            <!-- Subscription Info -->
-            <div class="pt-6 border-t border-gray-200">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Subscription</h3>
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p class="text-sm font-medium text-gray-900">Current Plan: <span class="text-blue-600 capitalize">{{ org.subscription_tier }}</span></p>
-                            <p class="text-sm text-gray-500 mt-1">{{ org.user_limit_display }} &bull; {{ org.contact_limit_display }}</p>
+            <!-- Subscription Section -->
+            <div class="p-6 border-b border-slate-100 bg-gradient-to-r from-slate-50/50 to-white">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-gem text-purple-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Subscription</h3>
+                </div>
+                
+                <div class="bg-white rounded-xl border-2 border-slate-200 p-5">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-xl flex items-center justify-center
+                                {% if org.subscription_tier == 'free' %}
+                                bg-gradient-to-br from-slate-100 to-slate-200
+                                {% elif org.subscription_tier == 'pro' %}
+                                bg-gradient-to-br from-blue-500 to-indigo-600
+                                {% else %}
+                                bg-gradient-to-br from-purple-500 to-pink-600
+                                {% endif %}
+                            ">
+                                {% if org.subscription_tier == 'free' %}
+                                <i class="fas fa-seedling text-slate-600 text-xl"></i>
+                                {% elif org.subscription_tier == 'pro' %}
+                                <i class="fas fa-rocket text-white text-xl"></i>
+                                {% else %}
+                                <i class="fas fa-crown text-white text-xl"></i>
+                                {% endif %}
+                            </div>
+                            <div>
+                                <p class="text-sm text-slate-500 font-medium">Current Plan</p>
+                                <p class="text-xl font-bold capitalize
+                                    {% if org.subscription_tier == 'free' %}text-slate-700{% else %}text-blue-600{% endif %}
+                                ">{{ org.subscription_tier }}</p>
+                            </div>
                         </div>
-                        {% if org.subscription_tier == 'free' %}
-                        <a href="{{ url_for('org.upgrade') }}" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        
+                        <div class="flex flex-col items-start sm:items-end gap-1">
+                            <div class="flex items-center gap-2 text-sm text-slate-600">
+                                <i class="fas fa-users text-blue-500"></i>
+                                <span>{{ org.user_limit_display }}</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-sm text-slate-600">
+                                <i class="fas fa-address-book text-emerald-500"></i>
+                                <span>{{ org.contact_limit_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if org.subscription_tier == 'free' %}
+                    <div class="mt-4 pt-4 border-t border-slate-100">
+                        <a href="{{ url_for('org.upgrade') }}" 
+                           class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 
+                                  text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 
+                                  hover:shadow-xl hover:shadow-emerald-500/30 hover:-translate-y-0.5 
+                                  transition-all duration-200">
+                            <i class="fas fa-arrow-up"></i>
                             Upgrade to Pro
                         </a>
-                        {% endif %}
                     </div>
+                    {% endif %}
                 </div>
             </div>
             
-            <!-- Links -->
-            <div class="pt-6 border-t border-gray-200">
-                <div class="flex space-x-4">
-                    <a href="{{ url_for('org.members') }}" class="text-blue-600 hover:text-blue-800">
-                        Manage Members →
-                    </a>
-                    <a href="{{ url_for('org.usage') }}" class="text-blue-600 hover:text-blue-800">
-                        View Usage →
-                    </a>
+            <!-- Quick Links Section -->
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-link text-slate-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800">Quick Links</h3>
                 </div>
-            </div>
-            
-            {% if org.status == 'pending_deletion' %}
-            <!-- Pending Deletion Warning -->
-            <div class="pt-6 border-t border-gray-200">
-                <div class="bg-red-50 border-l-4 border-red-400 p-4">
-                    <div class="flex">
-                        <div class="ml-3">
-                            <h3 class="text-sm font-medium text-red-800">Deletion Scheduled</h3>
-                            <p class="mt-2 text-sm text-red-700">
-                                This organization is scheduled for deletion on {{ org.deletion_scheduled_at.strftime('%B %d, %Y') }}.
-                            </p>
-                            <form action="{{ url_for('org.cancel_deletion') }}" method="POST" class="mt-2">
-                                <button type="submit" class="text-red-600 hover:text-red-800 font-medium">
-                                    Cancel Deletion
-                                </button>
-                            </form>
+                
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <a href="{{ url_for('org.members') }}" 
+                       class="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 bg-slate-50/50 
+                              hover:border-blue-300 hover:bg-blue-50/50 hover:shadow-md 
+                              transition-all duration-200 group">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center 
+                                    group-hover:bg-blue-200 transition-colors">
+                            <i class="fas fa-user-friends text-blue-600 text-lg"></i>
                         </div>
-                    </div>
+                        <div>
+                            <p class="font-semibold text-slate-800 group-hover:text-blue-700 transition-colors">Manage Members</p>
+                            <p class="text-sm text-slate-500">Add, remove & manage team roles</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-slate-400 ml-auto group-hover:text-blue-500 group-hover:translate-x-1 transition-all"></i>
+                    </a>
+                    
+                    <a href="{{ url_for('org.usage') }}" 
+                       class="flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 bg-slate-50/50 
+                              hover:border-emerald-300 hover:bg-emerald-50/50 hover:shadow-md 
+                              transition-all duration-200 group">
+                        <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center 
+                                    group-hover:bg-emerald-200 transition-colors">
+                            <i class="fas fa-chart-pie text-emerald-600 text-lg"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-slate-800 group-hover:text-emerald-700 transition-colors">View Usage</p>
+                            <p class="text-sm text-slate-500">Monitor limits & features</p>
+                        </div>
+                        <i class="fas fa-chevron-right text-slate-400 ml-auto group-hover:text-emerald-500 group-hover:translate-x-1 transition-all"></i>
+                    </a>
                 </div>
             </div>
-            {% elif current_user.org_role == 'owner' and not org.is_platform_admin %}
-            <!-- Danger Zone -->
-            <div class="pt-6 border-t border-gray-200">
-                <h3 class="text-lg font-medium text-red-600 mb-4">Danger Zone</h3>
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+        </div>
+
+        <!-- Pending Deletion Warning -->
+        {% if org.status == 'pending_deletion' %}
+        <div class="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6">
+            <div class="flex items-start gap-4">
+                <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-bold text-red-800 mb-2">Deletion Scheduled</h3>
+                    <p class="text-red-700 mb-4">
+                        This organization is scheduled for deletion on 
+                        <strong>{{ org.deletion_scheduled_at.strftime('%B %d, %Y') }}</strong>. 
+                        All data will be permanently removed after this date.
+                    </p>
+                    <form action="{{ url_for('org.cancel_deletion') }}" method="POST">
+                        <button type="submit" 
+                                class="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white font-semibold 
+                                       rounded-xl shadow-lg hover:bg-red-700 transition-all duration-200">
+                            <i class="fas fa-undo"></i>
+                            Cancel Deletion
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        {% elif current_user.org_role == 'owner' and not org.is_platform_admin %}
+        <!-- Danger Zone -->
+        <div class="bg-white rounded-2xl shadow-lg shadow-slate-200/50 border border-slate-200/60 overflow-hidden">
+            <div class="h-1 bg-gradient-to-r from-red-500 to-rose-600"></div>
+            <div class="p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-skull-crossbones text-red-600"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-red-700">Danger Zone</h3>
+                </div>
+                
+                <div class="bg-red-50 border border-red-200 rounded-xl p-5">
                     <p class="text-sm text-red-700 mb-4">
-                        Once you delete an organization, there is a 30-day grace period before permanent deletion.
+                        <i class="fas fa-exclamation-circle mr-2"></i>
+                        Once you delete an organization, there is a <strong>30-day grace period</strong> before permanent deletion.
                         All data will be removed after this period.
                     </p>
-                    <a href="{{ url_for('org.request_deletion') }}" class="text-red-600 hover:text-red-800 font-medium">
-                        Delete Organization →
+                    <a href="{{ url_for('org.request_deletion') }}" 
+                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-red-600 font-semibold 
+                              rounded-xl border-2 border-red-300 hover:bg-red-50 hover:border-red-400 
+                              transition-all duration-200">
+                        <i class="fas fa-trash-alt"></i>
+                        Delete Organization
                     </a>
                 </div>
             </div>
-            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Back to Dashboard -->
+        <div class="mt-6 text-center">
+            <a href="{{ url_for('main.dashboard') }}" class="inline-flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors">
+                <i class="fas fa-arrow-left"></i>
+                Back to Dashboard
+            </a>
         </div>
     </div>
 </div>
