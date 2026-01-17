@@ -7,7 +7,7 @@ Settings, member management, deletion/suspension.
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user, logout_user
 from datetime import datetime, timedelta
-from models import db, User, Organization, OrganizationInvite
+from models import db, User, Organization, OrganizationInvite, ActionPlan
 from services.tenant_service import (
     org_owner_required, org_admin_required, is_org_owner, is_org_admin,
     can_modify_user, validate_last_owner, can_assign_role, ROLE_HIERARCHY
@@ -73,11 +73,18 @@ def members():
         OrganizationInvite.expires_at > datetime.utcnow()
     ).all()
     
+    # Get action plan status for each member (for Pro/Enterprise tiers)
+    action_plan_status = {}
+    for member in members:
+        plan = ActionPlan.get_for_user(member.id)
+        action_plan_status[member.id] = plan is not None and plan.ai_generated_plan is not None
+    
     return render_template('organization/members.html',
                           org=org,
                           members=members,
                           can_invite=can_invite,
                           pending_invites=pending_invites,
+                          action_plan_status=action_plan_status,
                           role_hierarchy=ROLE_HIERARCHY)
 
 
