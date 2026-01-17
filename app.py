@@ -43,6 +43,7 @@ from routes.company_updates import company_updates_bp
 from routes.transactions import transactions_bp
 from routes.organization import org_bp
 from routes.platform_admin import platform_bp
+from routes.contact_us import contact_bp
 
 def create_app():
     app = Flask(__name__)
@@ -102,6 +103,7 @@ def create_app():
     app.register_blueprint(transactions_bp)
     app.register_blueprint(org_bp)
     app.register_blueprint(platform_bp)
+    app.register_blueprint(contact_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

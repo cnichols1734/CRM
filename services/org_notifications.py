@@ -62,7 +62,7 @@ def send_org_approved_email(org, owner_email):
                     <strong>Your Free Tier includes:</strong>
                 </p>
                 <ul style="margin: 10px 0; color: #166534; font-size: 14px;">
-                    <li>Up to 200 contacts</li>
+                    <li>Unlimited contacts</li>
                     <li>Task management</li>
                     <li>Contact groups & notes</li>
                     <li>Dashboard & reporting</li>
@@ -89,7 +89,7 @@ Great news! Your organization "{org.name}" has been approved and is now active.
 Log in here: {login_url}
 
 Your Free Tier includes:
-- Up to 200 contacts
+- Unlimited contacts
 - Task management
 - Contact groups & notes
 - Dashboard & reporting

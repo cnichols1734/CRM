@@ -7,7 +7,7 @@ Easy to modify defaults without code changes.
 TIER_DEFAULTS = {
     'free': {
         'max_users': 1,
-        'max_contacts': 200,
+        'max_contacts': 10000,
         'can_invite_users': False,
     },
     'pro': {

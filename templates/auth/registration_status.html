@@ -320,10 +320,10 @@
                         {% endif %}
                         
                         {% if org.status in ['suspended', 'rejected'] %}
-                        <a href="mailto:support@technolog.com" 
-                           class="block w-full text-center py-3 rounded-lg bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition-colors">
-                            <i class="fas fa-envelope mr-2"></i>Contact Support
-                        </a>
+                        <button onclick="openContactUsModal('app')" 
+                           class=\"block w-full text-center py-3 rounded-lg bg-slate-100 text-slate-700 font-medium hover:bg-slate-200 transition-colors\">
+                            <i class=\"fas fa-envelope mr-2\"></i>Contact Support
+                        </button>
                         {% endif %}
                     </div>
                 </div>

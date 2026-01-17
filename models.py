@@ -37,7 +37,7 @@ class Organization(db.Model):
     
     # Configurable limits (easily adjustable per-org)
     max_users = db.Column(db.Integer, default=1)  # Free: 1, Pro: configurable
-    max_contacts = db.Column(db.Integer, default=200)  # Free: 200, Pro: unlimited (NULL)
+    max_contacts = db.Column(db.Integer, default=10000)  # Free: 10000, Pro: unlimited (NULL)
     can_invite_users = db.Column(db.Boolean, default=False)  # Free: False, Pro: True
     
     # Per-org feature overrides (beyond tier defaults)
