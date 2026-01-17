@@ -103,12 +103,14 @@
         </div>
         <div class="flex items-center space-x-4 pr-4 relative">
             {% if current_user.is_authenticated %}
-            <i class="fas fa-bell h-5 w-5"></i>
-            <i class="fas fa-question-circle h-5 w-5"></i>
-            <i class="fas fa-cog h-5 w-5"></i>
+            <a href="{{ url_for('auth.logout') }}" class="text-white hover:text-gray-200 flex items-center gap-2 text-sm font-medium">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
             {% else %}
-            <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200">
-                <i class="fas fa-sign-in-alt h-5 w-5"></i>
+            <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200 flex items-center gap-2 text-sm font-medium">
+                <i class="fas fa-sign-in-alt"></i>
+                <span>Login</span>
             </a>
             {% endif %}
         </div>

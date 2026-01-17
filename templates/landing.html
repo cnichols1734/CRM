@@ -111,9 +111,9 @@
                 url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334e68' fill-opacity='0.03'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
         
-        /* Feature section warm bg */
-        .warm-section-bg {
-            background: linear-gradient(180deg, #fef9c3 0%, #fef3c7 50%, #fff7ed 100%);
+        /* Feature section cool bg */
+        .features-section-bg {
+            background: linear-gradient(180deg, #f0f4f8 0%, #e8eff5 50%, #f8fafc 100%);
         }
         
         /* Navbar blur */
@@ -155,19 +155,6 @@
             box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
         }
         
-        /* Accordion styles */
-        .accordion-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s ease, padding 0.3s ease;
-        }
-        .accordion-item.active .accordion-content {
-            max-height: 300px;
-            padding-top: 1rem;
-        }
-        .accordion-item.active .accordion-icon {
-            transform: rotate(45deg);
-        }
         
         /* Stats counter */
         .stat-number {
@@ -420,7 +407,7 @@
     
     
     <!-- ========== FEATURES SECTION ========== -->
-    <section id="features" class="warm-section-bg py-20 md:py-28">
+    <section id="features" class="features-section-bg py-20 md:py-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             
             <!-- Section Header -->
@@ -596,112 +583,96 @@
     <!-- ========== HOW IT WORKS SECTION ========== -->
     <section id="how-it-works" class="bg-white py-20 md:py-28">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            
+            <!-- Section Header -->
+            <div class="text-center mb-16">
+                <span class="inline-block px-4 py-1.5 bg-accent-100 text-accent-700 text-sm font-semibold rounded-full mb-4">
+                    HOW IT WORKS
+                </span>
+                <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold text-brand-900 mb-4">
+                    Get started in minutes
+                </h2>
+                <p class="text-lg text-brand-600 max-w-2xl mx-auto">
+                    Three simple steps to transform how you manage your real estate business.
+                </p>
+            </div>
+            
+            <!-- Steps -->
+            <div class="grid md:grid-cols-3 gap-8 lg:gap-12">
                 
-                <!-- Left: Accordion -->
-                <div>
-                    <span class="inline-block px-4 py-1.5 bg-accent-100 text-accent-700 text-sm font-semibold rounded-full mb-4">
-                        HOW IT WORKS
-                    </span>
-                    <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-8">
-                        Three steps to a better business
-                    </h2>
-                    
-                    <!-- Accordion -->
-                    <div class="space-y-4" id="accordion">
-                        <!-- Step 1 -->
-                        <div class="accordion-item active border-2 border-brand-200 rounded-xl overflow-hidden" data-accordion>
-                            <button class="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-brand-50 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 bg-brand-800 text-white rounded-lg flex items-center justify-center font-bold">1</div>
-                                    <span class="text-lg font-semibold text-brand-800">Organize your contacts</span>
-                                </div>
-                                <i class="accordion-icon fas fa-plus text-brand-400 transition-transform"></i>
-                            </button>
-                            <div class="accordion-content px-5 pb-5 text-brand-600">
-                                Import your existing contacts or add them one by one. Use smart groups to categorize leads, clients, and past customers. Everything is searchable and filterable.
-                            </div>
-                        </div>
-                        
-                        <!-- Step 2 -->
-                        <div class="accordion-item border-2 border-brand-200 rounded-xl overflow-hidden" data-accordion>
-                            <button class="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-brand-50 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 bg-brand-800 text-white rounded-lg flex items-center justify-center font-bold">2</div>
-                                    <span class="text-lg font-semibold text-brand-800">Stay on top of tasks</span>
-                                </div>
-                                <i class="accordion-icon fas fa-plus text-brand-400 transition-transform"></i>
-                            </button>
-                            <div class="accordion-content px-5 pb-5 text-brand-600">
-                                Create follow-up tasks, set reminders, and let the AI suggest your daily priorities. Never forget to call back a hot lead or send that contract.
-                            </div>
-                        </div>
-                        
-                        <!-- Step 3 -->
-                        <div class="accordion-item border-2 border-brand-200 rounded-xl overflow-hidden" data-accordion>
-                            <button class="w-full flex items-center justify-between p-5 text-left bg-white hover:bg-brand-50 transition-colors">
-                                <div class="flex items-center gap-4">
-                                    <div class="w-10 h-10 bg-brand-800 text-white rounded-lg flex items-center justify-center font-bold">3</div>
-                                    <span class="text-lg font-semibold text-brand-800">Close more deals</span>
-                                </div>
-                                <i class="accordion-icon fas fa-plus text-brand-400 transition-transform"></i>
-                            </button>
-                            <div class="accordion-content px-5 pb-5 text-brand-600">
-                                Track every transaction from first contact to closing. Generate documents, collect signatures, and watch your pipeline grow. It's that simple.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Right: Image/Illustration -->
+                <!-- Step 1 -->
                 <div class="relative">
-                    <div class="absolute -inset-4 bg-gradient-to-br from-accent-200 to-warm-200 rounded-3xl opacity-50 blur-xl"></div>
-                    <div class="relative bg-white rounded-2xl shadow-xl border border-brand-100 overflow-hidden p-6">
-                        <!-- Stylized workflow illustration -->
-                        <div class="space-y-4">
-                            <div class="flex items-center gap-4 p-4 bg-blue-50 rounded-xl">
-                                <div class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-user-plus text-white"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="h-3 bg-blue-200 rounded w-3/4 mb-2"></div>
-                                    <div class="h-2 bg-blue-100 rounded w-1/2"></div>
-                                </div>
-                                <i class="fas fa-check-circle text-blue-500 text-xl"></i>
+                    <!-- Connector line (hidden on mobile) -->
+                    <div class="hidden md:block absolute top-16 left-1/2 w-full h-0.5 bg-gradient-to-r from-brand-200 via-brand-300 to-brand-200"></div>
+                    
+                    <div class="relative text-center">
+                        <!-- Step number -->
+                        <div class="relative inline-flex items-center justify-center w-32 h-32 mb-6">
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-100 to-brand-100 rounded-full"></div>
+                            <div class="relative w-20 h-20 bg-gradient-to-br from-brand-700 to-brand-900 rounded-2xl flex items-center justify-center shadow-xl">
+                                <i class="fas fa-address-book text-white text-2xl"></i>
                             </div>
-                            
-                            <div class="flex justify-center">
-                                <i class="fas fa-arrow-down text-brand-300 text-xl"></i>
-                            </div>
-                            
-                            <div class="flex items-center gap-4 p-4 bg-amber-50 rounded-xl">
-                                <div class="w-12 h-12 bg-amber-500 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-bell text-white"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="h-3 bg-amber-200 rounded w-2/3 mb-2"></div>
-                                    <div class="h-2 bg-amber-100 rounded w-1/3"></div>
-                                </div>
-                                <i class="fas fa-check-circle text-amber-500 text-xl"></i>
-                            </div>
-                            
-                            <div class="flex justify-center">
-                                <i class="fas fa-arrow-down text-brand-300 text-xl"></i>
-                            </div>
-                            
-                            <div class="flex items-center gap-4 p-4 bg-green-50 rounded-xl">
-                                <div class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-                                    <i class="fas fa-handshake text-white"></i>
-                                </div>
-                                <div class="flex-1">
-                                    <div class="h-3 bg-green-200 rounded w-1/2 mb-2"></div>
-                                    <div class="h-2 bg-green-100 rounded w-2/3"></div>
-                                </div>
-                                <i class="fas fa-trophy text-green-500 text-xl"></i>
+                            <div class="absolute -top-1 -right-1 w-8 h-8 bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                1
                             </div>
                         </div>
+                        
+                        <h3 class="text-xl font-bold text-brand-900 mb-3">Import your contacts</h3>
+                        <p class="text-brand-600 leading-relaxed">
+                            Add contacts manually or import from a spreadsheet. Organize them with smart groups and tags.
+                        </p>
                     </div>
                 </div>
+                
+                <!-- Step 2 -->
+                <div class="relative">
+                    <div class="relative text-center">
+                        <!-- Step number -->
+                        <div class="relative inline-flex items-center justify-center w-32 h-32 mb-6">
+                            <div class="absolute inset-0 bg-gradient-to-br from-accent-100 to-orange-100 rounded-full"></div>
+                            <div class="relative w-20 h-20 bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl flex items-center justify-center shadow-xl">
+                                <i class="fas fa-tasks text-white text-2xl"></i>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-8 h-8 bg-brand-800 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                2
+                            </div>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-brand-900 mb-3">Stay organized</h3>
+                        <p class="text-brand-600 leading-relaxed">
+                            Create tasks, set reminders, and never miss a follow-up. Let AI help prioritize your day.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="relative">
+                    <div class="relative text-center">
+                        <!-- Step number -->
+                        <div class="relative inline-flex items-center justify-center w-32 h-32 mb-6">
+                            <div class="absolute inset-0 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full"></div>
+                            <div class="relative w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center shadow-xl">
+                                <i class="fas fa-handshake text-white text-2xl"></i>
+                            </div>
+                            <div class="absolute -top-1 -right-1 w-8 h-8 bg-accent-500 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                3
+                            </div>
+                        </div>
+                        
+                        <h3 class="text-xl font-bold text-brand-900 mb-3">Close more deals</h3>
+                        <p class="text-brand-600 leading-relaxed">
+                            Track transactions, generate documents, and watch your pipeline—and income—grow.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CTA -->
+            <div class="text-center mt-16">
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                    Start Your Free Account
+                    <i class="fas fa-arrow-right"></i>
+                </a>
             </div>
         </div>
     </section>
@@ -949,20 +920,6 @@
             });
         });
         
-        // Accordion functionality
-        document.querySelectorAll('[data-accordion]').forEach(item => {
-            const button = item.querySelector('button');
-            button.addEventListener('click', () => {
-                // Close all other accordions
-                document.querySelectorAll('[data-accordion]').forEach(other => {
-                    if (other !== item) {
-                        other.classList.remove('active');
-                    }
-                });
-                // Toggle current
-                item.classList.toggle('active');
-            });
-        });
         
         // Navbar background on scroll
         const nav = document.querySelector('nav');
