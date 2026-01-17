@@ -199,13 +199,15 @@
     .benefit-badge {
         display: inline-flex;
         align-items: center;
-        padding: 6px 12px;
-        background: linear-gradient(135deg, #f0fdf4, #dcfce7);
-        border: 1px solid #bbf7d0;
-        border-radius: 20px;
-        font-size: 12px;
+        padding: 0;
+        background: transparent;
+        font-size: 13px;
         font-weight: 500;
-        color: #166534;
+        color: #64748b;
+    }
+    .benefit-badge i {
+        color: #f97316;
+        margin-right: 6px;
     }
     
     /* Divider with text */
@@ -308,7 +310,7 @@
         <div class="orb orb-1"></div>
         <div class="orb orb-2"></div>
         
-        <div class="w-full max-w-[420px] relative z-10 animate-fade-in-up">
+        <div class="w-full max-w-[520px] relative z-10 animate-fade-in-up">
             <!-- Mobile logo -->
             <div class="lg:hidden text-center mb-8">
                 <div class="flex justify-center mb-4">
@@ -330,11 +332,13 @@
                         <p class="text-slate-500">Create your account in 60 seconds</p>
                     </div>
                     
-                    <!-- Benefits badges -->
-                    <div class="flex flex-wrap justify-center gap-2 mb-8">
-                        <span class="benefit-badge"><i class="fas fa-address-book mr-1.5"></i>Unlimited Contacts</span>
-                        <span class="benefit-badge"><i class="fas fa-bolt mr-1.5"></i>2-Min Setup</span>
-                        <span class="benefit-badge"><i class="fas fa-lock mr-1.5"></i>Secure & Private</span>
+                    <!-- Benefits -->
+                    <div class="flex items-center justify-center gap-6 mb-8 text-sm text-slate-500">
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Unlimited Contacts</span>
+                        <span class="text-slate-300">·</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>2-Min Setup</span>
+                        <span class="text-slate-300">·</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Secure</span>
                     </div>
                     
                     <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4">
