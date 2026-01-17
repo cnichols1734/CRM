@@ -329,3 +329,62 @@ def get_or_404_org(model, resource_id: int):
         if resource.organization_id != current_user.organization_id:
             abort(404)
     return resource
+
+
+# =============================================================================
+# ORGANIZATION SETUP HELPERS
+# =============================================================================
+
+def create_default_groups_for_org(org_id: int):
+    """
+    Create default contact groups for a new organization.
+    Called when an organization is approved.
+    
+    Args:
+        org_id: The organization ID to create groups for
+        
+    Returns:
+        List of created ContactGroup objects
+    """
+    from models import db, ContactGroup
+    
+    # Default groups for real estate CRM
+    default_groups = [
+        # Buyer pipeline
+        {'name': 'Buyer - New Potential Client', 'category': 'Status', 'sort_order': 1},
+        {'name': 'Buyer - Actively Showing Homes', 'category': 'Status', 'sort_order': 2},
+        {'name': 'Buyer - Under Contract', 'category': 'Status', 'sort_order': 3},
+        {'name': 'Buyer - Previous Client', 'category': 'Status', 'sort_order': 4},
+        # Seller pipeline
+        {'name': 'Seller - New Potential Client', 'category': 'Status', 'sort_order': 5},
+        {'name': 'Seller - Active Listing', 'category': 'Status', 'sort_order': 6},
+        {'name': 'Seller - Under Contract', 'category': 'Status', 'sort_order': 7},
+        {'name': 'Seller - Previous Client', 'category': 'Status', 'sort_order': 8},
+        # Priority groups
+        {'name': 'A', 'category': 'Priority', 'sort_order': 9},
+        {'name': 'B', 'category': 'Priority', 'sort_order': 10},
+        {'name': 'C', 'category': 'Priority', 'sort_order': 11},
+        {'name': 'D', 'category': 'Priority', 'sort_order': 12},
+        # Relationship groups
+        {'name': 'Family', 'category': 'Relationship', 'sort_order': 13},
+        {'name': 'Friend', 'category': 'Relationship', 'sort_order': 14},
+        # Professional groups
+        {'name': 'Real Estate Agent', 'category': 'Professional', 'sort_order': 15},
+        {'name': 'Lender', 'category': 'Professional', 'sort_order': 16},
+        {'name': 'Inspector', 'category': 'Professional', 'sort_order': 17},
+        {'name': 'Insurance Broker', 'category': 'Professional', 'sort_order': 18},
+    ]
+    
+    created_groups = []
+    for group_data in default_groups:
+        group = ContactGroup(
+            organization_id=org_id,
+            name=group_data['name'],
+            category=group_data.get('category', 'Status'),
+            sort_order=group_data.get('sort_order', 0)
+        )
+        db.session.add(group)
+        created_groups.append(group)
+    
+    db.session.commit()
+    return created_groups

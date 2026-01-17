@@ -506,7 +506,8 @@ def import_contacts():
                 if row.get('groups'):
                     group_names = [name.strip() for name in row['groups'].split(';') if name.strip()]
                     if group_names:
-                        groups = ContactGroup.query.filter(ContactGroup.name.in_(group_names)).all()
+                        # Multi-tenant: filter groups by organization
+                        groups = org_query(ContactGroup).filter(ContactGroup.name.in_(group_names)).all()
                         if len(groups) < len(group_names):
                             missing_groups = set(group_names) - set(g.name for g in groups)
                             error_details.append(f"Row {row_num}: Some groups not found: {', '.join(missing_groups)}")

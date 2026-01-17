@@ -211,6 +211,16 @@ def approve_org(org_id):
     
     db.session.commit()
     
+    # Create default contact groups for the new org
+    from services.tenant_service import create_default_groups_for_org
+    try:
+        created_groups = create_default_groups_for_org(org.id)
+        log_platform_action('org_groups_created', org.id, {'groups_count': len(created_groups)})
+    except Exception as e:
+        # Log error but don't fail the approval
+        import logging
+        logging.error(f"Failed to create default groups for org {org.id}: {e}")
+    
     # Notify org owner via email
     from services.org_notifications import send_org_approved_email
     owner = org.users.filter_by(org_role='owner').first()
