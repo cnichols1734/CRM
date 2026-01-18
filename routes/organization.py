@@ -200,6 +200,8 @@ def send_invite():
 @org_admin_required
 def remove_member(user_id):
     """Remove a member from the organization."""
+    from models import Contact, DailyTodoList, UserTodo, ActionPlan, Task
+    
     org = current_user.organization
     target_user = User.query.filter_by(
         id=user_id,
@@ -223,15 +225,43 @@ def remove_member(user_id):
         flash(str(e), 'error')
         return redirect(url_for('org.members'))
     
-    # Soft delete: Deactivate user instead of hard delete
-    # This preserves data integrity while preventing access
-    target_user.organization_id = None  # This will fail due to NOT NULL
-    # For now, we'll just mark them as inactive somehow
-    # TODO: Add proper user deactivation field
+    # Delete the user and associated data
+    try:
+        # Delete all related records that don't have CASCADE on their foreign keys
+        # or have NOT NULL constraints
+        
+        # Delete daily todo lists
+        DailyTodoList.query.filter_by(user_id=target_user.id).delete()
+        
+        # Delete user todos (has CASCADE but delete explicitly for clarity)
+        UserTodo.query.filter_by(user_id=target_user.id).delete()
+        
+        # Delete action plans (has CASCADE but delete explicitly for clarity)
+        ActionPlan.query.filter_by(user_id=target_user.id).delete()
+        
+        # Delete tasks (assigned_to_id and created_by_id)
+        Task.query.filter(
+            (Task.assigned_to_id == target_user.id) | 
+            (Task.created_by_id == target_user.id)
+        ).delete(synchronize_session=False)
+        
+        # Delete all contacts associated with the user
+        Contact.query.filter_by(user_id=target_user.id).delete()
+        
+        # Note: Other relationships like CompanyUpdateReaction, CompanyUpdateComment, 
+        # CompanyUpdateView, and TransactionDocument have CASCADE DELETE so they'll
+        # be automatically deleted when the user is deleted
+        
+        # Delete the user
+        username = target_user.username
+        db.session.delete(target_user)
+        db.session.commit()
+        
+        flash(f'User {username} has been deleted successfully.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'error')
     
-    # Actually, since org_id is NOT NULL, we need a different approach
-    # For now, just prevent removal and suggest suspension
-    flash('Member removal is not yet supported. Consider suspending the organization instead.', 'warning')
     return redirect(url_for('org.members'))
 
 
