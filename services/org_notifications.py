@@ -33,7 +33,7 @@ def send_org_approved_email(org, owner_email):
         msg.html = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #f97316; margin: 0;">Welcome to TechnolOG!</h1>
+                <h1 style="color: #f97316; margin: 0;">Welcome to Origen TechnolOG!</h1>
             </div>
             
             <p style="font-size: 16px; color: #374151;">
@@ -76,13 +76,13 @@ def send_org_approved_email(org, owner_email):
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
             
             <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                TechnolOG CRM - Powering Real Estate Success
+                Origen TechnolOG CRM - Powering Real Estate Success
             </p>
         </div>
         """
         
         msg.body = f"""
-Welcome to TechnolOG!
+Welcome to Origen TechnolOG!
 
 Great news! Your organization "{org.name}" has been approved and is now active.
 
@@ -96,7 +96,7 @@ Your Free Tier includes:
 
 Questions? Reply to this email and we'll help you get started.
 
-TechnolOG CRM
+Origen TechnolOG CRM
         """
         
         mail.send(msg)
@@ -123,7 +123,7 @@ def send_org_rejected_email(org, owner_email, reason=None):
         reason_text = reason if reason else "Your application did not meet our requirements at this time."
         
         msg = Message(
-            subject=f"Update on your TechnolOG application",
+            subject=f"Update on your Origen TechnolOG application",
             recipients=[owner_email],
         )
         
@@ -132,7 +132,7 @@ def send_org_rejected_email(org, owner_email, reason=None):
             <h2 style="color: #374151;">Application Update</h2>
             
             <p style="font-size: 16px; color: #374151;">
-                Thank you for your interest in TechnolOG. Unfortunately, we were unable to approve 
+                Thank you for your interest in Origen TechnolOG. Unfortunately, we were unable to approve 
                 your organization <strong>{org.name}</strong> at this time.
             </p>
             
@@ -150,7 +150,7 @@ def send_org_rejected_email(org, owner_email, reason=None):
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
             
             <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                TechnolOG CRM
+                Origen TechnolOG CRM
             </p>
         </div>
         """
@@ -158,7 +158,7 @@ def send_org_rejected_email(org, owner_email, reason=None):
         msg.body = f"""
 Application Update
 
-Thank you for your interest in TechnolOG. Unfortunately, we were unable to approve 
+Thank you for your interest in Origen TechnolOG. Unfortunately, we were unable to approve 
 your organization "{org.name}" at this time.
 
 Reason: {reason_text}
@@ -166,7 +166,7 @@ Reason: {reason_text}
 If you believe this was an error or would like to provide additional information, 
 please reply to this email.
 
-TechnolOG CRM
+Origen TechnolOG CRM
         """
         
         mail.send(msg)
@@ -191,7 +191,7 @@ def send_invite_email(org, inviter, invitee_email, invite_token):
         invite_url = url_for('auth.accept_invite', token=invite_token, _external=True)
         
         msg = Message(
-            subject=f"You've been invited to join {org.name} on TechnolOG",
+            subject=f"You've been invited to join {org.name} on Origen TechnolOG",
             recipients=[invitee_email],
         )
         
@@ -203,7 +203,7 @@ def send_invite_email(org, inviter, invitee_email, invite_token):
             
             <p style="font-size: 16px; color: #374151;">
                 <strong>{inviter.first_name} {inviter.last_name}</strong> has invited you to join 
-                <strong>{org.name}</strong> on TechnolOG CRM.
+                <strong>{org.name}</strong> on Origen TechnolOG CRM.
             </p>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -227,7 +227,7 @@ def send_invite_email(org, inviter, invitee_email, invite_token):
             <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
             
             <p style="font-size: 12px; color: #9ca3af; text-align: center;">
-                TechnolOG CRM - Powering Real Estate Success
+                Origen TechnolOG CRM - Powering Real Estate Success
             </p>
         </div>
         """
@@ -235,14 +235,14 @@ def send_invite_email(org, inviter, invitee_email, invite_token):
         msg.body = f"""
 You're Invited!
 
-{inviter.first_name} {inviter.last_name} has invited you to join {org.name} on TechnolOG CRM.
+{inviter.first_name} {inviter.last_name} has invited you to join {org.name} on Origen TechnolOG CRM.
 
 Accept your invitation here: {invite_url}
 
 This invitation expires in 72 hours. If you didn't expect this invitation, 
 you can safely ignore this email.
 
-TechnolOG CRM
+Origen TechnolOG CRM
         """
         
         mail.send(msg)

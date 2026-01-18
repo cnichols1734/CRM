@@ -92,7 +92,7 @@ def contact_us():
             <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;">
             
             <p style="font-size: 12px; color: #94a3b8; text-align: center; margin: 0;">
-                TechnolOG CRM - Contact Form Submission
+                Origen TechnolOG CRM - Contact Form Submission
             </p>
         </div>
         """
@@ -112,7 +112,7 @@ Message:
 ---
 Reply to: {user_email}
 
-TechnolOG CRM
+Origen TechnolOG CRM
         """
         
         mail.send(msg)
