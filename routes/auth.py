@@ -280,6 +280,11 @@ def register():
             while User.query.filter_by(username=username).first():
                 username = f"{base_username}{counter}"
                 counter += 1
+        else:
+            # Prevent email addresses from being used as usernames
+            if '@' in username:
+                flash('Username cannot be an email address. Please choose a different username.', 'error')
+                return render_template('auth/register.html', form=form)
         
         # Create user as owner of the new org
         user = User(
@@ -321,10 +326,16 @@ def login():
 
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter(
-            (User.username == form.username.data) |
-            (User.email == form.username.data)
-        ).first()
+        # Prioritize email matches over username matches to prevent conflicts
+        # when usernames are set to email addresses
+        login_input = form.username.data.strip()
+
+        # First try exact email match
+        user = User.query.filter(User.email == login_input).first()
+
+        # If no email match, try username match
+        if not user:
+            user = User.query.filter(User.username == login_input).first()
 
         if user and user.check_password(form.password.data):
             # Multi-tenant: Check organization status before login
@@ -443,11 +454,16 @@ def complete_invite(token):
     password = request.form.get('password', '')
     first_name = request.form.get('first_name', '').strip()
     last_name = request.form.get('last_name', '').strip()
-    
+
     if not all([username, password, first_name, last_name]):
         flash('All fields are required.', 'error')
         return render_template('auth/accept_invite.html', invite=invite)
-    
+
+    # Prevent email addresses from being used as usernames
+    if '@' in username:
+        flash('Username cannot be an email address. Please choose a different username.', 'error')
+        return render_template('auth/accept_invite.html', invite=invite)
+
     # Check username not taken
     if User.query.filter_by(username=username).first():
         flash('Username already taken.', 'error')

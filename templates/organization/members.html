@@ -3,7 +3,8 @@
 {% block content %}
 <div class="max-w-6xl mx-auto">
     <div class="bg-white shadow rounded-lg">
-        <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div
+            class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <h1 class="text-2xl font-semibold text-gray-800">Team Members</h1>
             {% if can_invite %}
             <button onclick="showInviteModal()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
@@ -19,22 +20,29 @@
             </span>
             {% endif %}
         </div>
-        
+
         <div class="p-6">
             <!-- Desktop Member List -->
             <div class="hidden md:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Member</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contacts</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Member</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Role</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Joined</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Last Login</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Contacts</th>
                             {% if org_has_feature('AI_ACTION_PLAN') %}
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action Plan</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Action Plan</th>
                             {% endif %}
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -43,10 +51,12 @@
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                        <span class="text-blue-600 font-medium">{{ member.first_name[0] }}{{ member.last_name[0] }}</span>
+                                        <span class="text-blue-600 font-medium">{{ member.first_name[0] }}{{
+                                            member.last_name[0] }}</span>
                                     </div>
                                     <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900">{{ member.first_name }} {{ member.last_name }}</div>
+                                        <div class="text-sm font-medium text-gray-900">{{ member.first_name }} {{
+                                            member.last_name }}</div>
                                         <div class="text-sm text-gray-500">{{ member.email }}</div>
                                     </div>
                                 </div>
@@ -61,16 +71,16 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {% if member.created_at %}
-                                    {{ member.created_at.strftime('%b %d, %Y') }}
+                                {{ member.created_at.strftime('%b %d, %Y') }}
                                 {% else %}
-                                    —
+                                —
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                 {% if member.last_login %}
-                                    {{ member.last_login.strftime('%b %d, %Y') }}
+                                {{ member.last_login.strftime('%b %d, %Y') }}
                                 {% else %}
-                                    Never
+                                Never
                                 {% endif %}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -79,13 +89,14 @@
                             {% if org_has_feature('AI_ACTION_PLAN') %}
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 {% if action_plan_status.get(member.id) %}
-                                <a href="{{ url_for('auth.view_user_action_plan', user_id=member.id) }}" 
-                                   class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
+                                <a href="{{ url_for('auth.view_user_action_plan', user_id=member.id) }}"
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
                                     <i class="fas fa-check mr-1.5 text-xs"></i>
                                     Completed
                                 </a>
                                 {% else %}
-                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                <span
+                                    class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
                                     <i class="fas fa-clock mr-1.5 text-xs"></i>
                                     Not Started
                                 </span>
@@ -94,14 +105,19 @@
                             {% endif %}
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex justify-end items-center space-x-3">
-                                    <a href="{{ url_for('auth.edit_user', user_id=member.id) }}" 
-                                       class="text-blue-600 hover:text-blue-900">
+                                    <a href="{{ url_for('auth.edit_user', user_id=member.id) }}"
+                                        class="text-blue-600 hover:text-blue-900">
                                         Edit
                                     </a>
-                                    {% if member.id != current_user.id and role_hierarchy[current_user.org_role] > role_hierarchy[member.org_role] %}
-                                    <button onclick="showRoleModal({{ member.id }}, '{{ member.org_role }}')" 
-                                            class="text-gray-600 hover:text-gray-900">
+                                    {% if member.id != current_user.id and role_hierarchy[current_user.org_role] >
+                                    role_hierarchy[member.org_role] %}
+                                    <button onclick="showRoleModal({{ member.id }}, '{{ member.org_role }}')"
+                                        class="text-gray-600 hover:text-gray-900">
                                         Role
+                                    </button>
+                                    <button onclick="showDeleteModal({{ member.id }}, '{{ member.first_name }} {{ member.last_name }}')"
+                                        class="text-red-600 hover:text-red-900">
+                                        Delete
                                     </button>
                                     {% endif %}
                                 </div>
@@ -111,7 +127,7 @@
                     </tbody>
                 </table>
             </div>
-            
+
             <!-- Mobile Member Cards -->
             <div class="md:hidden space-y-4">
                 {% for member in members %}
@@ -119,10 +135,12 @@
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center">
                             <div class="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span class="text-blue-600 font-medium text-lg">{{ member.first_name[0] }}{{ member.last_name[0] }}</span>
+                                <span class="text-blue-600 font-medium text-lg">{{ member.first_name[0] }}{{
+                                    member.last_name[0] }}</span>
                             </div>
                             <div class="ml-3">
-                                <div class="text-base font-medium text-gray-900">{{ member.first_name }} {{ member.last_name }}</div>
+                                <div class="text-base font-medium text-gray-900">{{ member.first_name }} {{
+                                    member.last_name }}</div>
                                 <div class="text-sm text-gray-500">{{ member.email }}</div>
                             </div>
                         </div>
@@ -133,15 +151,17 @@
                             {{ member.org_role|capitalize }}
                         </span>
                     </div>
-                    
+
                     <div class="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3">
                         <div>
                             <span class="text-gray-500">Joined:</span>
-                            <span class="text-gray-700 ml-1">{% if member.created_at %}{{ member.created_at.strftime('%b %d, %Y') }}{% else %}—{% endif %}</span>
+                            <span class="text-gray-700 ml-1">{% if member.created_at %}{{ member.created_at.strftime('%b
+                                %d, %Y') }}{% else %}—{% endif %}</span>
                         </div>
                         <div>
                             <span class="text-gray-500">Last Login:</span>
-                            <span class="text-gray-700 ml-1">{% if member.last_login %}{{ member.last_login.strftime('%b %d') }}{% else %}Never{% endif %}</span>
+                            <span class="text-gray-700 ml-1">{% if member.last_login %}{{ member.last_login.strftime('%b
+                                %d') }}{% else %}Never{% endif %}</span>
                         </div>
                         <div>
                             <span class="text-gray-500">Contacts:</span>
@@ -158,30 +178,36 @@
                         </div>
                         {% endif %}
                     </div>
-                    
+
                     <div class="flex items-center justify-end space-x-4 border-t border-gray-100 pt-3 mt-3">
-                        <a href="{{ url_for('auth.edit_user', user_id=member.id) }}" 
-                           class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        <a href="{{ url_for('auth.edit_user', user_id=member.id) }}"
+                            class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                             <i class="fas fa-edit mr-1"></i>Edit
                         </a>
-                        {% if member.id != current_user.id and role_hierarchy[current_user.org_role] > role_hierarchy[member.org_role] %}
-                        <button onclick="showRoleModal({{ member.id }}, '{{ member.org_role }}')" 
-                                class="text-gray-600 hover:text-gray-800 text-sm font-medium">
+                        {% if member.id != current_user.id and role_hierarchy[current_user.org_role] >
+                        role_hierarchy[member.org_role] %}
+                        <button onclick="showRoleModal({{ member.id }}, '{{ member.org_role }}')"
+                            class="text-gray-600 hover:text-gray-800 text-sm font-medium">
                             <i class="fas fa-user-tag mr-1"></i>Change Role
+                        </button>
+                        <button onclick="showDeleteModal({{ member.id }}, '{{ member.first_name }} {{ member.last_name }}')"
+                            class="text-red-600 hover:text-red-800 text-sm font-medium">
+                            <i class="fas fa-trash mr-1"></i>Delete
                         </button>
                         {% endif %}
                     </div>
                 </div>
                 {% endfor %}
             </div>
-            
+
             {% if pending_invites %}
             <!-- Pending Invites -->
             <div class="mt-8">
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Pending Invitations</h3>
                 <div class="bg-gray-50 rounded-lg p-4">
                     {% for invite in pending_invites %}
-                    <div class="flex items-center justify-between py-2 {% if not loop.last %}border-b border-gray-200{% endif %}">
+                    <div
+                        class="flex items-center justify-between py-2 {% if not loop.last %}border-b border-gray-200{% endif %}">
                         <div>
                             <span class="text-sm text-gray-900">{{ invite.email }}</span>
                             <span class="ml-2 text-xs text-gray-500">({{ invite.role }})</span>
@@ -202,16 +228,17 @@
 <div id="inviteModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
         <h3 class="text-lg font-semibold mb-4">Invite Team Member</h3>
-        <form action="{{ url_for('org.members') }}" method="POST">
+        <form action="{{ url_for('org.send_invite') }}" method="POST">
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                <input type="email" name="email" required 
-                       class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                       placeholder="colleague@example.com">
+                <input type="email" name="email" required
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    placeholder="colleague@example.com">
             </div>
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select name="role" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <select name="role"
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="member">Member</option>
                     {% if current_user.org_role == 'owner' %}
                     <option value="admin">Admin</option>
@@ -219,12 +246,11 @@
                 </select>
             </div>
             <div class="flex justify-end space-x-3">
-                <button type="button" onclick="hideInviteModal()" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                <button type="button" onclick="hideInviteModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
                     Cancel
                 </button>
-                <button type="submit" 
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
                     Send Invite
                 </button>
             </div>
@@ -239,18 +265,18 @@
         <form id="roleForm" method="POST">
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">New Role</label>
-                <select id="roleSelect" name="role" class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                <select id="roleSelect" name="role"
+                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                     <option value="member">Member</option>
                     <option value="admin">Admin</option>
                 </select>
             </div>
             <div class="flex justify-end space-x-3">
-                <button type="button" onclick="hideRoleModal()" 
-                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                <button type="button" onclick="hideRoleModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
                     Cancel
                 </button>
-                <button type="submit" 
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
                     Update Role
                 </button>
             </div>
@@ -258,20 +284,55 @@
     </div>
 </div>
 
+<!-- Delete Member Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+        <div class="flex items-center mb-4">
+            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <i class="fas fa-exclamation-triangle text-red-600"></i>
+            </div>
+            <h3 class="ml-3 text-lg font-semibold text-gray-900">Delete Team Member</h3>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">
+            Are you sure you want to delete <strong id="deleteMemberName"></strong>? This action cannot be undone.
+            All of their contacts and data will be permanently deleted.
+        </p>
+        <form id="deleteForm" method="POST">
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="hideDeleteModal()"
+                    class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                    Delete Member
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
-function showInviteModal() {
-    document.getElementById('inviteModal').classList.remove('hidden');
-}
-function hideInviteModal() {
-    document.getElementById('inviteModal').classList.add('hidden');
-}
-function showRoleModal(memberId, currentRole) {
-    document.getElementById('roleForm').action = '/org/members/' + memberId + '/update-role';
-    document.getElementById('roleSelect').value = currentRole;
-    document.getElementById('roleModal').classList.remove('hidden');
-}
-function hideRoleModal() {
-    document.getElementById('roleModal').classList.add('hidden');
-}
+    function showInviteModal() {
+        document.getElementById('inviteModal').classList.remove('hidden');
+    }
+    function hideInviteModal() {
+        document.getElementById('inviteModal').classList.add('hidden');
+    }
+    function showRoleModal(memberId, currentRole) {
+        document.getElementById('roleForm').action = '/org/members/' + memberId + '/update-role';
+        document.getElementById('roleSelect').value = currentRole;
+        document.getElementById('roleModal').classList.remove('hidden');
+    }
+    function hideRoleModal() {
+        document.getElementById('roleModal').classList.add('hidden');
+    }
+    function showDeleteModal(memberId, memberName) {
+        document.getElementById('deleteForm').action = '/org/members/' + memberId + '/remove';
+        document.getElementById('deleteMemberName').textContent = memberName;
+        document.getElementById('deleteModal').classList.remove('hidden');
+    }
+    function hideDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+    }
 </script>
 {% endblock %}
