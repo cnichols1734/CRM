@@ -50,6 +50,20 @@
         rel="stylesheet">
     <!-- Add AI Chat Widget styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
+    <!-- NProgress - YouTube-style progress bar for navigation feedback -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" />
+    <style>
+        /* NProgress customization - YouTube-style */
+        #nprogress .bar { 
+            background: #f97316 !important; 
+            height: 3px;
+            box-shadow: 0 0 8px #f97316, 0 0 4px #f97316;
+        }
+        #nprogress .peg { 
+            box-shadow: 0 0 14px #f97316, 0 0 8px #f97316; 
+        }
+        #nprogress .spinner { display: none; }
+    </style>
     <!-- Loading Overlay styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay.css') }}">
     <style>
@@ -793,6 +807,88 @@
     {% endif %}
     <!-- Loading Overlay (document spinner) -->
     <script src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>
+
+    <!-- NProgress - Navigation progress bar -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+    <script>
+        // Configure NProgress - trickle effect + boosted to reach higher
+        NProgress.configure({ 
+            showSpinner: false, 
+            minimum: 0.15,
+            trickle: true,       // Keep organic trickle effect
+            trickleSpeed: 80,    // Trickle frequently for smooth animation
+            speed: 200,
+            easing: 'ease'
+        });
+        
+        // Boosted start: trickle naturally but give periodic boosts to push higher
+        function startBoostedProgress() {
+            NProgress.start();
+            // Give it boosts to push past where trickle normally stalls
+            // These use inc() with larger amounts to feel natural
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.4) NProgress.inc(0.15); }, 200);
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.55) NProgress.inc(0.12); }, 400);
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.7) NProgress.inc(0.1); }, 600);
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.8) NProgress.inc(0.08); }, 900);
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.88) NProgress.inc(0.05); }, 1300);
+            setTimeout(function() { if (NProgress.status && NProgress.status < 0.93) NProgress.inc(0.03); }, 1800);
+        }
+        
+        // Start progress on any internal link click
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (link && 
+                link.href.startsWith(window.location.origin) &&
+                !link.href.includes('#') && 
+                !link.hasAttribute('download') && 
+                link.target !== '_blank' &&
+                !link.closest('[data-no-progress]')) {
+                startBoostedProgress();
+            }
+        });
+        
+        // Also handle form submissions
+        document.addEventListener('submit', function(e) {
+            if (!e.target.hasAttribute('data-no-progress')) {
+                startBoostedProgress();
+            }
+        });
+        
+        // Intercept programmatic navigation (window.location.href = ..., window.location.reload(), etc.)
+        (function() {
+            // Override location.assign, replace, and reload
+            const originalAssign = window.location.assign.bind(window.location);
+            const originalReplace = window.location.replace.bind(window.location);
+            const originalReload = window.location.reload.bind(window.location);
+            
+            window.location.assign = function(url) {
+                startBoostedProgress();
+                return originalAssign(url);
+            };
+            
+            window.location.replace = function(url) {
+                startBoostedProgress();
+                return originalReplace(url);
+            };
+            
+            window.location.reload = function() {
+                startBoostedProgress();
+                return originalReload();
+            };
+            
+            // Catch-all for onclick handlers that set location.href directly
+            window.addEventListener('beforeunload', function() {
+                if (!NProgress.status) {
+                    startBoostedProgress();
+                }
+            });
+        })();
+        
+        // Stop on page load (handles back/forward navigation)
+        window.addEventListener('pageshow', function() {
+            NProgress.done();
+        });
+    </script>
 
 </body>
 
