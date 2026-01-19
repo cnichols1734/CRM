@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Task Reminders</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body, table, td, p, a, li { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f4f8; }
+        
+        @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; }
+            .content-padding { padding: 32px 24px !important; }
+            .header-padding { padding: 28px 24px !important; }
+            .title { font-size: 26px !important; }
+            .task-item { padding: 14px 16px !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f4f8;">
+    
+    <!-- Preheader -->
+    <div style="display: none; max-height: 0; overflow: hidden;">
+        You have {{total_task_count}} task{{#if (gt total_task_count 1)}}s{{/if}} that need your attention today.
+    </div>
+    
+    <!-- Email Wrapper -->
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f0f4f8;">
+        <tr>
+            <td align="center" style="padding: 40px 16px;">
+                
+                <!-- Main Container -->
+                <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(16, 42, 67, 0.08);">
+                    
+                    <!-- ========== HEADER ========== -->
+                    <tr>
+                        <td class="header-padding" style="background: linear-gradient(135deg, #1e2d3d 0%, #102a43 100%); padding: 36px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.3px;">
+                                <span style="color: #ffffff;">Origen Technol</span><span style="color: #f97316;">OG</span>
+                            </h1>
+                            <p style="margin: 8px 0 0 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #829ab1; letter-spacing: 0.5px; text-transform: uppercase;">
+                                The Real Estate CRM
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Orange Accent Line -->
+                    <tr>
+                        <td style="height: 4px; background: linear-gradient(90deg, #f97316 0%, #fb923c 50%, #f97316 100%);"></td>
+                    </tr>
+                    
+                    <!-- ========== BODY CONTENT ========== -->
+                    <tr>
+                        <td class="content-padding" style="padding: 48px 48px 40px 48px;">
+                            
+                            <!-- Title -->
+                            <h2 class="title" style="margin: 0 0 12px 0; font-family: 'DM Sans', sans-serif; font-size: 28px; font-weight: 700; color: #102a43; text-align: center; line-height: 1.3;">
+                                Task Reminders
+                            </h2>
+                            
+                            <!-- Subtitle with count -->
+                            <p style="margin: 0 0 32px 0; font-family: 'DM Sans', sans-serif; font-size: 16px; color: #627d98; text-align: center; line-height: 1.5;">
+                                Hi {{first_name}}, you have <strong style="color: #102a43;">{{total_task_count}}</strong> task{{#if (gt total_task_count 1)}}s{{/if}} that need your attention.
+                            </p>
+                            
+                            <!-- ========== OVERDUE TASKS ========== -->
+                            {{#if has_overdue}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #fef2f2; border-radius: 8px 8px 0 0; border-left: 4px solid #dc2626;">
+                                        <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            ⚠️ Overdue
+                                        </p>
+                                    </td>
+                                </tr>
+                                {{#each overdue_tasks}}
+                                <tr>
+                                    <td class="task-item" style="padding: 16px 20px; background-color: #fff5f5; border-left: 4px solid #dc2626; border-bottom: 1px solid #fecaca;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td>
+                                                    <a href="{{task_url}}" style="font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; color: #102a43; text-decoration: none; display: block; margin-bottom: 4px;">
+                                                        {{subject}}
+                                                    </a>
+                                                    <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #627d98;">
+                                                        {{contact_name}} • Due: <span style="color: #dc2626; font-weight: 500;">{{due_date}}</span>
+                                                        {{#if priority}}<span style="margin-left: 8px; padding: 2px 8px; background-color: {{#if (eq priority 'high')}}#fef2f2{{else if (eq priority 'medium')}}#fffbeb{{else}}#f0fdf4{{/if}}; color: {{#if (eq priority 'high')}}#dc2626{{else if (eq priority 'medium')}}#d97706{{else}}#16a34a{{/if}}; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;">{{priority}}</span>{{/if}}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                {{/each}}
+                            </table>
+                            {{/if}}
+                            
+                            <!-- ========== DUE TOMORROW TASKS ========== -->
+                            {{#if has_tomorrow}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #fffbeb; border-radius: 8px 8px 0 0; border-left: 4px solid #f59e0b;">
+                                        <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: #d97706; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            📅 Due Tomorrow
+                                        </p>
+                                    </td>
+                                </tr>
+                                {{#each tomorrow_tasks}}
+                                <tr>
+                                    <td class="task-item" style="padding: 16px 20px; background-color: #fffef5; border-left: 4px solid #f59e0b; border-bottom: 1px solid #fde68a;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td>
+                                                    <a href="{{task_url}}" style="font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; color: #102a43; text-decoration: none; display: block; margin-bottom: 4px;">
+                                                        {{subject}}
+                                                    </a>
+                                                    <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #627d98;">
+                                                        {{contact_name}} • Due: <span style="color: #d97706; font-weight: 500;">{{due_date}}</span>
+                                                        {{#if priority}}<span style="margin-left: 8px; padding: 2px 8px; background-color: {{#if (eq priority 'high')}}#fef2f2{{else if (eq priority 'medium')}}#fffbeb{{else}}#f0fdf4{{/if}}; color: {{#if (eq priority 'high')}}#dc2626{{else if (eq priority 'medium')}}#d97706{{else}}#16a34a{{/if}}; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;">{{priority}}</span>{{/if}}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                {{/each}}
+                            </table>
+                            {{/if}}
+                            
+                            <!-- ========== DUE IN 2 DAYS TASKS ========== -->
+                            {{#if has_upcoming}}
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td style="padding: 12px 16px; background-color: #eff6ff; border-radius: 8px 8px 0 0; border-left: 4px solid #3b82f6;">
+                                        <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            🗓️ Due in 2 Days
+                                        </p>
+                                    </td>
+                                </tr>
+                                {{#each upcoming_tasks}}
+                                <tr>
+                                    <td class="task-item" style="padding: 16px 20px; background-color: #f8faff; border-left: 4px solid #3b82f6; border-bottom: 1px solid #bfdbfe;">
+                                        <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                            <tr>
+                                                <td>
+                                                    <a href="{{task_url}}" style="font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; color: #102a43; text-decoration: none; display: block; margin-bottom: 4px;">
+                                                        {{subject}}
+                                                    </a>
+                                                    <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 13px; color: #627d98;">
+                                                        {{contact_name}} • Due: <span style="color: #2563eb; font-weight: 500;">{{due_date}}</span>
+                                                        {{#if priority}}<span style="margin-left: 8px; padding: 2px 8px; background-color: {{#if (eq priority 'high')}}#fef2f2{{else if (eq priority 'medium')}}#fffbeb{{else}}#f0fdf4{{/if}}; color: {{#if (eq priority 'high')}}#dc2626{{else if (eq priority 'medium')}}#d97706{{else}}#16a34a{{/if}}; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase;">{{priority}}</span>{{/if}}
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                {{/each}}
+                            </table>
+                            {{/if}}
+                            
+                            <!-- CTA Button -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center" style="padding: 16px 0 0 0;">
+                                        <a href="{{view_all_url}}" style="display: inline-block; font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 15px 44px; border-radius: 10px; box-shadow: 0 6px 20px rgba(249, 115, 22, 0.35);">
+                                            View All Tasks
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                        </td>
+                    </tr>
+                    
+                    <!-- ========== FOOTER ========== -->
+                    <tr>
+                        <td style="background-color: #f8fafc; border-top: 1px solid #e8eff5; padding: 28px 40px; text-align: center;">
+                            <p style="margin: 0 0 6px 0; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700;">
+                                <span style="color: #334e68;">Origen Technol</span><span style="color: #f97316;">OG</span>
+                            </p>
+                            <p style="margin: 0 0 16px 0; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #829ab1;">
+                                The Real Estate CRM Built for Serious Agents
+                            </p>
+                            <p style="margin: 0 0 16px 0; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #d1d5db; letter-spacing: 8px;">
+                                • • •
+                            </p>
+                            <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 11px; color: #9fb3c8;">
+                                © {{current_year}} Origen TechnolOG. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    
+</body>
+</html>
+
+<!--
+SENDGRID TEMPLATE INFO
+======================
+Template Name: Task Reminder Digest
+Subject Line: You have {{total_task_count}} task reminder{{#if (gt total_task_count 1)}}s{{/if}}
+
+Test Data JSON:
+{
+  "first_name": "Sarah",
+  "total_task_count": 4,
+  "has_overdue": true,
+  "has_tomorrow": true,
+  "has_upcoming": true,
+  "overdue_tasks": [
+    {
+      "subject": "Call John Smith about listing",
+      "contact_name": "John Smith",
+      "due_date": "Jan 17, 2026",
+      "priority": "high",
+      "task_url": "https://app.origentechnolog.com/tasks/123"
+    },
+    {
+      "subject": "Follow up with buyer lead",
+      "contact_name": "Jane Doe",
+      "due_date": "Jan 18, 2026",
+      "priority": "medium",
+      "task_url": "https://app.origentechnolog.com/tasks/124"
+    }
+  ],
+  "tomorrow_tasks": [
+    {
+      "subject": "Schedule showing at 123 Main St",
+      "contact_name": "Bob Wilson",
+      "due_date": "Jan 20, 2026",
+      "priority": "high",
+      "task_url": "https://app.origentechnolog.com/tasks/125"
+    }
+  ],
+  "upcoming_tasks": [
+    {
+      "subject": "Send market analysis to seller",
+      "contact_name": "Alice Johnson",
+      "due_date": "Jan 21, 2026",
+      "priority": "low",
+      "task_url": "https://app.origentechnolog.com/tasks/126"
+    }
+  ],
+  "view_all_url": "https://app.origentechnolog.com/tasks",
+  "current_year": "2026"
+}
+-->
