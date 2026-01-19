@@ -2,18 +2,13 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
-from flask_mail import Message
+from services.email_service import get_email_service
 from functools import wraps
 from datetime import datetime, timedelta
 from utils import generate_unique_slug
 import pytz
-import sendgrid
-from sendgrid.helpers.mail import Mail, Email, To, Content, DynamicTemplateData
 
 auth_bp = Blueprint('auth', __name__)
-
-# SendGrid template IDs
-SENDGRID_TEMPLATE_PASSWORD_RESET = 'd-15a6ff328e6248efaaa13d4dd395bee2'
 
 def format_datetime_cst(utc_dt):
     if not utc_dt:
@@ -27,51 +22,12 @@ def format_datetime_cst(utc_dt):
     return central_dt.strftime('%m/%d/%Y %I:%M %p')
 
 def send_reset_email(user):
-    """
-    Send password reset email via SendGrid dynamic template.
-    Returns True if sent successfully, False otherwise.
-    """
+    """Send password reset email via SendGrid."""
     token = user.get_reset_token()
     reset_url = url_for('auth.reset_password', token=token, _external=True)
     
-    try:
-        # Get SendGrid API key
-        api_key = current_app.config.get('SENDGRID_API_KEY')
-        if not api_key:
-            current_app.logger.error("SendGrid API key not configured")
-            return False
-        
-        sg = sendgrid.SendGridAPIClient(api_key=api_key)
-        
-        # Build the email message with dynamic template
-        message = Mail(
-            from_email=Email("info@origentechnolog.com", "Origen TechnolOG"),
-            to_emails=To(user.email)
-        )
-        
-        # Use dynamic template
-        message.template_id = SENDGRID_TEMPLATE_PASSWORD_RESET
-        
-        # Set dynamic template data
-        message.dynamic_template_data = {
-            'first_name': user.first_name,
-            'reset_url': reset_url,
-            'current_year': str(datetime.now().year)
-        }
-        
-        # Send the email
-        response = sg.send(message)
-        
-        if response.status_code == 202:
-            current_app.logger.info(f"Password reset email sent to {user.email}")
-            return True
-        else:
-            current_app.logger.error(f"SendGrid returned status {response.status_code} for {user.email}")
-            return False
-            
-    except Exception as e:
-        current_app.logger.error(f"Failed to send password reset email to {user.email}: {e}")
-        return False
+    email_service = get_email_service()
+    return email_service.send_password_reset(user, reset_url)
 
 def admin_required(f):
     @wraps(f)
