@@ -171,7 +171,7 @@ class EmailService:
         )
     
     def send_contact_form(self, subject: str, user_email: str, message: str, 
-                          internal_recipient: str = 'ogtechnolog@gmail.com') -> bool:
+                          internal_recipient: str = 'info@origentechnolog.com') -> bool:
         """
         Send contact form submission to internal team.
         
