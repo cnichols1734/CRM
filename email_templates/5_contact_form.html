@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>New Contact Form Submission</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body, table, td, p, a, li { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #f0f4f8; }
+        
+        @media only screen and (max-width: 600px) {
+            .container { width: 100% !important; }
+            .content-padding { padding: 32px 24px !important; }
+            .header-padding { padding: 28px 24px !important; }
+            .title { font-size: 22px !important; }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f0f4f8;">
+    
+    <!-- Preheader -->
+    <div style="display: none; max-height: 0; overflow: hidden;">
+        New contact form submission from {{user_email}} - Subject: {{subject}}
+    </div>
+    
+    <!-- Email Wrapper -->
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f0f4f8;">
+        <tr>
+            <td align="center" style="padding: 40px 16px;">
+                
+                <!-- Main Container -->
+                <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 32px rgba(16, 42, 67, 0.08);">
+                    
+                    <!-- ========== HEADER ========== -->
+                    <tr>
+                        <td class="header-padding" style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); padding: 36px 40px; text-align: center;">
+                            <h1 style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 0.3px;">
+                                New Contact Form Submission
+                            </h1>
+                            <p style="margin: 8px 0 0 0; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; color: #bfdbfe; letter-spacing: 0.5px; text-transform: uppercase;">
+                                Origen TechnolOG Support
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Blue Accent Line -->
+                    <tr>
+                        <td style="height: 4px; background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 50%, #3b82f6 100%);"></td>
+                    </tr>
+                    
+                    <!-- ========== BODY CONTENT ========== -->
+                    <tr>
+                        <td class="content-padding" style="padding: 40px 48px;">
+                            
+                            <!-- Subject Field -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td>
+                                        <p style="margin: 0 0 6px 0; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            Subject
+                                        </p>
+                                        <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 18px; font-weight: 600; color: #0f172a;">
+                                            {{subject}}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- From Field -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin-bottom: 24px;">
+                                <tr>
+                                    <td>
+                                        <p style="margin: 0 0 6px 0; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            From
+                                        </p>
+                                        <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 16px; color: #0f172a;">
+                                            <a href="mailto:{{user_email}}" style="color: #3b82f6; text-decoration: none;">{{user_email}}</a>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Message Field -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td>
+                                        <p style="margin: 0 0 10px 0; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            Message
+                                        </p>
+                                        <div style="padding: 20px; background: #f8fafc; border-radius: 10px; border-left: 4px solid #3b82f6;">
+                                            <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 15px; color: #334155; line-height: 1.7; white-space: pre-wrap;">{{message}}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Reply Button -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+                                <tr>
+                                    <td align="center" style="padding: 32px 0 0 0;">
+                                        <a href="mailto:{{user_email}}" style="display: inline-block; font-family: 'DM Sans', sans-serif; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; padding: 14px 36px; border-radius: 10px; box-shadow: 0 6px 20px rgba(59, 130, 246, 0.3);">
+                                            Reply to {{user_email}}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                        </td>
+                    </tr>
+                    
+                    <!-- ========== FOOTER ========== -->
+                    <tr>
+                        <td style="background-color: #f8fafc; border-top: 1px solid #e8eff5; padding: 24px 40px; text-align: center;">
+                            <p style="margin: 0; font-family: 'DM Sans', sans-serif; font-size: 12px; color: #94a3b8;">
+                                Origen TechnolOG CRM - Contact Form Submission
+                            </p>
+                        </td>
+                    </tr>
+                    
+                </table>
+                
+            </td>
+        </tr>
+    </table>
+    
+</body>
+</html>
+
+<!--
+SENDGRID TEMPLATE INFO
+======================
+Template Name: Contact Form (Internal)
+Subject Line: Contact Form: {{subject}}
+
+Test Data JSON:
+{
+  "subject": "Question about pricing",
+  "user_email": "jane.doe@example.com",
+  "message": "Hi there,\n\nI'm interested in learning more about the Pro tier pricing for my brokerage. We have about 15 agents.\n\nCan you provide more details on volume discounts?\n\nThanks,\nJane"
+}
+-->
