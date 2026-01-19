@@ -38,6 +38,11 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@auth_bp.route('/terms-privacy')
+def terms_privacy():
+    """Display Terms of Service and Privacy Policy."""
+    return render_template('auth/terms_privacy.html')
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """
