@@ -230,6 +230,9 @@ class User(UserMixin, db.Model):
     licensed_supervisor_email = db.Column(db.String(120))
     licensed_supervisor_phone = db.Column(db.String(20))
     
+    # User preferences
+    task_window_days = db.Column(db.Integer, nullable=False, default=30)  # Days for upcoming tasks view (7, 30, 60, or 90)
+    
     # Organization relationship
     organization = db.relationship('Organization', backref=db.backref('users', lazy='dynamic'),
                                    foreign_keys=[organization_id])

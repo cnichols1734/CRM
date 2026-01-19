@@ -182,11 +182,14 @@ def dashboard():
     
     # Get current time in user's timezone
     now = datetime.now(user_tz)
-    seven_days = now + timedelta(days=7)
+    
+    # Get user's task window preference (defaults to 30 days)
+    task_window_days = getattr(current_user, 'task_window_days', 30)
+    window_end = now + timedelta(days=task_window_days)
     
     # Convert to UTC for database query
     utc_now = now.astimezone(timezone.utc)
-    utc_seven_days = seven_days.astimezone(timezone.utc)
+    utc_window_end = window_end.astimezone(timezone.utc)
 
     # Multi-tenant: Query tasks within this org
     if can_view_all_org_data() and show_all:
@@ -194,8 +197,8 @@ def dashboard():
             or_(
                 # Past due tasks
                 Task.due_date < utc_now,
-                # Upcoming tasks within 7 days
-                Task.due_date.between(utc_now, utc_seven_days)
+                # Upcoming tasks within user's window
+                Task.due_date.between(utc_now, utc_window_end)
             ),
             Task.status != 'completed'
         ).order_by(
@@ -212,8 +215,8 @@ def dashboard():
             or_(
                 # Past due tasks
                 Task.due_date < utc_now,
-                # Upcoming tasks within 7 days
-                Task.due_date.between(utc_now, utc_seven_days)
+                # Upcoming tasks within user's window
+                Task.due_date.between(utc_now, utc_window_end)
             ),
             Task.status != 'completed'
         ).order_by(
@@ -339,6 +342,7 @@ def dashboard():
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
+                         task_window_days=task_window_days,
                          latest_update=latest_update,
                          now=now,
                          show_dashboard_joke=is_enabled('SHOW_DASHBOARD_JOKE'),
@@ -352,3 +356,24 @@ def dashboard():
 @feature_required('MARKETING')
 def marketing():
     return render_template('marketing.html')
+
+
+@main_bp.route('/api/update-task-window', methods=['POST'])
+@login_required
+def update_task_window():
+    """API endpoint to update user's task window preference."""
+    from models import db
+    from flask import jsonify
+    
+    data = request.get_json()
+    days = data.get('days')
+    
+    # Validate input
+    if days not in [7, 30, 60, 90]:
+        return jsonify({'success': False, 'error': 'Invalid days value. Must be 7, 30, 60, or 90.'}), 400
+    
+    # Update user preference
+    current_user.task_window_days = days
+    db.session.commit()
+    
+    return jsonify({'success': True, 'days': days})
