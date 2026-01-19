@@ -4,326 +4,341 @@
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
+    /* Subtle animations */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    @keyframes pulse-glow {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 0.5; }
+    .animate-in { animation: fadeIn 0.4s ease-out forwards; }
+    .animate-delay-1 { animation-delay: 0.05s; opacity: 0; }
+    .animate-delay-2 { animation-delay: 0.1s; opacity: 0; }
+    .animate-delay-3 { animation-delay: 0.15s; opacity: 0; }
+    
+    /* Task row hover */
+    .task-row {
+        transition: all 0.15s ease;
     }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
+    .task-row:hover {
+        background-color: #fafafa;
     }
-    .animate-fade-in-up-delay-1 { 
-        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
-        opacity: 0; 
-    }
-    .animate-fade-in-up-delay-2 { 
-        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
-        opacity: 0; 
+    .task-row:hover .task-actions {
+        opacity: 1;
     }
     
-    /* Premium task card styling */
-    .task-card {
-        transition: all 0.2s ease-out;
+    /* Priority indicator */
+    .priority-indicator {
+        width: 3px;
+        border-radius: 2px;
+        flex-shrink: 0;
     }
-    .task-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+    .priority-high { background-color: #ef4444; }
+    .priority-medium { background-color: #f59e0b; }
+    .priority-low { background-color: #22c55e; }
+    
+    /* Custom checkbox */
+    .task-checkbox {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #d1d5db;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        position: relative;
+    }
+    .task-checkbox:hover {
+        border-color: #9ca3af;
+    }
+    .task-checkbox:checked {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        border-color: #22c55e;
+    }
+    .task-checkbox:checked::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 2px;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
     }
     
-    /* Priority colors */
-    .priority-high { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-left: 4px solid #ef4444; }
-    .priority-medium { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 4px solid #f59e0b; }
-    .priority-low { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #22c55e; }
-    
-    /* Filter pill styling */
-    .filter-pill {
-        transition: all 0.2s ease-out;
+    /* Tab styling */
+    .tab-button {
+        position: relative;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #64748b;
+        transition: color 0.15s ease;
     }
-    .filter-pill:hover {
-        background: rgba(249, 115, 22, 0.1);
+    .tab-button:hover {
+        color: #334155;
     }
-    .filter-pill.active {
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        color: white;
-        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    .tab-button.active {
+        color: #ea580c;
+    }
+    .tab-button.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #f97316, #ea580c);
+        border-radius: 2px 2px 0 0;
     }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="p-6 max-w-6xl mx-auto">
-        <!-- Premium Header Section -->
-        <div class="mb-8 animate-fade-in-up">
-            <div class="flex justify-between items-start">
-                <div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg">
-                            <i class="fas fa-tasks text-white text-xl"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent hidden md:block">
-                                Client Tasks
-                            </h1>
-                            <p class="text-sm text-slate-500">
-                {% if show_all %}
-                Viewing all client tasks
-                {% else %}
-                Your client tasks
-                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-        </div>
+<div class="min-h-screen bg-slate-50/50">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         
-        <!-- Action Buttons -->
-                <div class="flex items-center gap-3">
-            {% if current_user.role == 'admin' %}
-            <div class="relative hidden md:block">
-                <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
-                                class="appearance-none bg-white border-2 border-slate-200 rounded-xl pl-4 pr-10 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 hover:border-slate-300 transition-all cursor-pointer">
-                    <option value="my" {% if not show_all %}selected{% endif %}>My Client Tasks</option>
-                    <option value="all" {% if show_all %}selected{% endif %}>All Client Tasks</option>
-                </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                    <i class="fas fa-chevron-down text-xs"></i>
+        <!-- Header -->
+        <div class="mb-6 animate-in">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-semibold text-slate-900 hidden md:block">Client Tasks</h1>
+                    <p class="text-sm text-slate-500 mt-0.5">
+                        {% if show_all %}All tasks across your organization{% else %}Your assigned tasks{% endif %}
+                    </p>
                 </div>
-            </div>
-            {% endif %}
-            
-            <a href="{{ url_for('tasks.create_task') }}" 
-                       class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all">
-                        <i class="fas fa-plus"></i>
-                        <span class="hidden md:inline">Create Task</span>
+                <div class="flex items-center gap-3">
+                    {% if current_user.role == 'admin' %}
+                    <div class="relative">
+                        <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
+                                class="text-sm bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer appearance-none">
+                            <option value="my" {% if not show_all %}selected{% endif %}>My Tasks</option>
+                            <option value="all" {% if show_all %}selected{% endif %}>All Tasks</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
+                    </div>
+                    {% endif %}
+                    <a href="{{ url_for('tasks.create_task') }}" 
+                       class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span class="hidden sm:inline">New Task</span>
                     </a>
                 </div>
+            </div>
         </div>
-    </div>
 
-        <!-- Premium Filter Pills -->
-        <div class="mb-6 animate-fade-in-up-delay-1">
-            <div class="flex flex-wrap gap-2">
-            <a href="?status=pending{% if show_all %}&view=all{% endif %}" 
-                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'pending' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
-                    <i class="fas fa-clock mr-2"></i>Active
-            </a>
-            <a href="?status=completed{% if show_all %}&view=all{% endif %}" 
-                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'completed' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
-                    <i class="fas fa-check mr-2"></i>Completed
-            </a>
-            <a href="?status=all{% if show_all %}&view=all{% endif %}" 
-                   class="filter-pill px-5 py-2 rounded-full text-sm font-medium {% if current_status == 'all' %}active{% else %}text-slate-600 bg-white border border-slate-200{% endif %}">
-                    <i class="fas fa-list mr-2"></i>All
-            </a>
-        </div>
-    </div>
+        <!-- Main Card -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in animate-delay-1">
+            
+            <!-- Tabs -->
+            <div class="flex items-center gap-1 px-4 border-b border-slate-100">
+                <a href="?status=pending{% if show_all %}&view=all{% endif %}" 
+                   class="tab-button {% if current_status == 'pending' %}active{% endif %}">
+                    Active
+                </a>
+                <a href="?status=completed{% if show_all %}&view=all{% endif %}" 
+                   class="tab-button {% if current_status == 'completed' %}active{% endif %}">
+                    Completed
+                </a>
+                <a href="?status=all{% if show_all %}&view=all{% endif %}" 
+                   class="tab-button {% if current_status == 'all' %}active{% endif %}">
+                    All
+                </a>
+            </div>
 
-    <!-- Task List -->
-        <div class="animate-fade-in-up-delay-2">
-        {% if tasks %}
-            <div class="space-y-3">
-            {% for task in tasks %}
-                <div class="task-card bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden
-                    {% if task.priority == 'high' %}priority-high{% elif task.priority == 'medium' %}priority-medium{% else %}priority-low{% endif %}">
-                    <div class="p-5">
-                        <div class="flex items-start gap-4">
-                            <!-- Status Checkbox -->
-                            <div class="flex-shrink-0 pt-1">
-                                <label class="relative flex items-center cursor-pointer">
-                                <input type="checkbox"
-                                       {% if task.status == 'completed' %}checked{% endif %}
-                                       onchange="quickUpdateStatus({{ task.id }}, this.checked)"
-                                           class="peer sr-only">
-                                    <div class="w-6 h-6 rounded-lg border-2 border-slate-300 peer-checked:bg-gradient-to-br peer-checked:from-green-400 peer-checked:to-green-600 peer-checked:border-green-500 flex items-center justify-center transition-all">
-                                        <i class="fas fa-check text-white text-xs opacity-0 peer-checked:opacity-100"></i>
-                                    </div>
-                                </label>
-                            </div>
+            <!-- Task List -->
+            {% if tasks %}
+            <div class="divide-y divide-slate-100">
+                {% for task in tasks %}
+                {% set task_date = task.due_date.date() %}
+                {% set current_date = now.date() %}
+                {% set days_until_due = (task_date - current_date).days %}
+                
+                <div class="task-row group">
+                    <div class="flex items-stretch">
+                        <!-- Priority Indicator -->
+                        <div class="priority-indicator {% if task.priority == 'high' %}priority-high{% elif task.priority == 'medium' %}priority-medium{% else %}priority-low{% endif %}"></div>
+                        
+                        <!-- Task Content -->
+                        <div class="flex-1 flex items-center gap-4 px-4 py-4">
+                            <!-- Checkbox -->
+                            <input type="checkbox"
+                                   {% if task.status == 'completed' %}checked{% endif %}
+                                   onchange="quickUpdateStatus({{ task.id }}, this.checked)"
+                                   class="task-checkbox flex-shrink-0">
                             
-                            <!-- Priority Flag -->
-                            <div class="flex-shrink-0">
-                                <button onclick="togglePriorityMenu({{ task.id }})"
-                                        class="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105
-                                            {% if task.priority == 'high' %}bg-red-100 text-red-600 hover:bg-red-200
-                                            {% elif task.priority == 'medium' %}bg-amber-100 text-amber-600 hover:bg-amber-200
-                                            {% else %}bg-green-100 text-green-600 hover:bg-green-200{% endif %}">
-                                    <i class="fas fa-flag"></i>
-                                </button>
-                                <div id="priority-menu-{{ task.id }}"
-                                     class="hidden fixed mt-2 w-36 rounded-xl shadow-xl bg-white ring-1 ring-black/5 z-[100] overflow-hidden">
-                                    <div class="py-1">
-                                        <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
-                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-red-50 w-full transition-colors">
-                                            <span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
-                                            High
-                                        </button>
-                                        <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
-                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-amber-50 w-full transition-colors">
-                                            <span class="w-3 h-3 rounded-full bg-amber-500 mr-3"></span>
-                                            Medium
-                                        </button>
-                                        <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
-                                                class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-green-50 w-full transition-colors">
-                                            <span class="w-3 h-3 rounded-full bg-green-500 mr-3"></span>
-                                            Low
-                                        </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Task Info (Middle) -->
+                            <!-- Main Content -->
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center flex-wrap gap-2 mb-2">
+                                <div class="flex items-center gap-2 mb-1">
                                     <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks" 
-                                       class="text-lg font-semibold text-slate-800 hover:text-orange-600 transition-colors">
-                                    {{ task.subject }}
-                                </a>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
-                                        {{ task.task_type.name }}
-                                    </span>
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-500">
-                                        {{ task.task_subtype.name }}
-                                    </span>
-                            </div>
-
-                            {% if current_user.role == 'admin' and show_all %}
-                                <div class="flex items-center text-slate-500 text-sm mb-2">
-                                    <div class="w-5 h-5 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-medium mr-2">
-                                    {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
-                                </div>
-                                <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
-                            </div>
-                            {% endif %}
-
-                            <!-- Task Details -->
-                                <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                                <!-- Due Date with Color Coding -->
-                                {% set task_date = task.due_date.date() %}
-                                {% set current_date = now.date() %}
-                                {% set days_until_due = (task_date - current_date).days %}
-                                    <div class="flex items-center gap-1.5
-                                        {% if days_until_due < 0 %}text-red-600
-                                        {% elif days_until_due == 0 %}text-orange-600
-                                        {% elif days_until_due <= 2 %}text-amber-600
-                                        {% else %}text-slate-500{% endif %}">
-                                        <i class="far fa-calendar-alt"></i>
-                                        <span class="font-medium">
-                                        {% if days_until_due < 0 %}
-                                            Overdue by {{ days_until_due|abs }} day{{ 's' if days_until_due|abs != 1 }}
-                                        {% elif days_until_due == 0 %}
-                                            Due today
-                                        {% elif days_until_due == 1 %}
-                                            Due tomorrow
-                                        {% else %}
-                                            Due in {{ days_until_due }} days
-                                        {% endif %}
-                                    </span>
-                                        <span class="text-slate-400">({{ task.due_date.strftime('%m/%d/%y') }}{% if task.scheduled_time %} @ {{ task.scheduled_time.strftime('%I:%M %p') }}{% endif %})</span>
-                                </div>
-
-                                <!-- Contact -->
-                                {% if task.contact %}
-                                    <div class="flex items-center gap-1.5">
-                                        <i class="far fa-user text-slate-400"></i>
-                                        <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                                           class="hover:text-orange-600 transition-colors">
-                                        {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                       class="text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors truncate">
+                                        {{ task.subject }}
                                     </a>
                                 </div>
-                                {% endif %}
-
-                                    <!-- Property Address -->
-                                {% if task.property_address %}
-                                    <div class="flex items-center gap-1.5">
-                                        <i class="far fa-building text-slate-400"></i>
-                                        <span>{{ task.property_address }}</span>
+                                
+                                <div class="flex items-center gap-3 text-xs text-slate-500">
+                                    <!-- Due Date -->
+                                    <span class="inline-flex items-center gap-1
+                                        {% if days_until_due < 0 %}text-red-600 font-medium
+                                        {% elif days_until_due == 0 %}text-orange-600 font-medium
+                                        {% elif days_until_due <= 2 %}text-amber-600{% endif %}">
+                                        <i class="far fa-calendar text-[10px]"></i>
+                                        {% if days_until_due < 0 %}
+                                            Overdue {{ days_until_due|abs }}d
+                                        {% elif days_until_due == 0 %}
+                                            Today
+                                        {% elif days_until_due == 1 %}
+                                            Tomorrow
+                                        {% else %}
+                                            {{ task.due_date.strftime('%b %d') }}
+                                        {% endif %}
+                                    </span>
+                                    
+                                    <!-- Contact -->
+                                    {% if task.contact %}
+                                    <span class="inline-flex items-center gap-1">
+                                        <i class="far fa-user text-[10px]"></i>
+                                        <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                                           class="hover:text-orange-600 transition-colors">
+                                            {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                        </a>
+                                    </span>
+                                    {% endif %}
+                                    
+                                    <!-- Type -->
+                                    <span class="hidden sm:inline-flex items-center text-slate-400">
+                                        {{ task.task_type.name }}
+                                    </span>
+                                    
+                                    {% if current_user.role == 'admin' and show_all %}
+                                    <span class="hidden md:inline-flex items-center gap-1 text-slate-400">
+                                        <i class="far fa-user-circle text-[10px]"></i>
+                                        {{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[0] }}.
+                                    </span>
+                                    {% endif %}
                                 </div>
-                                {% endif %}
                             </div>
-                        </div>
-
-                            <!-- Quick Actions -->
-                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            
+                            <!-- Priority Badge (clickable) -->
+                            <div class="relative flex-shrink-0">
+                                <button onclick="togglePriorityMenu({{ task.id }})"
+                                        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
+                                            {% if task.priority == 'high' %}bg-red-50 text-red-700 hover:bg-red-100
+                                            {% elif task.priority == 'medium' %}bg-amber-50 text-amber-700 hover:bg-amber-100
+                                            {% else %}bg-green-50 text-green-700 hover:bg-green-100{% endif %}">
+                                    <span class="w-1.5 h-1.5 rounded-full {% if task.priority == 'high' %}bg-red-500{% elif task.priority == 'medium' %}bg-amber-500{% else %}bg-green-500{% endif %}"></span>
+                                    {{ task.priority|capitalize }}
+                                </button>
+                                
+                                <!-- Priority Dropdown -->
+                                <div id="priority-menu-{{ task.id }}"
+                                     class="hidden fixed mt-1 w-32 rounded-lg shadow-lg bg-white ring-1 ring-slate-200 z-[100] overflow-hidden">
+                                    <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
+                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                        High
+                                    </button>
+                                    <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
+                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                                        Medium
+                                    </button>
+                                    <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
+                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                        Low
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="task-actions flex items-center gap-1 opacity-0 transition-opacity flex-shrink-0">
                                 <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
-                                   class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all"
-                                   title="View Details">
-                                    <i class="fas fa-eye"></i>
+                                   class="p-2 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                                   title="View">
+                                    <i class="fas fa-arrow-right text-xs"></i>
                                 </a>
                                 <button onclick="deleteTask({{ task.id }})"
-                                        class="w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                                        title="Delete Task">
-                                    <i class="fas fa-trash"></i>
+                                        class="p-2 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                        title="Delete">
+                                    <i class="fas fa-trash text-xs"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
                 {% endfor %}
-        </div>
-        {% else %}
+            </div>
+            {% else %}
             <!-- Empty State -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                    <i class="fas fa-tasks text-slate-400 text-2xl"></i>
+            <div class="py-16 px-4 text-center">
+                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+                    <i class="fas fa-check-circle text-slate-400 text-xl"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-slate-800 mb-2">No client tasks found</h3>
-                <p class="text-slate-500 mb-6">Get started by creating your first task</p>
+                <h3 class="text-sm font-medium text-slate-900 mb-1">No tasks found</h3>
+                <p class="text-sm text-slate-500 mb-6">
+                    {% if current_status == 'pending' %}
+                        You're all caught up!
+                    {% elif current_status == 'completed' %}
+                        No completed tasks yet.
+                    {% else %}
+                        Get started by creating your first task.
+                    {% endif %}
+                </p>
                 <a href="{{ url_for('tasks.create_task') }}" 
-                   class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all">
-                    <i class="fas fa-plus"></i>
-                    Create a new task
+                   class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
+                    <i class="fas fa-plus text-xs"></i>
+                    Create Task
                 </a>
             </div>
             {% endif %}
         </div>
+        
+        <!-- Task count -->
+        {% if tasks %}
+        <p class="mt-4 text-xs text-slate-400 text-center animate-in animate-delay-2">
+            Showing {{ tasks|length }} task{{ 's' if tasks|length != 1 else '' }}
+        </p>
+        {% endif %}
     </div>
 </div>
 
-<!-- Contact Modal (kept for contact quick view from task list) -->
+<!-- Contact Modal -->
 <div id="contactModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
-            <!-- Modal header -->
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
-                <div class="flex items-center gap-4">
-                    <div id="modalContactInitials" class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold"></div>
-                    <h3 class="text-lg font-semibold text-slate-800" id="modalContactName"></h3>
+        <div class="relative bg-white rounded-xl shadow-xl max-w-lg w-full">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <div id="modalContactInitials" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-600"></div>
+                    <h3 class="text-base font-semibold text-slate-900" id="modalContactName"></h3>
                 </div>
-                <button onclick="closeContactModal()" class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+                <button onclick="closeContactModal()" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            
-            <!-- Modal content -->
-            <div class="px-6 py-5 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-1">Email</h4>
-                        <p id="modalContactEmail" class="text-slate-800"></p>
+            <div class="p-5 space-y-3">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <p class="text-xs text-slate-500 mb-0.5">Email</p>
+                        <p id="modalContactEmail" class="text-sm text-slate-900"></p>
                     </div>
-                    <div class="bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-1">Phone</h4>
-                        <p id="modalContactPhone" class="text-slate-800"></p>
+                    <div class="p-3 bg-slate-50 rounded-lg">
+                        <p class="text-xs text-slate-500 mb-0.5">Phone</p>
+                        <p id="modalContactPhone" class="text-sm text-slate-900"></p>
                     </div>
-                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-1">Address</h4>
-                        <p id="modalContactAddress" class="text-slate-800"></p>
-                    </div>
-                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-2">Groups</h4>
-                        <div id="modalContactGroups" class="flex flex-wrap gap-2"></div>
-                    </div>
-                    <div class="md:col-span-2 bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-1">Notes</h4>
-                        <p id="modalContactNotes" class="text-slate-800 whitespace-pre-line"></p>
-                    </div>
-                    <div class="bg-slate-50 rounded-xl p-4">
-                        <h4 class="text-sm font-medium text-slate-500 mb-1">Potential Commission</h4>
-                        <p id="modalContactCommission" class="text-slate-800"></p>
-                    </div>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-0.5">Address</p>
+                    <p id="modalContactAddress" class="text-sm text-slate-900"></p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-1">Groups</p>
+                    <div id="modalContactGroups" class="flex flex-wrap gap-1.5"></div>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-0.5">Notes</p>
+                    <p id="modalContactNotes" class="text-sm text-slate-900 whitespace-pre-line"></p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-lg">
+                    <p class="text-xs text-slate-500 mb-0.5">Potential Commission</p>
+                    <p id="modalContactCommission" class="text-sm text-slate-900"></p>
                 </div>
             </div>
         </div>
@@ -334,9 +349,7 @@
 function quickUpdateStatus(taskId, completed) {
     fetch(`/tasks/${taskId}/quick-update`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `status=${completed ? 'completed' : 'pending'}`
     })
     .then(response => {
@@ -352,9 +365,7 @@ function quickUpdateStatus(taskId, completed) {
 function quickUpdatePriority(taskId, priority) {
     fetch(`/tasks/${taskId}/quick-update`, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `priority=${priority}`
     })
     .then(response => {
@@ -368,18 +379,15 @@ function quickUpdatePriority(taskId, priority) {
 }
 
 function togglePriorityMenu(taskId) {
+    event.stopPropagation();
     const button = event.currentTarget;
     const menu = document.getElementById(`priority-menu-${taskId}`);
     const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
     
-    // Close all other menus
     allMenus.forEach(m => {
-        if (m.id !== `priority-menu-${taskId}`) {
-            m.classList.add('hidden');
-        }
+        if (m.id !== `priority-menu-${taskId}`) m.classList.add('hidden');
     });
     
-    // Toggle this menu
     menu.classList.toggle('hidden');
     
     if (!menu.classList.contains('hidden')) {
@@ -387,38 +395,26 @@ function togglePriorityMenu(taskId) {
         menu.style.left = `${rect.left}px`;
         menu.style.top = `${rect.bottom + 4}px`;
         
-        // Ensure menu doesn't go off screen
         const menuRect = menu.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        if (menuRect.right > viewportWidth) {
-            menu.style.left = `${viewportWidth - menuRect.width - 10}px`;
+        if (menuRect.right > window.innerWidth) {
+            menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
         }
-        
-        if (menuRect.bottom > viewportHeight) {
+        if (menuRect.bottom > window.innerHeight) {
             menu.style.top = `${rect.top - menuRect.height - 4}px`;
         }
     }
 }
 
-// Close priority menus when clicking outside
 document.addEventListener('click', function(event) {
-    const isClickInsideMenu = event.target.closest('[id^="priority-menu-"]');
-    const isClickOnPriorityButton = event.target.closest('button[onclick^="togglePriorityMenu"]');
-    
-    if (!isClickInsideMenu && !isClickOnPriorityButton) {
-        const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-        allMenus.forEach(menu => menu.classList.add('hidden'));
+    if (!event.target.closest('[id^="priority-menu-"]') && !event.target.closest('button[onclick^="togglePriorityMenu"]')) {
+        document.querySelectorAll('[id^="priority-menu-"]').forEach(menu => menu.classList.add('hidden'));
     }
 });
 
 function deleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    if (!confirm('Delete this task?')) return;
     
-    fetch(`/tasks/${taskId}/delete`, {
-        method: 'POST',
-    })
+    fetch(`/tasks/${taskId}/delete`, { method: 'POST' })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
         window.location.reload();
@@ -430,11 +426,7 @@ function deleteTask(taskId) {
 }
 
 function openContactModal(contactId) {
-    fetch(`/contact/${contactId}`, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
+    fetch(`/contact/${contactId}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
     .then(response => response.json())
     .then(contact => {
         document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
@@ -442,27 +434,22 @@ function openContactModal(contactId) {
         document.getElementById('modalContactEmail').textContent = contact.email || 'Not provided';
         document.getElementById('modalContactPhone').textContent = contact.phone || 'Not provided';
         
-        const addressParts = [];
-        if (contact.street_address) addressParts.push(contact.street_address);
-        if (contact.city) addressParts.push(contact.city);
-        if (contact.state) addressParts.push(contact.state);
-        if (contact.zip_code) addressParts.push(contact.zip_code);
+        const addressParts = [contact.street_address, contact.city, contact.state, contact.zip_code].filter(Boolean);
         document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'Not provided';
-        
         document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes';
         document.getElementById('modalContactCommission').textContent = contact.potential_commission ? `$${contact.potential_commission}` : 'Not set';
 
         const groupsContainer = document.getElementById('modalContactGroups');
         groupsContainer.innerHTML = '';
-        if (contact.groups && contact.groups.length > 0) {
+        if (contact.groups?.length > 0) {
             contact.groups.forEach(group => {
                 const badge = document.createElement('span');
-                badge.className = 'inline-flex items-center px-3 py-1 rounded-lg text-xs font-medium bg-orange-100 text-orange-800';
+                badge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700';
                 badge.textContent = group.name;
                 groupsContainer.appendChild(badge);
             });
         } else {
-            groupsContainer.innerHTML = '<span class="text-slate-400 text-sm">No groups</span>';
+            groupsContainer.innerHTML = '<span class="text-slate-400 text-xs">No groups</span>';
         }
 
         document.getElementById('contactModal').classList.remove('hidden');
@@ -477,17 +464,7 @@ function closeContactModal() {
     document.getElementById('contactModal').classList.add('hidden');
 }
 
-// Close modal on escape or outside click
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeContactModal();
-    }
-});
-
-document.getElementById('contactModal').addEventListener('click', function(event) {
-    if (event.target === this) {
-        closeContactModal();
-    }
-});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContactModal(); });
+document.getElementById('contactModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeContactModal(); });
 </script>
-{% endblock %} 
+{% endblock %}
