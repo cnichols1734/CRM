@@ -269,6 +269,7 @@ class EmailService:
             template_data={
                 'first_name': user.first_name or 'there',
                 'total_task_count': total_count,
+                'is_plural': total_count > 1,  # Pre-computed for SendGrid template
                 'overdue_tasks': overdue_tasks,
                 'today_tasks': today_tasks,
                 'tomorrow_tasks': tomorrow_tasks,
