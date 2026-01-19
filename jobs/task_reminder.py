@@ -35,6 +35,10 @@ logger = logging.getLogger(__name__)
 # Central timezone for time calculations
 CT = pytz.timezone('America/Chicago')
 
+# Base URL for task links in emails
+# Set via environment variable or default to production URL
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://www.origentechnolog.com')
+
 
 def send_task_reminders():
     """
@@ -143,7 +147,7 @@ def send_task_reminders():
                 
                 try:
                     # Send the batched reminder email
-                    success = email_service.send_task_reminder_digest(user, tasks_by_type)
+                    success = email_service.send_task_reminder_digest(user, tasks_by_type, base_url=APP_BASE_URL)
                     
                     if success:
                         logger.info(
