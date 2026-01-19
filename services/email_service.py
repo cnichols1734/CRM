@@ -199,7 +199,7 @@ class EmailService:
         
         Args:
             user: User model instance (assigned_to)
-            tasks_by_type: Dict with keys 'overdue', 'tomorrow', 'upcoming'
+            tasks_by_type: Dict with keys 'overdue', 'today', 'tomorrow', 'upcoming'
                            each containing list of Task objects
             base_url: Base URL for task links (optional, uses url_for if in app context)
         
@@ -233,19 +233,23 @@ class EmailService:
                     # Not in app context
                     task_url = f"#task-{task.id}"
             
+            # Capitalize priority for display
+            priority_display = task.priority.capitalize() if task.priority else None
+            
             return {
                 'subject': task.subject,
                 'due_date': due_date_str,
-                'priority': task.priority,
+                'priority': priority_display,
                 'contact_name': f"{task.contact.first_name} {task.contact.last_name}" if task.contact else 'Unknown',
                 'task_url': task_url
             }
         
         overdue_tasks = [format_task(t) for t in tasks_by_type.get('overdue', [])]
+        today_tasks = [format_task(t) for t in tasks_by_type.get('today', [])]
         tomorrow_tasks = [format_task(t) for t in tasks_by_type.get('tomorrow', [])]
         upcoming_tasks = [format_task(t) for t in tasks_by_type.get('upcoming', [])]
         
-        total_count = len(overdue_tasks) + len(tomorrow_tasks) + len(upcoming_tasks)
+        total_count = len(overdue_tasks) + len(today_tasks) + len(tomorrow_tasks) + len(upcoming_tasks)
         
         if total_count == 0:
             return False  # Nothing to send
@@ -266,9 +270,11 @@ class EmailService:
                 'first_name': user.first_name or 'there',
                 'total_task_count': total_count,
                 'overdue_tasks': overdue_tasks,
+                'today_tasks': today_tasks,
                 'tomorrow_tasks': tomorrow_tasks,
                 'upcoming_tasks': upcoming_tasks,
                 'has_overdue': len(overdue_tasks) > 0,
+                'has_today': len(today_tasks) > 0,
                 'has_tomorrow': len(tomorrow_tasks) > 0,
                 'has_upcoming': len(upcoming_tasks) > 0,
                 'view_all_url': view_all_url
