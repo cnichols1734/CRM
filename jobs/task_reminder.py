@@ -37,7 +37,7 @@ CT = pytz.timezone('America/Chicago')
 
 # Base URL for task links in emails
 # Set via environment variable or default to production URL
-APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://crm-production-e80e.up.railway.app')
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://www.origentechnolog.com')
 
 
 def send_task_reminders():
