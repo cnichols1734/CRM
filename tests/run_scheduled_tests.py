@@ -185,7 +185,7 @@ class CRMScheduledTestSuite:
             
             # Submit form
             self.log("Submitting form...", "step")
-            self.page.click('input[type="submit"]')
+            self.page.click('button[type="submit"]')
             self.log("", "ok")
             
             # Wait for navigation and verify dashboard
@@ -249,16 +249,18 @@ class CRMScheduledTestSuite:
             test_email = f"test{timestamp}@example.com"
             test_phone = "5551234567"
             
-            # Fill contact form
+            # Fill contact form (using id selectors for WTForms-rendered inputs)
             self.log("Filling contact form...", "step")
-            self.page.fill('input[name="first_name"]', test_first_name)
-            self.page.fill('input[name="last_name"]', test_last_name)
-            self.page.fill('input[name="email"]', test_email)
-            self.page.fill('input[name="phone"]', test_phone)
-            self.page.fill('input[name="street_address"]', "123 Test Street")
-            self.page.fill('input[name="city"]', "Austin")
-            self.page.fill('input[name="state"]', "TX")
-            self.page.fill('input[name="zip_code"]', "78701")
+            # Wait for animations to complete and form to be visible
+            self.page.wait_for_selector('#first_name', state='visible', timeout=10000)
+            self.page.fill('#first_name', test_first_name)
+            self.page.fill('#last_name', test_last_name)
+            self.page.fill('#email', test_email)
+            self.page.fill('#phone', test_phone)
+            self.page.fill('#street_address', "123 Test Street")
+            self.page.fill('#city', "Austin")
+            self.page.fill('#state', "TX")
+            self.page.fill('#zip_code', "78701")
             
             # Select at least one group (required by form validation)
             group_checkboxes = self.page.locator('input[name="group_ids"]')
