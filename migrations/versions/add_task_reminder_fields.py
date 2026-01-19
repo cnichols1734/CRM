@@ -35,6 +35,11 @@ def upgrade():
     
     op.execute("""
         ALTER TABLE task
+        ADD COLUMN IF NOT EXISTS today_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
+    """)
+    
+    op.execute("""
+        ALTER TABLE task
         ADD COLUMN IF NOT EXISTS overdue_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE;
     """)
     
@@ -53,6 +58,11 @@ def downgrade():
     op.execute("""
         ALTER TABLE task
         DROP COLUMN IF EXISTS overdue_reminder_sent;
+    """)
+    
+    op.execute("""
+        ALTER TABLE task
+        DROP COLUMN IF EXISTS today_reminder_sent;
     """)
     
     op.execute("""

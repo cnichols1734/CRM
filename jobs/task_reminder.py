@@ -65,6 +65,10 @@ def send_task_reminders():
     # Overdue: due before now
     overdue_cutoff = now_utc
     
+    # Today: due between 0-24 hours from now
+    today_start = now_utc
+    today_end = now_utc + timedelta(hours=24)
+    
     # Tomorrow: due between 24-48 hours from now
     tomorrow_start = now_utc + timedelta(hours=24)
     tomorrow_end = now_utc + timedelta(hours=48)
@@ -86,7 +90,7 @@ def send_task_reminders():
             set_job_org_context(org.id)
             
             # Collect all tasks needing reminders, grouped by user
-            user_tasks = defaultdict(lambda: {'overdue': [], 'tomorrow': [], 'upcoming': []})
+            user_tasks = defaultdict(lambda: {'overdue': [], 'today': [], 'tomorrow': [], 'upcoming': []})
             
             # Query overdue tasks
             overdue_tasks = Task.query.filter(
@@ -98,6 +102,18 @@ def send_task_reminders():
             
             for task in overdue_tasks:
                 user_tasks[task.assigned_to_id]['overdue'].append(task)
+            
+            # Query today tasks (0-24 hours)
+            today_tasks = Task.query.filter(
+                Task.organization_id == org.id,
+                Task.status == 'pending',
+                Task.due_date >= today_start,
+                Task.due_date < today_end,
+                Task.today_reminder_sent == False
+            ).all()
+            
+            for task in today_tasks:
+                user_tasks[task.assigned_to_id]['today'].append(task)
             
             # Query tomorrow tasks (24-48 hours)
             tomorrow_tasks = Task.query.filter(
@@ -130,6 +146,7 @@ def send_task_reminders():
                 # Skip if no tasks for this user
                 total_tasks = (
                     len(tasks_by_type['overdue']) + 
+                    len(tasks_by_type['today']) + 
                     len(tasks_by_type['tomorrow']) + 
                     len(tasks_by_type['upcoming'])
                 )
@@ -153,6 +170,7 @@ def send_task_reminders():
                         logger.info(
                             f"Sent reminder to {user.email}: "
                             f"{len(tasks_by_type['overdue'])} overdue, "
+                            f"{len(tasks_by_type['today'])} today, "
                             f"{len(tasks_by_type['tomorrow'])} tomorrow, "
                             f"{len(tasks_by_type['upcoming'])} upcoming"
                         )
@@ -160,6 +178,11 @@ def send_task_reminders():
                         # Mark all tasks as reminded (only after successful send)
                         for task in tasks_by_type['overdue']:
                             task.overdue_reminder_sent = True
+                            task.last_reminder_sent_at = now_utc
+                            total_tasks_processed += 1
+                        
+                        for task in tasks_by_type['today']:
+                            task.today_reminder_sent = True
                             task.last_reminder_sent_at = now_utc
                             total_tasks_processed += 1
                         

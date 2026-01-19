@@ -400,6 +400,7 @@ class Task(db.Model):
     # Email reminder tracking (one flag per reminder type)
     two_day_reminder_sent = db.Column(db.Boolean, default=False)  # Sent 48-72 hours before due
     one_day_reminder_sent = db.Column(db.Boolean, default=False)  # Sent 24-48 hours before due
+    today_reminder_sent = db.Column(db.Boolean, default=False)  # Sent 0-24 hours before due
     overdue_reminder_sent = db.Column(db.Boolean, default=False)  # Sent after task became overdue
     last_reminder_sent_at = db.Column(db.DateTime)  # Timestamp of most recent reminder
     
