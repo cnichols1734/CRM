@@ -361,9 +361,11 @@ def reset_request():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
-            send_reset_email(user)
-            flash('An email has been sent with instructions to reset your password.', 'info')
-            return redirect(url_for('auth.login'))
+            if send_reset_email(user):
+                flash('An email has been sent with instructions to reset your password.', 'info')
+                return redirect(url_for('auth.login'))
+            else:
+                flash('Unable to send reset email. Please try again later or contact support.', 'error')
         else:
             flash('There is no account with that email.', 'error')
     return render_template('auth/reset_request.html', form=form)
