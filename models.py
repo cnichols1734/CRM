@@ -395,7 +395,13 @@ class Task(db.Model):
     # Optional fields specific to real estate
     property_address = db.Column(db.String(200))  # If task is related to specific property
     scheduled_time = db.Column(db.DateTime)  # For meetings/showings
-    reminder_sent = db.Column(db.Boolean, default=False)
+    reminder_sent = db.Column(db.Boolean, default=False)  # DEPRECATED: Use specific flags below
+    
+    # Email reminder tracking (one flag per reminder type)
+    two_day_reminder_sent = db.Column(db.Boolean, default=False)  # Sent 48-72 hours before due
+    one_day_reminder_sent = db.Column(db.Boolean, default=False)  # Sent 24-48 hours before due
+    overdue_reminder_sent = db.Column(db.Boolean, default=False)  # Sent after task became overdue
+    last_reminder_sent_at = db.Column(db.DateTime)  # Timestamp of most recent reminder
     
     # Relationships
     contact = db.relationship('Contact', backref=db.backref('tasks', lazy=True))

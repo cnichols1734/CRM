@@ -15,6 +15,7 @@ TEMPLATES = {
     'org_rejected': 'd-073e682064e545f7b75584030c58fdb2',
     'team_invite': 'd-6f0042c586f7493fa8a991da62f4ce52',
     'contact_form': 'd-5b21998dab034f4ba4da297d2da91f16',
+    'task_reminder': 'd-7152fec3bc1a4e9a92fc821ebb5b521d',
 }
 
 # Default sender email (must be verified in SendGrid)
@@ -190,6 +191,88 @@ class EmailService:
                 'message': message,
             },
             reply_to=user_email
+        )
+    
+    def send_task_reminder_digest(self, user, tasks_by_type: dict, base_url: str = None) -> bool:
+        """
+        Send batched task reminder email with all tasks organized by urgency.
+        
+        Args:
+            user: User model instance (assigned_to)
+            tasks_by_type: Dict with keys 'overdue', 'tomorrow', 'upcoming'
+                           each containing list of Task objects
+            base_url: Base URL for task links (optional, uses url_for if in app context)
+        
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        import pytz
+        ct = pytz.timezone('America/Chicago')
+        
+        def format_task(task):
+            """Format a task object for the email template."""
+            # Handle timezone conversion for due_date
+            if task.due_date:
+                if task.due_date.tzinfo:
+                    due_date_ct = task.due_date.astimezone(ct)
+                else:
+                    # Assume UTC if no timezone
+                    import pytz
+                    due_date_ct = pytz.utc.localize(task.due_date).astimezone(ct)
+                due_date_str = due_date_ct.strftime('%b %d, %Y')
+            else:
+                due_date_str = 'No date'
+            
+            # Build task URL
+            if base_url:
+                task_url = f"{base_url}/tasks/{task.id}"
+            else:
+                try:
+                    task_url = url_for('tasks.view_task', task_id=task.id, _external=True)
+                except RuntimeError:
+                    # Not in app context
+                    task_url = f"#task-{task.id}"
+            
+            return {
+                'subject': task.subject,
+                'due_date': due_date_str,
+                'priority': task.priority,
+                'contact_name': f"{task.contact.first_name} {task.contact.last_name}" if task.contact else 'Unknown',
+                'task_url': task_url
+            }
+        
+        overdue_tasks = [format_task(t) for t in tasks_by_type.get('overdue', [])]
+        tomorrow_tasks = [format_task(t) for t in tasks_by_type.get('tomorrow', [])]
+        upcoming_tasks = [format_task(t) for t in tasks_by_type.get('upcoming', [])]
+        
+        total_count = len(overdue_tasks) + len(tomorrow_tasks) + len(upcoming_tasks)
+        
+        if total_count == 0:
+            return False  # Nothing to send
+        
+        # Build view all URL
+        if base_url:
+            view_all_url = f"{base_url}/tasks"
+        else:
+            try:
+                view_all_url = url_for('tasks.tasks', _external=True)
+            except RuntimeError:
+                view_all_url = "#"
+        
+        return self.send(
+            template_name='task_reminder',
+            to_email=user.email,
+            template_data={
+                'first_name': user.first_name or 'there',
+                'total_task_count': total_count,
+                'overdue_tasks': overdue_tasks,
+                'tomorrow_tasks': tomorrow_tasks,
+                'upcoming_tasks': upcoming_tasks,
+                'has_overdue': len(overdue_tasks) > 0,
+                'has_tomorrow': len(tomorrow_tasks) > 0,
+                'has_upcoming': len(upcoming_tasks) > 0,
+                'view_all_url': view_all_url
+            }
         )
 
 
