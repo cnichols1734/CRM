@@ -7,8 +7,13 @@ from functools import wraps
 from datetime import datetime, timedelta
 from utils import generate_unique_slug
 import pytz
+import sendgrid
+from sendgrid.helpers.mail import Mail, Email, To, Content, DynamicTemplateData
 
 auth_bp = Blueprint('auth', __name__)
+
+# SendGrid template IDs
+SENDGRID_TEMPLATE_PASSWORD_RESET = 'd-15a6ff328e6248efaaa13d4dd395bee2'
 
 def format_datetime_cst(utc_dt):
     if not utc_dt:
@@ -22,211 +27,51 @@ def format_datetime_cst(utc_dt):
     return central_dt.strftime('%m/%d/%Y %I:%M %p')
 
 def send_reset_email(user):
+    """
+    Send password reset email via SendGrid dynamic template.
+    Returns True if sent successfully, False otherwise.
+    """
     token = user.get_reset_token()
-    msg = Message('Reset Your Origen TechnolOG Password',
-                  sender=('Origen TechnolOG', current_app.config['MAIL_USERNAME']),
-                  recipients=[user.email])
+    reset_url = url_for('auth.reset_password', token=token, _external=True)
     
-    # HTML version of the email
-    msg.html = f'''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <style>
-            /* Base styles */
-            :root {{
-                color-scheme: light dark;
-            }}
+    try:
+        # Get SendGrid API key
+        api_key = current_app.config.get('SENDGRID_API_KEY')
+        if not api_key:
+            current_app.logger.error("SendGrid API key not configured")
+            return False
+        
+        sg = sendgrid.SendGridAPIClient(api_key=api_key)
+        
+        # Build the email message with dynamic template
+        message = Mail(
+            from_email=Email("info@origentechnolog.com", "Origen TechnolOG"),
+            to_emails=To(user.email)
+        )
+        
+        # Use dynamic template
+        message.template_id = SENDGRID_TEMPLATE_PASSWORD_RESET
+        
+        # Set dynamic template data
+        message.dynamic_template_data = {
+            'first_name': user.first_name,
+            'reset_url': reset_url,
+            'current_year': str(datetime.now().year)
+        }
+        
+        # Send the email
+        response = sg.send(message)
+        
+        if response.status_code == 202:
+            current_app.logger.info(f"Password reset email sent to {user.email}")
+            return True
+        else:
+            current_app.logger.error(f"SendGrid returned status {response.status_code} for {user.email}")
+            return False
             
-            body {{
-                font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
-                margin: 0;
-                padding: 0;
-                background-color: #f3f4f6;
-                color: #1f2937;
-                line-height: 1.5;
-            }}
-
-            @media (prefers-color-scheme: dark) {{
-                body {{
-                    background-color: #1a1a1a;
-                    color: #e5e7eb;
-                }}
-                .card {{
-                    background-color: #2d3e50 !important;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3) !important;
-                }}
-                .text {{
-                    color: #d1d5db !important;
-                }}
-                .title {{
-                    color: #ffffff !important;
-                }}
-                .divider {{
-                    background-color: #4a5568 !important;
-                }}
-                .footer {{
-                    color: #9ca3af !important;
-                }}
-                .small-text {{
-                    color: #9ca3af !important;
-                }}
-            }}
-
-            .container {{
-                max-width: 600px;
-                margin: 0 auto;
-            }}
-
-            .email-header {{
-                background-color: #2d3e50;
-                padding: 20px;
-                text-align: center;
-            }}
-
-            .header-logo {{
-                font-family: "Outfit", -apple-system, BlinkMacSystemFont, sans-serif;
-                font-size: 28px;
-                font-weight: 800;
-                letter-spacing: 2px;
-                text-transform: uppercase;
-                color: #ffffff;
-                margin: 0;
-            }}
-
-            .card {{
-                background-color: #ffffff;
-                border-radius: 12px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                padding: 32px;
-                margin: 24px;
-            }}
-
-            .title {{
-                font-size: 24px;
-                font-weight: 600;
-                color: #2d3e50;
-                margin-bottom: 24px;
-                text-align: center;
-            }}
-
-            .text {{
-                color: #4b5563;
-                margin-bottom: 24px;
-                font-size: 16px;
-            }}
-
-            .button-container {{
-                text-align: center;
-                margin: 32px 0;
-            }}
-
-            .button {{
-                display: inline-block;
-                background-color: #f97316;
-                color: #ffffff !important;
-                padding: 14px 32px;
-                border-radius: 8px;
-                text-decoration: none;
-                font-weight: 500;
-                font-size: 16px;
-                transition: background-color 0.2s ease;
-            }}
-
-            .button:hover {{
-                background-color: #ea580c;
-            }}
-
-            .divider {{
-                height: 1px;
-                background-color: #e5e7eb;
-                margin: 32px 0;
-            }}
-
-            .small-text {{
-                font-size: 14px;
-                color: #6b7280;
-                margin-bottom: 16px;
-            }}
-
-            .email-footer {{
-                background-color: #2d3e50;
-                padding: 32px 20px;
-                text-align: center;
-            }}
-
-            .footer {{
-                color: #e5e7eb;
-                font-size: 14px;
-                margin: 0;
-                line-height: 1.5;
-            }}
-
-            .social-links {{
-                margin: 20px 0;
-            }}
-
-            .social-link {{
-                display: inline-block;
-                margin: 0 10px;
-                color: #ffffff;
-                text-decoration: none;
-                font-size: 14px;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <div class="email-header">
-                <h1 class="header-logo">Origen TechnolOG</h1>
-            </div>
-            
-            <div class="card">
-                <h2 class="title">Reset Your Password</h2>
-                <p class="text">Hello {user.first_name},</p>
-                <p class="text">We received a request to reset your password for your Origen TechnolOG account. Click the button below to reset it:</p>
-                
-                <div class="button-container">
-                    <a href="{url_for('auth.reset_password', token=token, _external=True)}" class="button">Reset Password</a>
-                </div>
-                
-                <div class="divider"></div>
-                
-                <p class="small-text">If you didn't request this password reset, you can safely ignore this email. The link will expire in 30 minutes.</p>
-                <p class="small-text">For security, this request was received from IP address {request.remote_addr}.</p>
-            </div>
-            
-            <div class="email-footer">
-                <div class="social-links">
-                    <a href="#" class="social-link">Website</a>
-                    <a href="#" class="social-link">Contact</a>
-                    <a href="#" class="social-link">Support</a>
-                </div>
-                <p class="footer">&copy; {datetime.now().year} Origen TechnolOG. All rights reserved.</p>
-                <p class="footer" style="margin-top: 8px;">This is an automated message, please do not reply to this email.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    '''
-    
-    # Plain text version as fallback
-    msg.body = f'''Hello {user.first_name},
-
-We received a request to reset your password for your Origen TechnolOG account.
-
-To reset your password, visit the following link:
-{url_for('auth.reset_password', token=token, _external=True)}
-
-If you did not make this request, you can safely ignore this email.
-The link will expire in 30 minutes.
-
-Best regards,
-Origen TechnolOG Team
-'''
-    current_app.extensions['mail'].send(msg)
+    except Exception as e:
+        current_app.logger.error(f"Failed to send password reset email to {user.email}: {e}")
+        return False
 
 def admin_required(f):
     @wraps(f)
@@ -560,9 +405,11 @@ def reset_request():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
-            send_reset_email(user)
-            flash('An email has been sent with instructions to reset your password.', 'info')
-            return redirect(url_for('auth.login'))
+            if send_reset_email(user):
+                flash('An email has been sent with instructions to reset your password.', 'info')
+                return redirect(url_for('auth.login'))
+            else:
+                flash('Unable to send reset email. Please try again later or contact support.', 'error')
         else:
             flash('There is no account with that email.', 'error')
     return render_template('auth/reset_request.html', form=form)
