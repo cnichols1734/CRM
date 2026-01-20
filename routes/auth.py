@@ -294,6 +294,7 @@ def complete_invite(token):
         is_super_admin=False
     )
     user.set_password(password)
+    user.last_login = datetime.utcnow()
     
     # Mark invite as used
     invite.used_at = datetime.utcnow()
@@ -301,8 +302,9 @@ def complete_invite(token):
     db.session.add(user)
     db.session.commit()
     
-    flash('Account created! You can now log in.', 'success')
-    return redirect(url_for('auth.login'))
+    login_user(user)
+    flash(f'Welcome to {invite.organization.name}!', 'success')
+    return redirect(url_for('main.dashboard'))
 
 @auth_bp.route('/profile')
 @login_required

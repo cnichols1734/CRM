@@ -184,13 +184,18 @@ def send_invite():
     
     # Send invite email
     from services.org_notifications import send_invite_email
+    from flask import current_app
+    
+    current_app.logger.info(f"About to call send_invite_email for {email}")
     email_sent = send_invite_email(org, current_user, email, invite.token)
+    current_app.logger.info(f"send_invite_email returned: {email_sent}")
     
     if email_sent:
         flash(f'Invitation sent to {email}.', 'success')
     else:
         # Provide manual invite link as fallback
         invite_url = url_for('auth.accept_invite', token=invite.token, _external=True)
+        current_app.logger.warning(f"Email failed - providing manual link: {invite_url}")
         flash(f'Email failed to send. Share this link manually: {invite_url}', 'warning')
     return redirect(url_for('org.members'))
 
