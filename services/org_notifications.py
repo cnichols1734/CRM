@@ -49,14 +49,22 @@ def send_invite_email(org, inviter, invitee_email, invite_token):
     """
     try:
         invite_url = url_for('auth.accept_invite', token=invite_token, _external=True)
+        current_app.logger.info(f"Attempting to send invite email to {invitee_email}")
+        current_app.logger.info(f"Invite URL: {invite_url}")
+        
         email_service = get_email_service()
+        current_app.logger.info(f"Email service initialized, API key present: {bool(email_service.api_key)}")
         
         success = email_service.send_team_invite(org, inviter, invitee_email, invite_url)
         
         if success:
             current_app.logger.info(f"Sent invite email to {invitee_email} for org {org.name}")
+        else:
+            current_app.logger.warning(f"send_team_invite returned False for {invitee_email}")
         return success
         
     except Exception as e:
+        import traceback
         current_app.logger.error(f"Failed to send invite email: {e}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return False

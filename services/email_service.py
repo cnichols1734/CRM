@@ -63,6 +63,9 @@ class EmailService:
         template_data.setdefault('current_year', str(datetime.now().year))
         
         try:
+            current_app.logger.info(f"Preparing email: template={template_name}, to={to_email}, template_id={template_id}")
+            current_app.logger.info(f"Template data keys: {list(template_data.keys())}")
+            
             message = Mail(
                 from_email=Email(from_email or DEFAULT_SENDER),
                 to_emails=To(to_email)
@@ -73,6 +76,7 @@ class EmailService:
             if reply_to:
                 message.reply_to = Email(reply_to)
             
+            current_app.logger.info(f"Sending email via SendGrid...")
             response = self.client.send(message)
             
             if response.status_code in (200, 201, 202):
@@ -84,10 +88,14 @@ class EmailService:
                 current_app.logger.error(
                     f"Email failed: template={template_name}, to={to_email}, status={response.status_code}"
                 )
+                current_app.logger.error(f"Response body: {response.body}")
+                current_app.logger.error(f"Response headers: {response.headers}")
                 return False
                 
         except Exception as e:
+            import traceback
             current_app.logger.error(f"Email error: template={template_name}, to={to_email}, error={str(e)}")
+            current_app.logger.error(f"Full traceback: {traceback.format_exc()}")
             return False
     
     # =========================================================================
