@@ -280,10 +280,20 @@ def send_all_for_signature(id):
     all_definitions = DocumentLoader.get_sorted()
     all_valid_slugs = [d.slug for d in all_definitions]
     
-    documents = transaction.documents.filter(
+    # Get template-based documents (from YAML definitions)
+    template_documents = transaction.documents.filter(
         TransactionDocument.template_slug.in_(all_valid_slugs),
         TransactionDocument.status.in_(['filled', 'draft', 'generated'])
     ).order_by(TransactionDocument.created_at).all()
+    
+    # Get external documents (uploaded PDFs with user-placed signature fields)
+    external_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'external',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
+    # Combine all documents for tracking
+    documents = template_documents + external_documents
     
     if not documents:
         flash('No documents ready to send. Please fill out the documents first.', 'warning')
@@ -302,15 +312,22 @@ def send_all_for_signature(id):
         return redirect(url_for('transactions.preview_all_documents', id=id))
     
     try:
+        # Import needed for external document handling
+        from services.supabase_storage import get_transaction_document_url
+        import base64
+        import requests as http_requests
+        
         # Step 1: Collect all template IDs, unique roles, and resolve fields for each document
         template_ids = []
         unique_docuseal_roles = set()
         auto_complete_roles = set()  # Roles that should be auto-completed (Agent, Broker)
+        created_template_ids = []  # Track templates we create for cleanup
         
         # Fields grouped by docuseal_role (not role_key)
         fields_by_docuseal_role = {}
         
-        for doc in documents:
+        # Process template-based documents (from YAML definitions)
+        for doc in template_documents:
             definition = DocumentLoader.get(doc.template_slug)
             if not definition or not definition.docuseal_template_id:
                 continue
@@ -352,6 +369,93 @@ def send_all_for_signature(id):
                     
                     docuseal_field = {'name': field.docuseal_field, 'default_value': str(field.value)}
                     fields_by_docuseal_role[docuseal_role].append(docuseal_field)
+        
+        # Process external documents (uploaded PDFs with user-placed signature fields)
+        for doc in external_documents:
+            if not doc.source_file_path or not doc.field_placements:
+                continue
+            
+            # Get the PDF from Supabase
+            pdf_url = get_transaction_document_url(doc.source_file_path, expires_in=300)
+            pdf_response = http_requests.get(pdf_url, timeout=30)
+            pdf_response.raise_for_status()
+            pdf_base64 = base64.b64encode(pdf_response.content).decode('utf-8')
+            
+            # Convert field placements to DocuSeal format
+            placements_data = doc.field_placements or {}
+            field_placements = placements_data if isinstance(placements_data, list) else placements_data.get('fields', [])
+            render_scale = placements_data.get('render_scale', 1.5) if isinstance(placements_data, dict) else 1.5
+            
+            fields = []
+            for i, placement in enumerate(field_placements):
+                field_type = placement.get('type', 'signature')
+                docuseal_type = {
+                    'signature': 'signature',
+                    'initials': 'initials',
+                    'date': 'date',
+                    'text': 'text'
+                }.get(field_type, 'signature')
+                
+                field_name = placement.get('name') or f"{field_type}_{i+1}"
+                page_num = placement.get('page', 1)
+                
+                # Get page dimensions if available
+                page_dims = placements_data.get('page_dimensions', {}) if isinstance(placements_data, dict) else {}
+                page_info = page_dims.get(str(page_num), {})
+                
+                # Calculate normalized coordinates (0.0-1.0)
+                if page_info:
+                    page_width = page_info.get('width', 612)
+                    page_height = page_info.get('height', 792)
+                    native_x = placement.get('x', 0) / render_scale
+                    native_y = placement.get('y', 0) / render_scale
+                    native_w = placement.get('w', 100) / render_scale
+                    native_h = placement.get('h', 30) / render_scale
+                else:
+                    # Fallback: assume standard letter size
+                    page_width = 612
+                    page_height = 792
+                    native_x = placement.get('x', 0) / render_scale
+                    native_y = placement.get('y', 0) / render_scale
+                    native_w = placement.get('w', 100) / render_scale
+                    native_h = placement.get('h', 30) / render_scale
+                
+                norm_x = native_x / page_width
+                norm_y = native_y / page_height
+                norm_w = native_w / page_width
+                norm_h = native_h / page_height
+                
+                fields.append({
+                    'name': field_name,
+                    'type': docuseal_type,
+                    'role': placement.get('role', 'Seller').replace('_', ' ').title(),
+                    'required': placement.get('required', True),
+                    'areas': [{
+                        'x': round(norm_x, 4),
+                        'y': round(norm_y, 4),
+                        'w': round(norm_w, 4),
+                        'h': round(norm_h, 4),
+                        'page': page_num
+                    }]
+                })
+                
+                # Add role to unique roles
+                role_name = placement.get('role', 'Seller').replace('_', ' ').title()
+                unique_docuseal_roles.add(role_name)
+            
+            # Create a DocuSeal template from this external PDF
+            external_id = f"tx-{transaction.id}-ext-{doc.id}"
+            template_result = DocuSealClient.create_template_from_pdf(
+                pdf_base64=pdf_base64,
+                document_name=doc.template_name,
+                fields=fields,
+                external_id=external_id
+            )
+            
+            ext_template_id = template_result.get('id')
+            if ext_template_id:
+                template_ids.append(ext_template_id)
+                created_template_ids.append(ext_template_id)
         
         if not template_ids:
             flash('No valid templates found for the documents.', 'error')
