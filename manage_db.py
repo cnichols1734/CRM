@@ -104,6 +104,59 @@ def backup_database():
     else:
         print("Backup only supported for SQLite databases")
 
+
+def seed_existing_orgs():
+    """
+    Seed task types and transaction types for existing active organizations
+    that don't have them yet. Run this after deploying the fix for new orgs.
+    """
+    app, migrate_obj = create_app()
+    
+    with app.app_context():
+        from models import Organization, TaskType, TransactionType
+        from services.tenant_service import (
+            create_default_task_types_for_org,
+            create_default_transaction_types_for_org
+        )
+        
+        # Get all active organizations
+        orgs = Organization.query.filter(Organization.status == 'active').all()
+        print(f"Found {len(orgs)} active organizations")
+        
+        for org in orgs:
+            print(f"\nProcessing org {org.id}: {org.name}")
+            
+            # Check if org has task types
+            task_type_count = TaskType.query.filter_by(organization_id=org.id).count()
+            if task_type_count == 0:
+                print(f"  - Creating default task types for org {org.id}...")
+                try:
+                    created = create_default_task_types_for_org(org.id)
+                    print(f"  - Created {len(created)} task types with subtypes")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  - ERROR creating task types: {e}")
+            else:
+                print(f"  - Task types already exist ({task_type_count} found)")
+            
+            # Check if org has transaction types
+            tx_type_count = TransactionType.query.filter_by(organization_id=org.id).count()
+            if tx_type_count == 0:
+                print(f"  - Creating default transaction types for org {org.id}...")
+                print(f"    NOTE: This may fail if there's a global unique constraint on 'name'")
+                print(f"    A database migration is needed to fix this constraint.")
+                try:
+                    created = create_default_transaction_types_for_org(org.id)
+                    print(f"  - Created {len(created)} transaction types")
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"  - SKIPPED: Transaction types require a migration to fix unique constraint")
+            else:
+                print(f"  - Transaction types already exist ({tx_type_count} found)")
+        
+        print("\nSeeding complete!")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python manage_db.py <command>")
@@ -114,6 +167,7 @@ def main():
         print("  upgrade     - Upgrade database to latest migration")
         print("  status      - Show migration status")
         print("  backup      - Create database backup")
+        print("  seed_orgs   - Seed task/transaction types for existing orgs")
         return
 
     command = sys.argv[1]
@@ -132,6 +186,8 @@ def main():
             show_migration_status()
         elif command == 'backup':
             backup_database()
+        elif command == 'seed_orgs':
+            seed_existing_orgs()
         else:
             print(f"Unknown command: {command}")
     except Exception as e:

@@ -91,9 +91,11 @@ def list_transactions():
                 'contact_id': primary_participant.contact_id
             }
     
-    # Get transaction types for filter dropdown
-    transaction_types = TransactionType.query.filter_by(is_active=True)\
-        .order_by(TransactionType.sort_order).all()
+    # Get transaction types for filter dropdown (org-scoped)
+    transaction_types = TransactionType.query.filter_by(
+        organization_id=current_user.organization_id,
+        is_active=True
+    ).order_by(TransactionType.sort_order).all()
     
     return render_template(
         'transactions/list.html',
@@ -116,9 +118,11 @@ def list_transactions():
 @transactions_required
 def new_transaction():
     """Show the create transaction form."""
-    # Get transaction types for selection
-    transaction_types = TransactionType.query.filter_by(is_active=True)\
-        .order_by(TransactionType.sort_order).all()
+    # Get transaction types for selection (org-scoped)
+    transaction_types = TransactionType.query.filter_by(
+        organization_id=current_user.organization_id,
+        is_active=True
+    ).order_by(TransactionType.sort_order).all()
     
     # Get contacts for the current user (for contact selection)
     contacts = Contact.query.filter_by(user_id=current_user.id)\
@@ -371,8 +375,11 @@ def edit_transaction(id):
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    transaction_types = TransactionType.query.filter_by(is_active=True)\
-        .order_by(TransactionType.sort_order).all()
+    # Get transaction types (org-scoped)
+    transaction_types = TransactionType.query.filter_by(
+        organization_id=current_user.organization_id,
+        is_active=True
+    ).order_by(TransactionType.sort_order).all()
     
     return render_template(
         'transactions/edit.html',

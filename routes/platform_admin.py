@@ -211,15 +211,34 @@ def approve_org(org_id):
     
     db.session.commit()
     
-    # Create default contact groups for the new org
-    from services.tenant_service import create_default_groups_for_org
+    # Create default data for the new org
+    from services.tenant_service import (
+        create_default_groups_for_org,
+        create_default_task_types_for_org,
+        create_default_transaction_types_for_org
+    )
+    import logging
+    
+    # Create default contact groups
     try:
         created_groups = create_default_groups_for_org(org.id)
         log_platform_action('org_groups_created', org.id, {'groups_count': len(created_groups)})
     except Exception as e:
-        # Log error but don't fail the approval
-        import logging
         logging.error(f"Failed to create default groups for org {org.id}: {e}")
+    
+    # Create default task types and subtypes
+    try:
+        created_task_types = create_default_task_types_for_org(org.id)
+        log_platform_action('org_task_types_created', org.id, {'task_types_count': len(created_task_types)})
+    except Exception as e:
+        logging.error(f"Failed to create default task types for org {org.id}: {e}")
+    
+    # Create default transaction types
+    try:
+        created_tx_types = create_default_transaction_types_for_org(org.id)
+        log_platform_action('org_transaction_types_created', org.id, {'transaction_types_count': len(created_tx_types)})
+    except Exception as e:
+        logging.error(f"Failed to create default transaction types for org {org.id}: {e}")
     
     # Notify org owner via email
     from services.org_notifications import send_org_approved_email
