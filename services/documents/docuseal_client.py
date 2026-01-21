@@ -261,6 +261,87 @@ class DocuSealClient:
             )
     
     @classmethod
+    def create_template_from_pdf(
+        cls,
+        pdf_base64: str,
+        document_name: str,
+        fields: List[Dict[str, Any]],
+        external_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Create a DocuSeal template from a PDF file with custom field placements.
+        
+        This creates a reusable template that can be merged with other templates.
+        Used for external documents where we need to include them in a merged package.
+        
+        Args:
+            pdf_base64: Base64-encoded PDF content
+            document_name: Name for the document/template
+            fields: List of field definitions, each with:
+                - name: Field name (e.g., 'signature_seller')
+                - type: Field type ('signature', 'initials', 'date', 'text')
+                - role: Which submitter role this field belongs to
+                - areas: List of placement areas [{x, y, w, h, page}]
+            external_id: Optional external ID for tracking/updating
+            
+        Returns:
+            Template data with ID that can be used for merging
+        """
+        if DOCUSEAL_MOCK_MODE:
+            # Return mock template data
+            return {
+                'id': 99999,
+                'name': document_name,
+                'external_id': external_id,
+                'submitters': [{'name': 'Seller', 'uuid': 'mock-uuid'}],
+                'fields': fields
+            }
+        
+        # Build the payload for /templates/pdf endpoint
+        payload = {
+            'name': document_name,
+            'documents': [{
+                'name': document_name,
+                'file': pdf_base64,
+                'fields': fields
+            }]
+        }
+        
+        if external_id:
+            payload['external_id'] = external_id
+        
+        try:
+            response = requests.post(
+                f"{DOCUSEAL_API_URL}/templates/pdf",
+                headers=cls._get_headers(),
+                json=payload,
+                timeout=60  # Longer timeout for PDF upload
+            )
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.RequestException as e:
+            error_body = None
+            status_code = None
+            
+            if hasattr(e, 'response') and e.response is not None:
+                status_code = e.response.status_code
+                try:
+                    error_body = e.response.text
+                except Exception:
+                    pass
+            
+            logger.error(f"DocuSeal create template from PDF failed: {e}")
+            if error_body:
+                logger.error(f"Response body: {error_body}")
+            
+            raise DocuSealAPIError(
+                f"Failed to create template from PDF: {e}",
+                status_code=status_code,
+                response_body=error_body
+            )
+    
+    @classmethod
     def create_preview_submission(
         cls,
         template_id: int,
