@@ -18,6 +18,7 @@ _supabase_client: Client = None
 CONTACT_FILES_BUCKET = 'contact-files'
 COMPANY_UPDATES_BUCKET = 'company-updates'
 TRANSACTION_DOCUMENTS_BUCKET = 'transaction-documents'
+VOICE_MEMOS_BUCKET = 'voice-memos'
 
 
 def get_supabase_client() -> Client:
@@ -167,6 +168,42 @@ def get_contact_file_url(storage_path: str, expires_in: int = 3600) -> str:
 def delete_contact_file(storage_path: str) -> bool:
     """Delete a contact file from storage."""
     return delete_file(CONTACT_FILES_BUCKET, storage_path)
+
+
+# =============================================================================
+# VOICE MEMO STORAGE
+# =============================================================================
+
+def generate_voice_memo_path(contact_id: int, original_filename: str = 'memo.webm') -> tuple[str, str]:
+    """
+    Generate a unique storage path for a voice memo.
+    
+    Returns:
+        tuple: (storage_path, unique_filename)
+    """
+    ext = '.webm'  # Default format from MediaRecorder
+    if '.' in original_filename:
+        ext = '.' + original_filename.rsplit('.', 1)[1].lower()
+    
+    unique_filename = f"{uuid.uuid4().hex}{ext}"
+    storage_path = f"contacts/{contact_id}/voice/{unique_filename}"
+    return storage_path, unique_filename
+
+
+def upload_voice_memo(contact_id: int, file_data: bytes, original_filename: str = 'memo.webm', content_type: str = 'audio/webm') -> dict:
+    """Upload a voice memo to Supabase Storage."""
+    storage_path, unique_filename = generate_voice_memo_path(contact_id, original_filename)
+    return upload_file(VOICE_MEMOS_BUCKET, storage_path, file_data, original_filename, content_type)
+
+
+def get_voice_memo_url(storage_path: str, expires_in: int = 3600) -> str:
+    """Get a signed URL for a voice memo."""
+    return get_signed_url(VOICE_MEMOS_BUCKET, storage_path, expires_in)
+
+
+def delete_voice_memo(storage_path: str) -> bool:
+    """Delete a voice memo from storage."""
+    return delete_file(VOICE_MEMOS_BUCKET, storage_path)
 
 
 def generate_company_update_path(original_filename: str, folder: str = 'images') -> tuple[str, str]:

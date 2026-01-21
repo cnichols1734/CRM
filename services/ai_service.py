@@ -247,3 +247,51 @@ def generate_chat_response(
         logger.error(f"FATAL: All chat models failed. Error: {str(legacy_error)}")
         raise
 
+
+def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: str = None) -> str:
+    """
+    Transcribe audio using OpenAI Whisper API.
+    
+    Args:
+        audio_data: Raw audio bytes (supports webm, mp3, mp4, mpeg, mpga, m4a, wav, or webm)
+        filename: Filename with extension (used to determine format)
+        api_key: Optional API key override
+    
+    Returns:
+        Transcribed text string
+    
+    Raises:
+        ValueError: If API key is not configured
+        Exception: If transcription fails
+    """
+    import io
+    
+    # Get API key
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        logger.error("OpenAI API key is not configured!")
+        raise ValueError("OpenAI API key is not configured")
+    
+    # Initialize client
+    client = openai.OpenAI(api_key=key)
+    
+    try:
+        logger.info(f"Transcribing audio file: {filename} ({len(audio_data)} bytes)")
+        
+        # Create a file-like object from the audio data
+        audio_file = io.BytesIO(audio_data)
+        audio_file.name = filename  # Whisper needs the filename for format detection
+        
+        # Call Whisper API
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file,
+            response_format="text"
+        )
+        
+        logger.info(f"SUCCESS: Transcribed {len(transcription)} characters")
+        return transcription.strip()
+        
+    except Exception as e:
+        logger.error(f"Whisper transcription failed: {str(e)}")
+        raise

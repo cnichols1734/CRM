@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction
 from feature_flags import can_access_transactions
 from forms import ContactForm
 from services import supabase_storage
@@ -130,6 +130,11 @@ def view_contact(contact_id):
     contact_files = ContactFile.query.filter_by(contact_id=contact.id).order_by(
         ContactFile.created_at.desc()
     ).all()
+    
+    # Get recent interactions/activity
+    recent_interactions = Interaction.query.filter_by(contact_id=contact.id).order_by(
+        Interaction.date.desc()
+    ).limit(10).all()
 
     return render_template('contacts/view.html', 
                          contact=contact, 
@@ -139,7 +144,8 @@ def view_contact(contact_id):
                          now=now,
                          related_transactions=related_transactions,
                          show_transactions=show_transactions,
-                         contact_files=contact_files)
+                         contact_files=contact_files,
+                         recent_interactions=recent_interactions)
 
 
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
@@ -323,6 +329,127 @@ def delete_contact(contact_id):
     except Exception as e:
         db.session.rollback()
         return {'status': 'error', 'message': f'Error deleting contact: {str(e)}'}, 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/log-activity', methods=['POST'])
+@login_required
+def log_activity(contact_id):
+    """Log an interaction/activity for a contact."""
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get form data
+    activity_type = request.form.get('activity_type')
+    activity_date = request.form.get('activity_date')
+    notes = request.form.get('notes', '').strip()
+    follow_up_date = request.form.get('follow_up_date')
+    
+    # Validate required fields
+    if not activity_type:
+        return jsonify({'success': False, 'error': 'Activity type is required'}), 400
+    
+    if not activity_date:
+        return jsonify({'success': False, 'error': 'Activity date is required'}), 400
+    
+    valid_types = ['call', 'email', 'text', 'meeting', 'other']
+    if activity_type not in valid_types:
+        return jsonify({'success': False, 'error': 'Invalid activity type'}), 400
+    
+    try:
+        # Parse dates
+        user_tz = get_user_timezone()
+        activity_datetime = datetime.strptime(activity_date, '%Y-%m-%d')
+        activity_datetime = user_tz.localize(activity_datetime)
+        
+        follow_up_datetime = None
+        if follow_up_date:
+            follow_up_datetime = datetime.strptime(follow_up_date, '%Y-%m-%d')
+            follow_up_datetime = user_tz.localize(follow_up_datetime)
+        
+        # Create the interaction record
+        interaction = Interaction(
+            organization_id=current_user.organization_id,
+            contact_id=contact_id,
+            user_id=current_user.id,
+            type=activity_type,
+            notes=notes or None,
+            date=activity_datetime,
+            follow_up_date=follow_up_datetime
+        )
+        db.session.add(interaction)
+        
+        # Update contact's last contact date fields based on activity type
+        activity_date_obj = activity_datetime.date()
+        
+        if activity_type == 'call':
+            if contact.last_phone_call_date is None or activity_date_obj > contact.last_phone_call_date:
+                contact.last_phone_call_date = activity_date_obj
+        elif activity_type == 'email':
+            if contact.last_email_date is None or activity_date_obj > contact.last_email_date:
+                contact.last_email_date = activity_date_obj
+        elif activity_type == 'text':
+            if contact.last_text_date is None or activity_date_obj > contact.last_text_date:
+                contact.last_text_date = activity_date_obj
+        
+        # Update the overall last contact date
+        contact.update_last_contact_date()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Activity logged successfully',
+            'interaction': {
+                'id': interaction.id,
+                'type': interaction.type,
+                'date': interaction.date.strftime('%b %d, %Y'),
+                'notes': interaction.notes
+            },
+            'updated_dates': {
+                'last_email_date': contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date else None,
+                'last_text_date': contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date else None,
+                'last_phone_call_date': contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date else None,
+                'last_contact_date': contact.last_contact_date.strftime('%Y-%m-%d') if contact.last_contact_date else None
+            }
+        })
+        
+    except ValueError as e:
+        return jsonify({'success': False, 'error': f'Invalid date format: {str(e)}'}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error logging activity: {e}")
+        return jsonify({'success': False, 'error': 'Failed to log activity. Please try again.'}), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/interactions')
+@login_required
+def get_interactions(contact_id):
+    """Get all interactions for a contact."""
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    interactions = Interaction.query.filter_by(contact_id=contact_id)\
+        .order_by(Interaction.date.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'interactions': [{
+            'id': i.id,
+            'type': i.type,
+            'date': i.date.strftime('%b %d, %Y'),
+            'notes': i.notes,
+            'follow_up_date': i.follow_up_date.strftime('%b %d, %Y') if i.follow_up_date else None,
+            'created_at': i.created_at.strftime('%b %d, %Y %I:%M %p')
+        } for i in interactions]
+    })
 
 
 @contacts_bp.route('/import-contacts', methods=['POST'])
@@ -808,3 +935,216 @@ def list_contact_files(contact_id):
             'icon': supabase_storage.get_file_icon(f.file_extension)
         } for f in files]
     })
+
+
+# =============================================================================
+# VOICE MEMO ENDPOINTS
+# =============================================================================
+
+@contacts_bp.route('/contact/<int:contact_id>/voice-memos', methods=['POST'])
+@login_required
+def upload_voice_memo(contact_id):
+    """Upload a voice memo for a contact."""
+    from models import ContactVoiceMemo
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Check if audio file was provided
+    if 'audio' not in request.files:
+        return jsonify({'success': False, 'error': 'No audio file provided'}), 400
+    
+    audio_file = request.files['audio']
+    
+    if audio_file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Read audio data
+    audio_data = audio_file.read()
+    
+    # Check file size (max 10MB for ~3 minutes of audio)
+    max_size = 10 * 1024 * 1024  # 10MB
+    if len(audio_data) > max_size:
+        return jsonify({
+            'success': False, 
+            'error': 'Audio file too large. Maximum size is 10MB (about 3 minutes).'
+        }), 400
+    
+    # Get duration from form data (sent by frontend)
+    duration_seconds = request.form.get('duration', type=int)
+    
+    try:
+        # Upload to Supabase Storage
+        result = supabase_storage.upload_voice_memo(
+            contact_id=contact_id,
+            file_data=audio_data,
+            original_filename=audio_file.filename or 'memo.webm',
+            content_type=audio_file.content_type or 'audio/webm'
+        )
+        
+        # Create database record
+        voice_memo = ContactVoiceMemo(
+            organization_id=current_user.organization_id,
+            contact_id=contact_id,
+            user_id=current_user.id,
+            storage_path=result['path'],
+            file_name=result['filename'],
+            duration_seconds=duration_seconds,
+            file_size=result['size'],
+            transcription_status='pending'
+        )
+        db.session.add(voice_memo)
+        db.session.commit()
+        
+        # Auto-transcribe using Whisper API
+        try:
+            from services.ai_service import transcribe_audio
+            transcription = transcribe_audio(
+                audio_data=audio_data,
+                filename=audio_file.filename or 'memo.webm'
+            )
+            voice_memo.transcription = transcription
+            voice_memo.transcription_status = 'completed'
+            db.session.commit()
+            current_app.logger.info(f"Transcribed voice memo {voice_memo.id}: {len(transcription)} chars")
+        except Exception as transcribe_error:
+            current_app.logger.warning(f"Transcription failed for memo {voice_memo.id}: {transcribe_error}")
+            voice_memo.transcription_status = 'failed'
+            db.session.commit()
+        
+        # Get signed URL for immediate playback
+        signed_url = supabase_storage.get_voice_memo_url(voice_memo.storage_path)
+        
+        return jsonify({
+            'success': True,
+            'memo': {
+                'id': voice_memo.id,
+                'duration_seconds': voice_memo.duration_seconds,
+                'created_at': voice_memo.created_at.strftime('%b %d, %Y'),
+                'transcription': voice_memo.transcription,
+                'transcription_status': voice_memo.transcription_status,
+                'audio_url': signed_url
+            }
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Voice memo upload failed: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Upload failed. Please try again.'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/voice-memos')
+@login_required
+def list_voice_memos(contact_id):
+    """List all voice memos for a contact."""
+    from models import ContactVoiceMemo
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    memos = ContactVoiceMemo.query.filter_by(contact_id=contact_id).order_by(
+        ContactVoiceMemo.created_at.desc()
+    ).all()
+    
+    # Generate signed URLs for each memo
+    memos_data = []
+    for memo in memos:
+        try:
+            audio_url = supabase_storage.get_voice_memo_url(memo.storage_path)
+        except Exception:
+            audio_url = None
+        
+        memos_data.append({
+            'id': memo.id,
+            'duration_seconds': memo.duration_seconds,
+            'created_at': memo.created_at.strftime('%b %d, %Y'),
+            'created_at_iso': memo.created_at.isoformat(),
+            'transcription': memo.transcription,
+            'transcription_status': memo.transcription_status,
+            'audio_url': audio_url
+        })
+    
+    return jsonify({
+        'success': True,
+        'memos': memos_data
+    })
+
+
+@contacts_bp.route('/contact/<int:contact_id>/voice-memos/<int:memo_id>/url')
+@login_required
+def get_voice_memo_url(contact_id, memo_id):
+    """Get a signed URL for a voice memo."""
+    from models import ContactVoiceMemo
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get the memo record
+    memo = ContactVoiceMemo.query.filter_by(
+        id=memo_id, 
+        contact_id=contact_id
+    ).first_or_404()
+    
+    try:
+        signed_url = supabase_storage.get_voice_memo_url(memo.storage_path, expires_in=3600)
+        return jsonify({
+            'success': True,
+            'url': signed_url
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to generate voice memo URL: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Could not generate playback link'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/voice-memos/<int:memo_id>', methods=['DELETE'])
+@login_required
+def delete_voice_memo(contact_id, memo_id):
+    """Delete a voice memo."""
+    from models import ContactVoiceMemo
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get the memo record
+    memo = ContactVoiceMemo.query.filter_by(
+        id=memo_id, 
+        contact_id=contact_id
+    ).first_or_404()
+    
+    try:
+        # Delete from Supabase Storage
+        supabase_storage.delete_voice_memo(memo.storage_path)
+        
+        # Delete database record
+        db.session.delete(memo)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        current_app.logger.error(f"Failed to delete voice memo: {e}")
+        return jsonify({
+            'success': False, 
+            'error': 'Could not delete voice memo'
+        }), 500

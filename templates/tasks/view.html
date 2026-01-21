@@ -1,32 +1,78 @@
 {% extends "base.html" %}
 
+{% block title %}{{ task.subject }} - Task{% endblock %}
+
 {% block content %}
 <style>
     /* Premium animations */
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
+
     @keyframes pulse-glow {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 0.5; }
+
+        0%,
+        100% {
+            opacity: 0.3;
+        }
+
+        50% {
+            opacity: 0.5;
+        }
     }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
+
+    @keyframes pulse-tracker {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        50% {
+            box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.1), 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
     }
-    .animate-fade-in-up-delay-1 { 
-        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
-        opacity: 0; 
+
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
     }
-    .animate-fade-in-up-delay-2 { 
-        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
-        opacity: 0; 
+
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
     }
-    .animate-fade-in-up-delay-3 { 
-        animation: fadeInUp 0.6s ease-out 0.3s forwards; 
-        opacity: 0; 
+
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
     }
-    
+
+    .animate-fade-in-up-delay-3 {
+        animation: fadeInUp 0.6s ease-out 0.3s forwards;
+        opacity: 0;
+    }
+
+    /* Premium card styling */
+    .premium-card {
+        background: white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s ease-out;
+    }
+
+    .premium-card:hover {
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+    }
+
     /* Premium input styling */
     .premium-input {
         display: block;
@@ -38,16 +84,18 @@
         font-size: 1rem;
         transition: all 0.2s ease-out;
     }
+
     .premium-input:hover {
         border-color: #cbd5e1;
     }
+
     .premium-input:focus {
         outline: none;
         border-color: #f97316;
         background-color: #ffffff;
         box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
     }
-    
+
     /* Premium select styling */
     .premium-select {
         display: block;
@@ -64,56 +112,216 @@
         background-repeat: no-repeat;
         background-size: 1.25rem 1.25rem;
     }
+
     .premium-select:hover {
         border-color: #cbd5e1;
     }
+
     .premium-select:focus {
         outline: none;
         border-color: #f97316;
         background-color: #ffffff;
         box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
     }
-    
+
     textarea.premium-input {
         min-height: 120px;
         resize: vertical;
     }
-    
-    /* Section header with gradient icon */
-    .section-icon {
-        width: 2.5rem;
-        height: 2.5rem;
+
+    /* Stacked info item - label on top, value below */
+    .info-item {
+        padding: 0.875rem;
+        background: #f8fafc;
         border-radius: 0.75rem;
+        border: 1px solid #f1f5f9;
+    }
+
+    .info-item-label {
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-bottom: 0.375rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+    }
+
+    .info-item-value {
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 0.9375rem;
+    }
+
+    /* Info box styling (from contact view) */
+    .info-box {
+        background: rgba(248, 250, 252, 0.8);
+        border-radius: 0.75rem;
+        padding: 1rem;
+        border: 1px solid #f1f5f9;
+    }
+
+    /* Status tracker (pizza tracker style) */
+    .status-tracker {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        padding: 0;
+    }
+
+    .status-tracker::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: #e2e8f0;
+        z-index: 0;
+    }
+
+    .status-tracker-progress {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #f97316, #ea580c);
+        z-index: 1;
+        transition: width 0.5s ease-out;
+        border-radius: 2px;
+    }
+
+    .tracker-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        z-index: 2;
+        flex: 1;
+    }
+
+    .tracker-dot {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: all 0.3s ease-out;
+        border: 3px solid white;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .tracker-dot.completed {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: white;
+    }
+
+    .tracker-dot.current {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: white;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
+        animation: pulse-tracker 2s infinite;
+    }
+
+    .tracker-dot.upcoming {
+        background: #f1f5f9;
+        color: #94a3b8;
+    }
+
+    .tracker-label {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        max-width: 80px;
+    }
+
+    .tracker-label.completed {
+        color: #16a34a;
+    }
+
+    .tracker-label.current {
+        color: #ea580c;
+    }
+
+    .tracker-label.upcoming {
+        color: #94a3b8;
+    }
+
+    /* Premium button */
+    .premium-btn {
+        transition: all 0.2s ease-out;
+        border-radius: 0.75rem;
+    }
+
+    .premium-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Toggle switch for mark complete */
+    .toggle-switch {
+        position: relative;
+        width: 52px;
+        height: 28px;
+        background: #e2e8f0;
+        border-radius: 9999px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .toggle-switch.active {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: white;
+        top: 3px;
+        left: 3px;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+    }
+
+    .toggle-switch.active::after {
+        left: 27px;
     }
 </style>
 
 <!-- Premium gradient background -->
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <!-- Premium Header Bar -->
-    <div class="bg-white/80 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-10">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Premium sticky header -->
+    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-4 flex items-center justify-between">
-                <button onclick="navigateBack()" class="inline-flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
-                    <i class="fas fa-arrow-left"></i>
+                <button onclick="navigateBack()"
+                    class="flex items-center text-slate-600 hover:text-orange-600 transition-colors duration-200 group">
+                    <div
+                        class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center mr-2 group-hover:border-orange-300 group-hover:shadow-md transition-all duration-200">
+                        <i class="fas fa-arrow-left text-sm"></i>
+                    </div>
                     <span class="font-medium">Back</span>
                 </button>
-                <div class="flex items-center gap-3">
-                    <button id="editButton" onclick="toggleEditMode()" 
-                            class="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all">
-                        <i class="fas fa-pencil-alt"></i>
-                        <span class="hidden sm:inline">Edit Task</span>
+                <div class="flex items-center space-x-3">
+                    <!-- Edit/Save/Cancel Buttons -->
+                    <button id="editButton" onclick="toggleEditMode()"
+                        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
+                        <i class="fas fa-pencil-alt mr-2"></i>
+                        Edit Task
                     </button>
-                    <button id="saveButton" onclick="saveTask()" 
-                            class="hidden inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all">
-                        <i class="fas fa-check"></i>
+                    <button id="saveButton" onclick="saveTask()"
+                        class="hidden inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600 transition-all duration-200">
+                        <i class="fas fa-check mr-2"></i>
                         Save Changes
                     </button>
-                    <button id="cancelButton" onclick="cancelEdit()" 
-                            class="hidden inline-flex items-center gap-2 px-5 py-2.5 border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all">
+                    <button id="cancelButton" onclick="cancelEdit()"
+                        class="hidden inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-200">
                         Cancel
                     </button>
                 </div>
@@ -121,419 +329,687 @@
         </div>
     </div>
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Task Header Card -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6 animate-fade-in-up">
-            <div class="flex items-start gap-5">
-                <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl shadow-lg
-                    {% if task.priority == 'high' %}
-                        bg-gradient-to-br from-red-400 to-red-600 text-white
-                    {% elif task.priority == 'medium' %}
-                        bg-gradient-to-br from-amber-400 to-amber-600 text-white
-                    {% else %}
-                        bg-gradient-to-br from-green-400 to-green-600 text-white
-                    {% endif %}">
-                    <i class="fas fa-flag"></i>
-                </div>
-                <div class="flex-1">
-                    <div id="viewTaskSubject" class="text-2xl font-bold text-slate-800 mb-2">
-                        {{ task.subject }}
-                    </div>
-                    <div id="editTaskSubject" class="hidden mb-3">
-                        <input type="text"
-                               name="subject"
-                               value="{{ task.subject }}"
-                               class="premium-input text-xl font-semibold"
-                               placeholder="Task Subject">
-                    </div>
-                    <div class="flex items-center gap-2 text-slate-500 mb-3">
-                        <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-semibold">
-                            {{ task.created_by.first_name[0] }}{{ task.created_by.last_name[0] }}
-                        </div>
-                        <span class="text-sm">
-                            Created by {{ task.created_by.first_name }} {{ task.created_by.last_name }} on {{ task.created_at.strftime('%B %d, %Y') }}
-                        </span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium
-                            {% if task.status == 'completed' %}
-                                bg-green-100 text-green-700
-                            {% else %}
-                                bg-amber-100 text-amber-700
-                            {% endif %}">
-                            <i class="fas {% if task.status == 'completed' %}fa-check-circle{% else %}fa-clock{% endif %} mr-1.5"></i>
-                            {{ task.status|capitalize }}
-                        </span>
-                        <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium
+    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Main Content Column -->
+            <div class="flex-1 max-w-4xl">
+                <!-- Task Header Card -->
+                <div class="premium-card p-6 mb-6 animate-fade-in-up">
+                    <div class="flex items-start gap-5">
+                        <!-- Large Priority Icon -->
+                        <div class="hidden md:flex w-14 h-14 rounded-2xl items-center justify-center text-2xl shadow-lg flex-shrink-0
                             {% if task.priority == 'high' %}
-                                bg-red-100 text-red-700
+                                bg-gradient-to-br from-red-500 to-red-600
                             {% elif task.priority == 'medium' %}
-                                bg-amber-100 text-amber-700
+                                bg-gradient-to-br from-amber-500 to-amber-600
                             {% else %}
-                                bg-green-100 text-green-700
-                            {% endif %}">
-                            <i class="fas fa-flag mr-1.5"></i>
-                            {{ task.priority|capitalize }} Priority
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Task Information Card -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up-delay-1">
-            <!-- Edit Form (Hidden by default) -->
-            <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="editTaskForm" class="hidden">
-                <!-- Basic Information Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-                            <i class="fas fa-info-circle"></i>
+                                bg-gradient-to-br from-green-500 to-green-600
+                            {% endif %} text-white">
+                            <i class="fas fa-tasks"></i>
                         </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Status</label>
-                            <select name="status" class="premium-select">
-                                <option value="pending" {% if task.status == 'pending' %}selected{% endif %}>Pending</option>
-                                <option value="completed" {% if task.status == 'completed' %}selected{% endif %}>Completed</option>
-                            </select>
+                        <div class="flex-1">
+                            <div id="viewTaskSubject" class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">
+                                {{ task.subject }}
+                            </div>
+                            <div id="editTaskSubject" class="hidden mb-3">
+                                <input type="text" name="subject" value="{{ task.subject }}"
+                                    class="premium-input text-xl font-semibold" placeholder="Task Subject">
+                            </div>
+                            <div class="flex items-center gap-3 text-slate-500 mb-4">
+                                <div
+                                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-semibold text-slate-600">
+                                    {{ task.created_by.first_name[0] }}{{ task.created_by.last_name[0] }}
+                                </div>
+                                <span class="text-sm">
+                                    Created by {{ task.created_by.first_name }} {{ task.created_by.last_name }} on {{
+                                    task.created_at.strftime('%B %d, %Y') }}
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3">
+                                <!-- Status Badge -->
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold
+                                    {% if task.status == 'completed' %}
+                                        bg-green-100 text-green-700
+                                    {% else %}
+                                        bg-amber-100 text-amber-700
+                                    {% endif %}">
+                                    <i
+                                        class="fas {% if task.status == 'completed' %}fa-check-circle{% else %}fa-clock{% endif %} mr-1.5"></i>
+                                    {{ task.status|capitalize }}
+                                </span>
+                                <!-- Priority Badge -->
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold
+                                    {% if task.priority == 'high' %}
+                                        bg-red-100 text-red-700
+                                    {% elif task.priority == 'medium' %}
+                                        bg-amber-100 text-amber-700
+                                    {% else %}
+                                        bg-green-100 text-green-700
+                                    {% endif %}">
+                                    <i class="fas fa-flag mr-1.5"></i>
+                                    {{ task.priority|capitalize }} Priority
+                                </span>
+                                <!-- Task Type Badge -->
+                                <span
+                                    class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
+                                    <i class="fas fa-tag mr-1.5"></i>
+                                    {{ task.task_type.name }}
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Priority</label>
-                            <select name="priority" class="premium-select">
-                                <option value="low" {% if task.priority == 'low' %}selected{% endif %}>Low</option>
-                                <option value="medium" {% if task.priority == 'medium' %}selected{% endif %}>Medium</option>
-                                <option value="high" {% if task.priority == 'high' %}selected{% endif %}>High</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Due Date</label>
-                            <input type="date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}" class="premium-input">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Scheduled Time</label>
-                            <input type="time" name="scheduled_time" value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}" class="premium-input">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Task Type Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-purple-400 to-purple-600 text-white">
-                            <i class="fas fa-tag"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Task Type</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Type</label>
-                            <select name="type_id" onchange="updateSubtypes(this.value)" class="premium-select">
-                                {% for type in task_types %}
-                                <option value="{{ type.id }}" {% if task.task_type.id == type.id %}selected{% endif %}>
-                                    {{ type.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Subtype</label>
-                            <select name="subtype_id" id="subtype_id" class="premium-select">
-                                {% for subtype in task_subtypes %}
-                                <option value="{{ subtype.id }}" {% if task.task_subtype.id == subtype.id %}selected{% endif %}>
-                                    {{ subtype.name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Related Information Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
-                            <i class="fas fa-link"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Related Information</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Related Contact</label>
-                            <select name="contact_id" class="premium-select">
-                                {% for contact in contacts %}
-                                <option value="{{ contact.id }}" {% if task.contact.id == contact.id %}selected{% endif %}>
-                                    {{ contact.first_name }} {{ contact.last_name }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">Property Address</label>
-                            <input type="text" name="property_address" value="{{ task.property_address or '' }}" class="premium-input" placeholder="Enter property address">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Description Section -->
-                <div class="p-6">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-slate-400 to-slate-600 text-white">
-                            <i class="fas fa-align-left"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Description</h2>
-                    </div>
-                    <textarea name="description" class="premium-input" placeholder="Add task description...">{{ task.description or '' }}</textarea>
-                </div>
-            </form>
-
-            <!-- View Mode -->
-            <div id="viewTaskInfo">
-                <!-- Basic Information Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-                            <i class="fas fa-info-circle"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Status</h3>
-                            <p class="text-slate-800 font-medium">{{ task.status|capitalize }}</p>
-                        </div>
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Priority</h3>
-                            <p class="text-slate-800 font-medium">{{ task.priority|capitalize }}</p>
-                        </div>
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Due Date</h3>
-                            <p class="text-slate-800 font-medium">{{ task.due_date.strftime('%B %d, %Y') }}</p>
-                        </div>
-                        {% if task.scheduled_time %}
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Scheduled Time</h3>
-                            <p class="text-slate-800 font-medium">{{ task.scheduled_time.strftime('%I:%M %p') }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Task Type Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-purple-400 to-purple-600 text-white">
-                            <i class="fas fa-tag"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Task Type</h2>
-                    </div>
-                    <div class="bg-slate-50 rounded-xl p-4">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-700">
-                                {{ task.task_type.name }}
-                            </span>
-                            <i class="fas fa-chevron-right text-slate-300 text-xs"></i>
-                            <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-600">
-                                {{ task.task_subtype.name }}
+                        <!-- Quick Complete Toggle -->
+                        <div class="hidden md:flex flex-col items-center gap-2">
+                            <div class="toggle-switch {% if task.status == 'completed' %}active{% endif %}"
+                                onclick="quickToggleComplete()" id="quickCompleteToggle"
+                                title="Mark as {% if task.status == 'completed' %}Pending{% else %}Complete{% endif %}">
+                            </div>
+                            <span class="text-xs font-medium text-slate-500" id="toggleLabel">
+                                {% if task.status == 'completed' %}Completed{% else %}Mark Done{% endif %}
                             </span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Related Information Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-cyan-400 to-cyan-600 text-white">
-                            <i class="fas fa-link"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Related Information</h2>
+                <!-- Task Status Tracker (Pizza Tracker) -->
+                <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-1">
+                    {% set statuses = ['pending', 'completed'] %}
+                    {% set status_icons = {'pending': 'clock', 'completed': 'check-circle'} %}
+                    {% set status_labels = {'pending': 'Pending', 'completed': 'Completed'} %}
+                    {% set current_index = 1 if task.status == 'completed' else 0 %}
+                    {% set progress_percent = 100 if task.status == 'completed' else 25 %}
+
+                    <div class="status-tracker">
+                        <div class="status-tracker-progress" style="width: {{ progress_percent }}%;"></div>
+                        {% for status in statuses %}
+                        {% set step_index = loop.index0 %}
+                        {% set is_completed = step_index < current_index %} {% set is_current=step_index==current_index
+                            %} {% set is_upcoming=step_index> current_index %}
+                            <div class="tracker-step">
+                                <div
+                                    class="tracker-dot {% if is_completed or (is_current and task.status == 'completed') %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
+                                    {% if is_completed or (is_current and task.status == 'completed') %}
+                                    <i class="fas fa-check"></i>
+                                    {% else %}
+                                    <i class="fas fa-{{ status_icons[status] }}"></i>
+                                    {% endif %}
+                                </div>
+                                <span
+                                    class="tracker-label {% if is_completed or (is_current and task.status == 'completed') %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
+                                    {{ status_labels[status] }}
+                                </span>
+                            </div>
+                            {% endfor %}
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Related Contact</h3>
-                            <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                               class="text-orange-600 hover:text-orange-700 font-medium transition-colors">
-                                {{ task.contact.first_name }} {{ task.contact.last_name }}
-                            </a>
+                </div>
+
+                <!-- Task Information Card -->
+                <div class="premium-card overflow-hidden animate-fade-in-up-delay-2">
+                    <!-- Edit Form (Hidden by default) -->
+                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="editTaskForm"
+                        class="hidden">
+                        <!-- Basic Information Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                    <i class="fas fa-info-circle text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Basic Information</h2>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Status</label>
+                                    <select name="status" class="premium-select">
+                                        <option value="pending" {% if task.status=='pending' %}selected{% endif %}>
+                                            Pending</option>
+                                        <option value="completed" {% if task.status=='completed' %}selected{% endif %}>
+                                            Completed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Priority</label>
+                                    <select name="priority" class="premium-select">
+                                        <option value="low" {% if task.priority=='low' %}selected{% endif %}>Low
+                                        </option>
+                                        <option value="medium" {% if task.priority=='medium' %}selected{% endif %}>
+                                            Medium</option>
+                                        <option value="high" {% if task.priority=='high' %}selected{% endif %}>High
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Due Date</label>
+                                    <input type="date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}"
+                                        class="premium-input">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Scheduled Time</label>
+                                    <input type="time" name="scheduled_time"
+                                        value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}"
+                                        class="premium-input">
+                                </div>
+                            </div>
                         </div>
-                        {% if task.property_address %}
-                        <div class="bg-slate-50 rounded-xl p-4">
-                            <h3 class="text-sm font-medium text-slate-500 mb-1">Property Address</h3>
-                            <p class="text-slate-800">{{ task.property_address }}</p>
+
+                        <!-- Task Type Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                                    <i class="fas fa-tag text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Task Type</h2>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Type</label>
+                                    <select name="type_id" onchange="updateSubtypes(this.value)" class="premium-select">
+                                        {% for type in task_types %}
+                                        <option value="{{ type.id }}" {% if task.task_type.id==type.id %}selected{%
+                                            endif %}>
+                                            {{ type.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Subtype</label>
+                                    <select name="subtype_id" id="subtype_id" class="premium-select">
+                                        {% for subtype in task_subtypes %}
+                                        <option value="{{ subtype.id }}" {% if task.task_subtype.id==subtype.id
+                                            %}selected{% endif %}>
+                                            {{ subtype.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Related Information Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                                    <i class="fas fa-link text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Related Information</h2>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Related Contact</label>
+                                    <select name="contact_id" class="premium-select">
+                                        {% for contact in contacts %}
+                                        <option value="{{ contact.id }}" {% if task.contact.id==contact.id %}selected{%
+                                            endif %}>
+                                            {{ contact.first_name }} {{ contact.last_name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-slate-700 mb-2">Property
+                                        Address</label>
+                                    <input type="text" name="property_address" value="{{ task.property_address or '' }}"
+                                        class="premium-input" placeholder="Enter property address">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                                    <i class="fas fa-align-left text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Description</h2>
+                            </div>
+                            <textarea name="description" class="premium-input"
+                                placeholder="Add task description...">{{ task.description or '' }}</textarea>
+                        </div>
+                    </form>
+
+                    <!-- View Mode -->
+                    <div id="viewTaskInfo">
+                        <!-- Basic Information Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                                    <i class="fas fa-info-circle text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Basic Information</h2>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="info-item">
+                                    <div class="info-item-label">Status</div>
+                                    <div class="info-item-value">
+                                        <span
+                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                            {% if task.status == 'completed' %}bg-green-100 text-green-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                            {{ task.status|capitalize }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-item-label">Priority</div>
+                                    <div class="info-item-value">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                            {% if task.priority == 'high' %}bg-red-100 text-red-700
+                                            {% elif task.priority == 'medium' %}bg-amber-100 text-amber-700
+                                            {% else %}bg-green-100 text-green-700{% endif %}">
+                                            {{ task.priority|capitalize }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-item-label">Due Date</div>
+                                    <div class="info-item-value">{{ task.due_date.strftime('%B %d, %Y') }}</div>
+                                </div>
+                                {% if task.scheduled_time %}
+                                <div class="info-item">
+                                    <div class="info-item-label">Scheduled Time</div>
+                                    <div class="info-item-value">{{ task.scheduled_time.strftime('%I:%M %p') }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Task Type Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                                    <i class="fas fa-tag text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Task Type</h2>
+                            </div>
+                            <div class="info-box">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span
+                                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-700">
+                                        {{ task.task_type.name }}
+                                    </span>
+                                    <i class="fas fa-chevron-right text-slate-300 text-xs"></i>
+                                    <span
+                                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-600">
+                                        {{ task.task_subtype.name }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Related Information Section -->
+                        <div class="p-6 border-b border-slate-100">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                                    <i class="fas fa-link text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Related Information</h2>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="info-item">
+                                    <div class="info-item-label">Related Contact</div>
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                                        class="info-item-value text-orange-600 hover:text-orange-700 transition-colors">
+                                        {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                    </a>
+                                </div>
+                                {% if task.property_address %}
+                                <div class="info-item">
+                                    <div class="info-item-label">Property Address</div>
+                                    <div class="info-item-value">{{ task.property_address }}</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Description Section -->
+                        <div class="p-6">
+                            <div class="flex items-center gap-3 mb-5">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                                    <i class="fas fa-align-left text-white"></i>
+                                </div>
+                                <h2 class="text-lg font-bold text-slate-800">Description</h2>
+                            </div>
+                            <div class="info-box">
+                                <p class="text-slate-700 whitespace-pre-line">{{ task.description or 'No description
+                                    provided' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Task Button -->
+                <div class="mt-6 flex justify-end animate-fade-in-up-delay-3">
+                    <button onclick="deleteTask({{ task.id }})"
+                        class="premium-btn inline-flex items-center px-4 py-2 border-2 border-red-200 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all">
+                        <i class="fas fa-trash-alt mr-2"></i>
+                        Delete Task
+                    </button>
+                </div>
+            </div>
+
+            <!-- Side Panel - Related Contact -->
+            <div class="lg:w-[380px] xl:w-[420px] flex-shrink-0 space-y-6 animate-fade-in-up-delay-3">
+                <!-- Related Contact Card -->
+                <div class="premium-card overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
+                                <i class="fas fa-user text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Related Contact</h2>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                        class="block p-5 hover:bg-slate-50 transition-colors group">
+                        <div class="flex items-center gap-4">
+                            <!-- Contact Avatar -->
+                            {% set initials = task.contact.first_name[0]|upper + task.contact.last_name[0]|upper %}
+                            {% set colors = {
+                            'A': 'bg-gradient-to-br from-blue-400 to-blue-600',
+                            'B': 'bg-gradient-to-br from-rose-400 to-rose-600',
+                            'C': 'bg-gradient-to-br from-green-400 to-green-600',
+                            'D': 'bg-gradient-to-br from-amber-400 to-amber-600',
+                            'E': 'bg-gradient-to-br from-purple-400 to-purple-600',
+                            'F': 'bg-gradient-to-br from-pink-400 to-pink-600',
+                            'G': 'bg-gradient-to-br from-indigo-400 to-indigo-600',
+                            'H': 'bg-gradient-to-br from-teal-400 to-teal-600',
+                            'I': 'bg-gradient-to-br from-orange-400 to-orange-600',
+                            'J': 'bg-gradient-to-br from-cyan-400 to-cyan-600'
+                            } %}
+                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold text-white shadow-md
+                                {{ colors.get(initials[0], 'bg-gradient-to-br from-slate-400 to-slate-600') }}">
+                                {{ initials }}
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">
+                                    {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                </div>
+                                {% if task.contact.email %}
+                                <div class="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <i class="fas fa-envelope text-xs"></i>
+                                    {{ task.contact.email }}
+                                </div>
+                                {% endif %}
+                                {% if task.contact.phone %}
+                                <div class="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                    <i class="fas fa-phone text-xs"></i>
+                                    {{ task.contact.phone }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            <i
+                                class="fas fa-chevron-right text-slate-300 group-hover:text-orange-400 transition-colors"></i>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Quick Actions Card -->
+                <div class="premium-card overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                                <i class="fas fa-bolt text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Quick Actions</h2>
+                        </div>
+                    </div>
+                    <div class="p-4 space-y-2">
+                        <!-- Quick Complete Toggle (mobile visible) -->
+                        <button onclick="quickToggleComplete()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left
+                                    {% if task.status == 'completed' %}bg-green-50{% endif %}">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg flex items-center justify-center
+                                    {% if task.status == 'completed' %}bg-green-100{% else %}bg-slate-100{% endif %}">
+                                    <i
+                                        class="fas fa-check {% if task.status == 'completed' %}text-green-600{% else %}text-slate-400{% endif %}"></i>
+                                </div>
+                                <span class="font-medium text-slate-700">
+                                    {% if task.status == 'completed' %}Mark as Pending{% else %}Mark as Complete{% endif
+                                    %}
+                                </span>
+                            </div>
+                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        </button>
+
+                        <!-- Call Contact -->
+                        {% if task.contact.phone %}
+                        <a href="tel:{{ task.contact.phone }}"
+                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
+                                    <i class="fas fa-phone text-blue-600"></i>
+                                </div>
+                                <span class="font-medium text-slate-700">Call Contact</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        </a>
+                        {% endif %}
+
+                        <!-- Email Contact -->
+                        {% if task.contact.email %}
+                        <a href="mailto:{{ task.contact.email }}"
+                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
+                                    <i class="fas fa-envelope text-purple-600"></i>
+                                </div>
+                                <span class="font-medium text-slate-700">Email Contact</span>
+                            </div>
+                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        </a>
                         {% endif %}
                     </div>
                 </div>
 
-                <!-- Description Section -->
-                <div class="p-6">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-slate-400 to-slate-600 text-white">
-                            <i class="fas fa-align-left"></i>
+                <!-- Task Metadata Card -->
+                <div class="premium-card overflow-hidden">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                                <i class="fas fa-info text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Task Details</h2>
                         </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Description</h2>
                     </div>
-                    <div class="bg-slate-50 rounded-xl p-4">
-                        <p class="text-slate-700 whitespace-pre-line">{{ task.description or 'No description provided' }}</p>
+                    <div class="p-5">
+                        <div class="space-y-0">
+                            <div class="info-row">
+                                <span class="info-label text-xs">Task ID</span>
+                                <span class="info-value text-xs text-slate-400">#{{ task.id }}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label text-xs">Created</span>
+                                <span class="info-value text-xs">{{ task.created_at.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            {% if task.updated_at %}
+                            <div class="info-row">
+                                <span class="info-label text-xs">Last Updated</span>
+                                <span class="info-value text-xs">{{ task.updated_at.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Delete Task Button -->
-        <div class="mt-6 flex justify-end animate-fade-in-up-delay-2">
-            <button onclick="deleteTask({{ task.id }})" 
-                    class="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-red-200 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-all">
-                <i class="fas fa-trash-alt"></i>
-                Delete Task
-            </button>
         </div>
     </div>
 </div>
 
 <script>
-// Smart back navigation based on referrer
-function navigateBack() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    
-    if (ref === 'tasks') {
-        window.location.href = '{{ url_for('tasks.tasks') }}';
-    } else if (ref === 'dashboard') {
-        window.location.href = '{{ url_for('main.dashboard') }}';
-    } else if (ref === 'contact') {
-        const contactId = urlParams.get('contact_id');
-        if (contactId) {
-            window.location.href = `/contact/${contactId}`;
-        } else {
+    // Smart back navigation based on referrer
+    function navigateBack() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+
+        if (ref === 'tasks') {
             window.location.href = '{{ url_for('tasks.tasks') }}';
-        }
-    } else {
-        // Fallback to browser history, but prefer tasks list
-        if (document.referrer && document.referrer.includes('/tasks')) {
-            window.location.href = '{{ url_for('tasks.tasks') }}';
-        } else if (document.referrer && document.referrer.includes('/dashboard')) {
+        } else if (ref === 'dashboard') {
             window.location.href = '{{ url_for('main.dashboard') }}';
-        } else if (document.referrer && document.referrer.includes('/contact/')) {
-            history.back();
+        } else if (ref === 'contact') {
+            const contactId = urlParams.get('contact_id');
+            if (contactId) {
+                window.location.href = `/contact/${contactId}`;
+            } else {
+                window.location.href = '{{ url_for('tasks.tasks') }}';
+            }
         } else {
-            window.location.href = '{{ url_for('tasks.tasks') }}';
+            // Fallback to browser history, but prefer tasks list
+            if (document.referrer && document.referrer.includes('/tasks')) {
+                window.location.href = '{{ url_for('tasks.tasks') }}';
+            } else if (document.referrer && document.referrer.includes('/dashboard')) {
+                window.location.href = '{{ url_for('main.dashboard') }}';
+            } else if (document.referrer && document.referrer.includes('/contact/')) {
+                history.back();
+            } else {
+                window.location.href = '{{ url_for('tasks.tasks') }}';
+            }
         }
     }
-}
 
-function toggleEditMode() {
-    const viewMode = document.getElementById('viewTaskInfo');
-    const editMode = document.getElementById('editTaskForm');
-    const viewSubject = document.getElementById('viewTaskSubject');
-    const editSubject = document.getElementById('editTaskSubject');
-    const editBtn = document.getElementById('editButton');
-    const saveBtn = document.getElementById('saveButton');
-    const cancelBtn = document.getElementById('cancelButton');
+    function toggleEditMode() {
+        const viewMode = document.getElementById('viewTaskInfo');
+        const editMode = document.getElementById('editTaskForm');
+        const viewSubject = document.getElementById('viewTaskSubject');
+        const editSubject = document.getElementById('editTaskSubject');
+        const editBtn = document.getElementById('editButton');
+        const saveBtn = document.getElementById('saveButton');
+        const cancelBtn = document.getElementById('cancelButton');
 
-    viewMode.classList.add('hidden');
-    editMode.classList.remove('hidden');
-    viewSubject.classList.add('hidden');
-    editSubject.classList.remove('hidden');
-    editBtn.classList.add('hidden');
-    saveBtn.classList.remove('hidden');
-    cancelBtn.classList.remove('hidden');
-}
+        viewMode.classList.add('hidden');
+        editMode.classList.remove('hidden');
+        viewSubject.classList.add('hidden');
+        editSubject.classList.remove('hidden');
+        editBtn.classList.add('hidden');
+        saveBtn.classList.remove('hidden');
+        cancelBtn.classList.remove('hidden');
+    }
 
-function cancelEdit() {
-    const viewMode = document.getElementById('viewTaskInfo');
-    const editMode = document.getElementById('editTaskForm');
-    const viewSubject = document.getElementById('viewTaskSubject');
-    const editSubject = document.getElementById('editTaskSubject');
-    const editBtn = document.getElementById('editButton');
-    const saveBtn = document.getElementById('saveButton');
-    const cancelBtn = document.getElementById('cancelButton');
+    function cancelEdit() {
+        const viewMode = document.getElementById('viewTaskInfo');
+        const editMode = document.getElementById('editTaskForm');
+        const viewSubject = document.getElementById('viewTaskSubject');
+        const editSubject = document.getElementById('editTaskSubject');
+        const editBtn = document.getElementById('editButton');
+        const saveBtn = document.getElementById('saveButton');
+        const cancelBtn = document.getElementById('cancelButton');
 
-    viewMode.classList.remove('hidden');
-    editMode.classList.add('hidden');
-    viewSubject.classList.remove('hidden');
-    editSubject.classList.add('hidden');
-    editBtn.classList.remove('hidden');
-    saveBtn.classList.add('hidden');
-    cancelBtn.classList.add('hidden');
-}
+        viewMode.classList.remove('hidden');
+        editMode.classList.add('hidden');
+        viewSubject.classList.remove('hidden');
+        editSubject.classList.add('hidden');
+        editBtn.classList.remove('hidden');
+        saveBtn.classList.add('hidden');
+        cancelBtn.classList.add('hidden');
+    }
 
-async function saveTask() {
-    const form = document.getElementById('editTaskForm');
-    const formData = new FormData();
+    async function saveTask() {
+        const form = document.getElementById('editTaskForm');
+        const formData = new FormData();
 
-    // Add the subject from the header
-    const subjectInput = document.querySelector('input[name="subject"]');
-    formData.append('subject', subjectInput.value);
+        // Add the subject from the header
+        const subjectInput = document.querySelector('input[name="subject"]');
+        formData.append('subject', subjectInput.value);
 
-    // Add all other form fields
-    const formInputs = form.querySelectorAll('input, textarea, select');
-    formInputs.forEach(input => {
-        if (input.type === 'checkbox') {
-            formData.append(input.name, input.checked ? 'completed' : 'pending');
-        } else if (input.name) {
-            formData.append(input.name, input.value);
+        // Add all other form fields
+        const formInputs = form.querySelectorAll('input, textarea, select');
+        formInputs.forEach(input => {
+            if (input.type === 'checkbox') {
+                formData.append(input.name, input.checked ? 'completed' : 'pending');
+            } else if (input.name) {
+                formData.append(input.name, input.value);
+            }
+        });
+
+        try {
+            const response = await fetch(`{{ url_for('tasks.edit_task', task_id=task.id) }}`, {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Reload the page to show updated data
+                window.location.reload();
+            } else {
+                alert(data.message || 'Error saving changes');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error saving changes. Please try again.');
         }
-    });
+    }
 
-    try {
-        const response = await fetch(`{{ url_for('tasks.edit_task', task_id=task.id) }}`, {
+    function updateSubtypes(typeId) {
+        const subtypeSelect = document.getElementById('subtype_id');
+        subtypeSelect.innerHTML = '<option value="">Loading...</option>';
+
+        if (!typeId) {
+            subtypeSelect.innerHTML = '<option value="">Select type first</option>';
+            return;
+        }
+
+        fetch(`/tasks/types/${typeId}/subtypes`)
+            .then(response => response.json())
+            .then(subtypes => {
+                subtypeSelect.innerHTML = subtypes.map(subtype =>
+                    `<option value="${subtype.id}">${subtype.name}</option>`
+                ).join('');
+            })
+            .catch(error => {
+                console.error('Error fetching subtypes:', error);
+                subtypeSelect.innerHTML = '<option value="">Error loading subtypes</option>';
+            });
+    }
+
+    function deleteTask(taskId) {
+        if (!confirm('Are you sure you want to delete this task?')) return;
+
+        fetch(`/tasks/${taskId}/delete`, {
             method: 'POST',
-            body: formData
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-            // Navigate back based on referrer
-            navigateBack();
-        } else {
-            alert(data.message || 'Error saving changes');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error saving changes. Please try again.');
-    }
-}
-
-function updateSubtypes(typeId) {
-    const subtypeSelect = document.getElementById('subtype_id');
-    subtypeSelect.innerHTML = '<option value="">Loading...</option>';
-
-    if (!typeId) {
-        subtypeSelect.innerHTML = '<option value="">Select type first</option>';
-        return;
-    }
-
-    fetch(`/tasks/types/${typeId}/subtypes`)
-        .then(response => response.json())
-        .then(subtypes => {
-            subtypeSelect.innerHTML = subtypes.map(subtype =>
-                `<option value="${subtype.id}">${subtype.name}</option>`
-            ).join('');
         })
-        .catch(error => {
-            console.error('Error fetching subtypes:', error);
-            subtypeSelect.innerHTML = '<option value="">Error loading subtypes</option>';
-        });
-}
+            .then(response => {
+                if (!response.ok) throw new Error('Network response was not ok');
+                window.location.href = '{{ url_for('tasks.tasks') }}';
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error deleting task');
+            });
+    }
 
-function deleteTask(taskId) {
-    if (!confirm('Are you sure you want to delete this task?')) return;
-    
-    fetch(`/tasks/${taskId}/delete`, {
-        method: 'POST',
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        window.location.href = '{{ url_for('tasks.tasks') }}';
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error deleting task');
-    });
-}
+    // Quick toggle complete without entering edit mode
+    async function quickToggleComplete() {
+        const newStatus = '{{ task.status }}' === 'completed' ? 'pending' : 'completed';
+
+        const formData = new FormData();
+        formData.append('status', newStatus);
+
+        try {
+            const response = await fetch(`/tasks/{{ task.id }}/quick-update`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Error updating task status');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error updating task status');
+        }
+    }
+
 </script>
 {% endblock %}
