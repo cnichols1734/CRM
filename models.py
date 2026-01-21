@@ -876,14 +876,19 @@ class TransactionDocument(db.Model):
     # Signing method: 'esign', 'physical', or null (not yet signed)
     signing_method = db.Column(db.String(20), nullable=True)
     
-    # Document source: 'template' (our generated), 'external' (uploaded from other party), 'hybrid' (wet+esign combo)
+    # Document source: 'template' (our generated), 'external' (uploaded from other party), 
+    # 'hybrid' (wet+esign combo), 'static' (uploaded PDF, no signing), 'placeholder' (awaiting content)
     document_source = db.Column(db.String(20), default='template')
     
-    # For external/hybrid docs: path to the uploaded source PDF in Supabase
+    # For external/hybrid/static docs: path to the uploaded source PDF in Supabase
     source_file_path = db.Column(db.String(500), nullable=True)
     
     # Manual field placements for ad-hoc signing: [{type, role, page, x, y, w, h, required}]
     field_placements = db.Column(db.JSON, nullable=True)
+    
+    # Placeholder documents: created by questionnaire as reminders for agent to upload content later
+    # (e.g., Special Tax District Notice, Referral Agreement when agent-provided)
+    is_placeholder = db.Column(db.Boolean, default=False)
     
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',

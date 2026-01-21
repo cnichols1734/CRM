@@ -72,7 +72,8 @@ def evaluate_document_rules(schema: dict, intake_data: dict) -> list:
                 'slug': rule['slug'],
                 'name': rule['name'],
                 'reason': reason,
-                'always': rule.get('always', False)
+                'always': rule.get('always', False),
+                'is_placeholder': rule.get('is_placeholder', False)
             })
     
     return required_docs

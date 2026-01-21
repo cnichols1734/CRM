@@ -41,7 +41,42 @@ def add_document(id):
         ).first()
         
         if existing:
-            return jsonify({'success': False, 'error': 'This document already exists in the package'}), 400
+            # Check if it's an empty placeholder that can be converted to a template document
+            if existing.is_placeholder and existing.status == 'pending' and existing.document_source == 'placeholder':
+                # Convert the placeholder to a template-based document
+                existing.document_source = 'template'
+                existing.is_placeholder = False  # No longer a placeholder since we're generating from template
+                existing.included_reason = reason if reason != 'Manually added' else existing.included_reason
+                
+                # Log audit event
+                audit_service.log_event(
+                    event_type='document_placeholder_converted',
+                    transaction_id=transaction.id,
+                    document_id=existing.id,
+                    description=f"Placeholder converted to template document: {existing.template_name}",
+                    event_data={
+                        'document_slug': template_slug,
+                        'conversion_type': 'template'
+                    },
+                    source='app',
+                    actor_id=current_user.id
+                )
+                
+                db.session.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'placeholder_updated': True,
+                    'message': f'The {template_name} placeholder has been updated. You can now fill out the document.',
+                    'document': {
+                        'id': existing.id,
+                        'name': existing.template_name,
+                        'status': existing.status
+                    }
+                })
+            else:
+                # Document exists and is not an empty placeholder
+                return jsonify({'success': False, 'error': 'This document already exists in the package'}), 400
         
         doc = TransactionDocument(
             organization_id=current_user.organization_id,
@@ -365,7 +400,13 @@ def fill_all_documents(id):
         TransactionDocument.template_slug.in_(preview_slugs)
     ).order_by(TransactionDocument.created_at).all()
     
-    if not documents and not preview_documents:
+    # Get static documents (uploaded PDFs, no signing required)
+    static_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'static',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents and not preview_documents and not static_documents:
         flash('No documents available to fill. Use individual document fill for other documents.', 'info')
         return redirect(url_for('transactions.view_transaction', id=id))
     
@@ -475,7 +516,9 @@ def fill_all_documents(id):
         prefill_data=prefill_data,
         doc_configs=doc_configs,  # Pass configs for dynamic template rendering
         preview_data=preview_data,  # Preview-only documents with embed URLs
-        has_preview_docs=len(preview_data) > 0
+        has_preview_docs=len(preview_data) > 0,
+        static_documents=static_documents,  # Static PDFs (uploaded, no signing)
+        has_static_docs=len(static_documents) > 0
     )
 
 
@@ -641,6 +684,237 @@ def upload_scanned_document(id, doc_id):
                 'signed_at': doc.signed_at.isoformat() if doc.signed_at else None,
                 'file_size': file_size
             }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# UPLOAD STATIC DOCUMENT TO PLACEHOLDER (NO SIGNING)
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/upload-static', methods=['POST'])
+@login_required
+@transactions_required
+def upload_static_document(id, doc_id):
+    """
+    Upload a static PDF to a placeholder document (no signing required).
+    
+    This is used when an agent has a pre-filled document that just needs
+    to be included in the final package without any signatures.
+    """
+    from datetime import datetime
+    from services.supabase_storage import upload_external_document as upload_static
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    # Document must be a placeholder in pending status
+    if not doc.is_placeholder:
+        return jsonify({
+            'success': False,
+            'error': 'This document is not a placeholder. Use the appropriate upload method.'
+        }), 400
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Validate file type (PDF only)
+    allowed_extensions = {'pdf'}
+    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': 'Only PDF files are allowed'
+        }), 400
+    
+    # Read file data
+    file_data = file.read()
+    file_size = len(file_data)
+    
+    # Validate file size (max 25MB)
+    max_size = 25 * 1024 * 1024
+    if file_size > max_size:
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 25MB.'
+        }), 400
+    
+    try:
+        # Upload to Supabase
+        result = upload_static(
+            transaction_id=transaction.id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type='application/pdf'
+        )
+        
+        # Update document record
+        doc.source_file_path = result['path']
+        doc.document_source = 'static'
+        doc.status = 'filled'
+        doc.updated_at = datetime.utcnow()
+        
+        # Log audit event
+        audit_service.log_event(
+            event_type='document_uploaded_static',
+            transaction_id=transaction.id,
+            document_id=doc.id,
+            description=f"Static document uploaded to placeholder: {doc.template_name}",
+            event_data={
+                'document_name': doc.template_name,
+                'original_filename': file.filename,
+                'file_size': file_size,
+                'storage_path': result['path']
+            },
+            source='app',
+            actor_id=current_user.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document uploaded successfully',
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status,
+                'source': doc.document_source
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# UPLOAD FOR SIGNATURE (PLACEHOLDER TO EXTERNAL)
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/upload-for-signature', methods=['POST'])
+@login_required
+@transactions_required
+def upload_placeholder_for_signature(id, doc_id):
+    """
+    Upload a PDF to a placeholder document and prepare it for e-signature.
+    
+    This converts the placeholder to an external document and redirects
+    to the field editor for signature placement.
+    """
+    from datetime import datetime
+    from services.supabase_storage import upload_external_document as upload_external
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    # Document must be a placeholder in pending status
+    if not doc.is_placeholder:
+        return jsonify({
+            'success': False,
+            'error': 'This document is not a placeholder. Use the appropriate upload method.'
+        }), 400
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Validate file type (PDF only)
+    allowed_extensions = {'pdf'}
+    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': 'Only PDF files are allowed'
+        }), 400
+    
+    # Read file data
+    file_data = file.read()
+    file_size = len(file_data)
+    
+    # Validate file size (max 25MB)
+    max_size = 25 * 1024 * 1024
+    if file_size > max_size:
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 25MB.'
+        }), 400
+    
+    try:
+        # Upload to Supabase
+        result = upload_external(
+            transaction_id=transaction.id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type='application/pdf'
+        )
+        
+        # Update document record - convert placeholder to external
+        doc.source_file_path = result['path']
+        doc.document_source = 'external'
+        doc.status = 'pending'  # Will become 'filled' after fields are placed
+        doc.field_placements = []  # Initialize empty field placements
+        doc.updated_at = datetime.utcnow()
+        
+        # Log audit event
+        audit_service.log_event(
+            event_type='document_uploaded_external',
+            transaction_id=transaction.id,
+            document_id=doc.id,
+            description=f"Placeholder converted to external document for signature: {doc.template_name}",
+            event_data={
+                'document_name': doc.template_name,
+                'original_filename': file.filename,
+                'file_size': file_size,
+                'storage_path': result['path'],
+                'was_placeholder': True
+            },
+            source='app',
+            actor_id=current_user.id
+        )
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document uploaded successfully',
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status,
+                'source': doc.document_source
+            },
+            'redirect_url': url_for('transactions.document_field_editor', id=transaction.id, doc_id=doc.id)
         })
         
     except Exception as e:

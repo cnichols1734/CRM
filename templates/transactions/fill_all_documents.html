@@ -834,6 +834,63 @@
         </div>
         {% endif %}
 
+        <!-- Static Documents Section (Uploaded PDFs, no signing) -->
+        {% if has_static_docs and static_documents %}
+        <div class="static-documents-section mt-8">
+            <!-- Section Divider -->
+            <div class="document-divider">
+                <div class="document-divider-content">
+                    <span class="document-badge document-badge-cyan">
+                        <i class="fas fa-file-pdf"></i>
+                        Uploaded Documents
+                    </span>
+                </div>
+            </div>
+
+            <p class="text-sm text-slate-500 text-center mb-6">
+                These documents have been uploaded and will be included in the final package.
+            </p>
+
+            {% for doc in static_documents %}
+            <!-- Static Document Card -->
+            <div class="premium-card p-6 mb-6">
+                <!-- Document Header -->
+                <div class="section-header">
+                    <div class="section-number bg-teal-100 text-teal-700">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <div>
+                        <h3 class="section-title">{{ doc.template_name }}</h3>
+                        <p class="section-subtitle">Uploaded document - no signatures required</p>
+                    </div>
+                    <span class="ml-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Will be included
+                    </span>
+                </div>
+
+                <!-- Document Preview -->
+                <div class="flex items-center justify-center p-8 bg-gradient-to-br from-slate-50 to-teal-50 rounded-lg border border-slate-200">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-full bg-teal-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-file-pdf text-3xl text-teal-600"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold text-slate-800 mb-2">{{ doc.template_name }}</h4>
+                        <p class="text-sm text-slate-500 mb-4">
+                            This document will be included in the package when sent to the client.
+                        </p>
+                        {% if doc.included_reason %}
+                        <p class="text-xs text-slate-400">
+                            <i class="fas fa-info-circle mr-1"></i>{{ doc.included_reason }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- Spacer for floating action bar -->
         <div class="form-bottom-spacer"></div>
 

@@ -110,10 +110,11 @@
       "reason": "Property subject to owner's association"
     },
     {
-      "slug": "water-district",
-      "name": "Information About On-Site Sewer Facility",
+      "slug": "special-tax-district-notice",
+      "name": "Notice to Purchaser of Real Property Located in a Special Tax District",
       "condition": {"field": "special_districts", "equals": true},
-      "reason": "Property in special district (MUD, PID, etc.)"
+      "reason": "Property in special taxing district (MUD, PID, etc.)",
+      "is_placeholder": true
     },
     {
       "slug": "flood-hazard",
@@ -131,7 +132,8 @@
       "slug": "referral-agreement",
       "name": "Referral Agreement",
       "condition": {"field": "referral_fee", "equals": true},
-      "reason": "Referral fee will be paid"
+      "reason": "Referral fee will be paid",
+      "is_placeholder": true
     },
     {
       "slug": "t47-affidavit",

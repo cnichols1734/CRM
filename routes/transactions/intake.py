@@ -386,9 +386,26 @@ def generate_document_package(id):
         for slug in to_add:
             doc_info = required_docs_by_slug[slug]
             
+            # Check if this is a placeholder document (agent will upload content later)
+            is_placeholder = doc_info.get('is_placeholder', False)
+            
             # Check if this is a preview-only document
             definition = DocumentLoader.get(slug)
             is_preview = definition and definition.is_pdf_preview
+            
+            # Determine document_source and status based on document type
+            if is_placeholder:
+                # Placeholder documents: agent needs to upload content later
+                document_source = 'placeholder'
+                status = 'pending'
+            elif is_preview:
+                # Preview-only documents are auto-filled
+                document_source = 'template'
+                status = 'filled'
+            else:
+                # Regular template documents
+                document_source = 'template'
+                status = 'pending'
             
             tx_doc = TransactionDocument(
                 organization_id=current_user.organization_id,
@@ -396,11 +413,13 @@ def generate_document_package(id):
                 template_slug=slug,
                 template_name=doc_info['name'],
                 included_reason=doc_info['reason'] if not doc_info.get('always') else None,
-                status='filled' if is_preview else 'pending'
+                status=status,
+                is_placeholder=is_placeholder,
+                document_source=document_source
             )
             
-            # Auto-populate field_data for preview-only documents
-            if is_preview and definition:
+            # Auto-populate field_data for preview-only documents (not placeholders)
+            if is_preview and definition and not is_placeholder:
                 context = {
                     'user': current_user,
                     'transaction': transaction,

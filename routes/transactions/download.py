@@ -116,6 +116,47 @@ def view_stored_signed_document(id, doc_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/view-static')
+@login_required
+@transactions_required
+def view_static_document(id, doc_id):
+    """
+    Get a signed URL for viewing a static document (uploaded PDF, no signing).
+    
+    Returns a direct URL for embedding/viewing in browser.
+    """
+    from services.supabase_storage import get_transaction_document_url, format_file_size
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    doc = TransactionDocument.query.get_or_404(doc_id)
+    
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    
+    if not doc.source_file_path:
+        return jsonify({
+            'success': False,
+            'error': 'No document file available.'
+        }), 404
+    
+    try:
+        # Generate signed URL valid for 1 hour
+        signed_url = get_transaction_document_url(doc.source_file_path, expires_in=3600)
+        
+        return jsonify({
+            'success': True,
+            'url': signed_url,
+            'filename': f'{doc.template_name}.pdf'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # PRINT PDF
 # =============================================================================

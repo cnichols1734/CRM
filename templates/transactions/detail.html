@@ -712,14 +712,19 @@
                     {% if documents %}
                     <div class="space-y-2">
                         {% for doc in documents %}
-                        <div class="doc-row flex items-center justify-between p-4 rounded-xl border border-slate-100">
+                        <div class="doc-row flex items-center justify-between p-4 rounded-xl border 
+                            {% if doc.is_placeholder and doc.status == 'pending' %}border-amber-300 bg-amber-50
+                            {% else %}border-slate-100{% endif %}">
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center
-                                    {% if doc.status == 'signed' %}bg-green-100
+                                    {% if doc.is_placeholder and doc.status == 'pending' %}bg-amber-100
+                                    {% elif doc.status == 'signed' %}bg-green-100
                                     {% elif doc.status == 'sent' %}bg-blue-100
                                     {% elif doc.status == 'filled' %}bg-purple-100
                                     {% else %}bg-slate-100{% endif %}">
-                                    {% if doc.status == 'signed' and doc.signing_method == 'physical' %}
+                                    {% if doc.is_placeholder and doc.status == 'pending' %}
+                                    <i class="fas fa-exclamation-circle text-amber-600 text-lg"></i>
+                                    {% elif doc.status == 'signed' and doc.signing_method == 'physical' %}
                                     <i class="fas fa-pen-nib text-green-600 text-lg"></i>
                                     {% elif doc.status == 'signed' %}
                                     <i class="fas fa-file-signature text-green-600 text-lg"></i>
@@ -734,7 +739,13 @@
                                 <div>
                                     <div class="flex items-center gap-2">
                                         <span class="font-medium text-slate-800">{{ doc.template_name }}</span>
-                                        {% if doc.document_source == 'external' %}
+                                        {% if doc.is_placeholder and doc.status == 'pending' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                                            <i class="fas fa-exclamation-triangle mr-1"></i>Needs Content
+                                        </span>
+                                        {% elif doc.document_source == 'static' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">Static PDF</span>
+                                        {% elif doc.document_source == 'external' %}
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">External</span>
                                         {% elif doc.document_source == 'hybrid' %}
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">Hybrid</span>
@@ -809,8 +820,41 @@
                                         <div class="border-t border-slate-100 my-2"></div>
                                         {% endif %}
                                         
-                                        <!-- PENDING: Fill Form (Template docs only) -->
-                                        {% if doc.status == 'pending' and doc.document_source != 'external' %}
+                                        <!-- PLACEHOLDER DOCUMENTS: Upload options -->
+                                        {% if doc.is_placeholder and doc.status == 'pending' %}
+                                        <div class="px-4 py-1.5 text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                                            Placeholder - Add Content
+                                        </div>
+                                        <button onclick='showUploadStaticModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-teal-600 hover:bg-teal-50 transition-colors">
+                                            <i class="fas fa-file-upload w-5"></i>
+                                            <span class="ml-2">Upload Document</span>
+                                        </button>
+                                        <button onclick='showUploadForSignatureModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
+                                            <i class="fas fa-file-signature w-5"></i>
+                                            <span class="ml-2">Upload & Prep for Signature</span>
+                                        </button>
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        {% endif %}
+                                        
+                                        <!-- STATIC DOCUMENTS: View options -->
+                                        {% if doc.document_source == 'static' and doc.status == 'filled' %}
+                                        <button onclick="viewStaticDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-teal-600 hover:bg-teal-50 transition-colors">
+                                            <i class="fas fa-eye w-5"></i>
+                                            <span class="ml-2">View Document</span>
+                                        </button>
+                                        <button onclick='showUploadStaticModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-sync-alt w-5 text-slate-400"></i>
+                                            <span class="ml-2">Replace Document</span>
+                                        </button>
+                                        <div class="border-t border-slate-100 my-2"></div>
+                                        {% endif %}
+                                        
+                                        <!-- PENDING: Fill Form (Template docs only, not placeholders) -->
+                                        {% if doc.status == 'pending' and doc.document_source != 'external' and not doc.is_placeholder %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
                                             <i class="fas fa-edit w-5"></i>
@@ -818,8 +862,8 @@
                                         </a>
                                         {% endif %}
                                         
-                                        <!-- FILLED/GENERATED: Edit, Preview, Signing Options -->
-                                        {% if doc.status in ['filled', 'generated'] %}
+                                        <!-- FILLED/GENERATED: Edit, Preview, Signing Options (not for static or external docs) -->
+                                        {% if doc.status in ['filled', 'generated'] and doc.document_source not in ['static', 'external'] %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                                             <i class="fas fa-edit w-5 text-slate-400"></i>
@@ -1839,6 +1883,164 @@
     </div>
 </div>
 
+<!-- Upload Static Document Modal (for placeholders, no signing) -->
+<div id="uploadStaticModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeUploadStaticModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-file-upload text-teal-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Upload Document</h3>
+                    <p id="staticDocName" class="text-sm text-slate-500"></p>
+                </div>
+            </div>
+            
+            <div class="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                <p class="text-sm text-teal-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    This document will be included in your package as-is, without requiring any signatures.
+                </p>
+            </div>
+            
+            <form id="uploadStaticForm" enctype="multipart/form-data">
+                <input type="hidden" id="staticDocId" name="doc_id" value="">
+                
+                <!-- Drag and Drop Zone -->
+                <div id="staticDropZone" 
+                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors mb-4"
+                     onclick="document.getElementById('staticFileInput').click()">
+                    <div id="staticDropContent">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                    </div>
+                    <div id="staticFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                        <p id="staticFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="staticFileSize" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                </div>
+                <input type="file" id="staticFileInput" name="file" accept=".pdf" class="hidden" onchange="handleStaticFileSelect(this)">
+                
+                <!-- Upload Progress -->
+                <div id="staticProgress" class="hidden mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="staticPercent" class="font-medium text-teal-600">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="staticProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="staticError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p id="staticErrorText" class="text-sm text-red-600"></p>
+                </div>
+                
+                <!-- Info Text -->
+                <p class="text-xs text-slate-400 mb-4">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeUploadStaticModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="uploadStaticBtn" disabled
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Upload for Signature Modal (for placeholders, with e-signature) -->
+<div id="uploadForSignatureModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeUploadForSignatureModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-file-signature text-purple-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Upload & Prep for Signature</h3>
+                    <p id="signatureDocName" class="text-sm text-slate-500"></p>
+                </div>
+            </div>
+            
+            <div class="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                <p class="text-sm text-purple-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    After uploading, you'll place signature fields on the document for e-signature.
+                </p>
+            </div>
+            
+            <form id="uploadForSignatureForm" enctype="multipart/form-data">
+                <input type="hidden" id="signatureDocId" name="doc_id" value="">
+                
+                <!-- Drag and Drop Zone -->
+                <div id="signatureDropZone" 
+                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors mb-4"
+                     onclick="document.getElementById('signatureFileInput').click()">
+                    <div id="signatureDropContent">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                    </div>
+                    <div id="signatureFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                        <p id="signatureFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="signatureFileSize" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                </div>
+                <input type="file" id="signatureFileInput" name="file" accept=".pdf" class="hidden" onchange="handleSignatureFileSelect(this)">
+                
+                <!-- Upload Progress -->
+                <div id="signatureProgress" class="hidden mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="signaturePercent" class="font-medium text-purple-600">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="signatureProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Error Message -->
+                <div id="signatureError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p id="signatureErrorText" class="text-sm text-red-600"></p>
+                </div>
+                
+                <!-- Info Text -->
+                <p class="text-xs text-slate-400 mb-4">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeUploadForSignatureModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="uploadForSignatureBtn" disabled
+                            class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload & Continue
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
     <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
@@ -2525,6 +2727,8 @@ document.addEventListener('keydown', function(e) {
         closeDocumentModal();
         closeUploadScanModal();
         closeExternalModal();
+        closeUploadStaticModal();
+        closeUploadForSignatureModal();
     }
 });
 
@@ -2685,6 +2889,330 @@ if (externalForm) {
         
         xhr.open('POST', `/transactions/${transactionId}/documents/upload-external`);
         xhr.send(formData);
+    });
+}
+
+// =============================================================================
+// UPLOAD STATIC DOCUMENT MODAL (FOR PLACEHOLDERS)
+// =============================================================================
+
+let currentStaticDocId = null;
+
+function showUploadStaticModal(docId, docName) {
+    currentStaticDocId = docId;
+    document.getElementById('staticDocId').value = docId;
+    document.getElementById('staticDocName').textContent = docName;
+    
+    // Reset form state
+    document.getElementById('staticFileInput').value = '';
+    document.getElementById('staticDropContent').classList.remove('hidden');
+    document.getElementById('staticFileInfo').classList.add('hidden');
+    document.getElementById('staticProgress').classList.add('hidden');
+    document.getElementById('staticError').classList.add('hidden');
+    document.getElementById('uploadStaticBtn').disabled = true;
+    
+    document.getElementById('uploadStaticModal').classList.remove('hidden');
+}
+
+function closeUploadStaticModal() {
+    document.getElementById('uploadStaticModal').classList.add('hidden');
+    currentStaticDocId = null;
+}
+
+function handleStaticFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showStaticError('Please select a PDF file.');
+        return;
+    }
+    
+    // Validate file size (25MB max)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showStaticError('File too large. Maximum size is 25MB.');
+        return;
+    }
+    
+    // Show selected file info
+    document.getElementById('staticDropContent').classList.add('hidden');
+    document.getElementById('staticFileInfo').classList.remove('hidden');
+    document.getElementById('staticFileName').textContent = file.name;
+    document.getElementById('staticFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('staticError').classList.add('hidden');
+    document.getElementById('uploadStaticBtn').disabled = false;
+}
+
+function showStaticError(message) {
+    document.getElementById('staticError').classList.remove('hidden');
+    document.getElementById('staticErrorText').textContent = message;
+    document.getElementById('uploadStaticBtn').disabled = true;
+}
+
+// Handle drag and drop for static upload
+const staticDropZone = document.getElementById('staticDropZone');
+if (staticDropZone) {
+    staticDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    staticDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    staticDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('staticFileInput');
+            fileInput.files = files;
+            handleStaticFileSelect(fileInput);
+        }
+    });
+}
+
+// Handle static document form submission
+const staticForm = document.getElementById('uploadStaticForm');
+if (staticForm) {
+    staticForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('staticFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showStaticError('Please select a file first.');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Show progress
+        document.getElementById('staticProgress').classList.remove('hidden');
+        document.getElementById('uploadStaticBtn').disabled = true;
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('staticPercent').textContent = percent + '%';
+                document.getElementById('staticProgressBar').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Document uploaded successfully!', 'success');
+                    closeUploadStaticModal();
+                    location.reload();
+                } else {
+                    showStaticError(data.error || 'Upload failed');
+                    document.getElementById('staticProgress').classList.add('hidden');
+                    document.getElementById('uploadStaticBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showStaticError(data.error || 'Upload failed');
+                } catch (err) {
+                    showStaticError('Upload failed. Please try again.');
+                }
+                document.getElementById('staticProgress').classList.add('hidden');
+                document.getElementById('uploadStaticBtn').disabled = false;
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            showStaticError('Network error. Please try again.');
+            document.getElementById('staticProgress').classList.add('hidden');
+            document.getElementById('uploadStaticBtn').disabled = false;
+        });
+        
+        xhr.open('POST', `/transactions/${transactionId}/documents/${currentStaticDocId}/upload-static`);
+        xhr.send(formData);
+    });
+}
+
+// =============================================================================
+// UPLOAD FOR SIGNATURE MODAL (PLACEHOLDER TO EXTERNAL)
+// =============================================================================
+
+let currentSignatureDocId = null;
+
+function showUploadForSignatureModal(docId, docName) {
+    currentSignatureDocId = docId;
+    document.getElementById('signatureDocId').value = docId;
+    document.getElementById('signatureDocName').textContent = docName;
+    
+    // Reset form state
+    document.getElementById('signatureFileInput').value = '';
+    document.getElementById('signatureDropContent').classList.remove('hidden');
+    document.getElementById('signatureFileInfo').classList.add('hidden');
+    document.getElementById('signatureProgress').classList.add('hidden');
+    document.getElementById('signatureError').classList.add('hidden');
+    document.getElementById('uploadForSignatureBtn').disabled = true;
+    
+    document.getElementById('uploadForSignatureModal').classList.remove('hidden');
+}
+
+function closeUploadForSignatureModal() {
+    document.getElementById('uploadForSignatureModal').classList.add('hidden');
+    currentSignatureDocId = null;
+}
+
+function handleSignatureFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showSignatureError('Please select a PDF file.');
+        return;
+    }
+    
+    // Validate file size (25MB max)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showSignatureError('File too large. Maximum size is 25MB.');
+        return;
+    }
+    
+    // Show selected file info
+    document.getElementById('signatureDropContent').classList.add('hidden');
+    document.getElementById('signatureFileInfo').classList.remove('hidden');
+    document.getElementById('signatureFileName').textContent = file.name;
+    document.getElementById('signatureFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('signatureError').classList.add('hidden');
+    document.getElementById('uploadForSignatureBtn').disabled = false;
+}
+
+function showSignatureError(message) {
+    document.getElementById('signatureError').classList.remove('hidden');
+    document.getElementById('signatureErrorText').textContent = message;
+    document.getElementById('uploadForSignatureBtn').disabled = true;
+}
+
+// Handle drag and drop for signature upload
+const signatureDropZone = document.getElementById('signatureDropZone');
+if (signatureDropZone) {
+    signatureDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-purple-400', 'bg-purple-50/30');
+    });
+    
+    signatureDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+    });
+    
+    signatureDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('signatureFileInput');
+            fileInput.files = files;
+            handleSignatureFileSelect(fileInput);
+        }
+    });
+}
+
+// Handle signature document form submission
+const signatureForm = document.getElementById('uploadForSignatureForm');
+if (signatureForm) {
+    signatureForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('signatureFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showSignatureError('Please select a file first.');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Show progress
+        document.getElementById('signatureProgress').classList.remove('hidden');
+        document.getElementById('uploadForSignatureBtn').disabled = true;
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('signaturePercent').textContent = percent + '%';
+                document.getElementById('signatureProgressBar').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Document uploaded! Redirecting to field editor...', 'success');
+                    closeUploadForSignatureModal();
+                    // Redirect to field editor
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        location.reload();
+                    }
+                } else {
+                    showSignatureError(data.error || 'Upload failed');
+                    document.getElementById('signatureProgress').classList.add('hidden');
+                    document.getElementById('uploadForSignatureBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showSignatureError(data.error || 'Upload failed');
+                } catch (err) {
+                    showSignatureError('Upload failed. Please try again.');
+                }
+                document.getElementById('signatureProgress').classList.add('hidden');
+                document.getElementById('uploadForSignatureBtn').disabled = false;
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            showSignatureError('Network error. Please try again.');
+            document.getElementById('signatureProgress').classList.add('hidden');
+            document.getElementById('uploadForSignatureBtn').disabled = false;
+        });
+        
+        xhr.open('POST', `/transactions/${transactionId}/documents/${currentSignatureDocId}/upload-for-signature`);
+        xhr.send(formData);
+    });
+}
+
+// View static document function
+function viewStaticDocument(docId) {
+    fetch(`/transactions/${transactionId}/documents/${docId}/view-static`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.success && data.url) {
+            window.open(data.url, '_blank');
+        } else {
+            showToast(data.error || 'Failed to get document URL', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Failed to view document. Please try again.', 'error');
+        console.error('View static document error:', error);
     });
 }
 
@@ -2873,6 +3401,10 @@ document.getElementById('addDocumentForm').addEventListener('submit', function(e
     .then(res => res.json())
     .then(data => {
         if (data.success) {
+            if (data.placeholder_updated) {
+                // Show special message for placeholder conversion
+                showToast(data.message || 'Placeholder updated with generated document.', 'success');
+            }
             location.reload();
         } else {
             showToast('Error adding document: ' + data.error, 'error');
