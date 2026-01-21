@@ -138,8 +138,8 @@
     {
       "slug": "t47-affidavit",
       "name": "T-47.1 Residential Real Property Affidavit",
-      "condition": {"field": "has_survey", "in": ["no", "not_sure"]},
-      "reason": "Seller does not have survey or is unsure"
+      "condition": {"field": "has_survey", "in": ["yes", "not_sure"]},
+      "reason": "Seller has survey or is unsure"
     }
   ]
 }
