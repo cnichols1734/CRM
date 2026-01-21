@@ -1,150 +1,269 @@
 <!-- Daily Todo Modal -->
-<div id="dailyTodoModal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-8 border w-11/12 md:w-3/4 lg:w-1/2 shadow-2xl rounded-3xl bg-white">
+<div id="dailyTodoModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm overflow-y-auto h-full w-full z-50">
+    <div class="relative top-8 mx-auto p-6 w-11/12 max-w-4xl shadow-xl rounded-xl bg-white mb-8">
+        
+        <!-- Scoped styles for todo modal -->
+        <style>
+            /* Section headers */
+            .todo-section-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .todo-section-header h4 {
+                font-size: 0.75rem;
+                font-weight: 600;
+                color: #6b7280;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            
+            /* Marketing ideas */
+            .todo-marketing-item {
+                font-size: 0.875rem;
+                color: #374151;
+                line-height: 1.5;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #f9fafb;
+            }
+            .todo-marketing-item:last-child {
+                border-bottom: none;
+            }
+            .todo-marketing-item strong {
+                color: #7c3aed;
+                font-weight: 600;
+            }
+            
+            /* Priority tasks */
+            .todo-task-item {
+                padding: 0.875rem;
+                background: #fafafa;
+                border-radius: 0.5rem;
+                border-left: 3px solid #d1d5db;
+                margin-bottom: 0.5rem;
+            }
+            .todo-task-item:last-child {
+                margin-bottom: 0;
+            }
+            .todo-task-item.todo-status-overdue {
+                border-left-color: #ef4444;
+                background: #fef2f2;
+            }
+            .todo-task-item.todo-status-today {
+                border-left-color: #10b981;
+                background: #f0fdf4;
+            }
+            .todo-task-item.todo-status-upcoming {
+                border-left-color: #3b82f6;
+                background: #eff6ff;
+            }
+            .todo-task-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 0.375rem;
+                flex-wrap: wrap;
+            }
+            .todo-status-badge {
+                font-size: 0.625rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+                padding: 0.125rem 0.375rem;
+                border-radius: 0.25rem;
+            }
+            .todo-status-badge.todo-status-overdue {
+                background: #fee2e2;
+                color: #dc2626;
+            }
+            .todo-status-badge.todo-status-today {
+                background: #d1fae5;
+                color: #059669;
+            }
+            .todo-status-badge.todo-status-upcoming {
+                background: #dbeafe;
+                color: #2563eb;
+            }
+            .todo-date {
+                font-size: 0.75rem;
+                color: #6b7280;
+            }
+            .todo-priority {
+                margin-left: auto;
+                font-size: 0.625rem;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+            .todo-priority-high { color: #dc2626; }
+            .todo-priority-medium { color: #d97706; }
+            .todo-priority-low { color: #6b7280; }
+            .todo-task-description {
+                font-size: 0.875rem;
+                color: #1f2937;
+                line-height: 1.5;
+                margin: 0;
+            }
+            
+            /* Follow-ups */
+            .todo-followup-item {
+                font-size: 0.875rem;
+                color: #374151;
+                line-height: 1.6;
+                padding: 0.625rem 0;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .todo-followup-item:last-child {
+                border-bottom: none;
+            }
+            .todo-link {
+                color: #4f46e5;
+                text-decoration: none;
+                font-weight: 500;
+            }
+            .todo-link:hover {
+                text-decoration: underline;
+            }
+            .todo-contact-info {
+                color: #4f46e5;
+                font-weight: 500;
+            }
+            .todo-meta {
+                font-size: 0.75rem;
+                color: #9ca3af;
+            }
+            
+            /* Opportunities */
+            .todo-opportunity-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                gap: 1rem;
+                padding: 0.625rem 0;
+                border-bottom: 1px solid #f3f4f6;
+            }
+            .todo-opportunity-item:last-child {
+                border-bottom: none;
+            }
+            .todo-opportunity-text {
+                font-size: 0.875rem;
+                color: #374151;
+                line-height: 1.5;
+                flex: 1;
+            }
+            .todo-commission {
+                font-size: 0.875rem;
+                font-weight: 700;
+                color: #059669;
+                white-space: nowrap;
+            }
+            
+            /* Empty state */
+            .todo-empty {
+                font-size: 0.875rem;
+                color: #9ca3af;
+                font-style: italic;
+                padding: 0.5rem 0;
+            }
+        </style>
+        
         <!-- Header -->
-        <div class="flex justify-between items-center pb-6">
-            <div class="flex items-center space-x-4">
-                <div class="w-12 h-12 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg">
-                    <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex justify-between items-center mb-5">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </div>
                 <div>
-                    <h3 class="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">B.O.B.'s Daily Plan</h3>
-                    <p class="text-sm text-gray-500">AI-optimized tasks for maximum productivity</p>
+                    <h3 class="text-lg font-semibold text-gray-900">B.O.B.'s Daily Plan</h3>
+                    <p class="text-xs text-gray-500">AI-powered productivity insights</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-4">
+            <div class="flex items-center gap-1">
                 <button onclick="refreshDailyTodo()" 
-                        class="group relative overflow-hidden px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:via-purple-500/20 hover:to-pink-500/20 text-gray-700 transition-all duration-300 border border-purple-100/50">
-                    <div class="absolute inset-0 bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-pink-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div class="flex items-center space-x-2">
-                        <svg class="w-5 h-5 text-purple-500 transform transition-transform duration-700 ease-in-out group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        <span class="text-gray-700 font-medium">Refresh</span>
-                    </div>
+                        class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-gray-500 hover:text-violet-600 hover:bg-violet-50 transition-colors">
+                    <svg class="w-4 h-4 transition-transform duration-500 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    <span class="text-sm font-medium">Refresh</span>
                 </button>
-                <button onclick="closeDailyTodoModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button onclick="closeDailyTodoModal()" class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
             </div>
         </div>
 
-        <div id="todoContent" class="space-y-8">
+        <div id="todoContent">
             <!-- Loading spinner -->
-            <div id="todoLoading" class="flex justify-center py-12">
-                <div class="animate-spin rounded-full h-10 w-10 border-[3px] border-purple-500 border-t-transparent"></div>
+            <div id="todoLoading" class="flex flex-col items-center justify-center py-12">
+                <div class="animate-spin rounded-full h-8 w-8 border-2 border-violet-500 border-t-transparent"></div>
+                <p class="mt-3 text-sm text-gray-500">Generating your daily plan...</p>
             </div>
 
             <!-- Error message -->
-            <div id="todoError" class="hidden text-rose-600 text-center py-4 font-medium"></div>
+            <div id="todoError" class="hidden text-rose-600 text-center py-8 font-medium"></div>
 
             <!-- Todo content sections -->
-            <div id="todoSections" class="hidden space-y-6">
+            <div id="todoSections" class="hidden">
                 <!-- Summary section -->
-                <div class="p-6 rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-purple-100/50">
-                    <div class="flex items-center space-x-3 mb-3">
-                        <div class="w-8 h-8 rounded-xl bg-white/80 flex items-center justify-center shadow-sm">
-                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                            </svg>
-                        </div>
-                        <h4 class="text-lg font-medium text-gray-900">B.O.B.'s Insights</h4>
+                <div class="p-4 rounded-lg bg-violet-50 border border-violet-100 mb-5">
+                    <p id="todoSummary" class="text-sm text-gray-700 leading-relaxed"></p>
+                </div>
+
+                <!-- Marketing Ideas section -->
+                <div id="marketingIdeasContainer" class="hidden mb-5">
+                    <div class="todo-section-header">
+                        <svg class="w-4 h-4 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <h4>Marketing Ideas</h4>
                     </div>
-                    <p id="todoSummary" class="text-gray-700 leading-relaxed"></p>
-                    <!-- Marketing ideas under summary -->
-                    <div id="marketingIdeasContainer" class="mt-4">
-                        <div class="flex items-center space-x-3 mb-3">
-                            <div class="w-8 h-8 rounded-xl bg-white/80 flex items-center justify-center shadow-sm">
-                                <svg class="w-5 h-5 text-fuchsia-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
-                            <h4 class="text-lg font-medium text-gray-900">Fresh Marketing Ideas</h4>
-                        </div>
-                        <ul id="marketingIdeas" class="space-y-2 text-gray-700 custom-bullet">
-                            <style>
-                                #marketingIdeas li::before {
-                                    color: #A21CAF;
-                                }
-                            </style>
-                        </ul>
-                    </div>
+                    <div id="marketingIdeas"></div>
                 </div>
 
                 <!-- Priority Tasks section -->
-                <div class="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-8 h-8 rounded-xl bg-rose-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                            </svg>
-                        </div>
-                        <h4 class="text-lg font-medium text-gray-900">Priority Tasks</h4>
+                <div class="mb-5">
+                    <div class="todo-section-header">
+                        <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                        </svg>
+                        <h4>Priority Tasks</h4>
                     </div>
-                    <ul id="priorityTasks" class="space-y-3 text-gray-700">
-                        <style>
-                            .custom-bullet li {
-                                position: relative;
-                                padding-left: 1.5rem;
-                            }
-                            .custom-bullet li::before {
-                                content: "•";
-                                position: absolute;
-                                left: 0.5rem;
-                                color: #F43F5E;
-                            }
-                        </style>
-                    </ul>
+                    <div id="priorityTasks"></div>
                 </div>
 
                 <!-- Follow-ups section -->
-                <div class="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <h4 class="text-lg font-medium text-gray-900">Follow-ups</h4>
+                <div id="followUpsContainer" class="mb-5">
+                    <div class="todo-section-header">
+                        <svg class="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"/>
+                        </svg>
+                        <h4>Follow-ups</h4>
                     </div>
-                    <ul id="followUps" class="space-y-3 text-gray-700 custom-bullet">
-                        <style>
-                            #followUps li::before {
-                                color: #6366F1;
-                            }
-                        </style>
-                    </ul>
+                    <div id="followUps"></div>
                 </div>
 
                 <!-- Opportunities section -->
-                <div class="p-6 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-all duration-300">
-                    <div class="flex items-center space-x-3 mb-4">
-                        <div class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
-                            <svg class="w-5 h-5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                            </svg>
-                        </div>
-                        <h4 class="text-lg font-medium text-gray-900">Opportunities</h4>
+                <div id="opportunitiesContainer">
+                    <div class="todo-section-header">
+                        <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <h4>Opportunities</h4>
                     </div>
-                    <ul id="opportunities" class="space-y-3 text-gray-700 custom-bullet">
-                        <style>
-                            #opportunities li::before {
-                                color: #10B981;
-                            }
-                        </style>
-                    </ul>
+                    <div id="opportunities"></div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-8 pt-6 border-t border-gray-100">
+        <div class="mt-5 pt-4 border-t border-gray-100 flex justify-end">
             <button onclick="closeDailyTodoModal()" 
-                    class="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    class="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors">
                 Close
             </button>
         </div>

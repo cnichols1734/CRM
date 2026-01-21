@@ -92,12 +92,11 @@ def send_task_reminders():
             # Collect all tasks needing reminders, grouped by user
             user_tasks = defaultdict(lambda: {'overdue': [], 'today': [], 'tomorrow': [], 'upcoming': []})
             
-            # Query overdue tasks
+            # Query overdue tasks (always include until completed)
             overdue_tasks = Task.query.filter(
                 Task.organization_id == org.id,
                 Task.status == 'pending',
-                Task.due_date < overdue_cutoff,
-                Task.overdue_reminder_sent == False
+                Task.due_date < overdue_cutoff
             ).all()
             
             for task in overdue_tasks:

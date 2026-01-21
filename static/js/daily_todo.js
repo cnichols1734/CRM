@@ -47,7 +47,7 @@ function displayTodoList(todoData) {
         // Parse the JSON content if it's a string
         const todo = typeof todoData === 'string' ? JSON.parse(todoData) : todoData;
 
-        // Update summary and extract any bracketed marketing ideas accidentally placed in summary
+        // Update summary
         const summaryEl = document.getElementById('todoSummary');
         const rawSummary = typeof todo.summary === 'string' ? todo.summary : '';
         const extractedFromSummary = [];
@@ -65,7 +65,7 @@ function displayTodoList(todoData) {
             .trim();
         summaryEl.textContent = remainingSummary || rawSummary;
 
-        // Update marketing ideas (if present)
+        // Update marketing ideas
         const marketingIdeasList = document.getElementById('marketingIdeas');
         const marketingIdeasContainer = document.getElementById('marketingIdeasContainer');
         if (marketingIdeasList && marketingIdeasContainer) {
@@ -82,22 +82,22 @@ function displayTodoList(todoData) {
                         let channelLabel = null;
                         let body = idea;
                         if (bracketMatch) {
-                            channelLabel = bracketMatch[1];
-                            body = bracketMatch[2];
+                            channelLabel = bracketMatch[1].trim();
+                            body = bracketMatch[2].trim();
                         } else if (colonMatch) {
-                            channelLabel = colonMatch[1];
-                            body = colonMatch[2];
+                            channelLabel = colonMatch[1].trim();
+                            body = colonMatch[2].trim();
                         }
-                        const bodyEscaped = String(body)
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;');
-                        const channelLabelEscaped = channelLabel ? String(channelLabel)
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;') : '';
-                        const channelHtml = channelLabel ? `<span class="font-semibold text-gray-900">${channelLabelEscaped.trim()}:</span> ` : '';
-                        return `<li class="mb-1">${channelHtml}${bodyEscaped}</li>`;
+                        
+                        // Create a text node for the body to safely escape it
+                        const tempDiv = document.createElement('div');
+                        tempDiv.textContent = body;
+                        const safeBody = tempDiv.innerHTML;
+                        
+                        tempDiv.textContent = channelLabel || 'Tip';
+                        const safeLabel = tempDiv.innerHTML;
+                        
+                        return `<div class="todo-marketing-item"><strong>${safeLabel}:</strong> ${safeBody}</div>`;
                     })
                     .join('');
                 marketingIdeasContainer.classList.remove('hidden');
@@ -106,61 +106,154 @@ function displayTodoList(todoData) {
             }
         }
 
-        // Update priority tasks with new format
+        // Update priority tasks
         const priorityTasksList = document.getElementById('priorityTasks');
-        priorityTasksList.innerHTML = todo.priority_tasks
-            .map(task => {
-                const statusColor = {
-                    'OVERDUE': 'text-rose-600',
-                    'TODAY': 'text-emerald-600',
-                    'UPCOMING': 'text-blue-600'
-                }[task.status] || 'text-blue-600';
+        if (todo.priority_tasks && todo.priority_tasks.length > 0) {
+            priorityTasksList.innerHTML = todo.priority_tasks
+                .map(task => {
+                    const statusClass = {
+                        'OVERDUE': 'todo-status-overdue',
+                        'TODAY': 'todo-status-today',
+                        'UPCOMING': 'todo-status-upcoming'
+                    }[task.status] || 'todo-status-upcoming';
 
-                const priorityColor = {
-                    'HIGH': 'text-rose-600',
-                    'MEDIUM': 'text-amber-600',
-                    'LOW': 'text-blue-600'
-                }[task.priority] || 'text-gray-600';
+                    const priorityClass = {
+                        'HIGH': 'todo-priority-high',
+                        'MEDIUM': 'todo-priority-medium',
+                        'LOW': 'todo-priority-low'
+                    }[task.priority] || 'todo-priority-medium';
+                    
+                    // Clean the description
+                    let cleanDescription = String(task.description || '');
+                    cleanDescription = cleanDescription
+                        .replace(/^\[OVERDUE SINCE [^\]]+\]\s*-?\s*/i, '')
+                        .replace(/^\[DUE TODAY\]\s*-?\s*/i, '')
+                        .replace(/^\[UPCOMING\]\s*-?\s*/i, '');
+                    
+                    // Safely escape
+                    const tempDiv = document.createElement('div');
+                    tempDiv.textContent = cleanDescription;
+                    const safeDescription = tempDiv.innerHTML;
+                    
+                    tempDiv.textContent = task.date || '';
+                    const safeDate = tempDiv.innerHTML;
 
-                return `
-                    <li class="group flex items-start space-x-2 mb-4">
-                        <div class="flex-grow">
-                            <div class="flex items-center space-x-2">
-                                <span class="${statusColor} font-medium">${task.status}</span>
-                                <span class="text-gray-600">${task.date}</span>
+                    return `
+                        <div class="todo-task-item ${statusClass}">
+                            <div class="todo-task-header">
+                                <span class="todo-status-badge ${statusClass}">${task.status}</span>
+                                <span class="todo-date">${safeDate}</span>
+                                <span class="todo-priority ${priorityClass}">${task.priority}</span>
                             </div>
-                            <p class="mt-1 text-gray-900">${task.description}</p>
-                        </div>
-                        <span class="text-sm font-medium ${priorityColor} whitespace-nowrap">${task.priority}</span>
-                    </li>`;
-            })
-            .join('');
+                            <p class="todo-task-description">${safeDescription}</p>
+                        </div>`;
+                })
+                .join('');
+        } else {
+            priorityTasksList.innerHTML = '<p class="todo-empty">No priority tasks at this time.</p>';
+        }
 
-        // Update follow-ups with formatting
+        // Update follow-ups
         const followUpsList = document.getElementById('followUps');
-        followUpsList.innerHTML = todo.follow_ups
-            .map(followUp => {
-                // Style email as links and phone numbers as bold
-                const styledFollowUp = followUp
-                    .replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, '<a href="mailto:$1" class="text-indigo-600 hover:text-indigo-800">$1</a>')
-                    .replace(/\((\d{3} \d{3}-\d{4})\)/g, '<span class="font-medium">$1</span>')
-                    .replace(/\(Added: (.*?)\)/g, '<span class="text-gray-500">(Added: $1)</span>');
-                return `<li class="mb-3">${styledFollowUp}</li>`;
-            })
-            .join('');
+        const followUpsContainer = document.getElementById('followUpsContainer');
+        if (todo.follow_ups && todo.follow_ups.length > 0) {
+            followUpsList.innerHTML = todo.follow_ups
+                .map(followUp => {
+                    // Simple text processing - no complex escaping
+                    let text = String(followUp || '');
+                    
+                    // Build HTML by processing text segments
+                    // First, handle (Email: xxx) format - extract and replace with marker
+                    const emailMatches = [];
+                    const phoneMatches = [];
+                    
+                    // Extract (Email: xxx) patterns
+                    text = text.replace(/\(Email:\s*([^)]+)\)/g, (match, email) => {
+                        const idx = emailMatches.length;
+                        emailMatches.push(email.trim());
+                        return `%%EMAIL${idx}%%`;
+                    });
+                    
+                    // Extract (Phone: xxx) patterns  
+                    text = text.replace(/\(Phone:\s*([^)]+)\)/g, (match, phone) => {
+                        const idx = phoneMatches.length;
+                        phoneMatches.push(phone.trim());
+                        return `%%PHONE${idx}%%`;
+                    });
+                    
+                    // Extract standalone emails (not in markers)
+                    const standaloneEmails = [];
+                    text = text.replace(/([a-zA-Z0-9._+-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g, (match, email) => {
+                        const idx = standaloneEmails.length;
+                        standaloneEmails.push(email);
+                        return `%%SEMAIL${idx}%%`;
+                    });
+                    
+                    // Extract (Added: xxx) pattern
+                    let addedDate = null;
+                    text = text.replace(/\(Added:\s*([^)]+)\)/g, (match, date) => {
+                        addedDate = date.trim();
+                        return '';
+                    });
+                    
+                    // Now escape the remaining text for safety
+                    const tempDiv = document.createElement('div');
+                    tempDiv.textContent = text.trim();
+                    let html = tempDiv.innerHTML;
+                    
+                    // Replace markers with styled HTML
+                    emailMatches.forEach((email, idx) => {
+                        html = html.replace(`%%EMAIL${idx}%%`, `<a href="mailto:${email}" class="todo-link">${email}</a>`);
+                    });
+                    phoneMatches.forEach((phone, idx) => {
+                        html = html.replace(`%%PHONE${idx}%%`, `<span class="todo-contact-info">${phone}</span>`);
+                    });
+                    standaloneEmails.forEach((email, idx) => {
+                        html = html.replace(`%%SEMAIL${idx}%%`, `<a href="mailto:${email}" class="todo-link">${email}</a>`);
+                    });
+                    
+                    // Add date at end if present
+                    if (addedDate) {
+                        html += ` <span class="todo-meta">(Added: ${addedDate})</span>`;
+                    }
 
-        // Update opportunities with formatting
+                    return `<div class="todo-followup-item">${html}</div>`;
+                })
+                .join('');
+            followUpsContainer.classList.remove('hidden');
+        } else {
+            followUpsContainer.classList.add('hidden');
+        }
+
+        // Update opportunities
         const opportunitiesList = document.getElementById('opportunities');
-        opportunitiesList.innerHTML = todo.opportunities
-            .map(opportunity => {
-                // Style commission amounts - match any dollar amount pattern
-                const styledOpportunity = opportunity.replace(
-                    /\$(\d{1,3}(?:,\d{3})*)/g,
-                    '<span class="text-emerald-600 font-medium">$$$1</span>'
-                );
-                return `<li class="mb-3">${styledOpportunity}</li>`;
-            })
-            .join('');
+        const opportunitiesContainer = document.getElementById('opportunitiesContainer');
+        if (todo.opportunities && todo.opportunities.length > 0) {
+            opportunitiesList.innerHTML = todo.opportunities
+                .map(opportunity => {
+                    let text = String(opportunity || '');
+                    
+                    // Extract commission amount before escaping
+                    let commission = null;
+                    text = text.replace(/\.?\s*Potential commission:\s*(\$[\d,]+)\.?/i, (match, amount) => {
+                        commission = amount;
+                        return '';
+                    });
+                    
+                    // Escape the remaining text
+                    const tempDiv = document.createElement('div');
+                    tempDiv.textContent = text.trim();
+                    const safeText = tempDiv.innerHTML;
+                    
+                    const commissionHtml = commission ? `<span class="todo-commission">${commission}</span>` : '';
+
+                    return `<div class="todo-opportunity-item"><span class="todo-opportunity-text">${safeText}</span>${commissionHtml}</div>`;
+                })
+                .join('');
+            opportunitiesContainer.classList.remove('hidden');
+        } else {
+            opportunitiesContainer.classList.add('hidden');
+        }
 
         // Hide loading, show content
         hideLoading();

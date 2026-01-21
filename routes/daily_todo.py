@@ -86,10 +86,11 @@ Task Formatting Rules:
 Contact and Follow-up Rules:
 - Suggest 3-5 most relevant follow-ups based on recent activity
 - Keep the tone conversational and natural
-- Include the contact method as a clickable link: Email: email@example.com or Phone: 123-456-7890
+- Include contact info in parentheses using EXACTLY this format: (Email: address@example.com) or (Phone: 123-456-7890)
+- Do NOT include HTML tags - return plain text only
 - Add context about why you're suggesting the follow-up
-- Add the date added in gray at the end
-- Format follow-ups in a natural way, for example:
+- Add the date added at the end in this EXACT format: (Added: Jan 4)
+- Format follow-ups as plain text strings, for example:
   "Follow up with Test New field (Email: test@test.co) about those testing notes we discussed (Added: Jan 4)"
   "Give Objective Test a call (Phone: 713-725-4459) to discuss those old notes - might be a good opportunity (Added: Jan 4)"
 
