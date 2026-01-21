@@ -163,10 +163,33 @@ def preview_all_documents(id):
             except Exception as e:
                 doc_preview['error'] = str(e)
         
-        # Handle external documents - show PDF preview from Supabase
+        # Handle external documents - show PDF with field placement summary
         elif doc.document_source == 'external' and doc.source_file_path:
             try:
                 doc_preview['pdf_url'] = get_transaction_document_url(doc.source_file_path, expires_in=3600)
+                
+                # Parse field placements for summary display
+                placements_data = doc.field_placements or {}
+                if isinstance(placements_data, list):
+                    field_placements = placements_data
+                else:
+                    field_placements = placements_data.get('fields', [])
+                
+                # Build field summary by role
+                field_summary = {}
+                for field in field_placements:
+                    role = field.get('role', 'Unknown')
+                    field_type = field.get('type', 'field')
+                    if role not in field_summary:
+                        field_summary[role] = {'count': 0, 'types': []}
+                    field_summary[role]['count'] += 1
+                    if field_type not in field_summary[role]['types']:
+                        field_summary[role]['types'].append(field_type)
+                
+                doc_preview['field_placements'] = field_placements
+                doc_preview['field_summary'] = field_summary
+                doc_preview['field_count'] = len(field_placements)
+                
             except Exception as e:
                 doc_preview['error'] = str(e)
         

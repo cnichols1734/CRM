@@ -406,7 +406,13 @@ def fill_all_documents(id):
         TransactionDocument.status == 'filled'
     ).order_by(TransactionDocument.created_at).all()
     
-    if not documents and not preview_documents and not static_documents:
+    # Get external documents (uploaded PDFs with signature fields)
+    external_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'external',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
+    if not documents and not preview_documents and not static_documents and not external_documents:
         flash('No documents available to fill. Use individual document fill for other documents.', 'info')
         return redirect(url_for('transactions.view_transaction', id=id))
     
@@ -518,7 +524,9 @@ def fill_all_documents(id):
         preview_data=preview_data,  # Preview-only documents with embed URLs
         has_preview_docs=len(preview_data) > 0,
         static_documents=static_documents,  # Static PDFs (uploaded, no signing)
-        has_static_docs=len(static_documents) > 0
+        has_static_docs=len(static_documents) > 0,
+        external_documents=external_documents,  # External PDFs with signature fields
+        has_external_docs=len(external_documents) > 0
     )
 
 

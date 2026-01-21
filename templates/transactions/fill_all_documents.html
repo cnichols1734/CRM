@@ -607,13 +607,14 @@
 </div>
 
 <!-- Document Counter -->
+{% set total_docs = documents|length + (preview_data|length if preview_data else 0) + (static_documents|length if static_documents else 0) + (external_documents|length if external_documents else 0) %}
 <div class="document-counter">
-    Filling <span>{{ documents|length }}</span> document{{ 's' if documents|length != 1 }}
+    <span>{{ total_docs }}</span> document{{ 's' if total_docs != 1 }} in package
 </div>
 
 <!-- Premium gradient background -->
 <div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+    <div class="p-4 md:p-6 max-w-6xl mx-auto">
         <!-- Back Link -->
         <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
             class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
@@ -631,24 +632,57 @@
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Fill All Documents</h1>
                     <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
-                    <p class="text-xs text-slate-400 mt-1">{{ documents|length }} document{{ 's' if documents|length !=
-                        1 }} to fill</p>
+                    <p class="text-xs text-slate-400 mt-1">{{ total_docs }} document{{ 's' if total_docs != 1 }} in package</p>
                 </div>
             </div>
         </div>
 
-        <!-- Documents Overview -->
-        <div class="premium-card p-4 mb-8 animate-fade-in-up">
-            <div class="flex flex-wrap items-center gap-3">
-                <span class="text-sm font-medium text-slate-600">Documents included:</span>
+        <!-- Documents Overview - Card style matching preview page -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-8 animate-fade-in-up">
+            <div class="flex flex-wrap gap-3">
                 {% for doc in documents %}
                 {% set config = doc_configs.get(doc.template_slug) %}
-                <span
-                    class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold
-                    {% if config %}bg-{{ config.color }}-100 text-{{ config.color }}-700{% else %}bg-slate-100 text-slate-700{% endif %}">
-                    <i class="fas {{ config.icon if config else 'fa-file-alt' }} mr-1.5"></i>{{ doc.template_name }}
-                </span>
+                <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm bg-white">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center
+                        {% if config %}bg-{{ config.color }}-100{% else %}bg-slate-100{% endif %}">
+                        <i class="fas {{ config.icon if config else 'fa-file-alt' }}
+                            {% if config %}text-{{ config.color }}-600{% else %}text-slate-600{% endif %}"></i>
+                    </div>
+                    <span class="text-slate-700">{{ doc.template_name }}</span>
+                </div>
                 {% endfor %}
+                {% if preview_data %}
+                {% for preview in preview_data %}
+                <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm bg-white">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-indigo-100">
+                        <i class="fas fa-file-pdf text-indigo-600"></i>
+                    </div>
+                    <span class="text-slate-700">{{ preview.doc.template_name }}</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if static_documents %}
+                {% for doc in static_documents %}
+                <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm bg-white">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-teal-100">
+                        <i class="fas fa-file-pdf text-teal-600"></i>
+                    </div>
+                    <span class="text-slate-700">{{ doc.template_name }}</span>
+                    <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-teal-100 text-teal-700">Static</span>
+                </div>
+                {% endfor %}
+                {% endif %}
+                {% if external_documents %}
+                {% for doc in external_documents %}
+                <div class="flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm bg-white">
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100">
+                        <i class="fas fa-file-signature text-purple-600"></i>
+                    </div>
+                    <span class="text-slate-700">{{ doc.template_name }}</span>
+                    <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-purple-100 text-purple-700">External</span>
+                </div>
+                {% endfor %}
+                {% endif %}
             </div>
         </div>
 
@@ -881,6 +915,69 @@
                         </p>
                         {% if doc.included_reason %}
                         <p class="text-xs text-slate-400">
+                            <i class="fas fa-info-circle mr-1"></i>{{ doc.included_reason }}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- External Documents Section (PDFs with signature fields) -->
+        {% if has_external_docs and external_documents %}
+        <div class="external-documents-section mt-8">
+            <!-- Section Divider -->
+            <div class="document-divider">
+                <div class="document-divider-content">
+                    <span class="document-badge" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white;">
+                        <i class="fas fa-file-signature"></i>
+                        External Documents
+                    </span>
+                </div>
+            </div>
+
+            <p class="text-sm text-slate-500 text-center mb-6">
+                These external documents have signature fields configured and will be sent for e-signature.
+            </p>
+
+            {% for doc in external_documents %}
+            <!-- External Document Card -->
+            <div class="premium-card p-6 mb-6">
+                <!-- Document Header -->
+                <div class="section-header">
+                    <div class="section-number bg-purple-100 text-purple-700">
+                        <i class="fas fa-file-signature"></i>
+                    </div>
+                    <div>
+                        <h3 class="section-title">{{ doc.template_name }}</h3>
+                        <p class="section-subtitle">External document with signature fields</p>
+                    </div>
+                    <span class="ml-auto inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Will be sent for signature
+                    </span>
+                </div>
+
+                <!-- Document Preview -->
+                <div class="flex items-center justify-center p-8 bg-gradient-to-br from-slate-50 to-purple-50 rounded-lg border border-slate-200">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-file-signature text-3xl text-purple-600"></i>
+                        </div>
+                        <h4 class="text-lg font-semibold text-slate-800 mb-2">{{ doc.template_name }}</h4>
+                        <p class="text-sm text-slate-500 mb-4">
+                            This document has signature fields placed and will be sent for e-signature.
+                        </p>
+                        <a href="{{ url_for('transactions.document_field_editor', id=transaction.id, doc_id=doc.id) }}" 
+                           target="_blank"
+                           class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors">
+                            <i class="fas fa-eye"></i>
+                            View Field Positions
+                        </a>
+                        {% if doc.included_reason %}
+                        <p class="text-xs text-slate-400 mt-4">
                             <i class="fas fa-info-circle mr-1"></i>{{ doc.included_reason }}
                         </p>
                         {% endif %}
