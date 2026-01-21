@@ -5,13 +5,29 @@
 {% block head %}
 {{ super() }}
 <style>
-    /* DocuSeal embed container */
+    /* DocuSeal embed container and PDF iframe container */
     .docuseal-embed-container {
         min-height: 700px;
         border-radius: 8px;
         overflow: hidden;
         border: 1px solid #e5e7eb;
         background: #f9fafb;
+    }
+    
+    /* PDF iframe styling */
+    .pdf-embed-container {
+        min-height: 700px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+    }
+    
+    .pdf-embed-container iframe {
+        width: 100%;
+        height: 700px;
+        border: none;
+        border-radius: 8px;
     }
 
     .docuseal-embed-container docuseal-form {
@@ -223,7 +239,8 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
             <div class="flex flex-wrap gap-3">
                 {% for doc in documents %}
-                {% set config = doc_configs.get(doc.template_slug) %}
+                {% set preview = preview_docs[loop.index0] %}
+                {% set config = preview.config %}
                 <button type="button" class="doc-tab flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 border-slate-200 font-medium text-sm transition-all
                                {% if loop.first %}active{% endif %}" data-doc-index="{{ loop.index0 }}"
                     onclick="switchDocument({{ loop.index0 }})">
@@ -233,6 +250,11 @@
                             {% if config %}text-{{ config.color }}-600{% else %}text-slate-600{% endif %}"></i>
                     </div>
                     <span class="text-slate-700">{{ doc.template_name }}</span>
+                    {% if preview.is_static %}
+                    <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-teal-100 text-teal-700">Static</span>
+                    {% elif preview.is_external %}
+                    <span class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-purple-100 text-purple-700">External</span>
+                    {% endif %}
                 </button>
                 {% endfor %}
             </div>
@@ -242,7 +264,7 @@
         <!-- Document Preview Panels -->
         {% for doc in documents %}
         {% set preview = preview_docs[loop.index0] %}
-        {% set config = doc_configs.get(doc.template_slug) %}
+        {% set config = preview.config %}
 
         <div class="doc-preview-panel {% if loop.first %}active{% endif %}" data-doc-index="{{ loop.index0 }}">
             <div class="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
@@ -255,20 +277,60 @@
                         </div>
                         <div class="flex-1">
                             <h2 class="font-semibold text-white text-lg">{{ doc.template_name }}</h2>
+                            {% if preview.is_static %}
+                            <p class="text-white/80 text-sm">Uploaded document (no signatures required)</p>
+                            {% elif preview.is_external %}
+                            <p class="text-white/80 text-sm">External document with signature fields</p>
+                            {% else %}
                             <p class="text-white/80 text-sm">Scroll through to review all pages</p>
+                            {% endif %}
                         </div>
-                        {% if documents|length > 1 %}
-                        <span class="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-full">
-                            Document {{ loop.index }} of {{ documents|length }}
-                        </span>
-                        {% endif %}
+                        <div class="flex items-center gap-2">
+                            {% if preview.is_static %}
+                            <span class="px-3 py-1.5 bg-teal-400/30 text-white text-xs font-medium rounded-full">
+                                <i class="fas fa-file-pdf mr-1"></i>Static PDF
+                            </span>
+                            {% elif preview.is_external %}
+                            <span class="px-3 py-1.5 bg-purple-400/30 text-white text-xs font-medium rounded-full">
+                                <i class="fas fa-file-import mr-1"></i>External
+                            </span>
+                            {% endif %}
+                            {% if documents|length > 1 %}
+                            <span class="px-3 py-1.5 bg-white/20 text-white text-sm font-medium rounded-full">
+                                Document {{ loop.index }} of {{ documents|length }}
+                            </span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 
                 <!-- Document preview body -->
                 <div class="p-6">
-                    {% if mock_mode %}
-                    <!-- Mock mode placeholder -->
+                    {% if preview.pdf_url %}
+                    <!-- Static/External document - PDF iframe preview -->
+                    <div class="docuseal-embed-container" style="min-height: 700px;">
+                        <iframe src="{{ preview.pdf_url }}" 
+                                style="width: 100%; height: 700px; border: none; border-radius: 8px;"
+                                title="{{ doc.template_name }}">
+                        </iframe>
+                    </div>
+                    {% if preview.is_static %}
+                    <div class="mt-4 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                        <p class="text-sm text-teal-800 flex items-center gap-2">
+                            <i class="fas fa-info-circle"></i>
+                            This document is included as-is and does not require signatures.
+                        </p>
+                    </div>
+                    {% elif preview.is_external %}
+                    <div class="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <p class="text-sm text-purple-800 flex items-center gap-2">
+                            <i class="fas fa-info-circle"></i>
+                            This external document has signature fields placed and will be sent for e-signature.
+                        </p>
+                    </div>
+                    {% endif %}
+                    {% elif mock_mode and not preview.is_static and not preview.is_external %}
+                    <!-- Mock mode placeholder for template docs -->
                     <div class="mock-preview-placeholder">
                         <div class="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center mb-4">
                             <i class="fas fa-file-alt text-4xl text-amber-500"></i>
@@ -408,6 +470,9 @@
         </div>
 
         <!-- Summary Card -->
+        {% set static_count = preview_docs|selectattr('is_static')|list|length %}
+        {% set external_count = preview_docs|selectattr('is_external')|list|length %}
+        {% set template_count = documents|length - static_count - external_count %}
         <div class="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white">
             <div class="flex items-start gap-4">
                 <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
@@ -415,10 +480,27 @@
                 </div>
                 <div class="flex-1">
                     <h3 class="font-bold text-lg mb-1">Ready to Send</h3>
-                    <p class="text-emerald-100 text-sm">
+                    <p class="text-emerald-100 text-sm mb-3">
                         When you send, {{ signers|length }} signer(s) will receive an email with a link to sign
-                        all {{ documents|length }} document(s) in one session. They can sign from any device.
+                        all documents in one session. They can sign from any device.
                     </p>
+                    <div class="flex flex-wrap gap-2">
+                        {% if template_count > 0 %}
+                        <span class="px-2 py-1 bg-white/20 rounded text-xs font-medium">
+                            <i class="fas fa-file-signature mr-1"></i>{{ template_count }} Template Doc{{ 's' if template_count > 1 else '' }}
+                        </span>
+                        {% endif %}
+                        {% if external_count > 0 %}
+                        <span class="px-2 py-1 bg-purple-400/40 rounded text-xs font-medium">
+                            <i class="fas fa-file-import mr-1"></i>{{ external_count }} External Doc{{ 's' if external_count > 1 else '' }}
+                        </span>
+                        {% endif %}
+                        {% if static_count > 0 %}
+                        <span class="px-2 py-1 bg-teal-400/40 rounded text-xs font-medium">
+                            <i class="fas fa-file-pdf mr-1"></i>{{ static_count }} Static PDF{{ 's' if static_count > 1 else '' }} (no signature)
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>

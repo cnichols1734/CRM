@@ -38,10 +38,26 @@ def preview_all_documents(id):
     all_definitions = DocumentLoader.get_sorted()
     all_valid_slugs = [d.slug for d in all_definitions]
     
-    documents = transaction.documents.filter(
+    # Get template-based documents
+    template_documents = transaction.documents.filter(
         TransactionDocument.template_slug.in_(all_valid_slugs),
         TransactionDocument.status.in_(['filled', 'draft', 'generated'])
     ).order_by(TransactionDocument.created_at).all()
+    
+    # Get static documents (uploaded PDFs, no signing required)
+    static_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'static',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
+    # Get external documents with field placements (ready for signature)
+    external_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'external',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
+    # Combine all documents - template docs first, then static, then external
+    documents = template_documents + static_documents + external_documents
     
     if not documents:
         flash('No documents ready for preview. Please fill out the documents first.', 'warning')
@@ -87,11 +103,13 @@ def preview_all_documents(id):
         })
     
     # Build preview data for each document - create DocuSeal preview submissions
+    from services.supabase_storage import get_transaction_document_url
+    
     preview_docs = []
     
     for doc in documents:
-        # Get document definition from new system
-        definition = DocumentLoader.get(doc.template_slug)
+        # Get document definition from new system (only for template docs)
+        definition = DocumentLoader.get(doc.template_slug) if doc.document_source not in ['static', 'external'] else None
         
         # Build config object for template compatibility
         config = None
@@ -103,6 +121,24 @@ def preview_all_documents(id):
                 'icon': definition.display.icon,
                 'section_color_var': definition.display.color
             })()
+        elif doc.document_source == 'static':
+            # Static documents get teal color
+            config = type('Config', (), {
+                'slug': doc.template_slug,
+                'name': doc.template_name,
+                'color': 'teal',
+                'icon': 'fa-file-pdf',
+                'section_color_var': 'teal'
+            })()
+        elif doc.document_source == 'external':
+            # External documents get purple color
+            config = type('Config', (), {
+                'slug': doc.template_slug,
+                'name': doc.template_name,
+                'color': 'purple',
+                'icon': 'fa-file-import',
+                'section_color_var': 'purple'
+            })()
         
         doc_preview = {
             'id': doc.id,
@@ -113,11 +149,29 @@ def preview_all_documents(id):
             'config': config,
             'embed_src': None,
             'embed_slug': None,
+            'pdf_url': None,  # For static/external documents
+            'document_source': doc.document_source,
+            'is_static': doc.document_source == 'static',
+            'is_external': doc.document_source == 'external',
             'error': None
         }
         
-        # In real mode, create DocuSeal preview submission
-        if not DocuSealClient.is_mock_mode() and definition:
+        # Handle static documents - show PDF preview from Supabase
+        if doc.document_source == 'static' and doc.source_file_path:
+            try:
+                doc_preview['pdf_url'] = get_transaction_document_url(doc.source_file_path, expires_in=3600)
+            except Exception as e:
+                doc_preview['error'] = str(e)
+        
+        # Handle external documents - show PDF preview from Supabase
+        elif doc.document_source == 'external' and doc.source_file_path:
+            try:
+                doc_preview['pdf_url'] = get_transaction_document_url(doc.source_file_path, expires_in=3600)
+            except Exception as e:
+                doc_preview['error'] = str(e)
+        
+        # Handle template-based documents - create DocuSeal preview submission
+        elif not DocuSealClient.is_mock_mode() and definition:
             try:
                 # Build context for field resolution
                 context = {
