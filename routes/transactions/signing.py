@@ -292,8 +292,14 @@ def send_all_for_signature(id):
         TransactionDocument.status == 'filled'
     ).order_by(TransactionDocument.created_at).all()
     
+    # Get static documents (uploaded PDFs with no signatures - included for reference)
+    static_documents = transaction.documents.filter(
+        TransactionDocument.document_source == 'static',
+        TransactionDocument.status == 'filled'
+    ).order_by(TransactionDocument.created_at).all()
+    
     # Combine all documents for tracking
-    documents = template_documents + external_documents
+    documents = template_documents + external_documents + static_documents
     
     if not documents:
         flash('No documents ready to send. Please fill out the documents first.', 'warning')
@@ -456,6 +462,32 @@ def send_all_for_signature(id):
             if ext_template_id:
                 template_ids.append(ext_template_id)
                 created_template_ids.append(ext_template_id)
+        
+        # Process static documents (uploaded PDFs with no signature fields - included for reference)
+        for doc in static_documents:
+            if not doc.source_file_path:
+                continue
+            
+            # Get the PDF from Supabase
+            pdf_url = get_transaction_document_url(doc.source_file_path, expires_in=300)
+            pdf_response = http_requests.get(pdf_url, timeout=30)
+            pdf_response.raise_for_status()
+            pdf_base64 = base64.b64encode(pdf_response.content).decode('utf-8')
+            
+            # Create a DocuSeal template with no fields (just includes the PDF in the package)
+            # We still need at least one "role" for DocuSeal, use Seller as viewer
+            static_external_id = f"tx-{transaction.id}-static-{doc.id}"
+            template_result = DocuSealClient.create_template_from_pdf(
+                pdf_base64=pdf_base64,
+                document_name=doc.template_name,
+                fields=[],  # No signature fields needed
+                external_id=static_external_id
+            )
+            
+            static_template_id = template_result.get('id')
+            if static_template_id:
+                template_ids.append(static_template_id)
+                created_template_ids.append(static_template_id)
         
         if not template_ids:
             flash('No valid templates found for the documents.', 'error')
