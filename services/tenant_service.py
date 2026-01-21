@@ -388,3 +388,125 @@ def create_default_groups_for_org(org_id: int):
     
     db.session.commit()
     return created_groups
+
+
+def create_default_task_types_for_org(org_id: int):
+    """
+    Create default task types and subtypes for a new organization.
+    Called when an organization is approved.
+    
+    Args:
+        org_id: The organization ID to create task types for
+        
+    Returns:
+        List of created TaskType objects
+    """
+    from models import db, TaskType, TaskSubtype
+    
+    # Default task types with their subtypes for real estate CRM
+    default_task_types = [
+        {
+            'name': 'Call',
+            'sort_order': 10,
+            'subtypes': [
+                {'name': 'Check-in', 'sort_order': 1},
+                {'name': 'Schedule Showing', 'sort_order': 2},
+                {'name': 'Discuss Offer', 'sort_order': 3},
+                {'name': 'Follow-up', 'sort_order': 4}
+            ]
+        },
+        {
+            'name': 'Meeting',
+            'sort_order': 20,
+            'subtypes': [
+                {'name': 'Initial Consultation', 'sort_order': 1},
+                {'name': 'Property Showing', 'sort_order': 2},
+                {'name': 'Contract Review', 'sort_order': 3},
+                {'name': 'Home Inspection', 'sort_order': 4}
+            ]
+        },
+        {
+            'name': 'Email',
+            'sort_order': 30,
+            'subtypes': [
+                {'name': 'Send Listings', 'sort_order': 1},
+                {'name': 'Send Documents', 'sort_order': 2},
+                {'name': 'Market Update', 'sort_order': 3},
+                {'name': 'General Follow-up', 'sort_order': 4}
+            ]
+        },
+        {
+            'name': 'Document',
+            'sort_order': 40,
+            'subtypes': [
+                {'name': 'Prepare Contract', 'sort_order': 1},
+                {'name': 'Review Documents', 'sort_order': 2},
+                {'name': 'Submit Offer', 'sort_order': 3},
+                {'name': 'Process Paperwork', 'sort_order': 4}
+            ]
+        }
+    ]
+    
+    created_types = []
+    for type_data in default_task_types:
+        # Create the task type
+        task_type = TaskType(
+            organization_id=org_id,
+            name=type_data['name'],
+            sort_order=type_data['sort_order']
+        )
+        db.session.add(task_type)
+        db.session.flush()  # Get the task_type.id
+        
+        # Create subtypes for this type
+        for subtype_data in type_data.get('subtypes', []):
+            subtype = TaskSubtype(
+                organization_id=org_id,
+                task_type_id=task_type.id,
+                name=subtype_data['name'],
+                sort_order=subtype_data['sort_order']
+            )
+            db.session.add(subtype)
+        
+        created_types.append(task_type)
+    
+    db.session.commit()
+    return created_types
+
+
+def create_default_transaction_types_for_org(org_id: int):
+    """
+    Create default transaction types for a new organization.
+    Called when an organization is approved.
+    
+    Args:
+        org_id: The organization ID to create transaction types for
+        
+    Returns:
+        List of created TransactionType objects
+    """
+    from models import db, TransactionType
+    
+    # Default transaction types for real estate CRM
+    default_transaction_types = [
+        {'name': 'seller', 'display_name': 'Seller Representation', 'sort_order': 1},
+        {'name': 'buyer', 'display_name': 'Buyer Representation', 'sort_order': 2},
+        {'name': 'landlord', 'display_name': 'Landlord Representation', 'sort_order': 3},
+        {'name': 'tenant', 'display_name': 'Tenant Representation', 'sort_order': 4},
+        {'name': 'referral', 'display_name': 'Referral', 'sort_order': 5},
+    ]
+    
+    created_types = []
+    for type_data in default_transaction_types:
+        tx_type = TransactionType(
+            organization_id=org_id,
+            name=type_data['name'],
+            display_name=type_data['display_name'],
+            sort_order=type_data['sort_order'],
+            is_active=True
+        )
+        db.session.add(tx_type)
+        created_types.append(tx_type)
+    
+    db.session.commit()
+    return created_types
