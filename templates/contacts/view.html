@@ -135,16 +135,16 @@
                     </div>
                     <span class="font-medium">Back</span>
                 </a>
-                <div class="flex items-center space-x-3">
-                    <!-- Previous/Next Navigation -->
+                <div class="flex items-center space-x-2 sm:space-x-3">
+                    <!-- Previous/Next Navigation (hidden on mobile) -->
                     <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}"
-                        class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
+                        class="hidden md:inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
                         <i class="fas fa-arrow-left mr-2 text-slate-400"></i>
                         <span class="text-slate-700 truncate">{{ prev_contact.first_name }} {{ prev_contact.last_name
                             }}</span>
                     </a>
                     <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}"
-                        class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
+                        class="hidden md:inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
                         <span class="text-slate-700 truncate">{{ next_contact.first_name }} {{ next_contact.last_name
                             }}</span>
                         <i class="fas fa-arrow-right ml-2 text-slate-400"></i>
