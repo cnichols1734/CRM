@@ -837,6 +837,111 @@
                     </div>
                 </div>
 
+                <!-- Email History Card -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                                    <i class="fas fa-envelope text-white text-sm"></i>
+                                </div>
+                                <h2 class="text-lg font-semibold text-slate-800">Email History</h2>
+                                {% if email_threads %}
+                                <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ email_threads|length }} conversation{{ 's' if email_threads|length != 1 else '' }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                        {% if not gmail_connected %}
+                        <!-- Gmail Not Connected State -->
+                        <div class="p-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-envelope text-blue-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-700 font-medium mb-1">See your email history with this contact</p>
+                            <p class="text-slate-500 text-sm mb-4">Connect Gmail to automatically sync conversations</p>
+                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm">
+                                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Connect Gmail
+                            </a>
+                        </div>
+                        {% elif email_threads|length == 0 %}
+                        <!-- No Emails State -->
+                        <div class="p-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-envelope text-slate-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-500 text-sm">No emails with this contact yet</p>
+                            <p class="text-slate-400 text-xs mt-1">Emails you send or receive will appear here automatically</p>
+                        </div>
+                        {% else %}
+                        <!-- Email Threads List -->
+                        {% for thread in email_threads %}
+                        <div class="email-thread-item" data-thread-id="{{ thread.thread_id }}">
+                            <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full p-4 hover:bg-slate-50 transition-colors text-left">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-medium text-slate-800 truncate">{{ thread.subject or '(No subject)' }}</p>
+                                        <p class="text-sm text-slate-500 mt-0.5">
+                                            {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }}
+                                            <span class="mx-1">·</span>
+                                            <span class="thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
+                                        </p>
+                                    </div>
+                                    <i class="fas fa-chevron-down text-slate-400 transition-transform thread-chevron-{{ thread.thread_id }}"></i>
+                                </div>
+                            </button>
+                            <!-- Expanded Thread Messages -->
+                            <div id="thread-messages-{{ thread.thread_id }}" class="hidden border-t border-slate-100 bg-slate-50">
+                                {% for msg in thread.messages %}
+                                <div class="p-4 border-b border-slate-100 last:border-b-0">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium text-slate-800 text-sm">
+                                                {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email }}{% endif %}
+                                            </span>
+                                            {% if msg.direction == 'outbound' %}
+                                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase font-semibold">Sent</span>
+                                            {% else %}
+                                            <span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase font-semibold">Received</span>
+                                            {% endif %}
+                                        </div>
+                                        <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
+                                    </div>
+                                    <p class="text-sm text-slate-600 line-clamp-3">{{ msg.snippet }}</p>
+                                    {% if msg.has_attachments %}
+                                    <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
+                                        <i class="fas fa-paperclip"></i> Has attachments
+                                    </p>
+                                    {% endif %}
+                                    {% if msg.body_text or msg.body_html %}
+                                    <button onclick="toggleFullEmail('{{ msg.id }}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">
+                                        Show full message
+                                    </button>
+                                    <div id="full-email-{{ msg.id }}" class="hidden mt-3 p-3 bg-white rounded-lg border border-slate-200 text-sm text-slate-700 email-body-content">
+                                        {% if msg.body_html %}
+                                        {{ msg.body_html|safe }}
+                                        {% else %}
+                                        <pre class="whitespace-pre-wrap font-sans">{{ msg.body_text }}</pre>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
                 {% if show_transactions %}
                 <!-- Related Transactions Card -->
                 <div
@@ -2969,6 +3074,61 @@
             input.files = dataTransfer.files;
             uploadContactFile(input);
         }
+    });
+
+    // =========================================================================
+    // EMAIL HISTORY FUNCTIONS
+    // =========================================================================
+
+    function toggleEmailThread(threadId) {
+        const messagesDiv = document.getElementById('thread-messages-' + threadId);
+        const chevron = document.querySelector('.thread-chevron-' + threadId);
+        
+        if (messagesDiv.classList.contains('hidden')) {
+            messagesDiv.classList.remove('hidden');
+            chevron.classList.add('rotate-180');
+        } else {
+            messagesDiv.classList.add('hidden');
+            chevron.classList.remove('rotate-180');
+        }
+    }
+
+    function toggleFullEmail(msgId) {
+        const fullEmailDiv = document.getElementById('full-email-' + msgId);
+        const button = event.target;
+        
+        if (fullEmailDiv.classList.contains('hidden')) {
+            fullEmailDiv.classList.remove('hidden');
+            button.textContent = 'Hide full message';
+        } else {
+            fullEmailDiv.classList.add('hidden');
+            button.textContent = 'Show full message';
+        }
+    }
+
+    // Format email dates on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Format thread dates
+        document.querySelectorAll('.thread-date, .msg-date').forEach(function(el) {
+            const dateStr = el.dataset.date;
+            if (dateStr) {
+                const date = new Date(dateStr);
+                const now = new Date();
+                const diffMs = now - date;
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                
+                if (diffDays === 0) {
+                    // Today - show time
+                    el.textContent = 'Today at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                } else if (diffDays === 1) {
+                    el.textContent = 'Yesterday';
+                } else if (diffDays < 7) {
+                    el.textContent = diffDays + ' days ago';
+                } else {
+                    el.textContent = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                }
+            }
+        });
     });
 </script>
 {% endblock %}

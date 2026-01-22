@@ -37,3 +37,9 @@ class Config:
     # RentCast API configuration
     RENTCAST_API_KEY = os.getenv('RENTCAST_API_KEY')
     RENTCAST_REFRESH_HOURS = int(os.getenv('RENTCAST_REFRESH_HOURS', 48))  # Hours before allowing re-fetch
+
+    # Google Gmail Integration (OAuth)
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
+    GMAIL_TOKEN_ENCRYPTION_KEY = os.getenv('GMAIL_TOKEN_ENCRYPTION_KEY')
+    GMAIL_SYNC_DAYS = int(os.getenv('GMAIL_SYNC_DAYS', 30))  # Initial sync window

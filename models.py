@@ -1213,3 +1213,128 @@ class ContactVoiceMemo(db.Model):
             'transcription_status': self.transcription_status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+# =============================================================================
+# GMAIL INTEGRATION MODELS
+# =============================================================================
+
+class UserEmailIntegration(db.Model):
+    """
+    Stores OAuth connection for Gmail integration per user.
+    Each user can connect their own Gmail account for email sync.
+    """
+    __tablename__ = 'user_email_integrations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), 
+                        unique=True, nullable=False)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), 
+                                nullable=False, index=True)
+    
+    # Provider info
+    provider = db.Column(db.String(20), default='gmail')
+    connected_email = db.Column(db.String(200))
+    
+    # Encrypted OAuth tokens (Fernet encryption)
+    access_token_encrypted = db.Column(db.Text)
+    refresh_token_encrypted = db.Column(db.Text)
+    token_expires_at = db.Column(db.DateTime)
+    
+    # Sync state
+    sync_enabled = db.Column(db.Boolean, default=True)
+    last_sync_at = db.Column(db.DateTime)
+    last_history_id = db.Column(db.String(100))  # Gmail incremental sync checkpoint
+    sync_status = db.Column(db.String(20), default='pending')  # pending, syncing, active, error
+    sync_error = db.Column(db.Text)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('email_integration', uselist=False, 
+                          cascade='all, delete-orphan'))
+    organization = db.relationship('Organization', backref=db.backref('email_integrations', 
+                                  lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<UserEmailIntegration {self.connected_email} for user {self.user_id}>'
+
+
+class ContactEmail(db.Model):
+    """
+    Stores synced email messages linked to contacts.
+    Emails are matched to contacts by email address during sync.
+    """
+    __tablename__ = 'contact_emails'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), 
+                                nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), 
+                        nullable=False, index=True)  # Agent who synced this email
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id', ondelete='CASCADE'), 
+                          nullable=False, index=True)
+    
+    # Gmail identifiers (for deduplication and threading)
+    # Note: Composite unique on (gmail_message_id, contact_id) allows same email to appear for multiple contacts
+    gmail_message_id = db.Column(db.String(100), nullable=False, index=True)
+    gmail_thread_id = db.Column(db.String(100), index=True)
+    
+    # Composite unique constraint: one email per contact (not globally unique)
+    __table_args__ = (
+        db.UniqueConstraint('gmail_message_id', 'contact_id', name='uq_email_contact'),
+    )
+    
+    # Message content
+    subject = db.Column(db.String(500))
+    snippet = db.Column(db.String(500))  # Gmail's ~100 char preview
+    from_email = db.Column(db.String(200))
+    from_name = db.Column(db.String(200))
+    to_emails = db.Column(db.JSON)  # List of recipient emails
+    cc_emails = db.Column(db.JSON)  # List of CC emails
+    
+    # Direction relative to agent
+    direction = db.Column(db.String(10))  # 'inbound' or 'outbound'
+    
+    # Timestamp
+    sent_at = db.Column(db.DateTime, index=True)
+    
+    # Metadata
+    has_attachments = db.Column(db.Boolean, default=False)
+    
+    # Full email body for in-CRM viewing
+    body_text = db.Column(db.Text)  # Plain text version
+    body_html = db.Column(db.Text)  # HTML version (sanitized before display)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    contact = db.relationship('Contact', backref=db.backref('emails', lazy='dynamic',
+                             cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('synced_emails', lazy='dynamic'))
+    organization = db.relationship('Organization', backref=db.backref('synced_emails', 
+                                  lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<ContactEmail {self.subject[:30] if self.subject else "No subject"}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON/template serialization."""
+        return {
+            'id': self.id,
+            'gmail_message_id': self.gmail_message_id,
+            'gmail_thread_id': self.gmail_thread_id,
+            'subject': self.subject,
+            'snippet': self.snippet,
+            'from_email': self.from_email,
+            'from_name': self.from_name,
+            'to_emails': self.to_emails,
+            'cc_emails': self.cc_emails,
+            'direction': self.direction,
+            'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'has_attachments': self.has_attachments,
+            'body_text': self.body_text,
+            'body_html': self.body_html,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }

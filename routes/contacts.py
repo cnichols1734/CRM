@@ -135,6 +135,17 @@ def view_contact(contact_id):
     recent_interactions = Interaction.query.filter_by(contact_id=contact.id).order_by(
         Interaction.date.desc()
     ).limit(10).all()
+    
+    # Get Gmail integration status and email threads
+    from models import UserEmailIntegration
+    from services import gmail_service
+    
+    gmail_integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    gmail_connected = gmail_integration and gmail_integration.sync_enabled
+    email_threads = []
+    
+    if gmail_connected:
+        email_threads = gmail_service.get_email_threads_for_contact(contact.id, current_user.id)
 
     return render_template('contacts/view.html', 
                          contact=contact, 
@@ -145,7 +156,9 @@ def view_contact(contact_id):
                          related_transactions=related_transactions,
                          show_transactions=show_transactions,
                          contact_files=contact_files,
-                         recent_interactions=recent_interactions)
+                         recent_interactions=recent_interactions,
+                         gmail_connected=gmail_connected,
+                         email_threads=email_threads)
 
 
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
@@ -1152,3 +1165,68 @@ def delete_voice_memo(contact_id, memo_id):
             'success': False, 
             'error': 'Could not delete voice memo'
         }), 500
+
+
+# =============================================================================
+# EMAIL HISTORY ENDPOINTS
+# =============================================================================
+
+@contacts_bp.route('/contact/<int:contact_id>/emails')
+@login_required
+def get_contact_emails(contact_id):
+    """Get email threads for a contact (JSON API)."""
+    from models import UserEmailIntegration
+    from services import gmail_service
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Check if Gmail is connected
+    gmail_integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    gmail_connected = gmail_integration and gmail_integration.sync_enabled
+    
+    if not gmail_connected:
+        return jsonify({
+            'success': True,
+            'gmail_connected': False,
+            'threads': []
+        })
+    
+    # Get email threads
+    threads = gmail_service.get_email_threads_for_contact(contact_id, current_user.id)
+    
+    return jsonify({
+        'success': True,
+        'gmail_connected': True,
+        'threads': threads
+    })
+
+
+@contacts_bp.route('/contact/<int:contact_id>/emails/thread/<thread_id>')
+@login_required
+def get_email_thread(contact_id, thread_id):
+    """Get all messages in a specific email thread."""
+    from models import ContactEmail
+    
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+    
+    # Get all emails in this thread for this contact
+    emails = ContactEmail.query.filter_by(
+        contact_id=contact_id,
+        user_id=current_user.id,
+        gmail_thread_id=thread_id
+    ).order_by(ContactEmail.sent_at.asc()).all()
+    
+    return jsonify({
+        'success': True,
+        'messages': [email.to_dict() for email in emails]
+    })
