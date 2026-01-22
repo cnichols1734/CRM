@@ -261,10 +261,15 @@ def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: s
         Transcribed text string
     
     Raises:
-        ValueError: If API key is not configured
+        ValueError: If API key is not configured or audio data is empty
         Exception: If transcription fails
     """
     import io
+    
+    # Validate audio data
+    if not audio_data or len(audio_data) == 0:
+        logger.error("Empty audio data provided to transcribe_audio")
+        raise ValueError("Audio data is empty")
     
     # Get API key
     key = api_key or Config.OPENAI_API_KEY
@@ -283,14 +288,19 @@ def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: s
         audio_file.name = filename  # Whisper needs the filename for format detection
         
         # Call Whisper API
-        transcription = client.audio.transcriptions.create(
+        # Use "json" format instead of "text" to avoid New Relic instrumentation
+        # issues with plain string responses
+        response = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
-            response_format="text"
+            response_format="json"
         )
         
-        logger.info(f"SUCCESS: Transcribed {len(transcription)} characters")
-        return transcription.strip()
+        # Extract text from JSON response
+        transcription_text = response.text.strip()
+        
+        logger.info(f"SUCCESS: Transcribed {len(transcription_text)} characters")
+        return transcription_text
         
     except Exception as e:
         logger.error(f"Whisper transcription failed: {str(e)}")
