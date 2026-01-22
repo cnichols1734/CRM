@@ -1160,3 +1160,56 @@ class AgentResource(db.Model):
             'sort_order': self.sort_order,
             'is_active': self.is_active
         }
+
+
+# =============================================================================
+# VOICE MEMO MODELS
+# =============================================================================
+
+class ContactVoiceMemo(db.Model):
+    """
+    Voice memos recorded for contacts.
+    Stored in Supabase Storage with optional AI transcription.
+    """
+    __tablename__ = 'contact_voice_memos'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', 
+                                ondelete='CASCADE'), nullable=False, index=True)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id', 
+                           ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', 
+                        ondelete='SET NULL'), nullable=True)
+    
+    # Storage info
+    storage_path = db.Column(db.String(500), nullable=False)  # Path in Supabase bucket
+    file_name = db.Column(db.String(255), nullable=False)
+    duration_seconds = db.Column(db.Integer)  # Audio duration
+    file_size = db.Column(db.Integer)  # File size in bytes
+    
+    # Optional AI transcription (via OpenAI Whisper)
+    transcription = db.Column(db.Text)
+    transcription_status = db.Column(db.String(20), default='pending')  # pending, completed, failed
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    contact = db.relationship('Contact', backref=db.backref('voice_memos', lazy='dynamic', 
+                             cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('voice_memos', lazy='dynamic'))
+    organization = db.relationship('Organization', backref=db.backref('voice_memos', lazy='dynamic'))
+    
+    def __repr__(self):
+        return f'<ContactVoiceMemo {self.id} for contact {self.contact_id}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization."""
+        return {
+            'id': self.id,
+            'contact_id': self.contact_id,
+            'file_name': self.file_name,
+            'duration_seconds': self.duration_seconds,
+            'transcription': self.transcription,
+            'transcription_status': self.transcription_status,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
