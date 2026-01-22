@@ -511,8 +511,13 @@ def _process_message(service, msg_id: str, integration, result: Dict):
         db.session.commit()
         
     except Exception as e:
-        logger.error(f"Error processing message {msg_id}: {e}")
-        result['errors'].append(f"Message {msg_id}: {str(e)}")
+        # Check if this is a 404 "not found" error (message was deleted)
+        error_str = str(e)
+        if '404' in error_str or 'not found' in error_str.lower():
+            logger.debug(f"Message {msg_id} no longer exists (likely deleted) - skipping")
+        else:
+            logger.error(f"Error processing message {msg_id}: {e}")
+            result['errors'].append(f"Message {msg_id}: {str(e)}")
 
 
 def get_email_threads_for_contact(contact_id: int, user_id: int) -> List[Dict]:

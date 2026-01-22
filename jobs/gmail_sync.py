@@ -12,7 +12,7 @@ Usage:
 import os
 import sys
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -66,7 +66,7 @@ def sync_gmail_for_all_users():
             # But auto-reset if stuck for more than 10 minutes
             if integration.sync_status == 'syncing':
                 if integration.last_sync_at:
-                    minutes_stuck = (datetime.utcnow() - integration.last_sync_at).total_seconds() / 60
+                    minutes_stuck = (datetime.now(timezone.utc) - integration.last_sync_at.replace(tzinfo=timezone.utc)).total_seconds() / 60
                     if minutes_stuck > 10:
                         logger.warning(f"User {integration.user_id} sync was stuck for {minutes_stuck:.1f} min - resetting")
                         integration.sync_status = 'active'
@@ -96,7 +96,7 @@ def sync_gmail_for_all_users():
             
             # Mark as active after successful sync
             integration.sync_status = 'active'
-            integration.last_sync_at = datetime.utcnow()
+            integration.last_sync_at = datetime.now(timezone.utc)
             integration.sync_error = None
             db.session.commit()
             
