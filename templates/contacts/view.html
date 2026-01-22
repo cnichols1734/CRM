@@ -837,111 +837,6 @@
                     </div>
                 </div>
 
-                <!-- Email History Card -->
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                                    <i class="fas fa-envelope text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Email History</h2>
-                                {% if email_threads %}
-                                <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{{ email_threads|length }} conversation{{ 's' if email_threads|length != 1 else '' }}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                        {% if not gmail_connected %}
-                        <!-- Gmail Not Connected State -->
-                        <div class="p-8 text-center">
-                            <div class="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-envelope text-blue-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-700 font-medium mb-1">See your email history with this contact</p>
-                            <p class="text-slate-500 text-sm mb-4">Connect Gmail to automatically sync conversations</p>
-                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm">
-                                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                </svg>
-                                Connect Gmail
-                            </a>
-                        </div>
-                        {% elif email_threads|length == 0 %}
-                        <!-- No Emails State -->
-                        <div class="p-8 text-center">
-                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-envelope text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No emails with this contact yet</p>
-                            <p class="text-slate-400 text-xs mt-1">Emails you send or receive will appear here automatically</p>
-                        </div>
-                        {% else %}
-                        <!-- Email Threads List -->
-                        {% for thread in email_threads %}
-                        <div class="email-thread-item" data-thread-id="{{ thread.thread_id }}">
-                            <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full p-4 hover:bg-slate-50 transition-colors text-left">
-                                <div class="flex items-start justify-between gap-3">
-                                    <div class="flex-1 min-w-0">
-                                        <p class="font-medium text-slate-800 truncate">{{ thread.subject or '(No subject)' }}</p>
-                                        <p class="text-sm text-slate-500 mt-0.5">
-                                            {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }}
-                                            <span class="mx-1">·</span>
-                                            <span class="thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
-                                        </p>
-                                    </div>
-                                    <i class="fas fa-chevron-down text-slate-400 transition-transform thread-chevron-{{ thread.thread_id }}"></i>
-                                </div>
-                            </button>
-                            <!-- Expanded Thread Messages -->
-                            <div id="thread-messages-{{ thread.thread_id }}" class="hidden border-t border-slate-100 bg-slate-50">
-                                {% for msg in thread.messages %}
-                                <div class="p-4 border-b border-slate-100 last:border-b-0">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-medium text-slate-800 text-sm">
-                                                {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email }}{% endif %}
-                                            </span>
-                                            {% if msg.direction == 'outbound' %}
-                                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase font-semibold">Sent</span>
-                                            {% else %}
-                                            <span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase font-semibold">Received</span>
-                                            {% endif %}
-                                        </div>
-                                        <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
-                                    </div>
-                                    <p class="text-sm text-slate-600 line-clamp-3">{{ msg.snippet }}</p>
-                                    {% if msg.has_attachments %}
-                                    <p class="text-xs text-slate-400 mt-2 flex items-center gap-1">
-                                        <i class="fas fa-paperclip"></i> Has attachments
-                                    </p>
-                                    {% endif %}
-                                    {% if msg.body_text or msg.body_html %}
-                                    <button onclick="toggleFullEmail('{{ msg.id }}')" class="text-xs text-blue-600 hover:text-blue-700 mt-2">
-                                        Show full message
-                                    </button>
-                                    <div id="full-email-{{ msg.id }}" class="hidden mt-3 p-3 bg-white rounded-lg border border-slate-200 text-sm text-slate-700 email-body-content">
-                                        {% if msg.body_html %}
-                                        {{ msg.body_html|safe }}
-                                        {% else %}
-                                        <pre class="whitespace-pre-wrap font-sans">{{ msg.body_text }}</pre>
-                                        {% endif %}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
                 {% if show_transactions %}
                 <!-- Related Transactions Card -->
                 <div
@@ -1411,6 +1306,177 @@
                     </div>
                     {% endif %}
                 </div>
+            </div>
+        </div>
+
+        <!-- Full Width Email History Section -->
+        <div class="mt-8 animate-fade-in-up-delay-3">
+            <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+                <!-- Header -->
+                <div class="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                                <i class="fas fa-envelope text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-xl font-bold text-slate-800">Email Conversations</h2>
+                                <p class="text-sm text-slate-500">
+                                    {% if email_threads %}{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }} with {{ contact.first_name }}{% else %}Your email history with this contact{% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        {% if gmail_connected %}
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm">
+                                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                                Gmail connected
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if not gmail_connected %}
+                <!-- Gmail Not Connected State -->
+                <div class="py-16 px-6 text-center">
+                    <div class="max-w-md mx-auto">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-envelope text-blue-500 text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">Connect Gmail to see email history</h3>
+                        <p class="text-slate-500 mb-6">Automatically sync your conversations with {{ contact.first_name }} and never lose track of important communications.</p>
+                        <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-sm">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                            </svg>
+                            Connect with Google
+                        </a>
+                        <p class="text-xs text-slate-400 mt-4 flex items-center justify-center gap-1.5">
+                            <i class="fas fa-lock"></i>
+                            Read-only access - We never send emails on your behalf
+                        </p>
+                    </div>
+                </div>
+
+                {% elif email_threads|length == 0 %}
+                <!-- No Emails Yet -->
+                <div class="py-16 px-6 text-center">
+                    <div class="max-w-md mx-auto">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-6">
+                            <i class="fas fa-inbox text-slate-400 text-3xl"></i>
+                        </div>
+                        <h3 class="text-xl font-semibold text-slate-800 mb-2">No emails yet</h3>
+                        <p class="text-slate-500">Once you exchange emails with {{ contact.first_name }}, they'll appear here automatically.</p>
+                    </div>
+                </div>
+
+                {% else %}
+                <!-- Email Threads -->
+                <div class="divide-y divide-slate-100">
+                    {% for thread in email_threads %}
+                    <div class="email-thread-container" data-thread-id="{{ thread.thread_id }}">
+                        <!-- Thread Header (Clickable) -->
+                        <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full px-6 py-4 hover:bg-slate-50/50 transition-colors text-left group">
+                            <div class="flex items-center gap-4">
+                                <!-- Thread Icon -->
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-indigo-50 transition-colors">
+                                    <i class="fas fa-comments text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                                </div>
+                                
+                                <!-- Thread Info -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-3">
+                                        <h3 class="font-semibold text-slate-800 truncate">{{ thread.subject or '(No subject)' }}</h3>
+                                        <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
+                                            {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }}
+                                        </span>
+                                    </div>
+                                    <p class="text-sm text-slate-500 mt-1 truncate">
+                                        {% set latest = thread.messages[0] %}
+                                        {% if latest.direction == 'outbound' %}You: {% else %}{{ latest.from_name or latest.from_email.split('@')[0] }}: {% endif %}{{ latest.snippet[:100] }}{% if latest.snippet|length > 100 %}...{% endif %}
+                                    </p>
+                                </div>
+                                
+                                <!-- Date & Expand Icon -->
+                                <div class="flex items-center gap-4 flex-shrink-0">
+                                    <span class="text-sm text-slate-400 thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
+                                    <i class="fas fa-chevron-down text-slate-300 transition-transform duration-200 thread-chevron-{{ thread.thread_id }}"></i>
+                                </div>
+                            </div>
+                        </button>
+                        
+                        <!-- Expanded Messages -->
+                        <div id="thread-messages-{{ thread.thread_id }}" class="hidden">
+                            <div class="px-6 pb-6 space-y-4">
+                                {% for msg in thread.messages %}
+                                <div class="relative pl-14">
+                                    <!-- Avatar -->
+                                    <div class="absolute left-0 top-0 w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-semibold shadow-sm
+                                        {% if msg.direction == 'outbound' %}bg-gradient-to-br from-blue-500 to-indigo-600{% else %}bg-gradient-to-br from-orange-400 to-amber-500{% endif %}">
+                                        {% if msg.direction == 'outbound' %}
+                                            You
+                                        {% else %}
+                                            {{ (msg.from_name or msg.from_email)[0]|upper }}
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Message Card -->
+                                    <div class="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
+                                        <!-- Message Header -->
+                                        <div class="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <span class="font-medium text-slate-800">
+                                                    {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email }}{% endif %}
+                                                </span>
+                                                {% if msg.direction == 'outbound' %}
+                                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md uppercase font-semibold">Sent</span>
+                                                {% else %}
+                                                <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase font-semibold">Received</span>
+                                                {% endif %}
+                                                {% if msg.has_attachments %}
+                                                <span class="text-xs text-slate-400 flex items-center gap-1">
+                                                    <i class="fas fa-paperclip"></i> Attachments
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                            <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
+                                        </div>
+                                        
+                                        <!-- Message Preview -->
+                                        <div class="px-4 py-3">
+                                            <p class="text-sm text-slate-600 leading-relaxed" id="msg-snippet-{{ msg.id }}">{{ msg.snippet }}</p>
+                                            
+                                            {% if msg.body_text or msg.body_html %}
+                                            <!-- Full Message (Hidden by default) -->
+                                            <div id="full-email-{{ msg.id }}" class="hidden mt-4 pt-4 border-t border-slate-200">
+                                                <div class="prose prose-sm prose-slate max-w-none email-body-content">
+                                                    {% if msg.body_html %}
+                                                    {{ msg.body_html|safe }}
+                                                    {% else %}
+                                                    <pre class="whitespace-pre-wrap font-sans text-slate-700 text-sm">{{ msg.body_text }}</pre>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            
+                                            <button onclick="toggleFullEmail('{{ msg.id }}')" id="toggle-btn-{{ msg.id }}" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                                                <i class="fas fa-chevron-down text-xs"></i>
+                                                <span>Show full message</span>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -3083,26 +3149,36 @@
     function toggleEmailThread(threadId) {
         const messagesDiv = document.getElementById('thread-messages-' + threadId);
         const chevron = document.querySelector('.thread-chevron-' + threadId);
+        const container = document.querySelector(`[data-thread-id="${threadId}"]`);
         
         if (messagesDiv.classList.contains('hidden')) {
             messagesDiv.classList.remove('hidden');
             chevron.classList.add('rotate-180');
+            if (container) container.classList.add('bg-slate-50/30');
         } else {
             messagesDiv.classList.add('hidden');
             chevron.classList.remove('rotate-180');
+            if (container) container.classList.remove('bg-slate-50/30');
         }
     }
 
     function toggleFullEmail(msgId) {
         const fullEmailDiv = document.getElementById('full-email-' + msgId);
-        const button = event.target;
+        const snippetDiv = document.getElementById('msg-snippet-' + msgId);
+        const toggleBtn = document.getElementById('toggle-btn-' + msgId);
         
         if (fullEmailDiv.classList.contains('hidden')) {
             fullEmailDiv.classList.remove('hidden');
-            button.textContent = 'Hide full message';
+            if (snippetDiv) snippetDiv.classList.add('hidden');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-up text-xs"></i><span>Hide full message</span>';
+            }
         } else {
             fullEmailDiv.classList.add('hidden');
-            button.textContent = 'Show full message';
+            if (snippetDiv) snippetDiv.classList.remove('hidden');
+            if (toggleBtn) {
+                toggleBtn.innerHTML = '<i class="fas fa-chevron-down text-xs"></i><span>Show full message</span>';
+            }
         }
     }
 
