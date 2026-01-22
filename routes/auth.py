@@ -309,7 +309,9 @@ def complete_invite(token):
 @auth_bp.route('/profile')
 @login_required
 def view_user_profile():
-    return render_template('auth/user_profile.html', user=current_user)
+    from models import UserEmailIntegration
+    gmail_integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    return render_template('auth/user_profile.html', user=current_user, gmail_integration=gmail_integration)
 
 @auth_bp.route('/profile/update', methods=['POST'])
 @login_required

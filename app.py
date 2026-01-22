@@ -44,6 +44,7 @@ from routes.transactions import transactions_bp
 from routes.organization import org_bp
 from routes.platform_admin import platform_bp
 from routes.contact_us import contact_bp
+from routes.gmail_integration import gmail_bp
 
 def create_app():
     app = Flask(__name__)
@@ -73,6 +74,32 @@ def create_app():
         return utc_dt.astimezone(CENTRAL_TZ)
     
     app.jinja_env.filters['to_central'] = to_central_time
+    
+    def timeago(dt):
+        """Convert datetime to human-readable 'time ago' string."""
+        if dt is None:
+            return 'Never'
+        now = datetime.utcnow()
+        diff = now - dt
+        
+        seconds = diff.total_seconds()
+        if seconds < 60:
+            return 'Just now'
+        elif seconds < 3600:
+            mins = int(seconds / 60)
+            return f'{mins} minute{"s" if mins != 1 else ""} ago'
+        elif seconds < 86400:
+            hours = int(seconds / 3600)
+            return f'{hours} hour{"s" if hours != 1 else ""} ago'
+        elif seconds < 604800:
+            days = int(seconds / 86400)
+            if days == 1:
+                return 'Yesterday'
+            return f'{days} days ago'
+        else:
+            return dt.strftime('%b %d, %Y')
+    
+    app.jinja_env.filters['timeago'] = timeago
 
     # Context processor to make feature flags available in templates
     @app.context_processor
@@ -104,6 +131,7 @@ def create_app():
     app.register_blueprint(org_bp)
     app.register_blueprint(platform_bp)
     app.register_blueprint(contact_bp)
+    app.register_blueprint(gmail_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT
