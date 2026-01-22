@@ -719,143 +719,185 @@
             </div>
 
             <!-- Side Container - Related Tasks & Transactions -->
-            <div class="lg:w-[420px] xl:w-[480px] flex-shrink-0 space-y-6 animate-fade-in-up-delay-3">
+            <div class="lg:w-[480px] xl:w-[540px] flex-shrink-0 space-y-4 animate-fade-in-up-delay-3">
                 <!-- Quick Actions Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                                <i class="fas fa-bolt text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Quick Actions</h2>
-                        </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Quick Actions</h2>
                     </div>
-                    <div class="p-4 space-y-2">
-                        <!-- Call Contact -->
+                    <div class="p-2">
                         {% if contact.phone %}
-                        <a href="tel:{{ contact.phone }}"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <i class="fas fa-phone text-blue-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Call Contact</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        <a href="tel:{{ contact.phone }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-phone text-slate-400 w-4 text-center"></i>
+                            <span class="text-sm text-slate-700">Call</span>
                         </a>
                         {% endif %}
-
-                        <!-- Email Contact -->
                         {% if contact.email %}
-                        <a href="mailto:{{ contact.email }}"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
-                                    <i class="fas fa-envelope text-purple-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Send Email</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        <a href="mailto:{{ contact.email }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-envelope text-slate-400 w-4 text-center"></i>
+                            <span class="text-sm text-slate-700">Email</span>
                         </a>
                         {% endif %}
-
-                        <!-- Text Contact -->
                         {% if contact.phone %}
-                        <a href="sms:{{ contact.phone }}"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center">
-                                    <i class="fas fa-sms text-green-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Send Text</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        <a href="sms:{{ contact.phone }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-comment text-slate-400 w-4 text-center"></i>
+                            <span class="text-sm text-slate-700">Text</span>
                         </a>
                         {% endif %}
-
-                        <!-- New Task -->
-                        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center">
-                                    <i class="fas fa-tasks text-amber-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">New Task</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                            <i class="fas fa-plus text-slate-400 w-4 text-center"></i>
+                            <span class="text-sm text-slate-700">New Task</span>
                         </a>
-
-                        <!-- Record Voice Memo -->
-                        <button onclick="showVoiceMemoModal()"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center">
-                                    <i class="fas fa-microphone text-rose-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Voice Memo</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
+                        <button onclick="showVoiceMemoModal()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left">
+                            <i class="fas fa-microphone text-slate-400 w-4 text-center"></i>
+                            <span class="text-sm text-slate-700">Voice Memo</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- Voice Memos Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                                    <i class="fas fa-microphone text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Voice Memos</h2>
+                <!-- Email History Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Email History</h2>
+                        {% if email_threads %}
+                        <span class="text-xs text-slate-400">{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="max-h-[500px] overflow-y-auto">
+                        {% if not gmail_connected %}
+                        <!-- Gmail Not Connected State -->
+                        <div class="p-6 text-center">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-envelope text-blue-400 text-xl"></i>
                             </div>
-                            <button onclick="showVoiceMemoModal()"
-                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-rose-600 hover:to-pink-600 transition-all duration-200">
-                                <i class="fas fa-plus mr-1.5"></i>
-                                Record
-                            </button>
+                            <p class="text-slate-700 font-medium mb-1">See email history</p>
+                            <p class="text-slate-500 text-sm mb-4">Connect Gmail to sync conversations</p>
+                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors text-sm font-medium">
+                                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Connect Gmail
+                            </a>
                         </div>
+
+                        {% elif email_threads|length == 0 %}
+                        <!-- No Emails State -->
+                        <div class="p-6 text-center">
+                            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-inbox text-slate-400 text-xl"></i>
+                            </div>
+                            <p class="text-slate-600 font-medium">No emails yet</p>
+                            <p class="text-slate-400 text-sm mt-1">Emails will appear here automatically</p>
+                        </div>
+
+                        {% else %}
+                        <!-- Email Threads List -->
+                        <div class="divide-y divide-slate-100">
+                            {% for thread in email_threads %}
+                            <div class="email-thread-item" data-thread-id="{{ thread.thread_id }}">
+                                <!-- Thread Row (Collapsed) -->
+                                <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full p-4 hover:bg-slate-50 transition-colors text-left group">
+                                    <div class="flex items-start justify-between gap-3">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{{ thread.subject or '(No subject)' }}</p>
+                                            <p class="text-sm text-slate-500 mt-1">
+                                                {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }} · 
+                                                <span class="thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
+                                            </p>
+                                        </div>
+                                        <i class="fas fa-chevron-down text-slate-300 text-sm mt-1 transition-transform duration-200 thread-chevron-{{ thread.thread_id }}"></i>
+                                    </div>
+                                </button>
+
+                                <!-- Expanded Thread Messages -->
+                                <div id="thread-messages-{{ thread.thread_id }}" class="hidden border-t border-slate-100 bg-slate-50/50">
+                                    <div class="p-4 space-y-3">
+                                        {% for msg in thread.messages %}
+                                        <!-- Individual Message Card -->
+                                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+                                            <!-- Message Header -->
+                                            <div class="px-4 py-3 border-b border-slate-100">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="font-semibold text-slate-800">
+                                                        {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email.split('@')[0] }}{% endif %}
+                                                    </span>
+                                                    <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
+                                                </div>
+                                                <div class="flex items-center gap-2 mt-1">
+                                                    {% if msg.direction == 'outbound' %}
+                                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase font-bold tracking-wide">Sent</span>
+                                                    {% else %}
+                                                    <span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase font-bold tracking-wide">Received</span>
+                                                    {% endif %}
+                                                    {% if msg.has_attachments %}
+                                                    <span class="text-xs text-slate-400 flex items-center gap-1">
+                                                        <i class="fas fa-paperclip"></i> Attachments
+                                                    </span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Message Body -->
+                                            <div class="px-4 py-3">
+                                                <p class="text-sm text-slate-600 leading-relaxed" id="msg-snippet-{{ msg.id }}">{{ msg.snippet }}</p>
+                                                
+                                                {% if msg.body_text or msg.body_html %}
+                                                <div id="full-email-{{ msg.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
+                                                    <div class="prose prose-sm prose-slate max-w-none email-body-content text-sm">
+                                                        {% if msg.body_html %}
+                                                        {{ msg.body_html|safe }}
+                                                        {% else %}
+                                                        <pre class="whitespace-pre-wrap font-sans text-slate-600 text-sm">{{ msg.body_text }}</pre>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                
+                                                <button onclick="toggleFullEmail('{{ msg.id }}')" id="toggle-btn-{{ msg.id }}" class="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                                                    <i class="fas fa-chevron-down text-xs"></i>
+                                                    <span>Show full message</span>
+                                                </button>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Voice Memos Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Voice Memos</h2>
+                        <button onclick="showVoiceMemoModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                            + Record
+                        </button>
                     </div>
 
                     <!-- Voice Memos List -->
                     <div id="voiceMemosList" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                        <div class="p-8 text-center" id="voiceMemosEmpty">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-microphone text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No voice memos yet</p>
-                            <button onclick="showVoiceMemoModal()"
-                                class="mt-3 text-sm text-rose-600 hover:text-rose-700 font-medium">
-                                <i class="fas fa-plus mr-1"></i>Record your first memo
-                            </button>
+                        <div class="px-4 py-6 text-center" id="voiceMemosEmpty">
+                            <p class="text-slate-400 text-sm">No voice memos</p>
                         </div>
                     </div>
                 </div>
 
                 {% if show_transactions %}
                 <!-- Related Transactions Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                                    <i class="fas fa-file-contract text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Related Transactions</h2>
-                            </div>
-                            <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}"
-                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
-                                <i class="fas fa-plus mr-1.5"></i>
-                                New Transaction
-                            </a>
-                        </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Transactions</h2>
+                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                            + New
+                        </a>
                     </div>
 
                     <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
@@ -926,12 +968,8 @@
                             </div>
                         </a>
                         {% else %}
-                        <div class="p-8 text-center">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-file-contract text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No transactions</p>
+                        <div class="px-4 py-6 text-center">
+                            <p class="text-slate-400 text-sm">No transactions</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -939,26 +977,15 @@
                 {% endif %}
 
                 <!-- Related Files Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                                    <i class="fas fa-folder-open text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Related Files</h2>
-                            </div>
-                            <button onclick="document.getElementById('fileUploadInput').click()"
-                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-emerald-600 hover:to-teal-600 transition-all duration-200">
-                                <i class="fas fa-upload mr-1.5"></i>
-                                Upload File
-                            </button>
-                            <input type="file" id="fileUploadInput" class="hidden"
-                                accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls"
-                                onchange="uploadContactFile(this)">
-                        </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Files</h2>
+                        <button onclick="document.getElementById('fileUploadInput').click()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                            + Upload
+                        </button>
+                        <input type="file" id="fileUploadInput" class="hidden"
+                            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls"
+                            onchange="uploadContactFile(this)">
                     </div>
 
                     <!-- Drop Zone (hidden by default, shown on drag) -->
@@ -1033,13 +1060,8 @@
                             </div>
                         </div>
                         {% else %}
-                        <div id="noFilesMessage" class="p-8 text-center">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-folder-open text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No files uploaded</p>
-                            <p class="text-slate-400 text-xs mt-1">Click upload or drag files here</p>
+                        <div id="noFilesMessage" class="px-4 py-6 text-center">
+                            <p class="text-slate-400 text-sm">No files</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -1056,23 +1078,12 @@
                 </div>
 
                 <!-- Related Tasks Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                                    <i class="fas fa-tasks text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Related Tasks</h2>
-                            </div>
-                            <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}"
-                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
-                                <i class="fas fa-plus mr-1.5"></i>
-                                New Task
-                            </a>
-                        </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Tasks</h2>
+                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                            + New
+                        </a>
                     </div>
 
                     <!-- Task Filter Tabs -->
@@ -1137,12 +1148,8 @@
                             </div>
                         </div>
                         {% else %}
-                        <div class="p-8 text-center">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-check-circle text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No active tasks</p>
+                        <div class="px-4 py-6 text-center">
+                            <p class="text-slate-400 text-sm">No active tasks</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -1205,23 +1212,12 @@
                 </div>
 
                 <!-- Client Activity Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-3">
-                                <div
-                                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center">
-                                    <i class="fas fa-clipboard-list text-white text-sm"></i>
-                                </div>
-                                <h2 class="text-lg font-semibold text-slate-800">Client Activity</h2>
-                            </div>
-                            <button onclick="showLogActivityModal()"
-                                class="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-lg text-xs font-medium shadow-sm hover:from-cyan-600 hover:to-teal-600 transition-all duration-200">
-                                <i class="fas fa-plus mr-1.5"></i>
-                                Log Activity
-                            </button>
-                        </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Activity</h2>
+                        <button onclick="showLogActivityModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
+                            + Log
+                        </button>
                     </div>
 
                     <!-- Activity List -->
@@ -1280,16 +1276,8 @@
                             </div>
                         </div>
                         {% else %}
-                        <div class="p-8 text-center">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-clipboard-list text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No activity logged yet</p>
-                            <button onclick="showLogActivityModal()"
-                                class="mt-3 text-sm text-cyan-600 hover:text-cyan-700 font-medium">
-                                <i class="fas fa-plus mr-1"></i>Log your first activity
-                            </button>
+                        <div class="px-4 py-6 text-center">
+                            <p class="text-slate-400 text-sm">No activity logged</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -1306,177 +1294,6 @@
                     </div>
                     {% endif %}
                 </div>
-            </div>
-        </div>
-
-        <!-- Full Width Email History Section -->
-        <div class="mt-8 animate-fade-in-up-delay-3">
-            <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
-                <!-- Header -->
-                <div class="px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                <i class="fas fa-envelope text-white"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-xl font-bold text-slate-800">Email Conversations</h2>
-                                <p class="text-sm text-slate-500">
-                                    {% if email_threads %}{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }} with {{ contact.first_name }}{% else %}Your email history with this contact{% endif %}
-                                </p>
-                            </div>
-                        </div>
-                        {% if gmail_connected %}
-                        <div class="flex items-center gap-2">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-sm">
-                                <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                                Gmail connected
-                            </span>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-
-                {% if not gmail_connected %}
-                <!-- Gmail Not Connected State -->
-                <div class="py-16 px-6 text-center">
-                    <div class="max-w-md mx-auto">
-                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center mx-auto mb-6">
-                            <i class="fas fa-envelope text-blue-500 text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-slate-800 mb-2">Connect Gmail to see email history</h3>
-                        <p class="text-slate-500 mb-6">Automatically sync your conversations with {{ contact.first_name }} and never lose track of important communications.</p>
-                        <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center gap-3 px-6 py-3 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 transition-all duration-200 shadow-sm">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24">
-                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                            Connect with Google
-                        </a>
-                        <p class="text-xs text-slate-400 mt-4 flex items-center justify-center gap-1.5">
-                            <i class="fas fa-lock"></i>
-                            Read-only access - We never send emails on your behalf
-                        </p>
-                    </div>
-                </div>
-
-                {% elif email_threads|length == 0 %}
-                <!-- No Emails Yet -->
-                <div class="py-16 px-6 text-center">
-                    <div class="max-w-md mx-auto">
-                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center mx-auto mb-6">
-                            <i class="fas fa-inbox text-slate-400 text-3xl"></i>
-                        </div>
-                        <h3 class="text-xl font-semibold text-slate-800 mb-2">No emails yet</h3>
-                        <p class="text-slate-500">Once you exchange emails with {{ contact.first_name }}, they'll appear here automatically.</p>
-                    </div>
-                </div>
-
-                {% else %}
-                <!-- Email Threads -->
-                <div class="divide-y divide-slate-100">
-                    {% for thread in email_threads %}
-                    <div class="email-thread-container" data-thread-id="{{ thread.thread_id }}">
-                        <!-- Thread Header (Clickable) -->
-                        <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full px-6 py-4 hover:bg-slate-50/50 transition-colors text-left group">
-                            <div class="flex items-center gap-4">
-                                <!-- Thread Icon -->
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-indigo-50 transition-colors">
-                                    <i class="fas fa-comments text-slate-400 group-hover:text-blue-500 transition-colors"></i>
-                                </div>
-                                
-                                <!-- Thread Info -->
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-3">
-                                        <h3 class="font-semibold text-slate-800 truncate">{{ thread.subject or '(No subject)' }}</h3>
-                                        <span class="flex-shrink-0 inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md text-xs font-medium">
-                                            {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }}
-                                        </span>
-                                    </div>
-                                    <p class="text-sm text-slate-500 mt-1 truncate">
-                                        {% set latest = thread.messages[0] %}
-                                        {% if latest.direction == 'outbound' %}You: {% else %}{{ latest.from_name or latest.from_email.split('@')[0] }}: {% endif %}{{ latest.snippet[:100] }}{% if latest.snippet|length > 100 %}...{% endif %}
-                                    </p>
-                                </div>
-                                
-                                <!-- Date & Expand Icon -->
-                                <div class="flex items-center gap-4 flex-shrink-0">
-                                    <span class="text-sm text-slate-400 thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
-                                    <i class="fas fa-chevron-down text-slate-300 transition-transform duration-200 thread-chevron-{{ thread.thread_id }}"></i>
-                                </div>
-                            </div>
-                        </button>
-                        
-                        <!-- Expanded Messages -->
-                        <div id="thread-messages-{{ thread.thread_id }}" class="hidden">
-                            <div class="px-6 pb-6 space-y-4">
-                                {% for msg in thread.messages %}
-                                <div class="relative pl-14">
-                                    <!-- Avatar -->
-                                    <div class="absolute left-0 top-0 w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-semibold shadow-sm
-                                        {% if msg.direction == 'outbound' %}bg-gradient-to-br from-blue-500 to-indigo-600{% else %}bg-gradient-to-br from-orange-400 to-amber-500{% endif %}">
-                                        {% if msg.direction == 'outbound' %}
-                                            You
-                                        {% else %}
-                                            {{ (msg.from_name or msg.from_email)[0]|upper }}
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <!-- Message Card -->
-                                    <div class="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden">
-                                        <!-- Message Header -->
-                                        <div class="px-4 py-3 bg-white border-b border-slate-100 flex items-center justify-between">
-                                            <div class="flex items-center gap-3">
-                                                <span class="font-medium text-slate-800">
-                                                    {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email }}{% endif %}
-                                                </span>
-                                                {% if msg.direction == 'outbound' %}
-                                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md uppercase font-semibold">Sent</span>
-                                                {% else %}
-                                                <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-md uppercase font-semibold">Received</span>
-                                                {% endif %}
-                                                {% if msg.has_attachments %}
-                                                <span class="text-xs text-slate-400 flex items-center gap-1">
-                                                    <i class="fas fa-paperclip"></i> Attachments
-                                                </span>
-                                                {% endif %}
-                                            </div>
-                                            <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
-                                        </div>
-                                        
-                                        <!-- Message Preview -->
-                                        <div class="px-4 py-3">
-                                            <p class="text-sm text-slate-600 leading-relaxed" id="msg-snippet-{{ msg.id }}">{{ msg.snippet }}</p>
-                                            
-                                            {% if msg.body_text or msg.body_html %}
-                                            <!-- Full Message (Hidden by default) -->
-                                            <div id="full-email-{{ msg.id }}" class="hidden mt-4 pt-4 border-t border-slate-200">
-                                                <div class="prose prose-sm prose-slate max-w-none email-body-content">
-                                                    {% if msg.body_html %}
-                                                    {{ msg.body_html|safe }}
-                                                    {% else %}
-                                                    <pre class="whitespace-pre-wrap font-sans text-slate-700 text-sm">{{ msg.body_text }}</pre>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                            
-                                            <button onclick="toggleFullEmail('{{ msg.id }}')" id="toggle-btn-{{ msg.id }}" class="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-                                                <i class="fas fa-chevron-down text-xs"></i>
-                                                <span>Show full message</span>
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
@@ -3114,33 +2931,35 @@
 
     // Drag and drop support
     const fileDropZone = document.getElementById('fileDropZone');
-    const filesCard = fileDropZone.closest('.premium-card');
+    const filesCard = fileDropZone ? fileDropZone.closest('.bg-white') : null;
 
-    filesCard.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileDropZone.classList.remove('hidden');
-    });
+    if (filesCard) {
+        filesCard.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileDropZone.classList.remove('hidden');
+        });
 
-    filesCard.addEventListener('dragleave', (e) => {
-        if (!filesCard.contains(e.relatedTarget)) {
+        filesCard.addEventListener('dragleave', (e) => {
+            if (!filesCard.contains(e.relatedTarget)) {
+                fileDropZone.classList.add('hidden');
+            }
+        });
+
+        filesCard.addEventListener('drop', (e) => {
+            e.preventDefault();
             fileDropZone.classList.add('hidden');
-        }
-    });
 
-    filesCard.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileDropZone.classList.add('hidden');
-
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            // Create a mock input event
-            const input = document.getElementById('fileUploadInput');
-            const dataTransfer = new DataTransfer();
-            dataTransfer.items.add(files[0]);
-            input.files = dataTransfer.files;
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                // Create a mock input event
+                const input = document.getElementById('fileUploadInput');
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(files[0]);
+                input.files = dataTransfer.files;
             uploadContactFile(input);
         }
     });
+    }
 
     // =========================================================================
     // EMAIL HISTORY FUNCTIONS
