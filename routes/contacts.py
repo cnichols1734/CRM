@@ -1052,9 +1052,11 @@ def list_voice_memos(contact_id):
     if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
-    memos = ContactVoiceMemo.query.filter_by(contact_id=contact_id).order_by(
-        ContactVoiceMemo.created_at.desc()
-    ).all()
+    # Defense-in-depth: filter by both contact_id AND organization_id
+    memos = ContactVoiceMemo.query.filter_by(
+        contact_id=contact_id,
+        organization_id=current_user.organization_id
+    ).order_by(ContactVoiceMemo.created_at.desc()).all()
     
     # Generate signed URLs for each memo
     memos_data = []
@@ -1093,10 +1095,11 @@ def get_voice_memo_url(contact_id, memo_id):
     if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
-    # Get the memo record
+    # Get the memo record (defense-in-depth: also filter by org)
     memo = ContactVoiceMemo.query.filter_by(
         id=memo_id, 
-        contact_id=contact_id
+        contact_id=contact_id,
+        organization_id=current_user.organization_id
     ).first_or_404()
     
     try:
@@ -1126,10 +1129,11 @@ def delete_voice_memo(contact_id, memo_id):
     if not can_view_all_org_data() and contact.user_id != current_user.id:
         return jsonify({'success': False, 'error': 'Permission denied'}), 403
     
-    # Get the memo record
+    # Get the memo record (defense-in-depth: also filter by org)
     memo = ContactVoiceMemo.query.filter_by(
         id=memo_id, 
-        contact_id=contact_id
+        contact_id=contact_id,
+        organization_id=current_user.organization_id
     ).first_or_404()
     
     try:
