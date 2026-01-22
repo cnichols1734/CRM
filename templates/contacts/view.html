@@ -722,8 +722,8 @@
             <div class="lg:w-[480px] xl:w-[540px] flex-shrink-0 space-y-4 animate-fade-in-up-delay-3">
                 <!-- Quick Actions Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Quick Actions</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Quick Actions</h2>
                     </div>
                     <div class="p-2">
                         {% if contact.phone %}
@@ -757,8 +757,8 @@
 
                 <!-- Email History Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Email History</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Email History</h2>
                         {% if email_threads %}
                         <span class="text-xs text-slate-400">{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }}</span>
                         {% endif %}
@@ -875,8 +875,8 @@
 
                 <!-- Voice Memos Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Voice Memos</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Voice Memos</h2>
                         <button onclick="showVoiceMemoModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
                             + Record
                         </button>
@@ -893,8 +893,8 @@
                 {% if show_transactions %}
                 <!-- Related Transactions Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Transactions</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Transactions</h2>
                         <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
                             + New
                         </a>
@@ -978,8 +978,8 @@
 
                 <!-- Related Files Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Files</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Files</h2>
                         <button onclick="document.getElementById('fileUploadInput').click()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
                             + Upload
                         </button>
@@ -1079,8 +1079,8 @@
 
                 <!-- Related Tasks Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Tasks</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks</h2>
                         <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
                             + New
                         </a>
@@ -1213,8 +1213,8 @@
 
                 <!-- Client Activity Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-600 uppercase tracking-wide">Activity</h2>
+                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity</h2>
                         <button onclick="showLogActivityModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
                             + Log
                         </button>
