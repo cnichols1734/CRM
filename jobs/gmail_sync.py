@@ -63,9 +63,20 @@ def sync_gmail_for_all_users():
             set_job_org_context(integration.organization_id)
             
             # Skip if already syncing (prevent concurrent syncs)
+            # But auto-reset if stuck for more than 10 minutes
             if integration.sync_status == 'syncing':
-                logger.info(f"Skipping user {integration.user_id} - already syncing")
-                continue
+                if integration.last_sync_at:
+                    minutes_stuck = (datetime.utcnow() - integration.last_sync_at).total_seconds() / 60
+                    if minutes_stuck > 10:
+                        logger.warning(f"User {integration.user_id} sync was stuck for {minutes_stuck:.1f} min - resetting")
+                        integration.sync_status = 'active'
+                        db.session.commit()
+                    else:
+                        logger.info(f"Skipping user {integration.user_id} - already syncing")
+                        continue
+                else:
+                    logger.info(f"Skipping user {integration.user_id} - already syncing")
+                    continue
             
             # Mark as syncing
             integration.sync_status = 'syncing'
@@ -82,6 +93,12 @@ def sync_gmail_for_all_users():
             
             if result['errors']:
                 errors.extend(result['errors'])
+            
+            # Mark as active after successful sync
+            integration.sync_status = 'active'
+            integration.last_sync_at = datetime.utcnow()
+            integration.sync_error = None
+            db.session.commit()
             
             logger.info(
                 f"User {integration.user_id}: "
