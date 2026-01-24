@@ -760,8 +760,8 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Transactions</h2>
-                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
-                            + New
+                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                            <i class="fas fa-plus text-[10px] mr-1"></i> New
                         </a>
                     </div>
 
@@ -845,8 +845,8 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks</h2>
-                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
-                            + New
+                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                            <i class="fas fa-plus text-[10px] mr-1"></i> New
                         </a>
                     </div>
 
@@ -979,8 +979,8 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Files</h2>
-                        <button onclick="document.getElementById('fileUploadInput').click()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
-                            + Upload
+                        <button onclick="document.getElementById('fileUploadInput').click()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                            <i class="fas fa-plus text-[10px] mr-1"></i> Upload
                         </button>
                         <input type="file" id="fileUploadInput" class="hidden"
                             accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls"
@@ -1080,8 +1080,8 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity</h2>
-                        <button onclick="showLogActivityModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
-                            + Log
+                        <button onclick="showLogActivityModal()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                            <i class="fas fa-plus text-[10px] mr-1"></i> Log
                         </button>
                     </div>
 
@@ -1164,8 +1164,8 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Voice Memos</h2>
-                        <button onclick="showVoiceMemoModal()" class="text-xs text-slate-500 hover:text-slate-700 font-medium">
-                            + Record
+                        <button onclick="showVoiceMemoModal()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                            <i class="fas fa-plus text-[10px] mr-1"></i> Record
                         </button>
                     </div>
 
