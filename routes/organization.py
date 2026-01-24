@@ -73,11 +73,13 @@ def members():
         OrganizationInvite.expires_at > datetime.utcnow()
     ).all()
     
-    # Get action plan status for each member (for Pro/Enterprise tiers)
-    action_plan_status = {}
-    for member in members:
-        plan = ActionPlan.get_for_user(member.id)
-        action_plan_status[member.id] = plan is not None and plan.ai_generated_plan is not None
+    # Get action plan status for all members in one query (avoid N+1)
+    member_ids = [m.id for m in members]
+    plans_with_content = ActionPlan.query.filter(
+        ActionPlan.user_id.in_(member_ids),
+        ActionPlan.ai_generated_plan.isnot(None)
+    ).with_entities(ActionPlan.user_id).all()
+    action_plan_status = {user_id: True for (user_id,) in plans_with_content}
     
     return render_template('organization/members.html',
                           org=org,
