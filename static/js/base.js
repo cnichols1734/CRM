@@ -178,6 +178,13 @@ document.addEventListener('DOMContentLoaded', function() {
             tooltipLabels.forEach(tooltip => {
                 tooltip.style.display = 'none';
             });
+            // Also hide portal tooltip
+            const portalTooltip = document.getElementById('sidebar-portal-tooltip');
+            if (portalTooltip) {
+                portalTooltip.style.display = 'none';
+                portalTooltip.classList.remove('opacity-100');
+                portalTooltip.classList.add('opacity-0');
+            }
         } else {
             document.documentElement.style.setProperty('--sidebar-width', '4rem');
             document.documentElement.classList.remove('sidebar-expanded');
@@ -261,19 +268,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 200);
     }
 
-    // Tooltip functionality
+    // Tooltip functionality - portal-based tooltips (avoids overflow clipping)
+    // Create a single tooltip element attached to body
+    let portalTooltip = document.getElementById('sidebar-portal-tooltip');
+    if (!portalTooltip) {
+        portalTooltip = document.createElement('div');
+        portalTooltip.id = 'sidebar-portal-tooltip';
+        portalTooltip.className = 'fixed bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap z-[9999] opacity-0 pointer-events-none transition-opacity duration-150';
+        portalTooltip.style.display = 'none';
+        document.body.appendChild(portalTooltip);
+    }
+
     iconGroups.forEach(group => {
-        const tooltip = group.querySelector('.tooltip-label');
-        if (!tooltip) return;
+        const originalTooltip = group.querySelector('.tooltip-label');
+        if (!originalTooltip) return;
+        
+        const tooltipText = originalTooltip.textContent.trim();
+        // Hide the original tooltip - we'll use portal instead
+        originalTooltip.style.display = 'none';
 
         group.addEventListener('mouseenter', () => {
             if (!isExpanded) {
+                // Show tooltip after short delay (150ms feels responsive)
                 const timeoutId = setTimeout(() => {
-                    tooltip.classList.remove('hidden');
+                    const rect = group.getBoundingClientRect();
+                    portalTooltip.textContent = tooltipText;
+                    portalTooltip.style.display = 'block';
+                    portalTooltip.style.left = (rect.right + 8) + 'px';
+                    portalTooltip.style.top = (rect.top + rect.height / 2) + 'px';
+                    portalTooltip.style.transform = 'translateY(-50%)';
                     requestAnimationFrame(() => {
-                        tooltip.classList.add('opacity-100');
+                        portalTooltip.classList.remove('opacity-0');
+                        portalTooltip.classList.add('opacity-100');
                     });
-                }, 500);
+                }, 150);
                 tooltipTimeouts.set(group, timeoutId);
             }
         });
@@ -284,8 +312,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 clearTimeout(timeoutId);
                 tooltipTimeouts.delete(group);
             }
-            tooltip.classList.remove('opacity-100');
-            tooltip.classList.add('hidden');
+            portalTooltip.classList.remove('opacity-100');
+            portalTooltip.classList.add('opacity-0');
+            setTimeout(() => {
+                portalTooltip.style.display = 'none';
+            }, 150);
         });
     });
 
