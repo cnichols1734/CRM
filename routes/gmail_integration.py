@@ -108,11 +108,19 @@ def callback():
             )
             db.session.add(integration)
         
+        # Check if user was enabling calendar sync (came from toggle flow)
+        enable_calendar = session.pop('enable_calendar_after_reauth', False)
+        if enable_calendar:
+            integration.calendar_sync_enabled = True
+        
         db.session.commit()
         logger.info(f"Gmail connected for user {current_user.id}: {token_data['email']}")
         
-        # Trigger initial sync in background (or inline for now)
-        flash(f'Gmail connected successfully! Syncing emails from {token_data["email"]}...', 'success')
+        # Show appropriate message
+        if enable_calendar:
+            flash(f'Gmail connected and Calendar sync enabled! Tasks will now sync to your Google Calendar.', 'success')
+        else:
+            flash(f'Gmail connected successfully! Syncing emails from {token_data["email"]}...', 'success')
         
         # Do initial sync
         try:
@@ -204,3 +212,80 @@ def resync():
     except Exception as e:
         logger.exception(f"Resync failed for user {current_user.id}: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@gmail_bp.route('/calendar/toggle', methods=['POST'])
+@login_required
+def toggle_calendar_sync():
+    """
+    Enable or disable Google Calendar sync for tasks.
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration or not integration.sync_enabled:
+        flash('Please connect Gmail first to enable calendar sync.', 'warning')
+        return redirect(url_for('auth.view_user_profile'))
+    
+    try:
+        # Check if user has calendar scope
+        from services import calendar_service
+        
+        # Toggle the setting
+        new_state = not integration.calendar_sync_enabled
+        
+        if new_state:
+            # Enabling - check if we have calendar access
+            has_calendar_scope = calendar_service.check_calendar_scope(integration)
+            
+            if not has_calendar_scope:
+                # Need to re-authorize with calendar scope
+                flash('Please reconnect your Google account to grant calendar permissions.', 'warning')
+                # Set a flag so callback knows to enable calendar sync after re-auth
+                session['enable_calendar_after_reauth'] = True
+                # Trigger re-auth
+                state = secrets.token_urlsafe(32)
+                session['gmail_oauth_state'] = state
+                auth_url = gmail_service.get_oauth_url(state)
+                return redirect(auth_url)
+        
+        integration.calendar_sync_enabled = new_state
+        db.session.commit()
+        
+        if new_state:
+            flash('Google Calendar sync enabled. New tasks will appear in your calendar.', 'success')
+        else:
+            flash('Google Calendar sync disabled.', 'info')
+        
+        logger.info(f"User {current_user.id} {'enabled' if new_state else 'disabled'} calendar sync")
+        
+    except Exception as e:
+        logger.exception(f"Failed to toggle calendar sync for user {current_user.id}: {e}")
+        flash('Failed to update calendar sync settings. Please try again.', 'error')
+    
+    return redirect(url_for('auth.view_user_profile'))
+
+
+@gmail_bp.route('/calendar/status')
+@login_required
+def calendar_status():
+    """
+    Get Google Calendar sync status (JSON endpoint).
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration or not integration.sync_enabled:
+        return jsonify({
+            'enabled': False,
+            'available': False,
+            'reason': 'gmail_not_connected'
+        })
+    
+    # Check calendar scope
+    from services import calendar_service
+    has_scope = calendar_service.check_calendar_scope(integration)
+    
+    return jsonify({
+        'enabled': integration.calendar_sync_enabled,
+        'available': has_scope,
+        'reason': None if has_scope else 'needs_reauth'
+    })

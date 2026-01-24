@@ -417,6 +417,10 @@ class Task(db.Model):
     overdue_reminder_sent = db.Column(db.Boolean, default=False)  # Sent after task became overdue
     last_reminder_sent_at = db.Column(db.DateTime)  # Timestamp of most recent reminder
     
+    # Google Calendar sync
+    google_calendar_event_id = db.Column(db.String(255), nullable=True)  # Calendar event ID
+    calendar_sync_error = db.Column(db.Text, nullable=True)  # Last sync error if any
+    
     # Relationships
     contact = db.relationship('Contact', backref=db.backref('tasks', lazy=True))
     assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
@@ -1257,6 +1261,9 @@ class UserEmailIntegration(db.Model):
     last_history_id = db.Column(db.String(100))  # Gmail incremental sync checkpoint
     sync_status = db.Column(db.String(20), default='pending')  # pending, syncing, active, error
     sync_error = db.Column(db.Text)
+    
+    # Google Calendar sync
+    calendar_sync_enabled = db.Column(db.Boolean, default=False)  # Toggle for calendar sync
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

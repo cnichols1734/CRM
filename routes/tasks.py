@@ -5,6 +5,9 @@ from datetime import datetime, timezone, time
 import pytz
 from sqlalchemy.orm import joinedload
 from sqlalchemy import case
+import logging
+
+logger = logging.getLogger(__name__)
 
 tasks_bp = Blueprint('tasks', __name__)
 
@@ -117,6 +120,27 @@ def create_task():
 
             db.session.add(task)
             db.session.commit()
+            
+            # Sync to Google Calendar (non-blocking)
+            try:
+                from services import calendar_service
+                from models import UserEmailIntegration
+                
+                # Check if assigned user has calendar sync enabled
+                integration = UserEmailIntegration.query.filter_by(user_id=task.assigned_to_id).first()
+                if integration and integration.calendar_sync_enabled:
+                    logger.info(f"Calendar sync enabled for user {task.assigned_to_id}, syncing task {task.id}")
+                    base_url = request.url_root.rstrip('/')
+                    result = calendar_service.sync_task_to_calendar(task, base_url)
+                    if result:
+                        logger.info(f"Calendar event created for task {task.id}")
+                    else:
+                        logger.warning(f"Calendar sync returned False for task {task.id}")
+                else:
+                    logger.debug(f"Calendar sync not enabled for user {task.assigned_to_id}")
+            except Exception as e:
+                logger.warning(f"Calendar sync failed for task {task.id}: {e}")
+                # Don't fail the task creation if calendar sync fails
 
             flash('Task created successfully!', 'success')
             
@@ -193,6 +217,15 @@ def edit_task(task_id):
             task.contact_id = int(request.form.get('contact_id'))
 
         db.session.commit()
+        
+        # Sync to Google Calendar (non-blocking)
+        try:
+            from services import calendar_service
+            base_url = request.url_root.rstrip('/')
+            calendar_service.update_calendar_event(task, base_url)
+        except Exception as e:
+            logger.warning(f"Calendar sync failed for task {task.id}: {e}")
+        
         return jsonify({'status': 'success'}), 200
 
     except Exception as e:
@@ -210,6 +243,13 @@ def delete_task(task_id):
         abort(403)
 
     try:
+        # Delete from Google Calendar first (before task is deleted)
+        try:
+            from services import calendar_service
+            calendar_service.delete_calendar_event(task)
+        except Exception as e:
+            logger.warning(f"Calendar delete failed for task {task.id}: {e}")
+        
         db.session.delete(task)
         db.session.commit()
         flash('Task deleted successfully!', 'success')
@@ -299,6 +339,8 @@ def quick_update_task(task_id):
         
     try:
         new_status = request.form.get('status')
+        was_completed = task.status == 'completed'
+        
         if new_status in ['pending', 'completed']:
             task.status = new_status
             # Set completed_at timestamp when task is marked as completed
@@ -312,6 +354,20 @@ def quick_update_task(task_id):
             task.priority = new_priority
             
         db.session.commit()
+        
+        # Sync completion status to Google Calendar (non-blocking)
+        try:
+            from services import calendar_service
+            if new_status == 'completed' and not was_completed:
+                # Task was just completed - mark event as completed
+                calendar_service.mark_event_completed(task)
+            elif new_status == 'pending' and was_completed:
+                # Task was uncompleted - update event to remove completed prefix
+                base_url = request.url_root.rstrip('/')
+                calendar_service.update_calendar_event(task, base_url)
+        except Exception as e:
+            logger.warning(f"Calendar sync failed for task {task.id}: {e}")
+        
         return jsonify({'status': 'success'}), 200
         
     except Exception as e:

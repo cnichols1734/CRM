@@ -30,8 +30,11 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
-# Gmail API scopes - read-only
-GMAIL_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+# Gmail API scopes - read-only Gmail + Calendar events
+GMAIL_SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/calendar.events'
+]
 
 # OAuth redirect URIs
 REDIRECT_URI_LOCAL = 'http://127.0.0.1:5011/integrations/gmail/callback'
