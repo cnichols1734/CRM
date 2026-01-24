@@ -117,6 +117,26 @@
                 opacity: 0.5;
             }
         }
+
+        /* Sidebar scrollbar - thin and subtle */
+        #sidebarNav::-webkit-scrollbar {
+            width: 4px;
+        }
+        #sidebarNav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #sidebarNav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+        #sidebarNav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        /* Firefox */
+        #sidebarNav {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+        }
     </style>
     <!-- Initialize sidebar state immediately before DOM loads -->
     <script>
@@ -434,13 +454,17 @@
     <div class="flex flex-1 overflow-hidden relative">
         <!-- Sidebar - Hidden on Mobile -->
         <aside id="sidebar"
-            class="w-16 transition-all duration-300 ease-in-out flex-col items-center py-4 z-10 hidden md:flex">
-            <!-- Toggle Button -->
-            <div class="w-full flex justify-center mb-8">
+            class="w-16 transition-all duration-300 ease-in-out flex-col z-10 hidden md:flex h-full">
+            
+            <!-- Fixed Top: Toggle Button -->
+            <div class="flex-shrink-0 w-full flex justify-center py-4">
                 <button id="sidebarToggle" class="p-2.5 rounded-lg hover:bg-[#3d4d63] text-white">
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
+
+            <!-- Scrollable Middle: Navigation Icons -->
+            <nav class="flex-1 min-h-0 overflow-y-auto py-2" id="sidebarNav">
 
             <!-- Dashboard Icon with Tooltip -->
             <div class="relative group mb-8 w-full px-3">
@@ -630,14 +654,21 @@
                             class="fas fa-chevron-down transition-transform duration-200 absolute right-2"></i>
                     </div>
                 </button>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Agent Resources
+                </div>
                 <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
                     class="hidden mt-2 ml-3 pl-3 border-l border-gray-700">
                     <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
                 </div>
             </div>
 
-            <!-- Spacer to push user icon to bottom -->
-            <div class="flex-1"></div>
+            </nav>
+            <!-- End Scrollable Nav -->
+
+            <!-- Fixed Bottom: Support + User Icon (always visible) -->
+            <div class="flex-shrink-0 flex flex-col items-center py-4 border-t border-[#3d4d63]/50">
 
             <!-- Support/Help Icon with Tooltip -->
             <div class="relative group mb-6 w-full px-3">
@@ -786,6 +817,10 @@
                 </div>
             </div>
             {% endif %}
+
+            </div>
+            <!-- End Fixed Bottom -->
+
         </aside>
 
         <!-- Main Content -->
