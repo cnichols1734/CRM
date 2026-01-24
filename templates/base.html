@@ -595,6 +595,26 @@
                 </div>
             </div>
 
+            <!-- Reports Icon with Tooltip (only show if user can access reports) -->
+            {% if current_user.is_authenticated and can_access_reports(current_user) %}
+            <div class="relative group mb-8 w-full px-3">
+                <a href="{{ url_for('reports.landing') }}"
+                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('reports.') %}text-orange-500{% else %}text-white{% endif %}">
+                    <div class="w-full flex items-center">
+                        <div class="flex justify-center w-[24px]">
+                            <i class="fas fa-chart-pie"></i>
+                        </div>
+                        <span
+                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Reports</span>
+                    </div>
+                </a>
+                <div
+                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
+                    Reports & Analytics
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Agent Resources Accordion -->
             <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
                 <button id="agentResourcesBtn" type="button"

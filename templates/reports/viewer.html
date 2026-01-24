@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+    /* Premium animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+        animation: fadeInUp 0.6s ease-out forwards;
+    }
+    .animate-fade-in-up-delay-1 {
+        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        opacity: 0;
+    }
+    .animate-fade-in-up-delay-2 {
+        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        opacity: 0;
+    }
+
+    /* Premium table styling */
+    .premium-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    .premium-table thead th {
+        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+        color: #475569;
+        padding: 0.875rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    .premium-table thead th:first-child {
+        border-top-left-radius: 0.75rem;
+    }
+    .premium-table thead th:last-child {
+        border-top-right-radius: 0.75rem;
+    }
+    .premium-table tbody tr {
+        transition: all 0.15s ease-out;
+    }
+    .premium-table tbody tr:hover {
+        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.03));
+    }
+    .premium-table tbody td {
+        padding: 0.875rem 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        color: #334155;
+    }
+
+    /* Status badges */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+    .status-preparing_to_list, .status-pending { background: #fef3c7; color: #92400e; }
+    .status-active, .status-hot { background: #dcfce7; color: #166534; }
+    .status-under_contract, .status-warm { background: #dbeafe; color: #1e40af; }
+    .status-closed, .status-completed { background: #e0e7ff; color: #3730a3; }
+    .status-cancelled, .status-cold, .status-overdue { background: #fee2e2; color: #991b1b; }
+    .status-sent, .status-viewed { background: #fef3c7; color: #92400e; }
+    .status-signed { background: #dcfce7; color: #166534; }
+
+    /* KPI cards */
+    .kpi-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Priority badges */
+    .priority-high { color: #dc2626; }
+    .priority-medium { color: #f59e0b; }
+    .priority-low { color: #10b981; }
+
+    /* Date range selector */
+    .date-range-btn {
+        transition: all 0.2s ease;
+    }
+    .date-range-btn.active {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+        box-shadow: 0 4px 12px -2px rgba(249, 115, 22, 0.4);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+    <!-- Header Section -->
+    <div class="px-4 sm:px-6 lg:px-8 pt-8 pb-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="animate-fade-in-up">
+                <!-- Breadcrumb -->
+                <div class="flex items-center gap-2 text-sm text-slate-500 mb-4">
+                    <a href="{{ url_for('reports.landing') }}" class="hover:text-orange-500 transition-colors">
+                        <i class="fas fa-chart-pie mr-1"></i>Reports
+                    </a>
+                    <i class="fas fa-chevron-right text-xs"></i>
+                    <span class="text-slate-700">{{ report.name }}</span>
+                </div>
+
+                <!-- Title and Actions -->
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/25">
+                            <i class="fas {{ report.icon }} text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-slate-800">{{ report.name }}</h1>
+                            <p class="text-slate-500">{{ report.description }}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        {% if can_view_all %}
+                        <!-- View Mode Selector (Admin/Owner Only) -->
+                        <div class="flex items-center bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+                            <button onclick="changeViewMode('my')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if view_mode == 'my' %}active{% endif %}">
+                                <i class="fas fa-user mr-1"></i>My Records
+                            </button>
+                            <button onclick="changeViewMode('all')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if view_mode == 'all' %}active{% endif %}">
+                                <i class="fas fa-users mr-1"></i>All Records
+                            </button>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Date Range Selector -->
+                        <div class="flex items-center bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+                            <button onclick="changeRange('this_week')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if date_range == 'this_week' %}active{% endif %}">
+                                Week
+                            </button>
+                            <button onclick="changeRange('this_month')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if date_range == 'this_month' %}active{% endif %}">
+                                Month
+                            </button>
+                            <button onclick="changeRange('this_quarter')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if date_range == 'this_quarter' %}active{% endif %}">
+                                Quarter
+                            </button>
+                            <button onclick="changeRange('this_year')" class="date-range-btn px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 {% if date_range == 'this_year' %}active{% endif %}">
+                                Year
+                            </button>
+                        </div>
+
+                        <!-- Export Button -->
+                        <a href="{{ url_for('reports.export_report_csv', report_id=report.id, date_range=date_range) }}"
+                           class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                            <i class="fas fa-download text-slate-400"></i>
+                            Export CSV
+                        </a>
+
+                        <!-- Print Button -->
+                        <button onclick="window.print()"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-slate-700 font-medium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm">
+                            <i class="fas fa-print text-slate-400"></i>
+                            Print
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="px-4 sm:px-6 lg:px-8 pb-12">
+        <div class="max-w-7xl mx-auto">
+            {% if report.chart_type == 'kpi' and report_data.kpis %}
+            <!-- KPI Cards for Scorecard -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 animate-fade-in-up-delay-1">
+                {% for kpi in report_data.kpis %}
+                <div class="kpi-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
+                    <div class="flex items-center gap-3 mb-3">
+                        {% if kpi.color == 'emerald' %}
+                        <div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-emerald-600"></i>
+                        </div>
+                        {% elif kpi.color == 'blue' %}
+                        <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-blue-600"></i>
+                        </div>
+                        {% elif kpi.color == 'purple' %}
+                        <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-purple-600"></i>
+                        </div>
+                        {% elif kpi.color == 'amber' %}
+                        <div class="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-amber-600"></i>
+                        </div>
+                        {% elif kpi.color == 'red' %}
+                        <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-red-600"></i>
+                        </div>
+                        {% else %}
+                        <div class="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
+                            <i class="fas {{ kpi.icon }} text-slate-600"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-3xl font-bold text-slate-800">
+                        {% if kpi.key == 'pipeline_value' %}
+                        ${{ "{:,.0f}".format(kpi.value) }}
+                        {% else %}
+                        {{ kpi.value }}
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-slate-500 mt-1">{{ kpi.label }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if report.chart_type and report.chart_type != 'kpi' and report_data.chart_data %}
+            <!-- Chart Section -->
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 mb-8 animate-fade-in-up-delay-1">
+                <div id="reportChart" class="w-full" style="min-height: 350px;"></div>
+            </div>
+            {% endif %}
+
+            <!-- Totals Summary -->
+            {% if report_data.totals %}
+            <div class="flex flex-wrap items-center gap-4 mb-6 animate-fade-in-up-delay-1">
+                {% for key, value in report_data.totals.items() %}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-2">
+                    <span class="text-slate-500 text-sm">{{ key.replace('_', ' ').title() }}:</span>
+                    <span class="font-semibold text-slate-800 ml-1">
+                        {% if 'commission' in key.lower() %}
+                        ${{ "{:,.0f}".format(value) }}
+                        {% else %}
+                        {{ value }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Data Table -->
+            {% if report_data.rows %}
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden animate-fade-in-up-delay-2">
+                <div class="overflow-x-auto">
+                    <table class="premium-table w-full">
+                        <thead>
+                            <tr>
+                                {% for key in report_data.rows[0].keys() %}
+                                {% if key != 'id' and key != 'contact_id' and key != 'transaction_id' and key != 'document_id' and not key.startswith('_') %}
+                                <th>{{ key.replace('_', ' ') }}</th>
+                                {% endif %}
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in report_data.rows %}
+                            <tr class="cursor-pointer hover:bg-orange-50/50" onclick="handleRowClick('{{ report.data_source }}', {{ row.get('id', 'null') }}, {{ row.get('contact_id', 'null') }}, {{ row.get('transaction_id', 'null') }})">
+                                {% for key, value in row.items() %}
+                                {% if key != 'id' and key != 'contact_id' and key != 'transaction_id' and key != 'document_id' and not key.startswith('_') %}
+                                <td>
+                                    {% if key == 'status' or key == 'engagement_status' or key == 'priority' %}
+                                    <span class="status-badge status-{{ value }}">{{ value.replace('_', ' ') }}</span>
+                                    {% elif key == 'potential_commission' or 'commission' in key.lower() %}
+                                    <span class="font-medium text-emerald-600">${{ "{:,.0f}".format(value) if value else '0' }}</span>
+                                    {% elif key == 'days_since_contact' or key == 'days_since_update' or key == 'days_overdue' or key == 'days_waiting' %}
+                                    {% if value is not none %}
+                                    <span class="{% if value >= 30 %}text-red-600 font-medium{% elif value >= 14 %}text-amber-600{% else %}text-slate-600{% endif %}">
+                                        {{ value }} days
+                                    </span>
+                                    {% else %}
+                                    <span class="text-slate-400">-</span>
+                                    {% endif %}
+                                    {% elif key == 'days_to_close' %}
+                                    {% if value is not none %}
+                                    <span class="{% if value <= 7 %}text-red-600 font-medium{% elif value <= 14 %}text-amber-600{% else %}text-emerald-600{% endif %}">
+                                        {{ value }} days
+                                    </span>
+                                    {% else %}
+                                    <span class="text-slate-400">-</span>
+                                    {% endif %}
+                                    {% elif key == 'full_name' and report.data_source == 'contacts' and row.get('id') %}
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=row['id']) }}" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation()">{{ value }}</a>
+                                    {% elif key == 'contact_name' and row.get('contact_id') %}
+                                    <a href="{{ url_for('contacts.view_contact', contact_id=row['contact_id']) }}" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation()">{{ value }}</a>
+                                    {% elif key == 'full_name' or key == 'contact_name' or key == 'client_name' %}
+                                    <span class="font-medium text-slate-800">{{ value }}</span>
+                                    {% elif key == 'subject' and report.data_source == 'tasks' and row.get('id') %}
+                                    <a href="{{ url_for('tasks.view_task', task_id=row['id']) }}" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation()">{{ value }}</a>
+                                    {% elif key == 'street_address' and report.data_source in ['transactions', 'documents', 'signatures'] and (row.get('transaction_id') or row.get('id')) %}
+                                    <a href="{{ url_for('transactions.view_transaction', id=row.get('transaction_id') or row['id']) }}" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation()">{{ value }}</a>
+                                    {% elif key == 'street_address' %}
+                                    <span class="font-medium text-slate-800">{{ value }}</span>
+                                    {% elif key == 'document_name' and row.get('transaction_id') %}
+                                    <a href="{{ url_for('transactions.view_transaction', id=row['transaction_id']) }}" class="font-medium text-blue-600 hover:text-blue-800 hover:underline" onclick="event.stopPropagation()">{{ value }}</a>
+                                    {% elif 'date' in key.lower() and value and value != 'Never' %}
+                                    <span class="text-slate-600">{{ value }}</span>
+                                    {% elif value == 'Never' %}
+                                    <span class="text-slate-400 italic">{{ value }}</span>
+                                    {% else %}
+                                    {{ value if value is not none else '-' }}
+                                    {% endif %}
+                                </td>
+                                {% endif %}
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if report_data.rows|length > 25 %}
+                <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 text-center">
+                    <span class="text-sm text-slate-500">Showing {{ report_data.rows|length }} records</span>
+                </div>
+                {% endif %}
+            </div>
+            {% elif report.chart_type != 'kpi' %}
+            <!-- Empty State (only show for non-KPI reports) -->
+            <div class="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-12 text-center animate-fade-in-up-delay-2">
+                <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-inbox text-slate-400 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-slate-800 mb-2">No Data Found</h3>
+                <p class="text-slate-500">There's no data matching your current filters. Try adjusting the date range.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+    // Date range change handler
+    function changeRange(range) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('date_range', range);
+        window.location.href = url.toString();
+    }
+    
+    // View mode change handler (My Records vs All Records)
+    function changeViewMode(mode) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('view', mode);
+        window.location.href = url.toString();
+    }
+
+    // Row click handler for navigation
+    function handleRowClick(dataSource, id, contactId, transactionId) {
+        let url = null;
+
+        if (dataSource === 'contacts' && id) {
+            url = `/contact/${id}`;
+        } else if (dataSource === 'tasks' && id) {
+            url = `/tasks/${id}`;
+        } else if ((dataSource === 'transactions' || dataSource === 'documents' || dataSource === 'signatures') && (transactionId || id)) {
+            url = `/transactions/${transactionId || id}`;
+        } else if (dataSource === 'interactions' && contactId) {
+            url = `/contact/${contactId}`;
+        }
+
+        if (url) {
+            window.location.href = url;
+        }
+    }
+
+    // Chart rendering
+    {% if report.chart_type and report.chart_type != 'kpi' and report_data.chart_data %}
+    document.addEventListener('DOMContentLoaded', function() {
+        const chartData = {{ report_data.chart_data | tojson | safe }};
+        const chartType = '{{ report.chart_type }}';
+
+        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
+
+        let options = {
+            chart: {
+                type: chartType === 'donut' ? 'donut' : (chartType === 'line' ? 'line' : 'bar'),
+                height: 350,
+                toolbar: { show: false },
+                fontFamily: 'Inter, system-ui, sans-serif',
+                animations: {
+                    enabled: true,
+                    easing: 'easeinout',
+                    speed: 800
+                }
+            },
+            colors: colors,
+            dataLabels: { enabled: false },
+            stroke: { curve: 'smooth', width: chartType === 'line' ? 3 : 0 },
+            grid: {
+                borderColor: '#f1f5f9',
+                strokeDashArray: 4
+            },
+            legend: {
+                position: 'bottom',
+                horizontalAlign: 'center',
+                fontWeight: 500
+            }
+        };
+
+        if (chartType === 'donut') {
+            options.series = chartData.values;
+            options.labels = chartData.labels;
+            options.plotOptions = {
+                pie: {
+                    donut: {
+                        size: '70%',
+                        labels: {
+                            show: true,
+                            total: {
+                                show: true,
+                                label: 'Total',
+                                fontSize: '14px',
+                                fontWeight: 600
+                            }
+                        }
+                    }
+                }
+            };
+        } else if (chartType === 'bar' || chartType === 'stacked_bar') {
+            if (chartData.datasets) {
+                options.series = chartData.datasets.map(ds => ({
+                    name: ds.name,
+                    data: ds.values
+                }));
+                options.chart.stacked = chartType === 'stacked_bar';
+            } else {
+                options.series = [{ name: 'Count', data: chartData.values }];
+            }
+            options.xaxis = { categories: chartData.labels };
+            options.plotOptions = {
+                bar: {
+                    borderRadius: 6,
+                    columnWidth: '60%'
+                }
+            };
+        } else if (chartType === 'line') {
+            if (chartData.datasets) {
+                options.series = chartData.datasets.map(ds => ({
+                    name: ds.name,
+                    data: ds.values
+                }));
+            } else {
+                options.series = [{ name: 'Value', data: chartData.values }];
+            }
+            options.xaxis = { categories: chartData.labels };
+            options.markers = { size: 4, hover: { size: 6 } };
+        }
+
+        const chart = new ApexCharts(document.querySelector('#reportChart'), options);
+        chart.render();
+    });
+    {% endif %}
+</script>
+{% endblock %}

@@ -45,6 +45,7 @@ from routes.organization import org_bp
 from routes.platform_admin import platform_bp
 from routes.contact_us import contact_bp
 from routes.gmail_integration import gmail_bp
+from routes.reports import reports_bp
 
 def create_app():
     app = Flask(__name__)
@@ -104,8 +105,11 @@ def create_app():
     # Context processor to make feature flags available in templates
     @app.context_processor
     def inject_feature_flags():
-        from feature_flags import org_has_feature
-        return dict(org_has_feature=org_has_feature)
+        from feature_flags import org_has_feature, can_access_reports
+        return dict(
+            org_has_feature=org_has_feature,
+            can_access_reports=can_access_reports
+        )
 
     # Initialize Flask-Mail
     mail = Mail()
@@ -132,6 +136,7 @@ def create_app():
     app.register_blueprint(platform_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(gmail_bp)
+    app.register_blueprint(reports_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT
