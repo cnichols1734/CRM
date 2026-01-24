@@ -171,6 +171,19 @@
                                        class="text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors truncate">
                                         {{ task.subject }}
                                     </a>
+                                    {% if task.google_calendar_event_id %}
+                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600" title="Synced to Google Calendar">
+                                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" fill="#34A853" opacity="0.2"/>
+                                            <path d="M9 12l2 2 4-4" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24">
+                                            <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
+                                            <path fill="#fff" d="M19 20H5V9h14v11z"/>
+                                            <path fill="#EA4335" d="M12 13h5v5h-5z"/>
+                                        </svg>
+                                    </span>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="flex items-center gap-3 text-xs text-slate-500">
