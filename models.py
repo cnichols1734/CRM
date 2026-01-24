@@ -331,8 +331,18 @@ class Contact(db.Model):
                            lazy='joined')
 
     def update_last_contact_date(self):
-        """Update the last_contact_date based on the most recent contact date"""
-        dates = [d for d in [self.last_email_date, self.last_text_date, self.last_phone_call_date] if d is not None]
+        """Update the last_contact_date based on the most recent contact date.
+        
+        Includes email, text, phone call dates AND the current last_contact_date
+        (which may have been set directly by meeting/other activity types).
+        """
+        # Include current last_contact_date to preserve meeting/other activity dates
+        dates = [d for d in [
+            self.last_email_date, 
+            self.last_text_date, 
+            self.last_phone_call_date,
+            self.last_contact_date  # Preserve existing value from meeting/other
+        ] if d is not None]
         self.last_contact_date = max(dates) if dates else None
 
     def __repr__(self):
