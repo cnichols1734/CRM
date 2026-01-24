@@ -507,6 +507,13 @@ def _process_message(service, msg_id: str, integration, result: Dict):
             )
             db.session.add(contact_email)
             result['contacts_matched'] += 1
+            
+            # Update contact's last_email_date if this email is more recent
+            email_date = sent_at.date() if sent_at else None
+            if email_date:
+                if contact.last_email_date is None or email_date > contact.last_email_date:
+                    contact.last_email_date = email_date
+                    contact.update_last_contact_date()
         
         db.session.commit()
         

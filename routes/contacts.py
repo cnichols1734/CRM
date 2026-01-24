@@ -415,8 +415,12 @@ def log_activity(contact_id):
         elif activity_type == 'text':
             if contact.last_text_date is None or activity_date_obj > contact.last_text_date:
                 contact.last_text_date = activity_date_obj
+        elif activity_type in ('meeting', 'other'):
+            # Meeting/other don't have dedicated date fields, update last_contact_date directly
+            if contact.last_contact_date is None or activity_date_obj > contact.last_contact_date:
+                contact.last_contact_date = activity_date_obj
         
-        # Update the overall last contact date
+        # Update the overall last contact date (recalculates from all date fields)
         contact.update_last_contact_date()
         
         db.session.commit()
