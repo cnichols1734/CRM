@@ -1,12 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for
 from flask_login import login_required, current_user
-from models import Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant
+from models import db, Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant, contact_groups as contact_groups_table
 from feature_flags import is_enabled, can_access_transactions, org_has_feature, feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from datetime import datetime, timedelta, timezone, date
 import pytz
 from sqlalchemy import func, extract
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
@@ -113,13 +113,17 @@ def contacts():
             else:
                 query = query.order_by(*[attr.desc() for attr in sort_attrs])
 
+    # Add eager loading for groups to avoid N+1 queries in template
+    query = query.options(selectinload(Contact.groups))
+    
     # Apply pagination
     total_contacts = query.count()  # Get total count before pagination
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     contacts_list = pagination.items
 
-    # Multi-tenant: Query contact groups within this org
-    all_groups = org_query(ContactGroup).order_by(ContactGroup.name).all()
+    # Multi-tenant: Get contact groups (cached)
+    from services.cache_helpers import get_org_contact_groups
+    all_groups = get_org_contact_groups(current_user.organization_id)
 
     # Get all users in this organization (for admin filters)
     all_owners = []
@@ -147,35 +151,50 @@ def dashboard():
     # Multi-tenant: Use org_query and check org_role
     if not can_view_all_org_data():
         show_all = False
-        contacts = org_query(Contact).filter_by(user_id=current_user.id).all()
+        base_contact_query = org_query(Contact).filter_by(user_id=current_user.id)
     else:
         show_all = view == 'all'
         if show_all:
             # All contacts in this organization
-            contacts = org_query(Contact).all()
+            base_contact_query = org_query(Contact)
         else:
-            contacts = org_query(Contact).filter_by(user_id=current_user.id).all()
+            base_contact_query = org_query(Contact).filter_by(user_id=current_user.id)
 
-    total_contacts = len(contacts)
-    total_commission = sum(c.potential_commission or 0 for c in contacts)
-    avg_commission = total_commission / total_contacts if total_contacts > 0 else 0
+    # Use SQL aggregates instead of loading all contacts into memory
+    stats = base_contact_query.with_entities(
+        func.count(Contact.id).label('total'),
+        func.coalesce(func.sum(Contact.potential_commission), 0).label('total_commission'),
+        func.avg(Contact.potential_commission).label('avg_commission')
+    ).first()
+    
+    total_contacts = stats.total
+    total_commission = float(stats.total_commission)
+    avg_commission = float(stats.avg_commission or 0)
 
-    top_contacts = sorted(
-        contacts,
-        key=lambda x: x.potential_commission or 0,
-        reverse=True
-    )[:5]
+    # Get top 5 contacts by commission using SQL LIMIT (not Python sort)
+    top_contacts = base_contact_query.filter(
+        Contact.potential_commission.isnot(None)
+    ).order_by(
+        Contact.potential_commission.desc()
+    ).limit(5).all()
 
-    # Multi-tenant: Query contact groups within this org
-    groups = org_query(ContactGroup).all()
-    group_stats = []
-    for group in groups:
-        contact_count = len([c for c in contacts if group in c.groups])
-        if contact_count > 0:
-            group_stats.append({
-                'name': group.name,
-                'count': contact_count
-            })
+    # Multi-tenant: Get group stats with SQL GROUP BY instead of Python loop
+    group_stats_query = db.session.query(
+        ContactGroup.name,
+        func.count(contact_groups_table.c.contact_id).label('count')
+    ).join(
+        contact_groups_table, ContactGroup.id == contact_groups_table.c.group_id
+    ).join(
+        Contact, Contact.id == contact_groups_table.c.contact_id
+    ).filter(
+        ContactGroup.organization_id == current_user.organization_id
+    )
+    # Apply same user filter for non-admin users
+    if not show_all:
+        group_stats_query = group_stats_query.filter(Contact.user_id == current_user.id)
+    
+    group_stats_raw = group_stats_query.group_by(ContactGroup.id, ContactGroup.name).all()
+    group_stats = [{'name': name, 'count': count} for name, count in group_stats_raw if count > 0]
 
     # Get user's timezone (default to 'America/Chicago' if not set)
     user_tz = pytz.timezone('America/Chicago')
@@ -191,9 +210,11 @@ def dashboard():
     utc_now = now.astimezone(timezone.utc)
     utc_window_end = window_end.astimezone(timezone.utc)
 
-    # Multi-tenant: Query tasks within this org
+    # Multi-tenant: Query tasks within this org with eager loading for contact/task_type
+    task_options = [joinedload(Task.contact), joinedload(Task.task_type)]
+    
     if can_view_all_org_data() and show_all:
-        upcoming_tasks = org_query(Task).filter(
+        upcoming_tasks = org_query(Task).options(*task_options).filter(
             or_(
                 # Past due tasks
                 Task.due_date < utc_now,
@@ -210,7 +231,7 @@ def dashboard():
             Task.due_date.asc()
         ).limit(5).all()
     else:
-        upcoming_tasks = org_query(Task).filter(
+        upcoming_tasks = org_query(Task).options(*task_options).filter(
             Task.assigned_to_id == current_user.id,
             or_(
                 # Past due tasks
@@ -249,13 +270,31 @@ def dashboard():
         # Get current year for YTD filter
         current_year = now.year
         
-        # Multi-tenant: Query transactions within this org
+        # Multi-tenant: Query transactions within this org with eager loading
         if can_view_all_org_data() and show_all:
             tx_query = org_query(Transaction)
         else:
             tx_query = org_query(Transaction).filter_by(created_by_id=current_user.id)
         
-        all_transactions = tx_query.order_by(Transaction.created_at.desc()).all()
+        # Eager load transaction_type only (participants is a dynamic relationship)
+        all_transactions = tx_query.options(
+            joinedload(Transaction.transaction_type)
+        ).order_by(Transaction.created_at.desc()).all()
+        
+        # Pre-fetch all participants for these transactions in one query to avoid N+1
+        tx_ids = [tx.id for tx in all_transactions]
+        if tx_ids:
+            participants_query = TransactionParticipant.query.options(
+                joinedload(TransactionParticipant.contact)
+            ).filter(
+                TransactionParticipant.transaction_id.in_(tx_ids),
+                TransactionParticipant.is_primary == True,
+                TransactionParticipant.role.in_(['seller', 'buyer', 'landlord', 'tenant'])
+            ).all()
+            # Build a lookup dict by transaction_id
+            participants_by_tx = {p.transaction_id: p for p in participants_query}
+        else:
+            participants_by_tx = {}
         
         # Define Kanban columns - 'preparing' combines preparing_to_list and showing
         status_config = {
@@ -292,11 +331,8 @@ def dashboard():
                 else:
                     continue  # Skip non-YTD closed deals
             
-            # Get primary client participant
-            primary_client = tx.participants.filter(
-                TransactionParticipant.is_primary == True,
-                TransactionParticipant.role.in_(['seller', 'buyer', 'landlord', 'tenant'])
-            ).first()
+            # Get primary client participant from pre-fetched dict
+            primary_client = participants_by_tx.get(tx.id)
             
             # Calculate commission from contact's potential_commission
             commission = 0

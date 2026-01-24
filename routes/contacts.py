@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task
 from feature_flags import can_access_transactions
 from forms import ContactForm
 from services import supabase_storage
@@ -8,6 +8,7 @@ from services.tenant_service import org_query, can_view_all_org_data, org_can_ad
 import csv
 from io import StringIO
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload, selectinload
 from datetime import datetime
 import pytz
 
@@ -39,36 +40,42 @@ def format_phone_number(phone):
 @contacts_bp.route('/contact/<int:contact_id>')
 @login_required
 def view_contact(contact_id):
-    # Multi-tenant: Get contact within org
-    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+    # Multi-tenant: Get contact within org with eager loading for related data
+    contact = org_query(Contact).options(
+        selectinload(Contact.tasks).joinedload(Task.task_type),
+        joinedload(Contact.groups)
+    ).filter_by(id=contact_id).first_or_404()
     
     # Check permission: admins can see all contacts in org, others only their own
     if not can_view_all_org_data() and contact.user_id != current_user.id:
         abort(403)
 
-    # Multi-tenant: Get next/prev contacts within same user and org
-    next_contact = org_query(Contact).filter(
-        Contact.user_id == contact.user_id,
-        Contact.first_name > contact.first_name
-    ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
-
-    # If no next contact (we're at the end), get the first contact
-    if not next_contact:
-        next_contact = org_query(Contact).filter(
-            Contact.user_id == contact.user_id
-        ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).first()
-
-    # Get the previous contact in alphabetical order
-    prev_contact = org_query(Contact).filter(
-        Contact.user_id == contact.user_id,
-        Contact.first_name < contact.first_name
-    ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
-
-    # If no previous contact (we're at the start), get the last contact
-    if not prev_contact:
-        prev_contact = org_query(Contact).filter(
-            Contact.user_id == contact.user_id
-        ).order_by(Contact.first_name.desc(), Contact.last_name.desc()).first()
+    # Multi-tenant: Get next/prev contacts with single query instead of 4
+    sibling_contacts = org_query(Contact).filter(
+        Contact.user_id == contact.user_id
+    ).with_entities(
+        Contact.id, Contact.first_name, Contact.last_name
+    ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).all()
+    
+    # Find current contact position and get prev/next
+    next_contact = None
+    prev_contact = None
+    current_idx = None
+    for i, (cid, fname, lname) in enumerate(sibling_contacts):
+        if cid == contact.id:
+            current_idx = i
+            break
+    
+    if current_idx is not None and len(sibling_contacts) > 1:
+        # Next: wrap to first if at end
+        next_idx = (current_idx + 1) % len(sibling_contacts)
+        nid, nfname, nlname = sibling_contacts[next_idx]
+        next_contact = type('Contact', (), {'id': nid, 'first_name': nfname, 'last_name': nlname})()
+        
+        # Prev: wrap to last if at start
+        prev_idx = (current_idx - 1) % len(sibling_contacts)
+        pid, pfname, plname = sibling_contacts[prev_idx]
+        prev_contact = type('Contact', (), {'id': pid, 'first_name': pfname, 'last_name': plname})()
 
     # Check if it's an AJAX request
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -113,8 +120,9 @@ def view_contact(contact_id):
             } for task in active_tasks]
         })
 
-    # Multi-tenant: Get groups within org
-    all_groups = org_query(ContactGroup).all()
+    # Multi-tenant: Get groups within org (cached)
+    from services.cache_helpers import get_org_contact_groups
+    all_groups = get_org_contact_groups(current_user.organization_id)
     user_tz = get_user_timezone()
     now = datetime.now(user_tz)
 

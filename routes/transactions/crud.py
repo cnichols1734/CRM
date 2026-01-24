@@ -10,6 +10,7 @@ from models import (
     db, Transaction, TransactionType, TransactionParticipant,
     TransactionDocument, Contact, ContactFile
 )
+from sqlalchemy.orm import joinedload, selectinload
 from services import audit_service
 from . import transactions_bp
 from .decorators import transactions_required
@@ -74,28 +75,33 @@ def list_transactions():
             )
         )
     
-    # Order by most recent first
-    transactions = query.order_by(Transaction.created_at.desc()).all()
+    # Order by most recent first (participants is dynamic, can't eager load)
+    transactions = query.options(
+        joinedload(Transaction.transaction_type)
+    ).order_by(Transaction.created_at.desc()).all()
     
-    # Build a dict of primary contacts for each transaction
+    # Pre-fetch all primary participants for these transactions in one query
+    tx_ids = [tx.id for tx in transactions]
     transaction_contacts = {}
-    for tx in transactions:
-        # Get the primary client participant (seller, buyer, etc.)
-        primary_participant = tx.participants.filter_by(is_primary=True).filter(
+    if tx_ids:
+        primary_participants = TransactionParticipant.query.options(
+            joinedload(TransactionParticipant.contact)
+        ).filter(
+            TransactionParticipant.transaction_id.in_(tx_ids),
+            TransactionParticipant.is_primary == True,
             TransactionParticipant.role.in_(['seller', 'buyer', 'landlord', 'tenant', 'referral_client'])
-        ).first()
-        if primary_participant:
-            transaction_contacts[tx.id] = {
-                'name': primary_participant.display_name,
-                'email': primary_participant.display_email,
-                'contact_id': primary_participant.contact_id
+        ).all()
+        
+        for p in primary_participants:
+            transaction_contacts[p.transaction_id] = {
+                'name': p.display_name,
+                'email': p.display_email,
+                'contact_id': p.contact_id
             }
     
-    # Get transaction types for filter dropdown (org-scoped)
-    transaction_types = TransactionType.query.filter_by(
-        organization_id=current_user.organization_id,
-        is_active=True
-    ).order_by(TransactionType.sort_order).all()
+    # Get transaction types for filter dropdown (org-scoped, cached)
+    from services.cache_helpers import get_org_transaction_types
+    transaction_types = get_org_transaction_types(current_user.organization_id)
     
     return render_template(
         'transactions/list.html',
@@ -118,11 +124,9 @@ def list_transactions():
 @transactions_required
 def new_transaction():
     """Show the create transaction form."""
-    # Get transaction types for selection (org-scoped)
-    transaction_types = TransactionType.query.filter_by(
-        organization_id=current_user.organization_id,
-        is_active=True
-    ).order_by(TransactionType.sort_order).all()
+    # Get transaction types for selection (org-scoped, cached)
+    from services.cache_helpers import get_org_transaction_types
+    transaction_types = get_org_transaction_types(current_user.organization_id)
     
     # Get contacts for the current user (for contact selection)
     contacts = Contact.query.filter_by(user_id=current_user.id)\
@@ -284,17 +288,24 @@ def view_transaction(id):
     """View a single transaction."""
     from datetime import datetime
     
-    transaction = Transaction.query.get_or_404(id)
+    # Load transaction with transaction_type (participants/documents are dynamic, loaded separately)
+    transaction = Transaction.query.options(
+        joinedload(Transaction.transaction_type)
+    ).get_or_404(id)
     
     # Ensure user owns this transaction or is admin
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    # Get participants grouped by role
-    participants = transaction.participants.all()
+    # Load participants with contacts in one query
+    participants = TransactionParticipant.query.options(
+        joinedload(TransactionParticipant.contact)
+    ).filter_by(transaction_id=id).all()
     
-    # Get documents
-    documents = transaction.documents.order_by(TransactionDocument.created_at).all()
+    # Load documents sorted by created_at
+    documents = TransactionDocument.query.filter_by(
+        transaction_id=id
+    ).order_by(TransactionDocument.created_at).all()
     
     # Get files from all contacts associated with this transaction
     contact_ids = [p.contact_id for p in participants if p.contact_id]
@@ -307,8 +318,8 @@ def view_transaction(id):
     # For seller transactions, extract listing info from the listing agreement document
     listing_info = None
     if transaction.transaction_type.name == 'seller':
-        # Find the listing agreement document
-        listing_doc = transaction.documents.filter_by(template_slug='listing-agreement').first()
+        # Find the listing agreement document (use Python filter on already-loaded documents)
+        listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
         if listing_doc and listing_doc.status != 'pending' and listing_doc.field_data:
             field_data = listing_doc.field_data
             # Build listing info from field data
@@ -376,10 +387,9 @@ def edit_transaction(id):
         abort(403)
     
     # Get transaction types (org-scoped)
-    transaction_types = TransactionType.query.filter_by(
-        organization_id=current_user.organization_id,
-        is_active=True
-    ).order_by(TransactionType.sort_order).all()
+    # Cached transaction types
+    from services.cache_helpers import get_org_transaction_types
+    transaction_types = get_org_transaction_types(current_user.organization_id)
     
     return render_template(
         'transactions/edit.html',
