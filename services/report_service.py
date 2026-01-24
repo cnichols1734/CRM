@@ -6,7 +6,7 @@ All queries are automatically org-scoped for multi-tenant security.
 
 from datetime import datetime, date, timedelta
 from decimal import Decimal
-from sqlalchemy import func, case, and_, or_, extract
+from sqlalchemy import func, case, and_, or_, extract, distinct
 from sqlalchemy.orm import joinedload
 from flask_login import current_user
 
@@ -789,6 +789,296 @@ class ReportService:
         return {
             'rows': rows,
             'totals': {'total': len(signatures)}
+        }
+
+    # =========================================================================
+    # NEW STREAMLINED REPORTS (2026 Redesign)
+    # =========================================================================
+
+    def get_hot_leads_scorecard(self, user_id=None):
+        """
+        Get prioritized contact list ranked by potential_commission × days_since_contact.
+        Combines contact engagement + high-value stale contacts into one actionable view.
+        """
+        today = date.today()
+        query = org_query(Contact)
+        query = self._apply_user_filter(query, Contact, user_id)
+        contacts = query.all()
+
+        hot = warm = cold = 0
+        rows = []
+
+        for contact in contacts:
+            if contact.last_contact_date:
+                days_since = (today - contact.last_contact_date).days
+            else:
+                days_since = 999  # Never contacted - high priority
+
+            # Engagement status
+            if days_since <= 30:
+                status = 'hot'
+                hot += 1
+            elif days_since <= 90:
+                status = 'warm'
+                warm += 1
+            else:
+                status = 'cold'
+                cold += 1
+
+            # Priority score: commission × days (higher = more urgent to contact)
+            commission = float(contact.potential_commission) if contact.potential_commission else 0
+            priority_score = commission * min(days_since, 365)  # Cap at 1 year
+
+            groups = ', '.join([g.name for g in contact.groups]) if contact.groups else ''
+
+            rows.append({
+                'id': contact.id,
+                'full_name': f'{contact.first_name} {contact.last_name}',
+                'email': contact.email or '',
+                'phone': contact.phone or '',
+                'potential_commission': commission,
+                'last_contact_date': contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never',
+                'days_since_contact': days_since if days_since < 999 else None,
+                'engagement_status': status,
+                'priority_score': priority_score,
+                'groups': groups
+            })
+
+        # Sort by priority score descending (highest priority first)
+        rows.sort(key=lambda x: x['priority_score'], reverse=True)
+
+        chart_data = {
+            'labels': ['Hot (< 30 days)', 'Warm (30-90 days)', 'Cold (> 90 days)'],
+            'values': [hot, warm, cold]
+        }
+
+        return {
+            'chart_data': chart_data,
+            'rows': rows,
+            'totals': {
+                'total': len(contacts),
+                'hot': hot,
+                'warm': warm,
+                'cold': cold,
+                'priority_contacts': len([r for r in rows if r['priority_score'] > 50000])
+            }
+        }
+
+    def get_at_risk_deals(self, user_id=None):
+        """
+        Get deals at risk: stale (no activity 14+ days), past expected close, or missing docs.
+        Combines multiple warning signals into one actionable view.
+        """
+        today = date.today()
+        now = datetime.utcnow()
+        stale_threshold = now - timedelta(days=14)
+
+        query = org_query(Transaction).join(
+            TransactionType, Transaction.transaction_type_id == TransactionType.id
+        ).filter(
+            Transaction.status.in_(['preparing_to_list', 'active', 'under_contract'])
+        )
+        query = self._apply_user_filter(query, Transaction, user_id)
+        transactions = query.all()
+
+        # Fetch participants
+        tx_ids = [t.id for t in transactions]
+        participants = TransactionParticipant.query.filter(
+            TransactionParticipant.transaction_id.in_(tx_ids),
+            TransactionParticipant.is_primary == True
+        ).all() if tx_ids else []
+        participant_map = {p.transaction_id: p for p in participants}
+
+        rows = []
+        for tx in transactions:
+            risk_reasons = []
+            days_since_update = (now - tx.updated_at).days if tx.updated_at else 0
+
+            # Check: Stale (no activity 14+ days)
+            if tx.updated_at and tx.updated_at < stale_threshold:
+                risk_reasons.append(f'No activity {days_since_update} days')
+
+            # Check: Past expected close date
+            if tx.expected_close_date and tx.expected_close_date < today:
+                days_past = (today - tx.expected_close_date).days
+                risk_reasons.append(f'Past close date by {days_past} days')
+
+            # Only include if there's at least one risk factor
+            if not risk_reasons:
+                continue
+
+            participant = participant_map.get(tx.id)
+            rows.append({
+                'id': tx.id,
+                'street_address': tx.street_address,
+                'city': tx.city or '',
+                'client_name': participant.display_name if participant else '',
+                'status': tx.status,
+                'risk_reason': '; '.join(risk_reasons),
+                'days_since_update': days_since_update,
+                'expected_close_date': tx.expected_close_date.strftime('%m/%d/%Y') if tx.expected_close_date else ''
+            })
+
+        # Sort by most urgent (longest time without activity)
+        rows.sort(key=lambda x: x['days_since_update'], reverse=True)
+
+        return {
+            'rows': rows,
+            'totals': {'total': len(rows)}
+        }
+
+    def get_weekly_activity_summary(self, user_id=None):
+        """
+        Get weekly activity digest: interactions this week, contacts touched, untouched high-value.
+        """
+        today = date.today()
+        week_start = today - timedelta(days=7)
+
+        # Get interactions from last 7 days
+        interaction_query = org_query(Interaction).filter(
+            Interaction.date >= week_start
+        )
+        interaction_query = self._apply_user_filter(interaction_query, Interaction, user_id)
+        interactions = interaction_query.all()
+
+        # Count by type
+        type_counts = {}
+        touched_contact_ids = set()
+        for interaction in interactions:
+            itype = interaction.type or 'other'
+            type_counts[itype] = type_counts.get(itype, 0) + 1
+            touched_contact_ids.add(interaction.contact_id)
+
+        # Get high-value contacts not touched this week
+        contact_query = org_query(Contact).filter(
+            Contact.potential_commission >= 5000,
+            ~Contact.id.in_(touched_contact_ids) if touched_contact_ids else True
+        )
+        contact_query = self._apply_user_filter(contact_query, Contact, user_id)
+        untouched_hv = contact_query.count()
+
+        chart_data = {
+            'labels': list(type_counts.keys()) if type_counts else ['No Activity'],
+            'values': list(type_counts.values()) if type_counts else [0]
+        }
+
+        rows = [{
+            'metric': 'Total Interactions',
+            'value': len(interactions)
+        }, {
+            'metric': 'Contacts Touched',
+            'value': len(touched_contact_ids)
+        }, {
+            'metric': 'High-Value Untouched',
+            'value': untouched_hv
+        }]
+
+        # Add breakdown by type
+        for itype, count in sorted(type_counts.items(), key=lambda x: x[1], reverse=True):
+            rows.append({
+                'metric': f'{itype.title()} Interactions',
+                'value': count
+            })
+
+        return {
+            'chart_data': chart_data,
+            'rows': rows,
+            'totals': {
+                'total_interactions': len(interactions),
+                'contacts_touched': len(touched_contact_ids),
+                'untouched_high_value': untouched_hv,
+                'weekly_touches': len(interactions)
+            }
+        }
+
+    def get_report_preview_metrics(self, user_id=None):
+        """
+        Get preview metrics for all reports on the landing page.
+        Returns a dict of metric_key: value for live badges.
+        """
+        today = date.today()
+        now = datetime.utcnow()
+        org_id = current_user.organization_id
+
+        # Base queries with optional user filtering
+        tx_query = Transaction.query.filter(Transaction.organization_id == org_id)
+        contact_query = Contact.query.filter(Contact.organization_id == org_id)
+        task_query = Task.query.filter(Task.organization_id == org_id)
+
+        if user_id:
+            tx_query = tx_query.filter(Transaction.created_by_id == user_id)
+            contact_query = contact_query.filter(Contact.user_id == user_id)
+            task_query = task_query.filter(Task.assigned_to_id == user_id)
+
+        # Active deals
+        active_statuses = ['preparing_to_list', 'active', 'under_contract']
+        active_deals = tx_query.filter(Transaction.status.in_(active_statuses)).count()
+
+        # Closing soon (this month)
+        month_end = date(today.year, today.month + 1, 1) - timedelta(days=1) if today.month < 12 else date(today.year + 1, 1, 1) - timedelta(days=1)
+        closing_soon = tx_query.filter(
+            Transaction.expected_close_date >= today,
+            Transaction.expected_close_date <= month_end,
+            Transaction.status.notin_(['closed', 'cancelled'])
+        ).count()
+
+        # At-risk deals (stale 14+ days)
+        stale_threshold = now - timedelta(days=14)
+        at_risk = tx_query.filter(
+            Transaction.status.in_(active_statuses),
+            Transaction.updated_at < stale_threshold
+        ).count()
+
+        # Priority contacts (cold with $5k+ commission)
+        threshold_date = today - timedelta(days=90)
+        priority_contacts = contact_query.filter(
+            Contact.potential_commission >= 5000,
+            or_(Contact.last_contact_date < threshold_date, Contact.last_contact_date == None)
+        ).count()
+
+        # Overdue tasks
+        today_datetime = datetime.combine(today, datetime.min.time())
+        overdue_tasks = task_query.filter(
+            Task.status == 'pending',
+            Task.due_date < today_datetime
+        ).count()
+
+        # Weekly touches (last 7 days interactions)
+        week_start = today - timedelta(days=7)
+        interaction_query = Interaction.query.filter(
+            Interaction.organization_id == org_id,
+            Interaction.date >= week_start
+        )
+        if user_id:
+            interaction_query = interaction_query.filter(Interaction.user_id == user_id)
+        weekly_touches = interaction_query.count()
+
+        # Pending docs (count DISTINCT documents with at least one pending signature)
+        pending_docs = db.session.query(func.count(distinct(TransactionDocument.id))).join(
+            DocumentSignature, TransactionDocument.id == DocumentSignature.document_id
+        ).join(
+            Transaction, TransactionDocument.transaction_id == Transaction.id
+        ).filter(
+            Transaction.organization_id == org_id,
+            DocumentSignature.status.in_(['pending', 'sent', 'viewed'])
+        ).scalar()
+
+        # Closed YTD
+        year_start = date(today.year, 1, 1)
+        closed_ytd = tx_query.filter(
+            Transaction.status == 'closed',
+            Transaction.actual_close_date >= year_start
+        ).count()
+
+        return {
+            'active_deals': active_deals,
+            'closing_soon': closing_soon,
+            'at_risk': at_risk,
+            'priority_contacts': priority_contacts,
+            'overdue_tasks': overdue_tasks,
+            'weekly_touches': weekly_touches,
+            'pending_docs': pending_docs,
+            'closed_ytd': closed_ytd
         }
 
     # =========================================================================

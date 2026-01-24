@@ -4,76 +4,100 @@
 <style>
     /* Premium animations */
     @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
-    @keyframes shimmer {
-        0% { background-position: -200% 0; }
-        100% { background-position: 200% 0; }
-    }
+
     .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
+        animation: fadeInUp 0.5s ease-out forwards;
     }
+
     .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
+        animation: fadeInUp 0.5s ease-out 0.1s forwards;
         opacity: 0;
     }
+
     .animate-fade-in-up-delay-2 {
-        animation: fadeInUp 0.6s ease-out 0.2s forwards;
+        animation: fadeInUp 0.5s ease-out 0.2s forwards;
         opacity: 0;
     }
+
     .animate-fade-in-up-delay-3 {
-        animation: fadeInUp 0.6s ease-out 0.3s forwards;
-        opacity: 0;
-    }
-    .animate-fade-in-up-delay-4 {
-        animation: fadeInUp 0.6s ease-out 0.4s forwards;
-        opacity: 0;
-    }
-    .animate-fade-in-up-delay-5 {
-        animation: fadeInUp 0.6s ease-out 0.5s forwards;
+        animation: fadeInUp 0.5s ease-out 0.3s forwards;
         opacity: 0;
     }
 
-    /* Premium card hover effects */
-    .report-category-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .report-category-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+    /* Report card hover effects */
+    .report-card {
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .report-item {
-        transition: all 0.2s ease-out;
-    }
-    .report-item:hover {
-        background: linear-gradient(135deg, rgba(249, 115, 22, 0.05) 0%, rgba(249, 115, 22, 0.02) 100%);
-        transform: translateX(4px);
+    .report-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
     }
 
-    /* Category colors */
-    .category-blue { --category-color: #3B82F6; --category-bg: #EFF6FF; }
-    .category-amber { --category-color: #F59E0B; --category-bg: #FFFBEB; }
-    .category-emerald { --category-color: #10B981; --category-bg: #ECFDF5; }
-    .category-purple { --category-color: #8B5CF6; --category-bg: #F5F3FF; }
-    .category-rose { --category-color: #F43F5E; --category-bg: #FFF1F2; }
-
-    .category-icon {
-        background: var(--category-bg);
-        color: var(--category-color);
+    /* Category styling */
+    .category-emerald {
+        --cat-color: #10B981;
+        --cat-bg: #ECFDF5;
+        --cat-border: #A7F3D0;
     }
 
-    /* Gradient text */
-    .gradient-text {
-        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+    .category-amber {
+        --cat-color: #F59E0B;
+        --cat-bg: #FFFBEB;
+        --cat-border: #FDE68A;
+    }
+
+    .category-blue {
+        --cat-color: #3B82F6;
+        --cat-bg: #EFF6FF;
+        --cat-border: #BFDBFE;
+    }
+
+    .category-header {
+        border-left: 4px solid var(--cat-color);
+        background: linear-gradient(135deg, var(--cat-bg) 0%, white 100%);
+    }
+
+    /* Report Badge Pill - minimal style */
+    .report-badge-pill {
+        font-size: 0.75rem;
+        font-weight: 600;
+        min-width: 1.25rem;
+        padding: 0 0.2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+    .report-badge-pill.alert {
+        color: #DC2626;
+        background: #FEF2F2;
+        padding: 0.1rem 0.4rem;
+        border-radius: 9999px;
+    }
+
+    .report-badge-pill.normal {
+        color: #9CA3AF;
+        background: transparent;
+        border: none;
+    }
+
+    .report-badge-pill.success {
+        color: #059669;
+        background: transparent;
+        border: none;
     }
 </style>
 {% endblock %}
@@ -82,110 +106,135 @@
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
     <!-- Header Section -->
     <div class="px-4 sm:px-6 lg:px-8 pt-8 pb-6">
-        <div class="max-w-7xl mx-auto">
+        <div class="max-w-5xl mx-auto">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 animate-fade-in-up">
                 <div class="flex items-center gap-4">
-                    <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/25">
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/25">
                         <i class="fas fa-chart-pie text-white text-2xl"></i>
                     </div>
                     <div>
                         <h1 class="text-3xl font-bold text-slate-800">Reports</h1>
-                        <p class="text-slate-500 mt-1">Powerful insights to grow your business</p>
+                        <p class="text-slate-500 mt-1">Focus on what grows your business</p>
                     </div>
                 </div>
+                {% if can_view_all %}
+                <div class="flex items-center gap-2 bg-white rounded-xl px-3 py-2 shadow-sm border border-slate-200">
+                    <span class="text-sm text-slate-500">Viewing:</span>
+                    <a href="?view=my"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-orange-500 text-white' if view_mode == 'my' else 'text-slate-600 hover:bg-slate-100' }}">
+                        My Data
+                    </a>
+                    <a href="?view=all"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors {{ 'bg-orange-500 text-white' if view_mode == 'all' else 'text-slate-600 hover:bg-slate-100' }}">
+                        All Team
+                    </a>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="px-4 sm:px-6 lg:px-8 pb-12">
-        <div class="max-w-7xl mx-auto">
-            <!-- Report Categories Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% set delay_counter = [1] %}
-                {% for cat_id, category in categories.items() %}
-                <div class="report-category-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden animate-fade-in-up-delay-{{ delay_counter[0] }}">
-                    <!-- Category Header -->
-                    <div class="p-6 border-b border-slate-100 category-{{ category.color }}">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-xl flex items-center justify-center category-icon">
-                                <i class="fas {{ category.icon }} text-xl"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-lg font-semibold text-slate-800">{{ category.name }}</h2>
-                                <p class="text-sm text-slate-500">{{ category.description }}</p>
-                            </div>
+        <div class="max-w-5xl mx-auto space-y-8">
+            {% for cat_id, category in categories.items() %}
+            <div class="animate-fade-in-up-delay-{{ loop.index }}">
+                <!-- Category Header -->
+                <div class="category-{{ category.color }} category-header p-4 rounded-t-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-lg flex items-center justify-center"
+                            style="background: var(--cat-color); opacity: 0.9;">
+                            <i class="fas {{ category.icon }} text-white text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-800">{{ category.name }}</h2>
+                            <p class="text-sm text-slate-500">{{ category.description }}</p>
                         </div>
                     </div>
+                </div>
 
-                    <!-- Report List -->
-                    <div class="divide-y divide-slate-100">
+                <!-- Report Cards Grid -->
+                <div class="bg-white rounded-b-xl shadow-sm border border-slate-200 border-t-0 p-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {% for report in category.reports %}
                         <a href="{{ url_for('reports.view_report', report_id=report.id) }}"
-                           class="report-item block p-4 hover:bg-slate-50">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="fas {{ report.icon }} text-slate-500 text-sm"></i>
+                            class="report-card block bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-all duration-200">
+                            <div class="flex items-start gap-3 w-full">
+                                <!-- Icon -->
+                                <div
+                                    class="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="fas {{ report.icon }} text-slate-500"></i>
                                 </div>
-                                <div class="min-w-0 flex-1">
-                                    <h3 class="font-medium text-slate-800 truncate">{{ report.name }}</h3>
-                                    <p class="text-xs text-slate-500 truncate">{{ report.description }}</p>
+
+                                <!-- Text Content -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <h3 class="font-medium text-slate-800 leading-tight">{{ report.name }}</h3>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{{
+                                        report.description }}</p>
                                 </div>
-                                <i class="fas fa-chevron-right text-slate-300 text-sm"></i>
+
+                                <!-- Badge (Right Aligned Column) -->
+                                {% if report.preview_metric and metrics %}
+                                {% set metric_value = metrics.get(report.preview_metric, 0) %}
+                                {% if metric_value > 0 %}
+                                <div class="flex-shrink-0 ml-1">
+                                    <span
+                                        class="report-badge-pill {{ 'alert' if report.alert_if_nonzero else 'normal' }}">{{
+                                        metric_value }}</span>
+                                </div>
+                                {% endif %}
+                                {% endif %}
                             </div>
                         </a>
                         {% endfor %}
                     </div>
                 </div>
-                {% set _ = delay_counter.append(delay_counter.pop() + 1) %}
-                {% if delay_counter[0] > 5 %}{% set _ = delay_counter.pop() %}{% set _ = delay_counter.append(1) %}{% endif %}
-                {% endfor %}
             </div>
+            {% endfor %}
 
-            <!-- Quick Tips Section -->
-            <div class="mt-12 animate-fade-in-up-delay-3">
-                <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 text-white relative overflow-hidden">
+            <!-- Quick Summary Cards -->
+            <div class="animate-fade-in-up-delay-3">
+                <div
+                    class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white relative overflow-hidden">
                     <!-- Decorative elements -->
-                    <div class="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-orange-500/20 to-transparent rounded-full blur-3xl"></div>
-                    <div class="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-blue-500/20 to-transparent rounded-full blur-3xl"></div>
+                    <div
+                        class="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-orange-500/20 to-transparent rounded-full blur-3xl">
+                    </div>
+                    <div
+                        class="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-blue-500/20 to-transparent rounded-full blur-3xl">
+                    </div>
 
                     <div class="relative z-10">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
-                                <i class="fas fa-lightbulb text-amber-400"></i>
+                        <div class="flex items-center gap-3 mb-5">
+                            <div class="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-bolt text-amber-400"></i>
                             </div>
-                            <h3 class="text-xl font-semibold">Pro Tips for Better Reporting</h3>
+                            <h3 class="text-lg font-semibold">Quick Stats</h3>
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-                            <div class="flex gap-3">
-                                <div class="w-8 h-8 bg-emerald-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-calendar-alt text-emerald-400 text-sm"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-medium text-white/90">Use Date Filters</h4>
-                                    <p class="text-sm text-white/60 mt-1">Filter reports by time period to spot trends and compare performance.</p>
-                                </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                                <div class="text-2xl font-bold text-white">{{ metrics.closed_ytd or 0 }}</div>
+                                <div class="text-sm text-white/70 mt-1">Closed YTD</div>
                             </div>
-
-                            <div class="flex gap-3">
-                                <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-download text-blue-400 text-sm"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-medium text-white/90">Export to CSV</h4>
-                                    <p class="text-sm text-white/60 mt-1">Download any report for further analysis in Excel or Google Sheets.</p>
-                                </div>
+                            <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                                <div class="text-2xl font-bold text-white">{{ metrics.active_deals or 0 }}</div>
+                                <div class="text-sm text-white/70 mt-1">Active Deals</div>
                             </div>
-
-                            <div class="flex gap-3">
-                                <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="fas fa-heartbeat text-purple-400 text-sm"></i>
-                                </div>
-                                <div>
-                                    <h4 class="font-medium text-white/90">Monitor Engagement</h4>
-                                    <p class="text-sm text-white/60 mt-1">Check Contact Engagement regularly to keep relationships warm.</p>
-                                </div>
+                            <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                                <div
+                                    class="text-2xl font-bold {{ 'text-red-400' if (metrics.at_risk or 0) > 0 else 'text-white' }}">
+                                    {{ metrics.at_risk or 0 }}</div>
+                                <div class="text-sm text-white/70 mt-1">At Risk</div>
+                            </div>
+                            <div class="bg-white/10 backdrop-blur rounded-xl p-4">
+                                <div
+                                    class="text-2xl font-bold {{ 'text-amber-400' if (metrics.overdue_tasks or 0) > 0 else 'text-white' }}">
+                                    {{ metrics.overdue_tasks or 0 }}</div>
+                                <div class="text-sm text-white/70 mt-1">Overdue Tasks</div>
                             </div>
                         </div>
                     </div>
