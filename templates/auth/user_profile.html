@@ -269,6 +269,33 @@
                                 </form>
                             </div>
                             
+                            <!-- Calendar Sync Toggle -->
+                            <div class="mt-4 pt-4 border-t border-slate-100">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                                            <i class="fas fa-calendar text-white text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <p class="font-medium text-slate-700 text-sm">Calendar Sync</p>
+                                            <p class="text-xs text-slate-500">Sync tasks to Google Calendar</p>
+                                        </div>
+                                    </div>
+                                    <form method="POST" action="{{ url_for('gmail.toggle_calendar_sync') }}" class="inline">
+                                        <button type="submit" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {% if gmail_integration.calendar_sync_enabled %}bg-blue-600{% else %}bg-slate-200{% endif %}">
+                                            <span class="sr-only">Toggle calendar sync</span>
+                                            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {% if gmail_integration.calendar_sync_enabled %}translate-x-5{% else %}translate-x-0{% endif %}"></span>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% if gmail_integration.calendar_sync_enabled %}
+                                <p class="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                                    <i class="fas fa-check-circle"></i>
+                                    Tasks will sync to your Google Calendar
+                                </p>
+                                {% endif %}
+                            </div>
+                            
                         {% else %}
                             <!-- Disconnected State -->
                             <div class="text-center py-4">

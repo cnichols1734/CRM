@@ -70,6 +70,64 @@ Toggle features on/off in `feature_flags.py`. Changes deploy with git pull - no 
 - **Local test DB**: is the same db in supabase that we use for prod so be careful
 - **Production data backup**: `instance/crm (1).db`
 
+## Database Migrations
+
+This project uses Flask-Migrate (Alembic) for database migrations, managed through `manage_db.py`.
+
+### Migration Commands
+| Command | Description |
+|---------|-------------|
+| `python3 manage_db.py status` | Show current migration head and history |
+| `python3 manage_db.py upgrade` | Apply pending migrations to database |
+| `python3 manage_db.py migrate "message"` | Auto-generate a new migration |
+| `python3 manage_db.py backup` | Create database backup (SQLite only) |
+
+### Creating a New Migration (CRITICAL)
+
+**ALWAYS check the current head before creating a migration:**
+
+```bash
+python3 manage_db.py status
+```
+
+Look for the **Current revision** line - this is the head your migration must depend on.
+
+**When writing a migration file manually** (in `migrations/versions/`):
+1. Set `down_revision` to the current head revision ID (e.g., `'4fc5aacd858e'`)
+2. Use a descriptive `revision` ID (e.g., `'add_google_calendar_sync'`)
+3. Use `IF NOT EXISTS` / `IF EXISTS` in SQL for safety
+
+**Example migration file structure:**
+```python
+revision = 'add_my_feature'
+down_revision = '<CURRENT_HEAD_ID>'  # Get this from `manage_db.py status`
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    op.execute("""
+        ALTER TABLE my_table
+        ADD COLUMN IF NOT EXISTS my_column VARCHAR(255);
+    """)
+
+def downgrade():
+    op.execute("""
+        ALTER TABLE my_table
+        DROP COLUMN IF EXISTS my_column;
+    """)
+```
+
+### Common Migration Issues
+
+**Multiple head revisions error:**
+If you see "Multiple head revisions are present", your migration's `down_revision` points to an old revision. Fix by updating `down_revision` to the actual current head.
+
+**Running migrations:**
+After creating or updating a migration file, run:
+```bash
+python3 manage_db.py upgrade
+```
+
 ## PR & Commit Rules
 Always use the PR workflow - commit changes to a branch and push for review in GitHub.
 
