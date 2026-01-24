@@ -404,11 +404,13 @@ def manage_users():
         organization_id=current_user.organization_id
     ).order_by(User.created_at.desc()).all()
     
-    # Get action plan status for each user
-    action_plan_status = {}
-    for user in users:
-        plan = ActionPlan.get_for_user(user.id)
-        action_plan_status[user.id] = plan is not None and plan.ai_generated_plan is not None
+    # Get action plan status for all users in one query (avoid N+1)
+    user_ids = [u.id for u in users]
+    plans_with_content = ActionPlan.query.filter(
+        ActionPlan.user_id.in_(user_ids),
+        ActionPlan.ai_generated_plan.isnot(None)
+    ).with_entities(ActionPlan.user_id).all()
+    action_plan_status = {user_id: True for (user_id,) in plans_with_content}
     return render_template('admin/manage_users.html', users=users, format_datetime=format_datetime_cst, action_plan_status=action_plan_status)
 
 @auth_bp.route('/user/<int:user_id>/action-plan')

@@ -95,18 +95,56 @@ def generate_excerpt(content, max_length=200):
 @login_required
 def list_updates():
     """List all company updates in reverse chronological order."""
-    # Filter by organization for multi-tenancy
-    updates = CompanyUpdate.query.filter_by(
+    from sqlalchemy import func
+    from sqlalchemy.orm import joinedload
+    
+    # Filter by organization for multi-tenancy, eager load author
+    updates = CompanyUpdate.query.options(
+        joinedload(CompanyUpdate.author)
+    ).filter_by(
         organization_id=current_user.organization_id
     ).order_by(CompanyUpdate.created_at.desc()).all()
     
-    # Prepare engagement data for each update
+    # Pre-fetch all engagement data in batch queries (avoid N+1)
+    update_ids = [u.id for u in updates]
+    
+    # Batch load reaction counts: one query for all updates
+    reaction_counts_query = db.session.query(
+        CompanyUpdateReaction.update_id,
+        CompanyUpdateReaction.reaction_type,
+        func.count(CompanyUpdateReaction.id)
+    ).filter(
+        CompanyUpdateReaction.update_id.in_(update_ids)
+    ).group_by(
+        CompanyUpdateReaction.update_id,
+        CompanyUpdateReaction.reaction_type
+    ).all()
+    
+    # Build reaction counts dict: {update_id: {type: count}}
+    reaction_counts_by_update = {}
+    for update_id, reaction_type, count in reaction_counts_query:
+        if update_id not in reaction_counts_by_update:
+            reaction_counts_by_update[update_id] = {}
+        reaction_counts_by_update[update_id][reaction_type] = count
+    
+    # Batch load comment counts: one query for all updates
+    comment_counts_query = db.session.query(
+        CompanyUpdateComment.update_id,
+        func.count(CompanyUpdateComment.id)
+    ).filter(
+        CompanyUpdateComment.update_id.in_(update_ids)
+    ).group_by(CompanyUpdateComment.update_id).all()
+    
+    comment_counts_by_update = {update_id: count for update_id, count in comment_counts_query}
+    
+    # Build engagement data from pre-fetched results
     engagement_data = {}
     for update in updates:
+        reaction_counts = reaction_counts_by_update.get(update.id, {})
         engagement_data[update.id] = {
-            'reaction_counts': update.get_reaction_counts(),
-            'comment_count': update.comments.count(),
-            'total_reactions': sum(update.get_reaction_counts().values())
+            'reaction_counts': reaction_counts,
+            'comment_count': comment_counts_by_update.get(update.id, 0),
+            'total_reactions': sum(reaction_counts.values())
         }
     
     return render_template('company_updates/list.html', 
