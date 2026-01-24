@@ -67,6 +67,7 @@ TIER_FEATURES = {
 FEATURE_FLAGS = {
     'SHOW_DASHBOARD_JOKE': False,
     'TRANSACTIONS_ENABLED': True,
+    'REPORTS_ADMIN_ONLY': True,  # When True, only admins/owners can access Reports
 }
 
 
@@ -249,6 +250,24 @@ def can_access_documents(user) -> bool:
         return False
     
     return org_has_feature('DOCUMENT_GENERATION', org)
+
+
+def can_access_reports(user) -> bool:
+    """
+    Check if user can access the Reports module.
+    If REPORTS_ADMIN_ONLY flag is True, only admins/owners can access.
+    If flag is False, all authenticated users can access.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    
+    # Check if reports are admin-only
+    if FEATURE_FLAGS.get('REPORTS_ADMIN_ONLY', True):
+        # Only org admins/owners can access
+        return user.org_role in ('owner', 'admin')
+    
+    # Reports available to all users
+    return True
 
 
 # =============================================================================
