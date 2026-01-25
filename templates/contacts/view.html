@@ -811,68 +811,31 @@
                     <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for tx in related_transactions %}
                         <a href="{{ url_for('transactions.view_transaction', id=tx.id, ref='contact', contact_id=contact.id) }}"
-                            class="block p-4 hover:bg-slate-50 transition-colors duration-150 group">
-                            <div class="flex items-start space-x-3">
-                                <!-- Type Indicator -->
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-9 h-9 rounded-lg flex items-center justify-center shadow-sm
-                                        {% if tx.transaction_type.name == 'seller' %}bg-gradient-to-br from-orange-400 to-orange-500
-                                        {% elif tx.transaction_type.name == 'buyer' %}bg-gradient-to-br from-purple-400 to-purple-500
-                                        {% elif tx.transaction_type.name == 'landlord' %}bg-gradient-to-br from-cyan-400 to-cyan-500
-                                        {% elif tx.transaction_type.name == 'tenant' %}bg-gradient-to-br from-green-400 to-green-500
-                                        {% else %}bg-gradient-to-br from-indigo-400 to-indigo-500{% endif %} text-white">
-                                        {% if tx.transaction_type.name == 'seller' %}
-                                        <i class="fas fa-home text-xs"></i>
-                                        {% elif tx.transaction_type.name == 'buyer' %}
-                                        <i class="fas fa-key text-xs"></i>
-                                        {% elif tx.transaction_type.name == 'landlord' %}
-                                        <i class="fas fa-building text-xs"></i>
-                                        {% elif tx.transaction_type.name == 'tenant' %}
-                                        <i class="fas fa-file-signature text-xs"></i>
-                                        {% else %}
-                                        <i class="fas fa-handshake text-xs"></i>
-                                        {% endif %}
-                                    </div>
-                                </div>
+                            class="block p-3 hover:bg-slate-50 transition-colors group">
+                            <div class="flex items-center gap-3">
+                                <!-- Simple colored icon -->
+                                <i class="fas fa-home flex-shrink-0
+                                    {% if tx.transaction_type.name == 'seller' %}text-orange-500
+                                    {% elif tx.transaction_type.name == 'buyer' %}text-purple-500
+                                    {% elif tx.transaction_type.name == 'landlord' %}text-cyan-500
+                                    {% elif tx.transaction_type.name == 'tenant' %}text-green-500
+                                    {% else %}text-indigo-500{% endif %}"></i>
 
                                 <!-- Transaction Content -->
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center space-x-2">
-                                        <span
-                                            class="text-sm font-medium text-slate-800 group-hover:text-orange-600 truncate transition-colors duration-150">
-                                            {{ tx.street_address }}
-                                        </span>
+                                    <span class="text-sm font-medium text-slate-800 group-hover:text-orange-600 truncate block transition-colors">
+                                        {{ tx.street_address }}
+                                    </span>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                        <span class="{% if tx.transaction_type.name == 'seller' %}text-orange-600{% elif tx.transaction_type.name == 'buyer' %}text-purple-600{% elif tx.transaction_type.name == 'landlord' %}text-cyan-600{% elif tx.transaction_type.name == 'tenant' %}text-green-600{% else %}text-indigo-600{% endif %}">{{ tx.transaction_type.display_name }}</span>
+                                        <span class="text-slate-300">·</span>
+                                        <span class="{% if tx.status == 'active' %}text-green-600{% elif tx.status == 'pending' %}text-amber-600{% elif tx.status == 'closed' %}text-indigo-600{% else %}text-slate-500{% endif %}">{{ tx.status|replace('_', ' ')|title }}</span>
                                     </div>
-                                    <div class="mt-1 flex items-center flex-wrap gap-2 text-xs">
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                            {% if tx.transaction_type.name == 'seller' %}bg-orange-100 text-orange-700
-                                            {% elif tx.transaction_type.name == 'buyer' %}bg-purple-100 text-purple-700
-                                            {% elif tx.transaction_type.name == 'landlord' %}bg-cyan-100 text-cyan-700
-                                            {% elif tx.transaction_type.name == 'tenant' %}bg-green-100 text-green-700
-                                            {% else %}bg-indigo-100 text-indigo-700{% endif %}">
-                                            {{ tx.transaction_type.display_name }}
-                                        </span>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                            {% if tx.status == 'draft' %}bg-slate-100 text-slate-600
-                                            {% elif tx.status == 'active' %}bg-green-100 text-green-700
-                                            {% elif tx.status == 'pending' %}bg-amber-100 text-amber-700
-                                            {% elif tx.status == 'under_contract' %}bg-blue-100 text-blue-700
-                                            {% elif tx.status == 'closed' %}bg-indigo-100 text-indigo-700
-                                            {% else %}bg-red-100 text-red-700{% endif %}">
-                                            {{ tx.status|replace('_', ' ')|title }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-1 text-xs text-slate-500">
-                                        {{ tx.created_at.strftime('%b %d, %Y') }}
-                                    </div>
+                                    <div class="text-xs text-slate-400 mt-0.5">{{ tx.created_at.strftime('%b %d, %Y') }}</div>
                                 </div>
 
                                 <!-- Arrow -->
-                                <div
-                                    class="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                                    <i class="fas fa-chevron-right text-slate-400 text-sm"></i>
-                                </div>
+                                <i class="fas fa-chevron-right text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"></i>
                             </div>
                         </a>
                         {% else %}
@@ -911,47 +874,34 @@
                     <div id="pendingTasks" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto',
                         'pending')|sort(attribute='due_date') %}
-                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
-                            <div class="flex items-start space-x-3">
-                                <!-- Priority Indicator -->
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-7 h-7 rounded-lg flex items-center justify-center shadow-sm {% if task.priority == 'high' %}bg-gradient-to-br from-red-400 to-red-500 text-white{% elif task.priority == 'medium' %}bg-gradient-to-br from-yellow-400 to-amber-500 text-white{% else %}bg-gradient-to-br from-green-400 to-emerald-500 text-white{% endif %}">
-                                        <i class="fas fa-flag text-xs"></i>
-                                    </div>
-                                </div>
+                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150">
+                            <div class="flex items-center gap-3">
+                                <!-- Priority dot -->
+                                <div class="w-2 h-2 rounded-full flex-shrink-0 {% if task.priority == 'high' %}bg-red-500{% elif task.priority == 'medium' %}bg-amber-500{% else %}bg-green-500{% endif %}"></div>
 
                                 <!-- Task Content -->
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center space-x-2">
-                                        <a href="#" data-task-id="{{ task.id }}"
-                                            class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate transition-colors duration-150">
-                                            {{ task.subject }}
-                                        </a>
-                                    </div>
-                                    <div class="mt-1 flex items-center space-x-2 text-xs text-slate-500">
-                                        <span
-                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
-                                            {{ task.task_type.name }}
-                                        </span>
+                                    <a href="#" data-task-id="{{ task.id }}"
+                                        class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate block transition-colors">
+                                        {{ task.subject }}
+                                    </a>
+                                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                        <span>{{ task.task_type.name }}</span>
+                                        <span class="text-slate-300">·</span>
                                         {% set task_date = task.due_date.date() %}
                                         {% set current_date = now.date() %}
                                         {% set days_until_due = (task_date - current_date).days %}
-                                        <span
-                                            class="font-medium {% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-yellow-600{% endif %}">
-                                            {% if days_until_due < 0 %} {{ days_until_due|abs }}d overdue {% elif
-                                                days_until_due==0 %} Due today {% elif days_until_due==1 %} Due tomorrow
-                                                {% else %} Due in {{ days_until_due }}d {% endif %} </span>
+                                        <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-amber-600{% else %}text-slate-500{% endif %}">
+                                            {% if days_until_due < 0 %}{{ days_until_due|abs }}d overdue{% elif days_until_due == 0 %}Due today{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }}d{% endif %}
+                                        </span>
                                     </div>
                                 </div>
 
-                                <!-- Quick Actions -->
-                                <div class="flex-shrink-0">
-                                    <button onclick="quickUpdateStatus({{ task.id }}, true)"
-                                        class="w-7 h-7 rounded-lg text-slate-400 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all duration-150">
-                                        <i class="fas fa-check text-sm"></i>
-                                    </button>
-                                </div>
+                                <!-- Quick Complete -->
+                                <button onclick="quickUpdateStatus({{ task.id }}, true)"
+                                    class="w-6 h-6 rounded text-slate-300 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all flex-shrink-0">
+                                    <i class="fas fa-check text-xs"></i>
+                                </button>
                             </div>
                         </div>
                         {% else %}
@@ -964,55 +914,34 @@
                     <div id="completedTasks" class="hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for task in contact.tasks|selectattr('status', 'equalto',
                         'completed')|sort(attribute='completed_at', reverse=true) %}
-                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
-                            <div class="flex items-start space-x-3">
-                                <!-- Completed Indicator -->
-                                <div class="flex-shrink-0">
-                                    <div
-                                        class="w-7 h-7 rounded-full flex items-center justify-center bg-gradient-to-br from-green-400 to-emerald-500 text-white shadow-sm">
-                                        <i class="fas fa-check text-xs"></i>
-                                    </div>
-                                </div>
+                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150">
+                            <div class="flex items-center gap-3">
+                                <!-- Completed check -->
+                                <i class="fas fa-check-circle text-green-500 text-sm flex-shrink-0"></i>
 
                                 <!-- Task Content -->
                                 <div class="flex-1 min-w-0">
-                                    <div class="flex items-center space-x-2">
-                                        <a href="#" data-task-id="{{ task.id }}"
-                                            class="task-link text-sm font-medium text-slate-600 hover:text-slate-800 truncate transition-colors duration-150">
-                                            {{ task.subject }}
-                                        </a>
-                                    </div>
-                                    <div class="mt-1 flex items-center space-x-2 text-xs text-slate-500">
-                                        <span
-                                            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
-                                            {{ task.task_type.name }}
-                                        </span>
-                                        <span>
-                                            {% if task.completed_at %}
-                                            Completed {{ task.completed_at.strftime('%m/%d/%y') }}
-                                            {% else %}
-                                            Completed recently
-                                            {% endif %}
-                                        </span>
+                                    <a href="#" data-task-id="{{ task.id }}"
+                                        class="task-link text-sm text-slate-500 hover:text-slate-700 truncate block line-through decoration-slate-300 transition-colors">
+                                        {{ task.subject }}
+                                    </a>
+                                    <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                                        <span>{{ task.task_type.name }}</span>
+                                        <span class="text-slate-300">·</span>
+                                        <span>{% if task.completed_at %}{{ task.completed_at.strftime('%m/%d/%y') }}{% else %}Recently{% endif %}</span>
                                     </div>
                                 </div>
 
-                                <!-- Quick Actions -->
-                                <div class="flex-shrink-0">
-                                    <button onclick="quickUpdateStatus({{ task.id }}, false)"
-                                        class="w-7 h-7 rounded-lg text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 flex items-center justify-center transition-all duration-150">
-                                        <i class="fas fa-undo text-sm"></i>
-                                    </button>
-                                </div>
+                                <!-- Undo -->
+                                <button onclick="quickUpdateStatus({{ task.id }}, false)"
+                                    class="w-6 h-6 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 flex items-center justify-center transition-all flex-shrink-0">
+                                    <i class="fas fa-undo text-xs"></i>
+                                </button>
                             </div>
                         </div>
                         {% else %}
-                        <div class="p-8 text-center">
-                            <div
-                                class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-clipboard-list text-slate-400 text-xl"></i>
-                            </div>
-                            <p class="text-slate-500 text-sm">No completed tasks</p>
+                        <div class="px-4 py-6 text-center">
+                            <p class="text-slate-400 text-sm">No completed tasks</p>
                         </div>
                         {% endfor %}
                     </div>
@@ -1041,62 +970,37 @@
                     <!-- File List -->
                     <div id="contactFilesList" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
                         {% for file in contact_files %}
-                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150 group file-item"
+                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150 group file-item"
                             data-file-id="{{ file.id }}">
-                            <div class="flex items-center space-x-3">
-                                <!-- File Icon -->
-                                <div class="flex-shrink-0">
-                                    {% if file.is_image %}
-                                    <div
-                                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-file-image text-white"></i>
-                                    </div>
-                                    {% elif file.file_extension == 'pdf' %}
-                                    <div
-                                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-file-pdf text-white"></i>
-                                    </div>
-                                    {% elif file.file_extension in ['doc', 'docx'] %}
-                                    <div
-                                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-file-word text-white"></i>
-                                    </div>
-                                    {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}
-                                    <div
-                                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-file-excel text-white"></i>
-                                    </div>
-                                    {% else %}
-                                    <div
-                                        class="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-file text-white"></i>
-                                    </div>
-                                    {% endif %}
-                                </div>
+                            <div class="flex items-center gap-3">
+                                <!-- File Icon - simple colored icon -->
+                                {% if file.is_image %}
+                                <i class="fas fa-file-image text-pink-500 flex-shrink-0"></i>
+                                {% elif file.file_extension == 'pdf' %}
+                                <i class="fas fa-file-pdf text-red-500 flex-shrink-0"></i>
+                                {% elif file.file_extension in ['doc', 'docx'] %}
+                                <i class="fas fa-file-word text-blue-500 flex-shrink-0"></i>
+                                {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}
+                                <i class="fas fa-file-excel text-green-500 flex-shrink-0"></i>
+                                {% else %}
+                                <i class="fas fa-file text-slate-400 flex-shrink-0"></i>
+                                {% endif %}
 
                                 <!-- File Info -->
                                 <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-slate-800 truncate">{{ file.original_filename }}
-                                    </p>
-                                    <div class="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                                        <span>{{ file.human_file_size }}</span>
-                                        <span>•</span>
-                                        <span>{{ file.created_at.strftime('%b %d, %Y') }}</span>
-                                    </div>
+                                    <p class="text-sm font-medium text-slate-800 truncate">{{ file.original_filename }}</p>
+                                    <p class="text-xs text-slate-500">{{ file.human_file_size }} · {{ file.created_at.strftime('%b %d, %Y') }}</p>
                                 </div>
 
                                 <!-- Actions -->
-                                <div
-                                    class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button onclick="downloadContactFile({{ file.id }})"
-                                        class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                                        title="Download">
-                                        <i class="fas fa-download"></i>
+                                        class="p-1.5 text-slate-400 hover:text-emerald-600 rounded transition-colors" title="Download">
+                                        <i class="fas fa-download text-xs"></i>
                                     </button>
                                     <button onclick="deleteContactFile({{ file.id }}, '{{ file.original_filename }}')"
-                                        class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Delete">
-                                        <i class="fas fa-trash-alt"></i>
+                                        class="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                                        <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </div>
                             </div>
@@ -1119,88 +1023,53 @@
                     </div>
                 </div>
 
-                <!-- Client Activity Card -->
+                <!-- Unified Activity Timeline Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity</h2>
+                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity Timeline</h2>
                         <button onclick="showLogActivityModal()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
                             <i class="fas fa-plus text-[10px] mr-1"></i> Log
                         </button>
                     </div>
 
-                    <!-- Activity List -->
-                    <div id="activityList" class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
-                        {% for interaction in recent_interactions %}
-                        <div class="p-4 hover:bg-slate-50 transition-colors duration-150">
-                            <div class="flex items-start space-x-3">
-                                <!-- Activity Type Icon -->
-                                <div class="flex-shrink-0">
-                                    {% if interaction.type == 'call' %}
-                                    <div
-                                        class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-phone text-white text-sm"></i>
-                                    </div>
-                                    {% elif interaction.type == 'email' %}
-                                    <div
-                                        class="w-9 h-9 rounded-lg bg-gradient-to-br from-purple-400 to-purple-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-envelope text-white text-sm"></i>
-                                    </div>
-                                    {% elif interaction.type == 'text' %}
-                                    <div
-                                        class="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-comment text-white text-sm"></i>
-                                    </div>
-                                    {% elif interaction.type == 'meeting' %}
-                                    <div
-                                        class="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-users text-white text-sm"></i>
-                                    </div>
-                                    {% else %}
-                                    <div
-                                        class="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm">
-                                        <i class="fas fa-ellipsis-h text-white text-sm"></i>
-                                    </div>
-                                    {% endif %}
-                                </div>
-
-                                <!-- Activity Content -->
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-sm font-medium text-slate-800 capitalize">{{ interaction.type
-                                            }}</span>
-                                        <span class="text-xs text-slate-500">{{ interaction.date.strftime('%b %d, %Y')
-                                            }}</span>
-                                    </div>
-                                    {% if interaction.notes %}
-                                    <p class="mt-1 text-sm text-slate-600 line-clamp-2">{{ interaction.notes }}</p>
-                                    {% endif %}
-                                    {% if interaction.follow_up_date %}
-                                    <div class="mt-2 flex items-center text-xs text-amber-600">
-                                        <i class="fas fa-clock mr-1"></i>
-                                        Follow-up: {{ interaction.follow_up_date.strftime('%b %d, %Y') }}
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="px-4 py-6 text-center">
-                            <p class="text-slate-400 text-sm">No activity logged</p>
-                        </div>
-                        {% endfor %}
-                    </div>
-
-                    {% if recent_interactions|length > 0 %}
-                    <!-- Activity Summary -->
-                    <div class="px-5 py-3 border-t border-slate-100 bg-slate-50/50">
-                        <div class="flex items-center justify-between text-xs text-slate-500">
-                            <span>Showing {{ recent_interactions|length }} recent activit{{ 'y' if
-                                recent_interactions|length == 1 else 'ies' }}</span>
-                            <span class="text-slate-400">Last contact: {{ contact.last_contact_date.strftime('%b %d,
-                                %Y') if contact.last_contact_date else 'Never' }}</span>
+                    <!-- Filter Buttons -->
+                    <div id="activityTimelineFilters" class="px-4 py-2 border-b border-slate-100 bg-white">
+                        <div class="flex flex-wrap gap-1.5">
+                            <button data-filter="all" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-800 text-white">
+                                All <span class="filter-count ml-1 opacity-70">0</span>
+                            </button>
+                            <button data-filter="interaction" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                Calls <span class="filter-count ml-1 opacity-50">0</span>
+                            </button>
+                            <button data-filter="email" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                Emails <span class="filter-count ml-1 opacity-50">0</span>
+                            </button>
+                            <button data-filter="task" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                Tasks <span class="filter-count ml-1 opacity-50">0</span>
+                            </button>
+                            <button data-filter="file" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                Files <span class="filter-count ml-1 opacity-50">0</span>
+                            </button>
+                            <button data-filter="voice_memo" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                                Memos <span class="filter-count ml-1 opacity-50">0</span>
+                            </button>
                         </div>
                     </div>
-                    {% endif %}
+
+                    <!-- Timeline Container -->
+                    <div id="activityTimelineContainer" class="max-h-[500px] overflow-y-auto">
+                        <!-- Activities will be rendered here by JavaScript -->
+                    </div>
+
+                    <!-- Pagination Footer -->
+                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                        <div class="flex items-center justify-between">
+                            <span id="timelinePaginationInfo" class="text-xs text-slate-500">Loading...</span>
+                            <button id="timelineLoadMoreBtn" class="hidden text-xs text-orange-600 hover:text-orange-700 font-medium">
+                                <i class="fas fa-chevron-down mr-1"></i>Load More
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Voice Memos Card -->
@@ -1935,6 +1804,11 @@
 
                 // Add to the list
                 addVoiceMemoToList(data.memo);
+
+                // Refresh activity timeline
+                if (window.activityTimeline) {
+                    window.activityTimeline.refresh();
+                }
             } else {
                 showToast(data.error || 'Failed to save voice memo', 'error');
             }
@@ -1983,26 +1857,25 @@
         const duration = formatDuration(memo.duration_seconds);
 
         const memoDiv = document.createElement('div');
-        memoDiv.className = 'p-4 hover:bg-slate-50 transition-colors duration-150';
+        memoDiv.className = 'p-3 hover:bg-slate-50 transition-colors group';
         memoDiv.id = `voice-memo-${memo.id}`;
         memoDiv.innerHTML = `
-            <div class="flex items-center space-x-3">
-                <button onclick="event.stopPropagation(); playVoiceMemo(${memo.id}, '${memo.audio_url}')" 
-                    class="w-10 h-10 rounded-full bg-gradient-to-br from-rose-400 to-pink-500 text-white flex items-center justify-center shadow-sm hover:from-rose-500 hover:to-pink-600 transition-all flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="event.stopPropagation(); playVoiceMemo(${memo.id}, '${memo.audio_url}')"
+                    class="text-rose-500 hover:text-rose-600 transition-colors flex-shrink-0">
                     <i class="fas fa-play text-sm" id="play-icon-${memo.id}"></i>
                 </button>
                 <div class="flex-1 min-w-0 cursor-pointer" onclick="openVoiceMemoDetail(voiceMemoData[${memo.id}])">
                     <div class="flex items-center justify-between">
                         <span class="text-sm font-medium text-slate-800">${duration}</span>
-                        <span class="text-xs text-slate-500">${memo.created_at}</span>
+                        <span class="text-xs text-slate-400">${memo.created_at}</span>
                     </div>
-                    ${memo.transcription ? `<p class="mt-1 text-sm text-slate-600 line-clamp-1">${memo.transcription}</p>` :
-                (memo.transcription_status === 'pending' ? '<p class="mt-1 text-xs text-slate-400 italic">Transcription pending...</p>' :
-                    (memo.transcription_status === 'completed' ? '<p class="mt-1 text-xs text-green-600">Transcription complete</p>' : ''))}
+                    ${memo.transcription ? `<p class="mt-0.5 text-sm text-slate-500 line-clamp-1">${memo.transcription}</p>` :
+                (memo.transcription_status === 'pending' ? '<p class="mt-0.5 text-xs text-slate-400 italic">Transcribing...</p>' : '')}
                 </div>
-                <button onclick="event.stopPropagation(); deleteVoiceMemo(${memo.id})" 
-                    class="w-8 h-8 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 flex items-center justify-center transition-colors flex-shrink-0">
-                    <i class="fas fa-trash-alt text-sm"></i>
+                <button onclick="event.stopPropagation(); deleteVoiceMemo(${memo.id})"
+                    class="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
+                    <i class="fas fa-trash-alt text-xs"></i>
                 </button>
             </div>
             <audio id="audio-${memo.id}" src="${memo.audio_url}" class="hidden"></audio>
@@ -2083,6 +1956,10 @@
                 }
 
                 showToast('Voice memo deleted', 'success');
+                // Refresh activity timeline
+                if (window.activityTimeline) {
+                    window.activityTimeline.refresh();
+                }
             } else {
                 showToast(data.error || 'Failed to delete voice memo', 'error');
             }
@@ -2186,6 +2063,10 @@
 
                 closeVoiceMemoDetailModal();
                 showToast('Voice memo deleted', 'success');
+                // Refresh activity timeline
+                if (window.activityTimeline) {
+                    window.activityTimeline.refresh();
+                }
             } else {
                 showToast(data.error || 'Failed to delete voice memo', 'error');
             }
@@ -2297,9 +2178,9 @@
                         updateContactDates(data.updated_dates);
                     }
 
-                    // Add the new activity to the activity list
-                    if (data.interaction) {
-                        addActivityToList(data.interaction);
+                    // Refresh the activity timeline
+                    if (window.activityTimeline) {
+                        window.activityTimeline.refresh();
                     }
                 } else {
                     showToast(data.error || 'Failed to log activity', 'error');
@@ -2332,55 +2213,6 @@
                 const formatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
                 element.textContent = formatted;
             }
-        }
-    }
-
-    function addActivityToList(interaction) {
-        const activityList = document.getElementById('activityList');
-
-        // Remove "no activity" message if it exists
-        const emptyMessage = activityList.querySelector('.p-8.text-center');
-        if (emptyMessage) {
-            emptyMessage.remove();
-        }
-
-        // Icon and color based on type
-        const typeConfig = {
-            'call': { icon: 'fa-phone', colors: 'from-blue-400 to-blue-500' },
-            'email': { icon: 'fa-envelope', colors: 'from-purple-400 to-purple-500' },
-            'text': { icon: 'fa-comment', colors: 'from-green-400 to-green-500' },
-            'meeting': { icon: 'fa-users', colors: 'from-orange-400 to-orange-500' },
-            'other': { icon: 'fa-ellipsis-h', colors: 'from-slate-400 to-slate-500' }
-        };
-
-        const config = typeConfig[interaction.type] || typeConfig['other'];
-
-        // Create new activity element
-        const activityDiv = document.createElement('div');
-        activityDiv.className = 'p-4 hover:bg-slate-50 transition-colors duration-150';
-        activityDiv.innerHTML = `
-            <div class="flex items-start space-x-3">
-                <div class="flex-shrink-0">
-                    <div class="w-9 h-9 rounded-lg bg-gradient-to-br ${config.colors} flex items-center justify-center shadow-sm">
-                        <i class="fas ${config.icon} text-white text-sm"></i>
-                    </div>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm font-medium text-slate-800 capitalize">${interaction.type}</span>
-                        <span class="text-xs text-slate-500">${interaction.date}</span>
-                    </div>
-                    ${interaction.notes ? `<p class="mt-1 text-sm text-slate-600 line-clamp-2">${interaction.notes}</p>` : ''}
-                </div>
-            </div>
-        `;
-
-        // Insert at the top of the list
-        activityList.insertBefore(activityDiv, activityList.firstChild);
-
-        // Add divider styling
-        if (activityList.children.length > 1) {
-            activityDiv.classList.add('border-b', 'border-slate-100');
         }
     }
 
@@ -2802,6 +2634,10 @@
                     // Add file to list
                     addFileToList(data.file);
                     showToast('File uploaded successfully', 'success');
+                    // Refresh activity timeline
+                    if (window.activityTimeline) {
+                        window.activityTimeline.refresh();
+                    }
                 } else {
                     showToast(data.error || 'Upload failed', 'error');
                 }
@@ -2824,54 +2660,36 @@
             noFilesMsg.remove();
         }
 
-        // Get icon based on file type
-        let iconHtml = '';
+        // Get icon class based on file type
+        let iconClass = 'fa-file text-slate-400';
         const ext = file.original_filename.split('.').pop().toLowerCase();
 
         if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
-            iconHtml = `<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-sm">
-            <i class="fas fa-file-image text-white"></i>
-        </div>`;
+            iconClass = 'fa-file-image text-pink-500';
         } else if (ext === 'pdf') {
-            iconHtml = `<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-sm">
-            <i class="fas fa-file-pdf text-white"></i>
-        </div>`;
+            iconClass = 'fa-file-pdf text-red-500';
         } else if (['doc', 'docx'].includes(ext)) {
-            iconHtml = `<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-sm">
-            <i class="fas fa-file-word text-white"></i>
-        </div>`;
+            iconClass = 'fa-file-word text-blue-500';
         } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
-            iconHtml = `<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-sm">
-            <i class="fas fa-file-excel text-white"></i>
-        </div>`;
-        } else {
-            iconHtml = `<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm">
-            <i class="fas fa-file text-white"></i>
-        </div>`;
+            iconClass = 'fa-file-excel text-green-500';
         }
 
         const fileHtml = `
-        <div class="p-4 hover:bg-slate-50 transition-colors duration-150 group file-item" data-file-id="${file.id}">
-            <div class="flex items-center space-x-3">
-                <div class="flex-shrink-0">${iconHtml}</div>
+        <div class="p-3 hover:bg-slate-50 transition-colors group file-item" data-file-id="${file.id}">
+            <div class="flex items-center gap-3">
+                <i class="fas ${iconClass} flex-shrink-0"></i>
                 <div class="flex-1 min-w-0">
                     <p class="text-sm font-medium text-slate-800 truncate">${file.original_filename}</p>
-                    <div class="flex items-center gap-2 mt-1 text-xs text-slate-500">
-                        <span>${file.file_size}</span>
-                        <span>•</span>
-                        <span>${file.created_at}</span>
-                    </div>
+                    <p class="text-xs text-slate-500">${file.file_size} · ${file.created_at}</p>
                 </div>
-                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                    <button onclick="downloadContactFile(${file.id})" 
-                            class="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Download">
-                        <i class="fas fa-download"></i>
+                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onclick="downloadContactFile(${file.id})"
+                            class="p-1.5 text-slate-400 hover:text-emerald-600 rounded transition-colors" title="Download">
+                        <i class="fas fa-download text-xs"></i>
                     </button>
-                    <button onclick="deleteContactFile(${file.id}, '${file.original_filename.replace(/'/g, "\\'")}')" 
-                            class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Delete">
-                        <i class="fas fa-trash-alt"></i>
+                    <button onclick="deleteContactFile(${file.id}, '${file.original_filename.replace(/'/g, "\\'")}')"
+                            class="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                        <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
             </div>
@@ -2932,6 +2750,10 @@
                     }
 
                     showToast('File deleted', 'success');
+                    // Refresh activity timeline
+                    if (window.activityTimeline) {
+                        window.activityTimeline.refresh();
+                    }
                 } else {
                     showToast(data.error || 'Delete failed', 'error');
                 }
@@ -3003,7 +2825,7 @@
         const messagesDiv = document.getElementById('thread-messages-' + threadId);
         const chevron = document.querySelector('.thread-chevron-' + threadId);
         const container = document.querySelector(`[data-thread-id="${threadId}"]`);
-        
+
         if (messagesDiv.classList.contains('hidden')) {
             messagesDiv.classList.remove('hidden');
             chevron.classList.add('rotate-180');
@@ -3012,6 +2834,39 @@
             messagesDiv.classList.add('hidden');
             chevron.classList.remove('rotate-180');
             if (container) container.classList.remove('bg-slate-50/30');
+        }
+    }
+
+    function scrollToEmailThread(threadId) {
+        // Find the thread container in the Email History section
+        const container = document.querySelector(`[data-thread-id="${threadId}"]`);
+
+        if (container) {
+            // Scroll the thread into view
+            container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Expand the thread if it's collapsed
+            const messagesDiv = document.getElementById('thread-messages-' + threadId);
+            if (messagesDiv && messagesDiv.classList.contains('hidden')) {
+                // Wait for scroll to complete, then toggle
+                setTimeout(() => {
+                    toggleEmailThread(threadId);
+                    // Highlight the thread briefly
+                    container.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-50');
+                    setTimeout(() => {
+                        container.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-50');
+                    }, 2000);
+                }, 300);
+            } else {
+                // Already expanded, just highlight
+                container.classList.add('ring-2', 'ring-blue-400', 'ring-opacity-50');
+                setTimeout(() => {
+                    container.classList.remove('ring-2', 'ring-blue-400', 'ring-opacity-50');
+                }, 2000);
+            }
+        } else {
+            // Thread not found in Email History section (maybe Gmail not synced)
+            showToast('Email thread not found. Try syncing your Gmail.', 'info');
         }
     }
 
@@ -3078,12 +2933,22 @@
             to: '{{ contact.email }}',
             title: 'Email {{ contact.first_name }} {{ contact.last_name }}',
             onSend: function(result) {
-                // Refresh the page to show the new email in history
-                // Could also dynamically add to the email thread list
-                location.reload();
+                // Refresh timeline to show the sent email
+                if (window.activityTimeline) {
+                    window.activityTimeline.refresh();
+                }
             }
         });
     }
+</script>
+
+<!-- Activity Timeline Manager -->
+<script src="{{ url_for('static', filename='js/activity-timeline.js') }}"></script>
+<script>
+    // Initialize Activity Timeline
+    document.addEventListener('DOMContentLoaded', function() {
+        window.activityTimeline = new ActivityTimelineManager({{ contact.id }});
+    });
 </script>
 
 <!-- Email Compose Modal -->

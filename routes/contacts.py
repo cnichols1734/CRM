@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, ContactEmail, ContactVoiceMemo
 from feature_flags import can_access_transactions
 from forms import ContactForm
 from services import supabase_storage
@@ -1241,4 +1241,278 @@ def get_email_thread(contact_id, thread_id):
     return jsonify({
         'success': True,
         'messages': [email.to_dict() for email in emails]
+    })
+
+
+# =============================================================================
+# UNIFIED ACTIVITY TIMELINE
+# =============================================================================
+
+def format_interaction(interaction):
+    """Format an Interaction record for the timeline."""
+    icon_map = {
+        'call': 'fa-phone',
+        'email': 'fa-envelope',
+        'text': 'fa-comment',
+        'meeting': 'fa-users',
+        'other': 'fa-ellipsis-h'
+    }
+    color_map = {
+        'call': 'blue',
+        'email': 'purple',
+        'text': 'green',
+        'meeting': 'orange',
+        'other': 'slate'
+    }
+    return {
+        'id': f'interaction_{interaction.id}',
+        'type': 'interaction',
+        'subtype': interaction.type,
+        'timestamp': interaction.date.isoformat() if interaction.date else None,
+        'title': interaction.type.capitalize(),
+        'description': interaction.notes or '',
+        'icon': icon_map.get(interaction.type, 'fa-ellipsis-h'),
+        'color': color_map.get(interaction.type, 'slate'),
+        'metadata': {
+            'follow_up_date': interaction.follow_up_date.isoformat() if interaction.follow_up_date else None
+        }
+    }
+
+
+def format_email(email):
+    """Format a ContactEmail record for the timeline."""
+    is_outbound = email.direction == 'outbound'
+    return {
+        'id': f'email_{email.id}',
+        'type': 'email',
+        'subtype': email.direction,
+        'timestamp': email.sent_at.isoformat() if email.sent_at else None,
+        'title': email.subject or '(No subject)',
+        'description': email.snippet or '',
+        'icon': 'fa-paper-plane' if is_outbound else 'fa-envelope',
+        'color': 'indigo' if is_outbound else 'purple',
+        'metadata': {
+            'thread_id': email.gmail_thread_id,
+            'has_attachments': email.has_attachments,
+            'from_email': email.from_email,
+            'from_name': email.from_name
+        }
+    }
+
+
+def format_task(task, event_type='created'):
+    """Format a Task record for the timeline."""
+    if event_type == 'completed':
+        return {
+            'id': f'task_completed_{task.id}',
+            'type': 'task',
+            'subtype': 'completed',
+            'timestamp': task.completed_at.isoformat() if task.completed_at else None,
+            'title': f'Completed: {task.subject}',
+            'description': task.outcome or '',
+            'icon': 'fa-check-circle',
+            'color': 'emerald',
+            'metadata': {
+                'task_id': task.id,
+                'priority': task.priority,
+                'task_type': task.task_type.name if task.task_type else None
+            }
+        }
+    else:
+        return {
+            'id': f'task_created_{task.id}',
+            'type': 'task',
+            'subtype': 'created',
+            'timestamp': task.created_at.isoformat() if task.created_at else None,
+            'title': f'Task: {task.subject}',
+            'description': task.description or '',
+            'icon': 'fa-tasks',
+            'color': 'amber',
+            'metadata': {
+                'task_id': task.id,
+                'priority': task.priority,
+                'due_date': task.due_date.isoformat() if task.due_date else None,
+                'task_type': task.task_type.name if task.task_type else None
+            }
+        }
+
+
+def format_file(file):
+    """Format a ContactFile record for the timeline."""
+    # Determine icon based on file type
+    ext = file.file_extension.lower() if file.file_extension else ''
+    if ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']:
+        icon = 'fa-file-image'
+        color = 'pink'
+    elif ext == 'pdf':
+        icon = 'fa-file-pdf'
+        color = 'red'
+    elif ext in ['doc', 'docx']:
+        icon = 'fa-file-word'
+        color = 'blue'
+    elif ext in ['xls', 'xlsx', 'csv']:
+        icon = 'fa-file-excel'
+        color = 'green'
+    else:
+        icon = 'fa-file'
+        color = 'slate'
+
+    return {
+        'id': f'file_{file.id}',
+        'type': 'file',
+        'subtype': ext or 'unknown',
+        'timestamp': file.created_at.isoformat() if file.created_at else None,
+        'title': file.original_filename,
+        'description': f'File uploaded ({file.human_file_size})',
+        'icon': icon,
+        'color': color,
+        'metadata': {
+            'file_id': file.id,
+            'file_size': file.file_size,
+            'is_image': file.is_image
+        }
+    }
+
+
+def format_voice_memo(memo):
+    """Format a ContactVoiceMemo record for the timeline."""
+    duration = memo.duration_seconds or 0
+    mins = duration // 60
+    secs = duration % 60
+    duration_str = f'{mins}:{secs:02d}'
+
+    return {
+        'id': f'voice_memo_{memo.id}',
+        'type': 'voice_memo',
+        'subtype': 'recording',
+        'timestamp': memo.created_at.isoformat() if memo.created_at else None,
+        'title': f'Voice Memo ({duration_str})',
+        'description': memo.transcription[:150] + '...' if memo.transcription and len(memo.transcription) > 150 else (memo.transcription or ''),
+        'icon': 'fa-microphone',
+        'color': 'cyan',
+        'metadata': {
+            'memo_id': memo.id,
+            'duration_seconds': memo.duration_seconds,
+            'transcription_status': memo.transcription_status,
+            'has_transcription': bool(memo.transcription)
+        }
+    }
+
+
+@contacts_bp.route('/contact/<int:contact_id>/timeline')
+@login_required
+def get_contact_timeline(contact_id):
+    """Get unified activity timeline for a contact."""
+    # Multi-tenant: Get contact within org
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+
+    # Check permission
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+    # Get query parameters
+    filter_type = request.args.get('filter', 'all')
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 50)
+
+    activities = []
+    counts = {
+        'all': 0,
+        'interaction': 0,
+        'email': 0,
+        'task': 0,
+        'file': 0,
+        'voice_memo': 0
+    }
+
+    # Query interactions
+    if filter_type in ('all', 'interaction'):
+        interactions = Interaction.query.filter_by(contact_id=contact_id).all()
+        counts['interaction'] = len(interactions)
+        if filter_type in ('all', 'interaction'):
+            activities.extend([format_interaction(i) for i in interactions])
+    else:
+        counts['interaction'] = Interaction.query.filter_by(contact_id=contact_id).count()
+
+    # Query emails
+    if filter_type in ('all', 'email'):
+        emails = ContactEmail.query.filter_by(
+            contact_id=contact_id,
+            user_id=current_user.id
+        ).all()
+        counts['email'] = len(emails)
+        if filter_type in ('all', 'email'):
+            activities.extend([format_email(e) for e in emails])
+    else:
+        counts['email'] = ContactEmail.query.filter_by(
+            contact_id=contact_id,
+            user_id=current_user.id
+        ).count()
+
+    # Query tasks (both created and completed events)
+    if filter_type in ('all', 'task'):
+        tasks = Task.query.filter_by(contact_id=contact_id).all()
+        task_count = 0
+        for task in tasks:
+            # Add created event
+            activities.append(format_task(task, 'created'))
+            task_count += 1
+            # Add completed event if completed
+            if task.status == 'completed' and task.completed_at:
+                activities.append(format_task(task, 'completed'))
+                task_count += 1
+        counts['task'] = task_count
+    else:
+        # For count, estimate based on tasks
+        task_count = Task.query.filter_by(contact_id=contact_id).count()
+        completed_count = Task.query.filter_by(contact_id=contact_id, status='completed').count()
+        counts['task'] = task_count + completed_count
+
+    # Query files
+    if filter_type in ('all', 'file'):
+        files = ContactFile.query.filter_by(contact_id=contact_id).all()
+        counts['file'] = len(files)
+        if filter_type in ('all', 'file'):
+            activities.extend([format_file(f) for f in files])
+    else:
+        counts['file'] = ContactFile.query.filter_by(contact_id=contact_id).count()
+
+    # Query voice memos
+    if filter_type in ('all', 'voice_memo'):
+        memos = ContactVoiceMemo.query.filter_by(
+            contact_id=contact_id,
+            organization_id=current_user.organization_id
+        ).all()
+        counts['voice_memo'] = len(memos)
+        if filter_type in ('all', 'voice_memo'):
+            activities.extend([format_voice_memo(m) for m in memos])
+    else:
+        counts['voice_memo'] = ContactVoiceMemo.query.filter_by(
+            contact_id=contact_id,
+            organization_id=current_user.organization_id
+        ).count()
+
+    # Calculate total count
+    counts['all'] = counts['interaction'] + counts['email'] + counts['task'] + counts['file'] + counts['voice_memo']
+
+    # Sort activities by timestamp (newest first)
+    activities.sort(key=lambda x: x['timestamp'] or '', reverse=True)
+
+    # Paginate
+    total = len(activities)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paginated_activities = activities[start:end]
+
+    return jsonify({
+        'success': True,
+        'activities': paginated_activities,
+        'pagination': {
+            'page': page,
+            'per_page': per_page,
+            'total': total,
+            'has_next': end < total,
+            'has_prev': page > 1
+        },
+        'counts': counts
     })
