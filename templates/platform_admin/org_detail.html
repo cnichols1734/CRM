@@ -126,6 +126,15 @@
                     </button>
                 </form>
                 {% endif %}
+                
+                <!-- Repair button - creates missing default data and sends approval email -->
+                <form action="{{ url_for('platform.repair_org', org_id=org.id) }}" method="POST" class="mt-4 pt-4 border-t border-gray-200">
+                    <button type="submit" class="w-full bg-amber-500 text-white px-4 py-2 rounded-md hover:bg-amber-600" 
+                            onclick="return confirm('This will create any missing default data and send the approval email to the org owner. Continue?')">
+                        Repair Organization
+                    </button>
+                    <p class="text-xs text-gray-500 mt-1">Creates missing default data and sends approval email to owner</p>
+                </form>
             </div>
             
             <!-- Org Info -->
