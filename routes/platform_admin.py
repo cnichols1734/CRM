@@ -202,55 +202,74 @@ def approve_org(org_id):
         flash('Organization is not pending approval.', 'error')
         return redirect(url_for('platform.pending_orgs'))
     
-    org.status = 'active'
-    org.approved_at = datetime.utcnow()
-    org.approved_by_id = current_user.id
-    
-    # Log action
-    log_platform_action('org_approved', org.id, {'org_name': org.name})
-    
-    db.session.commit()
-    
-    # Create default data for the new org
+    # Import early to avoid issues after potential rollback
     from services.tenant_service import (
         create_default_groups_for_org,
         create_default_task_types_for_org,
         create_default_transaction_types_for_org
     )
+    from services.org_notifications import send_org_approved_email
     import logging
     
-    # Create default contact groups
-    try:
-        created_groups = create_default_groups_for_org(org.id)
-        log_platform_action('org_groups_created', org.id, {'groups_count': len(created_groups)})
-    except Exception as e:
-        logging.error(f"Failed to create default groups for org {org.id}: {e}")
-    
-    # Create default task types and subtypes
-    try:
-        created_task_types = create_default_task_types_for_org(org.id)
-        log_platform_action('org_task_types_created', org.id, {'task_types_count': len(created_task_types)})
-    except Exception as e:
-        logging.error(f"Failed to create default task types for org {org.id}: {e}")
-    
-    # Create default transaction types
-    try:
-        created_tx_types = create_default_transaction_types_for_org(org.id)
-        log_platform_action('org_transaction_types_created', org.id, {'transaction_types_count': len(created_tx_types)})
-    except Exception as e:
-        logging.error(f"Failed to create default transaction types for org {org.id}: {e}")
-    
-    # Notify org owner via email
-    from services.org_notifications import send_org_approved_email
+    # Store org info before potential session issues
+    org_name = org.name
     owner = org.users.filter_by(org_role='owner').first()
-    if owner:
-        email_sent = send_org_approved_email(org, owner.email)
-        if email_sent:
-            flash(f'Organization "{org.name}" approved. Approval email sent to {owner.email}.', 'success')
+    owner_email = owner.email if owner else None
+    
+    try:
+        # Update org status
+        org.status = 'active'
+        org.approved_at = datetime.utcnow()
+        org.approved_by_id = current_user.id
+        
+        # Log action
+        log_platform_action('org_approved', org.id, {'org_name': org_name})
+        
+        db.session.commit()
+        
+        # Create default data for the new org (these functions are now idempotent)
+        # Create default contact groups
+        try:
+            created_groups = create_default_groups_for_org(org.id)
+            log_platform_action('org_groups_created', org.id, {'groups_count': len(created_groups)})
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to create default groups for org {org.id}: {e}", exc_info=True)
+        
+        # Create default task types and subtypes
+        try:
+            created_task_types = create_default_task_types_for_org(org.id)
+            log_platform_action('org_task_types_created', org.id, {'task_types_count': len(created_task_types)})
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to create default task types for org {org.id}: {e}", exc_info=True)
+        
+        # Create default transaction types
+        try:
+            created_tx_types = create_default_transaction_types_for_org(org.id)
+            log_platform_action('org_transaction_types_created', org.id, {'transaction_types_count': len(created_tx_types)})
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Failed to create default transaction types for org {org.id}: {e}", exc_info=True)
+        
+        # Notify org owner via email
+        if owner_email:
+            email_sent = send_org_approved_email(org, owner_email)
+            if email_sent:
+                flash(f'Organization "{org_name}" approved. Approval email sent to {owner_email}.', 'success')
+            else:
+                flash(f'Organization "{org_name}" approved, but email notification failed.', 'warning')
         else:
-            flash(f'Organization "{org.name}" approved, but email notification failed.', 'warning')
-    else:
-        flash(f'Organization "{org.name}" approved.', 'success')
+            flash(f'Organization "{org_name}" approved.', 'success')
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to approve organization {org_id}: {e}", exc_info=True)
+        flash(f'Error approving organization: {str(e)}', 'error')
+    
     return redirect(url_for('platform.pending_orgs'))
 
 
@@ -457,6 +476,91 @@ def audit_log():
     ).paginate(page=page, per_page=per_page, error_out=False)
     
     return render_template('platform_admin/audit_log.html', logs=logs)
+
+
+# =============================================================================
+# ORGANIZATION REPAIR
+# =============================================================================
+
+@platform_bp.route('/orgs/<int:org_id>/repair', methods=['POST'])
+@login_required
+@platform_admin_required
+def repair_org(org_id):
+    """
+    Repair an organization by ensuring all default data is created.
+    Useful for orgs that failed during the approval process.
+    All creation functions are idempotent - safe to run multiple times.
+    Also sends the approval email if it wasn't sent before.
+    """
+    org = Organization.query.get_or_404(org_id)
+    
+    from services.tenant_service import (
+        create_default_groups_for_org,
+        create_default_task_types_for_org,
+        create_default_transaction_types_for_org
+    )
+    from services.org_notifications import send_org_approved_email
+    import logging
+    
+    results = []
+    errors = []
+    
+    # Create default contact groups
+    try:
+        created_groups = create_default_groups_for_org(org.id)
+        results.append(f"Contact groups: {len(created_groups)}")
+        log_platform_action('org_repair_groups', org.id, {'groups_count': len(created_groups)})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        errors.append(f"Groups: {str(e)}")
+        logging.error(f"Failed to repair groups for org {org.id}: {e}", exc_info=True)
+    
+    # Create default task types and subtypes
+    try:
+        created_task_types = create_default_task_types_for_org(org.id)
+        results.append(f"Task types: {len(created_task_types)}")
+        log_platform_action('org_repair_task_types', org.id, {'task_types_count': len(created_task_types)})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        errors.append(f"Task types: {str(e)}")
+        logging.error(f"Failed to repair task types for org {org.id}: {e}", exc_info=True)
+    
+    # Create default transaction types
+    try:
+        created_tx_types = create_default_transaction_types_for_org(org.id)
+        results.append(f"Transaction types: {len(created_tx_types)}")
+        log_platform_action('org_repair_transaction_types', org.id, {'transaction_types_count': len(created_tx_types)})
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        errors.append(f"Transaction types: {str(e)}")
+        logging.error(f"Failed to repair transaction types for org {org.id}: {e}", exc_info=True)
+    
+    # Send approval email to org owner (in case it didn't send before)
+    owner = org.users.filter_by(org_role='owner').first()
+    email_sent = False
+    if owner:
+        try:
+            email_sent = send_org_approved_email(org, owner.email)
+            if email_sent:
+                results.append(f"Approval email sent to {owner.email}")
+                log_platform_action('org_repair_email_sent', org.id, {'owner_email': owner.email})
+            else:
+                errors.append("Approval email failed to send")
+        except Exception as e:
+            errors.append(f"Email: {str(e)}")
+            logging.error(f"Failed to send approval email for org {org.id}: {e}", exc_info=True)
+    else:
+        errors.append("No owner found - could not send approval email")
+    
+    if errors:
+        flash(f'Repair completed with issues. {", ".join(results)}. Issues: {", ".join(errors)}', 'warning')
+    else:
+        flash(f'Organization "{org.name}" repaired successfully. {", ".join(results)}.', 'success')
+    
+    return redirect(url_for('platform.view_org', org_id=org_id))
 
 
 # =============================================================================

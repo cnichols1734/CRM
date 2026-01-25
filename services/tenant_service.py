@@ -339,6 +339,7 @@ def create_default_groups_for_org(org_id: int):
     """
     Create default contact groups for a new organization.
     Called when an organization is approved.
+    Idempotent - safe to call multiple times.
     
     Args:
         org_id: The organization ID to create groups for
@@ -347,6 +348,12 @@ def create_default_groups_for_org(org_id: int):
         List of created ContactGroup objects
     """
     from models import db, ContactGroup
+    
+    # Check if any groups already exist for this org
+    existing_count = ContactGroup.query.filter_by(organization_id=org_id).count()
+    if existing_count > 0:
+        # Already created, return existing groups
+        return ContactGroup.query.filter_by(organization_id=org_id).all()
     
     # Default groups for real estate CRM
     default_groups = [
@@ -394,6 +401,7 @@ def create_default_task_types_for_org(org_id: int):
     """
     Create default task types and subtypes for a new organization.
     Called when an organization is approved.
+    Idempotent - safe to call multiple times.
     
     Args:
         org_id: The organization ID to create task types for
@@ -402,6 +410,12 @@ def create_default_task_types_for_org(org_id: int):
         List of created TaskType objects
     """
     from models import db, TaskType, TaskSubtype
+    
+    # Check if any task types already exist for this org
+    existing_count = TaskType.query.filter_by(organization_id=org_id).count()
+    if existing_count > 0:
+        # Already created, return existing types
+        return TaskType.query.filter_by(organization_id=org_id).all()
     
     # Default task types with their subtypes for real estate CRM
     default_task_types = [
@@ -478,6 +492,7 @@ def create_default_transaction_types_for_org(org_id: int):
     """
     Create default transaction types for a new organization.
     Called when an organization is approved.
+    Idempotent - safe to call multiple times.
     
     Args:
         org_id: The organization ID to create transaction types for
@@ -495,6 +510,12 @@ def create_default_transaction_types_for_org(org_id: int):
         {'name': 'tenant', 'display_name': 'Tenant Representation', 'sort_order': 4},
         {'name': 'referral', 'display_name': 'Referral', 'sort_order': 5},
     ]
+    
+    # Check if any transaction types already exist for this org
+    existing_count = TransactionType.query.filter_by(organization_id=org_id).count()
+    if existing_count > 0:
+        # Already created, return existing types
+        return TransactionType.query.filter_by(organization_id=org_id).all()
     
     created_types = []
     for type_data in default_transaction_types:
