@@ -2,22 +2,20 @@
 Gmail Integration Service
 
 Handles OAuth flow, token management, and Gmail API interactions.
-Provides email sync functionality for contact email history.
+Provides send-only email functionality (no inbox sync to avoid restricted scopes).
 
 Usage:
     from services.gmail_service import (
         get_oauth_url,
         exchange_code_for_tokens,
-        sync_emails_for_user
+        send_email
     )
 """
 
-import os
 import logging
 import base64
 from datetime import datetime, timedelta
-from typing import Optional, Dict, List, Tuple
-from email.utils import parseaddr
+from typing import Optional, Dict, List
 
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
@@ -30,11 +28,12 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
-# Gmail API scopes - read + send Gmail + settings + Calendar events
+# Gmail API scopes - send-only (no restricted scopes to avoid paid security assessment)
+# OpenID email scope used to get user's email address during OAuth
 GMAIL_SCOPES = [
-    'https://www.googleapis.com/auth/gmail.readonly',
+    'openid',
+    'https://www.googleapis.com/auth/userinfo.email',  # Get email from ID token
     'https://www.googleapis.com/auth/gmail.send',
-    'https://www.googleapis.com/auth/gmail.settings.basic',  # For reading signature
     'https://www.googleapis.com/auth/calendar.events'
 ]
 
@@ -42,9 +41,12 @@ GMAIL_SCOPES = [
 REDIRECT_URI_LOCAL = 'http://127.0.0.1:5011/integrations/gmail/callback'
 REDIRECT_URI_PROD = 'https://www.origentechnolog.com/integrations/gmail/callback'
 
-# HTML sanitization for email body display
-ALLOWED_TAGS = ['p', 'br', 'b', 'i', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'blockquote', 'div', 'span']
-ALLOWED_ATTRS = {'a': ['href', 'title']}
+# HTML sanitization for email body display and signature
+ALLOWED_TAGS = ['p', 'br', 'b', 'i', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'img']
+ALLOWED_ATTRS = {
+    'a': ['href', 'title'],
+    'img': ['src', 'alt', 'width', 'height']  # NO style - security risk
+}
 
 
 def _get_redirect_uri() -> str:
@@ -104,7 +106,7 @@ def get_oauth_url(state: str) -> str:
     auth_url, _ = flow.authorization_url(
         state=state,
         access_type='offline',  # Get refresh token
-        include_granted_scopes='true',
+        include_granted_scopes='false',  # Don't include old restricted scopes
         prompt='consent'  # Always show consent to get refresh token
     )
     
@@ -121,6 +123,9 @@ def exchange_code_for_tokens(code: str) -> Dict:
     Returns:
         Dict with keys: access_token, refresh_token, expires_at, email
     """
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    
     flow = Flow.from_client_config(
         {
             "web": {
@@ -139,10 +144,39 @@ def exchange_code_for_tokens(code: str) -> Dict:
     flow.fetch_token(code=code)
     credentials = flow.credentials
     
-    # Get user's email address
-    service = build('gmail', 'v1', credentials=credentials)
-    profile = service.users().getProfile(userId='me').execute()
-    email = profile.get('emailAddress')
+    # Get user's email from ID token (using OpenID scope instead of gmail.readonly)
+    # The ID token is included when openid scope is requested
+    email = None
+    if credentials.id_token:
+        try:
+            # Verify and decode the ID token
+            id_info = id_token.verify_oauth2_token(
+                credentials.id_token,
+                google_requests.Request(),
+                Config.GOOGLE_CLIENT_ID
+            )
+            email = id_info.get('email')
+            logger.info(f"Got email from ID token: {email}")
+        except Exception as e:
+            logger.warning(f"Failed to decode ID token: {e}")
+    
+    # Fallback: fetch from userinfo endpoint if ID token didn't work
+    if not email:
+        try:
+            import requests
+            userinfo_response = requests.get(
+                'https://www.googleapis.com/oauth2/v3/userinfo',
+                headers={'Authorization': f'Bearer {credentials.token}'}
+            )
+            if userinfo_response.ok:
+                userinfo = userinfo_response.json()
+                email = userinfo.get('email')
+                logger.info(f"Got email from userinfo endpoint: {email}")
+        except Exception as e:
+            logger.warning(f"Failed to get email from userinfo: {e}")
+    
+    if not email:
+        raise ValueError("Could not retrieve user's email address from OAuth response")
     
     # Calculate expiration time
     expires_at = datetime.utcnow() + timedelta(seconds=credentials.expiry.timestamp() - datetime.now().timestamp()) if credentials.expiry else datetime.utcnow() + timedelta(hours=1)
@@ -230,306 +264,11 @@ def _get_gmail_service(integration):
     return build('gmail', 'v1', credentials=credentials)
 
 
-def _parse_email_address(email_str: str) -> Tuple[str, str]:
-    """Parse email string to extract name and address."""
-    name, address = parseaddr(email_str)
-    return name or '', address or email_str
-
-
-def _extract_body(payload: dict) -> Tuple[str, str]:
-    """
-    Extract plain text and HTML body from email payload.
-    
-    Returns:
-        Tuple of (body_text, body_html)
-    """
-    body_text = ''
-    body_html = ''
-    
-    def extract_parts(parts):
-        nonlocal body_text, body_html
-        for part in parts:
-            mime_type = part.get('mimeType', '')
-            body = part.get('body', {})
-            data = body.get('data', '')
-            
-            if mime_type == 'text/plain' and data:
-                body_text = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-            elif mime_type == 'text/html' and data:
-                body_html = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-            elif 'parts' in part:
-                extract_parts(part['parts'])
-    
-    # Check if single part message
-    body = payload.get('body', {})
-    if body.get('data'):
-        mime_type = payload.get('mimeType', '')
-        data = body['data']
-        decoded = base64.urlsafe_b64decode(data).decode('utf-8', errors='ignore')
-        if mime_type == 'text/html':
-            body_html = decoded
-        else:
-            body_text = decoded
-    
-    # Check for multipart
-    if 'parts' in payload:
-        extract_parts(payload['parts'])
-    
-    return body_text, body_html
-
-
 def sanitize_html(html_content: str) -> str:
     """Sanitize HTML content for safe display."""
     if not html_content:
         return ''
     return bleach.clean(html_content, tags=ALLOWED_TAGS, attributes=ALLOWED_ATTRS, strip=True)
-
-
-def fetch_emails_for_user(integration, initial: bool = False) -> Dict:
-    """
-    Fetch emails from Gmail for a user.
-    
-    Args:
-        integration: UserEmailIntegration model instance
-        initial: If True, fetch last 30 days. If False, use incremental sync.
-    
-    Returns:
-        Dict with: emails_fetched (int), contacts_matched (int), errors (list)
-    """
-    from models import db, Contact, ContactEmail
-    
-    result = {
-        'emails_fetched': 0,
-        'contacts_matched': 0,
-        'errors': []
-    }
-    
-    try:
-        service = _get_gmail_service(integration)
-        
-        # Build query
-        if initial:
-            # Initial sync: last 30 days
-            after_date = (datetime.utcnow() - timedelta(days=Config.GMAIL_SYNC_DAYS)).strftime('%Y/%m/%d')
-            query = f'after:{after_date}'
-        else:
-            # Incremental sync using history API
-            if integration.last_history_id:
-                try:
-                    history = service.users().history().list(
-                        userId='me',
-                        startHistoryId=integration.last_history_id,
-                        historyTypes=['messageAdded']
-                    ).execute()
-                    
-                    message_ids = set()
-                    for record in history.get('history', []):
-                        for msg in record.get('messagesAdded', []):
-                            message_ids.add(msg['message']['id'])
-                    
-                    if not message_ids:
-                        logger.info(f"No new messages for user {integration.user_id}")
-                        integration.last_sync_at = datetime.utcnow()
-                        db.session.commit()
-                        return result
-                    
-                    # Fetch these specific messages
-                    for msg_id in message_ids:
-                        _process_message(service, msg_id, integration, result)
-                    
-                    # Update history ID
-                    integration.last_history_id = history.get('historyId')
-                    integration.last_sync_at = datetime.utcnow()
-                    integration.sync_status = 'active'
-                    db.session.commit()
-                    return result
-                    
-                except HttpError as e:
-                    if e.resp.status == 404:
-                        # History expired, do a full sync
-                        logger.warning(f"History expired for user {integration.user_id}, doing full sync")
-                        after_date = (datetime.utcnow() - timedelta(days=7)).strftime('%Y/%m/%d')
-                        query = f'after:{after_date}'
-                    else:
-                        raise
-            else:
-                # No history ID, do initial sync
-                after_date = (datetime.utcnow() - timedelta(days=Config.GMAIL_SYNC_DAYS)).strftime('%Y/%m/%d')
-                query = f'after:{after_date}'
-        
-        # List messages matching query
-        messages = []
-        page_token = None
-        
-        while True:
-            response = service.users().messages().list(
-                userId='me',
-                q=query,
-                maxResults=100,
-                pageToken=page_token
-            ).execute()
-            
-            messages.extend(response.get('messages', []))
-            page_token = response.get('nextPageToken')
-            
-            # Limit initial sync to 50 emails for fast OAuth callback
-            # Background job will sync the rest
-            if not page_token or len(messages) >= 50:
-                break
-        
-        logger.info(f"Found {len(messages)} messages for user {integration.user_id}")
-        
-        # Process each message
-        for msg in messages:
-            _process_message(service, msg['id'], integration, result)
-        
-        # Update sync status
-        profile = service.users().getProfile(userId='me').execute()
-        integration.last_history_id = profile.get('historyId')
-        integration.last_sync_at = datetime.utcnow()
-        integration.sync_status = 'active'
-        db.session.commit()
-        
-    except Exception as e:
-        logger.exception(f"Error fetching emails for user {integration.user_id}: {e}")
-        result['errors'].append(str(e))
-        try:
-            db.session.rollback()  # Rollback any failed transaction first
-            integration.sync_status = 'error'
-            integration.sync_error = str(e)
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-    
-    return result
-
-
-def _process_message(service, msg_id: str, integration, result: Dict):
-    """Process a single email message."""
-    from models import db, Contact, ContactEmail
-    
-    try:
-        # Note: We don't skip based on gmail_message_id alone anymore
-        # The same email can be linked to multiple contacts
-        
-        # Get full message
-        msg = service.users().messages().get(
-            userId='me',
-            id=msg_id,
-            format='full'
-        ).execute()
-        
-        # Extract headers
-        headers = {h['name'].lower(): h['value'] for h in msg['payload'].get('headers', [])}
-        
-        subject = headers.get('subject', '(No subject)')
-        from_header = headers.get('from', '')
-        to_header = headers.get('to', '')
-        cc_header = headers.get('cc', '')
-        date_header = headers.get('date', '')
-        
-        # Parse sender
-        from_name, from_email = _parse_email_address(from_header)
-        
-        # Parse recipients
-        to_emails = [_parse_email_address(e)[1] for e in to_header.split(',') if e.strip()]
-        cc_emails = [_parse_email_address(e)[1] for e in cc_header.split(',') if e.strip()] if cc_header else []
-        
-        # Determine direction
-        agent_email = integration.connected_email.lower()
-        direction = 'outbound' if from_email.lower() == agent_email else 'inbound'
-        
-        # Collect all participant emails (excluding agent)
-        participant_emails = set()
-        if direction == 'outbound':
-            participant_emails.update(e.lower() for e in to_emails if e.lower() != agent_email)
-            participant_emails.update(e.lower() for e in cc_emails if e.lower() != agent_email)
-        else:
-            participant_emails.add(from_email.lower())
-        
-        # Match to contacts
-        contacts = Contact.query.filter(
-            Contact.organization_id == integration.organization_id,
-            Contact.email.isnot(None)
-        ).all()
-        
-        matched_contacts = [c for c in contacts if c.email and c.email.lower() in participant_emails]
-        
-        if not matched_contacts:
-            # No matching contacts, skip this email
-            return
-        
-        result['emails_fetched'] += 1
-        
-        # Extract body
-        body_text, body_html = _extract_body(msg['payload'])
-        
-        # Check for attachments
-        has_attachments = False
-        if 'parts' in msg['payload']:
-            for part in msg['payload']['parts']:
-                if part.get('filename'):
-                    has_attachments = True
-                    break
-        
-        # Parse date
-        sent_at = None
-        if date_header:
-            from email.utils import parsedate_to_datetime
-            try:
-                sent_at = parsedate_to_datetime(date_header)
-                sent_at = sent_at.replace(tzinfo=None)  # Store as naive UTC
-            except Exception:
-                sent_at = datetime.utcnow()
-        
-        # Create ContactEmail for each matched contact
-        for contact in matched_contacts:
-            # Check if this specific contact-message combo exists
-            existing = ContactEmail.query.filter_by(
-                gmail_message_id=msg_id,
-                contact_id=contact.id
-            ).first()
-            if existing:
-                continue
-            
-            contact_email = ContactEmail(
-                organization_id=integration.organization_id,
-                user_id=integration.user_id,
-                contact_id=contact.id,
-                gmail_message_id=msg_id,
-                gmail_thread_id=msg.get('threadId'),
-                subject=subject[:500] if subject else None,
-                snippet=msg.get('snippet', '')[:500],
-                from_email=from_email,
-                from_name=from_name,
-                to_emails=to_emails,
-                cc_emails=cc_emails if cc_emails else None,
-                direction=direction,
-                sent_at=sent_at,
-                has_attachments=has_attachments,
-                body_text=body_text,
-                body_html=sanitize_html(body_html)
-            )
-            db.session.add(contact_email)
-            result['contacts_matched'] += 1
-            
-            # Update contact's last_email_date if this email is more recent
-            email_date = sent_at.date() if sent_at else None
-            if email_date:
-                if contact.last_email_date is None or email_date > contact.last_email_date:
-                    contact.last_email_date = email_date
-                    contact.update_last_contact_date()
-        
-        db.session.commit()
-        
-    except Exception as e:
-        # Check if this is a 404 "not found" error (message was deleted)
-        error_str = str(e)
-        if '404' in error_str or 'not found' in error_str.lower():
-            logger.debug(f"Message {msg_id} no longer exists (likely deleted) - skipping")
-        else:
-            logger.error(f"Error processing message {msg_id}: {e}")
-            result['errors'].append(f"Message {msg_id}: {str(e)}")
 
 
 def get_email_threads_for_contact(contact_id: int, user_id: int) -> List[Dict]:
@@ -581,46 +320,6 @@ def get_email_threads_for_contact(contact_id: int, user_id: int) -> List[Dict]:
     return threads
 
 
-def get_gmail_signature(integration) -> Optional[str]:
-    """
-    Fetch the user's Gmail signature.
-    
-    Args:
-        integration: UserEmailIntegration model instance
-    
-    Returns:
-        HTML signature string, or None if not set or error
-    """
-    try:
-        service = _get_gmail_service(integration)
-        
-        # Get the sendAs settings for the user's email
-        send_as = service.users().settings().sendAs().get(
-            userId='me',
-            sendAsEmail=integration.connected_email
-        ).execute()
-        
-        signature = send_as.get('signature', '')
-        
-        if signature:
-            logger.debug(f"Retrieved Gmail signature for {integration.connected_email}")
-            return signature
-        
-        return None
-        
-    except HttpError as e:
-        if e.resp.status in (403, 401):
-            # Missing permissions - user needs to reconnect
-            logger.warning(f"Missing permissions to read signature for user {integration.user_id}")
-        else:
-            logger.error(f"Error fetching Gmail signature: {e}")
-        return None
-        
-    except Exception as e:
-        logger.error(f"Error fetching Gmail signature: {e}")
-        return None
-
-
 def send_email(integration, to_emails: List[str], subject: str, body_html: str,
                cc_emails: List[str] = None, bcc_emails: List[str] = None,
                attachments: List[Dict] = None, reply_to_message_id: str = None,
@@ -638,7 +337,7 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         attachments: Optional list of dicts with keys: filename, content (bytes), mime_type
         reply_to_message_id: Optional message ID to reply to (for threading)
         thread_id: Optional thread ID to add message to existing thread
-        include_signature: Whether to append Gmail signature (default True)
+        include_signature: Whether to append CRM signature (default True)
     
     Returns:
         Dict with: message_id, thread_id, success, error
@@ -649,23 +348,77 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
     from email.mime.multipart import MIMEMultipart
     from email.mime.text import MIMEText
     from email.mime.base import MIMEBase
+    from email.mime.image import MIMEImage
     from email import encoders
     import mimetypes
+    
+    # Check if user needs to reauth with new scopes
+    if integration.oauth_scope_version is None or integration.oauth_scope_version < 2:
+        return {
+            'success': False,
+            'message_id': None,
+            'thread_id': None,
+            'error': 'Your Gmail connection needs to be updated. Please reconnect your Gmail account.',
+            'needs_reauth': True
+        }
     
     try:
         service = _get_gmail_service(integration)
         
-        # Build the full email body with optional signature
+        # Build the full email body with optional CRM signature
         full_body_html = body_html
+        signature_images_to_embed = []
         
-        if include_signature:
-            signature = get_gmail_signature(integration)
-            if signature:
-                # Add signature with separator
-                full_body_html = f"{body_html}<br><br>--<br>{signature}"
+        if include_signature and integration.signature_html:
+            # Get signature HTML and prepare CID image references
+            signature_html = integration.signature_html
+            sig_images = integration.get_signature_images_list()
+            
+            # Find images referenced in the signature HTML (cid:content_id format)
+            # and add width/height attributes for proper email rendering
+            import re
+            for img in sig_images:
+                content_id = img.get('content_id')
+                if content_id and f'cid:{content_id}' in signature_html:
+                    # This image is referenced in the signature, prepare for embedding
+                    signature_images_to_embed.append(img)
+                    
+                    # Add width constraint and display:block to the image tag
+                    # Find the img tag with this cid and add/update width attribute
+                    width = min(img.get('width', 200), 200)  # Max 200px
+                    old_tag_pattern = rf'<img[^>]*src="cid:{re.escape(content_id)}"[^>]*>'
+                    
+                    def add_width_to_img(match):
+                        tag = match.group(0)
+                        # Remove existing width if present
+                        tag = re.sub(r'\s+width="[^"]*"', '', tag)
+                        # Add width before the closing >
+                        tag = tag.replace('>', f' width="{width}" style="display:block;max-width:{width}px;">')
+                        return tag
+                    
+                    signature_html = re.sub(old_tag_pattern, add_width_to_img, signature_html)
+            
+            # Add signature with separator
+            full_body_html = f"{body_html}<br><br>--<br>{signature_html}"
         
-        # Create message
-        message = MIMEMultipart()
+        # Build proper MIME structure for CID image embedding:
+        # multipart/mixed
+        # ├── multipart/related
+        # │   ├── text/html (body + signature with cid: references)
+        # │   └── image/* (inline signature images with Content-ID)
+        # └── attachment/* (regular file attachments)
+        
+        # Determine if we need the full multipart/mixed structure
+        has_file_attachments = bool(attachments)
+        has_inline_images = bool(signature_images_to_embed)
+        
+        if has_file_attachments or has_inline_images:
+            # Need multipart/mixed as outer container
+            message = MIMEMultipart('mixed')
+        else:
+            # Simple HTML email, no attachments
+            message = MIMEMultipart('alternative')
+        
         message['From'] = integration.connected_email
         message['To'] = ', '.join(to_emails)
         message['Subject'] = subject
@@ -680,11 +433,39 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
             message['In-Reply-To'] = reply_to_message_id
             message['References'] = reply_to_message_id
         
-        # Attach HTML body (with signature if included)
-        html_part = MIMEText(full_body_html, 'html', 'utf-8')
-        message.attach(html_part)
+        # Build HTML content with inline images
+        if has_inline_images:
+            # Create multipart/related for HTML + inline images
+            related_part = MIMEMultipart('related')
+            
+            # Add HTML body
+            html_part = MIMEText(full_body_html, 'html', 'utf-8')
+            related_part.attach(html_part)
+            
+            # Add inline signature images
+            for img in signature_images_to_embed:
+                content_id = img.get('content_id')
+                bytes_b64 = img.get('bytes_b64')
+                mime_type = img.get('mime_type', 'image/png')
+                
+                if content_id and bytes_b64:
+                    try:
+                        img_bytes = base64.b64decode(bytes_b64)
+                        maintype, subtype = mime_type.split('/', 1)
+                        img_part = MIMEImage(img_bytes, _subtype=subtype)
+                        img_part.add_header('Content-ID', f'<{content_id}>')
+                        img_part.add_header('Content-Disposition', 'inline', filename=img.get('filename', 'image.png'))
+                        related_part.attach(img_part)
+                    except Exception as e:
+                        logger.warning(f"Failed to attach signature image {content_id}: {e}")
+            
+            message.attach(related_part)
+        else:
+            # No inline images, just attach HTML directly
+            html_part = MIMEText(full_body_html, 'html', 'utf-8')
+            message.attach(html_part)
         
-        # Attach files
+        # Attach file attachments (after the related part)
         if attachments:
             for attachment in attachments:
                 filename = attachment.get('filename', 'attachment')

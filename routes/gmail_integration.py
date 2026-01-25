@@ -91,8 +91,9 @@ def callback():
             integration.refresh_token_encrypted = gmail_service.encrypt_token(token_data['refresh_token'])
             integration.token_expires_at = token_data['expires_at']
             integration.sync_enabled = True
-            integration.sync_status = 'pending'
+            integration.sync_status = 'active'
             integration.sync_error = None
+            integration.oauth_scope_version = 2  # Mark as using new send-only scopes
         else:
             # Create new integration
             integration = UserEmailIntegration(
@@ -104,7 +105,8 @@ def callback():
                 refresh_token_encrypted=gmail_service.encrypt_token(token_data['refresh_token']),
                 token_expires_at=token_data['expires_at'],
                 sync_enabled=True,
-                sync_status='pending'
+                sync_status='active',
+                oauth_scope_version=2  # New connections use send-only scopes
             )
             db.session.add(integration)
         
@@ -120,19 +122,7 @@ def callback():
         if enable_calendar:
             flash(f'Gmail connected and Calendar sync enabled! Tasks will now sync to your Google Calendar.', 'success')
         else:
-            flash(f'Gmail connected successfully! Syncing emails from {token_data["email"]}...', 'success')
-        
-        # Do initial sync
-        try:
-            result = gmail_service.fetch_emails_for_user(integration, initial=True)
-            if result['emails_fetched'] > 0:
-                flash(f'Synced {result["emails_fetched"]} emails matching {result["contacts_matched"]} contacts.', 'success')
-            else:
-                flash('No emails found matching your contacts. New emails will sync automatically.', 'info')
-        except Exception as sync_error:
-            db.session.rollback()  # Rollback any pending transaction
-            logger.error(f"Initial sync failed for user {current_user.id}: {sync_error}")
-            flash('Gmail connected but initial sync had issues. Emails will sync in background.', 'warning')
+            flash(f'Gmail connected successfully! You can now send emails from {token_data["email"]}.', 'success')
         
         return redirect(url_for('auth.view_user_profile'))
         
@@ -185,33 +175,9 @@ def status():
         'connected': True,
         'email': integration.connected_email,
         'sync_status': integration.sync_status,
-        'last_sync_at': integration.last_sync_at.isoformat() if integration.last_sync_at else None,
-        'sync_error': integration.sync_error
+        'needs_reauth': integration.needs_reauth,
+        'has_signature': integration.has_signature
     })
-
-
-@gmail_bp.route('/resync', methods=['POST'])
-@login_required
-def resync():
-    """
-    Manually trigger email resync.
-    """
-    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
-    
-    if not integration or not integration.sync_enabled:
-        return jsonify({'success': False, 'error': 'Gmail not connected'}), 400
-    
-    try:
-        result = gmail_service.fetch_emails_for_user(integration, initial=False)
-        return jsonify({
-            'success': True,
-            'emails_fetched': result['emails_fetched'],
-            'contacts_matched': result['contacts_matched'],
-            'errors': result['errors']
-        })
-    except Exception as e:
-        logger.exception(f"Resync failed for user {current_user.id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @gmail_bp.route('/calendar/toggle', methods=['POST'])
@@ -473,9 +439,19 @@ def check_send_capability():
             'message': 'Gmail not connected'
         })
     
+    # Check if user needs to reconnect with new scopes
+    if integration.needs_reauth:
+        return jsonify({
+            'can_send': False,
+            'email': integration.connected_email,
+            'reason': 'needs_reauth',
+            'message': 'Please reconnect your Gmail account to continue sending emails.'
+        })
+    
     return jsonify({
         'can_send': True,
         'email': integration.connected_email,
+        'has_signature': integration.has_signature,
         'reason': None,
         'message': None
     })
@@ -555,3 +531,243 @@ def download_contact_file_for_email(file_id):
     except Exception as e:
         logger.error(f"Error downloading contact file {file_id}: {e}")
         return jsonify({'success': False, 'error': 'Failed to download file'}), 500
+
+
+# =============================================================================
+# SIGNATURE MANAGEMENT ROUTES
+# =============================================================================
+
+@gmail_bp.route('/signature')
+@login_required
+def get_signature():
+    """
+    Get current email signature for the user.
+    Returns signature HTML and image metadata.
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration:
+        return jsonify({
+            'success': True,
+            'signature_html': '',
+            'signature_images': []
+        })
+    
+    return jsonify({
+        'success': True,
+        'signature_html': integration.signature_html or '',
+        'signature_images': integration.get_signature_images_list()
+    })
+
+
+@gmail_bp.route('/signature', methods=['POST'])
+@login_required
+def save_signature():
+    """
+    Save email signature HTML.
+    Images should be uploaded separately via /signature/image endpoint.
+    
+    Expected JSON body:
+    {
+        "signature_html": "<p>My signature with <img src='cid:img_123'></p>"
+    }
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration:
+        return jsonify({
+            'success': False,
+            'error': 'Gmail not connected. Please connect Gmail first.'
+        }), 400
+    
+    data = request.get_json() or {}
+    signature_html = data.get('signature_html', '')
+    
+    # Save the signature HTML
+    integration.signature_html = signature_html
+    db.session.commit()
+    
+    logger.info(f"User {current_user.id} saved email signature")
+    
+    return jsonify({
+        'success': True,
+        'message': 'Signature saved successfully'
+    })
+
+
+@gmail_bp.route('/signature/image', methods=['POST'])
+@login_required
+def upload_signature_image():
+    """
+    Upload and normalize a signature image.
+    Resizes to max 600px width, compresses to max 250KB.
+    Max 3 images per signature.
+    
+    Returns the content_id to use in signature HTML (cid:content_id).
+    """
+    import io
+    import base64
+    import uuid
+    from PIL import Image
+    
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration:
+        return jsonify({
+            'success': False,
+            'error': 'Gmail not connected. Please connect Gmail first.'
+        }), 400
+    
+    # Check max images limit
+    current_images = integration.get_signature_images_list()
+    if len(current_images) >= 3:
+        return jsonify({
+            'success': False,
+            'error': 'Maximum 3 signature images allowed. Remove an existing image first.'
+        }), 400
+    
+    # Get uploaded file
+    if 'image' not in request.files:
+        return jsonify({
+            'success': False,
+            'error': 'No image file provided'
+        }), 400
+    
+    file = request.files['image']
+    if not file.filename:
+        return jsonify({
+            'success': False,
+            'error': 'No file selected'
+        }), 400
+    
+    # Validate file type
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': f'Invalid file type. Allowed: {", ".join(allowed_extensions)}'
+        }), 400
+    
+    try:
+        # Read and process image
+        img = Image.open(file)
+        
+        # Convert RGBA to RGB if needed (for JPEG)
+        if img.mode == 'RGBA':
+            # Create white background
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        
+        # Resize if wider than 600px
+        max_width = 600
+        if img.width > max_width:
+            ratio = max_width / img.width
+            new_height = int(img.height * ratio)
+            img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Compress to max 250KB
+        max_size = 250 * 1024  # 250KB
+        quality = 90
+        output_format = 'JPEG' if ext in ('jpg', 'jpeg') else 'PNG'
+        
+        while quality > 10:
+            buffer = io.BytesIO()
+            img.save(buffer, format=output_format, quality=quality, optimize=True)
+            if buffer.tell() <= max_size:
+                break
+            quality -= 10
+        
+        buffer.seek(0)
+        img_bytes = buffer.read()
+        
+        # If still too large after compression, reduce dimensions
+        if len(img_bytes) > max_size:
+            ratio = 0.8
+            while len(img_bytes) > max_size and img.width > 100:
+                new_width = int(img.width * ratio)
+                new_height = int(img.height * ratio)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                img.save(buffer, format=output_format, quality=quality, optimize=True)
+                buffer.seek(0)
+                img_bytes = buffer.read()
+        
+        # Generate stable content_id
+        content_id = f"sig_img_{uuid.uuid4().hex[:12]}"
+        
+        # Determine MIME type
+        mime_type = 'image/jpeg' if output_format == 'JPEG' else 'image/png'
+        
+        # Create image metadata with base64 bytes
+        image_data = {
+            'content_id': content_id,
+            'filename': f"{content_id}.{ext}",
+            'mime_type': mime_type,
+            'bytes_b64': base64.b64encode(img_bytes).decode('utf-8'),
+            'width': img.width,
+            'height': img.height,
+            'size': len(img_bytes)
+        }
+        
+        # Add to signature images
+        current_images.append(image_data)
+        integration.signature_images = current_images
+        db.session.commit()
+        
+        logger.info(f"User {current_user.id} uploaded signature image {content_id}")
+        
+        return jsonify({
+            'success': True,
+            'content_id': content_id,
+            'cid_url': f'cid:{content_id}',
+            'width': img.width,
+            'height': img.height,
+            'size': len(img_bytes)
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error processing signature image: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to process image: {str(e)}'
+        }), 500
+
+
+@gmail_bp.route('/signature/image/<content_id>', methods=['DELETE'])
+@login_required
+def delete_signature_image(content_id):
+    """
+    Delete a signature image by content_id.
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration:
+        return jsonify({
+            'success': False,
+            'error': 'Gmail not connected'
+        }), 400
+    
+    current_images = integration.get_signature_images_list()
+    
+    # Find and remove the image
+    updated_images = [img for img in current_images if img.get('content_id') != content_id]
+    
+    if len(updated_images) == len(current_images):
+        return jsonify({
+            'success': False,
+            'error': 'Image not found'
+        }), 404
+    
+    integration.signature_images = updated_images
+    db.session.commit()
+    
+    logger.info(f"User {current_user.id} deleted signature image {content_id}")
+    
+    return jsonify({
+        'success': True,
+        'message': 'Image deleted'
+    })
