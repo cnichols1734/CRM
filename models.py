@@ -1271,6 +1271,13 @@ class UserEmailIntegration(db.Model):
     # Google Calendar sync
     calendar_sync_enabled = db.Column(db.Boolean, default=False)  # Toggle for calendar sync
     
+    # CRM-based email signature (replaces gmail.settings.basic scope requirement)
+    signature_html = db.Column(db.Text)  # HTML content of signature
+    signature_images = db.Column(db.JSON)  # Image metadata: [{filename, content_id, mime_type, bytes_b64}]
+    
+    # OAuth scope version for soft reauth (1=legacy restricted, 2=send-only)
+    oauth_scope_version = db.Column(db.Integer, default=2)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -1279,6 +1286,20 @@ class UserEmailIntegration(db.Model):
                           cascade='all, delete-orphan'))
     organization = db.relationship('Organization', backref=db.backref('email_integrations', 
                                   lazy='dynamic'))
+    
+    @property
+    def needs_reauth(self):
+        """Check if user needs to reconnect with new scopes."""
+        return self.oauth_scope_version is None or self.oauth_scope_version < 2
+    
+    @property
+    def has_signature(self):
+        """Check if user has a signature configured."""
+        return bool(self.signature_html and self.signature_html.strip())
+    
+    def get_signature_images_list(self):
+        """Get signature images as a list (handles None case)."""
+        return self.signature_images or []
     
     def __repr__(self):
         return f'<UserEmailIntegration {self.connected_email} for user {self.user_id}>'

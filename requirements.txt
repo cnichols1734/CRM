@@ -37,6 +37,9 @@ jsonschema==4.26.0
 cryptography==42.0.5
 bleach==6.1.0
 
+# Image processing (for signature image resizing)
+Pillow==12.1.0
+
 # Server
 gunicorn==23.0.0
 
