@@ -289,3 +289,269 @@ def calendar_status():
         'available': has_scope,
         'reason': None if has_scope else 'needs_reauth'
     })
+
+
+@gmail_bp.route('/send', methods=['POST'])
+@login_required
+def send_email():
+    """
+    Send an email via Gmail API.
+    
+    Expected JSON body:
+    {
+        "to": ["email@example.com"],
+        "cc": ["cc@example.com"],  # optional
+        "bcc": ["bcc@example.com"],  # optional
+        "subject": "Subject line",
+        "body": "<p>HTML body content</p>",
+        "contact_id": 123,  # optional - for logging to contact history
+        "reply_to_message_id": "msg123",  # optional - for threading
+        "thread_id": "thread123"  # optional - for threading
+    }
+    
+    Files should be sent as multipart/form-data with field name "attachments"
+    """
+    from models import Contact
+    from services.tenant_service import org_query
+    
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration or not integration.sync_enabled:
+        return jsonify({
+            'success': False,
+            'error': 'Gmail not connected. Please connect your Gmail account first.'
+        }), 400
+    
+    # Check if we have send scope (users who connected before this feature need to reauth)
+    # We'll attempt the send and handle the error if scope is missing
+    
+    # Get form data (supports both JSON and multipart)
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        # Multipart form with attachments
+        data = request.form.to_dict()
+        # Parse JSON fields that may have been stringified
+        import json
+        to_emails = json.loads(data.get('to', '[]'))
+        cc_emails = json.loads(data.get('cc', '[]')) if data.get('cc') else []
+        bcc_emails = json.loads(data.get('bcc', '[]')) if data.get('bcc') else []
+        subject = data.get('subject', '')
+        body_html = data.get('body', '')
+        contact_id = int(data.get('contact_id')) if data.get('contact_id') else None
+        reply_to_message_id = data.get('reply_to_message_id')
+        thread_id = data.get('thread_id')
+        
+        # Process attachments
+        attachments = []
+        files = request.files.getlist('attachments')
+        for file in files:
+            if file.filename:
+                content = file.read()
+                # Limit attachment size (10MB per file)
+                if len(content) > 10 * 1024 * 1024:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Attachment "{file.filename}" exceeds 10MB limit'
+                    }), 400
+                
+                attachments.append({
+                    'filename': file.filename,
+                    'content': content,
+                    'mime_type': file.content_type or 'application/octet-stream'
+                })
+    else:
+        # JSON request (no attachments)
+        data = request.get_json() or {}
+        to_emails = data.get('to', [])
+        cc_emails = data.get('cc', [])
+        bcc_emails = data.get('bcc', [])
+        subject = data.get('subject', '')
+        body_html = data.get('body', '')
+        contact_id = data.get('contact_id')
+        reply_to_message_id = data.get('reply_to_message_id')
+        thread_id = data.get('thread_id')
+        attachments = []
+    
+    # Validate required fields
+    if not to_emails:
+        return jsonify({
+            'success': False,
+            'error': 'At least one recipient is required'
+        }), 400
+    
+    if not subject:
+        return jsonify({
+            'success': False,
+            'error': 'Subject is required'
+        }), 400
+    
+    if not body_html:
+        return jsonify({
+            'success': False,
+            'error': 'Message body is required'
+        }), 400
+    
+    # Validate contact if provided
+    if contact_id:
+        contact = org_query(Contact).filter_by(id=contact_id).first()
+        if not contact:
+            return jsonify({
+                'success': False,
+                'error': 'Contact not found'
+            }), 404
+    
+    try:
+        # Send the email
+        result = gmail_service.send_email(
+            integration=integration,
+            to_emails=to_emails,
+            subject=subject,
+            body_html=body_html,
+            cc_emails=cc_emails if cc_emails else None,
+            bcc_emails=bcc_emails if bcc_emails else None,
+            attachments=attachments if attachments else None,
+            reply_to_message_id=reply_to_message_id,
+            thread_id=thread_id
+        )
+        
+        if not result['success']:
+            # Check if it's an auth issue (missing send scope)
+            error_str = str(result.get('error', '')).lower()
+            auth_errors = ['403', 'insufficient', 'invalid_scope', 'invalid_grant', 'unauthorized']
+            if any(err in error_str for err in auth_errors):
+                return jsonify({
+                    'success': False,
+                    'error': 'Gmail send permission not granted. Please reconnect your Gmail account to enable email sending.',
+                    'needs_reauth': True
+                }), 403
+            return jsonify(result), 500
+        
+        # Log to contact history if contact_id provided
+        if contact_id:
+            # Use the full body (with signature) from the result for logging
+            logged_body = result.get('body_html', body_html)
+            gmail_service.log_sent_email(
+                integration=integration,
+                contact_id=contact_id,
+                message_id=result['message_id'],
+                thread_id=result['thread_id'],
+                subject=subject,
+                to_emails=to_emails,
+                cc_emails=cc_emails,
+                body_html=logged_body,
+                has_attachments=len(attachments) > 0
+            )
+        
+        logger.info(f"User {current_user.id} sent email to {to_emails}")
+        
+        return jsonify({
+            'success': True,
+            'message_id': result['message_id'],
+            'thread_id': result['thread_id']
+        })
+        
+    except Exception as e:
+        logger.exception(f"Error sending email for user {current_user.id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@gmail_bp.route('/send/check')
+@login_required
+def check_send_capability():
+    """
+    Check if user can send emails via Gmail.
+    Returns status and connected email address.
+    """
+    integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
+    
+    if not integration or not integration.sync_enabled:
+        return jsonify({
+            'can_send': False,
+            'reason': 'not_connected',
+            'message': 'Gmail not connected'
+        })
+    
+    return jsonify({
+        'can_send': True,
+        'email': integration.connected_email,
+        'reason': None,
+        'message': None
+    })
+
+
+@gmail_bp.route('/contact/<int:contact_id>/files')
+@login_required
+def get_contact_files_for_email(contact_id):
+    """
+    Get list of files attached to a contact for email attachment picker.
+    Returns file metadata (not content) for display in the modal.
+    """
+    from models import Contact, ContactFile
+    from services.tenant_service import org_query
+    
+    # Verify contact exists and user has access
+    contact = org_query(Contact).filter_by(id=contact_id).first()
+    if not contact:
+        return jsonify({'success': False, 'error': 'Contact not found'}), 404
+    
+    # Get all files for this contact
+    files = ContactFile.query.filter_by(contact_id=contact_id).order_by(ContactFile.created_at.desc()).all()
+    
+    file_list = []
+    for f in files:
+        file_list.append({
+            'id': f.id,
+            'filename': f.original_filename,
+            'file_type': f.file_type,
+            'file_size': f.file_size,
+            'file_size_display': f.size_display,
+            'extension': f.file_extension,
+            'is_image': f.is_image,
+            'created_at': f.created_at.isoformat() if f.created_at else None
+        })
+    
+    return jsonify({
+        'success': True,
+        'files': file_list,
+        'contact_name': f"{contact.first_name} {contact.last_name}"
+    })
+
+
+@gmail_bp.route('/contact-file/<int:file_id>/download')
+@login_required
+def download_contact_file_for_email(file_id):
+    """
+    Download a contact file's content for email attachment.
+    Returns the file as bytes with appropriate headers.
+    """
+    from models import ContactFile
+    from services.tenant_service import org_query
+    from services import supabase_storage
+    from flask import Response
+    
+    # Get the file record
+    file_record = org_query(ContactFile).filter_by(id=file_id).first()
+    if not file_record:
+        return jsonify({'success': False, 'error': 'File not found'}), 404
+    
+    try:
+        # Download from Supabase
+        client = supabase_storage.get_supabase_client()
+        file_data = client.storage.from_(supabase_storage.CONTACT_FILES_BUCKET).download(file_record.storage_path)
+        
+        # Return as downloadable response
+        return Response(
+            file_data,
+            mimetype=file_record.file_type or 'application/octet-stream',
+            headers={
+                'Content-Disposition': f'attachment; filename="{file_record.original_filename}"',
+                'X-File-Name': file_record.original_filename,
+                'X-File-Type': file_record.file_type or 'application/octet-stream',
+                'X-File-Size': str(file_record.file_size or len(file_data))
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error downloading contact file {file_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to download file'}), 500
