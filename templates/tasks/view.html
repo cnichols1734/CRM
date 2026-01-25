@@ -811,7 +811,7 @@
 
                         <!-- Email Contact -->
                         {% if task.contact.email %}
-                        <a href="mailto:{{ task.contact.email }}"
+                        <button type="button" onclick="openEmailToTaskContact()"
                             class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
                             <div class="flex items-center gap-3">
                                 <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
@@ -820,7 +820,7 @@
                                 <span class="font-medium text-slate-700">Email Contact</span>
                             </div>
                             <i class="fas fa-chevron-right text-slate-300"></i>
-                        </a>
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -1027,5 +1027,25 @@
         }
     }
 
+    // Open email modal for task's contact
+    {% if task.contact and task.contact.email %}
+    function openEmailToTaskContact() {
+        emailModal.open({
+            contactId: {{ task.contact.id }},
+            to: '{{ task.contact.email }}',
+            title: 'Email {{ task.contact.first_name }} {{ task.contact.last_name }}',
+            subject: 'Re: {{ task.subject|replace("'", "\\'") }}',
+            onSend: function(result) {
+                // Show success message (page doesn't need to reload for tasks)
+                // The email is logged to the contact's history
+            }
+        });
+    }
+    {% endif %}
+
 </script>
+
+<!-- Email Compose Modal -->
+{% include 'modals/email_modal.html' %}
+
 {% endblock %}

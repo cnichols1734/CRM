@@ -65,6 +65,25 @@ def create_app():
     app.jinja_env.filters['abs'] = abs
     app.jinja_env.filters['unescape'] = html.unescape
     
+    def strip_html_smart(text):
+        """Strip HTML tags while preserving word spacing."""
+        import re
+        if not text:
+            return ''
+        # Add space before/after block elements
+        result = re.sub(r'<(p|div|br|li|h[1-6]|tr|td)[^>]*>', ' ', text, flags=re.IGNORECASE)
+        result = re.sub(r'</(p|div|li|h[1-6]|tr|td|ul|ol)>', ' ', result, flags=re.IGNORECASE)
+        result = re.sub(r'<br\s*/?>', ' ', result, flags=re.IGNORECASE)
+        # Remove remaining tags
+        result = re.sub(r'<[^>]+>', '', result)
+        # Decode entities
+        result = result.replace('&nbsp;', ' ').replace('&amp;', '&')
+        # Collapse whitespace
+        result = re.sub(r'\s+', ' ', result).strip()
+        return result
+    
+    app.jinja_env.filters['strip_html'] = strip_html_smart
+    
     def to_central_time(dt):
         """Convert UTC datetime to Central Time for display."""
         if dt is None:

@@ -2,6 +2,49 @@
 
 {% block content %}
 <style>
+    /* Email body content - render HTML like Gmail */
+    .email-body-content ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin: 0.5rem 0;
+    }
+    
+    .email-body-content ol {
+        list-style-type: decimal;
+        padding-left: 1.5rem;
+        margin: 0.5rem 0;
+    }
+    
+    .email-body-content li {
+        margin: 0.25rem 0;
+    }
+    
+    .email-body-content p {
+        margin: 0.5rem 0;
+    }
+    
+    .email-body-content strong, 
+    .email-body-content b {
+        font-weight: 600;
+    }
+    
+    .email-body-content em,
+    .email-body-content i {
+        font-style: italic;
+    }
+    
+    .email-body-content a {
+        color: #2563eb;
+        text-decoration: underline;
+    }
+    
+    .email-body-content blockquote {
+        border-left: 3px solid #e2e8f0;
+        padding-left: 1rem;
+        margin: 0.5rem 0;
+        color: #64748b;
+    }
+
     /* Premium animations */
     @keyframes fadeInUp {
         from {
@@ -733,10 +776,10 @@
                         </a>
                         {% endif %}
                         {% if contact.email %}
-                        <a href="mailto:{{ contact.email }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
+                        <button type="button" onclick="openEmailToContact()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left">
                             <i class="fas fa-envelope text-slate-400 w-4 text-center"></i>
                             <span class="text-sm text-slate-700">Email</span>
-                        </a>
+                        </button>
                         {% endif %}
                         {% if contact.phone %}
                         <a href="sms:{{ contact.phone }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
@@ -1265,24 +1308,15 @@
                                             
                                             <!-- Message Body -->
                                             <div class="px-4 py-3">
-                                                <p class="text-sm text-slate-600 leading-relaxed" id="msg-snippet-{{ msg.id }}">{{ msg.snippet }}</p>
-                                                
-                                                {% if msg.body_text or msg.body_html %}
-                                                <div id="full-email-{{ msg.id }}" class="hidden mt-3 pt-3 border-t border-slate-100">
-                                                    <div class="prose prose-sm prose-slate max-w-none email-body-content text-sm">
-                                                        {% if msg.body_html %}
-                                                        {{ msg.body_html|safe }}
-                                                        {% else %}
-                                                        <pre class="whitespace-pre-wrap font-sans text-slate-600 text-sm">{{ msg.body_text }}</pre>
-                                                        {% endif %}
-                                                    </div>
+                                                <div class="prose prose-sm prose-slate max-w-none email-body-content text-sm text-slate-600">
+                                                    {% if msg.body_html %}
+                                                    {{ msg.body_html|safe }}
+                                                    {% elif msg.body_text %}
+                                                    <pre class="whitespace-pre-wrap font-sans text-slate-600 text-sm">{{ msg.body_text }}</pre>
+                                                    {% else %}
+                                                    <p>{{ msg.snippet }}</p>
+                                                    {% endif %}
                                                 </div>
-                                                
-                                                <button onclick="toggleFullEmail('{{ msg.id }}')" id="toggle-btn-{{ msg.id }}" class="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
-                                                    <i class="fas fa-chevron-down text-xs"></i>
-                                                    <span>Show full message</span>
-                                                </button>
-                                                {% endif %}
                                             </div>
                                         </div>
                                         {% endfor %}
@@ -3007,12 +3041,23 @@
         document.querySelectorAll('.thread-date, .msg-date').forEach(function(el) {
             const dateStr = el.dataset.date;
             if (dateStr) {
-                const date = new Date(dateStr);
+                // Parse ISO date string - append Z if not present to treat as UTC
+                let date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+                
+                // Fallback if invalid date
+                if (isNaN(date.getTime())) {
+                    date = new Date(dateStr);
+                }
+                
                 const now = new Date();
                 const diffMs = now - date;
                 const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
                 
-                if (diffDays === 0) {
+                // Handle edge cases (future dates or very recent)
+                if (diffDays < 0 || diffMs < 0) {
+                    // Date appears to be in the future - show as "Just now"
+                    el.textContent = 'Just now';
+                } else if (diffDays === 0) {
                     // Today - show time
                     el.textContent = 'Today at ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
                 } else if (diffDays === 1) {
@@ -3025,5 +3070,23 @@
             }
         });
     });
+
+    // Open email modal for this contact
+    function openEmailToContact() {
+        emailModal.open({
+            contactId: {{ contact.id }},
+            to: '{{ contact.email }}',
+            title: 'Email {{ contact.first_name }} {{ contact.last_name }}',
+            onSend: function(result) {
+                // Refresh the page to show the new email in history
+                // Could also dynamically add to the email thread list
+                location.reload();
+            }
+        });
+    }
 </script>
+
+<!-- Email Compose Modal -->
+{% include 'modals/email_modal.html' %}
+
 {% endblock %}

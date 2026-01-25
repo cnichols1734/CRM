@@ -30,9 +30,11 @@ from config import Config
 
 logger = logging.getLogger(__name__)
 
-# Gmail API scopes - read-only Gmail + Calendar events
+# Gmail API scopes - read + send Gmail + settings + Calendar events
 GMAIL_SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.settings.basic',  # For reading signature
     'https://www.googleapis.com/auth/calendar.events'
 ]
 
@@ -577,3 +579,237 @@ def get_email_threads_for_contact(contact_id: int, user_id: int) -> List[Dict]:
         thread['latest_at'] = thread['latest_at'].isoformat() if thread['latest_at'] else None
     
     return threads
+
+
+def get_gmail_signature(integration) -> Optional[str]:
+    """
+    Fetch the user's Gmail signature.
+    
+    Args:
+        integration: UserEmailIntegration model instance
+    
+    Returns:
+        HTML signature string, or None if not set or error
+    """
+    try:
+        service = _get_gmail_service(integration)
+        
+        # Get the sendAs settings for the user's email
+        send_as = service.users().settings().sendAs().get(
+            userId='me',
+            sendAsEmail=integration.connected_email
+        ).execute()
+        
+        signature = send_as.get('signature', '')
+        
+        if signature:
+            logger.debug(f"Retrieved Gmail signature for {integration.connected_email}")
+            return signature
+        
+        return None
+        
+    except HttpError as e:
+        if e.resp.status in (403, 401):
+            # Missing permissions - user needs to reconnect
+            logger.warning(f"Missing permissions to read signature for user {integration.user_id}")
+        else:
+            logger.error(f"Error fetching Gmail signature: {e}")
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error fetching Gmail signature: {e}")
+        return None
+
+
+def send_email(integration, to_emails: List[str], subject: str, body_html: str,
+               cc_emails: List[str] = None, bcc_emails: List[str] = None,
+               attachments: List[Dict] = None, reply_to_message_id: str = None,
+               thread_id: str = None, include_signature: bool = True) -> Dict:
+    """
+    Send an email via Gmail API.
+    
+    Args:
+        integration: UserEmailIntegration model instance
+        to_emails: List of recipient email addresses
+        subject: Email subject
+        body_html: HTML body content
+        cc_emails: Optional list of CC recipients
+        bcc_emails: Optional list of BCC recipients
+        attachments: Optional list of dicts with keys: filename, content (bytes), mime_type
+        reply_to_message_id: Optional message ID to reply to (for threading)
+        thread_id: Optional thread ID to add message to existing thread
+        include_signature: Whether to append Gmail signature (default True)
+    
+    Returns:
+        Dict with: message_id, thread_id, success, error
+    
+    Raises:
+        Exception if send fails
+    """
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+    from email.mime.base import MIMEBase
+    from email import encoders
+    import mimetypes
+    
+    try:
+        service = _get_gmail_service(integration)
+        
+        # Build the full email body with optional signature
+        full_body_html = body_html
+        
+        if include_signature:
+            signature = get_gmail_signature(integration)
+            if signature:
+                # Add signature with separator
+                full_body_html = f"{body_html}<br><br>--<br>{signature}"
+        
+        # Create message
+        message = MIMEMultipart()
+        message['From'] = integration.connected_email
+        message['To'] = ', '.join(to_emails)
+        message['Subject'] = subject
+        
+        if cc_emails:
+            message['Cc'] = ', '.join(cc_emails)
+        if bcc_emails:
+            message['Bcc'] = ', '.join(bcc_emails)
+        
+        # Add threading headers if replying
+        if reply_to_message_id:
+            message['In-Reply-To'] = reply_to_message_id
+            message['References'] = reply_to_message_id
+        
+        # Attach HTML body (with signature if included)
+        html_part = MIMEText(full_body_html, 'html', 'utf-8')
+        message.attach(html_part)
+        
+        # Attach files
+        if attachments:
+            for attachment in attachments:
+                filename = attachment.get('filename', 'attachment')
+                content = attachment.get('content')  # bytes
+                mime_type = attachment.get('mime_type', 'application/octet-stream')
+                
+                if content:
+                    maintype, subtype = mime_type.split('/', 1) if '/' in mime_type else ('application', 'octet-stream')
+                    part = MIMEBase(maintype, subtype)
+                    part.set_payload(content)
+                    encoders.encode_base64(part)
+                    part.add_header('Content-Disposition', 'attachment', filename=filename)
+                    message.attach(part)
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Build request body
+        body = {'raw': raw_message}
+        if thread_id:
+            body['threadId'] = thread_id
+        
+        # Send message
+        sent_message = service.users().messages().send(
+            userId='me',
+            body=body
+        ).execute()
+        
+        logger.info(f"Email sent successfully. Message ID: {sent_message.get('id')}")
+        
+        return {
+            'success': True,
+            'message_id': sent_message.get('id'),
+            'thread_id': sent_message.get('threadId'),
+            'body_html': full_body_html,  # Return full body with signature for logging
+            'error': None
+        }
+        
+    except HttpError as e:
+        error_msg = f"Gmail API error: {e.resp.status} - {e.reason}"
+        logger.error(f"Failed to send email: {error_msg}")
+        return {
+            'success': False,
+            'message_id': None,
+            'thread_id': None,
+            'error': error_msg
+        }
+        
+    except Exception as e:
+        error_msg = str(e)
+        logger.exception(f"Failed to send email: {error_msg}")
+        return {
+            'success': False,
+            'message_id': None,
+            'thread_id': None,
+            'error': error_msg
+        }
+
+
+def _strip_html_tags(html: str) -> str:
+    """Strip HTML tags and return plain text for snippets."""
+    import re
+    if not html:
+        return ''
+    # Add space before block-level elements to prevent text concatenation
+    text = re.sub(r'<(p|div|br|li|h[1-6]|tr|td)[^>]*>', ' ', html, flags=re.IGNORECASE)
+    # Add space after closing block elements
+    text = re.sub(r'</(p|div|li|h[1-6]|tr|td|ul|ol)>', ' ', text, flags=re.IGNORECASE)
+    # Replace <br> and <br/> with space
+    text = re.sub(r'<br\s*/?>', ' ', text, flags=re.IGNORECASE)
+    # Remove remaining HTML tags
+    text = re.sub(r'<[^>]+>', '', text)
+    # Decode common HTML entities
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    # Collapse multiple whitespace into single space
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
+def log_sent_email(integration, contact_id: int, message_id: str, thread_id: str,
+                   subject: str, to_emails: List[str], cc_emails: List[str],
+                   body_html: str, has_attachments: bool) -> None:
+    """
+    Log a sent email to the ContactEmail table.
+    
+    Args:
+        integration: UserEmailIntegration model instance
+        contact_id: ID of the contact this email is associated with
+        message_id: Gmail message ID
+        thread_id: Gmail thread ID
+        subject: Email subject
+        to_emails: List of recipient emails
+        cc_emails: List of CC recipients
+        body_html: HTML body (will be sanitized)
+        has_attachments: Whether email had attachments
+    """
+    from models import db, ContactEmail
+    
+    try:
+        # Create plain text snippet from HTML
+        plain_text = _strip_html_tags(body_html)
+        
+        contact_email = ContactEmail(
+            organization_id=integration.organization_id,
+            user_id=integration.user_id,
+            contact_id=contact_id,
+            gmail_message_id=message_id,
+            gmail_thread_id=thread_id,
+            subject=subject[:500] if subject else None,
+            snippet=plain_text[:500] if plain_text else '',
+            from_email=integration.connected_email,
+            from_name='',  # Could pull from user profile
+            to_emails=to_emails,
+            cc_emails=cc_emails if cc_emails else None,
+            direction='outbound',
+            sent_at=datetime.utcnow(),
+            has_attachments=has_attachments,
+            body_text=plain_text,
+            body_html=sanitize_html(body_html)
+        )
+        db.session.add(contact_email)
+        db.session.commit()
+        
+        logger.info(f"Logged sent email {message_id} for contact {contact_id}")
+        
+    except Exception as e:
+        logger.exception(f"Failed to log sent email: {e}")
+        db.session.rollback()
