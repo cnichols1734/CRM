@@ -1001,11 +1001,17 @@ class ContactFile(db.Model):
         """Return human-readable file size."""
         if not self.file_size:
             return 'Unknown'
+        size = self.file_size
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if self.file_size < 1024:
-                return f"{self.file_size:.1f} {unit}"
-            self.file_size /= 1024
-        return f"{self.file_size:.1f} TB"
+            if size < 1024:
+                return f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.1f} TB"
+    
+    @property
+    def size_display(self):
+        """Alias for human_file_size for API compatibility."""
+        return self.human_file_size
     
     @classmethod
     def allowed_file(cls, filename):

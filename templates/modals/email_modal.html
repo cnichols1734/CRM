@@ -1,0 +1,973 @@
+<!-- Email Compose Modal - Reusable Gmail-style email composer -->
+<!-- Include this in any page where you want to enable email sending -->
+<!-- Requires: Quill CSS/JS loaded in the page -->
+
+<!-- Quill Editor CDN (add to base.html or include before this modal) -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
+<!-- Email Modal Styles -->
+<style>
+    /* Gmail-like email modal styling */
+    #emailModal {
+        z-index: 300;
+    }
+    
+    #emailModal .modal-content {
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Quill editor Gmail-like styling */
+    #emailModal .ql-container {
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        min-height: 200px;
+        max-height: 300px;
+        overflow-y: auto;
+        border-bottom-left-radius: 0.5rem;
+        border-bottom-right-radius: 0.5rem;
+    }
+    
+    #emailModal .ql-editor {
+        min-height: 180px;
+    }
+    
+    #emailModal .ql-toolbar {
+        border-top-left-radius: 0.5rem;
+        border-top-right-radius: 0.5rem;
+        background-color: #f8fafc;
+    }
+    
+    /* Recipient chips */
+    .email-recipient-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        background-color: #e2e8f0;
+        border-radius: 16px;
+        font-size: 13px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+    }
+    
+    .email-recipient-chip .remove-btn {
+        cursor: pointer;
+        color: #64748b;
+        margin-left: 2px;
+    }
+    
+    .email-recipient-chip .remove-btn:hover {
+        color: #ef4444;
+    }
+    
+    /* Attachment item */
+    .email-attachment-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background-color: #f1f5f9;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 13px;
+        margin-right: 8px;
+        margin-bottom: 8px;
+    }
+    
+    .email-attachment-item .remove-btn {
+        cursor: pointer;
+        color: #64748b;
+    }
+    
+    .email-attachment-item .remove-btn:hover {
+        color: #ef4444;
+    }
+    
+    /* Loading overlay */
+    #emailModal .sending-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.9);
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border-radius: 1.5rem;
+        z-index: 10;
+    }
+    
+    /* Show overlay only when not hidden */
+    #emailModal .sending-overlay:not(.hidden) {
+        display: flex;
+    }
+    
+    #emailModal .sending-overlay.hidden {
+        display: none !important;
+    }
+    
+    /* Drag and drop zone */
+    .email-dropzone-active {
+        border-color: #3b82f6 !important;
+        background-color: #eff6ff !important;
+    }
+</style>
+
+<!-- Email Modal HTML -->
+<div id="emailModal" class="fixed inset-0 opacity-0 pointer-events-none transition-all duration-300 ease-out">
+    <!-- Modal backdrop -->
+    <div id="emailModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 transition-all duration-300 ease-out z-[301]"></div>
+    
+    <div class="fixed inset-0 z-[302] overflow-y-auto">
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="modal-content relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full mx-4 sm:mx-auto opacity-0 transform scale-95 translate-y-4 transition-all duration-300 ease-out">
+                
+                <!-- Sending Overlay (hidden by default) -->
+                <div id="emailSendingOverlay" class="sending-overlay hidden">
+                    <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                    <p class="text-gray-700 font-medium">Sending email...</p>
+                </div>
+                
+                <!-- Modal header -->
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-envelope mr-2 text-blue-500"></i>
+                        <span id="emailModalTitle">New Message</span>
+                    </h2>
+                    <button onclick="emailModal.close()" class="text-gray-400 hover:text-gray-500 p-2 rounded-full hover:bg-gray-100 transition-colors">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Modal content -->
+                <form id="emailComposeForm" class="px-6 py-4 space-y-4">
+                    <!-- Hidden fields -->
+                    <input type="hidden" id="emailContactId" name="contact_id">
+                    <input type="hidden" id="emailThreadId" name="thread_id">
+                    <input type="hidden" id="emailReplyToMessageId" name="reply_to_message_id">
+                    
+                    <!-- From field (readonly) -->
+                    <div class="flex items-center">
+                        <label class="w-16 text-sm text-gray-500 flex-shrink-0">From</label>
+                        <div class="flex-1">
+                            <input type="text" id="emailFromAddress" readonly
+                                   class="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600 cursor-not-allowed">
+                        </div>
+                    </div>
+                    
+                    <!-- To field -->
+                    <div class="flex items-start">
+                        <label class="w-16 text-sm text-gray-500 flex-shrink-0 pt-2">To</label>
+                        <div class="flex-1">
+                            <div id="emailToContainer" class="flex flex-wrap items-center gap-1 min-h-[40px] px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                                <div id="emailToChips" class="flex flex-wrap"></div>
+                                <input type="email" id="emailToInput" placeholder="Add recipient..."
+                                       class="flex-1 min-w-[150px] outline-none text-sm border-none p-0 focus:ring-0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- CC/BCC toggle -->
+                    <div class="flex items-center">
+                        <div class="w-16"></div>
+                        <div class="flex-1">
+                            <button type="button" id="emailCcBccToggle" onclick="emailModal.toggleCcBcc()" 
+                                    class="text-sm text-blue-600 hover:text-blue-700 hover:underline">
+                                Cc/Bcc
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- CC field (hidden by default) -->
+                    <div id="emailCcRow" class="hidden flex items-start">
+                        <label class="w-16 text-sm text-gray-500 flex-shrink-0 pt-2">Cc</label>
+                        <div class="flex-1">
+                            <div id="emailCcContainer" class="flex flex-wrap items-center gap-1 min-h-[40px] px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                                <div id="emailCcChips" class="flex flex-wrap"></div>
+                                <input type="email" id="emailCcInput" placeholder="Add Cc..."
+                                       class="flex-1 min-w-[150px] outline-none text-sm border-none p-0 focus:ring-0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BCC field (hidden by default) -->
+                    <div id="emailBccRow" class="hidden flex items-start">
+                        <label class="w-16 text-sm text-gray-500 flex-shrink-0 pt-2">Bcc</label>
+                        <div class="flex-1">
+                            <div id="emailBccContainer" class="flex flex-wrap items-center gap-1 min-h-[40px] px-3 py-2 border border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500">
+                                <div id="emailBccChips" class="flex flex-wrap"></div>
+                                <input type="email" id="emailBccInput" placeholder="Add Bcc..."
+                                       class="flex-1 min-w-[150px] outline-none text-sm border-none p-0 focus:ring-0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Subject field -->
+                    <div class="flex items-center">
+                        <label class="w-16 text-sm text-gray-500 flex-shrink-0">Subject</label>
+                        <div class="flex-1">
+                            <input type="text" id="emailSubject" name="subject" placeholder="Subject" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <!-- Email body (Quill editor) -->
+                    <div class="border-t border-gray-100 pt-4">
+                        <div id="emailEditor"></div>
+                    </div>
+                    
+                    <!-- Attachments area -->
+                    <div id="emailAttachmentsArea" class="border-t border-gray-100 pt-4">
+                        <!-- Selected attachments list -->
+                        <div id="emailAttachmentsList" class="flex flex-wrap mb-3"></div>
+                        
+                        <!-- Two-column attachment options -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <!-- Upload from computer -->
+                            <div id="emailDropzone" 
+                                 class="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer"
+                                 onclick="document.getElementById('emailAttachmentInput').click()">
+                                <div class="text-center">
+                                    <i class="fas fa-upload text-gray-400 text-lg mb-1"></i>
+                                    <p class="text-sm text-gray-600 font-medium">Upload from computer</p>
+                                    <p class="text-xs text-gray-400">Max 10MB per file</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Pick from contact files -->
+                            <div id="emailContactFilesBtn" 
+                                 class="hidden flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer"
+                                 onclick="emailModal.toggleContactFiles()">
+                                <div class="text-center">
+                                    <i class="fas fa-folder-open text-gray-400 text-lg mb-1"></i>
+                                    <p class="text-sm text-gray-600 font-medium">From contact files</p>
+                                    <p class="text-xs text-gray-400" id="emailContactFilesCount">Loading...</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Contact files picker (hidden by default) -->
+                        <div id="emailContactFilesPicker" class="hidden mt-3 border border-gray-200 rounded-lg overflow-hidden">
+                            <div class="bg-gray-50 px-3 py-2 border-b border-gray-200 flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-700">
+                                    <i class="fas fa-folder-open text-gray-400 mr-1"></i>
+                                    Contact Files
+                                </span>
+                                <button type="button" onclick="emailModal.toggleContactFiles()" class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div id="emailContactFilesList" class="max-h-48 overflow-y-auto p-2 space-y-1">
+                                <!-- Files will be loaded here -->
+                            </div>
+                        </div>
+                        
+                        <input type="file" id="emailAttachmentInput" multiple class="hidden" 
+                               onchange="emailModal.handleAttachmentSelect(this.files)">
+                    </div>
+                </form>
+                
+                <!-- Modal footer -->
+                <div class="flex items-center justify-end px-6 py-4 border-t border-slate-200 bg-gray-50 rounded-b-3xl">
+                    <div class="flex items-center gap-3">
+                        <button type="button" onclick="emailModal.close()" 
+                                class="px-4 py-2 text-gray-700 hover:text-gray-900 font-medium text-sm transition-colors">
+                            Cancel
+                        </button>
+                        <button type="button" onclick="emailModal.send()" id="emailSendBtn"
+                                class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-150 text-sm font-medium shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-paper-plane mr-2"></i>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Email Modal JavaScript -->
+<script>
+// Email Modal Module - Reusable email composer
+window.emailModal = (function() {
+    // State
+    let quillEditor = null;
+    let toRecipients = [];
+    let ccRecipients = [];
+    let bccRecipients = [];
+    let attachments = [];  // Files from computer
+    let contactFiles = []; // Available contact files
+    let selectedContactFileIds = new Set(); // Selected contact file IDs
+    let currentContactId = null;
+    let isOpen = false;
+    let connectedEmail = null;
+    let onSendCallback = null;
+    
+    // Initialize Quill editor
+    function initEditor() {
+        if (quillEditor) return;
+        
+        quillEditor = new Quill('#emailEditor', {
+            theme: 'snow',
+            placeholder: 'Compose your message...',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    ['link'],
+                    ['clean']
+                ]
+            }
+        });
+    }
+    
+    // Check Gmail send capability
+    async function checkSendCapability() {
+        try {
+            const response = await fetch('/integrations/gmail/send/check');
+            const data = await response.json();
+            
+            if (data.can_send) {
+                connectedEmail = data.email;
+                return true;
+            } else {
+                return false;
+            }
+        } catch (error) {
+            console.error('Error checking send capability:', error);
+            return false;
+        }
+    }
+    
+    // Open the modal
+    async function open(options = {}) {
+        // Check if Gmail is connected
+        const canSend = await checkSendCapability();
+        if (!canSend) {
+            alert('Please connect your Gmail account to send emails. Go to Profile Settings to connect.');
+            return;
+        }
+        
+        // Initialize editor if needed
+        initEditor();
+        
+        // Reset form
+        reset();
+        
+        // Set options
+        if (options.contactId) {
+            document.getElementById('emailContactId').value = options.contactId;
+            currentContactId = options.contactId;
+            // Load contact files
+            loadContactFiles(options.contactId);
+        }
+        
+        if (options.to) {
+            const emails = Array.isArray(options.to) ? options.to : [options.to];
+            emails.forEach(email => addRecipient('to', email));
+        }
+        
+        if (options.subject) {
+            document.getElementById('emailSubject').value = options.subject;
+        }
+        
+        if (options.body) {
+            quillEditor.root.innerHTML = options.body;
+        }
+        
+        if (options.replyToMessageId) {
+            document.getElementById('emailReplyToMessageId').value = options.replyToMessageId;
+        }
+        
+        if (options.threadId) {
+            document.getElementById('emailThreadId').value = options.threadId;
+        }
+        
+        if (options.title) {
+            document.getElementById('emailModalTitle').textContent = options.title;
+        }
+        
+        if (options.onSend) {
+            onSendCallback = options.onSend;
+        }
+        
+        // Set from address
+        document.getElementById('emailFromAddress').value = connectedEmail;
+        
+        // Show modal with animation
+        const modal = document.getElementById('emailModal');
+        const modalContent = modal.querySelector('.modal-content');
+        
+        document.body.style.overflow = 'hidden';
+        modal.classList.remove('pointer-events-none');
+        modal.classList.add('pointer-events-auto');
+        
+        // Trigger reflow
+        modal.offsetHeight;
+        
+        // Add the fade-in classes
+        modal.classList.add('opacity-100');
+        modalContent.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+        modalContent.classList.add('opacity-100', 'scale-100', 'translate-y-0');
+        
+        isOpen = true;
+        
+        // Focus subject if to is pre-filled, otherwise focus to input
+        setTimeout(() => {
+            if (toRecipients.length > 0) {
+                document.getElementById('emailSubject').focus();
+            } else {
+                document.getElementById('emailToInput').focus();
+            }
+        }, 100);
+    }
+    
+    // Close the modal
+    function close() {
+        const modal = document.getElementById('emailModal');
+        const modalContent = modal.querySelector('.modal-content');
+        
+        // Start the fade-out animation
+        modal.classList.remove('opacity-100');
+        modalContent.classList.remove('opacity-100', 'scale-100', 'translate-y-0');
+        modalContent.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+        
+        // After the animation completes, disable pointer events
+        setTimeout(() => {
+            document.body.style.overflow = '';
+            modal.classList.remove('pointer-events-auto');
+            modal.classList.add('pointer-events-none');
+            isOpen = false;
+            onSendCallback = null;
+        }, 300);
+    }
+    
+    // Reset the form
+    function reset() {
+        toRecipients = [];
+        ccRecipients = [];
+        bccRecipients = [];
+        attachments = [];
+        contactFiles = [];
+        selectedContactFileIds = new Set();
+        currentContactId = null;
+        
+        document.getElementById('emailToChips').innerHTML = '';
+        document.getElementById('emailCcChips').innerHTML = '';
+        document.getElementById('emailBccChips').innerHTML = '';
+        document.getElementById('emailAttachmentsList').innerHTML = '';
+        
+        document.getElementById('emailSubject').value = '';
+        document.getElementById('emailContactId').value = '';
+        document.getElementById('emailThreadId').value = '';
+        document.getElementById('emailReplyToMessageId').value = '';
+        document.getElementById('emailModalTitle').textContent = 'New Message';
+        
+        document.getElementById('emailCcRow').classList.add('hidden');
+        document.getElementById('emailBccRow').classList.add('hidden');
+        document.getElementById('emailCcBccToggle').classList.remove('hidden');
+        
+        // Reset contact files picker
+        document.getElementById('emailContactFilesBtn').classList.add('hidden');
+        document.getElementById('emailContactFilesPicker').classList.add('hidden');
+        document.getElementById('emailContactFilesList').innerHTML = '';
+        document.getElementById('emailContactFilesCount').textContent = 'Loading...';
+        
+        if (quillEditor) {
+            quillEditor.root.innerHTML = '';
+        }
+        
+        // Hide sending overlay
+        document.getElementById('emailSendingOverlay').classList.add('hidden');
+    }
+    
+    // Toggle CC/BCC fields
+    function toggleCcBcc() {
+        document.getElementById('emailCcRow').classList.remove('hidden');
+        document.getElementById('emailBccRow').classList.remove('hidden');
+        document.getElementById('emailCcBccToggle').classList.add('hidden');
+    }
+    
+    // Add recipient chip
+    function addRecipient(type, email) {
+        email = email.trim().toLowerCase();
+        if (!email || !isValidEmail(email)) return;
+        
+        const arrays = { to: toRecipients, cc: ccRecipients, bcc: bccRecipients };
+        const containers = { 
+            to: 'emailToChips', 
+            cc: 'emailCcChips', 
+            bcc: 'emailBccChips' 
+        };
+        
+        // Check for duplicates across all arrays
+        if (toRecipients.includes(email) || ccRecipients.includes(email) || bccRecipients.includes(email)) {
+            return;
+        }
+        
+        arrays[type].push(email);
+        
+        const chip = document.createElement('span');
+        chip.className = 'email-recipient-chip';
+        chip.innerHTML = `
+            ${email}
+            <span class="remove-btn" onclick="emailModal.removeRecipient('${type}', '${email}', this.parentElement)">
+                <i class="fas fa-times text-xs"></i>
+            </span>
+        `;
+        
+        document.getElementById(containers[type]).appendChild(chip);
+    }
+    
+    // Remove recipient chip
+    function removeRecipient(type, email, chipElement) {
+        const arrays = { to: toRecipients, cc: ccRecipients, bcc: bccRecipients };
+        const index = arrays[type].indexOf(email);
+        if (index > -1) {
+            arrays[type].splice(index, 1);
+        }
+        chipElement.remove();
+    }
+    
+    // Validate email
+    function isValidEmail(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    
+    // Handle attachment selection
+    function handleAttachmentSelect(files) {
+        for (const file of files) {
+            // Check file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                alert(`File "${file.name}" exceeds 10MB limit`);
+                continue;
+            }
+            
+            // Check for duplicates
+            if (attachments.some(a => a.name === file.name && a.size === file.size)) {
+                continue;
+            }
+            
+            attachments.push(file);
+            renderAttachment(file);
+        }
+        
+        // Clear the input
+        document.getElementById('emailAttachmentInput').value = '';
+    }
+    
+    // Render attachment item
+    function renderAttachment(file) {
+        const list = document.getElementById('emailAttachmentsList');
+        const item = document.createElement('div');
+        item.className = 'email-attachment-item';
+        item.dataset.fileName = file.name;
+        
+        // Get icon based on file type
+        let icon = 'fa-file';
+        if (file.type.startsWith('image/')) icon = 'fa-file-image';
+        else if (file.type.includes('pdf')) icon = 'fa-file-pdf';
+        else if (file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) icon = 'fa-file-word';
+        else if (file.type.includes('excel') || file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) icon = 'fa-file-excel';
+        
+        // Format file size
+        const sizeKB = Math.round(file.size / 1024);
+        const sizeStr = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+        
+        item.innerHTML = `
+            <i class="fas ${icon} text-gray-500"></i>
+            <span class="font-medium">${file.name}</span>
+            <span class="text-gray-400">(${sizeStr})</span>
+            <span class="remove-btn" onclick="emailModal.removeAttachment('${file.name}', this.parentElement)">
+                <i class="fas fa-times"></i>
+            </span>
+        `;
+        
+        list.appendChild(item);
+    }
+    
+    // Remove attachment
+    function removeAttachment(fileName, itemElement) {
+        attachments = attachments.filter(f => f.name !== fileName);
+        itemElement.remove();
+    }
+    
+    // Load contact files
+    async function loadContactFiles(contactId) {
+        const btn = document.getElementById('emailContactFilesBtn');
+        const countEl = document.getElementById('emailContactFilesCount');
+        
+        // Always show the button for contacts
+        btn.classList.remove('hidden');
+        countEl.textContent = 'Loading...';
+        
+        try {
+            const response = await fetch(`/integrations/gmail/contact/${contactId}/files`);
+            const data = await response.json();
+            
+            if (data.success && data.files.length > 0) {
+                contactFiles = data.files;
+                countEl.textContent = `${data.files.length} file${data.files.length !== 1 ? 's' : ''} available`;
+            } else {
+                contactFiles = [];
+                countEl.textContent = 'No files attached';
+            }
+        } catch (error) {
+            console.error('Error loading contact files:', error);
+            contactFiles = [];
+            countEl.textContent = 'Error loading files';
+        }
+    }
+    
+    // Toggle contact files picker
+    function toggleContactFiles() {
+        const picker = document.getElementById('emailContactFilesPicker');
+        const isHidden = picker.classList.contains('hidden');
+        
+        if (isHidden) {
+            // Show picker and render files
+            picker.classList.remove('hidden');
+            renderContactFiles();
+        } else {
+            picker.classList.add('hidden');
+        }
+    }
+    
+    // Render contact files in the picker
+    function renderContactFiles() {
+        const list = document.getElementById('emailContactFilesList');
+        list.innerHTML = '';
+        
+        if (contactFiles.length === 0) {
+            list.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No files available</p>';
+            return;
+        }
+        
+        contactFiles.forEach(file => {
+            const isSelected = selectedContactFileIds.has(file.id);
+            const item = document.createElement('label');
+            item.className = `flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'}`;
+            
+            // Get icon based on extension
+            let icon = 'fa-file';
+            if (file.is_image) icon = 'fa-file-image';
+            else if (file.extension === 'pdf') icon = 'fa-file-pdf';
+            else if (['doc', 'docx'].includes(file.extension)) icon = 'fa-file-word';
+            else if (['xls', 'xlsx', 'csv'].includes(file.extension)) icon = 'fa-file-excel';
+            
+            item.innerHTML = `
+                <input type="checkbox" class="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" 
+                       ${isSelected ? 'checked' : ''} 
+                       onchange="emailModal.toggleContactFile(${file.id})">
+                <i class="fas ${icon} text-gray-400"></i>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-700 truncate">${file.filename}</p>
+                    <p class="text-xs text-gray-400">${file.file_size_display}</p>
+                </div>
+            `;
+            
+            list.appendChild(item);
+        });
+    }
+    
+    // Toggle a contact file selection
+    function toggleContactFile(fileId) {
+        if (selectedContactFileIds.has(fileId)) {
+            selectedContactFileIds.delete(fileId);
+            // Remove from attachments list display
+            const item = document.querySelector(`[data-contact-file-id="${fileId}"]`);
+            if (item) item.remove();
+        } else {
+            selectedContactFileIds.add(fileId);
+            // Add to attachments list display
+            const file = contactFiles.find(f => f.id === fileId);
+            if (file) {
+                renderContactFileAttachment(file);
+            }
+        }
+        // Re-render the picker to update checkbox states
+        renderContactFiles();
+    }
+    
+    // Render a contact file in the attachments list
+    function renderContactFileAttachment(file) {
+        const list = document.getElementById('emailAttachmentsList');
+        const item = document.createElement('div');
+        item.className = 'email-attachment-item';
+        item.dataset.contactFileId = file.id;
+        
+        let icon = 'fa-file';
+        if (file.is_image) icon = 'fa-file-image';
+        else if (file.extension === 'pdf') icon = 'fa-file-pdf';
+        else if (['doc', 'docx'].includes(file.extension)) icon = 'fa-file-word';
+        else if (['xls', 'xlsx', 'csv'].includes(file.extension)) icon = 'fa-file-excel';
+        
+        item.innerHTML = `
+            <i class="fas ${icon} text-green-500"></i>
+            <span class="font-medium">${file.filename}</span>
+            <span class="text-gray-400">(${file.file_size_display})</span>
+            <span class="text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded">Contact file</span>
+            <span class="remove-btn" onclick="emailModal.toggleContactFile(${file.id})">
+                <i class="fas fa-times"></i>
+            </span>
+        `;
+        
+        list.appendChild(item);
+    }
+    
+    // Send email
+    async function send() {
+        // Validate
+        if (toRecipients.length === 0) {
+            alert('Please add at least one recipient');
+            document.getElementById('emailToInput').focus();
+            return;
+        }
+        
+        const subject = document.getElementById('emailSubject').value.trim();
+        if (!subject) {
+            alert('Please enter a subject');
+            document.getElementById('emailSubject').focus();
+            return;
+        }
+        
+        const bodyHtml = quillEditor.root.innerHTML;
+        if (!bodyHtml || bodyHtml === '<p><br></p>') {
+            alert('Please enter a message');
+            quillEditor.focus();
+            return;
+        }
+        
+        // Show sending overlay
+        document.getElementById('emailSendingOverlay').classList.remove('hidden');
+        document.getElementById('emailSendBtn').disabled = true;
+        
+        try {
+            // Build form data for multipart submission
+            const formData = new FormData();
+            formData.append('to', JSON.stringify(toRecipients));
+            formData.append('cc', JSON.stringify(ccRecipients));
+            formData.append('bcc', JSON.stringify(bccRecipients));
+            formData.append('subject', subject);
+            formData.append('body', bodyHtml);
+            
+            const contactId = document.getElementById('emailContactId').value;
+            if (contactId) {
+                formData.append('contact_id', contactId);
+            }
+            
+            const threadId = document.getElementById('emailThreadId').value;
+            if (threadId) {
+                formData.append('thread_id', threadId);
+            }
+            
+            const replyToMessageId = document.getElementById('emailReplyToMessageId').value;
+            if (replyToMessageId) {
+                formData.append('reply_to_message_id', replyToMessageId);
+            }
+            
+            // Add attachments from computer
+            attachments.forEach(file => {
+                formData.append('attachments', file);
+            });
+            
+            // Download and add contact files
+            if (selectedContactFileIds.size > 0) {
+                for (const fileId of selectedContactFileIds) {
+                    const file = contactFiles.find(f => f.id === fileId);
+                    if (file) {
+                        try {
+                            const fileResponse = await fetch(`/integrations/gmail/contact-file/${fileId}/download`);
+                            if (fileResponse.ok) {
+                                const blob = await fileResponse.blob();
+                                const contactFile = new File([blob], file.filename, { type: file.file_type || 'application/octet-stream' });
+                                formData.append('attachments', contactFile);
+                            }
+                        } catch (e) {
+                            console.error(`Failed to download contact file ${fileId}:`, e);
+                        }
+                    }
+                }
+            }
+            
+            // Send request
+            const response = await fetch('/integrations/gmail/send', {
+                method: 'POST',
+                body: formData
+            });
+            
+            let result;
+            try {
+                result = await response.json();
+            } catch (e) {
+                throw new Error('Invalid server response');
+            }
+            
+            if (result.success) {
+                // Success - close modal and show notification
+                close();
+                
+                // Show success toast
+                showToast('Email sent successfully!', 'success');
+                
+                // Call callback if provided
+                if (onSendCallback) {
+                    onSendCallback(result);
+                }
+            } else {
+                // Check if needs reauth (403 or scope error)
+                if (result.needs_reauth) {
+                    close();
+                    if (confirm('Your Gmail connection needs to be updated to enable sending emails.\n\nWould you like to reconnect your Gmail account now?')) {
+                        window.location.href = '/integrations/gmail/connect';
+                    }
+                } else {
+                    alert('Failed to send email: ' + (result.error || 'Unknown error'));
+                }
+            }
+        } catch (error) {
+            console.error('Error sending email:', error);
+            alert('Failed to send email. Please try again.');
+        } finally {
+            document.getElementById('emailSendingOverlay').classList.add('hidden');
+            document.getElementById('emailSendBtn').disabled = false;
+        }
+    }
+    
+    // Show toast notification
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `fixed bottom-4 right-4 z-[400] px-6 py-3 rounded-xl shadow-lg text-white font-medium transform translate-y-full opacity-0 transition-all duration-300 ${
+            type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        }`;
+        toast.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
+            ${message}
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-y-full', 'opacity-0');
+        }, 10);
+        
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-y-full', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+    
+    // Initialize event listeners
+    function init() {
+        // Email input handlers for To, Cc, Bcc
+        ['To', 'Cc', 'Bcc'].forEach(type => {
+            const input = document.getElementById(`email${type}Input`);
+            if (input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.key === ',' || e.key === ' ' || e.key === 'Tab') {
+                        e.preventDefault();
+                        const email = this.value.trim().replace(',', '');
+                        if (email) {
+                            addRecipient(type.toLowerCase(), email);
+                            this.value = '';
+                        }
+                    }
+                    // Backspace on empty input removes last chip
+                    if (e.key === 'Backspace' && !this.value) {
+                        const arrays = { To: toRecipients, Cc: ccRecipients, Bcc: bccRecipients };
+                        const containers = { 
+                            To: 'emailToChips', 
+                            Cc: 'emailCcChips', 
+                            Bcc: 'emailBccChips' 
+                        };
+                        if (arrays[type].length > 0) {
+                            const lastEmail = arrays[type].pop();
+                            const container = document.getElementById(containers[type]);
+                            if (container.lastChild) {
+                                container.lastChild.remove();
+                            }
+                        }
+                    }
+                });
+                
+                // Also handle blur to add email
+                input.addEventListener('blur', function() {
+                    const email = this.value.trim().replace(',', '');
+                    if (email) {
+                        addRecipient(type.toLowerCase(), email);
+                        this.value = '';
+                    }
+                });
+            }
+        });
+        
+        // Drag and drop for attachments
+        const dropzone = document.getElementById('emailDropzone');
+        if (dropzone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => {
+                    dropzone.classList.add('email-dropzone-active');
+                });
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, () => {
+                    dropzone.classList.remove('email-dropzone-active');
+                });
+            });
+            
+            dropzone.addEventListener('drop', function(e) {
+                const files = e.dataTransfer.files;
+                handleAttachmentSelect(files);
+            });
+        }
+        
+        // Close on backdrop click
+        const backdrop = document.getElementById('emailModalBackdrop');
+        if (backdrop) {
+            backdrop.addEventListener('click', close);
+        }
+        
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && isOpen) {
+                close();
+            }
+        });
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+    
+    // Public API
+    return {
+        open,
+        close,
+        reset,
+        toggleCcBcc,
+        addRecipient,
+        removeRecipient,
+        handleAttachmentSelect,
+        removeAttachment,
+        toggleContactFiles,
+        toggleContactFile,
+        send
+    };
+})();
+</script>
