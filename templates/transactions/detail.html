@@ -696,17 +696,10 @@
                                 <p class="text-xs text-slate-500">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <button onclick="showAddExternalModal()" 
-                                    class="text-sm px-3 py-2 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors font-medium"
-                                    title="Upload document from other party">
-                                <i class="fas fa-file-import mr-1"></i>External
-                            </button>
-                            <button onclick="showAddDocumentModal()" 
-                                    class="text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
-                                <i class="fas fa-plus mr-2"></i>Add
-                            </button>
-                        </div>
+                        <button onclick="showAddDocumentPicker()" 
+                                class="text-sm px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-colors font-medium shadow-sm">
+                            <i class="fas fa-plus mr-2"></i>Add Document
+                        </button>
                     </div>
                     
                     {% if documents %}
@@ -718,12 +711,15 @@
                             <div class="flex items-center gap-4">
                                 <div class="w-12 h-12 rounded-xl flex items-center justify-center
                                     {% if doc.is_placeholder and doc.status == 'pending' %}bg-amber-100
+                                    {% elif doc.status == 'signed' and doc.document_source == 'completed' %}bg-teal-100
                                     {% elif doc.status == 'signed' %}bg-green-100
                                     {% elif doc.status == 'sent' %}bg-blue-100
                                     {% elif doc.status == 'filled' %}bg-purple-100
                                     {% else %}bg-slate-100{% endif %}">
                                     {% if doc.is_placeholder and doc.status == 'pending' %}
                                     <i class="fas fa-exclamation-circle text-amber-600 text-lg"></i>
+                                    {% elif doc.status == 'signed' and doc.document_source == 'completed' %}
+                                    <i class="fas fa-file-upload text-teal-600 text-lg"></i>
                                     {% elif doc.status == 'signed' and doc.signing_method == 'physical' %}
                                     <i class="fas fa-pen-nib text-green-600 text-lg"></i>
                                     {% elif doc.status == 'signed' %}
@@ -743,6 +739,8 @@
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
                                             <i class="fas fa-exclamation-triangle mr-1"></i>Needs Content
                                         </span>
+                                        {% elif doc.document_source == 'completed' %}
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">Uploaded</span>
                                         {% elif doc.document_source == 'static' %}
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">Static PDF</span>
                                         {% elif doc.document_source == 'external' %}
@@ -762,8 +760,11 @@
                                 {% if doc.status == 'signed' and doc.signed_file_path %}
                                 <!-- Signed with local copy stored -->
                                 <div class="flex items-center gap-2">
-                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex items-center gap-1">
-                                        {% if doc.signing_method == 'physical' %}
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1
+                                        {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                        {% if doc.document_source == 'completed' %}
+                                        <i class="fas fa-file-upload"></i>Uploaded
+                                        {% elif doc.signing_method == 'physical' %}
                                         <i class="fas fa-pen-nib"></i>Wet Signed
                                         {% else %}
                                         <i class="fas fa-signature"></i>E-Signed
@@ -777,8 +778,11 @@
                                 </div>
                                 {% elif doc.status == 'signed' %}
                                 <!-- Signed but not yet stored locally -->
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 flex items-center gap-1">
-                                    {% if doc.signing_method == 'physical' %}
+                                <span class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1
+                                    {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                    {% if doc.document_source == 'completed' %}
+                                    <i class="fas fa-file-upload"></i>Uploaded
+                                    {% elif doc.signing_method == 'physical' %}
                                     <i class="fas fa-pen-nib"></i>Wet Signed
                                     {% else %}
                                     <i class="fas fa-signature"></i>E-Signed
@@ -917,7 +921,7 @@
                                         <!-- SIGNED: View/Download -->
                                         {% if doc.status == 'signed' %}
                                         <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                            {% if doc.signing_method == 'physical' %}Wet Signed{% else %}E-Signed{% endif %}
+                                            {% if doc.document_source == 'completed' %}Uploaded{% elif doc.signing_method == 'physical' %}Wet Signed{% else %}E-Signed{% endif %}
                                         </div>
                                         {% if doc.signed_file_path %}
                                         <button onclick="viewStoredDocument({{ doc.id }})" 
@@ -975,12 +979,9 @@
                     </div>
                     
                     <!-- Bulk Actions -->
-                    <div class="mt-5 pt-5 border-t border-slate-100 flex flex-wrap gap-3">
-                        <button onclick="fillAllForms()" class="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium">
-                            <i class="fas fa-edit mr-2 text-slate-400"></i>Fill All Forms
-                        </button>
-                        <button onclick="generateAllPDFs()" class="flex-1 min-w-[140px] px-4 py-2.5 border-2 border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium">
-                            <i class="fas fa-file-pdf mr-2 text-slate-400"></i>Generate All PDFs
+                    <div class="mt-5 pt-5 border-t border-slate-100">
+                        <button onclick="fillAllForms()" class="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-colors text-sm font-medium shadow-sm">
+                            <i class="fas fa-edit mr-2"></i>Fill All Forms
                         </button>
                     </div>
                     {% else %}
@@ -1675,61 +1676,298 @@
     </div>
 </div>
 
-<!-- Add Document Modal -->
+<!-- Unified Add Document Modal -->
 <div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
-    <div class="modal-overlay absolute inset-0" onclick="closeDocumentModal()"></div>
+    <div class="modal-overlay absolute inset-0" onclick="closeAddDocumentModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
-            <h3 class="text-xl font-bold text-slate-800 mb-5">Add Document</h3>
-            <form id="addDocumentForm">
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Document *</label>
-                        <select name="template_slug" required id="docTemplateSelect" 
-                                class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
-                            <option value="">Choose a document...</option>
-                            <optgroup label="Listing Documents">
-                                <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
-                                <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
-                                <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
-                            </optgroup>
-                            <optgroup label="Addenda">
-                                <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
-                                <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
-                                <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
-                                <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
-                                <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
-                            </optgroup>
-                            <optgroup label="Other Documents">
-                                <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
-                                <option value="seller-net-proceeds" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
-                                <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
-                                <option value="custom" data-name="">Custom Document</option>
-                            </optgroup>
-                        </select>
-                    </div>
-                    
-                    <div id="customDocNameField" class="hidden">
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Document Name *</label>
-                        <input type="text" name="custom_name" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="Enter document name">
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1.5">Reason for Adding (optional)</label>
-                        <input type="text" name="reason" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="e.g., Client requested">
-                    </div>
-                </div>
-                <div class="flex gap-3 mt-6">
-                    <button type="button" onclick="closeDocumentModal()" 
-                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
-                        Add Document
+        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full relative z-10 overflow-hidden">
+            
+            <!-- Picker View (Initial) -->
+            <div id="pickerView" class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-xl font-bold text-slate-800">Add Document</h3>
+                    <button onclick="closeAddDocumentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
                     </button>
                 </div>
-            </form>
+                
+                <div class="space-y-3">
+                    <!-- From Template Option -->
+                    <button onclick="showPickerView('template')" 
+                            class="w-full p-4 border-2 border-slate-200 rounded-xl hover:border-slate-300 hover:bg-slate-50 transition-all text-left group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                                <i class="fas fa-file-alt text-slate-600 text-lg"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-slate-800">From Template</div>
+                                <div class="text-sm text-slate-500">Select from your document library</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-slate-400"></i>
+                        </div>
+                    </button>
+                    
+                    <!-- Upload for E-Sign Option -->
+                    <button onclick="showPickerView('upload-esign')" 
+                            class="w-full p-4 border-2 border-purple-200 rounded-xl hover:border-purple-300 hover:bg-purple-50 transition-all text-left group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                                <i class="fas fa-file-signature text-purple-600 text-lg"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-slate-800">Upload for E-Sign</div>
+                                <div class="text-sm text-slate-500">Upload a PDF and add signature fields</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-purple-400"></i>
+                        </div>
+                    </button>
+                    
+                    <!-- Upload Completed Option -->
+                    <button onclick="showPickerView('upload-completed')" 
+                            class="w-full p-4 border-2 border-teal-200 rounded-xl hover:border-teal-300 hover:bg-teal-50 transition-all text-left group">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center group-hover:bg-teal-200 transition-colors">
+                                <i class="fas fa-file-upload text-teal-600 text-lg"></i>
+                            </div>
+                            <div class="flex-1">
+                                <div class="font-semibold text-slate-800">Upload Completed</div>
+                                <div class="text-sm text-slate-500">Upload a document that doesn't require signatures</div>
+                            </div>
+                            <i class="fas fa-chevron-right text-teal-400"></i>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Template View -->
+            <div id="templateView" class="hidden p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <button onclick="showPickerView('picker')" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-slate-800">From Template</h3>
+                        <p class="text-sm text-slate-500">Select a document from your library</p>
+                    </div>
+                    <button onclick="closeAddDocumentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <form id="addDocumentForm">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Select Document *</label>
+                            <select name="template_slug" required id="docTemplateSelect" 
+                                    class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors">
+                                <option value="">Choose a document...</option>
+                                <optgroup label="Listing Documents">
+                                    <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
+                                    <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
+                                    <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
+                                </optgroup>
+                                <optgroup label="Addenda">
+                                    <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
+                                    <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
+                                    <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
+                                    <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
+                                    <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
+                                </optgroup>
+                                <optgroup label="Other Documents">
+                                    <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
+                                    <option value="seller-net-proceeds" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
+                                    <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
+                                    <option value="custom" data-name="">Custom Document</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <div id="customDocNameField" class="hidden">
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Document Name *</label>
+                            <input type="text" name="custom_name" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="Enter document name">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1.5">Reason for Adding (optional)</label>
+                            <input type="text" name="reason" class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" placeholder="e.g., Client requested">
+                        </div>
+                    </div>
+                    <div class="flex gap-3 mt-6">
+                        <button type="button" onclick="showPickerView('picker')" 
+                                class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                            Back
+                        </button>
+                        <button type="submit" 
+                                class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
+                            Add Document
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Upload for E-Sign View -->
+            <div id="uploadEsignView" class="hidden p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <button onclick="showPickerView('picker')" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-file-signature text-purple-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-slate-800">Upload for E-Sign</h3>
+                        <p class="text-sm text-slate-500">Upload a PDF and add signature fields</p>
+                    </div>
+                    <button onclick="closeAddDocumentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <form id="uploadEsignForm" enctype="multipart/form-data">
+                    <!-- Document Name -->
+                    <div class="mb-4">
+                        <label for="esignDocName" class="block text-sm font-medium text-slate-700 mb-2">Document Name</label>
+                        <input type="text" id="esignDocName" name="document_name" 
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
+                               placeholder="e.g., 1-4 Family Residential Contract">
+                    </div>
+                    
+                    <!-- Drop Zone -->
+                    <div id="esignDropZone" 
+                         class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors mb-4"
+                         onclick="document.getElementById('esignFileInput').click()">
+                        <div id="esignDropContent">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                            <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                            <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                        </div>
+                        <div id="esignFileInfo" class="hidden">
+                            <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                            <p id="esignFileName" class="text-sm font-medium text-slate-700"></p>
+                            <p id="esignFileSize" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                    </div>
+                    <input type="file" id="esignFileInput" name="file" accept=".pdf" class="hidden" onchange="handleEsignFileSelect(this)">
+                    
+                    <!-- Upload Progress -->
+                    <div id="esignProgress" class="hidden mb-4">
+                        <div class="flex items-center justify-between text-sm mb-2">
+                            <span class="text-slate-600">Uploading...</span>
+                            <span id="esignPercent" class="font-medium text-purple-600">0%</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="esignProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div id="esignError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p id="esignErrorText" class="text-sm text-red-600"></p>
+                    </div>
+                    
+                    <p class="text-xs text-slate-400 mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        After upload, you'll place signature fields on the document.
+                    </p>
+                    
+                    <div class="flex gap-3">
+                        <button type="button" onclick="showPickerView('picker')" 
+                                class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                            Back
+                        </button>
+                        <button type="submit" id="uploadEsignBtn" disabled
+                                class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-upload mr-2"></i>Upload & Edit
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Upload Completed View -->
+            <div id="uploadCompletedView" class="hidden p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <button onclick="showPickerView('picker')" class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-file-upload text-teal-600"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-bold text-slate-800">Upload Completed</h3>
+                        <p class="text-sm text-slate-500">Document doesn't require signatures</p>
+                    </div>
+                    <button onclick="closeAddDocumentModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                
+                <div class="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                    <p class="text-sm text-teal-700">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        This document will be included in your package as-is, without requiring any signatures.
+                    </p>
+                </div>
+                
+                <form id="uploadCompletedForm" enctype="multipart/form-data">
+                    <!-- Document Name -->
+                    <div class="mb-4">
+                        <label for="completedDocName" class="block text-sm font-medium text-slate-700 mb-2">Document Name</label>
+                        <input type="text" id="completedDocName" name="document_name" 
+                               class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-teal-500 focus:outline-none transition-colors"
+                               placeholder="e.g., Survey, Title Commitment">
+                    </div>
+                    
+                    <!-- Drop Zone -->
+                    <div id="completedDropZone" 
+                         class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors mb-4"
+                         onclick="document.getElementById('completedFileInput').click()">
+                        <div id="completedDropContent">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                            <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                            <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                        </div>
+                        <div id="completedFileInfo" class="hidden">
+                            <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                            <p id="completedFileName" class="text-sm font-medium text-slate-700"></p>
+                            <p id="completedFileSize" class="text-xs text-slate-400 mt-1"></p>
+                        </div>
+                    </div>
+                    <input type="file" id="completedFileInput" name="file" accept=".pdf" class="hidden" onchange="handleCompletedFileSelect(this)">
+                    
+                    <!-- Upload Progress -->
+                    <div id="completedProgress" class="hidden mb-4">
+                        <div class="flex items-center justify-between text-sm mb-2">
+                            <span class="text-slate-600">Uploading...</span>
+                            <span id="completedPercent" class="font-medium text-teal-600">0%</span>
+                        </div>
+                        <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div id="completedProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div id="completedError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p id="completedErrorText" class="text-sm text-red-600"></p>
+                    </div>
+                    
+                    <p class="text-xs text-slate-400 mb-4">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Only PDF files are accepted. Maximum file size: 25MB.
+                    </p>
+                    
+                    <div class="flex gap-3">
+                        <button type="button" onclick="showPickerView('picker')" 
+                                class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                            Back
+                        </button>
+                        <button type="submit" id="uploadCompletedBtn" disabled
+                                class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-upload mr-2"></i>Upload
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
         </div>
     </div>
 </div>
@@ -1806,82 +2044,6 @@
     </div>
 </div>
 
-<!-- Upload External Document Modal -->
-<div id="uploadExternalModal" class="fixed inset-0 z-50 hidden">
-    <div class="modal-overlay absolute inset-0" onclick="closeExternalModal()"></div>
-    <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
-            <div class="flex items-center gap-3 mb-5">
-                <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <i class="fas fa-file-import text-purple-600"></i>
-                </div>
-                <div>
-                    <h3 class="text-lg font-bold text-slate-800">Upload External Document</h3>
-                    <p class="text-sm text-slate-500">Upload a document from another party for signature</p>
-                </div>
-            </div>
-            
-            <form id="uploadExternalForm" enctype="multipart/form-data">
-                <!-- Document Name -->
-                <div class="mb-4">
-                    <label for="externalDocName" class="block text-sm font-medium text-slate-700 mb-2">Document Name</label>
-                    <input type="text" id="externalDocName" name="document_name" 
-                           class="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-purple-500 focus:outline-none transition-colors"
-                           placeholder="e.g., 1-4 Family Residential Contract">
-                </div>
-                
-                <!-- Drop Zone -->
-                <div id="externalDropZone" 
-                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-50/30 transition-colors mb-4"
-                     onclick="document.getElementById('externalFileInput').click()">
-                    <div id="externalDropContent">
-                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
-                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
-                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
-                    </div>
-                    <div id="externalFileInfo" class="hidden">
-                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
-                        <p id="externalFileName" class="text-sm font-medium text-slate-700"></p>
-                        <p id="externalFileSize" class="text-xs text-slate-400 mt-1"></p>
-                    </div>
-                </div>
-                <input type="file" id="externalFileInput" name="file" accept=".pdf" class="hidden" onchange="handleExternalFileSelect(this)">
-                
-                <!-- Upload Progress -->
-                <div id="externalProgress" class="hidden mb-4">
-                    <div class="flex items-center justify-between text-sm mb-2">
-                        <span class="text-slate-600">Uploading...</span>
-                        <span id="externalPercent" class="font-medium text-purple-600">0%</span>
-                    </div>
-                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div id="externalProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-                
-                <!-- Error Message -->
-                <div id="externalError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <p id="externalErrorText" class="text-sm text-red-600"></p>
-                </div>
-                
-                <p class="text-xs text-slate-400 mb-4">
-                    <i class="fas fa-info-circle mr-1"></i>
-                    After upload, you'll place signature fields on the document.
-                </p>
-                
-                <div class="flex gap-3">
-                    <button type="button" onclick="closeExternalModal()" 
-                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
-                        Cancel
-                    </button>
-                    <button type="submit" id="uploadExternalBtn" disabled
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-upload mr-2"></i>Upload & Edit
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 <!-- Upload Static Document Modal (for placeholders, no signing) -->
 <div id="uploadStaticModal" class="fixed inset-0 z-50 hidden">
@@ -2552,14 +2714,69 @@ function closeParticipantModal() {
     clearSelectedContact();
 }
 
-function showAddDocumentModal() {
+// =============================================================================
+// UNIFIED ADD DOCUMENT MODAL
+// =============================================================================
+
+function showAddDocumentPicker() {
+    // Reset all views to initial state
+    resetAddDocumentModal();
+    // Show picker view
+    showPickerView('picker');
+    // Show modal
     document.getElementById('addDocumentModal').classList.remove('hidden');
-    document.getElementById('addDocumentForm').reset();
+}
+
+function closeAddDocumentModal() {
+    document.getElementById('addDocumentModal').classList.add('hidden');
+    resetAddDocumentModal();
+}
+
+function resetAddDocumentModal() {
+    // Reset template form
+    const templateForm = document.getElementById('addDocumentForm');
+    if (templateForm) templateForm.reset();
     document.getElementById('customDocNameField').classList.add('hidden');
+    
+    // Reset e-sign form
+    resetEsignForm();
+    
+    // Reset completed form
+    resetCompletedForm();
+}
+
+function showPickerView(view) {
+    // Hide all views
+    document.getElementById('pickerView').classList.add('hidden');
+    document.getElementById('templateView').classList.add('hidden');
+    document.getElementById('uploadEsignView').classList.add('hidden');
+    document.getElementById('uploadCompletedView').classList.add('hidden');
+    
+    // Show requested view
+    switch(view) {
+        case 'picker':
+            document.getElementById('pickerView').classList.remove('hidden');
+            break;
+        case 'template':
+            document.getElementById('templateView').classList.remove('hidden');
+            break;
+        case 'upload-esign':
+            document.getElementById('uploadEsignView').classList.remove('hidden');
+            break;
+        case 'upload-completed':
+            document.getElementById('uploadCompletedView').classList.remove('hidden');
+            break;
+    }
+}
+
+// Legacy function aliases for compatibility
+function showAddDocumentModal() {
+    showAddDocumentPicker();
+    showPickerView('template');
 }
 
 function closeDocumentModal() {
-    document.getElementById('addDocumentModal').classList.add('hidden');
+    closeAddDocumentModal();
 }
 
 // =============================================================================
@@ -2724,122 +2941,123 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         closeDeleteModal();
         closeParticipantModal();
-        closeDocumentModal();
+        closeAddDocumentModal();
         closeUploadScanModal();
-        closeExternalModal();
         closeUploadStaticModal();
         closeUploadForSignatureModal();
     }
 });
 
 // =============================================================================
-// UPLOAD EXTERNAL DOCUMENT MODAL
+// UPLOAD FOR E-SIGN (UNIFIED MODAL VIEW)
 // =============================================================================
 
-function showAddExternalModal() {
-    // Reset form state
-    document.getElementById('externalDocName').value = '';
-    document.getElementById('externalFileInput').value = '';
-    document.getElementById('externalDropContent').classList.remove('hidden');
-    document.getElementById('externalFileInfo').classList.add('hidden');
-    document.getElementById('externalProgress').classList.add('hidden');
-    document.getElementById('externalError').classList.add('hidden');
-    document.getElementById('uploadExternalBtn').disabled = true;
+function resetEsignForm() {
+    const esignDocName = document.getElementById('esignDocName');
+    const esignFileInput = document.getElementById('esignFileInput');
+    if (esignDocName) esignDocName.value = '';
+    if (esignFileInput) esignFileInput.value = '';
     
-    document.getElementById('uploadExternalModal').classList.remove('hidden');
+    const esignDropContent = document.getElementById('esignDropContent');
+    const esignFileInfo = document.getElementById('esignFileInfo');
+    const esignProgress = document.getElementById('esignProgress');
+    const esignError = document.getElementById('esignError');
+    const uploadEsignBtn = document.getElementById('uploadEsignBtn');
+    
+    if (esignDropContent) esignDropContent.classList.remove('hidden');
+    if (esignFileInfo) esignFileInfo.classList.add('hidden');
+    if (esignProgress) esignProgress.classList.add('hidden');
+    if (esignError) esignError.classList.add('hidden');
+    if (uploadEsignBtn) uploadEsignBtn.disabled = true;
 }
 
-function closeExternalModal() {
-    document.getElementById('uploadExternalModal').classList.add('hidden');
-}
-
-function handleExternalFileSelect(input) {
+function handleEsignFileSelect(input) {
     const file = input.files[0];
     if (!file) return;
     
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-        showExternalError('Please select a PDF file.');
+        showEsignError('Please select a PDF file.');
         return;
     }
     
     // Validate file size (25MB max)
     const maxSize = 25 * 1024 * 1024;
     if (file.size > maxSize) {
-        showExternalError('File too large. Maximum size is 25MB.');
+        showEsignError('File too large. Maximum size is 25MB.');
         return;
     }
     
     // Show selected file info
-    document.getElementById('externalDropContent').classList.add('hidden');
-    document.getElementById('externalFileInfo').classList.remove('hidden');
-    document.getElementById('externalFileName').textContent = file.name;
-    document.getElementById('externalFileSize').textContent = formatFileSize(file.size);
-    document.getElementById('externalError').classList.add('hidden');
-    document.getElementById('uploadExternalBtn').disabled = false;
+    document.getElementById('esignDropContent').classList.add('hidden');
+    document.getElementById('esignFileInfo').classList.remove('hidden');
+    document.getElementById('esignFileName').textContent = file.name;
+    document.getElementById('esignFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('esignError').classList.add('hidden');
+    document.getElementById('uploadEsignBtn').disabled = false;
     
     // Auto-fill document name if empty
-    const docNameInput = document.getElementById('externalDocName');
+    const docNameInput = document.getElementById('esignDocName');
     if (!docNameInput.value.trim()) {
         const nameWithoutExt = file.name.replace(/\.pdf$/i, '');
         docNameInput.value = nameWithoutExt;
     }
 }
 
-function showExternalError(message) {
-    document.getElementById('externalError').classList.remove('hidden');
-    document.getElementById('externalErrorText').textContent = message;
-    document.getElementById('uploadExternalBtn').disabled = true;
+function showEsignError(message) {
+    document.getElementById('esignError').classList.remove('hidden');
+    document.getElementById('esignErrorText').textContent = message;
+    document.getElementById('uploadEsignBtn').disabled = true;
 }
 
-// Handle drag and drop for external upload
-const externalDropZone = document.getElementById('externalDropZone');
-if (externalDropZone) {
-    externalDropZone.addEventListener('dragover', function(e) {
+// Handle drag and drop for e-sign upload
+const esignDropZone = document.getElementById('esignDropZone');
+if (esignDropZone) {
+    esignDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
         this.classList.add('border-purple-400', 'bg-purple-50/30');
     });
     
-    externalDropZone.addEventListener('dragleave', function(e) {
+    esignDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
         this.classList.remove('border-purple-400', 'bg-purple-50/30');
     });
     
-    externalDropZone.addEventListener('drop', function(e) {
+    esignDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
         this.classList.remove('border-purple-400', 'bg-purple-50/30');
         
         const files = e.dataTransfer.files;
         if (files.length > 0) {
-            const fileInput = document.getElementById('externalFileInput');
+            const fileInput = document.getElementById('esignFileInput');
             fileInput.files = files;
-            handleExternalFileSelect(fileInput);
+            handleEsignFileSelect(fileInput);
         }
     });
 }
 
-// Handle external document form submission
-const externalForm = document.getElementById('uploadExternalForm');
-if (externalForm) {
-    externalForm.addEventListener('submit', function(e) {
+// Handle e-sign document form submission
+const esignForm = document.getElementById('uploadEsignForm');
+if (esignForm) {
+    esignForm.addEventListener('submit', function(e) {
         e.preventDefault();
         
-        const fileInput = document.getElementById('externalFileInput');
+        const fileInput = document.getElementById('esignFileInput');
         const file = fileInput.files[0];
         if (!file) {
-            showExternalError('Please select a file first.');
+            showEsignError('Please select a file first.');
             return;
         }
         
-        const documentName = document.getElementById('externalDocName').value.trim();
+        const documentName = document.getElementById('esignDocName').value.trim();
         
         const formData = new FormData();
         formData.append('file', file);
         formData.append('document_name', documentName);
         
         // Show progress
-        document.getElementById('externalProgress').classList.remove('hidden');
-        document.getElementById('uploadExternalBtn').disabled = true;
+        document.getElementById('esignProgress').classList.remove('hidden');
+        document.getElementById('uploadEsignBtn').disabled = true;
         
         // Use XMLHttpRequest for progress tracking
         const xhr = new XMLHttpRequest();
@@ -2847,8 +3065,8 @@ if (externalForm) {
         xhr.upload.addEventListener('progress', function(e) {
             if (e.lengthComputable) {
                 const percent = Math.round((e.loaded / e.total) * 100);
-                document.getElementById('externalPercent').textContent = percent + '%';
-                document.getElementById('externalProgressBar').style.width = percent + '%';
+                document.getElementById('esignPercent').textContent = percent + '%';
+                document.getElementById('esignProgressBar').style.width = percent + '%';
             }
         });
         
@@ -2857,7 +3075,7 @@ if (externalForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Document uploaded! Redirecting to field editor...', 'success');
-                    closeExternalModal();
+                    closeAddDocumentModal();
                     // Redirect to field editor
                     if (data.redirect_url) {
                         window.location.href = data.redirect_url;
@@ -2865,31 +3083,198 @@ if (externalForm) {
                         location.reload();
                     }
                 } else {
-                    showExternalError(data.error || 'Upload failed');
-                    document.getElementById('externalProgress').classList.add('hidden');
-                    document.getElementById('uploadExternalBtn').disabled = false;
+                    showEsignError(data.error || 'Upload failed');
+                    document.getElementById('esignProgress').classList.add('hidden');
+                    document.getElementById('uploadEsignBtn').disabled = false;
                 }
             } else {
                 try {
                     const data = JSON.parse(xhr.responseText);
-                    showExternalError(data.error || 'Upload failed');
+                    showEsignError(data.error || 'Upload failed');
                 } catch (err) {
-                    showExternalError('Upload failed. Please try again.');
+                    showEsignError('Upload failed. Please try again.');
                 }
-                document.getElementById('externalProgress').classList.add('hidden');
-                document.getElementById('uploadExternalBtn').disabled = false;
+                document.getElementById('esignProgress').classList.add('hidden');
+                document.getElementById('uploadEsignBtn').disabled = false;
             }
         });
         
         xhr.addEventListener('error', function() {
-            showExternalError('Network error. Please try again.');
-            document.getElementById('externalProgress').classList.add('hidden');
-            document.getElementById('uploadExternalBtn').disabled = false;
+            showEsignError('Network error. Please try again.');
+            document.getElementById('esignProgress').classList.add('hidden');
+            document.getElementById('uploadEsignBtn').disabled = false;
         });
         
         xhr.open('POST', `/transactions/${transactionId}/documents/upload-external`);
         xhr.send(formData);
     });
+}
+
+// =============================================================================
+// UPLOAD COMPLETED DOCUMENT (UNIFIED MODAL VIEW)
+// =============================================================================
+
+function resetCompletedForm() {
+    const completedDocName = document.getElementById('completedDocName');
+    const completedFileInput = document.getElementById('completedFileInput');
+    if (completedDocName) completedDocName.value = '';
+    if (completedFileInput) completedFileInput.value = '';
+    
+    const completedDropContent = document.getElementById('completedDropContent');
+    const completedFileInfo = document.getElementById('completedFileInfo');
+    const completedProgress = document.getElementById('completedProgress');
+    const completedError = document.getElementById('completedError');
+    const uploadCompletedBtn = document.getElementById('uploadCompletedBtn');
+    
+    if (completedDropContent) completedDropContent.classList.remove('hidden');
+    if (completedFileInfo) completedFileInfo.classList.add('hidden');
+    if (completedProgress) completedProgress.classList.add('hidden');
+    if (completedError) completedError.classList.add('hidden');
+    if (uploadCompletedBtn) uploadCompletedBtn.disabled = true;
+}
+
+function handleCompletedFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showCompletedError('Please select a PDF file.');
+        return;
+    }
+    
+    // Validate file size (25MB max)
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showCompletedError('File too large. Maximum size is 25MB.');
+        return;
+    }
+    
+    // Show selected file info
+    document.getElementById('completedDropContent').classList.add('hidden');
+    document.getElementById('completedFileInfo').classList.remove('hidden');
+    document.getElementById('completedFileName').textContent = file.name;
+    document.getElementById('completedFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('completedError').classList.add('hidden');
+    document.getElementById('uploadCompletedBtn').disabled = false;
+    
+    // Auto-fill document name if empty
+    const docNameInput = document.getElementById('completedDocName');
+    if (!docNameInput.value.trim()) {
+        const nameWithoutExt = file.name.replace(/\.pdf$/i, '');
+        docNameInput.value = nameWithoutExt;
+    }
+}
+
+function showCompletedError(message) {
+    document.getElementById('completedError').classList.remove('hidden');
+    document.getElementById('completedErrorText').textContent = message;
+    document.getElementById('uploadCompletedBtn').disabled = true;
+}
+
+// Handle drag and drop for completed upload
+const completedDropZone = document.getElementById('completedDropZone');
+if (completedDropZone) {
+    completedDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    completedDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+    });
+    
+    completedDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('completedFileInput');
+            fileInput.files = files;
+            handleCompletedFileSelect(fileInput);
+        }
+    });
+}
+
+// Handle completed document form submission
+const completedForm = document.getElementById('uploadCompletedForm');
+if (completedForm) {
+    completedForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const fileInput = document.getElementById('completedFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showCompletedError('Please select a file first.');
+            return;
+        }
+        
+        const documentName = document.getElementById('completedDocName').value.trim();
+        
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('document_name', documentName);
+        
+        // Show progress
+        document.getElementById('completedProgress').classList.remove('hidden');
+        document.getElementById('uploadCompletedBtn').disabled = true;
+        
+        // Use XMLHttpRequest for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('completedPercent').textContent = percent + '%';
+                document.getElementById('completedProgressBar').style.width = percent + '%';
+            }
+        });
+        
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Document uploaded successfully!', 'success');
+                    closeAddDocumentModal();
+                    location.reload();
+                } else {
+                    showCompletedError(data.error || 'Upload failed');
+                    document.getElementById('completedProgress').classList.add('hidden');
+                    document.getElementById('uploadCompletedBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showCompletedError(data.error || 'Upload failed');
+                } catch (err) {
+                    showCompletedError('Upload failed. Please try again.');
+                }
+                document.getElementById('completedProgress').classList.add('hidden');
+                document.getElementById('uploadCompletedBtn').disabled = false;
+            }
+        });
+        
+        xhr.addEventListener('error', function() {
+            showCompletedError('Network error. Please try again.');
+            document.getElementById('completedProgress').classList.add('hidden');
+            document.getElementById('uploadCompletedBtn').disabled = false;
+        });
+        
+        xhr.open('POST', `/transactions/${transactionId}/documents/upload-completed`);
+        xhr.send(formData);
+    });
+}
+
+// Legacy function for compatibility
+function showAddExternalModal() {
+    showAddDocumentPicker();
+    showPickerView('upload-esign');
+}
+
+function closeExternalModal() {
+    closeAddDocumentModal();
 }
 
 // =============================================================================
@@ -3665,10 +4050,6 @@ function viewStoredDocument(docId) {
 function fillAllForms() {
     // Navigate to combined fill-all-documents view
     window.location.href = '{{ url_for("transactions.fill_all_documents", id=transaction.id) }}';
-}
-
-function generateAllPDFs() {
-    showToast('PDF generation coming soon with DocuSeal integration.', 'info');
 }
 
 // =============================================================================
