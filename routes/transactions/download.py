@@ -224,7 +224,8 @@ def get_all_documents_print_pdf(id):
             context = {
                 'user': current_user,
                 'transaction': transaction,
-                'form': doc.field_data or {}
+                'form': doc.field_data or {},
+                'organization': current_user.organization
             }
             
             # Resolve fields

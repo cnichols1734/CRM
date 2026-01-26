@@ -313,8 +313,15 @@ PREVIEW_DOCUMENT_REGISTRY: Dict[str, PreviewDocumentConfig] = {
         sort_order=101,
         description='Addendum for Seller\'s Disclosure of Information on Lead-Based Paint'
     ),
-    # Future preview-only documents can be added here:
-    # 'wire-fraud-warning': PreviewDocumentConfig(...),
+    'wire-fraud-warning': PreviewDocumentConfig(
+        slug='wire-fraud-warning',
+        name='Wire Fraud Warning',
+        docuseal_template_id=2661511,
+        color='rose',
+        icon='fa-exclamation-triangle',
+        sort_order=102,
+        description='Wire Fraud Warning for Sellers'
+    ),
 }
 
 

@@ -1,0 +1,71 @@
+# =============================================================================
+# WIRE FRAUD WARNING (SELLER)
+# =============================================================================
+# Warning document alerting sellers about wire fraud risks in real estate
+# transactions.
+#
+# This is a PDF-preview document - no custom form UI.
+# - Broker's Printed Name is auto-populated from organization settings
+# - Agent must sign (signature + date fields are manual)
+# - Seller(s) must sign
+#
+# Template ID: 2661511
+# =============================================================================
+
+schema_version: "1.0"
+slug: wire-fraud-warning
+name: "Wire Fraud Warning"
+docuseal_template_id: 2661511
+type: pdf-preview
+
+display:
+  color: "#F43F5E"
+  icon: "fas fa-exclamation-triangle"
+  sort_order: 7
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Broker's Agent, Seller, Seller 2
+#
+# - Broker's Agent: Agent signs (NOT auto-complete), broker name pre-filled
+# - Seller: Signs the warning acknowledgment
+# - Seller 2: Optional second seller (signs if present)
+# =============================================================================
+
+roles:
+  # Broker's Agent: Must sign (NOT auto-complete)
+  # - "Broker's Printed Name" field is pre-filled from org settings
+  # - Agent must manually provide signature and date
+  - role_key: agent
+    docuseal_role: "Broker's Agent"
+    email_source: user.email
+    name_source: user.full_name
+    # auto_complete: false (default) - agent must sign
+
+  # Seller: Signs the warning acknowledgment
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  # Seller 2: Optional second seller
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Only the "Broker's Printed Name" text field is pre-filled.
+# Signature and Date fields are manual entry in DocuSeal during signing.
+# =============================================================================
+
+fields:
+  # Broker's Printed Name - TEXT field, pre-filled from org settings
+  - field_key: broker_printed_name
+    docuseal_field: "Broker's Printed Name"
+    role_key: agent
+    source: organization.broker_name

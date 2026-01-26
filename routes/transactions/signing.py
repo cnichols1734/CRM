@@ -200,7 +200,8 @@ def preview_all_documents(id):
                 context = {
                     'user': current_user,
                     'transaction': transaction,
-                    'form': doc.field_data or {}
+                    'form': doc.field_data or {},
+                    'organization': current_user.organization
                 }
                 
                 # Resolve fields using new system
@@ -350,7 +351,8 @@ def send_all_for_signature(id):
             context = {
                 'user': current_user,
                 'transaction': transaction,
-                'form': doc.field_data or {}
+                'form': doc.field_data or {},
+                'organization': current_user.organization
             }
             
             # Resolve fields using new system
@@ -722,7 +724,8 @@ def document_preview(id, doc_id):
         context = {
             'user': current_user,
             'transaction': transaction,
-            'form': doc.field_data or {}
+            'form': doc.field_data or {},
+            'organization': current_user.organization
         }
         
         # Resolve fields using new system
@@ -808,7 +811,8 @@ def send_for_signature(id, doc_id):
         context = {
             'user': current_user,
             'transaction': transaction,
-            'form': doc.field_data or {}
+            'form': doc.field_data or {},
+            'organization': current_user.organization
         }
         
         # Resolve fields using new system

@@ -402,6 +402,59 @@
                 </div>
                 {% endif %}
 
+                {% if not is_admin_edit and current_user.org_role in ('admin', 'owner') %}
+                <!-- Brokerage Information Card (Admin/Owner Only) -->
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
+                                <i class="fas fa-building text-white text-sm"></i>
+                            </div>
+                            <h2 class="text-lg font-semibold text-slate-800">Brokerage Information</h2>
+                        </div>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('auth.update_broker_info') }}" class="p-6">
+                        <p class="text-xs text-slate-500 mb-4">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Used for document generation (e.g., Wire Fraud Warning)
+                        </p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="form-label">Broker Name</label>
+                                <input type="text" name="broker_name" 
+                                       value="{{ current_user.organization.broker_name or '' }}" 
+                                       class="premium-input" 
+                                       placeholder="e.g., Origen Realty">
+                            </div>
+                            <div>
+                                <label class="form-label">Broker License Number</label>
+                                <input type="text" name="broker_license_number" 
+                                       value="{{ current_user.organization.broker_license_number or '' }}" 
+                                       class="premium-input" 
+                                       placeholder="e.g., 9003104">
+                            </div>
+                            <div>
+                                <label class="form-label">Broker Address</label>
+                                <input type="text" name="broker_address" 
+                                       value="{{ current_user.organization.broker_address or '' }}" 
+                                       class="premium-input" 
+                                       placeholder="Full address">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-5">
+                            <button type="submit"
+                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-xl shadow-lg shadow-rose-500/25 hover:shadow-xl hover:shadow-rose-500/30 transition-all duration-200">
+                                <i class="fas fa-save mr-2"></i>
+                                Save Brokerage Info
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+
                 <!-- Quick Stats Card -->
                 <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
                     <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
