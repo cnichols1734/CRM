@@ -353,6 +353,43 @@ def update_profile():
 
     return redirect(url_for('auth.view_user_profile'))
 
+
+@auth_bp.route('/profile/update-broker', methods=['POST'])
+@login_required
+def update_broker_info():
+    """Update organization broker information (admin/owner only)."""
+    # Check if user has permission
+    if current_user.org_role not in ('admin', 'owner'):
+        flash('You do not have permission to update brokerage information.', 'error')
+        return redirect(url_for('auth.view_user_profile'))
+    
+    if not current_user.organization:
+        flash('No organization found.', 'error')
+        return redirect(url_for('auth.view_user_profile'))
+    
+    try:
+        org = current_user.organization
+        
+        # Update broker fields
+        broker_name = request.form.get('broker_name', '').strip()
+        org.broker_name = broker_name if broker_name else None
+        
+        broker_license = request.form.get('broker_license_number', '').strip()
+        org.broker_license_number = broker_license if broker_license else None
+        
+        broker_address = request.form.get('broker_address', '').strip()
+        org.broker_address = broker_address if broker_address else None
+        
+        db.session.commit()
+        flash('Brokerage information updated successfully.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating brokerage info: {str(e)}', 'error')
+    
+    return redirect(url_for('auth.view_user_profile'))
+
+
 # Debug route removed for multi-tenant security
 
 @auth_bp.route('/test_password/<username>/<password>')

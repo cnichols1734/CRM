@@ -60,6 +60,11 @@ class Organization(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Broker/Brokerage information (for document generation)
+    broker_name = db.Column(db.String(200))  # e.g., "Origen Realty"
+    broker_license_number = db.Column(db.String(50))  # e.g., "9003104"
+    broker_address = db.Column(db.String(500))  # Full address string
+    
     # Relationships defined via backref in User model
     
     def upgrade_to_pro(self, max_users=25):

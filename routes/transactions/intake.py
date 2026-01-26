@@ -423,7 +423,8 @@ def generate_document_package(id):
                 context = {
                     'user': current_user,
                     'transaction': transaction,
-                    'form': {}
+                    'form': {},
+                    'organization': current_user.organization
                 }
                 resolved_fields = FieldResolver.resolve(definition, context)
                 field_data = {}
