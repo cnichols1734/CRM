@@ -142,6 +142,17 @@ def dashboard():
     
     orgs = org_query.order_by(Organization.created_at.desc()).all()
     
+    # Get owner email for each org (the admin who created it)
+    org_owners = {}
+    org_ids = [org.id for org in orgs]
+    if org_ids:
+        owners = User.query.filter(
+            User.organization_id.in_(org_ids),
+            User.org_role == 'owner'
+        ).all()
+        for owner in owners:
+            org_owners[owner.organization_id] = owner.email
+    
     return render_template('platform_admin/dashboard.html',
         # Origen stats
         origen_stats=origen_stats,
@@ -162,7 +173,8 @@ def dashboard():
         tier_filter=tier_filter,
         include_origen=include_origen,
         # Org list
-        orgs=orgs
+        orgs=orgs,
+        org_owners=org_owners
     )
 
 
@@ -319,6 +331,10 @@ def view_org(org_id):
     # Get metrics
     metrics = OrganizationMetrics.query.filter_by(organization_id=org_id).first()
     
+    # Get owner email (admin who created the org)
+    owner = org.users.filter_by(org_role='owner').first()
+    owner_email = owner.email if owner else None
+    
     # Get recent audit logs for this org
     audit_logs = PlatformAuditLog.query.filter_by(
         target_org_id=org_id
@@ -327,6 +343,7 @@ def view_org(org_id):
     return render_template('platform_admin/org_detail.html',
                           org=org,
                           metrics=metrics,
+                          owner_email=owner_email,
                           audit_logs=audit_logs,
                           tier_defaults=TIER_DEFAULTS)
 
