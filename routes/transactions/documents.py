@@ -1051,6 +1051,123 @@ def upload_external_document(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# =============================================================================
+# UPLOAD COMPLETED DOCUMENT (NO SIGNING REQUIRED)
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/upload-completed', methods=['POST'])
+@login_required
+@transactions_required
+def upload_completed_document(id):
+    """
+    Upload a completed document that doesn't require any signatures.
+    
+    This is used for documents like surveys, title commitments, appraisals,
+    or any document that should be included as-is without signing.
+    
+    Creates a new TransactionDocument with document_source='completed' and status='signed'.
+    """
+    from datetime import datetime
+    from services.supabase_storage import upload_external_document as upload_storage
+    
+    transaction = Transaction.query.get_or_404(id)
+    
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    # Check if file was uploaded
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+    
+    # Get document name from form
+    document_name = request.form.get('document_name', '').strip()
+    if not document_name:
+        # Use filename without extension as default name
+        document_name = file.filename.rsplit('.', 1)[0] if '.' in file.filename else file.filename
+    
+    # Validate file type (PDF only)
+    allowed_extensions = {'pdf'}
+    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+    
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': 'Only PDF files are allowed'
+        }), 400
+    
+    # Read file data
+    file_data = file.read()
+    file_size = len(file_data)
+    
+    # Validate file size (max 25MB)
+    max_size = 25 * 1024 * 1024
+    if file_size > max_size:
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 25MB.'
+        }), 400
+    
+    try:
+        # Upload to Supabase
+        result = upload_storage(
+            transaction_id=transaction.id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type='application/pdf'
+        )
+        
+        # Create TransactionDocument record - marked as signed/complete
+        doc = TransactionDocument(
+            organization_id=current_user.organization_id,
+            transaction_id=transaction.id,
+            template_slug='completed',  # Special slug for completed docs
+            template_name=document_name,
+            status='signed',  # Already complete - no signing needed
+            document_source='completed',
+            signed_file_path=result['path'],  # Store as signed file since it's ready
+            field_placements=[]
+        )
+        
+        db.session.add(doc)
+        db.session.commit()
+        
+        # Log audit event
+        audit_service.log_event(
+            event_type='document_uploaded_completed',
+            transaction_id=transaction.id,
+            document_id=doc.id,
+            description=f"Completed document uploaded: {document_name}",
+            event_data={
+                'document_name': document_name,
+                'original_filename': file.filename,
+                'file_size': file_size,
+                'storage_path': result['path']
+            },
+            source='app',
+            actor_id=current_user.id
+        )
+        
+        return jsonify({
+            'success': True,
+            'message': 'Document uploaded successfully',
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status,
+                'source': doc.document_source
+            }
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/editor')
 @login_required
 @transactions_required
