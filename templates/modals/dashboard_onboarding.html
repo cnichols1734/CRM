@@ -158,7 +158,7 @@ let hasShownDashboardOnboarding = {{ 'true' if current_user.has_seen_dashboard_o
 
 function positionContactsSpotlight() {
     // Find the contacts link in the sidebar
-    const contactsLink = document.querySelector('a[href="{{ url_for(\'main.contacts\') }}"]');
+    const contactsLink = document.querySelector('a[href="{{ url_for("main.contacts") }}"]');
     const spotlight = document.getElementById('contactsLinkSpotlight');
     
     if (contactsLink && spotlight) {
