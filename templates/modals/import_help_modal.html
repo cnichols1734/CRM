@@ -1,0 +1,152 @@
+<!-- Import Contacts Help Modal -->
+<div id="importHelpModal" class="hidden fixed inset-0 bg-gray-900/60 backdrop-blur-sm overflow-y-auto h-full w-full z-50 transition-opacity">
+    <div class="relative top-12 mx-auto w-11/12 max-w-lg shadow-2xl rounded-2xl bg-white mb-12 overflow-hidden">
+        
+        <!-- Header with gradient -->
+        <div class="bg-gradient-to-r from-slate-800 to-slate-900 px-6 py-5">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                        <i class="fas fa-file-csv text-orange-400 text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-white">Import Contacts</h3>
+                        <p class="text-xs text-slate-400">Bulk upload from CSV file</p>
+                    </div>
+                </div>
+                <button onclick="closeImportHelpModal()" class="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="p-6">
+            <!-- Format Your CSV Section -->
+            <div class="mb-6">
+                <h4 class="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">1</span>
+                    Format Your CSV
+                </h4>
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-slate-500 text-xs uppercase tracking-wide mb-2">Required</p>
+                            <p class="text-slate-700"><code class="bg-white px-1.5 py-0.5 rounded text-orange-600 text-xs font-mono">first_name</code> or <code class="bg-white px-1.5 py-0.5 rounded text-orange-600 text-xs font-mono">last_name</code></p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 text-xs uppercase tracking-wide mb-2">Optional</p>
+                            <p class="text-slate-600 text-xs leading-relaxed">email, phone, street_address, city, state, zip_code, notes, groups</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Example Preview -->
+            <div class="mb-6">
+                <h4 class="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">2</span>
+                    Example Format
+                </h4>
+                <div class="overflow-hidden rounded-xl border border-slate-200">
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-100">
+                            <tr>
+                                <th class="px-3 py-2 text-left font-semibold text-slate-600">first_name</th>
+                                <th class="px-3 py-2 text-left font-semibold text-slate-600">last_name</th>
+                                <th class="px-3 py-2 text-left font-semibold text-slate-600">phone</th>
+                                <th class="px-3 py-2 text-left font-semibold text-slate-600">groups</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-slate-100">
+                            <tr>
+                                <td class="px-3 py-2 text-slate-700">John</td>
+                                <td class="px-3 py-2 text-slate-700">Smith</td>
+                                <td class="px-3 py-2 text-slate-700">5125551234</td>
+                                <td class="px-3 py-2 text-slate-500 italic">Buyer - New Potential Client</td>
+                            </tr>
+                            <tr>
+                                <td class="px-3 py-2 text-slate-700">Sarah</td>
+                                <td class="px-3 py-2 text-slate-700">Johnson</td>
+                                <td class="px-3 py-2 text-slate-700">2145559876</td>
+                                <td class="px-3 py-2 text-slate-500 italic">Seller - Active Listing;A</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tips Section -->
+            <div class="mb-6">
+                <h4 class="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
+                    <span class="w-5 h-5 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">3</span>
+                    Quick Tips
+                </h4>
+                <ul class="space-y-2 text-sm text-slate-600">
+                    <li class="flex items-start gap-2">
+                        <i class="fas fa-phone text-slate-400 mt-0.5 w-4"></i>
+                        <span>Phone numbers should be 10 digits (e.g., 5125551234)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fas fa-tags text-slate-400 mt-0.5 w-4"></i>
+                        <span>Separate multiple groups with a semicolon <code class="bg-slate-100 px-1 rounded text-xs">(;)</code></span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fas fa-copy text-slate-400 mt-0.5 w-4"></i>
+                        <span>Duplicates are automatically skipped (matching email or phone)</span>
+                    </li>
+                    <li class="flex items-start gap-2">
+                        <i class="fas fa-cog text-slate-400 mt-0.5 w-4"></i>
+                        <span>View available groups in <strong>Manage Groups</strong> — click your initials in the sidebar, then select Admin Tools</span>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <a href="{{ url_for('static', filename='sample_contacts_import.csv') }}" download
+                   class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium text-sm">
+                    <i class="fas fa-download text-slate-500"></i>
+                    Download Template
+                </a>
+                <button onclick="proceedWithImport()" 
+                        class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all font-medium text-sm">
+                    <i class="fas fa-upload"></i>
+                    Select CSV File
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openImportHelpModal() {
+    document.getElementById('importHelpModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeImportHelpModal() {
+    document.getElementById('importHelpModal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function proceedWithImport() {
+    closeImportHelpModal();
+    document.getElementById('csvFile').click();
+}
+
+// Close modal when clicking outside
+document.getElementById('importHelpModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeImportHelpModal();
+    }
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !document.getElementById('importHelpModal').classList.contains('hidden')) {
+        closeImportHelpModal();
+    }
+});
+</script>
