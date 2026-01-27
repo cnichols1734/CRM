@@ -1,0 +1,190 @@
+<!-- Contacts Page Onboarding Overlay -->
+<div id="contactsOnboarding" class="hidden fixed inset-0 z-[100]">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity"></div>
+    
+    <!-- Spotlight on Import Button (positioned absolutely) -->
+    <div id="importButtonSpotlight" class="absolute rounded-lg ring-4 ring-orange-400 ring-offset-4 ring-offset-black/50 shadow-2xl" style="transition: all 0.3s ease;"></div>
+    
+    <!-- Onboarding Card -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-md">
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-5 text-white">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                        <i class="fas fa-rocket text-2xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">Welcome to Contacts!</h3>
+                        <p class="text-orange-100 text-sm">Let's get you started</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="p-6">
+                <div class="space-y-4">
+                    <!-- Step 1 -->
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm">
+                                1
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900 mb-1">Import Your Contacts</h4>
+                            <p class="text-sm text-gray-600">
+                                Click the <span class="font-semibold text-orange-600">Import</span> button (highlighted above) to bulk upload contacts from a CSV file.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2 -->
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-sm">
+                                2
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900 mb-1">Or Add Manually</h4>
+                            <p class="text-sm text-gray-600">
+                                Use the <span class="font-semibold">Create Contact</span> button to add contacts one at a time.
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 3 -->
+                    <div class="flex gap-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-sm">
+                                3
+                            </div>
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-900 mb-1">Organize with Groups</h4>
+                            <p class="text-sm text-gray-600">
+                                Access <span class="font-semibold">Manage Groups</span> from Admin Tools (click your initials in the sidebar).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Pro Tip -->
+                <div class="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                    <div class="flex gap-3">
+                        <i class="fas fa-lightbulb text-blue-500 mt-0.5"></i>
+                        <div class="flex-1">
+                            <p class="text-sm font-semibold text-blue-900 mb-1">Pro Tip</p>
+                            <p class="text-sm text-blue-700">
+                                The Import button will show you a guide with sample CSV format and tips for formatting your data.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="dontShowAgain" class="rounded border-gray-300 text-orange-500 focus:ring-orange-500">
+                    <span class="text-sm text-gray-600">Don't show this again</span>
+                </label>
+                <button onclick="closeContactsOnboarding()" class="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all">
+                    Got it!
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out;
+}
+
+@keyframes pulse-ring {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(249, 115, 22, 0);
+    }
+}
+
+#importButtonSpotlight {
+    animation: pulse-ring 2s infinite;
+}
+</style>
+
+<script>
+let hasShownOnboarding = {{ 'true' if current_user.has_seen_contacts_onboarding else 'false' }};
+
+function positionSpotlight() {
+    const importBtn = document.getElementById('importButton');
+    const spotlight = document.getElementById('importButtonSpotlight');
+    
+    if (importBtn && spotlight) {
+        const rect = importBtn.getBoundingClientRect();
+        spotlight.style.top = `${rect.top - 8}px`;
+        spotlight.style.left = `${rect.left - 8}px`;
+        spotlight.style.width = `${rect.width + 16}px`;
+        spotlight.style.height = `${rect.height + 16}px`;
+    }
+}
+
+function showContactsOnboarding() {
+    if (hasShownOnboarding) {
+        return;
+    }
+    
+    const overlay = document.getElementById('contactsOnboarding');
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Position spotlight after a brief delay to ensure layout is ready
+    setTimeout(positionSpotlight, 100);
+    
+    // Reposition on window resize
+    window.addEventListener('resize', positionSpotlight);
+}
+
+function closeContactsOnboarding() {
+    const dontShowAgain = document.getElementById('dontShowAgain').checked;
+    const overlay = document.getElementById('contactsOnboarding');
+    
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    hasShownOnboarding = true;
+    
+    // Remove resize listener
+    window.removeEventListener('resize', positionSpotlight);
+    
+    if (dontShowAgain) {
+        // Save preference to backend
+        fetch('/contacts/dismiss-onboarding', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        }).catch(err => console.error('Failed to save onboarding preference:', err));
+    }
+}
+
+// Show onboarding after page loads
+window.addEventListener('load', function() {
+    setTimeout(showContactsOnboarding, 800);
+});
+</script>

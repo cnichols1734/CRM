@@ -772,6 +772,20 @@ def export_contacts():
     )
 
 
+@contacts_bp.route('/contacts/dismiss-onboarding', methods=['POST'])
+@login_required
+def dismiss_onboarding():
+    """Mark that user has seen the contacts onboarding."""
+    try:
+        current_user.has_seen_contacts_onboarding = True
+        db.session.commit()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error dismissing onboarding: {e}")
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 # =============================================================================
 # CONTACT FILE MANAGEMENT ENDPOINTS
 # =============================================================================
