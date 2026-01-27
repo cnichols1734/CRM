@@ -1,8 +1,11 @@
 """
-Centralized Email Service using SendGrid.
+Centralized Email Service using SendGrid with Gmail fallback.
 Replaces Flask-Mail for all transactional emails.
 """
 import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime
 from flask import current_app, url_for
 from sendgrid import SendGridAPIClient
@@ -23,12 +26,17 @@ DEFAULT_SENDER = 'info@origentechnolog.com'
 
 
 class EmailService:
-    """Centralized email service using SendGrid dynamic templates."""
+    """Centralized email service using SendGrid dynamic templates with Gmail fallback."""
     
     def __init__(self, api_key=None):
         """Initialize with SendGrid API key."""
         self.api_key = api_key or os.getenv('SENDGRID_API_KEY')
         self._client = None
+        
+        # Gmail fallback configuration
+        self.gmail_username = os.getenv('MAIL_USERNAME')
+        self.gmail_password = os.getenv('MAIL_PASSWORD')
+        self.gmail_enabled = bool(self.gmail_username and self.gmail_password)
     
     @property
     def client(self):
@@ -39,10 +47,124 @@ class EmailService:
             self._client = SendGridAPIClient(self.api_key)
         return self._client
     
+    def _send_via_gmail(self, to_email: str, subject: str, html_content: str, 
+                        from_email: str = None, reply_to: str = None) -> bool:
+        """
+        Fallback method to send email via Gmail SMTP when SendGrid fails.
+        
+        Args:
+            to_email: Recipient email address
+            subject: Email subject line
+            html_content: HTML email content
+            from_email: Sender email (defaults to MAIL_USERNAME)
+            reply_to: Reply-to email address (optional)
+        
+        Returns:
+            True if sent successfully, False otherwise
+        """
+        if not self.gmail_enabled:
+            current_app.logger.warning("Gmail fallback not configured - missing MAIL_USERNAME or MAIL_PASSWORD")
+            return False
+        
+        try:
+            current_app.logger.info(f"Attempting Gmail fallback for {to_email}")
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['From'] = from_email or self.gmail_username
+            msg['To'] = to_email
+            msg['Subject'] = subject
+            
+            if reply_to:
+                msg['Reply-To'] = reply_to
+            
+            # Attach HTML content
+            html_part = MIMEText(html_content, 'html')
+            msg.attach(html_part)
+            
+            # Send via Gmail SMTP
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+                server.login(self.gmail_username, self.gmail_password)
+                server.send_message(msg)
+            
+            current_app.logger.info(f"✓ Gmail fallback successful for {to_email}")
+            return True
+            
+        except Exception as e:
+            current_app.logger.error(f"Gmail fallback failed for {to_email}: {str(e)}")
+            return False
+    
+    def _get_template_html(self, template_name: str, template_data: dict) -> tuple:
+        """
+        Load HTML template from file and replace variables.
+        
+        Args:
+            template_name: Template name (e.g., 'org_approved')
+            template_data: Dict of variables to replace
+        
+        Returns:
+            Tuple of (subject, html_content) or (None, None) if template not found
+        """
+        # Map template names to file paths and subjects
+        template_map = {
+            'password_reset': {
+                'file': 'email_templates/1_password_reset.html',
+                'subject': 'Reset Your Password - Origen TechnolOG'
+            },
+            'org_approved': {
+                'file': 'email_templates/2_org_approved.html',
+                'subject': 'Welcome to Origen TechnolOG! Your organization has been approved'
+            },
+            'org_rejected': {
+                'file': 'email_templates/3_org_rejected.html',
+                'subject': 'Your organization application - Origen TechnolOG'
+            },
+            'team_invite': {
+                'file': 'email_templates/4_team_invitation.html',
+                'subject': "You've been invited to join {org_name} on Origen TechnolOG"
+            },
+            'contact_form': {
+                'file': 'email_templates/5_contact_form.html',
+                'subject': 'New Contact Form Submission - {subject}'
+            },
+            'task_reminder': {
+                'file': 'email_templates/6_task_reminder.html',
+                'subject': 'You have {total_task_count} task(s) that need your attention'
+            },
+        }
+        
+        template_info = template_map.get(template_name)
+        if not template_info:
+            current_app.logger.error(f"Unknown template for Gmail fallback: {template_name}")
+            return None, None
+        
+        try:
+            # Read template file
+            template_path = os.path.join(current_app.root_path, template_info['file'])
+            with open(template_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
+            
+            # Replace template variables
+            for key, value in template_data.items():
+                placeholder = f"{{{{{key}}}}}"  # {{variable_name}}
+                html_content = html_content.replace(placeholder, str(value))
+            
+            # Process subject line with template data
+            subject = template_info['subject']
+            for key, value in template_data.items():
+                placeholder = f"{{{key}}}"  # {variable_name}
+                subject = subject.replace(placeholder, str(value))
+            
+            return subject, html_content
+            
+        except Exception as e:
+            current_app.logger.error(f"Error loading template {template_name}: {str(e)}")
+            return None, None
+    
     def send(self, template_name: str, to_email: str, template_data: dict, 
              from_email: str = None, reply_to: str = None) -> bool:
         """
-        Send an email using a SendGrid dynamic template.
+        Send an email using a SendGrid dynamic template with automatic Gmail fallback.
         
         Args:
             template_name: Key from TEMPLATES dict (e.g., 'password_reset')
@@ -62,6 +184,7 @@ class EmailService:
         # Add current_year to all templates
         template_data.setdefault('current_year', str(datetime.now().year))
         
+        # Try SendGrid first
         try:
             current_app.logger.info(f"Preparing email: template={template_name}, to={to_email}, template_id={template_id}")
             current_app.logger.info(f"Template data keys: {list(template_data.keys())}")
@@ -81,22 +204,47 @@ class EmailService:
             
             if response.status_code in (200, 201, 202):
                 current_app.logger.info(
-                    f"Email sent: template={template_name}, to={to_email}, status={response.status_code}"
+                    f"✓ SendGrid email sent: template={template_name}, to={to_email}, status={response.status_code}"
                 )
                 return True
             else:
-                current_app.logger.error(
-                    f"Email failed: template={template_name}, to={to_email}, status={response.status_code}"
+                current_app.logger.warning(
+                    f"SendGrid failed: template={template_name}, to={to_email}, status={response.status_code}"
                 )
-                current_app.logger.error(f"Response body: {response.body}")
-                current_app.logger.error(f"Response headers: {response.headers}")
-                return False
+                current_app.logger.warning(f"Response body: {response.body}")
+                current_app.logger.warning(f"Response headers: {response.headers}")
+                # Fall through to Gmail fallback
                 
         except Exception as e:
             import traceback
-            current_app.logger.error(f"Email error: template={template_name}, to={to_email}, error={str(e)}")
-            current_app.logger.error(f"Full traceback: {traceback.format_exc()}")
-            return False
+            current_app.logger.warning(f"SendGrid error: template={template_name}, to={to_email}, error={str(e)}")
+            current_app.logger.warning(f"Full traceback: {traceback.format_exc()}")
+            # Fall through to Gmail fallback
+        
+        # If SendGrid failed, try Gmail fallback
+        current_app.logger.info(f"Attempting Gmail fallback for {to_email}")
+        subject, html_content = self._get_template_html(template_name, template_data)
+        
+        if subject and html_content:
+            gmail_success = self._send_via_gmail(
+                to_email=to_email,
+                subject=subject,
+                html_content=html_content,
+                from_email=from_email,
+                reply_to=reply_to
+            )
+            
+            if gmail_success:
+                current_app.logger.info(
+                    f"✓ Gmail fallback successful: template={template_name}, to={to_email}"
+                )
+                return True
+        
+        # Both methods failed
+        current_app.logger.error(
+            f"✗ All email methods failed: template={template_name}, to={to_email}"
+        )
+        return False
     
     # =========================================================================
     # Convenience Methods
