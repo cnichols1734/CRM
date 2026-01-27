@@ -3,11 +3,8 @@
     <!-- Backdrop - darker gray overlay -->
     <div class="absolute inset-0 bg-black/60 transition-opacity"></div>
     
-    <!-- Spotlight cutout for Contacts Link -->
-    <div id="contactsLinkSpotlight" class="absolute pointer-events-none" style="transition: all 0.3s ease; z-index: 101;">
-        <!-- Inner cutout - shows through -->
-        <div class="absolute inset-0 rounded-lg ring-4 ring-orange-400 shadow-2xl" style="box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 30px rgba(249, 115, 22, 0.5);"></div>
-    </div>
+    <!-- Spotlight on Contacts Link (positioned absolutely) -->
+    <div id="contactsLinkSpotlight" class="absolute rounded-lg ring-4 ring-orange-400 shadow-2xl" style="transition: all 0.3s ease; z-index: 101;"></div>
     
     <!-- Onboarding Card -->
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-lg" style="z-index: 102;">
@@ -145,12 +142,12 @@
 let hasShownDashboardOnboarding = {{ 'true' if current_user.has_seen_dashboard_onboarding else 'false' }};
 
 function positionContactsSpotlight() {
-    // Find the contacts link in the sidebar
-    const contactsLink = document.querySelector('a[href="{{ url_for("main.contacts") }}"]');
+    // Find the contacts link container in the sidebar (the parent div that contains the link)
+    const contactsContainer = document.querySelector('.sidebar-link[href="{{ url_for("main.contacts") }}"]');
     const spotlight = document.getElementById('contactsLinkSpotlight');
     
-    if (contactsLink && spotlight) {
-        const rect = contactsLink.getBoundingClientRect();
+    if (contactsContainer && spotlight) {
+        const rect = contactsContainer.getBoundingClientRect();
         spotlight.style.top = `${rect.top - 8}px`;
         spotlight.style.left = `${rect.left - 8}px`;
         spotlight.style.width = `${rect.width + 16}px`;
