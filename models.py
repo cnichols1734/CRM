@@ -240,6 +240,7 @@ class User(UserMixin, db.Model):
     
     # Onboarding flags
     has_seen_contacts_onboarding = db.Column(db.Boolean, default=False)
+    has_seen_dashboard_onboarding = db.Column(db.Boolean, default=False)
     
     # Organization relationship
     organization = db.relationship('Organization', backref=db.backref('users', lazy='dynamic'),
