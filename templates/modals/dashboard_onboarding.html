@@ -3,8 +3,11 @@
     <!-- Backdrop - darker gray overlay -->
     <div class="absolute inset-0 bg-black/60 transition-opacity"></div>
     
-    <!-- Spotlight on Contacts Link (positioned absolutely) -->
-    <div id="contactsLinkSpotlight" class="absolute rounded-lg ring-4 ring-orange-400 shadow-2xl" style="transition: all 0.3s ease; z-index: 101;"></div>
+    <!-- Spotlight cutout for Contacts Link -->
+    <div id="contactsLinkSpotlight" class="absolute pointer-events-none" style="transition: all 0.3s ease; z-index: 101;">
+        <!-- Inner cutout - shows through -->
+        <div class="absolute inset-0 rounded-lg ring-4 ring-orange-400 shadow-2xl" style="box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 30px rgba(249, 115, 22, 0.5);"></div>
+    </div>
     
     <!-- Onboarding Card -->
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-lg" style="z-index: 102;">
@@ -52,21 +55,6 @@
                     <!-- Feature 2 -->
                     <div class="flex gap-4">
                         <div class="flex-shrink-0">
-                            <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-sm">
-                                <i class="fas fa-hand-holding-usd text-sm"></i>
-                            </div>
-                        </div>
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-slate-900 mb-1">Transaction Pipeline</h4>
-                            <p class="text-sm text-slate-600">
-                                View your deals in motion with our kanban-style board showing <span class="font-semibold">Preparing, Active, Under Contract,</span> and <span class="font-semibold">Closed</span> transactions.
-                            </p>
-                        </div>
-                    </div>
-                    
-                    <!-- Feature 3 -->
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0">
                             <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
                                 <i class="fas fa-tasks text-sm"></i>
                             </div>
@@ -79,7 +67,7 @@
                         </div>
                     </div>
                     
-                    <!-- Feature 4 -->
+                    <!-- Feature 3 -->
                     <div class="flex gap-4">
                         <div class="flex-shrink-0">
                             <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
