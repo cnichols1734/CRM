@@ -202,9 +202,9 @@
 
                 <!-- Import button (hidden on mobile) -->
                 <div class="relative hidden md:block">
-                    <button onclick="document.getElementById('csvFile').click()" id="importButton"
+                    <button onclick="openImportHelpModal()" id="importButton"
                         class="text-sm font-medium px-4 py-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-slate-200 transition-all duration-200">
-                        Import
+                        <i class="fas fa-file-import mr-1"></i> Import
                     </button>
                     <!-- Loading spinner (hidden by default) -->
                     <div id="importLoading" class="hidden">
@@ -1301,48 +1301,88 @@
                         // Clear previous details
                         errorList.innerHTML = '';
 
-                        if (data.status === 'success') {
-                            statusIcon.className = 'fas fa-check-circle text-green-400';
-                            statusMessage.textContent = data.message || `Successfully imported ${data.success_count} contacts`;
-                        } else if (data.status === 'partial_success') {
-                            statusIcon.className = 'fas fa-exclamation-triangle text-yellow-400';
-                            statusMessage.textContent = `Imported ${data.success_count} contacts with ${data.error_count} errors`;
+                        // Check if there are any issues to report
+                        const hasSkippedDuplicates = (data.duplicates_skipped || 0) > 0;
+                        const hasInvalidPhones = (data.invalid_phone_count || 0) > 0;
+                        const hasMissingNames = (data.missing_name_count || 0) > 0;
+                        const hasRowErrors = (data.error_count || 0) > 0;
+                        const hasAnyIssues = hasSkippedDuplicates || hasInvalidPhones || hasMissingNames || hasRowErrors;
 
-                            // Append error detail lines (after counters below)
+                        if (data.status === 'success') {
+                            statusIcon.className = 'fas fa-check-circle text-green-500 text-xl';
+                            
+                            if (hasAnyIssues) {
+                                // Success but with some skipped items
+                                statusMessage.innerHTML = `<span class="text-green-700 font-semibold">Successfully imported ${data.success_count} contact${data.success_count !== 1 ? 's' : ''}!</span>`;
+                                
+                                // Show details for skipped items
+                                const details = [];
+                                if (hasSkippedDuplicates) details.push(`${data.duplicates_skipped} duplicate${data.duplicates_skipped !== 1 ? 's' : ''} skipped`);
+                                if (hasInvalidPhones) details.push(`${data.invalid_phone_count} invalid phone${data.invalid_phone_count !== 1 ? 's' : ''} ignored`);
+                                
+                                if (details.length > 0) {
+                                    const li = document.createElement('li');
+                                    li.className = 'text-gray-500';
+                                    li.textContent = details.join(', ');
+                                    errorList.appendChild(li);
+                                    errorDetails.querySelector('p').textContent = 'Notes:';
+                                    errorDetails.classList.remove('hidden');
+                                }
+                            } else {
+                                // Pure success - clean message
+                                statusMessage.innerHTML = `<span class="text-green-700 font-semibold">Successfully imported ${data.success_count} contact${data.success_count !== 1 ? 's' : ''}!</span>`;
+                                errorDetails.classList.add('hidden');
+                            }
+                        } else if (data.status === 'partial_success') {
+                            statusIcon.className = 'fas fa-exclamation-triangle text-amber-500 text-xl';
+                            statusMessage.innerHTML = `<span class="text-amber-700 font-semibold">Imported ${data.success_count} contact${data.success_count !== 1 ? 's' : ''}</span> <span class="text-gray-500">with some issues</span>`;
+
+                            // Show what was skipped/errored
+                            errorDetails.querySelector('p').textContent = 'Details:';
+                            if (hasSkippedDuplicates) {
+                                const li = document.createElement('li');
+                                li.className = 'text-gray-600';
+                                li.textContent = `${data.duplicates_skipped} duplicate${data.duplicates_skipped !== 1 ? 's' : ''} skipped`;
+                                errorList.appendChild(li);
+                            }
+                            if (hasInvalidPhones) {
+                                const li = document.createElement('li');
+                                li.className = 'text-gray-600';
+                                li.textContent = `${data.invalid_phone_count} invalid phone number${data.invalid_phone_count !== 1 ? 's' : ''} ignored`;
+                                errorList.appendChild(li);
+                            }
+                            if (hasMissingNames) {
+                                const li = document.createElement('li');
+                                li.className = 'text-amber-600';
+                                li.textContent = `${data.missing_name_count} row${data.missing_name_count !== 1 ? 's' : ''} missing name`;
+                                errorList.appendChild(li);
+                            }
                             if (data.error_details && data.error_details.length > 0) {
                                 data.error_details.forEach(error => {
                                     const li = document.createElement('li');
+                                    li.className = 'text-red-600';
                                     li.textContent = error;
                                     errorList.appendChild(li);
                                 });
                             }
+                            errorDetails.classList.remove('hidden');
                         } else {
-                            statusIcon.className = 'fas fa-exclamation-circle text-red-400';
-                            statusMessage.textContent = data.message || 'Error importing contacts';
+                            statusIcon.className = 'fas fa-times-circle text-red-500 text-xl';
+                            statusMessage.innerHTML = `<span class="text-red-700 font-semibold">${data.message || 'Error importing contacts'}</span>`;
 
-                            // Append error detail lines (after counters below)
+                            errorDetails.querySelector('p').textContent = 'Error Details:';
                             if (data.error_details && data.error_details.length > 0) {
                                 data.error_details.forEach(error => {
                                     const li = document.createElement('li');
+                                    li.className = 'text-red-600';
                                     li.textContent = error;
                                     errorList.appendChild(li);
                                 });
+                                errorDetails.classList.remove('hidden');
+                            } else {
+                                errorDetails.classList.add('hidden');
                             }
                         }
-                        // Always show counters/details and require manual close
-                        const counters = [
-                            { label: 'Imported', value: (data.success_count || 0) },
-                            { label: 'Skipped duplicates', value: (data.duplicates_skipped || 0) },
-                            { label: 'Invalid phone (ignored)', value: (data.invalid_phone_count || 0) },
-                            { label: 'Missing both names (skipped)', value: (data.missing_name_count || 0) },
-                            { label: 'Row errors', value: (data.error_count || 0) },
-                        ];
-                        counters.forEach(c => {
-                            const li = document.createElement('li');
-                            li.textContent = `${c.label}: ${c.value}`;
-                            errorList.appendChild(li);
-                        });
-                        errorDetails.classList.remove('hidden');
 
                         document.getElementById('importStatus').classList.remove('hidden');
 
@@ -2030,4 +2070,8 @@
 
 </div>
 </div>
+
+<!-- Import Help Modal -->
+{% include 'modals/import_help_modal.html' %}
+
 {% endblock %}
