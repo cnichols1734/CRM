@@ -413,3 +413,15 @@ def update_task_window():
     db.session.commit()
     
     return jsonify({'success': True, 'days': days})
+
+
+@main_bp.route('/dashboard/dismiss-onboarding', methods=['POST'])
+@login_required
+def dismiss_dashboard_onboarding():
+    """Mark dashboard onboarding as seen for current user."""
+    from flask import jsonify
+    
+    current_user.has_seen_dashboard_onboarding = True
+    db.session.commit()
+    
+    return jsonify({'success': True})

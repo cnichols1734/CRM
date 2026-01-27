@@ -1,0 +1,197 @@
+<!-- Dashboard Page Onboarding Overlay -->
+<div id="dashboardOnboarding" class="hidden fixed inset-0 z-[100]">
+    <!-- Backdrop - dark overlay (no blur) -->
+    <div class="absolute inset-0 bg-black/60 transition-opacity"></div>
+    
+    <!-- Spotlight on Contacts Link -->
+    <div id="contactsLinkSpotlight" class="absolute rounded-xl ring-4 ring-orange-400 shadow-2xl" style="transition: all 0.3s ease; z-index: 101;"></div>
+    
+    <!-- Premium Onboarding Card -->
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-lg" style="z-index: 102;">
+        <div class="relative bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden animate-modal-enter">
+            
+            <!-- Decorative gradient orbs -->
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-orange-400/30 to-amber-300/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-gradient-to-tr from-purple-400/20 to-blue-300/10 rounded-full blur-2xl"></div>
+            
+            <!-- Header -->
+            <div class="relative px-8 pt-8 pb-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300">
+                            <i class="fas fa-chart-line text-white text-2xl"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1 pt-1">
+                        <h3 class="text-2xl font-bold text-slate-900 tracking-tight">Welcome to Your Dashboard</h3>
+                        <p class="text-slate-500 mt-1">Your business command center</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Content -->
+            <div class="relative px-8 pb-6">
+                <!-- Intro text -->
+                <p class="text-slate-600 leading-relaxed mb-6">
+                    Track performance at a glance. As you add contacts and activities, your dashboard will come to life with real-time insights.
+                </p>
+                
+                <!-- Features Grid -->
+                <div class="grid grid-cols-1 gap-3">
+                    <!-- Feature 1 -->
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-500/25">
+                            <i class="fas fa-chart-bar text-white text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Key Metrics</h4>
+                            <p class="text-xs text-slate-500 truncate">Commission, contacts & averages</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-emerald-400 rounded-full block"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Feature 2 -->
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/25">
+                            <i class="fas fa-tasks text-white text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Tasks & To-Do's</h4>
+                            <p class="text-xs text-slate-500 truncate">Client tasks & personal list</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-blue-400 rounded-full block"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- Feature 3 -->
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl flex items-center justify-center shadow-sm shadow-purple-500/25">
+                            <i class="fas fa-pie-chart text-white text-sm"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Analytics & Insights</h4>
+                            <p class="text-xs text-slate-500 truncate">Groups & top contacts</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-purple-400 rounded-full block"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CTA Box -->
+                <div class="mt-6 p-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl shadow-lg shadow-orange-500/20">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-arrow-right text-white"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-white font-semibold">Ready to start?</p>
+                            <p class="text-orange-100 text-sm">
+                                Click <span class="font-bold text-white">Contacts</span> in the sidebar to add your first contacts.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="relative px-8 py-5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                <label class="flex items-center gap-2.5 cursor-pointer group">
+                    <input type="checkbox" id="dontShowAgainDashboard" class="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500 focus:ring-offset-0">
+                    <span class="text-sm text-slate-500 group-hover:text-slate-700 transition-colors">Don't show again</span>
+                </label>
+                <button onclick="closeDashboardOnboarding()" class="group relative px-6 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 text-white font-semibold rounded-xl hover:from-slate-700 hover:to-slate-600 shadow-lg shadow-slate-800/25 hover:shadow-slate-800/40 transition-all duration-200 hover:-translate-y-0.5">
+                    <span class="relative z-10 flex items-center gap-2">
+                        Let's Go
+                        <i class="fas fa-arrow-right text-sm group-hover:translate-x-0.5 transition-transform"></i>
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes modal-enter {
+    from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.animate-modal-enter {
+    animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pulse-ring {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(249, 115, 22, 0);
+    }
+}
+
+#contactsLinkSpotlight {
+    animation: pulse-ring 2s infinite;
+}
+</style>
+
+<script>
+let hasShownDashboardOnboarding = {{ 'true' if current_user.has_seen_dashboard_onboarding else 'false' }};
+
+function positionContactsSpotlight() {
+    const contactsContainer = document.querySelector('.sidebar-link[href="{{ url_for("main.contacts") }}"]');
+    const spotlight = document.getElementById('contactsLinkSpotlight');
+    
+    if (contactsContainer && spotlight) {
+        const rect = contactsContainer.getBoundingClientRect();
+        spotlight.style.top = `${rect.top - 8}px`;
+        spotlight.style.left = `${rect.left - 8}px`;
+        spotlight.style.width = `${rect.width + 16}px`;
+        spotlight.style.height = `${rect.height + 16}px`;
+    }
+}
+
+function showDashboardOnboarding() {
+    if (hasShownDashboardOnboarding) {
+        return;
+    }
+    
+    const overlay = document.getElementById('dashboardOnboarding');
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    setTimeout(positionContactsSpotlight, 100);
+    window.addEventListener('resize', positionContactsSpotlight);
+}
+
+function closeDashboardOnboarding() {
+    const dontShowAgain = document.getElementById('dontShowAgainDashboard').checked;
+    const overlay = document.getElementById('dashboardOnboarding');
+    
+    overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    hasShownDashboardOnboarding = true;
+    
+    window.removeEventListener('resize', positionContactsSpotlight);
+    
+    if (dontShowAgain) {
+        fetch('/dashboard/dismiss-onboarding', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        }).catch(err => console.error('Failed to save onboarding preference:', err));
+    }
+}
+
+window.addEventListener('load', function() {
+    setTimeout(showDashboardOnboarding, 800);
+});
+</script>
