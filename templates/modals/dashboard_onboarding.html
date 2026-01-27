@@ -1,93 +1,96 @@
 <!-- Dashboard Page Onboarding Overlay -->
 <div id="dashboardOnboarding" class="hidden fixed inset-0 z-[100]">
-    <!-- Backdrop - darker gray overlay -->
+    <!-- Backdrop - dark overlay (no blur) -->
     <div class="absolute inset-0 bg-black/60 transition-opacity"></div>
     
-    <!-- Spotlight on Contacts Link (positioned absolutely) -->
-    <div id="contactsLinkSpotlight" class="absolute rounded-lg ring-4 ring-orange-400 shadow-2xl" style="transition: all 0.3s ease; z-index: 101;"></div>
+    <!-- Spotlight on Contacts Link -->
+    <div id="contactsLinkSpotlight" class="absolute rounded-xl ring-4 ring-orange-400 shadow-2xl" style="transition: all 0.3s ease; z-index: 101;"></div>
     
-    <!-- Onboarding Card -->
+    <!-- Premium Onboarding Card -->
     <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-11/12 max-w-lg" style="z-index: 102;">
-        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden animate-fade-in-up">
+        <div class="relative bg-white rounded-3xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden animate-modal-enter">
+            
+            <!-- Decorative gradient orbs -->
+            <div class="absolute -top-24 -right-24 w-48 h-48 bg-gradient-to-br from-orange-400/30 to-amber-300/20 rounded-full blur-3xl"></div>
+            <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-gradient-to-tr from-purple-400/20 to-blue-300/10 rounded-full blur-2xl"></div>
+            
             <!-- Header -->
-            <div class="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-5 text-white">
-                <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-chart-line text-2xl"></i>
+            <div class="relative px-8 pt-8 pb-6">
+                <div class="flex items-start gap-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/30 -rotate-3 hover:rotate-0 transition-transform duration-300">
+                            <i class="fas fa-chart-line text-white text-2xl"></i>
+                        </div>
                     </div>
-                    <div>
-                        <h3 class="text-xl font-bold">Welcome to Your Dashboard!</h3>
-                        <p class="text-orange-100 text-sm">Your command center</p>
+                    <div class="flex-1 pt-1">
+                        <h3 class="text-2xl font-bold text-slate-900 tracking-tight">Welcome to Your Dashboard</h3>
+                        <p class="text-slate-500 mt-1">Your business command center</p>
                     </div>
                 </div>
             </div>
             
             <!-- Content -->
-            <div class="p-6">
-                <div class="space-y-4">
-                    <!-- Intro -->
-                    <div class="flex gap-4 pb-4 border-b border-slate-200">
-                        <div class="flex-1">
-                            <p class="text-slate-600 leading-relaxed">
-                                Your dashboard gives you a real-time view of your business performance. As you add contacts and update your activities, this dashboard will automatically populate with valuable insights!
-                            </p>
-                        </div>
-                    </div>
-                    
+            <div class="relative px-8 pb-6">
+                <!-- Intro text -->
+                <p class="text-slate-600 leading-relaxed mb-6">
+                    Track performance at a glance. As you add contacts and activities, your dashboard will come to life with real-time insights.
+                </p>
+                
+                <!-- Features Grid -->
+                <div class="grid grid-cols-1 gap-3">
                     <!-- Feature 1 -->
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-sm">
-                                <i class="fas fa-chart-bar text-sm"></i>
-                            </div>
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-sm shadow-emerald-500/25">
+                            <i class="fas fa-chart-bar text-white text-sm"></i>
                         </div>
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-slate-900 mb-1">Key Metrics</h4>
-                            <p class="text-sm text-slate-600">
-                                Track your <span class="font-semibold">Total Potential Commission</span>, <span class="font-semibold">Total Contacts</span>, and <span class="font-semibold">Average Commission</span> at a glance.
-                            </p>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Key Metrics</h4>
+                            <p class="text-xs text-slate-500 truncate">Commission, contacts & averages</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-emerald-400 rounded-full block"></span>
                         </div>
                     </div>
                     
                     <!-- Feature 2 -->
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm">
-                                <i class="fas fa-tasks text-sm"></i>
-                            </div>
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center shadow-sm shadow-blue-500/25">
+                            <i class="fas fa-tasks text-white text-sm"></i>
                         </div>
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-slate-900 mb-1">Tasks & To-Do's</h4>
-                            <p class="text-sm text-slate-600">
-                                Stay on top of your <span class="font-semibold">Upcoming Client Tasks</span> and manage your <span class="font-semibold">Personal To-Do List</span>.
-                            </p>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Tasks & To-Do's</h4>
+                            <p class="text-xs text-slate-500 truncate">Client tasks & personal list</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-blue-400 rounded-full block"></span>
                         </div>
                     </div>
                     
                     <!-- Feature 3 -->
-                    <div class="flex gap-4">
-                        <div class="flex-shrink-0">
-                            <div class="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-sm">
-                                <i class="fas fa-pie-chart text-sm"></i>
-                            </div>
+                    <div class="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-500 rounded-xl flex items-center justify-center shadow-sm shadow-purple-500/25">
+                            <i class="fas fa-pie-chart text-white text-sm"></i>
                         </div>
-                        <div class="flex-1">
-                            <h4 class="font-semibold text-slate-900 mb-1">Analytics & Insights</h4>
-                            <p class="text-sm text-slate-600">
-                                See your <span class="font-semibold">Contact Group Distribution</span> and <span class="font-semibold">Top Contacts by Commission</span> to identify opportunities.
-                            </p>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-semibold text-slate-900 text-sm">Analytics & Insights</h4>
+                            <p class="text-xs text-slate-500 truncate">Groups & top contacts</p>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="w-2 h-2 bg-purple-400 rounded-full block"></span>
                         </div>
                     </div>
                 </div>
                 
                 <!-- CTA Box -->
-                <div class="mt-6 p-4 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-100 rounded-xl">
-                    <div class="flex gap-3">
-                        <i class="fas fa-arrow-right text-orange-500 mt-0.5"></i>
+                <div class="mt-6 p-4 bg-gradient-to-r from-orange-500 to-amber-500 rounded-2xl shadow-lg shadow-orange-500/20">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                            <i class="fas fa-arrow-right text-white"></i>
+                        </div>
                         <div class="flex-1">
-                            <p class="text-sm font-semibold text-orange-900 mb-1">Ready to Get Started?</p>
-                            <p class="text-sm text-orange-700">
-                                Click <span class="font-bold">Contacts</span> in the sidebar (highlighted) to start adding your contacts and watch your dashboard come to life!
+                            <p class="text-white font-semibold">Ready to start?</p>
+                            <p class="text-orange-100 text-sm">
+                                Click <span class="font-bold text-white">Contacts</span> in the sidebar to add your first contacts.
                             </p>
                         </div>
                     </div>
@@ -95,13 +98,16 @@
             </div>
             
             <!-- Footer -->
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="dontShowAgainDashboard" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500">
-                    <span class="text-sm text-slate-600">Don't show this again</span>
+            <div class="relative px-8 py-5 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between">
+                <label class="flex items-center gap-2.5 cursor-pointer group">
+                    <input type="checkbox" id="dontShowAgainDashboard" class="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500 focus:ring-offset-0">
+                    <span class="text-sm text-slate-500 group-hover:text-slate-700 transition-colors">Don't show again</span>
                 </label>
-                <button onclick="closeDashboardOnboarding()" class="px-6 py-2.5 bg-gradient-to-r from-orange-500 to-orange-600 text-white font-semibold rounded-lg hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/25 transition-all">
-                    Let's Go!
+                <button onclick="closeDashboardOnboarding()" class="group relative px-6 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 text-white font-semibold rounded-xl hover:from-slate-700 hover:to-slate-600 shadow-lg shadow-slate-800/25 hover:shadow-slate-800/40 transition-all duration-200 hover:-translate-y-0.5">
+                    <span class="relative z-10 flex items-center gap-2">
+                        Let's Go
+                        <i class="fas fa-arrow-right text-sm group-hover:translate-x-0.5 transition-transform"></i>
+                    </span>
                 </button>
             </div>
         </div>
@@ -109,19 +115,19 @@
 </div>
 
 <style>
-@keyframes fade-in-up {
+@keyframes modal-enter {
     from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(24px) scale(0.96);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
 }
 
-.animate-fade-in-up {
-    animation: fade-in-up 0.4s ease-out;
+.animate-modal-enter {
+    animation: modal-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes pulse-ring {
@@ -142,7 +148,6 @@
 let hasShownDashboardOnboarding = {{ 'true' if current_user.has_seen_dashboard_onboarding else 'false' }};
 
 function positionContactsSpotlight() {
-    // Find the contacts link container in the sidebar (the parent div that contains the link)
     const contactsContainer = document.querySelector('.sidebar-link[href="{{ url_for("main.contacts") }}"]');
     const spotlight = document.getElementById('contactsLinkSpotlight');
     
@@ -164,10 +169,7 @@ function showDashboardOnboarding() {
     overlay.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     
-    // Position spotlight after a brief delay to ensure layout is ready
     setTimeout(positionContactsSpotlight, 100);
-    
-    // Reposition on window resize
     window.addEventListener('resize', positionContactsSpotlight);
 }
 
@@ -179,21 +181,16 @@ function closeDashboardOnboarding() {
     document.body.style.overflow = '';
     hasShownDashboardOnboarding = true;
     
-    // Remove resize listener
     window.removeEventListener('resize', positionContactsSpotlight);
     
     if (dontShowAgain) {
-        // Save preference to backend
         fetch('/dashboard/dismiss-onboarding', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
+            headers: { 'Content-Type': 'application/json' }
         }).catch(err => console.error('Failed to save onboarding preference:', err));
     }
 }
 
-// Show onboarding after page loads
 window.addEventListener('load', function() {
     setTimeout(showDashboardOnboarding, 800);
 });
