@@ -1,0 +1,79 @@
+{# 
+T-47.1 Affidavit Form Fields Partial
+T-47.1 Residential Real Property Declaration In Lieu of Affidavit
+
+This document is used when seller has a survey or is unsure about survey availability.
+Agent fills out the broker fields (Date, GF No, Declarant, Property Description, County).
+Sellers sign the document through DocuSeal.
+
+Variables expected: prefill_data (dict), doc (optional - for field prefixing in combined view)
+#}
+
+{% set field_prefix = 'doc_' ~ (doc.id if doc else 't47') ~ '_field_' %}
+
+<!-- ============================================================== -->
+<!-- T-47.1 AFFIDAVIT - PROPERTY DECLARATION -->
+<!-- ============================================================== -->
+<div class="premium-card p-6 mb-6 form-section animate-fade-in-up" data-section="1">
+    <div class="section-header">
+        <div class="section-number bg-gradient-to-br from-amber-500 to-amber-600 text-white">
+            <i class="fas fa-file-signature text-xs"></i>
+        </div>
+        <div>
+            <h2 class="section-title">T-47.1 Property Declaration</h2>
+            <p class="section-subtitle">Residential Real Property Declaration In Lieu of Affidavit</p>
+        </div>
+    </div>
+    
+    <div class="space-y-6">
+        <!-- Date and GF Number Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="form-label form-label-required">Date</label>
+                <input type="date" name="{{ field_prefix }}date" 
+                       value="{{ prefill_data.get('date', '') or prefill_data.get('t47_date', '') }}"
+                       class="premium-input">
+                <p class="help-text">Date of the declaration</p>
+            </div>
+            <div>
+                <label class="form-label">GF No.</label>
+                <input type="text" name="{{ field_prefix }}gf_no" 
+                       value="{{ prefill_data.get('gf_no', '') or prefill_data.get('t47_gf_no', '') }}"
+                       class="premium-input" placeholder="Optional">
+                <p class="help-text">Optional general file number</p>
+            </div>
+        </div>
+
+        <!-- Declarant (Seller Name) -->
+        <div>
+            <label class="form-label form-label-required">Declarant</label>
+            <input type="text" name="{{ field_prefix }}declarant" 
+                   value="{{ prefill_data.get('declarant', '') or prefill_data.get('t47_declarant', '') or prefill_data.get('seller_legal_name', '') }}"
+                   class="premium-input" placeholder="Seller's full legal name">
+            <p class="help-text">Full legal name of the property owner(s) making the declaration</p>
+        </div>
+
+        <!-- Property Description -->
+        <div>
+            <label class="form-label form-label-required">Property Description</label>
+            <textarea name="{{ field_prefix }}property_description" 
+                      class="premium-input" rows="3" style="resize: vertical; min-height: 80px;"
+                      placeholder="Lot, Block, Addition, City, County...">{{ prefill_data.get('property_description', '') or prefill_data.get('t47_property_description', '') }}</textarea>
+            <p class="help-text">Legal description of the property (Lot, Block, Subdivision/Addition, City, County, known address)</p>
+        </div>
+
+        <!-- County -->
+        <div class="md:w-1/2">
+            <label class="form-label form-label-required">County</label>
+            <input type="text" name="{{ field_prefix }}county" 
+                   value="{{ prefill_data.get('county', '') or prefill_data.get('t47_county', '') or prefill_data.get('property_county', '') }}"
+                   class="premium-input" placeholder="County name">
+            <p class="help-text">County where the property is located</p>
+        </div>
+
+        <div class="callout-info">
+            <i class="fas fa-info-circle"></i>
+            <p>This declaration is used in lieu of a formal affidavit regarding the survey of the property. The seller(s) will review and sign this document through DocuSeal. The information above will be pre-filled on the document.</p>
+        </div>
+    </div>
+</div>

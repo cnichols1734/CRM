@@ -1050,7 +1050,177 @@
             el.addEventListener('change', updateProgress);
             el.addEventListener('input', updateProgress);
         });
+
+        // Initialize T-47.1 property description sync from Listing Agreement
+        initializeT47PropertyDescSync();
     });
+
+    // =============================================================================
+    // T-47.1 PROPERTY DESCRIPTION SYNC FROM LISTING AGREEMENT
+    // =============================================================================
+
+    function initializeT47PropertyDescSync() {
+        // Find all Listing Agreement property description source fields
+        const laFieldPatterns = [
+            'legal_lot',
+            'legal_block', 
+            'legal_subdivision',
+            'property_city',
+            'property_county',
+            'property_address'
+        ];
+
+        // Find all T-47.1 property description fields
+        const t47PropDescFields = document.querySelectorAll('[name*="_field_property_description"]');
+        
+        // Find the T-47 document's property description field specifically
+        // (it will have a name like doc_123_field_property_description where 123 is the T-47 doc ID)
+        let t47Field = null;
+        t47PropDescFields.forEach(field => {
+            // Check if this is inside a T-47 section (amber colored)
+            const section = field.closest('.doc-section');
+            if (section) {
+                const sectionColor = section.style.getPropertyValue('--section-color');
+                // Amber color is #f59e0b
+                if (sectionColor && sectionColor.includes('f59e0b')) {
+                    t47Field = field;
+                }
+            }
+        });
+
+        // Alternative: look for field in the t47 partial by checking nearby labels
+        if (!t47Field) {
+            t47PropDescFields.forEach(field => {
+                const card = field.closest('.premium-card');
+                if (card) {
+                    const header = card.querySelector('.section-title, h2');
+                    if (header && (header.textContent.includes('T-47') || header.textContent.includes('Property Declaration'))) {
+                        t47Field = field;
+                    }
+                }
+            });
+        }
+
+        if (!t47Field) {
+            // No T-47 form found on this page
+            return;
+        }
+
+        // Find all Listing Agreement source fields
+        const laFields = {};
+        laFieldPatterns.forEach(pattern => {
+            const field = document.querySelector(`[name*="_field_${pattern}"]`);
+            if (field) {
+                laFields[pattern] = field;
+            }
+        });
+
+        // If we have LA fields, set up listeners
+        if (Object.keys(laFields).length > 0) {
+            // Function to build the property description
+            function buildPropertyDescription() {
+                const lot = laFields.legal_lot?.value || '';
+                const block = laFields.legal_block?.value || '';
+                const subdivision = laFields.legal_subdivision?.value || '';
+                const city = laFields.property_city?.value || '';
+                const county = laFields.property_county?.value || '';
+                const address = laFields.property_address?.value || '';
+
+                const parts = [];
+                
+                if (lot) parts.push(`Lot ${lot}`);
+                if (block) parts.push(`Block ${block}`);
+                if (subdivision) parts.push(`${subdivision} Addition`);
+                if (city) parts.push(`City of ${city}`);
+                if (county) parts.push(`${county} County, TX`);
+                if (address) parts.push(`known as ${address}`);
+
+                return parts.join(', ');
+            }
+
+            // Function to update T-47 field
+            function updateT47PropertyDesc() {
+                const newValue = buildPropertyDescription();
+                // Update if we have content AND user hasn't manually edited
+                // (autoSynced is 'true' by default, becomes 'false' only on manual keydown)
+                if (newValue && t47Field.dataset.autoSynced !== 'false') {
+                    t47Field.value = newValue;
+                    // Trigger change event for any listeners (but not our own)
+                    t47Field.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Add listeners to all LA fields
+            Object.values(laFields).forEach(field => {
+                if (field) {
+                    field.addEventListener('input', updateT47PropertyDesc);
+                    field.addEventListener('change', updateT47PropertyDesc);
+                }
+            });
+
+            // Track if user manually types in the T-47 field (not via our sync)
+            let userIsTyping = false;
+            t47Field.addEventListener('keydown', function() {
+                userIsTyping = true;
+            });
+            t47Field.addEventListener('blur', function() {
+                if (userIsTyping) {
+                    // User manually edited, stop auto-syncing
+                    this.dataset.autoSynced = 'false';
+                    userIsTyping = false;
+                }
+            });
+
+            // Mark as auto-synced since it was pre-populated from server
+            t47Field.dataset.autoSynced = 'true';
+            
+            // Initial sync - always update to include any LA fields that may be filled
+            updateT47PropertyDesc();
+        }
+
+        // Also sync the county field
+        syncT47CountyField();
+    }
+
+    function syncT47CountyField() {
+        // Find Listing Agreement county field
+        const laCountyField = document.querySelector('[name*="_field_property_county"]');
+        
+        // Find T-47 county field
+        const t47CountyFields = document.querySelectorAll('[name*="_field_county"]');
+        let t47CountyField = null;
+        
+        t47CountyFields.forEach(field => {
+            const card = field.closest('.premium-card');
+            if (card) {
+                const header = card.querySelector('.section-title, h2');
+                if (header && (header.textContent.includes('T-47') || header.textContent.includes('Property Declaration'))) {
+                    t47CountyField = field;
+                }
+            }
+        });
+
+        if (laCountyField && t47CountyField) {
+            // Mark as auto-synced by default
+            t47CountyField.dataset.autoSynced = 'true';
+            
+            laCountyField.addEventListener('input', function() {
+                if (t47CountyField.dataset.autoSynced !== 'false') {
+                    t47CountyField.value = this.value;
+                }
+            });
+
+            // Track manual edits
+            t47CountyField.addEventListener('keydown', function() {
+                this.dataset.autoSynced = 'false';
+            });
+
+            // Initial sync
+            if (laCountyField.value) {
+                t47CountyField.value = laCountyField.value;
+            }
+        }
+    }
 
     function initializeConditionalSections() {
         // Check all radio buttons and apply their conditional logic

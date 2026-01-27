@@ -17,6 +17,7 @@ This guide explains how to add new documents to the CRM system. Documents are in
 9. [Document Registry](#document-registry)
 10. [Context & Organization Data](#context--organization-data)
 11. [Testing Checklist](#testing-checklist)
+12. [Advanced Patterns](#advanced-patterns)
 
 ---
 
@@ -620,6 +621,150 @@ Locations to check (search for `'form': doc.field_data`):
 
 ---
 
+## Advanced Patterns
+
+### Multiple DocuSeal Fields from Same Form Input
+
+Sometimes a DocuSeal template has multiple fields that should contain the same value (e.g., "Declarant" and "Seller Name" both need the seller's full name). Instead of adding two form inputs, map both DocuSeal fields to the same form field:
+
+```yaml
+fields:
+  # User fills this in the form
+  - field_key: declarant
+    docuseal_field: "Declarant"
+    role_key: broker
+    source: form.declarant
+
+  # Same value, different DocuSeal field
+  - field_key: seller_name
+    docuseal_field: "Seller Name"
+    role_key: broker
+    source: form.declarant  # Same source as above!
+```
+
+The agent enters the name once, but it populates both fields in DocuSeal.
+
+### Pulling Data from Other Documents
+
+When one document needs data from another (e.g., T-47.1 needs property description from Listing Agreement), add logic to `routes/transactions/helpers.py` in the `build_prefill_data()` function:
+
+```python
+def build_prefill_data(transaction, participants):
+    data = { ... }
+    
+    # Pull data from another document's field_data
+    listing_agreement = TransactionDocument.query.filter_by(
+        transaction_id=transaction.id,
+        template_slug='listing-agreement'
+    ).first()
+    
+    if listing_agreement and listing_agreement.field_data:
+        la_data = listing_agreement.field_data
+        # Build concatenated value from LA fields
+        data['t47_property_description'] = build_property_description(la_data)
+    
+    return data
+```
+
+This prefills the T-47.1 form with data from the Listing Agreement when the page loads.
+
+### Cross-Document Field Sync in Fill All Forms
+
+When documents are displayed together in "Fill All Forms", you may want fields in one document to auto-update fields in another as the agent types. This requires JavaScript in `templates/transactions/fill_all_documents.html`.
+
+**Example: Listing Agreement → T-47.1 Property Description**
+
+```javascript
+function initializeCrossDocSync() {
+    // Find source fields (Listing Agreement)
+    const laFields = {
+        lot: document.querySelector('[name*="_field_legal_lot"]'),
+        block: document.querySelector('[name*="_field_legal_block"]'),
+        subdivision: document.querySelector('[name*="_field_legal_subdivision"]'),
+        city: document.querySelector('[name*="_field_property_city"]'),
+        county: document.querySelector('[name*="_field_property_county"]'),
+        address: document.querySelector('[name*="_field_property_address"]')
+    };
+    
+    // Find target field (T-47.1)
+    const t47PropDesc = document.querySelector('[name*="t47"][name*="_field_property_description"]');
+    
+    if (!t47PropDesc) return;
+    
+    // Mark as auto-synced (respects manual edits)
+    t47PropDesc.dataset.autoSynced = 'true';
+    
+    function buildAndSync() {
+        if (t47PropDesc.dataset.autoSynced === 'false') return;
+        
+        const parts = [];
+        if (laFields.lot?.value) parts.push(`Lot ${laFields.lot.value}`);
+        if (laFields.block?.value) parts.push(`Block ${laFields.block.value}`);
+        // ... build full string
+        t47PropDesc.value = parts.join(', ');
+    }
+    
+    // Listen to source field changes
+    Object.values(laFields).forEach(field => {
+        if (field) {
+            field.addEventListener('input', buildAndSync);
+        }
+    });
+    
+    // Stop syncing if user manually edits target
+    t47PropDesc.addEventListener('keydown', function() {
+        this.dataset.autoSynced = 'false';
+    });
+    
+    // Initial sync
+    buildAndSync();
+}
+```
+
+**Key patterns:**
+- Use `[name*="_field_fieldname"]` to find fields regardless of document ID
+- Track `dataset.autoSynced` to respect manual edits
+- Use `keydown` (not `input`) to detect manual typing vs programmatic updates
+- Run initial sync on page load
+
+### Intake Schema Triggers
+
+Documents are added to a transaction based on the intake questionnaire answers. Rules are defined in `intake_schemas/seller_conventional.json`:
+
+```json
+{
+  "slug": "t47-affidavit",
+  "name": "T-47.1 Residential Real Property Affidavit",
+  "condition": {"field": "has_survey", "in": ["yes", "not_sure"]},
+  "reason": "Seller has survey or is unsure"
+}
+```
+
+Condition types:
+- `{"field": "x", "equals": true}` - Boolean match
+- `{"field": "x", "equals": "value"}` - Exact string match
+- `{"field": "x", "in": ["a", "b"]}` - Value in list
+- `"always": true` - Always include
+
+### Document Color Palette
+
+Use these Tailwind color names for visual consistency:
+
+| Color | Use For | Hex |
+|-------|---------|-----|
+| `orange` | Listing Agreement (primary) | #f97316 |
+| `violet` | HOA Addendum | #8b5cf6 |
+| `emerald` | Seller's Net Proceeds | #10b981 |
+| `blue` | Lead Paint Disclosure | #3b82f6 |
+| `rose` | Wire Fraud Warning | #f43f5e |
+| `amber` | T-47 Affidavit | #f59e0b |
+| `cyan` | Flood Hazard | #06b6d4 |
+| `indigo` | IABS | #6366f1 |
+| `teal` | Static/Uploaded docs | #14b8a6 |
+| `purple` | External docs | #8b5cf6 |
+
+---
+
 ## Example: Complete PDF-Preview Document
 
 See `documents/wire-fraud-warning.yml` for a complete example of a PDF-preview document that:
@@ -633,3 +778,9 @@ See `documents/iabs.yml` for a more complex example with:
 - User profile data for agent/supervisor
 - Auto-complete for broker and agent roles
 - Multiple pre-filled fields
+
+See `documents/t47-affidavit.yml` for a form-driven document with:
+- Broker role with `auto_complete: true` (agent fills form, no manual signing)
+- Multiple DocuSeal fields mapped to same form input (`form.declarant` → "Declarant" and "Seller Name")
+- Cross-document data pulling (property description from Listing Agreement)
+- Real-time field sync in Fill All Forms (JavaScript in `fill_all_documents.html`)

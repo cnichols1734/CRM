@@ -1,0 +1,100 @@
+# =============================================================================
+# T-47.1 RESIDENTIAL REAL PROPERTY AFFIDAVIT
+# =============================================================================
+# T-47.1 Residential Real Property Declaration In Lieu of Affidavit
+#
+# This is a form-driven document with a custom UI for data entry.
+# Used when seller has a survey or is unsure about survey availability.
+#
+# Template ID: 2668621
+# =============================================================================
+
+schema_version: "1.0"
+slug: t47-affidavit
+name: "T-47.1 Residential Real Property Affidavit"
+docuseal_template_id: 2668621
+type: form-driven
+
+display:
+  color: "#F59E0B"  # amber
+  icon: "fas fa-file-signature"
+  sort_order: 5
+
+form:
+  template: t47_affidavit_form.html
+  partial: t47_affidavit_fields.html
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Broker, Seller, Seller 2
+#
+# - Broker: Agent fills form UI, fields are auto-completed (no manual signing)
+# - Seller: Fills their fields during e-signature
+# - Seller 2: Optional second seller, fills fields during e-signature
+# =============================================================================
+
+roles:
+  - role_key: broker
+    docuseal_role: "Broker"
+    email_source: user.email
+    name_source: user.full_name
+    auto_complete: true  # Agent fills form UI, no manual signing needed
+
+  - role_key: seller
+    docuseal_role: "Seller"
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Broker role fields are filled by agent in the form UI.
+# Seller fields are left null (filled during DocuSeal signing).
+#
+# NOTE: Verify docuseal_field names match exactly what's in the DocuSeal template.
+# =============================================================================
+
+fields:
+  # Date field - pre-populated with today's date, agent can adjust
+  - field_key: date
+    docuseal_field: "Date"
+    role_key: broker
+    source: form.date
+    transform: date_short
+
+  # GF Number - optional field for agents
+  - field_key: gf_no
+    docuseal_field: "GF No"
+    role_key: broker
+    source: form.gf_no
+
+  # Declarant - seller's full name, pre-populated but editable
+  - field_key: declarant
+    docuseal_field: "Declarant"
+    role_key: broker
+    source: form.declarant
+
+  # Property Description - concatenated from listing agreement data
+  - field_key: property_description
+    docuseal_field: "Property Description"
+    role_key: broker
+    source: form.property_description
+
+  # County - pre-populated from transaction, editable
+  - field_key: county
+    docuseal_field: "County"
+    role_key: broker
+    source: form.county
+
+  # Seller Name - uses same value as Declarant (populated from form.declarant)
+  - field_key: seller_name
+    docuseal_field: "Seller Name"
+    role_key: broker
+    source: form.declarant

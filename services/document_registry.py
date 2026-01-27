@@ -134,6 +134,14 @@ DOCUMENT_REGISTRY: Dict[str, DocumentConfig] = {
         icon='fa-calculator',
         sort_order=4,
     ),
+    't47-affidavit': DocumentConfig(
+        slug='t47-affidavit',
+        name='T-47.1 Affidavit',
+        partial_template='transactions/partials/t47_affidavit_fields.html',
+        color='amber',
+        icon='fa-file-signature',
+        sort_order=5,
+    ),
     # Future documents - uncomment and create partials/YAMLs as needed:
     #
     # 'sellers-disclosure': DocumentConfig(

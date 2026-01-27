@@ -116,7 +116,73 @@ def build_prefill_data(transaction, participants):
         if intake.get('flood_hazard'):
             data['is_flood_hazard'] = 'yes' if intake['flood_hazard'] else 'no'
     
+    # Build T-47.1 property description from listing agreement data
+    data['t47_property_description'] = build_t47_property_description(transaction)
+    
+    # Set today's date for T-47.1 if not already set
+    data['t47_date'] = datetime.now().strftime('%Y-%m-%d')
+    
     return data
+
+
+def build_t47_property_description(transaction):
+    """
+    Build the property description string for T-47.1 Affidavit from listing agreement data.
+    
+    Format: "Lot {lot}, Block {block}, {subdivision} Addition, City of {city}, 
+             {county} County, TX known as {address}"
+    
+    Falls back to transaction data if listing agreement hasn't been filled yet.
+    """
+    # Try to get data from the listing agreement document first
+    listing_agreement = TransactionDocument.query.filter_by(
+        transaction_id=transaction.id,
+        template_slug='listing-agreement'
+    ).first()
+    
+    # Get field data from listing agreement if available
+    la_data = listing_agreement.field_data if listing_agreement and listing_agreement.field_data else {}
+    
+    # Build components, preferring listing agreement data, falling back to transaction data
+    lot = la_data.get('legal_lot', '')
+    block = la_data.get('legal_block', '')
+    subdivision = la_data.get('legal_subdivision', '')
+    city = la_data.get('property_city', '') or transaction.city or ''
+    county = la_data.get('property_county', '') or transaction.county or ''
+    address = la_data.get('property_address', '') or transaction.street_address or ''
+    
+    # Build the description string
+    parts = []
+    
+    if lot:
+        parts.append(f"Lot {lot}")
+    if block:
+        parts.append(f"Block {block}")
+    if subdivision:
+        parts.append(f"{subdivision} Addition")
+    if city:
+        parts.append(f"City of {city}")
+    if county:
+        parts.append(f"{county} County, TX")
+    if address:
+        parts.append(f"known as {address}")
+    
+    # Join with commas
+    if parts:
+        return ', '.join(parts)
+    
+    # Fallback: just return full address if no legal description available
+    if transaction.street_address:
+        fallback_parts = [transaction.street_address]
+        if transaction.city:
+            fallback_parts.append(transaction.city)
+        if transaction.state:
+            fallback_parts.append(transaction.state)
+        if transaction.zip_code:
+            fallback_parts.append(transaction.zip_code)
+        return ', '.join(fallback_parts)
+    
+    return ''
 
 
 def download_and_store_signed_document(doc: TransactionDocument, documents: list) -> bool:

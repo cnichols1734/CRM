@@ -60,7 +60,7 @@
             {"value": "no", "label": "No"},
             {"value": "not_sure", "label": "Not Sure"}
           ],
-          "help_text": "A T-47.1 affidavit may be required if no survey is available.",
+          "help_text": "A T-47.1 affidavit will be included if a survey is available or seller is unsure.",
           "required": true
         }
       ]
