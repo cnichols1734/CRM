@@ -18,6 +18,14 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)  # 24-hour sliding expiration
 
+    # Connection pool health settings for cloud PostgreSQL (Supabase)
+    # - pool_pre_ping: Test connection before use (prevents stale connection errors)
+    # - pool_recycle: Recycle connections every 5 min (before Supabase timeout)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+    }
+
     # Mail settings
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
