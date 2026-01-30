@@ -4,39 +4,45 @@
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Transaction Detail - Clean, Professional Style */
+    :root {
+        --brand-navy: #2d3e50;
+        --brand-navy-2: #1a2634;
+        --brand-orange: #f97316;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        --focus: rgba(249, 115, 22, 0.1);
     }
 
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
+    /* Simple page fade-in */
+    @keyframes fadeIn { 
+        from { opacity: 0; } 
+        to { opacity: 1; } 
+    }
+    
+    .page-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
     }
 
-    .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
-        opacity: 0;
-    }
-
-    .animate-fade-in-up-delay-2 {
-        animation: fadeInUp 0.6s ease-out 0.2s forwards;
-        opacity: 0;
-    }
-
-    /* Premium card styling */
+    /* Card styles - no lift on hover */
     .premium-card {
-        background: white;
-        border-radius: 1rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        transition: all 0.2s ease-out;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
         position: relative;
         z-index: 1;
     }
 
     .premium-card:hover {
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        border-color: #cbd5e1;
+        box-shadow: var(--shadow);
     }
 
     /* Status dropdown styling */
@@ -53,7 +59,7 @@
         background: white;
         border-radius: 0.75rem;
         box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
         z-index: 1001;
         min-width: 200px;
         opacity: 0;
@@ -68,7 +74,7 @@
         transform: translateY(0);
     }
 
-    /* Type badge styles */
+    /* Type badge styles - solid colors, no gradients */
     .type-badge {
         padding: 0.5rem 1rem;
         border-radius: 9999px;
@@ -76,11 +82,11 @@
         font-weight: 600;
     }
 
-    .type-seller { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
-    .type-buyer { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-    .type-landlord { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
-    .type-tenant { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .type-referral { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+    .type-seller { background: #f97316; color: white; }
+    .type-buyer { background: #8b5cf6; color: white; }
+    .type-landlord { background: #06b6d4; color: white; }
+    .type-tenant { background: #10b981; color: white; }
+    .type-referral { background: #6366f1; color: white; }
 
     /* Status badge styles */
     .status-badge {
@@ -89,7 +95,7 @@
         font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease-out;
+        transition: background-color 0.15s ease;
     }
 
     .status-preparing_to_list { background: #fef3c7; color: #92400e; }
@@ -107,34 +113,70 @@
 
     /* Document row */
     .doc-row {
-        transition: all 0.2s ease-out;
+        transition: background-color 0.15s ease;
     }
     .doc-row:hover {
-        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.06), rgba(249, 115, 22, 0.03));
+        background: #fafafa;
     }
 
     /* Participant card */
     .participant-card {
-        transition: all 0.2s ease-out;
+        transition: background-color 0.15s ease;
     }
     .participant-card:hover {
-        background: #f8fafc;
+        background: #fafafa;
     }
 
-    /* Modal overlay */
+    /* Modal overlay - no blur */
     .modal-overlay {
-        backdrop-filter: blur(4px);
         background-color: rgba(0, 0, 0, 0.5);
     }
 
-    /* Premium button */
+    /* Button styles */
+    .btn-primary {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #ea580c, #dc2626);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    
+    .btn-secondary {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: #64748b;
+        font-weight: 500;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #ea580c;
+    }
+
+    /* Premium button - no transform on hover */
     .premium-btn {
-        transition: all 0.2s ease-out;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
         border-radius: 0.75rem;
     }
     .premium-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    /* Icon tiles - allowed to have gradient */
+    .icon-tile {
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     /* Info row */
@@ -148,17 +190,17 @@
         border-bottom: none;
     }
     .info-label {
-        color: #64748b;
+        color: var(--muted);
         font-size: 0.875rem;
     }
     .info-value {
-        color: #1e293b;
+        color: var(--text);
         font-weight: 500;
         font-size: 0.875rem;
         text-align: right;
     }
 
-    /* Pizza Tracker Styles */
+    /* Status Tracker Styles - clean, no pulse */
     .status-tracker {
         display: flex;
         justify-content: space-between;
@@ -173,7 +215,7 @@
         left: 0;
         right: 0;
         height: 4px;
-        background: #e2e8f0;
+        background: var(--border);
         z-index: 0;
     }
     
@@ -182,7 +224,7 @@
         top: 20px;
         left: 0;
         height: 4px;
-        background: linear-gradient(90deg, #f97316, #ea580c);
+        background: #f97316;
         z-index: 1;
         transition: width 0.5s ease-out;
         border-radius: 2px;
@@ -206,21 +248,20 @@
         justify-content: center;
         font-size: 0.875rem;
         font-weight: 600;
-        transition: all 0.3s ease-out;
+        transition: all 0.2s ease;
         border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
     }
     
     .tracker-dot.completed {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
+        background: #22c55e;
         color: white;
     }
     
     .tracker-dot.current {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: #f97316;
         color: white;
-        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.15);
-        animation: pulse-tracker 2s infinite;
+        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15), 0 2px 4px rgba(0,0,0,0.08);
     }
     
     .tracker-dot.upcoming {
@@ -229,13 +270,8 @@
     }
     
     .tracker-dot.cancelled {
-        background: linear-gradient(135deg, #ef4444, #dc2626);
+        background: #ef4444;
         color: white;
-    }
-    
-    @keyframes pulse-tracker {
-        0%, 100% { box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0,0,0,0.15); }
-        50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.1), 0 2px 8px rgba(0,0,0,0.15); }
     }
     
     .tracker-label {
@@ -251,7 +287,7 @@
     .tracker-label.upcoming { color: #94a3b8; }
     .tracker-label.cancelled { color: #dc2626; }
 
-    /* Prominent header badge */
+    /* Prominent header badge - no shadow */
     .prominent-badge {
         display: inline-flex;
         align-items: center;
@@ -260,17 +296,14 @@
         border-radius: 1rem;
         font-weight: 700;
         font-size: 0.875rem;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
     /* Property Intelligence Tab Switcher */
     .tab-switcher {
         display: flex;
-        background: white;
-        border-radius: 1rem;
-        padding: 0.375rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        background: #f1f5f9;
+        border-radius: 0.75rem;
+        padding: 0.25rem;
         width: fit-content;
     }
     
@@ -279,29 +312,24 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.625rem 1.25rem;
-        border-radius: 0.75rem;
+        border-radius: 0.5rem;
         font-size: 0.875rem;
         font-weight: 600;
-        color: #64748b;
-        transition: all 0.2s ease-out;
+        color: var(--muted);
+        transition: all 0.15s ease;
         cursor: pointer;
         border: none;
         background: transparent;
     }
     
     .tab-btn:hover {
-        color: #334155;
-        background: #f8fafc;
+        color: var(--text);
     }
     
     .tab-btn.active {
         background: linear-gradient(135deg, #f97316, #ea580c);
         color: white;
-        box-shadow: 0 2px 8px rgba(249, 115, 22, 0.3);
-    }
-    
-    .tab-btn.active:hover {
-        background: linear-gradient(135deg, #ea580c, #dc2626);
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
     }
     
     .tab-content {
@@ -314,11 +342,11 @@
 
     /* Property Intelligence Section */
     .intel-section {
-        background: linear-gradient(to bottom right, #f8fafc, #fff);
+        background: #fafafa;
         border-radius: 0.75rem;
         padding: 1rem;
         margin-bottom: 1rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--border);
     }
     
     .intel-section-header {
@@ -341,7 +369,7 @@
     .intel-section-title {
         font-weight: 600;
         font-size: 0.9375rem;
-        color: #1e293b;
+        color: var(--text);
     }
     
     .intel-row {
@@ -356,12 +384,12 @@
     }
     
     .intel-label {
-        color: #64748b;
+        color: var(--muted);
         font-size: 0.8125rem;
     }
     
     .intel-value {
-        color: #1e293b;
+        color: var(--text);
         font-weight: 500;
         font-size: 0.8125rem;
         text-align: right;
@@ -381,32 +409,37 @@
     .collapsible-content.expanded {
         max-height: 1000px;
     }
+
+    /* Links - orange on hover */
+    a.text-slate-500:hover, a.text-slate-600:hover {
+        color: #ea580c;
+    }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+<!-- Clean professional background -->
+<div class="min-h-full page-fade-in" style="background: radial-gradient(ellipse 1200px 600px at 10% 0%, rgba(249,115,22,.04), transparent 60%), radial-gradient(ellipse 900px 500px at 100% 30%, rgba(45,62,80,.04), transparent 55%), #f8fafc;">
     <div class="p-4 md:p-6 max-w-[1600px] mx-auto">
         <!-- Back Link -->
         {% set ref = request.args.get('ref') %}
         {% set contact_id = request.args.get('contact_id') %}
         {% if ref == 'contact' and contact_id %}
         <a href="{{ url_for('contacts.view_contact', contact_id=contact_id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors">
             <i class="fas fa-arrow-left mr-2"></i>Back to Contact
         </a>
         {% else %}
         <a href="{{ url_for('transactions.list_transactions') }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
+           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors">
             <i class="fas fa-arrow-left mr-2"></i>Back to Transactions
         </a>
         {% endif %}
         
         <!-- Header Section -->
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 animate-fade-in-up relative z-50">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 relative z-50">
             <div class="flex items-start space-x-4">
                 <!-- Property Icon -->
-                <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
-                    <i class="fas fa-home text-white text-xl"></i>
+                <div class="hidden md:flex icon-tile w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 flex-shrink-0">
+                    <i class="fas fa-home text-white text-lg"></i>
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold text-slate-800">{{ transaction.street_address }}</h1>
@@ -421,13 +454,13 @@
             <div class="flex items-center gap-2">
                 <!-- History Button -->
                 <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
-                   class="premium-btn px-4 py-2 text-sm border-2 border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100 flex items-center gap-2">
+                   class="btn-secondary px-4 py-2 text-sm flex items-center gap-2">
                     <i class="fas fa-history"></i>
                     <span class="hidden sm:inline">History</span>
                 </a>
                 <!-- Delete Button -->
                 <button onclick="confirmDelete()"
-                        class="premium-btn px-4 py-2 text-sm border-2 border-red-200 text-red-600 bg-red-50 hover:bg-red-100 flex items-center gap-2">
+                        class="px-4 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center gap-2">
                     <i class="fas fa-trash-alt"></i>
                     <span class="hidden sm:inline">Delete</span>
                 </button>
@@ -435,7 +468,7 @@
         </div>
 
         <!-- Prominent Type & Status Badges -->
-        <div class="flex flex-wrap items-center gap-4 mb-6 animate-fade-in-up relative" style="z-index: 999;">
+        <div class="flex flex-wrap items-center gap-4 mb-6 relative" style="z-index: 999;">
             <!-- Type Badge - More Prominent -->
             <div class="prominent-badge type-{{ transaction.transaction_type.name }}">
                 <i class="fas fa-{% if transaction.transaction_type.name == 'seller' %}home{% elif transaction.transaction_type.name == 'buyer' %}key{% else %}handshake{% endif %}"></i>
@@ -452,7 +485,7 @@
                     'closed': 'Closed',
                     'cancelled': 'Cancelled/Withdrawn'
                 } %}
-                <button onclick="toggleStatusDropdown(event)" class="prominent-badge status-{{ transaction.status }} flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform">
+                <button onclick="toggleStatusDropdown(event)" class="prominent-badge status-{{ transaction.status }} flex items-center gap-2 cursor-pointer transition-colors">
                     <i class="fas fa-{% if transaction.status == 'closed' %}check-circle{% elif transaction.status == 'cancelled' %}times-circle{% elif transaction.status == 'active' %}broadcast-tower{% elif transaction.status == 'under_contract' %}file-signature{% elif transaction.status == 'showing' %}eye{% else %}clipboard-list{% endif %}"></i>
                     {{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
                     <i class="fas fa-chevron-down text-xs opacity-50 ml-1"></i>
@@ -471,7 +504,7 @@
 
         <!-- Status Progress Tracker (Pizza Tracker) -->
         {% if transaction.status != 'cancelled' %}
-        <div class="premium-card p-6 mb-6 animate-fade-in-up">
+        <div class="premium-card p-6 mb-6">
             {# Different status flows for buyers vs sellers #}
             {% if transaction.transaction_type.name == 'buyer' %}
                 {% set statuses = ['showing', 'under_contract', 'closed'] %}
@@ -523,7 +556,7 @@
         </div>
         {% else %}
         <!-- Cancelled Status Banner -->
-        <div class="premium-card p-4 mb-6 animate-fade-in-up bg-red-50 border-red-200">
+        <div class="premium-card p-4 mb-6  bg-red-50 border-red-200">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
                     <i class="fas fa-times-circle text-red-600"></i>
@@ -543,7 +576,7 @@
                 
                 {% if transaction.transaction_type.name == 'buyer' %}
                 <!-- Tab Switcher for Buyer Transactions -->
-                <div class="tab-switcher animate-fade-in-up">
+                <div class="tab-switcher">
                     <button class="tab-btn active" onclick="switchTab('details')" id="tab-details">
                         <i class="fas fa-info-circle"></i>
                         Property Details
@@ -558,10 +591,10 @@
                 <div id="content-details" class="tab-content active space-y-6">
                 {% endif %}
                 <!-- Property Details Card -->
-                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                <div class="premium-card p-6">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600">
                                 <i class="fas fa-info-circle text-white"></i>
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
@@ -630,10 +663,10 @@
 
                 <!-- Property Questionnaire Card (for Seller Conventional) -->
                 {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
-                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                <div class="premium-card p-6">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600">
                                 <i class="fas fa-clipboard-list text-white"></i>
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">Property Questionnaire</h2>
@@ -685,10 +718,10 @@
                 {% endif %}
 
                 <!-- Documents Card -->
-                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                <div class="premium-card p-6">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
                                 <i class="fas fa-file-alt text-white"></i>
                             </div>
                             <div>
@@ -697,7 +730,7 @@
                             </div>
                         </div>
                         <button onclick="showAddDocumentPicker()" 
-                                class="text-sm px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl hover:from-emerald-600 hover:to-emerald-700 transition-colors font-medium shadow-sm">
+                                class="text-sm px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium">
                             <i class="fas fa-plus mr-2"></i>Add Document
                         </button>
                     </div>
@@ -980,7 +1013,7 @@
                     
                     <!-- Bulk Actions -->
                     <div class="mt-5 pt-5 border-t border-slate-100">
-                        <button onclick="fillAllForms()" class="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-colors text-sm font-medium shadow-sm">
+                        <button onclick="fillAllForms()" class="btn-primary w-full px-4 py-3 text-sm">
                             <i class="fas fa-edit mr-2"></i>Fill All Forms
                         </button>
                     </div>
@@ -1005,15 +1038,15 @@
                 
                 <!-- Property Intelligence Tab Content -->
                 <div id="content-intelligence" class="tab-content space-y-6">
-                    <div class="premium-card p-6 animate-fade-in-up">
+                    <div class="premium-card p-6">
                         <!-- Header -->
                         <div class="flex justify-between items-center mb-5">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                                    <i class="fas fa-chart-line text-white"></i>
-                                </div>
-                                <div>
-                                    <h2 class="text-lg font-bold text-slate-800">Property Intelligence</h2>
+                        <div class="flex items-center gap-3">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-violet-500 to-violet-600">
+                                <i class="fas fa-chart-line text-white"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold text-slate-800">Property Intelligence</h2>
                                     <p class="text-xs text-slate-500" id="intel-last-updated">
                                         {% if rentcast_fetched_at %}
                                         Last updated: {{ rentcast_fetched_at.strftime('%B %d, %Y at %I:%M %p') }}
@@ -1042,7 +1075,7 @@
                                     Load comprehensive property data including sale history, tax assessments, owner information, and more.
                                 </p>
                                 <button onclick="loadRentCastData()" id="load-intel-btn"
-                                        class="px-6 py-3 bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-xl font-medium hover:from-violet-600 hover:to-purple-700 transition-all shadow-lg shadow-violet-200">
+                                        class="btn-primary px-6 py-3">
                                     <i class="fas fa-download mr-2"></i>Load Property Data
                                 </button>
                                 <ul class="mt-6 text-left inline-block text-sm text-slate-600">
@@ -1181,10 +1214,10 @@
             <!-- Right Column - Participants & Actions -->
             <div class="lg:w-[420px] xl:w-[480px] flex-shrink-0 space-y-6">
                 <!-- Participants Card -->
-                <div class="premium-card p-6 animate-fade-in-up-delay-1">
+                <div class="premium-card p-6">
                     <div class="flex justify-between items-center mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600">
                                 <i class="fas fa-users text-white"></i>
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">Participants</h2>
@@ -1244,10 +1277,10 @@
 
                 <!-- Contact Files Card -->
                 {% if contact_files %}
-                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                <div class="premium-card p-6">
                     <div class="flex items-center justify-between mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600">
                                 <i class="fas fa-folder-open text-white"></i>
                             </div>
                             <div>
@@ -1307,10 +1340,10 @@
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 <!-- Listing Info Card (Seller Transactions Only) -->
-                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                <div class="premium-card p-6">
                     <div class="flex items-center justify-between mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600">
                                 <i class="fas fa-clipboard-list text-white"></i>
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">Listing Info</h2>
@@ -1445,10 +1478,10 @@
                 </script>
                 {% else %}
                 <!-- Recent Activity Card (Non-Seller Transactions) -->
-                <div class="premium-card p-6 animate-fade-in-up-delay-2">
+                <div class="premium-card p-6">
                     <div class="flex items-center justify-between mb-5">
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-slate-500 to-slate-600">
                                 <i class="fas fa-clock-rotate-left text-white"></i>
                             </div>
                             <h2 class="text-lg font-bold text-slate-800">Recent Activity</h2>
@@ -1666,7 +1699,7 @@
                         Cancel
                     </button>
                     <button type="submit" id="addParticipantBtn"
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="btn-primary flex-1 px-4 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled>
                         Add Participant
                     </button>
@@ -1798,7 +1831,7 @@
                             Back
                         </button>
                         <button type="submit" 
-                                class="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 transition-colors">
+                                class="btn-primary flex-1 px-4 py-3">
                             Add Document
                         </button>
                     </div>
@@ -1876,7 +1909,7 @@
                             Back
                         </button>
                         <button type="submit" id="uploadEsignBtn" disabled
-                                class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="flex-1 px-4 py-3 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-upload mr-2"></i>Upload & Edit
                         </button>
                     </div>
@@ -1961,7 +1994,7 @@
                             Back
                         </button>
                         <button type="submit" id="uploadCompletedBtn" disabled
-                                class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="flex-1 px-4 py-3 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             <i class="fas fa-upload mr-2"></i>Upload
                         </button>
                     </div>
@@ -2035,7 +2068,7 @@
                         Cancel
                     </button>
                     <button type="submit" id="uploadScanBtn" disabled
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="flex-1 px-4 py-3 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-upload mr-2"></i>Upload
                     </button>
                 </div>
@@ -2115,7 +2148,7 @@
                         Cancel
                     </button>
                     <button type="submit" id="uploadStaticBtn" disabled
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white rounded-xl font-medium hover:from-teal-600 hover:to-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="flex-1 px-4 py-3 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-upload mr-2"></i>Upload
                     </button>
                 </div>
@@ -2194,7 +2227,7 @@
                         Cancel
                     </button>
                     <button type="submit" id="uploadForSignatureBtn" disabled
-                            class="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl font-medium hover:from-purple-600 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            class="flex-1 px-4 py-3 bg-purple-500 text-white rounded-lg font-medium hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                         <i class="fas fa-upload mr-2"></i>Upload & Continue
                     </button>
                 </div>
