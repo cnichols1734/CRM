@@ -5,60 +5,64 @@
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 <style>
-    /* Premium animations from action_plan */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    /* Dashboard - Clean, Professional Style */
+    :root {
+        --brand-navy: #2d3e50;
+        --brand-navy-2: #1a2634;
+        --brand-orange: #f97316;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        --focus: rgba(45, 62, 80, 0.12);
     }
+    
+    /* Simple page fade-in */
     @keyframes fadeIn { 
         from { opacity: 0; } 
         to { opacity: 1; } 
     }
-    @keyframes pulse-glow {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 0.5; }
-    }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
-    }
-    .animate-fade-in-up-delay-1 { 
-        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
-        opacity: 0; 
-    }
-    .animate-fade-in-up-delay-2 { 
-        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
-        opacity: 0; 
-    }
-    .animate-fade-in-up-delay-3 { 
-        animation: fadeInUp 0.6s ease-out 0.3s forwards; 
-        opacity: 0; 
-    }
-    .animate-pulse-glow {
-        animation: pulse-glow 2s ease-in-out infinite;
+    
+    .page-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
     }
     
-    /* Premium card hover effects */
-    .premium-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.1);
-    }
-    
-    /* Premium input focus styling */
-    .premium-input:focus {
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    /* Card styles - no lift on hover */
+    .dashboard-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     
-    /* Premium section headers */
+    .dashboard-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: var(--shadow);
+    }
+    
+    /* Input focus styling */
+    .dashboard-input:focus {
+        outline: none;
+        border-color: #f97316;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+    
+    /* Section headers - clean, no gradient */
     .section-header {
-        background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+        background: #fafafa;
     }
     
-    /* Task item hover */
+    /* Task item hover - subtle background */
+    .task-item {
+        transition: background-color 0.15s ease;
+    }
+    
     .task-item:hover {
-        background: linear-gradient(135deg, #fafafa 0%, #f8fafc 100%);
+        background-color: #fafafa;
     }
     
     /* Mobile-specific styles */
@@ -73,32 +77,7 @@
         }
     }
     
-    /* Transaction Pipeline Styles */
-    @keyframes countUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    @keyframes slideInCard {
-        from { opacity: 0; transform: translateX(-10px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    
-    .pipeline-value-animate {
-        animation: countUp 0.8s ease-out forwards;
-    }
-    
-    .pipeline-card {
-        animation: slideInCard 0.4s ease-out forwards;
-        opacity: 0;
-    }
-    
-    .pipeline-card:nth-child(1) { animation-delay: 0.1s; }
-    .pipeline-card:nth-child(2) { animation-delay: 0.15s; }
-    .pipeline-card:nth-child(3) { animation-delay: 0.2s; }
-    .pipeline-card:nth-child(4) { animation-delay: 0.25s; }
-    .pipeline-card:nth-child(5) { animation-delay: 0.3s; }
-    
+    /* Pipeline column sizing */
     .pipeline-column {
         min-width: 280px;
         max-width: 320px;
@@ -112,6 +91,7 @@
         }
     }
     
+    /* Scrollbar styling */
     .pipeline-scroll-container {
         scrollbar-width: thin;
         scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
@@ -134,31 +114,17 @@
         background: rgba(203, 213, 225, 0.8);
     }
     
-    /* Glassmorphism effect for deal cards */
+    /* Deal cards - clean hover, no transform */
     .deal-card {
-        backdrop-filter: blur(8px);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     
     .deal-card:hover {
-        transform: translateY(-3px) scale(1.02);
-    }
-    
-    /* Column-specific hover glows */
-    .deal-card-preparing:hover {
-        box-shadow: 0 8px 25px -5px rgba(100, 116, 139, 0.25);
-    }
-    
-    .deal-card-active:hover {
-        box-shadow: 0 8px 25px -5px rgba(16, 185, 129, 0.25);
-    }
-    
-    .deal-card-contract:hover {
-        box-shadow: 0 8px 25px -5px rgba(245, 158, 11, 0.25);
-    }
-    
-    .deal-card-closed:hover {
-        box-shadow: 0 8px 25px -5px rgba(59, 130, 246, 0.25);
+        border-color: #cbd5e1;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
     }
     
     /* Scroll fade indicators */
@@ -169,23 +135,73 @@
     .pipeline-fade-right {
         background: linear-gradient(to left, rgba(248, 250, 252, 1), transparent);
     }
+    
+    /* Primary action button - orange gradient */
+    .btn-primary {
+        background: linear-gradient(135deg, #f97316, #ea580c);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+        transition: all 0.2s ease;
+    }
+    
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #ea580c, #dc2626);
+        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    }
+    
+    /* Secondary/outline buttons */
+    .btn-secondary {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: #64748b;
+        font-weight: 500;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-secondary:hover {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #ea580c;
+    }
+    
+    /* Icon tiles - allowed to have gradient */
+    .icon-tile {
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Links - orange on hover */
+    .dashboard-link {
+        color: var(--muted);
+        font-weight: 500;
+        transition: color 0.15s ease;
+    }
+    
+    .dashboard-link:hover {
+        color: #ea580c;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+<div class="min-h-screen page-fade-in" style="background: radial-gradient(ellipse 1200px 600px at 10% 0%, rgba(249,115,22,.04), transparent 60%), radial-gradient(ellipse 900px 500px at 100% 30%, rgba(45,62,80,.04), transparent 55%), #f8fafc;">
     <div class="p-4 md:p-6">
         
-        <!-- Premium Header -->
-        <div class="animate-fade-in-up mb-6 md:mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        <!-- Header -->
+        <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3 md:space-x-4">
-                    <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <div class="icon-tile w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600">
                         <i class="fas fa-chart-line text-white text-lg md:text-xl"></i>
                     </div>
                     <div>
                         <h1 class="text-xl md:text-2xl font-bold text-slate-800">Dashboard</h1>
-                        <p class="text-slate-500 text-sm md:text-base font-medium">Welcome back, {{ current_user.first_name }}</p>
+                        <p class="text-slate-500 text-sm md:text-base">Welcome back, {{ current_user.first_name }}</p>
                     </div>
                 </div>
                 
@@ -193,7 +209,7 @@
                 {% if org_has_feature('AI_DAILY_TODO') %}
                 <button 
                     onclick="showDailyTodoModal()"
-                    class="md:hidden group relative overflow-hidden p-3 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white shadow-lg"
+                    class="md:hidden btn-primary p-3"
                 >
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -205,14 +221,11 @@
             {% if show_dashboard_joke %}
             <!-- Joke of the Day (inline) -->
             <div id="joke-container" class="hidden md:flex flex-1 justify-center" data-enabled="true">
-                <div class="relative group inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 rounded-xl shadow-md border border-amber-200/60 hover:shadow-lg transition-all duration-300">
-                    <div class="absolute inset-0 bg-gradient-to-r from-amber-100/50 via-orange-100/50 to-yellow-100/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    <div class="relative flex items-center">
-                        <div class="w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-lg flex items-center justify-center shadow-sm mr-3">
-                            <i class="fas fa-lightbulb text-white text-sm"></i>
-                        </div>
-                        <p id="joke-text" class="text-slate-700 italic font-medium text-sm max-w-md">Loading a laugh...</p>
+                <div class="inline-flex items-center px-4 py-2.5 bg-white rounded-xl border border-slate-200">
+                    <div class="icon-tile w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 mr-3">
+                        <i class="fas fa-lightbulb text-white text-sm"></i>
                     </div>
+                    <p id="joke-text" class="text-slate-600 italic text-sm max-w-md">Loading a laugh...</p>
                 </div>
             </div>
             {% endif %}
@@ -221,19 +234,14 @@
             {% if org_has_feature('AI_DAILY_TODO') %}
             <button 
                 onclick="showDailyTodoModal()"
-                class="hidden md:block group relative overflow-hidden px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 active:scale-95"
+                class="hidden md:flex items-center btn-primary px-5 py-2.5"
             >
-                <div class="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-                <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur opacity-20 group-hover:opacity-30 transition-opacity duration-300 -z-10"></div>
-                
-                    <div class="flex items-center space-x-3">
-                    <svg class="w-5 h-5 transform group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                    <div class="flex flex-col items-start">
-                        <span class="text-sm font-medium">Daily To-Do List</span>
-                        <span class="text-xs opacity-90">Generated by B.O.B.</span>
-                    </div>
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                <div class="flex flex-col items-start text-left">
+                    <span class="text-sm font-semibold">Daily To-Do List</span>
+                    <span class="text-xs opacity-80">Generated by B.O.B.</span>
                 </div>
             </button>
             {% endif %}
@@ -242,37 +250,29 @@
         <!-- Latest Update Notification Banner -->
         {% if latest_update %}
         <a href="{{ url_for('company_updates.view_update', update_id=latest_update.id) }}" 
-           class="animate-fade-in-up block mb-6 group">
-            <div class="relative overflow-hidden bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.01]">
-                <!-- Animated background shimmer -->
-                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                
-                <div class="relative px-4 py-3 flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <!-- Pulsing dot -->
-                        <div class="relative flex-shrink-0">
-                            <div class="w-2.5 h-2.5 bg-white rounded-full"></div>
-                            <div class="absolute inset-0 w-2.5 h-2.5 bg-white rounded-full animate-ping opacity-75"></div>
-                        </div>
-                        
-                        <!-- Badge -->
-                        <span class="flex-shrink-0 px-2 py-0.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs font-semibold">
-                            NEW
-                        </span>
-                        
-                        <!-- Content -->
-                        <div class="flex items-center gap-2 text-white min-w-0">
-                            <span class="font-semibold truncate">{{ latest_update.title }}</span>
-                            <span class="hidden sm:inline text-white/70">—</span>
-                            <span class="hidden sm:inline text-white/80 text-sm truncate">{{ (latest_update.excerpt | unescape)[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
-                        </div>
-                    </div>
+           class="block mb-6 group">
+            <div class="bg-slate-800 rounded-xl border border-slate-700 px-4 py-3 flex items-center justify-between transition-colors hover:bg-slate-750" style="--tw-bg-opacity: 1;">
+                <div class="flex items-center gap-3">
+                    <!-- Dot -->
+                    <div class="flex-shrink-0 w-2 h-2 bg-orange-500 rounded-full"></div>
                     
-                    <!-- Arrow -->
-                    <div class="flex-shrink-0 flex items-center gap-2 text-white/90 group-hover:text-white transition-colors">
-                        <span class="hidden md:inline text-sm font-medium">Read Update</span>
-                        <i class="fas fa-arrow-right transform group-hover:translate-x-1 transition-transform"></i>
+                    <!-- Badge -->
+                    <span class="flex-shrink-0 px-2 py-0.5 bg-white/10 rounded-full text-white text-xs font-semibold">
+                        NEW
+                    </span>
+                    
+                    <!-- Content -->
+                    <div class="flex items-center gap-2 text-white min-w-0">
+                        <span class="font-semibold truncate">{{ latest_update.title }}</span>
+                        <span class="hidden sm:inline text-white/50">—</span>
+                        <span class="hidden sm:inline text-white/70 text-sm truncate">{{ (latest_update.excerpt | unescape)[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
                     </div>
+                </div>
+                
+                <!-- Arrow -->
+                <div class="flex-shrink-0 flex items-center gap-2 text-white/70 group-hover:text-white transition-colors">
+                    <span class="hidden md:inline text-sm font-medium">Read Update</span>
+                    <i class="fas fa-arrow-right"></i>
                 </div>
             </div>
         </a>
@@ -280,16 +280,16 @@
 
         <!-- Filter Tabs (Only show for admin) -->
         {% if current_user.role == 'admin' %}
-        <div class="animate-fade-in-up mb-8">
-            <div class="inline-flex bg-white rounded-xl p-1.5 shadow-sm border border-slate-200/60">
+        <div class="mb-6 md:mb-8">
+            <div class="inline-flex bg-slate-100 rounded-xl p-1">
                 <button 
-                    class="px-5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if show_all %}bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-50{% endif %}"
+                    class="px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if show_all %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md{% else %}text-slate-600 hover:bg-slate-50{% endif %}"
                     onclick="window.location.href='{{ url_for('main.dashboard', view='all') }}'"
                 >
                     <i class="fas fa-users mr-2"></i>All contacts
                 </button>
                 <button 
-                    class="px-5 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 {% if not show_all %}bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-50{% endif %}"
+                    class="px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if not show_all %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md{% else %}text-slate-600 hover:bg-slate-50{% endif %}"
                     onclick="window.location.href='{{ url_for('main.dashboard', view='my') }}'"
                 >
                     <i class="fas fa-user mr-2"></i>My contacts
@@ -299,67 +299,67 @@
         {% endif %}
 
         <!-- Key Metrics Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8 animate-fade-in-up-delay-1">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
             <!-- Total Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+            <div class="dashboard-card p-4 md:p-6">
                 <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
+                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
                             <i class="fas fa-dollar-sign text-white text-sm md:text-base"></i>
                         </div>
                         <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Potential Commission</h3>
                     </div>
-                    <span class="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">All time</span>
+                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">All time</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-emerald-600">${{ "{:,.0f}".format(total_commission) }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800">${{ "{:,.0f}".format(total_commission) }}</span>
                 </div>
             </div>
 
             <!-- Total Contacts Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+            <div class="dashboard-card p-4 md:p-6">
                 <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600">
                             <i class="fas fa-users text-white text-sm md:text-base"></i>
                         </div>
                         <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Contacts</h3>
                     </div>
-                    <span class="bg-blue-50 text-blue-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Active</span>
+                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Active</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-blue-600">{{ total_contacts }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800">{{ total_contacts }}</span>
                 </div>
             </div>
 
             <!-- Average Commission Card -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6">
+            <div class="dashboard-card p-4 md:p-6">
                 <div class="flex items-center justify-between mb-3 md:mb-4">
                     <div class="flex items-center space-x-3">
-                        <div class="w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl flex items-center justify-center">
+                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-violet-500 to-violet-600">
                             <i class="fas fa-chart-bar text-white text-sm md:text-base"></i>
                         </div>
                         <h3 class="text-xs md:text-sm font-semibold text-slate-600">Average Commission</h3>
                     </div>
-                    <span class="bg-purple-50 text-purple-700 text-xs font-semibold px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Per contact</span>
+                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Per contact</span>
                 </div>
                 <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-purple-600">${{ "{:,.0f}".format(avg_commission) }}</span>
+                    <span class="text-2xl md:text-3xl font-bold text-slate-800">${{ "{:,.0f}".format(avg_commission) }}</span>
                 </div>
             </div>
         </div>
 
         {% if show_transactions %}
         <!-- Transaction Pipeline Section -->
-        <div class="mb-6 md:mb-8 animate-fade-in-up-delay-2">
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+        <div class="mb-6 md:mb-8">
+            <div class="dashboard-card overflow-hidden">
                 <!-- Pipeline Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100">
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <!-- Left side: Icon, Title, and Pipeline Value -->
                         <div class="flex items-center gap-4">
                             <div class="flex items-center space-x-3">
-                                <div class="w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-rose-500 via-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                                <div class="icon-tile w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600">
                                     <i class="fas fa-hand-holding-usd text-white text-lg md:text-xl"></i>
                                 </div>
                                 <div>
@@ -369,10 +369,10 @@
                             </div>
                             <!-- Pipeline Value Badge -->
                             <div class="hidden sm:flex items-center gap-3 ml-4 pl-4 border-l border-slate-200">
-                                <div class="pipeline-value-animate">
+                                <div>
                                     <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pipeline Value</div>
                                     <div class="flex items-baseline gap-1">
-                                        <span id="pipelineValueCounter" class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent" data-value="{{ pipeline_value }}">
+                                        <span id="pipelineValueCounter" class="text-2xl md:text-3xl font-bold text-slate-800" data-value="{{ pipeline_value }}">
                                             $0
                                         </span>
                                     </div>
@@ -380,7 +380,7 @@
                                 {% if ytd_closed_value > 0 %}
                                 <div class="hidden lg:block pl-3 border-l border-slate-200">
                                     <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Closed YTD</div>
-                                    <div class="text-lg font-bold text-blue-600">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
+                                    <div class="text-lg font-bold text-slate-800">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
                                 </div>
                                 {% endif %}
                             </div>
@@ -388,29 +388,29 @@
                         
                         <!-- Right side: View All Button -->
                         <a href="{{ url_for('transactions.list_transactions') }}" 
-                           class="group inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-sm font-semibold text-white rounded-xl transition-all duration-300 shadow-lg shadow-slate-800/20 hover:shadow-slate-800/30 hover:-translate-y-0.5">
+                           class="btn-primary inline-flex items-center justify-center px-4 py-2.5 text-sm">
                             <span>View All Transactions</span>
-                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                            <i class="fas fa-arrow-right ml-2"></i>
                         </a>
                     </div>
                     
                     <!-- Mobile Pipeline Value -->
                     <div class="sm:hidden mt-4 flex items-center gap-4">
-                        <div class="flex-1 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-3 border border-emerald-100">
-                            <div class="text-xs font-medium text-emerald-700 uppercase tracking-wide">Pipeline</div>
-                            <div class="text-xl font-bold text-emerald-600">${{ "{:,.0f}".format(pipeline_value) }}</div>
+                        <div class="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pipeline</div>
+                            <div class="text-xl font-bold text-slate-800">${{ "{:,.0f}".format(pipeline_value) }}</div>
                         </div>
                         {% if ytd_closed_value > 0 %}
-                        <div class="flex-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-100">
-                            <div class="text-xs font-medium text-blue-700 uppercase tracking-wide">Closed YTD</div>
-                            <div class="text-xl font-bold text-blue-600">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
+                        <div class="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
+                            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Closed YTD</div>
+                            <div class="text-xl font-bold text-slate-800">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
                         </div>
                         {% endif %}
                     </div>
                 </div>
                 
                 <!-- Pipeline Kanban Board -->
-                <div class="p-4 md:p-6 bg-gradient-to-b from-slate-50/50 to-white">
+                <div class="p-4 md:p-6 bg-white">
                     {% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count %}
                     
                     {% if total_deals > 0 %}
@@ -422,16 +422,16 @@
                         
                         <div class="pipeline-scroll-container flex gap-4 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
                             
-                            <!-- Preparing Column (includes Preparing to List + Showing) -->
+                            <!-- Preparing Column -->
                             <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-gradient-to-b from-slate-100 to-slate-50 rounded-xl border border-slate-200/80 overflow-hidden h-full">
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
                                     <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-gradient-to-r from-slate-500 to-slate-600 flex items-center justify-between">
+                                    <div class="px-4 py-3 bg-slate-200 flex items-center justify-between">
                                         <div class="flex items-center gap-2">
-                                            <i class="fas fa-clipboard-list text-white/90 text-sm"></i>
-                                            <span class="font-semibold text-white text-sm">Preparing</span>
+                                            <i class="fas fa-clipboard-list text-slate-600 text-sm"></i>
+                                            <span class="font-semibold text-slate-700 text-sm">Preparing</span>
                                         </div>
-                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <span class="bg-slate-400 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                                             {{ transactions_by_status.preparing.count }}
                                         </span>
                                     </div>
@@ -439,12 +439,12 @@
                                     <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
                                         {% for tx in transactions_by_status.preparing.transactions %}
                                         <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="pipeline-card deal-card deal-card-preparing block bg-white rounded-xl p-4 border border-slate-200 shadow-sm cursor-pointer">
+                                           class="deal-card block p-4 cursor-pointer">
                                             <div class="flex items-center justify-between mb-1">
                                                 <div class="font-semibold text-slate-800 text-sm truncate flex-1 mr-2" title="{{ tx.address }}">
                                                     {{ tx.address[:25] }}{% if tx.address|length > 25 %}...{% endif %}
                                                 </div>
-                                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {% if tx.status == 'showing' %}bg-purple-100 text-purple-700{% else %}bg-amber-100 text-amber-700{% endif %}">
+                                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {% if tx.status == 'showing' %}bg-violet-100 text-violet-700{% else %}bg-slate-100 text-slate-600{% endif %}">
                                                     {{ tx.status_label }}
                                                 </span>
                                             </div>
@@ -468,7 +468,7 @@
                                                 {% else %}
                                                 <span class="text-xs text-slate-400">No close date</span>
                                                 {% endif %}
-                                                <span class="text-xs font-bold bg-gradient-to-r from-slate-600 to-slate-700 text-white px-2 py-0.5 rounded-full">
+                                                <span class="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
                                                     ${{ "{:,.0f}".format(tx.commission) }}
                                                 </span>
                                             </div>
@@ -485,14 +485,14 @@
                             
                             <!-- Active Column -->
                             <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-gradient-to-b from-emerald-50 to-white rounded-xl border border-emerald-200/80 overflow-hidden h-full">
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
                                     <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 flex items-center justify-between">
+                                    <div class="px-4 py-3 bg-teal-100 flex items-center justify-between">
                                         <div class="flex items-center gap-2">
-                                            <i class="fas fa-home text-white/90 text-sm"></i>
-                                            <span class="font-semibold text-white text-sm">Active</span>
+                                            <i class="fas fa-home text-teal-600 text-sm"></i>
+                                            <span class="font-semibold text-teal-700 text-sm">Active</span>
                                         </div>
-                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <span class="bg-teal-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                                             {{ transactions_by_status.active.count }}
                                         </span>
                                     </div>
@@ -500,12 +500,12 @@
                                     <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
                                         {% for tx in transactions_by_status.active.transactions %}
                                         <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="pipeline-card deal-card deal-card-active block bg-white rounded-xl p-4 border border-emerald-100 shadow-sm cursor-pointer">
+                                           class="deal-card block p-4 cursor-pointer">
                                             <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
                                                 {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
                                             </div>
                                             <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-emerald-500"></i>
+                                                <i class="fas fa-user text-teal-500"></i>
                                                 {{ tx.client_name }}
                                             </div>
                                             <div class="flex items-center justify-between">
@@ -524,13 +524,13 @@
                                                 {% else %}
                                                 <span class="text-xs text-slate-400">No close date</span>
                                                 {% endif %}
-                                                <span class="text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-2 py-0.5 rounded-full">
+                                                <span class="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
                                                     ${{ "{:,.0f}".format(tx.commission) }}
                                                 </span>
                                             </div>
                                         </a>
                                         {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-emerald-400">
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
                                             <i class="fas fa-inbox text-2xl mb-2"></i>
                                             <span class="text-xs">No deals</span>
                                         </div>
@@ -541,14 +541,14 @@
                             
                             <!-- Under Contract Column -->
                             <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-gradient-to-b from-amber-50 to-white rounded-xl border border-amber-200/80 overflow-hidden h-full">
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
                                     <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-between">
+                                    <div class="px-4 py-3 bg-amber-100 flex items-center justify-between">
                                         <div class="flex items-center gap-2">
-                                            <i class="fas fa-file-signature text-white/90 text-sm"></i>
-                                            <span class="font-semibold text-white text-sm">Under Contract</span>
+                                            <i class="fas fa-file-signature text-amber-600 text-sm"></i>
+                                            <span class="font-semibold text-amber-700 text-sm">Under Contract</span>
                                         </div>
-                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                                             {{ transactions_by_status.under_contract.count }}
                                         </span>
                                     </div>
@@ -556,7 +556,7 @@
                                     <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
                                         {% for tx in transactions_by_status.under_contract.transactions %}
                                         <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="pipeline-card deal-card deal-card-contract block bg-white rounded-xl p-4 border border-amber-100 shadow-sm cursor-pointer">
+                                           class="deal-card block p-4 cursor-pointer">
                                             <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
                                                 {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
                                             </div>
@@ -580,13 +580,13 @@
                                                 {% else %}
                                                 <span class="text-xs text-slate-400">No close date</span>
                                                 {% endif %}
-                                                <span class="text-xs font-bold bg-gradient-to-r from-amber-500 to-orange-500 text-white px-2 py-0.5 rounded-full">
+                                                <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
                                                     ${{ "{:,.0f}".format(tx.commission) }}
                                                 </span>
                                             </div>
                                         </a>
                                         {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-amber-400">
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
                                             <i class="fas fa-inbox text-2xl mb-2"></i>
                                             <span class="text-xs">No deals</span>
                                         </div>
@@ -597,14 +597,14 @@
                             
                             <!-- Closed YTD Column -->
                             <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-200/80 overflow-hidden h-full">
+                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
                                     <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 flex items-center justify-between">
+                                    <div class="px-4 py-3 bg-sky-100 flex items-center justify-between">
                                         <div class="flex items-center gap-2">
-                                            <i class="fas fa-check-circle text-white/90 text-sm"></i>
-                                            <span class="font-semibold text-white text-sm">Closed YTD</span>
+                                            <i class="fas fa-check-circle text-sky-600 text-sm"></i>
+                                            <span class="font-semibold text-sky-700 text-sm">Closed YTD</span>
                                         </div>
-                                        <span class="bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full">
+                                        <span class="bg-sky-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
                                             {{ transactions_by_status.closed.count }}
                                         </span>
                                     </div>
@@ -612,30 +612,30 @@
                                     <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
                                         {% for tx in transactions_by_status.closed.transactions %}
                                         <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="pipeline-card deal-card deal-card-closed block bg-white rounded-xl p-4 border border-blue-100 shadow-sm cursor-pointer">
+                                           class="deal-card block p-4 cursor-pointer">
                                             <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
                                                 {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
                                             </div>
                                             <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-blue-500"></i>
+                                                <i class="fas fa-user text-sky-500"></i>
                                                 {{ tx.client_name }}
                                             </div>
                                             <div class="flex items-center justify-between">
                                                 {% if tx.actual_close_date %}
-                                                <span class="text-xs text-blue-600 font-medium">
+                                                <span class="text-xs text-sky-600 font-medium">
                                                     <i class="fas fa-check mr-1"></i>
                                                     Closed {{ tx.actual_close_date.strftime('%b %d') }}
                                                 </span>
                                                 {% else %}
-                                                <span class="text-xs text-blue-500">Closed</span>
+                                                <span class="text-xs text-sky-500">Closed</span>
                                                 {% endif %}
-                                                <span class="text-xs font-bold bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-2 py-0.5 rounded-full">
+                                                <span class="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
                                                     ${{ "{:,.0f}".format(tx.commission) }}
                                                 </span>
                                             </div>
                                         </a>
                                         {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-blue-400">
+                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
                                             <i class="fas fa-inbox text-2xl mb-2"></i>
                                             <span class="text-xs">No deals</span>
                                         </div>
@@ -649,21 +649,15 @@
                     {% else %}
                     <!-- Empty State -->
                     <div class="py-12 flex flex-col items-center justify-center text-center">
-                        <div class="relative mb-6">
-                            <div class="w-24 h-24 bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl flex items-center justify-center shadow-inner">
-                                <i class="fas fa-home-lg-alt text-4xl text-orange-400"></i>
-                            </div>
-                            <div class="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl flex items-center justify-center shadow-lg">
-                                <i class="fas fa-dollar-sign text-white text-lg"></i>
-                            </div>
+                        <div class="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center mb-6">
+                            <i class="fas fa-home-lg-alt text-3xl text-orange-400"></i>
                         </div>
                         <h4 class="text-xl font-bold text-slate-800 mb-2">No Active Deals Yet</h4>
-                        <p class="text-slate-500 text-sm mb-6 max-w-sm">Start tracking your transactions to see your deals flow through the pipeline and watch your commissions grow!</p>
+                        <p class="text-slate-500 text-sm mb-6 max-w-sm">Start tracking your transactions to see your deals flow through the pipeline.</p>
                         <a href="{{ url_for('transactions.create_transaction') }}" 
-                           class="group inline-flex items-center px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                           class="btn-primary inline-flex items-center px-5 py-2.5 text-sm">
                             <i class="fas fa-plus mr-2"></i>
                             Start Your First Transaction
-                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
                         </a>
                     </div>
                     {% endif %}
@@ -673,14 +667,14 @@
         {% endif %}
 
         <!-- Upcoming Tasks and Todos Section -->
-        <div class="mb-6 md:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 animate-fade-in-up-delay-2">
+        <div class="mb-6 md:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             <!-- Upcoming Tasks Section -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+            <div class="dashboard-card overflow-hidden">
                 <!-- Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100">
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200">
                     <div class="flex items-center justify-between gap-3 mb-3">
                         <div class="flex items-center space-x-3 min-w-0">
-                            <div class="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 flex-shrink-0">
                                 <i class="fas fa-tasks text-white"></i>
                             </div>
                             <div class="min-w-0">
@@ -688,33 +682,33 @@
                             </div>
                         </div>
                         <a href="{{ url_for('tasks.tasks') }}" 
-                           class="group inline-flex items-center px-3 md:px-4 py-2 bg-slate-50 hover:bg-orange-50 text-sm font-medium text-slate-600 hover:text-orange-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-orange-200 flex-shrink-0">
+                           class="btn-secondary inline-flex items-center px-3 md:px-4 py-2 text-sm flex-shrink-0">
                             <span class="hidden sm:inline">View all</span>
                             <span class="sm:hidden">All</span>
-                            <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                            <i class="fas fa-arrow-right ml-2"></i>
                         </a>
                     </div>
                     <!-- Task Window Selector -->
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-xs text-slate-500 font-medium">Showing next:</span>
-                        <div class="inline-flex items-center bg-slate-50 rounded-lg p-1 gap-1">
+                        <div class="inline-flex items-center bg-slate-100 rounded-lg p-1 gap-1">
                             <button onclick="updateTaskWindow(7)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 7 %}bg-white text-orange-600 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
+                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 7 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
                                     data-days="7">
                                 7 days
                             </button>
                             <button onclick="updateTaskWindow(30)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 30 %}bg-white text-orange-600 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
+                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 30 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
                                     data-days="30">
                                 30 days
                             </button>
                             <button onclick="updateTaskWindow(60)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 60 %}bg-white text-orange-600 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
+                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 60 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
                                     data-days="60">
                                 60 days
                             </button>
                             <button onclick="updateTaskWindow(90)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 90 %}bg-white text-orange-600 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
+                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 90 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
                                     data-days="90">
                                 90 days
                             </button>
@@ -740,32 +734,32 @@
                                         <!-- Status Checkbox -->
                                         <div class="flex items-center">
                                             <input type="checkbox"
-                                                class="h-5 w-5 text-orange-500 rounded-lg border-2 border-slate-300 focus:ring-orange-500 focus:ring-offset-0 cursor-pointer transition-all duration-200 hover:border-orange-400"
+                                                class="h-5 w-5 text-orange-500 rounded border-2 border-slate-300 focus:ring-orange-500 focus:ring-offset-0 cursor-pointer transition-colors hover:border-orange-400"
                                                 {% if task.status == 'completed' %}checked{% endif %}
                                                 onchange="updateTaskStatus({{ task.id }}, this.checked)">
                                         </div>
                                         <!-- Priority -->
                                         <div class="relative">
                                             <button onclick="togglePriorityMenu({{ task.id }})"
-                                                    class="w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 {% if task.priority == 'high' %}bg-gradient-to-br from-red-100 to-red-50 text-red-600 shadow-sm shadow-red-100{% elif task.priority == 'medium' %}bg-gradient-to-br from-yellow-100 to-amber-50 text-yellow-600 shadow-sm shadow-yellow-100{% else %}bg-gradient-to-br from-green-100 to-emerald-50 text-green-600 shadow-sm shadow-green-100{% endif %}">
+                                                    class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors {% if task.priority == 'high' %}bg-red-50 text-red-600 hover:bg-red-100{% elif task.priority == 'medium' %}bg-amber-50 text-amber-600 hover:bg-amber-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %}">
                                                 <i class="fas fa-flag text-sm"></i>
                                             </button>
                                             <div id="priority-menu-{{ task.id }}"
-                                                 class="hidden fixed mt-1 w-36 rounded-xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
+                                                 class="hidden fixed mt-1 w-36 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
                                                 <div class="py-1" role="menu">
                                                     <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
-                                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-red-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-red-500 to-red-600 mr-3 shadow-sm"></span>
+                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                                        <span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
                                                         High
                                                     </button>
                                                     <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
-                                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-yellow-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 mr-3 shadow-sm"></span>
+                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                                        <span class="w-3 h-3 rounded-full bg-amber-500 mr-3"></span>
                                                         Medium
                                                     </button>
                                                     <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
-                                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-green-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 mr-3 shadow-sm"></span>
+                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
+                                                        <span class="w-3 h-3 rounded-full bg-green-500 mr-3"></span>
                                                         Low
                                                     </button>
                                                 </div>
@@ -781,10 +775,10 @@
                                                 {{ task.subject }}
                                             </a>
                                             <div class="flex items-center space-x-2">
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
                                                     {{ task.task_type.name }}
                                                 </span>
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-500">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-50 text-slate-500">
                                                     {{ task.task_subtype.name }}
                                                 </span>
                                             </div>
@@ -792,7 +786,7 @@
 
                                         {% if current_user.role == 'admin' and show_all %}
                                         <div class="flex items-center text-slate-500 text-sm mt-1">
-                                            <div class="w-5 h-5 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-medium mr-2">
+                                            <div class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium mr-2">
                                                 {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
                                             </div>
                                             <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
@@ -802,7 +796,7 @@
                                         <!-- Task Details -->
                                         <div class="mt-2 flex items-center flex-wrap gap-3 text-sm text-slate-500">
                                             <!-- Due Date with Color Coding -->
-                                            <div class="flex items-center px-2.5 py-1 rounded-lg {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-orange-50 text-orange-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-50 text-slate-600{% endif %}">
+                                            <div class="flex items-center px-2 py-1 rounded {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-amber-50 text-amber-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
                                                 <i class="far fa-calendar-alt mr-1.5"></i>
                                                 <span class="font-medium">
                                                     {% if days_until_due < 0 %}
@@ -841,14 +835,14 @@
 
                                     <!-- Right Side: Quick Actions -->
                                     <div class="flex items-center space-x-2 ml-4">
-                                        <div class="opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-1">
+                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
                                             <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                               class="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all"
+                                               class="p-2 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                                                title="View Details">
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <button onclick="deleteTask({{ task.id }})"
-                                                    class="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all"
+                                                    class="p-2 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
                                                     title="Delete Task">
                                                 <i class="fas fa-trash"></i>
                                             </button>
@@ -863,7 +857,7 @@
                             <div class="flex items-start gap-3">
                                 <!-- Checkbox -->
                                 <input type="checkbox"
-                                    class="mt-1 h-5 w-5 text-orange-500 rounded-lg border-2 border-slate-300 focus:ring-orange-500 cursor-pointer flex-shrink-0"
+                                    class="mt-1 h-5 w-5 text-orange-500 rounded border-2 border-slate-300 focus:ring-orange-500 cursor-pointer flex-shrink-0"
                                     {% if task.status == 'completed' %}checked{% endif %}
                                     onchange="updateTaskStatus({{ task.id }}, this.checked)">
                                 
@@ -875,7 +869,7 @@
                                     </a>
                                     
                                     <!-- Due date badge -->
-                                    <div class="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-medium mb-2 {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-orange-50 text-orange-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    <div class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mb-2 {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-amber-50 text-amber-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
                                         <i class="far fa-calendar-alt mr-1"></i>
                                         {% if days_until_due < 0 %}Overdue{% elif days_until_due == 0 %}Today{% elif days_until_due == 1 %}Tomorrow{% else %}{{ days_until_due }}d{% endif %}
                                     </div>
@@ -883,12 +877,12 @@
                                     <!-- Meta info row -->
                                     <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                         <!-- Priority indicator -->
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded-full {% if task.priority == 'high' %}bg-red-50 text-red-600{% elif task.priority == 'medium' %}bg-yellow-50 text-yellow-600{% else %}bg-green-50 text-green-600{% endif %}">
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded {% if task.priority == 'high' %}bg-red-50 text-red-600{% elif task.priority == 'medium' %}bg-amber-50 text-amber-600{% else %}bg-green-50 text-green-600{% endif %}">
                                             <i class="fas fa-flag mr-1 text-[10px]"></i>{{ task.priority|capitalize }}
                                         </span>
                                         
                                         <!-- Type -->
-                                        <span class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600">
                                             {{ task.task_type.name }}
                                         </span>
                                         
@@ -911,8 +905,8 @@
                     </div>
                     {% else %}
                     <div class="px-6 py-12 text-center">
-                        <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-tasks text-slate-400 text-2xl"></i>
+                        <div class="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-tasks text-orange-400 text-2xl"></i>
                         </div>
                         <div class="text-slate-500 font-medium mb-2">No upcoming client tasks</div>
                         <a href="{{ url_for('tasks.create_task') }}" 
@@ -926,11 +920,11 @@
             </div>
 
             <!-- Active Todos Section -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 overflow-hidden">
+            <div class="dashboard-card overflow-hidden">
                 <!-- Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-100 flex items-center justify-between gap-3">
+                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200 flex items-center justify-between gap-3">
                     <div class="flex items-center space-x-3 min-w-0">
-                        <div class="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                        <div class="icon-tile w-10 h-10 bg-gradient-to-br from-violet-500 to-violet-600 flex-shrink-0">
                             <i class="fas fa-check-square text-white"></i>
                         </div>
                         <div class="min-w-0">
@@ -939,10 +933,10 @@
                         </div>
                     </div>
                     <a href="{{ url_for('user_todo.user_todo') }}" 
-                       class="group inline-flex items-center px-3 md:px-4 py-2 bg-slate-50 hover:bg-violet-50 text-sm font-medium text-slate-600 hover:text-violet-600 rounded-xl transition-all duration-200 border border-slate-200 hover:border-violet-200 flex-shrink-0">
+                       class="btn-secondary inline-flex items-center px-3 md:px-4 py-2 text-sm flex-shrink-0">
                         <span class="hidden sm:inline">View all</span>
                         <span class="sm:hidden">All</span>
-                        <i class="fas fa-arrow-right ml-2 group-hover:translate-x-1 transition-transform"></i>
+                        <i class="fas fa-arrow-right ml-2"></i>
                     </a>
                 </div>
 
@@ -950,18 +944,18 @@
                 <div class="overflow-y-auto" style="max-height: 420px;">
                     <div class="px-4 md:px-6 py-4 md:py-6">
                         <!-- New Todo Input -->
-                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6 group">
+                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
                             <div class="flex-1 relative">
                                 <input type="text" id="dashboardNewTodoInput" 
-                                       class="premium-input block w-full rounded-xl border-2 border-slate-200 bg-slate-50 pl-12 pr-4 py-3 md:py-3.5 text-slate-900 placeholder-slate-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200" 
+                                       class="dashboard-input block w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 py-3 text-slate-900 placeholder-slate-400 hover:border-slate-300 transition-colors" 
                                        placeholder="Add a new to do...">
-                                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-orange-500 transition-colors duration-200">
-                                    <i class="fas fa-plus-circle text-lg"></i>
+                                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">
+                                    <i class="fas fa-plus-circle"></i>
                                 </span>
                             </div>
                             <button id="dashboardAddTodoBtn" 
-                                    class="group relative overflow-hidden px-6 py-3 md:py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-sm font-semibold text-white focus:outline-none shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-300 transform hover:-translate-y-0.5">
-                                <span class="relative z-10">Add To Do</span>
+                                    class="btn-primary px-5 py-3 text-sm">
+                                Add To Do
                             </button>
                         </div>
                         <div class="h-[228px] overflow-y-auto">
@@ -975,12 +969,12 @@
         </div>
 
         <!-- Charts and Tables Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 animate-fade-in-up-delay-3">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
             <!-- Group Distribution Chart -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6 lg:col-span-1 overflow-hidden">
+            <div class="dashboard-card p-4 md:p-6 lg:col-span-1 overflow-hidden">
                 <div class="flex items-center justify-between mb-4 md:mb-6 gap-2">
                     <div class="flex items-center space-x-3 min-w-0">
-                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                        <div class="icon-tile w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 flex-shrink-0">
                             <i class="fas fa-pie-chart text-white"></i>
                         </div>
                         <h3 class="text-base md:text-lg font-bold text-slate-800">Contact Groups</h3>
@@ -988,15 +982,15 @@
                     <span class="text-xs md:text-sm font-medium text-slate-500 bg-slate-100 px-2 md:px-3 py-1 rounded-full flex-shrink-0">Distribution</span>
                 </div>
                 <div id="groupChart" style="min-height: 250px;" class="w-full"></div>
-                <div class="mt-4 pt-4 border-t border-slate-100 overflow-y-auto" style="max-height: 200px;">
+                <div class="mt-4 pt-4 border-t border-slate-200 overflow-y-auto" style="max-height: 200px;">
                     <div class="space-y-2">
                         {% for group in group_stats %}
                         <div class="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-50 transition-colors">
                             <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full mr-3 shadow-sm" style="background: linear-gradient(135deg, {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}, {{ ['#60A5FA', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6'][loop.index0 % 6] }})"></div>
+                                <div class="w-3 h-3 rounded-full mr-3" style="background: {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}"></div>
                                 <span class="text-slate-600 font-medium">{{ group.name }}</span>
                             </div>
-                            <span class="font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-full text-xs">{{ group.count }}</span>
+                            <span class="font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded text-xs">{{ group.count }}</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -1004,9 +998,9 @@
             </div>
 
             <!-- Top Contacts Table -->
-            <div class="premium-card bg-white rounded-2xl shadow-lg border border-slate-200/60 p-4 md:p-6 lg:col-span-2 overflow-hidden">
+            <div class="dashboard-card p-4 md:p-6 lg:col-span-2 overflow-hidden">
                 <div class="flex items-center space-x-3 mb-4 md:mb-6">
-                    <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-md">
+                    <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
                         <i class="fas fa-trophy text-white"></i>
                     </div>
                     <h3 class="text-lg font-bold text-slate-800">Top Contacts by Commission</h3>
@@ -1016,23 +1010,23 @@
                 <div class="hidden md:block overflow-x-auto">
                     <table class="min-w-full">
                         <thead>
-                            <tr class="border-b-2 border-slate-100">
+                            <tr class="border-b border-slate-200">
                                 {% if current_user.role == 'admin' and show_all %}
-                                <th class="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Owner</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</th>
                                 {% endif %}
-                                <th class="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Last Contact</th>
-                                <th class="px-4 py-3.5 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Email</th>
-                                <th class="px-4 py-3.5 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Commission</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Contact</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Commission</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             {% for contact in top_contacts %}
-                            <tr class="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200">
+                            <tr class="hover:bg-slate-50 transition-colors">
                                 {% if current_user.role == 'admin' and show_all %}
                                 <td class="px-4 py-4">
                                     <div class="flex items-center">
-                                        <div class="w-7 h-7 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs font-medium text-slate-600 mr-2 shadow-sm">
+                                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-600 mr-2">
                                             {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
                                         </div>
                                         <span class="text-sm text-slate-600">
@@ -1049,12 +1043,12 @@
                                         </a>
                                         <div class="flex flex-wrap gap-1 mt-1">
                                             {% for group in contact.groups[:2] %}
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
                                                     {{ group.name }}
                                                 </span>
                                             {% endfor %}
                                             {% if contact.groups|length > 2 %}
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
                                                     +{{ contact.groups|length - 2 }}
                                                 </span>
                                             {% endif %}
@@ -1068,7 +1062,7 @@
                                     {{ contact.email or '--' }}
                                 </td>
                                 <td class="px-4 py-4 text-right">
-                                    <span class="text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                    <span class="text-sm font-bold text-slate-800">
                                         ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
                                     </span>
                                 </td>
@@ -1082,10 +1076,10 @@
                 <div class="md:hidden space-y-3">
                     {% for contact in top_contacts %}
                     <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
-                       class="block bg-slate-50 rounded-xl p-4 hover:bg-slate-100 transition-colors">
+                       class="block bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors border border-slate-200">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-emerald-700 font-semibold mr-3">
+                                <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold mr-3">
                                     {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                                 </div>
                                 <div>
@@ -1096,7 +1090,7 @@
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                                <div class="text-lg font-bold text-slate-800">
                                     ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
                                 </div>
                             </div>
@@ -1107,7 +1101,7 @@
                                 {{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never contacted' }}
                             </span>
                             {% for group in contact.groups[:2] %}
-                            <span class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">{{ group.name }}</span>
+                            <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600">{{ group.name }}</span>
                             {% endfor %}
                         </div>
                     </a>
@@ -1127,12 +1121,12 @@
 
 <!-- Todo Item Template -->
 <template id="todoItemTemplate">
-    <li class="todo-item min-h-[76px] group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
-        <div class="px-5 py-4 flex items-center justify-between">
+    <li class="todo-item min-h-[68px] group bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
+        <div class="px-4 py-3 flex items-center justify-between">
             <div class="flex items-center flex-1 min-w-0">
                 <div class="flex-shrink-0 flex items-center space-x-3">
                     <div class="relative">
-                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded-lg cursor-pointer transition-all duration-300 ease-in-out hover:border-orange-400">
+                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded cursor-pointer transition-colors hover:border-orange-400">
                         <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white scale-0 transition-transform duration-200 pointer-events-none check-icon">
                             <i class="fas fa-check text-xs"></i>
                         </span>
@@ -1140,23 +1134,23 @@
                 </div>
                 <div class="ml-4 flex-1 relative group">
                     <!-- Normal Text View -->
-                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-all duration-200">
+                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded hover:bg-slate-50 cursor-pointer transition-colors">
                         <!-- Text will be inserted here -->
                     </p>
                     <!-- Edit Input (hidden by default) -->
                     <div class="todo-edit-container hidden absolute inset-0 flex items-center">
                         <input type="text" 
-                               class="todo-edit-input block w-full rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200 shadow-sm" 
+                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-colors" 
                                placeholder="Edit to do...">
                     </div>
                     <!-- Edit hint (visible on hover) -->
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                         <i class="fas fa-pencil-alt mr-1"></i>Double-click to edit
                     </span>
                 </div>
             </div>
             <div class="ml-4 flex-shrink-0">
-                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-all duration-300 ease-in-out rounded-lg hover:bg-red-50 group-hover:opacity-100 opacity-0">
+                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-colors rounded hover:bg-red-50 group-hover:opacity-100 opacity-0">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -1365,12 +1359,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Todo Item Template -->
 <template id="todoItemTemplate">
-    <li class="todo-item min-h-[76px] group bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
-        <div class="px-5 py-4 flex items-center justify-between">
+    <li class="todo-item min-h-[68px] group bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
+        <div class="px-4 py-3 flex items-center justify-between">
             <div class="flex items-center flex-1 min-w-0">
                 <div class="flex-shrink-0 flex items-center space-x-3">
                     <div class="relative">
-                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded-lg cursor-pointer transition-all duration-300 ease-in-out hover:border-orange-400">
+                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded cursor-pointer transition-colors hover:border-orange-400">
                         <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white scale-0 transition-transform duration-200 pointer-events-none check-icon">
                             <i class="fas fa-check text-xs"></i>
                         </span>
@@ -1378,23 +1372,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="ml-4 flex-1 relative group">
                     <!-- Normal Text View -->
-                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded-lg hover:bg-slate-50 cursor-pointer transition-all duration-200">
+                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded hover:bg-slate-50 cursor-pointer transition-colors">
                         <!-- Text will be inserted here -->
                     </p>
                     <!-- Edit Input (hidden by default) -->
                     <div class="todo-edit-container hidden absolute inset-0 flex items-center">
                         <input type="text" 
-                               class="todo-edit-input block w-full rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-all duration-200 shadow-sm" 
+                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-colors" 
                                placeholder="Edit to do...">
                     </div>
                     <!-- Edit hint (visible on hover) -->
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
                         <i class="fas fa-pencil-alt mr-1"></i>Double-click to edit
                     </span>
                 </div>
             </div>
             <div class="ml-4 flex-shrink-0">
-                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-all duration-300 ease-in-out rounded-lg hover:bg-red-50 group-hover:opacity-100 opacity-0">
+                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-colors rounded hover:bg-red-50 group-hover:opacity-100 opacity-0">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
