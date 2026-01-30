@@ -2,376 +2,490 @@
 
 {% block content %}
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --brand-navy: #2d3e50;
+    --brand-navy-2: #1a2634;
+    --brand-orange: #f97316;
+
+    --bg: #f8fafc;
+    --panel: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 16px 40px rgba(15, 23, 42, 0.10);
+
+    --focus: rgba(45, 62, 80, 0.18);
+  }
+
+  .login-page{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background:
+      radial-gradient(1100px 550px at 10% 0%, rgba(249,115,22,.06), transparent 60%),
+      radial-gradient(900px 520px at 100% 40%, rgba(45,62,80,.07), transparent 55%),
+      var(--bg);
+  }
+
+  .shell{ width: 100%; max-width: 940px; }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    box-shadow: var(--shadow);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  /* Left panel */
+  .left{
+    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
+    color: rgba(255,255,255,.92);
+    position: relative;
+  }
+  .left::before{
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--brand-orange), rgba(249,115,22,.55));
+  }
+  .left-muted{ color: rgba(255,255,255,.74); }
+  .left-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 9999px;
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.14);
+  }
+  .left-bullet{
+    display:flex;
+    gap:.75rem;
+    align-items:flex-start;
+  }
+  .left-icon{
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.10);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+  }
+
+  /* Form */
+  .kicker{ font-size: 13px; font-weight: 700; color: #334155; }
+  .title{ font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+  .subtitle{ font-size: 14px; color: var(--muted); }
+
+  .label{
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input{
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #fff;
+    padding: 0 14px;
+    font-size: 15px;
+    width: 100%;
+    color: var(--text);
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .input::placeholder{ color: #94a3b8; }
+  .input:focus{
+    outline: none;
+    border-color: rgba(45,62,80,.55);
+    box-shadow: 0 0 0 4px var(--focus);
+  }
+
+  .hint-link{
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .hint-link:hover{ color: #334155; }
+
+  .btn{
+    height: 46px;
+    border-radius: 12px;
+    width: 100%;
+    background: var(--brand-navy);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    transition: transform .08s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .btn:hover{
+    background: #243243;
+    box-shadow: 0 10px 18px rgba(45,62,80,.22);
+  }
+  .btn:active{ transform: translateY(1px); }
+
+  .divider{ height: 1px; background: rgba(15, 23, 42, 0.08); }
+
+  .icon-btn{
+    border: 1px solid var(--border);
+    background: #fff;
+    height: 46px;
+    width: 46px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .icon-btn:hover{
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #334155;
+  }
+
+  /* Status banners (tight, professional) */
+  .banner{
+    border-radius: 14px;
+    padding: 14px 16px;
+    border: 1px solid rgba(15,23,42,.10);
+    background: #fff;
+  }
+  .banner-warning{
+    background: #fffbeb;
+    border-color: #fbbf24;
+  }
+  .banner-danger{
+    background: #fef2f2;
+    border-color: #f87171;
+  }
+  .banner-neutral{
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+  .banner-title{
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 2px;
+  }
+  .banner-text{
+    color: #334155;
+    font-size: 13px;
+  }
+
+  /* small footer links */
+  .footer-link{
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    text-decoration: none;
+  }
+  .footer-link:hover{ color: var(--brand-navy); }
+
+  /* Support link (under button) */
+  .support-row{
+    margin-top: 10px;
+    font-size: 13px;
+    color: #64748b;
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+  }
+  .support-action{
+    color: var(--brand-navy);
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .support-action:hover{
+    color: #1f2d3d;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (max-width: 1024px){
+    .left{
+      border-bottom: 1px solid rgba(255,255,255,.10);
     }
-    @keyframes pulse-soft {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.8; }
-    }
-    @keyframes shimmer {
-        0% { background-position: -1000px 0; }
-        100% { background-position: 1000px 0; }
-    }
-    @keyframes pulse-ring {
-        0% { transform: scale(0.95); opacity: 1; }
-        100% { transform: scale(1.3); opacity: 0; }
-    }
-    
-    .login-panel {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-    .delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .delay-2 { animation-delay: 0.2s; opacity: 0; }
-    .delay-3 { animation-delay: 0.3s; opacity: 0; }
-    
-    /* Background */
-    .login-bg {
-        background: 
-            radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 100% 100%, rgba(45, 62, 80, 0.04) 0%, transparent 50%),
-            linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-    
-    /* Floating orbs */
-    .orb {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(40px);
-        animation: pulse-soft 4s ease-in-out infinite;
-    }
-    .orb-1 {
-        width: 250px;
-        height: 250px;
-        background: rgba(249, 115, 22, 0.12);
-        top: -80px;
-        right: -80px;
-    }
-    .orb-2 {
-        width: 180px;
-        height: 180px;
-        background: rgba(45, 62, 80, 0.08);
-        bottom: -60px;
-        left: -60px;
-        animation-delay: 2s;
-    }
-    
-    /* Premium card */
-    .premium-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 8px 16px rgba(0, 0, 0, 0.04),
-            0 24px 48px rgba(0, 0, 0, 0.06);
-        transition: all 0.3s ease;
-    }
-    .premium-card:hover {
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 12px 24px rgba(0, 0, 0, 0.06),
-            0 32px 64px rgba(0, 0, 0, 0.08);
-    }
-    
-    /* Accent line */
-    .accent-line {
-        height: 4px;
-        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
-        background-size: 200% 100%;
-        animation: shimmer 3s linear infinite;
-    }
-    
-    /* Input styling */
-    .input-group {
-        position: relative;
-    }
-    .input-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-        transition: color 0.2s ease;
-        pointer-events: none;
-        font-size: 14px;
-    }
-    .premium-input {
-        padding-left: 42px;
-        height: 52px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-    }
-    .premium-input:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-    }
-    .premium-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    .premium-input:focus + .input-icon,
-    .input-group:focus-within .input-icon {
-        color: #2d3e50;
-    }
-    
-    /* Premium button */
-    .premium-btn {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
-        transition: all 0.3s ease;
-    }
-    .premium-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s ease;
-    }
-    .premium-btn:hover::before {
-        left: 100%;
-    }
-    .premium-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
-    }
-    
-    /* Pending status banner */
-    .pending-banner {
-        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-        border: 2px solid #fbbf24;
-    }
-    .pending-pulse::before {
-        content: '';
-        position: absolute;
-        inset: -4px;
-        border-radius: 16px;
-        background: rgba(251, 191, 36, 0.3);
-        animation: pulse-ring 2s ease-out infinite;
-    }
-    
-    /* Error banner */
-    .error-banner {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        border: 2px solid #f87171;
-    }
+  }
 </style>
 
-<div class="min-h-screen login-bg flex items-center justify-center px-4 py-12 relative overflow-hidden login-panel">
-    <!-- Floating orbs -->
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    
-    <div class="w-full max-w-[420px] relative z-10">
-        <!-- Logo -->
-        <div class="text-center mb-8 animate-fade-in-up">
-            <div class="flex justify-center mb-6">
-                <div class="w-20 h-20 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-2xl flex items-center justify-center shadow-xl">
-                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG" class="h-16 w-auto object-contain" />
-                </div>
-            </div>
-        </div>
-        
-        <!-- Organization Status Banners -->
-        {% if pending_status == 'pending_approval' %}
-        <div class="animate-fade-in-up mb-6">
-            <div class="pending-banner pending-pulse relative rounded-xl p-5">
-                <div class="flex items-start relative z-10">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-500 rounded-full flex items-center justify-center mr-4 shadow-lg">
-                        <i class="fas fa-hourglass-half text-white text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-amber-900 text-lg mb-1">Pending Approval</h3>
-                        <p class="text-amber-800 text-sm mb-1">
-                            <strong>{{ org_name }}</strong> is being reviewed.
-                        </p>
-                        <p class="text-amber-700 text-sm mb-3">We'll notify you at {{ user_email }}</p>
-                        <div class="flex flex-wrap gap-2">
-                            <a href="{{ url_for('auth.registration_status') }}?email={{ user_email }}" 
-                               class="inline-flex items-center text-sm font-semibold text-amber-900 hover:text-amber-950 bg-amber-200 hover:bg-amber-300 px-3 py-1.5 rounded-lg transition-colors">
-                                <i class="fas fa-search mr-2"></i>View Status
-                            </a>
-                            <span class="inline-flex items-center text-sm text-amber-700 px-2">
-                                <i class="fas fa-clock mr-1.5"></i>~24 hours
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        {% elif pending_status == 'suspended' %}
-        <div class="animate-fade-in-up mb-6">
-            <div class="error-banner rounded-xl p-5">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mr-4">
-                        <i class="fas fa-pause text-white text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-red-900 text-lg mb-1">Account Suspended</h3>
-                        <p class="text-red-800 text-sm mb-3">
-                            <strong>{{ org_name }}</strong> has been suspended.
-                        </p>
-                        <button onclick="openContactUsModal('app')" 
-                           class="inline-flex items-center text-sm font-semibold text-red-900 bg-red-200 hover:bg-red-300 px-3 py-1.5 rounded-lg transition-colors">
-                            <i class="fas fa-envelope mr-2"></i>Contact Support
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        {% elif pending_status == 'pending_deletion' %}
-        <div class="animate-fade-in-up mb-6">
-            <div class="error-banner rounded-xl p-5">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-red-400 to-red-500 rounded-full flex items-center justify-center mr-4">
-                        <i class="fas fa-trash-alt text-white text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-red-900 text-lg mb-1">Scheduled for Deletion</h3>
-                        <p class="text-red-800 text-sm">
-                            <strong>{{ org_name }}</strong> is scheduled for deletion.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        {% elif pending_status == 'inactive' %}
-        <div class="animate-fade-in-up mb-6">
-            <div class="bg-slate-100 border-2 border-slate-300 rounded-xl p-5">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-slate-400 to-slate-500 rounded-full flex items-center justify-center mr-4">
-                        <i class="fas fa-ban text-white text-lg"></i>
-                    </div>
-                    <div class="flex-1">
-                        <h3 class="font-bold text-slate-800 text-lg mb-1">Account Not Active</h3>
-                        <p class="text-slate-700 text-sm">
-                            <strong>{{ org_name }}</strong> is not currently active.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-        
-        <!-- Login Card -->
-        <div class="animate-fade-in-up delay-1">
-            <div class="premium-card rounded-2xl overflow-hidden">
-                <div class="accent-line"></div>
-                
-                <div class="p-8 lg:p-10">
-                    <!-- Header -->
-                    <div class="text-center mb-8">
-                        <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Welcome Back</h2>
-                        <p class="text-slate-500">Sign in to your account</p>
-                    </div>
-                    
-                    <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-4" id="loginForm">
-                        {{ form.hidden_tag() }}
-                        <input type="hidden" name="next" id="nextUrl" value="{{ request.args.get('next', '') }}">
-                        
-                        <!-- Username/Email Field -->
-                        <div class="input-group">
-                            {{ form.username(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Email or username") }}
-                            <i class="input-icon fas fa-user"></i>
-                            {% if form.username.errors %}
-                                {% for error in form.username.errors %}
-                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
+<div class="min-h-screen login-page flex items-center justify-center px-4 py-12">
+  <div class="shell">
 
-                        <!-- Password Field -->
-                        <div class="input-group">
-                            {{ form.password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Password") }}
-                            <i class="input-icon fas fa-lock"></i>
-                            {% if form.password.errors %}
-                                {% for error in form.password.errors %}
-                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                        
-                        <!-- Forgot password -->
-                        <div class="text-right">
-                            <a href="{{ url_for('auth.reset_request') }}" class="text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
-                                Forgot password?
-                            </a>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="pt-2">
-                            <button type="submit" class="premium-btn w-full h-14 rounded-xl text-base font-semibold text-white cursor-pointer">
-                                <span class="relative z-10 flex items-center justify-center">
-                                    Sign In
-                                    <i class="fas fa-arrow-right ml-2"></i>
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
+    <!-- Organization Status Banners -->
+    {% if pending_status == 'pending_approval' %}
+      <div class="mb-5">
+        <div class="banner banner-warning">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 w-9 h-9 rounded-full flex items-center justify-center" style="background: rgba(251,191,36,.20); color:#92400e;">
+              <i class="fas fa-hourglass-half"></i>
             </div>
-        </div>
-
-        <!-- Register Link -->
-        <div class="text-center mt-8 animate-fade-in-up delay-2">
-            <p class="text-slate-600">
-                Don't have an account?
-                <a href="{{ url_for('auth.register') }}" class="font-semibold text-[#2d3e50] hover:text-orange-600 transition-colors ml-1">
-                    Get started free <i class="fas fa-arrow-right text-xs ml-1"></i>
+            <div class="flex-1">
+              <div class="banner-title">Pending Approval</div>
+              <div class="banner-text">
+                <strong>{{ org_name }}</strong> is being reviewed. We’ll notify you at {{ user_email }}.
+              </div>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <a href="{{ url_for('auth.registration_status') }}?email={{ user_email }}"
+                   class="inline-flex items-center text-sm font-semibold px-3 py-1.5 rounded-lg"
+                   style="background:#fde68a;color:#92400e;">
+                  <i class="fas fa-search mr-2"></i>View Status
                 </a>
-            </p>
-        </div>
-        
-        <!-- Check Status Link -->
-        <div class="text-center mt-4 animate-fade-in-up delay-3">
-            <a href="{{ url_for('auth.registration_status') }}" class="text-sm text-slate-500 hover:text-slate-700 transition-colors">
-                <i class="fas fa-question-circle mr-1"></i>Check registration status
-            </a>
-        </div>
-        
-        <!-- Trust badge -->
-        <div class="text-center mt-6 animate-fade-in-up delay-3">
-            <div class="inline-flex items-center text-xs text-slate-400">
-                <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>
-                256-bit SSL encryption · Your data stays private
+                <span class="inline-flex items-center text-sm" style="color:#92400e;">
+                  <i class="fas fa-clock mr-1.5"></i>~24 hours
+                </span>
+              </div>
             </div>
+          </div>
         </div>
+      </div>
+
+    {% elif pending_status == 'suspended' %}
+      <div class="mb-5">
+        <div class="banner banner-danger">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 w-9 h-9 rounded-full flex items-center justify-content-center" style="background: rgba(248,113,113,.18); color:#991b1b;">
+              <i class="fas fa-pause"></i>
+            </div>
+            <div class="flex-1">
+              <div class="banner-title">Account Suspended</div>
+              <div class="banner-text"><strong>{{ org_name }}</strong> has been suspended.</div>
+              <div class="mt-3">
+                <button onclick="openContactUsModal('app')"
+                        class="inline-flex items-center text-sm font-semibold px-3 py-1.5 rounded-lg"
+                        style="background:#fecaca;color:#991b1b;">
+                  <i class="fas fa-envelope mr-2"></i>Contact Support
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    {% elif pending_status == 'pending_deletion' %}
+      <div class="mb-5">
+        <div class="banner banner-danger">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 w-9 h-9 rounded-full flex items-center justify-center" style="background: rgba(248,113,113,.18); color:#991b1b;">
+              <i class="fas fa-trash-alt"></i>
+            </div>
+            <div class="flex-1">
+              <div class="banner-title">Scheduled for Deletion</div>
+              <div class="banner-text"><strong>{{ org_name }}</strong> is scheduled for deletion.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    {% elif pending_status == 'inactive' %}
+      <div class="mb-5">
+        <div class="banner banner-neutral">
+          <div class="flex items-start gap-3">
+            <div class="mt-0.5 w-9 h-9 rounded-full flex items-center justify-center" style="background: rgba(100,116,139,.18); color:#334155;">
+              <i class="fas fa-ban"></i>
+            </div>
+            <div class="flex-1">
+              <div class="banner-title">Account Not Active</div>
+              <div class="banner-text"><strong>{{ org_name }}</strong> is not currently active.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- Main Card -->
+    <div class="card">
+      <div class="grid grid-cols-1 lg:grid-cols-2">
+
+        <!-- Left: Product context (not salesy) -->
+        <div class="left p-8 lg:p-10 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center gap-3">
+              <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}"
+                     alt="Origen TechnolOG" class="h-9 w-auto object-contain" />
+              </div>
+              <div>
+                <div class="text-lg font-extrabold tracking-tight">Origen TechnolOG</div>
+                <div class="text-sm left-muted">Client management for real estate teams</div>
+              </div>
+            </div>
+
+            <div class="mt-8">
+              <div class="left-chip">
+                <i class="fas fa-lock" style="color: rgba(249,115,22,.95)"></i>
+                Secure sign-in
+              </div>
+
+              <h1 class="mt-4 text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight">
+                Sign in to continue.
+              </h1>
+
+              <p class="mt-3 text-sm lg:text-[15px] left-muted leading-relaxed">
+                Use your account credentials to access contacts, tasks, transactions, and team workspace.
+              </p>
+            </div>
+
+            <div class="mt-8 space-y-4">
+              <div class="left-bullet">
+                <div class="left-icon">
+                  <i class="fas fa-address-book" style="color: rgba(249,115,22,.95)"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-sm">Contacts & groups</div>
+                  <div class="text-xs left-muted">Organized client records and activity history.</div>
+                </div>
+              </div>
+
+              <div class="left-bullet">
+                <div class="left-icon">
+                  <i class="fas fa-tasks" style="color: rgba(249,115,22,.95)"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-sm">Tasks & reminders</div>
+                  <div class="text-xs left-muted">Stay on top of follow-ups and deadlines.</div>
+                </div>
+              </div>
+
+              <div class="left-bullet">
+                <div class="left-icon">
+                  <i class="fas fa-calendar-check" style="color: rgba(249,115,22,.95)"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-sm">Google integration</div>
+                  <div class="text-xs left-muted">Email and calendar sync when enabled.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-10 text-xs left-muted flex items-center gap-2">
+            <i class="fas fa-shield-alt" style="color: rgba(16,185,129,.95)"></i>
+            256-bit SSL encryption · Your data stays private
+          </div>
+        </div>
+
+        <!-- Right: Form -->
+        <div class="p-8 lg:p-10">
+          <div class="mb-7">
+            <div class="kicker">Account</div>
+            <div class="title mt-1">Sign in</div>
+            <div class="subtitle mt-1">Enter your email/username and password.</div>
+          </div>
+
+          <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-4" id="loginForm">
+            {{ form.hidden_tag() }}
+            <input type="hidden" name="next" id="nextUrl" value="{{ request.args.get('next', '') }}">
+
+            <!-- Username -->
+            <div>
+              <label class="label" for="{{ form.username.id }}">Email or username</label>
+              {{ form.username(class="input", placeholder="you@company.com") }}
+              {% if form.username.errors %}
+                {% for error in form.username.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            <!-- Password -->
+            <div>
+              <div class="flex items-center justify-between">
+                <label class="label" for="{{ form.password.id }}">Password</label>
+                <a href="{{ url_for('auth.reset_request') }}" class="hint-link">Forgot password?</a>
+              </div>
+
+              <div class="flex gap-2">
+                <div class="flex-1">
+                  {{ form.password(class="input", placeholder="••••••••") }}
+                </div>
+                <button type="button" class="icon-btn" id="togglePassword" aria-label="Show password">
+                  <i class="fas fa-eye"></i>
+                </button>
+              </div>
+
+              {% if form.password.errors %}
+                {% for error in form.password.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+              {% endif %}
+            </div>
+
+            <!-- Submit -->
+            <div class="pt-2">
+              <button type="submit" class="btn">
+                Sign In <i class="fas fa-arrow-right ml-2"></i>
+              </button>
+
+              <!-- NEW: Support line under button -->
+              <div class="support-row">
+                <span>Having trouble?</span>
+                <a href="#" class="support-action" onclick="openContactUsModal('app'); return false;">
+                  Contact support
+                </a>
+              </div>
+            </div>
+
+            <div class="divider my-6"></div>
+
+            <!-- Secondary actions -->
+            <div class="flex flex-col gap-3">
+              <div class="text-sm text-slate-600">
+                Don’t have an account?
+                <a href="{{ url_for('auth.register') }}" class="footer-link ml-1">Create an account</a>
+              </div>
+
+              <div class="text-sm">
+                <a href="{{ url_for('auth.registration_status') }}" class="hint-link">
+                  <i class="fas fa-question-circle mr-1"></i>Check registration status
+                </a>
+              </div>
+            </div>
+          </form>
+        </div>
+
+      </div>
     </div>
+
+  </div>
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const nextUrlField = document.getElementById('nextUrl');
-        const storedReturnUrl = sessionStorage.getItem('returnUrl');
-        
-        if (storedReturnUrl && (!nextUrlField.value || nextUrlField.value === '')) {
-            try {
-                const url = new URL(storedReturnUrl);
-                nextUrlField.value = url.pathname + url.search + url.hash;
-            } catch (e) {
-                nextUrlField.value = storedReturnUrl;
-            }
-            sessionStorage.removeItem('returnUrl');
-        }
-    });
+  document.addEventListener('DOMContentLoaded', function() {
+    // preserve your "next" behavior
+    const nextUrlField = document.getElementById('nextUrl');
+    const storedReturnUrl = sessionStorage.getItem('returnUrl');
+
+    if (storedReturnUrl && (!nextUrlField.value || nextUrlField.value === '')) {
+      try {
+        const url = new URL(storedReturnUrl);
+        nextUrlField.value = url.pathname + url.search + url.hash;
+      } catch (e) {
+        nextUrlField.value = storedReturnUrl;
+      }
+      sessionStorage.removeItem('returnUrl');
+    }
+
+    // show/hide password
+    const toggle = document.getElementById('togglePassword');
+    const pwd = document.getElementById('{{ form.password.id }}');
+    if (toggle && pwd) {
+      toggle.addEventListener('click', () => {
+        const isText = pwd.getAttribute('type') === 'text';
+        pwd.setAttribute('type', isText ? 'password' : 'text');
+        toggle.innerHTML = isText ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash"></i>';
+        toggle.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+      });
+    }
+  });
 </script>
 {% endblock %}
