@@ -22,8 +22,8 @@ TIER_FEATURES = {
         'DASHBOARD': True,
         'TEAM_UPDATES': True,
         
-        # Premium features - disabled on free tier
-        'AI_CHAT': False,
+        # Premium features - limited on free tier
+        'AI_CHAT': True,  # Enabled with daily message limit (see tier_limits.py)
         'AI_DAILY_TODO': False,
         'AI_ACTION_PLAN': False,
         'TRANSACTIONS': False,

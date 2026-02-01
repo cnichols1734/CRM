@@ -5,6 +5,7 @@ from models import db, Contact, Task, TaskType, TaskSubtype, Transaction, ChatCo
 from feature_flags import feature_required
 from services.ai_service import generate_chat_response, generate_ai_response
 from sqlalchemy import or_, func
+from tier_config.tier_limits import get_tier_defaults
 import openai
 import re
 import json
@@ -12,6 +13,72 @@ from pprint import pprint
 from datetime import datetime, date, timedelta
 
 ai_chat = Blueprint('ai_chat', __name__)
+
+
+# =============================================================================
+# RATE LIMITING FOR FREE TIER
+# =============================================================================
+
+def get_daily_message_limit():
+    """Get the daily AI chat message limit for the current user's organization."""
+    org = current_user.organization
+    if not org:
+        return 10  # Default to free tier limit
+    
+    # Platform admin orgs have no limit
+    if org.is_platform_admin:
+        return None
+    
+    tier = org.subscription_tier or 'free'
+    tier_defaults = get_tier_defaults(tier)
+    return tier_defaults.get('daily_ai_chat_messages')
+
+
+def get_daily_message_count():
+    """Count how many messages the user has sent today."""
+    today_start = datetime.combine(date.today(), datetime.min.time())
+    
+    count = ChatMessage.query.join(ChatConversation).filter(
+        ChatConversation.user_id == current_user.id,
+        ChatMessage.role == 'user',
+        ChatMessage.created_at >= today_start
+    ).count()
+    
+    return count
+
+
+def check_rate_limit():
+    """
+    Check if user has exceeded their daily AI chat message limit.
+    
+    Returns:
+        tuple: (is_allowed: bool, remaining: int or None, limit: int or None)
+    """
+    limit = get_daily_message_limit()
+    
+    # No limit (pro/enterprise/platform admin)
+    if limit is None:
+        return True, None, None
+    
+    used = get_daily_message_count()
+    remaining = max(0, limit - used)
+    
+    return remaining > 0, remaining, limit
+
+
+def get_rate_limit_message():
+    """Get a clean upgrade message for users who hit their daily limit."""
+    return """You've reached your daily limit of 10 messages with B.O.B. on the free plan.
+
+**Upgrade to Pro** to get unlimited conversations with B.O.B., plus access to:
+- AI-powered Daily Action Plans
+- Transaction Management
+- Document Generation
+- And much more!
+
+[Click here to upgrade](/org/upgrade?from=chat) and unlock the full power of B.O.B.
+
+--BOB"""
 
 SYSTEM_PROMPT = """You are B.O.B. (Business Optimization Buddy), an experienced real estate professional with deep expertise in the Houston market and HAR (Houston Association of REALTORS®) procedures. Think of yourself as a knowledgeable, supportive colleague who's always ready to share insights and practical advice.
 
@@ -158,6 +225,14 @@ def get_contact_and_tasks(url):
 @feature_required('AI_CHAT')
 def chat():
     try:
+        # Check rate limit for free tier users
+        is_allowed, remaining, limit = check_rate_limit()
+        if not is_allowed:
+            return jsonify({
+                "response": get_rate_limit_message(),
+                "rate_limited": True
+            })
+        
         data = request.json
         user_message = data.get('message')
         page_content = data.get('pageContent')
@@ -309,6 +384,26 @@ def chat():
 def chat_stream():
     """Stream AI chat response using GPT-5.1 with Server-Sent Events"""
     try:
+        # Check rate limit for free tier users
+        is_allowed, remaining, limit = check_rate_limit()
+        if not is_allowed:
+            # Return the upgrade message as a streamed response
+            def rate_limit_response():
+                message = get_rate_limit_message()
+                escaped = message.replace('\n', '\\n').replace('\r', '\\r')
+                yield f"data: {escaped}\n\n"
+                yield f"data: [DONE]\n\n"
+                yield f"data: [FULL_RESPONSE]{message}[/FULL_RESPONSE]\n\n"
+            
+            return Response(
+                stream_with_context(rate_limit_response()),
+                mimetype='text/event-stream',
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no'
+                }
+            )
+        
         data = request.json
         user_message = data.get('message', '')
         page_content = data.get('pageContent', '')
