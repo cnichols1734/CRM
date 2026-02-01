@@ -10,6 +10,7 @@ class BOBChatPanel {
         this.messages = [];
         this.mentionedContacts = [];
         this.attachedImage = null;
+        this.attachedFile = null;
         this.mentionSearchTimeout = null;
         this.selectedMentionIndex = 0;
         
@@ -146,13 +147,25 @@ class BOBChatPanel {
                     </button>
                 </div>
                 
+                <!-- File Preview (for non-image files) -->
+                <div class="bob-file-preview" id="bob-file-preview">
+                    <i id="bob-file-preview-icon" class="fas fa-file"></i>
+                    <div class="bob-file-preview-info">
+                        <span id="bob-file-preview-name"></span>
+                        <span id="bob-file-preview-size"></span>
+                    </div>
+                    <button class="bob-file-preview-remove" id="bob-remove-file">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
                 <!-- Input Container -->
                 <div class="bob-input-container">
                     <!-- Mentions Dropdown - inside container for proper positioning -->
                     <div class="bob-mentions-dropdown" id="bob-mentions-dropdown"></div>
                     <div class="bob-input-row">
                         <div class="bob-toolbar">
-                            <button class="bob-tool-btn" id="bob-attach-btn" title="Attach image">
+                            <button class="bob-tool-btn" id="bob-attach-btn" title="Attach file">
                                 <i class="fas fa-paperclip"></i>
                             </button>
                             <button class="bob-tool-btn" id="bob-mention-btn" title="Mention contact">
@@ -169,7 +182,7 @@ class BOBChatPanel {
                 
                 <!-- Hidden file input -->
                 <input type="file" class="bob-file-input" id="bob-file-input" 
-                    accept="image/jpeg,image/png,image/gif,image/webp">
+                    accept="image/jpeg,image/png,image/gif,image/webp,.csv,.pdf,.txt,.doc,.docx,.xls,.xlsx,text/csv,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
             </div>
             </div><!-- end bob-main-area -->
         `;
@@ -226,6 +239,9 @@ class BOBChatPanel {
             this.handleFileSelect(e);
         });
         document.getElementById('bob-remove-image').addEventListener('click', () => {
+            this.removeAttachment();
+        });
+        document.getElementById('bob-remove-file').addEventListener('click', () => {
             this.removeAttachment();
         });
         
@@ -411,36 +427,64 @@ class BOBChatPanel {
         textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
     }
     
-    // ===== Image Attachment =====
+    // ===== File Attachment =====
     handleFileSelect(e) {
         const file = e.target.files[0];
         if (!file) return;
         
+        // Allowed file types
+        const allowedTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'text/csv', 'application/pdf', 'text/plain',
+            'application/msword', 
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        
         // Validate file type
-        if (!file.type.startsWith('image/')) {
-            alert('Please select an image file.');
+        if (!allowedTypes.includes(file.type)) {
+            alert('File type not supported. Please select an image, PDF, CSV, TXT, DOC, DOCX, XLS, or XLSX file.');
             return;
         }
         
         // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
-            alert('Image size must be less than 10MB.');
+            alert('File size must be less than 10MB.');
             return;
         }
         
-        // Read and preview
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            this.attachedImage = event.target.result;
-            document.getElementById('bob-image-preview-img').src = this.attachedImage;
-            document.getElementById('bob-image-preview').classList.add('visible');
-        };
-        reader.readAsDataURL(file);
+        // Check if it's an image or other file
+        if (file.type.startsWith('image/')) {
+            // Handle as image
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                this.attachedImage = event.target.result;
+                this.attachedFile = null; // Clear any file attachment
+                document.getElementById('bob-image-preview-img').src = this.attachedImage;
+                document.getElementById('bob-image-preview').classList.add('visible');
+                document.getElementById('bob-file-preview').classList.remove('visible');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            // Handle as file
+            this.attachedFile = file;
+            this.attachedImage = null; // Clear any image attachment
+            
+            // Update file preview UI
+            document.getElementById('bob-file-preview-icon').className = this.getFileIconClass(file.type);
+            document.getElementById('bob-file-preview-name').textContent = file.name;
+            document.getElementById('bob-file-preview-size').textContent = this.formatFileSize(file.size);
+            document.getElementById('bob-file-preview').classList.add('visible');
+            document.getElementById('bob-image-preview').classList.remove('visible');
+        }
     }
     
     removeAttachment() {
         this.attachedImage = null;
+        this.attachedFile = null;
         document.getElementById('bob-image-preview').classList.remove('visible');
+        document.getElementById('bob-file-preview').classList.remove('visible');
         document.getElementById('bob-file-input').value = '';
     }
     
@@ -600,7 +644,7 @@ class BOBChatPanel {
     }
     
     // ===== Message Handling =====
-    addMessage(role, content, saveToArray = true) {
+    addMessage(role, content, saveToArray = true, attachment = null) {
         const messagesDiv = document.getElementById('bob-messages');
         const messageEl = document.createElement('div');
         messageEl.className = `bob-message ${role}`;
@@ -608,14 +652,125 @@ class BOBChatPanel {
         if (role === 'assistant') {
             messageEl.innerHTML = this.formatMessage(content);
         } else {
-            messageEl.textContent = content;
+            // User message - may include attachments
+            let html = '';
+            
+            // Handle image attachment
+            if (attachment?.imageData) {
+                const imgSrc = attachment.imageData.startsWith('data:') 
+                    ? attachment.imageData 
+                    : `data:image/jpeg;base64,${attachment.imageData}`;
+                html += `
+                    <div class="bob-message-attachment">
+                        <img src="${imgSrc}" 
+                             class="bob-message-image" 
+                             alt="Attached image"
+                             onclick="bobChat.showImageModal(this.src)">
+                    </div>
+                `;
+            }
+            
+            // Handle file attachment
+            if (attachment?.file) {
+                const iconClass = this.getFileIconClass(attachment.file.type);
+                const fileSize = this.formatFileSize(attachment.file.size);
+                html += `
+                    <div class="bob-file-card">
+                        <i class="${iconClass} bob-file-icon"></i>
+                        <div class="bob-file-info">
+                            <span class="bob-file-name" title="${this.escapeHtml(attachment.file.name)}">${this.escapeHtml(attachment.file.name)}</span>
+                            <span class="bob-file-size">${fileSize}</span>
+                        </div>
+                        ${attachment.file.url ? `<a href="${attachment.file.url}" class="bob-file-download" download="${this.escapeHtml(attachment.file.name)}" target="_blank"><i class="fas fa-download"></i></a>` : ''}
+                    </div>
+                `;
+            }
+            
+            // Add text content if present
+            if (content && content !== '[Image attached]' && content !== '[File attached]') {
+                html += `<div class="bob-message-text">${this.escapeHtml(content)}</div>`;
+            }
+            
+            // If we have HTML content from attachments, use it; otherwise use plain text
+            if (html) {
+                messageEl.innerHTML = html;
+            } else {
+                messageEl.textContent = content;
+            }
         }
         
         messagesDiv.appendChild(messageEl);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
         
         if (saveToArray) {
-            this.messages.push({ role, content });
+            this.messages.push({ role, content, attachment });
+        }
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    getFileIconClass(mimeType) {
+        const iconMap = {
+            'text/csv': 'fas fa-file-csv',
+            'application/pdf': 'fas fa-file-pdf',
+            'text/plain': 'fas fa-file-alt',
+            'application/msword': 'fas fa-file-word',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'fas fa-file-word',
+            'application/vnd.ms-excel': 'fas fa-file-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'fas fa-file-excel'
+        };
+        return iconMap[mimeType] || 'fas fa-file';
+    }
+    
+    formatFileSize(bytes) {
+        if (!bytes) return '';
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    
+    showImageModal(src) {
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('bob-image-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'bob-image-modal';
+            modal.className = 'bob-image-modal';
+            modal.innerHTML = `
+                <div class="bob-image-modal-backdrop"></div>
+                <div class="bob-image-modal-content">
+                    <img id="bob-image-modal-img" src="" alt="Full size image">
+                    <button class="bob-image-modal-close"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            // Close on backdrop click or close button
+            modal.querySelector('.bob-image-modal-backdrop').addEventListener('click', () => this.hideImageModal());
+            modal.querySelector('.bob-image-modal-close').addEventListener('click', () => this.hideImageModal());
+            
+            // Close on escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('visible')) {
+                    this.hideImageModal();
+                }
+            });
+        }
+        
+        modal.querySelector('#bob-image-modal-img').src = src;
+        modal.classList.add('visible');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    hideImageModal() {
+        const modal = document.getElementById('bob-image-modal');
+        if (modal) {
+            modal.classList.remove('visible');
+            document.body.style.overflow = '';
         }
     }
     
@@ -645,7 +800,7 @@ class BOBChatPanel {
         const textarea = document.getElementById('bob-textarea');
         const message = textarea.value.trim();
         
-        if (!message && !this.attachedImage) return;
+        if (!message && !this.attachedImage && !this.attachedFile) return;
         if (this.isTyping) return;
         
         // Show messages area
@@ -669,15 +824,31 @@ class BOBChatPanel {
             }
         }
         
-        // Add user message
-        this.addMessage('user', message || '[Image attached]');
+        // Prepare attachment data (before clearing)
+        const imageData = this.attachedImage ? this.attachedImage.split(',')[1] : null;
+        const fileToUpload = this.attachedFile;
         
-        // Clear input
+        // Build attachment for display
+        let attachmentForDisplay = null;
+        if (this.attachedImage) {
+            attachmentForDisplay = { imageData: this.attachedImage };
+        } else if (fileToUpload) {
+            attachmentForDisplay = { 
+                file: { 
+                    name: fileToUpload.name, 
+                    type: fileToUpload.type, 
+                    size: fileToUpload.size,
+                    url: null // Will be set after upload
+                } 
+            };
+        }
+        
+        // Add user message with attachment preview
+        this.addMessage('user', message, true, attachmentForDisplay);
+        
+        // Clear input and attachment
         textarea.value = '';
         this.autoResizeTextarea();
-        
-        // Prepare the image data if attached
-        const imageData = this.attachedImage ? this.attachedImage.split(',')[1] : null;
         this.removeAttachment();
         
         // Create streaming message element
@@ -690,12 +861,56 @@ class BOBChatPanel {
         this.isTyping = true;
         document.getElementById('bob-send-btn').disabled = true;
         
+        // Variables to track file upload result
+        let fileUrl = null;
+        let fileName = null;
+        let fileType = null;
+        let fileSize = null;
+        let fileStoragePath = null;
+        let fileContent = null;
+        
         try {
+            // Upload file if present (non-image files)
+            if (fileToUpload) {
+                const formData = new FormData();
+                formData.append('file', fileToUpload);
+                
+                const uploadResponse = await fetch('/api/ai-chat/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (uploadResponse.ok) {
+                    const uploadData = await uploadResponse.json();
+                    fileUrl = uploadData.url;
+                    fileName = uploadData.filename;
+                    fileType = uploadData.type;
+                    fileSize = uploadData.size;
+                    fileStoragePath = uploadData.storage_path;
+                    
+                    // For text-based files, read content to send to AI
+                    if (['text/csv', 'text/plain'].includes(fileType)) {
+                        fileContent = await fileToUpload.text();
+                    }
+                } else {
+                    const errorData = await uploadResponse.json();
+                    throw new Error(errorData.error || 'File upload failed');
+                }
+            }
+            
+            // Build message for AI (include file content for text files)
+            let messageForAI = message;
+            if (fileContent) {
+                messageForAI = `${message}\n\n[File: ${fileName}]\n${fileContent}`;
+            } else if (fileName) {
+                messageForAI = `${message}\n\n[Attached file: ${fileName}]`;
+            }
+            
             const response = await fetch('/api/ai-chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message,
+                    message: messageForAI,
                     pageContent: document.body.innerText.substring(0, 3000),
                     currentUrl: window.location.href,
                     clearHistory: false,
@@ -753,7 +968,12 @@ class BOBChatPanel {
                         assistantResponse: fullResponse,
                         conversationId: this.currentConversationId,
                         imageData: imageData,
-                        mentionedContactIds: this.mentionedContacts.map(c => c.id)
+                        mentionedContactIds: this.mentionedContacts.map(c => c.id),
+                        fileUrl: fileUrl,
+                        fileName: fileName,
+                        fileType: fileType,
+                        fileSize: fileSize,
+                        fileStoragePath: fileStoragePath
                     })
                 });
                 
@@ -1029,10 +1249,24 @@ class BOBChatPanel {
             document.getElementById('bob-welcome').classList.add('hidden');
             messagesDiv.classList.add('active');
             
-            // Render messages
+            // Render messages with attachments
             if (conversation.messages && conversation.messages.length > 0) {
                 for (const msg of conversation.messages) {
-                    this.addMessage(msg.role, msg.content, false);
+                    // Build attachment object if present
+                    let attachment = null;
+                    if (msg.image_data) {
+                        attachment = { imageData: msg.image_data };
+                    }
+                    if (msg.file_url) {
+                        attachment = attachment || {};
+                        attachment.file = {
+                            url: msg.file_url,
+                            name: msg.file_name,
+                            type: msg.file_type,
+                            size: msg.file_size
+                        };
+                    }
+                    this.addMessage(msg.role, msg.content, false, attachment);
                 }
             }
             
