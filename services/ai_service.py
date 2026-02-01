@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 # Model configuration - change these to update all AI features at once
 PRIMARY_MODEL = "gpt-5.1"
 FALLBACK_MODEL = "gpt-5-mini"
-LEGACY_MODEL = "gpt-4o"
+LEGACY_MODEL = "gpt-4.1-mini"  # Updated from gpt-4o for better vision support and speed
 
 # Errors that should trigger fallback (model not available, rate limited, etc.)
 FALLBACK_ERROR_CODES = [401, 403, 404, 429]
@@ -304,4 +304,89 @@ def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: s
         
     except Exception as e:
         logger.error(f"Whisper transcription failed: {str(e)}")
+        raise
+
+
+def generate_vision_response(
+    system_prompt: str,
+    user_prompt: str,
+    images: list = None,
+    temperature: float = 0.7,
+    api_key: str = None
+) -> str:
+    """
+    Generate an AI response with vision/image analysis capability.
+    Uses Chat Completions API with image input support.
+    
+    Args:
+        system_prompt: The system instructions for the AI
+        user_prompt: The user's input/question
+        images: List of base64-encoded image strings
+        temperature: Creativity level (0.0-1.0)
+        api_key: Optional API key override
+    
+    Returns:
+        The AI-generated response text
+    """
+    # Get API key
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        logger.error("OpenAI API key is not configured!")
+        raise ValueError("OpenAI API key is not configured")
+    
+    # Initialize client
+    client = openai.OpenAI(api_key=key)
+    
+    # Build content array with text and images
+    user_content = [{"type": "text", "text": user_prompt}]
+    
+    # Add images if provided
+    for img_base64 in images or []:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{img_base64}",
+                "detail": "auto"
+            }
+        })
+    
+    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
+    try:
+        logger.info(f"[1/2] Vision: Attempting primary model: {PRIMARY_MODEL}")
+        response = client.chat.completions.create(
+            model=PRIMARY_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            temperature=temperature
+        )
+        logger.info(f"SUCCESS: Vision response generated with {PRIMARY_MODEL}")
+        return response.choices[0].message.content
+        
+    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
+        logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} vision failed with {type(e).__name__}")
+        
+    except openai.APIError as e:
+        if _should_fallback(e):
+            logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} vision failed with status {e.status_code}")
+        else:
+            raise
+    
+    # ===== TRY LEGACY MODEL (GPT-4.1-mini) =====
+    try:
+        logger.info(f"[2/2] Vision: Attempting legacy model: {LEGACY_MODEL}")
+        response = client.chat.completions.create(
+            model=LEGACY_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ],
+            temperature=temperature
+        )
+        logger.info(f"SUCCESS: Vision response generated with {LEGACY_MODEL}")
+        return response.choices[0].message.content
+        
+    except Exception as legacy_error:
+        logger.error(f"FATAL: All vision models failed. Error: {str(legacy_error)}")
         raise

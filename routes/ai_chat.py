@@ -1,14 +1,15 @@
 from flask import Blueprint, jsonify, request, url_for, session, Response, stream_with_context
 from flask_login import login_required, current_user
 from config import Config
-from models import Contact, Task, TaskType, TaskSubtype
+from models import Contact, Task, TaskType, TaskSubtype, Transaction
 from feature_flags import feature_required
-from services.ai_service import generate_chat_response
+from services.ai_service import generate_chat_response, generate_ai_response
+from sqlalchemy import or_, func
 import openai
 import re
 import json
 from pprint import pprint
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 ai_chat = Blueprint('ai_chat', __name__)
 
@@ -291,10 +292,12 @@ def chat_stream():
     """Stream AI chat response using GPT-5.1 with Server-Sent Events"""
     try:
         data = request.json
-        user_message = data.get('message')
+        user_message = data.get('message', '')
         page_content = data.get('pageContent', '')
         current_url = data.get('currentUrl', '')
         clear_history = data.get('clearHistory', False)
+        image_data = data.get('image')  # Base64 image data
+        mentioned_contact_ids = data.get('mentionedContactIds', [])
 
         # Initialize or clear session history if requested
         if clear_history or 'chat_history' not in session:
@@ -302,6 +305,27 @@ def chat_stream():
 
         # Get contact and task data if viewing a contact
         contact_data = get_contact_and_tasks(current_url)
+        
+        # Get mentioned contacts data
+        mentioned_contacts_data = []
+        if mentioned_contact_ids:
+            for contact_id in mentioned_contact_ids:
+                contact = Contact.query.filter_by(
+                    id=contact_id,
+                    organization_id=current_user.organization_id
+                ).first()
+                if contact:
+                    # Get tasks for this contact
+                    tasks = Task.query.filter_by(contact_id=contact_id).limit(5).all()
+                    mentioned_contacts_data.append({
+                        "name": f"{contact.first_name} {contact.last_name}",
+                        "email": contact.email,
+                        "phone": contact.phone,
+                        "address": f"{contact.street_address or ''}, {contact.city or ''}, {contact.state or ''} {contact.zip_code or ''}".strip(', '),
+                        "notes": contact.notes,
+                        "potential_commission": float(contact.potential_commission) if contact.potential_commission else None,
+                        "tasks": [{"subject": t.subject, "status": t.status, "due_date": t.due_date.strftime("%Y-%m-%d") if t.due_date else None} for t in tasks]
+                    })
         
         # Prepare the context message with agent info
         context_message = f"""
@@ -315,9 +339,23 @@ def chat_stream():
 {page_content[:2000]}
 """
         
+        # Add mentioned contacts context
+        if mentioned_contacts_data:
+            context_message += "\n# Mentioned Contacts\n"
+            for mc in mentioned_contacts_data:
+                context_message += f"""
+## {mc['name']}
+- Email: {mc['email'] or 'N/A'}
+- Phone: {mc['phone'] or 'N/A'}
+- Address: {mc['address'] or 'N/A'}
+- Potential Commission: ${mc['potential_commission'] or 0:,.0f}
+- Notes: {(mc['notes'] or '')[:300]}
+- Tasks: {len(mc['tasks'])} recent tasks
+"""
+        
         if contact_data:
             context_message += f"""
-# Contact Details
+# Contact Details (Current Page)
 - **Full Name**: {contact_data['contact']['name']}
 - **Email**: {contact_data['contact']['email']}
 - **Phone**: {contact_data['contact']['phone']}
@@ -332,6 +370,10 @@ def chat_stream():
             # Add task summary (simplified for streaming context)
             for task in contact_data['tasks'][:5]:  # Limit to 5 tasks for context
                 context_message += f"- {task['type']}: {task['subject']} (Due: {task['due_date'] or 'Not set'})\n"
+        
+        # Add image context if present
+        if image_data:
+            context_message += "\n# Image Attached\nThe user has attached an image to this message. Please analyze it and incorporate your observations into your response.\n"
 
         # Build conversation for the AI
         conversation_history = ""
@@ -357,43 +399,87 @@ def chat_stream():
             try:
                 client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
                 
-                # Use GPT-5.1 Responses API with streaming
-                stream = client.responses.create(
-                    model="gpt-5.1",
-                    instructions=SYSTEM_PROMPT,
-                    input=full_user_prompt,
-                    stream=True
-                )
-                
-                for event in stream:
-                    # Handle different event types from Responses API
-                    if hasattr(event, 'type'):
-                        if event.type == "response.output_text.delta":
+                # Check if we have an image attachment
+                if image_data:
+                    # Use Chat Completions API with vision for images
+                    # Build content array with text and image
+                    user_content = [
+                        {"type": "text", "text": full_user_prompt}
+                    ]
+                    
+                    # Add image to content
+                    user_content.append({
+                        "type": "image_url",
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{image_data}",
+                            "detail": "auto"
+                        }
+                    })
+                    
+                    # Stream with Chat Completions API (vision-compatible)
+                    stream = client.chat.completions.create(
+                        model="gpt-5.1",
+                        messages=[
+                            {"role": "system", "content": SYSTEM_PROMPT},
+                            {"role": "user", "content": user_content}
+                        ],
+                        stream=True
+                    )
+                    
+                    for chunk in stream:
+                        if chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            full_response += content
+                            escaped = content.replace('\n', '\\n').replace('\r', '\\r')
+                            yield f"data: {escaped}\n\n"
+                else:
+                    # Use GPT-5.1 Responses API with streaming (no image)
+                    stream = client.responses.create(
+                        model="gpt-5.1",
+                        instructions=SYSTEM_PROMPT,
+                        input=full_user_prompt,
+                        stream=True
+                    )
+                    
+                    for event in stream:
+                        # Handle different event types from Responses API
+                        if hasattr(event, 'type'):
+                            if event.type == "response.output_text.delta":
+                                chunk = event.delta
+                                full_response += chunk
+                                # Escape newlines for SSE
+                                escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
+                                yield f"data: {escaped}\n\n"
+                            elif event.type == "response.completed":
+                                # Stream completed
+                                pass
+                        elif hasattr(event, 'delta') and event.delta:
+                            # Fallback for different event structure
                             chunk = event.delta
                             full_response += chunk
-                            # Escape newlines for SSE
                             escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
                             yield f"data: {escaped}\n\n"
-                        elif event.type == "response.completed":
-                            # Stream completed
-                            pass
-                    elif hasattr(event, 'delta') and event.delta:
-                        # Fallback for different event structure
-                        chunk = event.delta
-                        full_response += chunk
-                        escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
-                        yield f"data: {escaped}\n\n"
                 
             except Exception as e:
                 print(f"Streaming error with GPT-5.1: {e}")
-                # Fallback to GPT-4o with Chat Completions streaming
+                # Fallback to GPT-4.1-mini with Chat Completions streaming
                 try:
                     client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+                    
+                    # Build messages for fallback
+                    if image_data:
+                        user_content = [
+                            {"type": "text", "text": full_user_prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}", "detail": "auto"}}
+                        ]
+                    else:
+                        user_content = full_user_prompt
+                    
                     stream = client.chat.completions.create(
-                        model="gpt-4o",
+                        model="gpt-4.1-mini",
                         messages=[
                             {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": full_user_prompt}
+                            {"role": "user", "content": user_content}
                         ],
                         stream=True
                     )
@@ -467,3 +553,233 @@ def clear_chat():
     if 'chat_history' in session:
         session.pop('chat_history')
     return jsonify({"status": "success"})
+
+
+@ai_chat.route('/api/ai-chat/search-contacts', methods=['GET'])
+@login_required
+def search_contacts():
+    """Search contacts for @ mention autocomplete - current user's contacts only"""
+    query = request.args.get('q', '').strip()
+    
+    # Build filter for current user's contacts only
+    filters = [
+        Contact.user_id == current_user.id
+    ]
+    
+    if query:
+        filters.append(
+            or_(
+                Contact.first_name.ilike(f'{query}%'),
+                Contact.last_name.ilike(f'{query}%'),
+                func.concat(Contact.first_name, ' ', Contact.last_name).ilike(f'{query}%')
+            )
+        )
+    
+    contacts = Contact.query.filter(*filters).limit(10).all()
+    
+    return jsonify([{
+        'id': c.id,
+        'name': f'{c.first_name} {c.last_name}',
+        'email': c.email or ''
+    } for c in contacts])
+
+
+@ai_chat.route('/api/ai-chat/quick-action', methods=['POST'])
+@login_required
+@feature_required('AI_CHAT')
+def quick_action():
+    """Handle quick action requests (summarize tasks, top contacts, pipeline)"""
+    try:
+        data = request.json
+        action = data.get('action')
+        
+        if action == 'summarize_tasks':
+            return _summarize_tasks()
+        elif action == 'top_contacts':
+            return _top_contacts()
+        elif action == 'pipeline_overview':
+            return _pipeline_overview()
+        else:
+            return jsonify({"error": "Unknown action"}), 400
+            
+    except Exception as e:
+        print(f"Quick action error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
+def _summarize_tasks():
+    """Summarize open tasks for the current user"""
+    # Get all pending tasks for the current user
+    tasks = Task.query.filter(
+        Task.assigned_to_id == current_user.id,
+        Task.status == 'pending'
+    ).order_by(Task.due_date.asc()).all()
+    
+    if not tasks:
+        return jsonify({"response": "You don't have any open tasks right now. Great job staying on top of things!\n\n--BOB"})
+    
+    # Format tasks for AI
+    task_data = []
+    today = datetime.now()
+    overdue_count = 0
+    
+    for task in tasks:
+        is_overdue = task.due_date and task.due_date < today
+        if is_overdue:
+            overdue_count += 1
+        
+        task_info = {
+            "type": task.task_type.name if task.task_type else "Task",
+            "subtype": task.task_subtype.name if task.task_subtype else "",
+            "subject": task.subject,
+            "priority": task.priority,
+            "due_date": task.due_date.strftime("%Y-%m-%d") if task.due_date else "No due date",
+            "is_overdue": is_overdue,
+            "contact": f"{task.contact.first_name} {task.contact.last_name}" if task.contact else "No contact"
+        }
+        task_data.append(task_info)
+    
+    # Create AI prompt
+    user_prompt = f"""
+{current_user.first_name} has {len(tasks)} open tasks ({overdue_count} overdue). Please provide a concise summary:
+
+Tasks:
+{json.dumps(task_data, indent=2)}
+
+Provide:
+1. A brief overview of their task load
+2. Top 3 priorities they should focus on today
+3. Any overdue items that need immediate attention
+
+Keep the response concise and actionable.
+"""
+    
+    response = generate_ai_response(
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        reasoning_effort="low"
+    )
+    
+    return jsonify({"response": response})
+
+
+def _top_contacts():
+    """Get top 3 contacts the user should reach out to"""
+    # Get all contacts for the current user
+    contacts = Contact.query.filter(
+        Contact.organization_id == current_user.organization_id,
+        Contact.user_id == current_user.id
+    ).all()
+    
+    if not contacts:
+        return jsonify({"response": "You don't have any contacts yet. Start building your network!\n\n--BOB"})
+    
+    today = date.today()
+    scored_contacts = []
+    
+    for contact in contacts:
+        # Calculate days since last contact
+        if contact.last_contact_date:
+            days_since = (today - contact.last_contact_date).days
+        else:
+            days_since = 999  # Never contacted = high priority
+        
+        # Calculate priority score: commission potential * days since contact
+        commission = float(contact.potential_commission) if contact.potential_commission else 0
+        priority_score = commission * min(days_since, 365)  # Cap at 1 year
+        
+        scored_contacts.append({
+            "name": f"{contact.first_name} {contact.last_name}",
+            "email": contact.email or "No email",
+            "phone": contact.phone or "No phone",
+            "days_since_contact": days_since,
+            "potential_commission": commission,
+            "priority_score": priority_score,
+            "notes": (contact.notes or "")[:200]  # Truncate notes
+        })
+    
+    # Sort by priority score (descending) and take top 3
+    top_3 = sorted(scored_contacts, key=lambda x: x['priority_score'], reverse=True)[:3]
+    
+    # Create AI prompt
+    user_prompt = f"""
+Based on priority scoring (commission potential x days since last contact), here are {current_user.first_name}'s top 3 contacts to reach out to:
+
+{json.dumps(top_3, indent=2)}
+
+For each contact, provide:
+1. Why they're a priority (based on the data)
+2. A suggested approach or talking point
+3. Best time to reach out (based on real estate best practices)
+
+Keep suggestions brief and actionable.
+"""
+    
+    response = generate_ai_response(
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        reasoning_effort="medium"
+    )
+    
+    return jsonify({"response": response})
+
+
+def _pipeline_overview():
+    """Get a quick overview of the transaction pipeline"""
+    # Get transactions for the organization
+    try:
+        transactions = Transaction.query.filter(
+            Transaction.organization_id == current_user.organization_id
+        ).all()
+    except:
+        transactions = []
+    
+    if not transactions:
+        return jsonify({"response": "No active transactions in your pipeline yet. Let's get some deals going!\n\n--BOB"})
+    
+    # Group by stage
+    stages = {}
+    total_value = 0
+    
+    for txn in transactions:
+        stage = txn.stage or 'Unknown'
+        if stage not in stages:
+            stages[stage] = {"count": 0, "value": 0}
+        stages[stage]["count"] += 1
+        
+        # Try to get the price
+        price = 0
+        if hasattr(txn, 'sale_price') and txn.sale_price:
+            price = float(txn.sale_price)
+        elif hasattr(txn, 'list_price') and txn.list_price:
+            price = float(txn.list_price)
+        
+        stages[stage]["value"] += price
+        total_value += price
+    
+    # Create AI prompt
+    user_prompt = f"""
+Here's {current_user.first_name}'s current transaction pipeline:
+
+Pipeline Summary:
+- Total Transactions: {len(transactions)}
+- Total Value: ${total_value:,.0f}
+
+By Stage:
+{json.dumps(stages, indent=2)}
+
+Provide:
+1. A brief overview of pipeline health
+2. Key observations (deals stuck, opportunities, etc.)
+3. One actionable suggestion to move deals forward
+
+Keep it concise and practical.
+"""
+    
+    response = generate_ai_response(
+        system_prompt=SYSTEM_PROMPT,
+        user_prompt=user_prompt,
+        reasoning_effort="low"
+    )
+    
+    return jsonify({"response": response})
