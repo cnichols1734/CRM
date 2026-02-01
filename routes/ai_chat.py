@@ -543,6 +543,13 @@ def save_chat_history():
         image_data = data.get('imageData')
         mentioned_contact_ids = data.get('mentionedContactIds')
         
+        # File attachment data
+        file_url = data.get('fileUrl')
+        file_name = data.get('fileName')
+        file_type = data.get('fileType')
+        file_size = data.get('fileSize')
+        file_storage_path = data.get('fileStoragePath')
+        
         # Session-based history (for context within current session)
         if 'chat_history' not in session:
             session['chat_history'] = []
@@ -574,13 +581,18 @@ def save_chat_history():
             ).first()
             
             if conversation:
-                # Save user message
+                # Save user message with optional attachments
                 user_msg = ChatMessage(
                     conversation_id=conversation_id,
                     role='user',
                     content=user_message,
                     image_data=image_data,
-                    mentioned_contact_ids=mentioned_contact_ids
+                    mentioned_contact_ids=mentioned_contact_ids,
+                    file_url=file_url,
+                    file_name=file_name,
+                    file_type=file_type,
+                    file_size=file_size,
+                    file_storage_path=file_storage_path
                 )
                 db.session.add(user_msg)
                 
@@ -738,7 +750,7 @@ def get_conversation(conversation_id):
 @login_required
 @feature_required('AI_CHAT')
 def delete_conversation(conversation_id):
-    """Delete a conversation and all its messages"""
+    """Delete a conversation and all its messages, including stored files"""
     try:
         conversation = ChatConversation.query.filter_by(
             id=conversation_id,
@@ -747,6 +759,26 @@ def delete_conversation(conversation_id):
         
         if not conversation:
             return jsonify({"error": "Conversation not found"}), 404
+        
+        # Clean up files from storage before deleting conversation
+        try:
+            from services.supabase_storage import delete_file, CHAT_ATTACHMENTS_BUCKET
+            
+            # Get all messages with file attachments
+            messages_with_files = ChatMessage.query.filter_by(
+                conversation_id=conversation_id
+            ).filter(ChatMessage.file_storage_path.isnot(None)).all()
+            
+            for msg in messages_with_files:
+                if msg.file_storage_path:
+                    try:
+                        delete_file(CHAT_ATTACHMENTS_BUCKET, msg.file_storage_path)
+                    except Exception as file_error:
+                        print(f"Error deleting file {msg.file_storage_path}: {file_error}")
+                        # Continue even if file deletion fails
+        except Exception as cleanup_error:
+            print(f"Error during file cleanup: {cleanup_error}")
+            # Continue with conversation deletion even if cleanup fails
         
         db.session.delete(conversation)
         db.session.commit()
@@ -765,6 +797,96 @@ def clear_chat():
     if 'chat_history' in session:
         session.pop('chat_history')
     return jsonify({"status": "success"})
+
+
+# Allowed file types for chat attachments
+ALLOWED_CHAT_FILE_TYPES = {
+    'text/csv': '.csv',
+    'application/pdf': '.pdf',
+    'text/plain': '.txt',
+    'application/msword': '.doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+    'application/vnd.ms-excel': '.xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp'
+}
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+
+@ai_chat.route('/api/ai-chat/upload', methods=['POST'])
+@login_required
+@feature_required('AI_CHAT')
+def upload_attachment():
+    """Upload a file attachment for chat"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        
+        if not file.filename:
+            return jsonify({"error": "No file selected"}), 400
+        
+        # Check file type
+        content_type = file.content_type or 'application/octet-stream'
+        if content_type not in ALLOWED_CHAT_FILE_TYPES:
+            return jsonify({
+                "error": f"File type not allowed. Supported types: CSV, PDF, TXT, DOC, DOCX, XLS, XLSX, and images."
+            }), 400
+        
+        # Read file data to check size
+        file_data = file.read()
+        file_size = len(file_data)
+        
+        if file_size > MAX_FILE_SIZE:
+            return jsonify({
+                "error": f"File too large. Maximum size is 10MB."
+            }), 400
+        
+        # Upload to Supabase Storage
+        from services.supabase_storage import (
+            get_supabase_client, 
+            upload_file, 
+            get_signed_url,
+            CHAT_ATTACHMENTS_BUCKET
+        )
+        import uuid
+        
+        # Generate unique storage path
+        ext = ALLOWED_CHAT_FILE_TYPES.get(content_type, '')
+        unique_filename = f"{uuid.uuid4().hex}{ext}"
+        storage_path = f"user_{current_user.id}/{unique_filename}"
+        
+        # Upload file
+        result = upload_file(
+            bucket=CHAT_ATTACHMENTS_BUCKET,
+            storage_path=storage_path,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type=content_type
+        )
+        
+        if 'error' in result:
+            return jsonify({"error": f"Upload failed: {result['error']}"}), 500
+        
+        # Get signed URL for access
+        signed_url = get_signed_url(CHAT_ATTACHMENTS_BUCKET, storage_path, expires_in=86400 * 7)  # 7 days
+        
+        return jsonify({
+            "url": signed_url,
+            "filename": file.filename,
+            "type": content_type,
+            "size": file_size,
+            "storage_path": storage_path
+        })
+        
+    except Exception as e:
+        print(f"Error uploading chat attachment: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 @ai_chat.route('/api/ai-chat/search-contacts', methods=['GET'])

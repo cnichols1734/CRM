@@ -19,6 +19,7 @@ CONTACT_FILES_BUCKET = 'contact-files'
 COMPANY_UPDATES_BUCKET = 'company-updates'
 TRANSACTION_DOCUMENTS_BUCKET = 'transaction-documents'
 VOICE_MEMOS_BUCKET = 'voice-memos'
+CHAT_ATTACHMENTS_BUCKET = 'chat-attachments'
 
 
 def get_supabase_client() -> Client:

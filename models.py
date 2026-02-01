@@ -1297,18 +1297,38 @@ class ChatMessage(db.Model):
     mentioned_contact_ids = db.Column(db.JSON, nullable=True)  # Array of contact IDs
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
+    # File attachment fields (for non-image files stored in Supabase Storage)
+    file_url = db.Column(db.String(500), nullable=True)  # Supabase signed URL
+    file_name = db.Column(db.String(255), nullable=True)  # Original filename
+    file_type = db.Column(db.String(100), nullable=True)  # MIME type
+    file_size = db.Column(db.Integer, nullable=True)  # Size in bytes
+    file_storage_path = db.Column(db.String(500), nullable=True)  # Storage path for cleanup
+    
     def __repr__(self):
         return f'<ChatMessage {self.id}: {self.role}>'
     
     def to_dict(self):
         """Convert to dictionary for JSON serialization."""
+        # Generate fresh signed URL if we have a storage path
+        file_url = self.file_url
+        if self.file_storage_path and not file_url:
+            try:
+                from services.supabase_storage import get_signed_url, CHAT_ATTACHMENTS_BUCKET
+                file_url = get_signed_url(CHAT_ATTACHMENTS_BUCKET, self.file_storage_path, expires_in=86400)
+            except Exception:
+                pass
+        
         return {
             'id': self.id,
             'role': self.role,
             'content': self.content,
             'image_data': self.image_data,
             'mentioned_contact_ids': self.mentioned_contact_ids,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'file_url': file_url,
+            'file_name': self.file_name,
+            'file_type': self.file_type,
+            'file_size': self.file_size
         }
 
 

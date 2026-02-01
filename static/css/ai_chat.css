@@ -651,6 +651,75 @@
     display: block;
 }
 
+/* File Preview (for non-image attachments before sending) */
+.bob-file-preview {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--bob-border);
+    border-radius: 10px;
+    position: relative;
+    width: fit-content;
+    max-width: 300px;
+}
+
+.bob-file-preview.visible {
+    display: flex;
+}
+
+.bob-file-preview i:first-child {
+    font-size: 24px;
+    color: var(--bob-orange);
+    flex-shrink: 0;
+}
+
+.bob-file-preview-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bob-file-preview-info span:first-child {
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--bob-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bob-file-preview-info span:last-child {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.bob-file-preview-remove {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease;
+}
+
+.bob-file-preview-remove:hover {
+    transform: scale(1.1);
+}
+
 .bob-image-preview img {
     max-height: 100px;
     border-radius: 10px;
@@ -1361,4 +1430,187 @@ body.bob-fullscreen-open {
         width: calc(100vw - 40px);
         max-width: 320px;
     }
+}
+
+/* ===== Message Attachments ===== */
+.bob-message-attachment {
+    margin-bottom: 8px;
+}
+
+.bob-message-image {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    display: block;
+}
+
+.bob-message-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.bob-message-text {
+    word-wrap: break-word;
+}
+
+/* User message with attachment - adjust styling */
+.bob-message.user .bob-message-attachment {
+    text-align: right;
+}
+
+.bob-message.user .bob-message-image {
+    margin-left: auto;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* ===== File Card ===== */
+.bob-file-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    max-width: 280px;
+}
+
+.bob-message.user .bob-file-card {
+    margin-left: auto;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.bob-message.assistant .bob-file-card {
+    background: #f1f5f9;
+    border: 1px solid var(--bob-border);
+}
+
+.bob-file-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.bob-message.user .bob-file-icon {
+    color: white;
+}
+
+.bob-message.assistant .bob-file-icon {
+    color: var(--bob-orange);
+}
+
+.bob-file-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.bob-file-name {
+    font-weight: 500;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bob-file-size {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.bob-file-download {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: background 0.15s ease;
+    flex-shrink: 0;
+}
+
+.bob-message.user .bob-file-download {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.bob-message.user .bob-file-download:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.bob-message.assistant .bob-file-download {
+    color: var(--bob-orange);
+    background: transparent;
+}
+
+.bob-message.assistant .bob-file-download:hover {
+    background: rgba(249, 115, 22, 0.1);
+}
+
+/* ===== Image Modal ===== */
+.bob-image-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 10001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.bob-image-modal.visible {
+    display: flex;
+}
+
+.bob-image-modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+.bob-image-modal-content {
+    position: relative;
+    z-index: 1;
+    max-width: 90vw;
+    max-height: 90vh;
+}
+
+.bob-image-modal-content img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.bob-image-modal-close {
+    position: absolute;
+    top: -40px;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.bob-image-modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
