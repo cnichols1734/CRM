@@ -126,6 +126,7 @@
     padding: 16px 32px;
     border-bottom: 1px solid var(--bob-border);
     background: #ffffff;
+    flex-shrink: 0;
 }
 
 .bob-panel.modal .bob-content {
@@ -187,6 +188,7 @@
     background: #ffffff;
     border-top: 1px solid var(--bob-border);
     width: 100%;
+    flex-shrink: 0;
 }
 
 .bob-panel.modal .bob-quick-label {
@@ -218,6 +220,7 @@
     padding: 20px 24px 32px;
     background: #ffffff;
     width: 100%;
+    flex-shrink: 0;
 }
 
 .bob-panel.modal .bob-image-preview,
@@ -486,7 +489,29 @@
 }
 
 .bob-message.assistant li {
-    margin: 0.25em 0;
+    margin: 0.15em 0;
+    line-height: 1.5;
+}
+
+.bob-message.assistant li > ul,
+.bob-message.assistant li > ol {
+    margin: 0.2em 0;
+}
+
+.bob-message.assistant li > p {
+    margin: 0;
+}
+
+.bob-message.assistant blockquote {
+    border-left: 3px solid var(--bob-orange);
+    margin: 0.75em 0;
+    padding: 0.5em 1em;
+    background: #f8fafc;
+    border-radius: 0 8px 8px 0;
+}
+
+.bob-message.assistant blockquote p {
+    margin: 0;
 }
 
 .bob-message.assistant code {
@@ -949,4 +974,391 @@
 /* ===== Body lock when fullscreen ===== */
 body.bob-fullscreen-open {
     overflow: hidden !important;
+}
+
+/* ===== Main Area (wrapper for header + content) ===== */
+.bob-main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    height: 100%;
+}
+
+/* ===== History Sidebar (modal view only) ===== */
+.bob-history-sidebar {
+    width: 260px;
+    background: #f8fafc;
+    border-right: 1px solid var(--bob-border);
+    display: none;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+/* Show sidebar in modal mode */
+.bob-panel.modal .bob-history-sidebar {
+    display: flex;
+    height: 100vh;
+    max-height: 100vh;
+}
+
+.bob-panel.modal {
+    flex-direction: row;
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+}
+
+.bob-history-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--bob-border);
+}
+
+.bob-new-chat-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bob-gradient);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(249, 115, 22, 0.25);
+}
+
+.bob-new-chat-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35);
+}
+
+.bob-new-chat-btn i {
+    font-size: 12px;
+}
+
+.bob-history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 0;
+}
+
+.bob-history-group {
+    margin-bottom: 12px;
+}
+
+.bob-history-group-label {
+    padding: 8px 16px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--bob-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bob-history-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    position: relative;
+    gap: 8px;
+}
+
+.bob-history-item:hover {
+    background: rgba(249, 115, 22, 0.06);
+}
+
+.bob-history-item.active {
+    background: rgba(249, 115, 22, 0.1);
+    border-left: 3px solid var(--bob-orange);
+    padding-left: 13px;
+}
+
+.bob-history-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.bob-history-item-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--bob-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bob-history-item-date {
+    font-size: 11px;
+    color: var(--bob-muted);
+    margin-top: 2px;
+}
+
+.bob-history-delete {
+    opacity: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--bob-muted);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.bob-history-item:hover .bob-history-delete {
+    opacity: 1;
+}
+
+.bob-history-delete:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.bob-history-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--bob-muted);
+}
+
+.bob-history-empty i {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.bob-history-empty p {
+    margin: 0;
+    font-size: 14px;
+}
+
+.bob-history-empty-hint {
+    font-size: 12px !important;
+    margin-top: 4px !important;
+    opacity: 0.7;
+}
+
+/* ===== History Dropdown (side panel view) ===== */
+.bob-history-dropdown-container {
+    position: relative;
+}
+
+.bob-history-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: white;
+    border: 1px solid var(--bob-border);
+    border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    display: none;
+    z-index: 200;
+    overflow: hidden;
+}
+
+.bob-history-dropdown.visible {
+    display: block;
+    animation: bobDropdownIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bob-history-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--bob-border);
+    background: #f8fafc;
+}
+
+.bob-history-dropdown-header span {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--bob-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.bob-new-chat-btn-small {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: var(--bob-gradient);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.bob-new-chat-btn-small:hover {
+    transform: scale(1.02);
+}
+
+.bob-new-chat-btn-small i {
+    font-size: 10px;
+}
+
+.bob-history-dropdown-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.bob-history-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid #f1f5f9;
+    gap: 8px;
+}
+
+.bob-history-dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.bob-history-dropdown-item:hover {
+    background: rgba(249, 115, 22, 0.06);
+}
+
+.bob-history-dropdown-item.active {
+    background: rgba(249, 115, 22, 0.1);
+}
+
+.bob-history-dropdown-item-content {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.bob-history-dropdown-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--bob-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.bob-history-dropdown-date {
+    font-size: 11px;
+    color: var(--bob-muted);
+    margin-top: 2px;
+}
+
+.bob-history-dropdown-delete {
+    opacity: 0;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--bob-muted);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+    font-size: 12px;
+}
+
+.bob-history-dropdown-item:hover .bob-history-dropdown-delete {
+    opacity: 1;
+}
+
+.bob-history-dropdown-delete:hover {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.bob-history-empty-small {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--bob-muted);
+    font-size: 13px;
+}
+
+/* Hide history dropdown button in modal mode (sidebar shown instead) */
+.bob-panel.modal #bob-history-dropdown-container {
+    display: none;
+}
+
+/* ===== Scrollbar for history ===== */
+.bob-history-list::-webkit-scrollbar,
+.bob-history-dropdown-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.bob-history-list::-webkit-scrollbar-track,
+.bob-history-dropdown-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.bob-history-list::-webkit-scrollbar-thumb,
+.bob-history-dropdown-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.bob-history-list::-webkit-scrollbar-thumb:hover,
+.bob-history-dropdown-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* ===== Adjust modal content for sidebar ===== */
+.bob-panel.modal .bob-main-area {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.bob-panel.modal .bob-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.bob-panel.modal .bob-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* ===== Mobile: hide sidebar, show dropdown ===== */
+@media (max-width: 768px) {
+    .bob-panel.modal .bob-history-sidebar {
+        display: none;
+    }
+    
+    .bob-panel.modal #bob-history-dropdown-container {
+        display: block;
+    }
+    
+    .bob-history-dropdown {
+        width: calc(100vw - 40px);
+        max-width: 320px;
+    }
 }
