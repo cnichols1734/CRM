@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request, url_for, session, Response, stream_with_context
 from flask_login import login_required, current_user
 from config import Config
-from models import Contact, Task, TaskType, TaskSubtype, Transaction
+from models import db, Contact, Task, TaskType, TaskSubtype, Transaction, ChatConversation, ChatMessage
 from feature_flags import feature_required
 from services.ai_service import generate_chat_response, generate_ai_response
 from sqlalchemy import or_, func
@@ -59,20 +59,38 @@ When giving advice:
 - Be supportive while staying professional
 - Suggest CRM features only when they naturally fit the conversation
 
-Format your responses using markdown-style formatting:
-- Use `code` for specific values or technical terms
-- Use **bold** for emphasis
-- For lists:
-  - Use hyphens (-) for unordered lists
-  - Use numbers (1.) for ordered lists
-  - Indent sublists with exactly 2 spaces
-  - Maximum of 2 nesting levels
-  - Keep list items concise (1-2 sentences max)
-  - Do NOT add blank lines between list items
-  - Do NOT add blank lines between a main bullet and its sub-bullet
-- Keep paragraphs concise and readable
-- NEVER add multiple consecutive blank lines
-- Use a single blank line only between major sections
+FORMATTING RULES (follow exactly):
+
+Use standard Markdown formatting:
+
+**Text Formatting:**
+- Use **bold** for emphasis on key terms, names, or important points
+- Use `backticks` for specific values, addresses, prices, or technical terms
+- Use *italics* sparingly for subtle emphasis
+
+**Lists (IMPORTANT - follow exactly):**
+- Start each bullet with a hyphen and space: "- Item"
+- NO blank lines between list items
+- For nested lists, indent with 2 spaces before the hyphen
+- Keep list items to 1-2 lines maximum
+- Example:
+  - Main point
+    - Sub-point (indented 2 spaces)
+
+**Numbered Lists:**
+- Start each item with number, period, space: "1. Item"
+- NO blank lines between numbered items
+
+**Structure:**
+- Use **Bold headers** instead of # markdown headers for section titles
+- Keep paragraphs short (2-4 sentences max)
+- Use a single blank line between sections
+- NEVER use multiple consecutive blank lines
+
+**When drafting emails or messages:**
+- Put the subject line on its own line with "**Subject:**" prefix
+- Separate the email body with a horizontal rule (---)
+- Format the signature cleanly at the end
 
 Email/Message Format:
 - Get to the point quickly
@@ -516,16 +534,20 @@ def chat_stream():
 @ai_chat.route('/api/ai-chat/history', methods=['POST'])
 @login_required
 def save_chat_history():
-    """Save a message exchange to chat history (called after streaming completes)"""
+    """Save a message exchange to chat history (session + database)"""
     try:
         data = request.json
         user_message = data.get('userMessage')
         assistant_response = data.get('assistantResponse')
+        conversation_id = data.get('conversationId')
+        image_data = data.get('imageData')
+        mentioned_contact_ids = data.get('mentionedContactIds')
         
+        # Session-based history (for context within current session)
         if 'chat_history' not in session:
             session['chat_history'] = []
         
-        # Add the exchange to history
+        # Add the exchange to session history
         session['chat_history'].append({
             "role": "user",
             "content": user_message
@@ -535,21 +557,211 @@ def save_chat_history():
             "content": assistant_response
         })
         
-        # Keep only the last 10 exchanges (20 messages)
+        # Keep only the last 10 exchanges (20 messages) in session
         if len(session['chat_history']) > 20:
             session['chat_history'] = session['chat_history'][-20:]
         
         session.modified = True
         
+        # Database persistence
+        response_data = {"status": "success"}
+        
+        if conversation_id:
+            # Verify conversation belongs to user
+            conversation = ChatConversation.query.filter_by(
+                id=conversation_id,
+                user_id=current_user.id
+            ).first()
+            
+            if conversation:
+                # Save user message
+                user_msg = ChatMessage(
+                    conversation_id=conversation_id,
+                    role='user',
+                    content=user_message,
+                    image_data=image_data,
+                    mentioned_contact_ids=mentioned_contact_ids
+                )
+                db.session.add(user_msg)
+                
+                # Save assistant message
+                assistant_msg = ChatMessage(
+                    conversation_id=conversation_id,
+                    role='assistant',
+                    content=assistant_response
+                )
+                db.session.add(assistant_msg)
+                
+                # Update conversation timestamp
+                conversation.updated_at = datetime.utcnow()
+                
+                # Generate title if this is the first exchange
+                if not conversation.title:
+                    try:
+                        title = _generate_chat_title(user_message)
+                        conversation.title = title
+                        response_data['title'] = title
+                    except Exception as e:
+                        print(f"Error generating title: {e}")
+                        # Set a fallback title
+                        conversation.title = user_message[:50] + ("..." if len(user_message) > 50 else "")
+                        response_data['title'] = conversation.title
+                
+                db.session.commit()
+                response_data['conversationId'] = conversation_id
+        
+        return jsonify(response_data)
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error saving chat history: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+def _generate_chat_title(first_message):
+    """Generate a short title for the conversation using AI"""
+    try:
+        client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
+        
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate a very short title (3-6 words) for this chat conversation. No quotes, no punctuation at the end. Just the title text."
+                },
+                {
+                    "role": "user",
+                    "content": f"First message: {first_message[:500]}"
+                }
+            ],
+            max_tokens=20,
+            temperature=0.7
+        )
+        
+        title = response.choices[0].message.content.strip()
+        # Clean up the title
+        title = title.strip('"\'')
+        # Limit length
+        if len(title) > 100:
+            title = title[:97] + "..."
+        return title
+    except Exception as e:
+        print(f"Title generation error: {e}")
+        # Fallback: use first few words of message
+        words = first_message.split()[:5]
+        return " ".join(words) + ("..." if len(first_message.split()) > 5 else "")
+
+
+@ai_chat.route('/api/ai-chat/conversations', methods=['GET'])
+@login_required
+@feature_required('AI_CHAT')
+def list_conversations():
+    """List all conversations for the current user"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Get conversations for current user, ordered by most recent
+        conversations = ChatConversation.query.filter_by(
+            user_id=current_user.id
+        ).order_by(ChatConversation.updated_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+        
+        return jsonify({
+            "conversations": [c.to_dict() for c in conversations.items],
+            "total": conversations.total,
+            "page": page,
+            "per_page": per_page,
+            "has_next": conversations.has_next,
+            "has_prev": conversations.has_prev
+        })
+    except Exception as e:
+        print(f"Error listing conversations: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_chat.route('/api/ai-chat/conversations', methods=['POST'])
+@login_required
+@feature_required('AI_CHAT')
+def create_conversation():
+    """Create a new chat conversation"""
+    try:
+        conversation = ChatConversation(
+            user_id=current_user.id,
+            organization_id=current_user.organization_id
+        )
+        db.session.add(conversation)
+        db.session.commit()
+        
+        # Clear session history for new conversation
+        session['chat_history'] = []
+        session.modified = True
+        
+        return jsonify(conversation.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating conversation: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_chat.route('/api/ai-chat/conversations/<int:conversation_id>', methods=['GET'])
+@login_required
+@feature_required('AI_CHAT')
+def get_conversation(conversation_id):
+    """Get a single conversation with all its messages"""
+    try:
+        conversation = ChatConversation.query.filter_by(
+            id=conversation_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not conversation:
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        # Also load messages into session for context
+        session['chat_history'] = []
+        for msg in conversation.messages.all():
+            session['chat_history'].append({
+                "role": msg.role,
+                "content": msg.content
+            })
+        session.modified = True
+        
+        return jsonify(conversation.to_dict(include_messages=True))
+    except Exception as e:
+        print(f"Error getting conversation: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@ai_chat.route('/api/ai-chat/conversations/<int:conversation_id>', methods=['DELETE'])
+@login_required
+@feature_required('AI_CHAT')
+def delete_conversation(conversation_id):
+    """Delete a conversation and all its messages"""
+    try:
+        conversation = ChatConversation.query.filter_by(
+            id=conversation_id,
+            user_id=current_user.id
+        ).first()
+        
+        if not conversation:
+            return jsonify({"error": "Conversation not found"}), 404
+        
+        db.session.delete(conversation)
+        db.session.commit()
+        
         return jsonify({"status": "success"})
     except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting conversation: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 @ai_chat.route('/api/ai-chat/clear', methods=['POST'])
 @login_required
 def clear_chat():
-    """Clear the chat history from the session"""
+    """Clear the chat history from the session (does not delete database records)"""
     if 'chat_history' in session:
         session.pop('chat_history')
     return jsonify({"status": "success"})

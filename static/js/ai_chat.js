@@ -13,6 +13,11 @@ class BOBChatPanel {
         this.mentionSearchTimeout = null;
         this.selectedMentionIndex = 0;
         
+        // Conversation state
+        this.currentConversationId = null;
+        this.conversations = [];
+        this.conversationsLoaded = false;
+        
         this.init();
     }
     
@@ -47,24 +52,56 @@ class BOBChatPanel {
         panel.className = 'bob-panel';
         panel.id = 'bob-panel';
         panel.innerHTML = `
-            <!-- Header -->
-            <div class="bob-header">
-                <div class="bob-header-brand">
-                    <div class="bob-header-icon">${sparkleIconSVG}</div>
-                    <div class="bob-header-title-group">
-                        <span class="bob-header-title">B.O.B.</span>
-                        <span class="bob-header-subtitle">AI Assistant</span>
-                    </div>
+            <!-- History Sidebar (for modal view) -->
+            <div class="bob-history-sidebar" id="bob-history-sidebar">
+                <div class="bob-history-header">
+                    <button class="bob-new-chat-btn" id="bob-new-chat-btn">
+                        <i class="fas fa-plus"></i>
+                        <span>New Chat</span>
+                    </button>
                 </div>
-                <div class="bob-header-actions">
-                    <button class="bob-header-btn" id="bob-expand-btn" title="Expand to full screen">
-                        <i class="fas fa-expand-alt"></i>
-                    </button>
-                    <button class="bob-header-btn close" id="bob-close-btn" title="Close">
-                        <i class="fas fa-times"></i>
-                    </button>
+                <div class="bob-history-list" id="bob-history-list">
+                    <!-- Conversation items will be inserted here -->
                 </div>
             </div>
+            
+            <!-- Main Chat Area -->
+            <div class="bob-main-area">
+                <!-- Header -->
+                <div class="bob-header">
+                    <div class="bob-header-brand">
+                        <div class="bob-header-icon">${sparkleIconSVG}</div>
+                        <div class="bob-header-title-group">
+                            <span class="bob-header-title">B.O.B.</span>
+                            <span class="bob-header-subtitle">AI Assistant</span>
+                        </div>
+                    </div>
+                    <div class="bob-header-actions">
+                        <!-- History dropdown for side panel -->
+                        <div class="bob-history-dropdown-container" id="bob-history-dropdown-container">
+                            <button class="bob-header-btn" id="bob-history-btn" title="Chat History">
+                                <i class="fas fa-history"></i>
+                            </button>
+                            <div class="bob-history-dropdown" id="bob-history-dropdown">
+                                <div class="bob-history-dropdown-header">
+                                    <span>Recent Chats</span>
+                                    <button class="bob-new-chat-btn-small" id="bob-new-chat-btn-dropdown">
+                                        <i class="fas fa-plus"></i> New
+                                    </button>
+                                </div>
+                                <div class="bob-history-dropdown-list" id="bob-history-dropdown-list">
+                                    <!-- Recent conversations -->
+                                </div>
+                            </div>
+                        </div>
+                        <button class="bob-header-btn" id="bob-expand-btn" title="Expand to full screen">
+                            <i class="fas fa-expand-alt"></i>
+                        </button>
+                        <button class="bob-header-btn close" id="bob-close-btn" title="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
             
             <!-- Content Area -->
             <div class="bob-content">
@@ -134,6 +171,7 @@ class BOBChatPanel {
                 <input type="file" class="bob-file-input" id="bob-file-input" 
                     accept="image/jpeg,image/png,image/gif,image/webp">
             </div>
+            </div><!-- end bob-main-area -->
         `;
         document.body.appendChild(panel);
     }
@@ -207,6 +245,32 @@ class BOBChatPanel {
             });
         });
         
+        // New Chat buttons
+        document.getElementById('bob-new-chat-btn').addEventListener('click', () => {
+            this.startNewChat();
+        });
+        document.getElementById('bob-new-chat-btn-dropdown').addEventListener('click', () => {
+            this.startNewChat();
+            this.hideHistoryDropdown();
+        });
+        
+        // History dropdown toggle
+        document.getElementById('bob-history-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.toggleHistoryDropdown();
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('bob-history-dropdown');
+            const btn = document.getElementById('bob-history-btn');
+            if (dropdown.classList.contains('visible') && 
+                !dropdown.contains(e.target) && 
+                e.target !== btn) {
+                this.hideHistoryDropdown();
+            }
+        });
+        
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             // Escape to close
@@ -238,6 +302,10 @@ class BOBChatPanel {
         
         this.updateExpandButton();
         
+        // Load conversations for dropdown
+        if (!this.conversationsLoaded) {
+            this.loadConversations();
+        }
     }
     
     openModal() {
@@ -249,6 +317,11 @@ class BOBChatPanel {
         panel.classList.add('open');
         
         this.updateExpandButton();
+        
+        // Load conversations for sidebar
+        if (!this.conversationsLoaded) {
+            this.loadConversations();
+        }
     }
     
     updateExpandButton() {
@@ -304,10 +377,10 @@ class BOBChatPanel {
             this.updateExpandButton();
         }, 300);
         
-        // Clear history on close
+        // Clear local state (but keep database history)
         this.clearMessages();
         
-        // Clear server-side history
+        // Clear server-side session history (not database)
         try {
             await fetch('/api/ai-chat/clear', {
                 method: 'POST',
@@ -320,11 +393,16 @@ class BOBChatPanel {
     
     clearMessages() {
         this.messages = [];
+        this.currentConversationId = null;
         document.getElementById('bob-messages').innerHTML = '';
         document.getElementById('bob-messages').classList.remove('active');
         document.getElementById('bob-welcome').classList.remove('hidden');
         this.removeAttachment();
         this.mentionedContacts = [];
+        
+        // Update active state in sidebar/dropdown
+        this.renderHistorySidebar();
+        this.renderHistoryDropdown();
     }
     
     autoResizeTextarea() {
@@ -522,7 +600,7 @@ class BOBChatPanel {
     }
     
     // ===== Message Handling =====
-    addMessage(role, content) {
+    addMessage(role, content, saveToArray = true) {
         const messagesDiv = document.getElementById('bob-messages');
         const messageEl = document.createElement('div');
         messageEl.className = `bob-message ${role}`;
@@ -536,7 +614,9 @@ class BOBChatPanel {
         messagesDiv.appendChild(messageEl);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
         
-        this.messages.push({ role, content });
+        if (saveToArray) {
+            this.messages.push({ role, content });
+        }
     }
     
     showTyping() {
@@ -571,6 +651,23 @@ class BOBChatPanel {
         // Show messages area
         document.getElementById('bob-welcome').classList.add('hidden');
         document.getElementById('bob-messages').classList.add('active');
+        
+        // Create conversation if none exists
+        if (!this.currentConversationId) {
+            try {
+                const convResponse = await fetch('/api/ai-chat/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (convResponse.ok) {
+                    const conv = await convResponse.json();
+                    this.currentConversationId = conv.id;
+                    this.conversations.unshift(conv);
+                }
+            } catch (error) {
+                console.error('Error creating conversation:', error);
+            }
+        }
         
         // Add user message
         this.addMessage('user', message || '[Image attached]');
@@ -646,16 +743,33 @@ class BOBChatPanel {
             aiMessageEl.innerHTML = this.formatMessage(fullResponse);
             aiMessageEl.classList.remove('streaming');
             
-            // Save to history
+            // Save to history (both session and database)
             if (fullResponse) {
-                await fetch('/api/ai-chat/history', {
+                const historyResponse = await fetch('/api/ai-chat/history', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userMessage: message,
-                        assistantResponse: fullResponse
+                        assistantResponse: fullResponse,
+                        conversationId: this.currentConversationId,
+                        imageData: imageData,
+                        mentionedContactIds: this.mentionedContacts.map(c => c.id)
                     })
                 });
+                
+                // Check if title was generated
+                if (historyResponse.ok) {
+                    const historyData = await historyResponse.json();
+                    if (historyData.title) {
+                        // Update local conversation with new title
+                        const conv = this.conversations.find(c => c.id === this.currentConversationId);
+                        if (conv) {
+                            conv.title = historyData.title;
+                            this.renderHistorySidebar();
+                            this.renderHistoryDropdown();
+                        }
+                    }
+                }
             }
             
         } catch (error) {
@@ -670,93 +784,348 @@ class BOBChatPanel {
         }
     }
     
-    formatMessage(text) {
-        if (!text) return '';
-        
-        let formatted = text
-            .replace(/\r\n/g, '\n')
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
-        
-        // Headers
-        formatted = formatted
-            .replace(/### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/# (.*$)/gm, '<h1>$1</h1>');
-        
-        // Code blocks
-        formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-        formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-        
-        // Bold and Italic
-        formatted = formatted
-            .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-        
-        // Links
-        formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-        
-        // Horizontal rule
-        formatted = formatted.replace(/^---$/gm, '<hr>');
-        
-        // Lists
-        const lines = formatted.split('\n');
-        let result = [];
-        let inList = false;
-        let listType = null;
-        
-        for (const line of lines) {
-            const ulMatch = line.match(/^(\s*)[-*]\s+(.+)$/);
-            const olMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
+    // ===== Conversation History Management =====
+    
+    async loadConversations() {
+        try {
+            const response = await fetch('/api/ai-chat/conversations');
+            if (!response.ok) throw new Error('Failed to load conversations');
             
-            if (ulMatch) {
-                if (!inList || listType !== 'ul') {
-                    if (inList) result.push(`</${listType}>`);
-                    result.push('<ul>');
-                    inList = true;
-                    listType = 'ul';
-                }
-                result.push(`<li>${ulMatch[2]}</li>`);
-            } else if (olMatch) {
-                if (!inList || listType !== 'ol') {
-                    if (inList) result.push(`</${listType}>`);
-                    result.push('<ol>');
-                    inList = true;
-                    listType = 'ol';
-                }
-                result.push(`<li>${olMatch[2]}</li>`);
+            const data = await response.json();
+            this.conversations = data.conversations || [];
+            this.conversationsLoaded = true;
+            
+            this.renderHistorySidebar();
+            this.renderHistoryDropdown();
+        } catch (error) {
+            console.error('Error loading conversations:', error);
+        }
+    }
+    
+    renderHistorySidebar() {
+        const list = document.getElementById('bob-history-list');
+        if (!list) return;
+        
+        if (this.conversations.length === 0) {
+            list.innerHTML = `
+                <div class="bob-history-empty">
+                    <i class="fas fa-comments"></i>
+                    <p>No conversations yet</p>
+                    <p class="bob-history-empty-hint">Start chatting to save your conversations</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Group conversations by date
+        const grouped = this.groupConversationsByDate(this.conversations);
+        
+        let html = '';
+        for (const [label, convos] of Object.entries(grouped)) {
+            if (convos.length === 0) continue;
+            
+            html += `<div class="bob-history-group">
+                <div class="bob-history-group-label">${label}</div>
+                ${convos.map(c => this.renderConversationItem(c)).join('')}
+            </div>`;
+        }
+        
+        list.innerHTML = html;
+        
+        // Bind click events
+        list.querySelectorAll('.bob-history-item').forEach(item => {
+            item.addEventListener('click', () => {
+                this.loadConversation(parseInt(item.dataset.id));
+            });
+        });
+        
+        // Bind delete events
+        list.querySelectorAll('.bob-history-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteConversation(parseInt(btn.dataset.id));
+            });
+        });
+    }
+    
+    renderHistoryDropdown() {
+        const list = document.getElementById('bob-history-dropdown-list');
+        if (!list) return;
+        
+        // Show only recent 10 conversations in dropdown
+        const recent = this.conversations.slice(0, 10);
+        
+        if (recent.length === 0) {
+            list.innerHTML = `
+                <div class="bob-history-empty-small">
+                    <span>No recent chats</span>
+                </div>
+            `;
+            return;
+        }
+        
+        list.innerHTML = recent.map(c => `
+            <div class="bob-history-dropdown-item ${this.currentConversationId === c.id ? 'active' : ''}" data-id="${c.id}">
+                <div class="bob-history-dropdown-item-content">
+                    <div class="bob-history-dropdown-title">${this.escapeHtml(c.title || 'Untitled Chat')}</div>
+                    <div class="bob-history-dropdown-date">${this.formatRelativeDate(c.updated_at)}</div>
+                </div>
+                <button class="bob-history-dropdown-delete" data-id="${c.id}" title="Delete">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        // Bind click events for loading conversation
+        list.querySelectorAll('.bob-history-dropdown-item-content').forEach(item => {
+            item.addEventListener('click', () => {
+                const id = item.parentElement.dataset.id;
+                this.loadConversation(parseInt(id));
+                this.hideHistoryDropdown();
+            });
+        });
+        
+        // Bind delete events
+        list.querySelectorAll('.bob-history-dropdown-delete').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteConversation(parseInt(btn.dataset.id));
+            });
+        });
+    }
+    
+    renderConversationItem(conversation) {
+        const isActive = this.currentConversationId === conversation.id;
+        return `
+            <div class="bob-history-item ${isActive ? 'active' : ''}" data-id="${conversation.id}">
+                <div class="bob-history-item-content">
+                    <div class="bob-history-item-title">${this.escapeHtml(conversation.title || 'Untitled Chat')}</div>
+                    <div class="bob-history-item-date">${this.formatRelativeDate(conversation.updated_at)}</div>
+                </div>
+                <button class="bob-history-delete" data-id="${conversation.id}" title="Delete conversation">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    groupConversationsByDate(conversations) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today.getTime() - 86400000);
+        const weekAgo = new Date(today.getTime() - 7 * 86400000);
+        const monthAgo = new Date(today.getTime() - 30 * 86400000);
+        
+        const groups = {
+            'Today': [],
+            'Yesterday': [],
+            'Previous 7 Days': [],
+            'Previous 30 Days': [],
+            'Older': []
+        };
+        
+        for (const c of conversations) {
+            const date = new Date(c.updated_at);
+            if (date >= today) {
+                groups['Today'].push(c);
+            } else if (date >= yesterday) {
+                groups['Yesterday'].push(c);
+            } else if (date >= weekAgo) {
+                groups['Previous 7 Days'].push(c);
+            } else if (date >= monthAgo) {
+                groups['Previous 30 Days'].push(c);
             } else {
-                if (inList) {
-                    result.push(`</${listType}>`);
-                    inList = false;
-                    listType = null;
-                }
-                result.push(line);
+                groups['Older'].push(c);
             }
         }
         
-        if (inList) result.push(`</${listType}>`);
+        return groups;
+    }
+    
+    formatRelativeDate(dateStr) {
+        if (!dateStr) return '';
         
-        formatted = result.join('\n');
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
         
-        // Paragraphs
-        formatted = formatted
-            .split('\n\n')
-            .map(p => {
-                p = p.trim();
-                if (!p) return '';
-                if (p.startsWith('<h') || p.startsWith('<pre') || 
-                    p.startsWith('<ul') || p.startsWith('<ol') || 
-                    p.startsWith('<hr') || p.startsWith('</')) {
-                    return p;
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays < 7) return `${diffDays}d ago`;
+        
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    toggleHistoryDropdown() {
+        const dropdown = document.getElementById('bob-history-dropdown');
+        if (dropdown.classList.contains('visible')) {
+            this.hideHistoryDropdown();
+        } else {
+            // Load conversations if not loaded
+            if (!this.conversationsLoaded) {
+                this.loadConversations();
+            }
+            dropdown.classList.add('visible');
+        }
+    }
+    
+    hideHistoryDropdown() {
+        document.getElementById('bob-history-dropdown').classList.remove('visible');
+    }
+    
+    async startNewChat() {
+        try {
+            // Create new conversation on server
+            const response = await fetch('/api/ai-chat/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) throw new Error('Failed to create conversation');
+            
+            const conversation = await response.json();
+            this.currentConversationId = conversation.id;
+            
+            // Clear UI
+            this.clearMessages();
+            
+            // Add to conversations list and re-render
+            this.conversations.unshift(conversation);
+            this.renderHistorySidebar();
+            this.renderHistoryDropdown();
+            
+            // Focus textarea
+            document.getElementById('bob-textarea').focus();
+            
+        } catch (error) {
+            console.error('Error creating new chat:', error);
+        }
+    }
+    
+    async loadConversation(conversationId) {
+        try {
+            const response = await fetch(`/api/ai-chat/conversations/${conversationId}`);
+            if (!response.ok) throw new Error('Failed to load conversation');
+            
+            const conversation = await response.json();
+            this.currentConversationId = conversationId;
+            
+            // Clear current messages
+            this.messages = [];
+            const messagesDiv = document.getElementById('bob-messages');
+            messagesDiv.innerHTML = '';
+            
+            // Show messages area
+            document.getElementById('bob-welcome').classList.add('hidden');
+            messagesDiv.classList.add('active');
+            
+            // Render messages
+            if (conversation.messages && conversation.messages.length > 0) {
+                for (const msg of conversation.messages) {
+                    this.addMessage(msg.role, msg.content, false);
                 }
-                return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-            })
-            .filter(p => p)
-            .join('');
+            }
+            
+            // Update sidebar/dropdown to show active state
+            this.renderHistorySidebar();
+            this.renderHistoryDropdown();
+            
+            // Focus textarea
+            document.getElementById('bob-textarea').focus();
+            
+        } catch (error) {
+            console.error('Error loading conversation:', error);
+        }
+    }
+    
+    async deleteConversation(conversationId) {
+        if (!confirm('Delete this conversation?')) return;
         
-        return formatted;
+        try {
+            const response = await fetch(`/api/ai-chat/conversations/${conversationId}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) throw new Error('Failed to delete conversation');
+            
+            // Remove from local list
+            this.conversations = this.conversations.filter(c => c.id !== conversationId);
+            
+            // If deleted current conversation, start fresh
+            if (this.currentConversationId === conversationId) {
+                this.currentConversationId = null;
+                this.clearMessages();
+            }
+            
+            // Re-render lists
+            this.renderHistorySidebar();
+            this.renderHistoryDropdown();
+            
+        } catch (error) {
+            console.error('Error deleting conversation:', error);
+        }
+    }
+    
+    formatMessage(text) {
+        if (!text) return '';
+        
+        // Use marked.js for consistent markdown parsing
+        if (typeof marked !== 'undefined') {
+            // Configure marked options
+            marked.setOptions({
+                breaks: false,      // Don't convert single newlines to <br>
+                gfm: true,          // GitHub Flavored Markdown
+                headerIds: false,   // Don't add IDs to headers
+                mangle: false,      // Don't mangle email addresses
+                pedantic: false,
+                smartLists: true,   // Better list handling
+                smartypants: false  // Don't convert quotes to smart quotes
+            });
+            
+            // Clean up the text before parsing
+            let cleaned = text
+                .replace(/\r\n/g, '\n')
+                .replace(/\n{3,}/g, '\n\n')  // Collapse multiple blank lines
+                .trim();
+            
+            // Parse markdown to HTML
+            let html = marked.parse(cleaned);
+            
+            // Sanitize with DOMPurify if available (XSS protection)
+            if (typeof DOMPurify !== 'undefined') {
+                html = DOMPurify.sanitize(html, {
+                    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 
+                                   'ul', 'ol', 'li', 'a', 'code', 'pre', 'blockquote', 'hr', 'table', 'thead', 
+                                   'tbody', 'tr', 'th', 'td'],
+                    ALLOWED_ATTR: ['href', 'target', 'rel']
+                });
+            }
+            
+            // Add target="_blank" to all links
+            html = html.replace(/<a href="/g, '<a target="_blank" rel="noopener noreferrer" href="');
+            
+            return html;
+        }
+        
+        // Fallback: basic formatting if marked.js not loaded
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
     }
 }
 

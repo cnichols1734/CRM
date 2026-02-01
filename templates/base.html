@@ -861,6 +861,10 @@
 
     <!-- Add AI Chat Widget script (Feature Gated) -->
     {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
+    <!-- Marked.js for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
+    <!-- DOMPurify for XSS protection -->
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
     {% endif %}
 

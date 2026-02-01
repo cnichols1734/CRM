@@ -1245,6 +1245,74 @@ class ContactVoiceMemo(db.Model):
 
 
 # =============================================================================
+# AI CHAT HISTORY MODELS
+# =============================================================================
+
+class ChatConversation(db.Model):
+    """
+    Represents a B.O.B. chat conversation for an agent.
+    Each conversation can have multiple messages.
+    """
+    __tablename__ = 'chat_conversations'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = db.Column(db.String(100), nullable=True)  # AI-generated, null until first exchange
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
+    
+    # Relationships
+    user = db.relationship('User', backref=db.backref('chat_conversations', lazy='dynamic', cascade='all, delete-orphan'))
+    organization = db.relationship('Organization', backref=db.backref('chat_conversations', lazy='dynamic'))
+    messages = db.relationship('ChatMessage', backref='conversation', lazy='dynamic', cascade='all, delete-orphan', order_by='ChatMessage.created_at')
+    
+    def __repr__(self):
+        return f'<ChatConversation {self.id}: {self.title or "Untitled"}>'
+    
+    def to_dict(self, include_messages=False):
+        """Convert to dictionary for JSON serialization."""
+        data = {
+            'id': self.id,
+            'title': self.title,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+        if include_messages:
+            data['messages'] = [msg.to_dict() for msg in self.messages.all()]
+        return data
+
+
+class ChatMessage(db.Model):
+    """
+    A single message in a B.O.B. chat conversation.
+    """
+    __tablename__ = 'chat_messages'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    conversation_id = db.Column(db.Integer, db.ForeignKey('chat_conversations.id', ondelete='CASCADE'), nullable=False, index=True)
+    role = db.Column(db.String(20), nullable=False)  # 'user' or 'assistant'
+    content = db.Column(db.Text, nullable=False)
+    image_data = db.Column(db.Text, nullable=True)  # Base64 for image attachments
+    mentioned_contact_ids = db.Column(db.JSON, nullable=True)  # Array of contact IDs
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    def __repr__(self):
+        return f'<ChatMessage {self.id}: {self.role}>'
+    
+    def to_dict(self):
+        """Convert to dictionary for JSON serialization."""
+        return {
+            'id': self.id,
+            'role': self.role,
+            'content': self.content,
+            'image_data': self.image_data,
+            'mentioned_contact_ids': self.mentioned_contact_ids,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+# =============================================================================
 # GMAIL INTEGRATION MODELS
 # =============================================================================
 
