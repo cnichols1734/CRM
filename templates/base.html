@@ -169,6 +169,13 @@
         </div>
         <div class="flex items-center space-x-4 pr-4 relative">
             {% if current_user.is_authenticated %}
+            {% if org_has_feature('AI_CHAT') %}
+            <button id="bob-toggle-desktop" class="text-white hover:text-orange-300 flex items-center gap-2 text-sm font-medium transition-colors">
+                <i class="fas fa-wand-magic-sparkles"></i>
+                <span>Assistant</span>
+            </button>
+            <span class="text-gray-500 mx-3">|</span>
+            {% endif %}
             <a href="{{ url_for('auth.logout') }}" class="text-white hover:text-gray-200 flex items-center gap-2 text-sm font-medium">
                 <i class="fas fa-sign-out-alt"></i>
                 <span>Logout</span>
@@ -196,6 +203,11 @@
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}
+            {% if org_has_feature('AI_CHAT') %}
+            <button id="bob-toggle-mobile" class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm hover:bg-orange-500 transition-colors">
+                <i class="fas fa-wand-magic-sparkles"></i>
+            </button>
+            {% endif %}
             <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
                 class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
