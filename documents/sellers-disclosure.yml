@@ -1,0 +1,99 @@
+# =============================================================================
+# SELLER'S DISCLOSURE NOTICE
+# =============================================================================
+# Texas Seller's Disclosure Notice - required disclosure document for
+# residential property sales.
+#
+# This is a PDF-preview document - no custom form UI.
+# - Property address fields are auto-populated from the transaction
+# - Seller(s) fill out the disclosure questions during e-signature
+#
+# Template ID: 2661669
+# =============================================================================
+
+schema_version: "1.0"
+slug: sellers-disclosure
+name: "Seller's Disclosure Notice"
+docuseal_template_id: 2661669
+type: pdf-preview
+
+display:
+  color: "#10B981"  # Emerald
+  icon: "fas fa-clipboard-list"
+  sort_order: 8
+
+# =============================================================================
+# ROLES
+# =============================================================================
+# DocuSeal roles: Broker, Seller, Seller 2
+#
+# - Broker: Auto-complete (property address pre-filled)
+# - Seller: Fills out disclosure questions and signs
+# - Seller 2: Optional second seller (fills and signs if present)
+# =============================================================================
+
+roles:
+  # Broker role: Pre-filled with property address, auto-completed
+  - role_key: broker
+    docuseal_role: Broker
+    email_source: user.email
+    name_source: user.full_name
+    auto_complete: true  # All fields are readonly/pre-filled
+
+  # Seller: Fills out disclosure and signs
+  - role_key: seller
+    docuseal_role: Seller
+    email_source: transaction.primary_seller.display_email
+    name_source: transaction.primary_seller.display_name
+
+  # Seller 2: Optional second seller
+  - role_key: seller_2
+    docuseal_role: "Seller 2"
+    email_source: transaction.sellers[1].display_email
+    name_source: transaction.sellers[1].display_name
+    optional: true
+
+# =============================================================================
+# FIELDS
+# =============================================================================
+# Property address fields appear on multiple pages of the document.
+# All are pre-filled from the transaction's property address.
+# Seller disclosure fields are left null (manual entry during signing).
+# =============================================================================
+
+fields:
+  # Property address on page 1
+  - field_key: property_address
+    docuseal_field: "Property address"
+    role_key: broker
+    source: transaction.street_address
+
+  # Property address on page 2
+  - field_key: property_address_pg2
+    docuseal_field: "Property Address Pg 2"
+    role_key: broker
+    source: transaction.street_address
+
+  # Property address on page 3
+  - field_key: property_address_pg3
+    docuseal_field: "Property Address Pg 3"
+    role_key: broker
+    source: transaction.street_address
+
+  # Property address on page 4
+  - field_key: property_address_pg4
+    docuseal_field: "Property Address Pg 4"
+    role_key: broker
+    source: transaction.street_address
+
+  # Property address on page 5
+  - field_key: property_address_pg5
+    docuseal_field: "Property Address Pg 5"
+    role_key: broker
+    source: transaction.street_address
+
+  # Property address on page 6 (first instance)
+  - field_key: property_address_pg6_a
+    docuseal_field: "Property Address Pg 6"
+    role_key: broker
+    source: transaction.street_address
