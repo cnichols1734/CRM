@@ -330,6 +330,15 @@ PREVIEW_DOCUMENT_REGISTRY: Dict[str, PreviewDocumentConfig] = {
         sort_order=102,
         description='Wire Fraud Warning for Sellers'
     ),
+    'sellers-disclosure': PreviewDocumentConfig(
+        slug='sellers-disclosure',
+        name="Seller's Disclosure Notice",
+        docuseal_template_id=2661669,
+        color='emerald',
+        icon='fa-clipboard-list',
+        sort_order=103,
+        description="Texas Seller's Disclosure Notice"
+    ),
 }
 
 
