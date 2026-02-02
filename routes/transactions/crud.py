@@ -30,14 +30,17 @@ def list_transactions():
     type_filter = request.args.get('type', '')
     search_query = request.args.get('q', '').strip()
     
-    # Admin view toggle - allow admins to see all transactions
-    show_all = request.args.get('view') == 'all' and current_user.role == 'admin'
+    # Admin view toggle - allow admins to see all transactions in their org
+    show_all = request.args.get('view') == 'all' and current_user.org_role in ('admin', 'owner')
     
-    # Base query - filter by user unless admin viewing all
+    # Base query - ALWAYS filter by organization, then by user unless admin viewing all
     if show_all:
-        query = Transaction.query
+        query = Transaction.query.filter_by(organization_id=current_user.organization_id)
     else:
-        query = Transaction.query.filter_by(created_by_id=current_user.id)
+        query = Transaction.query.filter_by(
+            organization_id=current_user.organization_id,
+            created_by_id=current_user.id
+        )
     
     # Apply filters
     if status_filter:
@@ -288,13 +291,13 @@ def view_transaction(id):
     """View a single transaction."""
     from datetime import datetime
     
-    # Load transaction with transaction_type (participants/documents are dynamic, loaded separately)
+    # Load transaction with transaction_type - SCOPED TO ORGANIZATION
     transaction = Transaction.query.options(
         joinedload(Transaction.transaction_type)
-    ).get_or_404(id)
+    ).filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
-    # Ensure user owns this transaction or is admin
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+    # Ensure user owns this transaction or is org admin
+    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
         abort(403)
     
     # Load participants with contacts in one query
@@ -381,9 +384,11 @@ def view_transaction(id):
 @transactions_required
 def edit_transaction(id):
     """Show edit form for a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(
+        id=id, organization_id=current_user.organization_id
+    ).first_or_404()
     
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
         abort(403)
     
     # Get transaction types (org-scoped)
@@ -403,9 +408,11 @@ def edit_transaction(id):
 @transactions_required
 def delete_transaction(id):
     """Delete a transaction and all related data."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(
+        id=id, organization_id=current_user.organization_id
+    ).first_or_404()
     
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
         abort(403)
     
     try:
@@ -437,9 +444,11 @@ def delete_transaction(id):
 @transactions_required
 def update_transaction(id):
     """Update a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(
+        id=id, organization_id=current_user.organization_id
+    ).first_or_404()
 
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
         abort(403)
 
     try:

@@ -390,15 +390,6 @@ def update_broker_info():
     return redirect(url_for('auth.view_user_profile'))
 
 
-# Debug route removed for multi-tenant security
-
-@auth_bp.route('/test_password/<username>/<password>')
-def test_password(username, password):
-    user = User.query.filter_by(username=username).first()
-    if user:
-        return f"Password check result: {user.check_password(password)}"
-    return "User not found"
-
 @auth_bp.route('/reset_password', methods=['GET', 'POST'])
 def reset_request():
     if current_user.is_authenticated:
