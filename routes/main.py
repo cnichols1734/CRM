@@ -1,15 +1,74 @@
-from flask import Blueprint, render_template, request, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from models import db, Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant, contact_groups as contact_groups_table
 from feature_flags import is_enabled, can_access_transactions, org_has_feature, feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from datetime import datetime, timedelta, timezone, date
 import pytz
-from sqlalchemy import func, extract
+import os
+import psutil
+from sqlalchemy import func, extract, text
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
+
+# Track when the app started for uptime calculation
+_app_start_time = datetime.now(timezone.utc)
+
+
+# =============================================================================
+# HEALTH CHECK ENDPOINT (Public - for Railway monitoring)
+# =============================================================================
+
+@main_bp.route('/health')
+def health_check():
+    """
+    Health check endpoint for Railway monitoring.
+    Returns app status, database connectivity, memory usage, and uptime.
+    """
+    status = "healthy"
+    checks = {}
+    
+    # Check database connectivity
+    try:
+        db.session.execute(text('SELECT 1'))
+        checks['database'] = {"status": "connected"}
+    except Exception as e:
+        checks['database'] = {"status": "error", "message": str(e)}
+        status = "unhealthy"
+    
+    # Memory usage
+    try:
+        process = psutil.Process(os.getpid())
+        memory_info = process.memory_info()
+        checks['memory'] = {
+            "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
+            "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
+        }
+    except Exception as e:
+        checks['memory'] = {"status": "error", "message": str(e)}
+    
+    # Uptime
+    uptime = datetime.now(timezone.utc) - _app_start_time
+    checks['uptime'] = {
+        "started_at": _app_start_time.isoformat(),
+        "uptime_seconds": int(uptime.total_seconds()),
+        "uptime_human": str(timedelta(seconds=int(uptime.total_seconds())))
+    }
+    
+    # Worker info
+    checks['worker'] = {
+        "pid": os.getpid(),
+    }
+    
+    response = {
+        "status": status,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "checks": checks
+    }
+    
+    return jsonify(response), 200 if status == "healthy" else 503
 
 
 # =============================================================================
