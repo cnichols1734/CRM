@@ -941,14 +941,26 @@
                     const ok = info.status === 'connected';
                     const dotColor = ok ? 'var(--neon-green)' : 'var(--neon-yellow)';
                     const iconBg = ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,217,61,0.1)';
+                    const serviceIcons = {
+                        docuseal: 'fa-file-signature',
+                        sendgrid: 'fa-envelope',
+                        google_oauth: 'fa-brands fa-google',
+                    };
+                    const serviceLabels = {
+                        docuseal: 'DocuSeal',
+                        sendgrid: 'SendGrid',
+                        google_oauth: 'Google OAuth',
+                    };
+                    const iconClass = serviceIcons[name] || 'fa-plug';
+                    const displayName = serviceLabels[name] || name;
                     grid.innerHTML += `
                         <div class="service-card">
                             <div class="service-left">
                                 <div class="service-icon" style="background:${iconBg};">
-                                    <i class="fas fa-file-signature" style="color:${dotColor};"></i>
+                                    <i class="${iconClass.startsWith('fa-brands') ? iconClass : 'fas ' + iconClass}" style="color:${dotColor};"></i>
                                 </div>
                                 <div>
-                                    <div class="service-name" style="text-transform:capitalize;">${name}</div>
+                                    <div class="service-name">${displayName}</div>
                                     <div class="service-latency">${info.latency_ms ? info.latency_ms + 'ms' : info.status}</div>
                                 </div>
                             </div>
