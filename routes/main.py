@@ -195,6 +195,51 @@ def health_check():
             external['docuseal'] = {"status": "timeout", "message": str(e)}
             warnings.append("DocuSeal API unreachable")
 
+    # Check SendGrid API (if configured)
+    sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
+    if sendgrid_key:
+        try:
+            start_time = time.time()
+            resp = requests.get(
+                'https://api.sendgrid.com/v3/scopes',
+                headers={'Authorization': f'Bearer {sendgrid_key}'},
+                timeout=5
+            )
+            latency_ms = round((time.time() - start_time) * 1000, 2)
+            external['sendgrid'] = {
+                "status": "connected" if resp.status_code == 200 else "error",
+                "latency_ms": latency_ms
+            }
+            if resp.status_code != 200:
+                warnings.append(f"SendGrid API returned {resp.status_code}")
+        except Exception as e:
+            external['sendgrid'] = {"status": "timeout", "message": str(e)}
+            warnings.append("SendGrid API unreachable")
+
+    # Check Google OAuth (if configured) - lightweight tokeninfo endpoint
+    google_client_id = os.environ.get('GOOGLE_CLIENT_ID', '')
+    if google_client_id:
+        try:
+            start_time = time.time()
+            resp = requests.get(
+                'https://oauth2.googleapis.com/tokeninfo',
+                params={'access_token': 'health_check'},
+                timeout=5
+            )
+            latency_ms = round((time.time() - start_time) * 1000, 2)
+            # A 400 means Google's OAuth server is reachable (invalid token is expected)
+            # A timeout or connection error means it's down
+            reachable = resp.status_code in (200, 400, 401)
+            external['google_oauth'] = {
+                "status": "connected" if reachable else "error",
+                "latency_ms": latency_ms
+            }
+            if not reachable:
+                warnings.append(f"Google OAuth returned {resp.status_code}")
+        except Exception as e:
+            external['google_oauth'] = {"status": "timeout", "message": str(e)}
+            warnings.append("Google OAuth unreachable")
+
     if external:
         checks['external'] = external
 
