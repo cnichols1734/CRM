@@ -57,11 +57,16 @@ def _get_git_commit():
 # HEALTH CHECK ENDPOINT (Public - for Railway monitoring)
 # =============================================================================
 
+# Cache external dependency checks (expensive API calls) - refresh every 60s
+_external_cache = {"data": {}, "warnings": [], "last_check": None}
+_EXTERNAL_CHECK_INTERVAL = 60  # seconds
+
 @main_bp.route('/health')
 def health_check():
     """
     Health check endpoint for Railway monitoring.
     Returns comprehensive system telemetry: database, memory, CPU, process info, and version.
+    External dependency checks are cached for 60s to avoid excessive API calls.
     """
     import sys
     import platform
@@ -167,81 +172,91 @@ def health_check():
         "flask_env": os.environ.get('FLASK_ENV', 'production'),
     }
 
-    # External dependencies (as warnings only - don't fail health check)
-    external = {}
+    # External dependencies (cached - only refresh every 60s to avoid excessive API calls)
+    now = time.time()
+    if (_external_cache["last_check"] is None or
+            now - _external_cache["last_check"] >= _EXTERNAL_CHECK_INTERVAL):
+        external = {}
+        ext_warnings = []
 
-    # Check DocuSeal API (if configured) - uses same env var logic as docuseal_client.py
-    docuseal_mode = os.environ.get('DOCUSEAL_MODE', 'test').lower()
-    if docuseal_mode == 'prod':
-        docuseal_key = os.environ.get('DOCUSEAL_API_KEY_PROD', '')
-    else:
-        docuseal_key = os.environ.get('DOCUSEAL_API_KEY_TEST', '')
-    if docuseal_key:
-        try:
-            start_time = time.time()
-            resp = requests.get(
-                'https://api.docuseal.com/templates',
-                headers={'X-Auth-Token': docuseal_key},
-                timeout=5
-            )
-            latency_ms = round((time.time() - start_time) * 1000, 2)
-            external['docuseal'] = {
-                "status": "connected" if resp.status_code == 200 else "error",
-                "latency_ms": latency_ms
-            }
-            if resp.status_code != 200:
-                warnings.append(f"DocuSeal API returned {resp.status_code}")
-        except Exception as e:
-            external['docuseal'] = {"status": "timeout", "message": str(e)}
-            warnings.append("DocuSeal API unreachable")
+        # Check DocuSeal API (if configured) - uses same env var logic as docuseal_client.py
+        docuseal_mode = os.environ.get('DOCUSEAL_MODE', 'test').lower()
+        if docuseal_mode == 'prod':
+            docuseal_key = os.environ.get('DOCUSEAL_API_KEY_PROD', '')
+        else:
+            docuseal_key = os.environ.get('DOCUSEAL_API_KEY_TEST', '')
+        if docuseal_key:
+            try:
+                start_time = time.time()
+                resp = requests.get(
+                    'https://api.docuseal.com/templates',
+                    headers={'X-Auth-Token': docuseal_key},
+                    timeout=5
+                )
+                latency_ms = round((time.time() - start_time) * 1000, 2)
+                external['docuseal'] = {
+                    "status": "connected" if resp.status_code == 200 else "error",
+                    "latency_ms": latency_ms
+                }
+                if resp.status_code != 200:
+                    ext_warnings.append(f"DocuSeal API returned {resp.status_code}")
+            except Exception as e:
+                external['docuseal'] = {"status": "timeout", "message": str(e)}
+                ext_warnings.append("DocuSeal API unreachable")
 
-    # Check SendGrid API (if configured)
-    sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
-    if sendgrid_key:
-        try:
-            start_time = time.time()
-            resp = requests.get(
-                'https://api.sendgrid.com/v3/scopes',
-                headers={'Authorization': f'Bearer {sendgrid_key}'},
-                timeout=5
-            )
-            latency_ms = round((time.time() - start_time) * 1000, 2)
-            external['sendgrid'] = {
-                "status": "connected" if resp.status_code == 200 else "error",
-                "latency_ms": latency_ms
-            }
-            if resp.status_code != 200:
-                warnings.append(f"SendGrid API returned {resp.status_code}")
-        except Exception as e:
-            external['sendgrid'] = {"status": "timeout", "message": str(e)}
-            warnings.append("SendGrid API unreachable")
+        # Check SendGrid API (if configured)
+        sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
+        if sendgrid_key:
+            try:
+                start_time = time.time()
+                resp = requests.get(
+                    'https://api.sendgrid.com/v3/scopes',
+                    headers={'Authorization': f'Bearer {sendgrid_key}'},
+                    timeout=5
+                )
+                latency_ms = round((time.time() - start_time) * 1000, 2)
+                external['sendgrid'] = {
+                    "status": "connected" if resp.status_code == 200 else "error",
+                    "latency_ms": latency_ms
+                }
+                if resp.status_code != 200:
+                    ext_warnings.append(f"SendGrid API returned {resp.status_code}")
+            except Exception as e:
+                external['sendgrid'] = {"status": "timeout", "message": str(e)}
+                ext_warnings.append("SendGrid API unreachable")
 
-    # Check Google OAuth (if configured) - lightweight tokeninfo endpoint
-    google_client_id = os.environ.get('GOOGLE_CLIENT_ID', '')
-    if google_client_id:
-        try:
-            start_time = time.time()
-            resp = requests.get(
-                'https://oauth2.googleapis.com/tokeninfo',
-                params={'access_token': 'health_check'},
-                timeout=5
-            )
-            latency_ms = round((time.time() - start_time) * 1000, 2)
-            # A 400 means Google's OAuth server is reachable (invalid token is expected)
-            # A timeout or connection error means it's down
-            reachable = resp.status_code in (200, 400, 401)
-            external['google_oauth'] = {
-                "status": "connected" if reachable else "error",
-                "latency_ms": latency_ms
-            }
-            if not reachable:
-                warnings.append(f"Google OAuth returned {resp.status_code}")
-        except Exception as e:
-            external['google_oauth'] = {"status": "timeout", "message": str(e)}
-            warnings.append("Google OAuth unreachable")
+        # Check Google OAuth (if configured) - lightweight tokeninfo endpoint
+        google_client_id = os.environ.get('GOOGLE_CLIENT_ID', '')
+        if google_client_id:
+            try:
+                start_time = time.time()
+                resp = requests.get(
+                    'https://oauth2.googleapis.com/tokeninfo',
+                    params={'access_token': 'health_check'},
+                    timeout=5
+                )
+                latency_ms = round((time.time() - start_time) * 1000, 2)
+                # A 400 means Google's OAuth server is reachable (invalid token is expected)
+                reachable = resp.status_code in (200, 400, 401)
+                external['google_oauth'] = {
+                    "status": "connected" if reachable else "error",
+                    "latency_ms": latency_ms
+                }
+                if not reachable:
+                    ext_warnings.append(f"Google OAuth returned {resp.status_code}")
+            except Exception as e:
+                external['google_oauth'] = {"status": "timeout", "message": str(e)}
+                ext_warnings.append("Google OAuth unreachable")
 
-    if external:
-        checks['external'] = external
+        # Update cache
+        _external_cache["data"] = external
+        _external_cache["warnings"] = ext_warnings
+        _external_cache["last_check"] = now
+
+    # Use cached external data
+    if _external_cache["data"]:
+        checks['external'] = _external_cache["data"]
+    warnings.extend(_external_cache["warnings"])
 
     response = {
         "status": status,
