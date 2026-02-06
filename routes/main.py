@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone, date
 import pytz
 import os
 import psutil
+import logging
 from sqlalchemy import func, extract, text
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import or_, case
@@ -35,7 +36,8 @@ def health_check():
         db.session.execute(text('SELECT 1'))
         checks['database'] = {"status": "connected"}
     except Exception as e:
-        checks['database'] = {"status": "error", "message": str(e)}
+        logging.error(f"Health check database error: {str(e)}", exc_info=True)
+        checks['database'] = {"status": "error", "message": "Database connection failed"}
         status = "unhealthy"
     
     # Memory usage
@@ -47,7 +49,8 @@ def health_check():
             "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
         }
     except Exception as e:
-        checks['memory'] = {"status": "error", "message": str(e)}
+        logging.error(f"Health check memory monitoring error: {str(e)}", exc_info=True)
+        checks['memory'] = {"status": "error", "message": "Memory monitoring failed"}
     
     # Uptime
     uptime = datetime.now(timezone.utc) - _app_start_time
