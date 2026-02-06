@@ -43,6 +43,9 @@ Pillow==12.1.0
 # Server
 gunicorn==23.0.0
 
+# System monitoring (for health checks)
+psutil==5.9.8
+
 # Observability
 newrelic==11.2.0
 
