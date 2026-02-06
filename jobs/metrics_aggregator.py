@@ -16,16 +16,27 @@ def update_all_org_metrics():
     """
     from models import db, Organization
     
-    orgs = Organization.query.filter(
+    # Get org IDs first, then release the ORM objects
+    org_ids = [org.id for org in Organization.query.filter(
         Organization.status == 'active',
         Organization.is_platform_admin == False
-    ).all()
+    ).all()]
     
-    for org in orgs:
-        update_single_org_metrics(org.id)
+    # Clean up session after initial query
+    db.session.remove()
     
-    db.session.commit()
-    print(f"[{datetime.utcnow()}] Updated metrics for {len(orgs)} organizations")
+    for org_id in org_ids:
+        try:
+            update_single_org_metrics(org_id)
+            db.session.commit()
+        except Exception as e:
+            print(f"[ERROR] Failed to update metrics for org {org_id}: {e}")
+            db.session.rollback()
+        finally:
+            # CRITICAL: Clean up session after each org to prevent connection leaks
+            db.session.remove()
+    
+    print(f"[{datetime.utcnow()}] Updated metrics for {len(org_ids)} organizations")
 
 
 def update_single_org_metrics(org_id: int):

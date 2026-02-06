@@ -234,6 +234,20 @@ def create_app():
             session['_session_created_at'] = datetime.utcnow().timestamp()
         return response
 
+    @app.teardown_appcontext
+    def cleanup_db_session(exception=None):
+        """
+        Ensure database session is properly closed after each request.
+        This prevents connection leaks even if errors occur during request processing.
+        """
+        try:
+            if exception:
+                db.session.rollback()
+            db.session.remove()
+        except Exception:
+            # Ignore errors during cleanup - session may already be closed
+            pass
+
     # Load and validate document definitions on startup
     # This ensures all YAML configs are valid before the app starts
     with app.app_context():

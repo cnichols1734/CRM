@@ -77,24 +77,27 @@ def send_task_reminders():
     upcoming_start = now_utc + timedelta(hours=48)
     upcoming_end = now_utc + timedelta(hours=72)
     
-    # Get all active orgs
-    orgs = Organization.query.filter_by(status='active').all()
-    logger.info(f"Processing {len(orgs)} active organizations")
+    # Get all active orgs - convert to list of IDs to avoid holding ORM objects
+    org_ids = [org.id for org in Organization.query.filter_by(status='active').all()]
+    logger.info(f"Processing {len(org_ids)} active organizations")
+    
+    # Clean up session after initial query
+    db.session.remove()
     
     total_emails_sent = 0
     total_tasks_processed = 0
     
-    for org in orgs:
+    for org_id in org_ids:
         try:
             # Set RLS context for this org
-            set_job_org_context(org.id)
+            set_job_org_context(org_id)
             
             # Collect all tasks needing reminders, grouped by user
             user_tasks = defaultdict(lambda: {'overdue': [], 'today': [], 'tomorrow': [], 'upcoming': []})
             
             # Query overdue tasks (always include until completed)
             overdue_tasks = Task.query.filter(
-                Task.organization_id == org.id,
+                Task.organization_id == org_id,
                 Task.status == 'pending',
                 Task.due_date < overdue_cutoff
             ).all()
@@ -104,7 +107,7 @@ def send_task_reminders():
             
             # Query today tasks (0-24 hours)
             today_tasks = Task.query.filter(
-                Task.organization_id == org.id,
+                Task.organization_id == org_id,
                 Task.status == 'pending',
                 Task.due_date >= today_start,
                 Task.due_date < today_end,
@@ -116,7 +119,7 @@ def send_task_reminders():
             
             # Query tomorrow tasks (24-48 hours)
             tomorrow_tasks = Task.query.filter(
-                Task.organization_id == org.id,
+                Task.organization_id == org_id,
                 Task.status == 'pending',
                 Task.due_date >= tomorrow_start,
                 Task.due_date < tomorrow_end,
@@ -128,7 +131,7 @@ def send_task_reminders():
             
             # Query upcoming tasks (48-72 hours)
             upcoming_tasks = Task.query.filter(
-                Task.organization_id == org.id,
+                Task.organization_id == org_id,
                 Task.status == 'pending',
                 Task.due_date >= upcoming_start,
                 Task.due_date < upcoming_end,
@@ -152,7 +155,7 @@ def send_task_reminders():
                 if total_tasks == 0:
                     continue
                 
-                user = User.query.get(user_id)
+                user = db.session.get(User, user_id)
                 if not user:
                     logger.warning(f"User {user_id} not found, skipping")
                     continue
@@ -204,23 +207,22 @@ def send_task_reminders():
                     # Continue with other users even if one fails
                     continue
             
+            # Commit changes for this org and clean up session
+            db.session.commit()
+            
         except Exception as e:
-            logger.exception(f"Error processing org {org.id}: {e}")
+            logger.exception(f"Error processing org {org_id}: {e}")
+            db.session.rollback()
             # Continue with other orgs even if one fails
-            continue
+        finally:
+            # CRITICAL: Always clean up session after each org to prevent connection leaks
+            db.session.remove()
     
-    # Commit all changes
-    try:
-        db.session.commit()
-        logger.info(
-            f"Task reminder job completed: "
-            f"{total_emails_sent} emails sent, "
-            f"{total_tasks_processed} tasks processed"
-        )
-    except Exception as e:
-        logger.exception(f"Error committing changes: {e}")
-        db.session.rollback()
-        raise
+    logger.info(
+        f"Task reminder job completed: "
+        f"{total_emails_sent} emails sent, "
+        f"{total_tasks_processed} tasks processed"
+    )
 
 
 def run_task_reminders():

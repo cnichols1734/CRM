@@ -14,34 +14,41 @@ def cleanup_pending_deletions():
     
     cutoff = datetime.utcnow()
     
-    orgs_to_delete = Organization.query.filter(
+    # Get org IDs and names first, then release the ORM objects
+    orgs_to_delete = [(org.id, org.name) for org in Organization.query.filter(
         Organization.status == 'pending_deletion',
         Organization.deletion_scheduled_at <= cutoff
-    ).all()
+    ).all()]
+    
+    # Clean up session after initial query
+    db.session.remove()
     
     deleted_count = 0
-    for org in orgs_to_delete:
+    for org_id, org_name in orgs_to_delete:
         try:
-            hard_delete_organization(org)
+            hard_delete_organization(org_id, org_name)
             deleted_count += 1
         except Exception as e:
-            print(f"[ERROR] Failed to delete org {org.id} ({org.name}): {e}")
+            print(f"[ERROR] Failed to delete org {org_id} ({org_name}): {e}")
             db.session.rollback()
-            continue
+        finally:
+            # CRITICAL: Clean up session after each org to prevent connection leaks
+            db.session.remove()
     
     print(f"[{datetime.utcnow()}] Cleaned up {deleted_count} organizations past deletion date")
     return deleted_count
 
 
-def hard_delete_organization(org):
+def hard_delete_organization(org_id: int, org_name: str):
     """
     Permanently delete an organization and ALL its data.
     Order matters due to foreign key constraints (ON DELETE RESTRICT).
+    
+    Args:
+        org_id: The organization ID to delete
+        org_name: The organization name (for logging)
     """
     from models import db
-    
-    org_id = org.id
-    org_name = org.name
     
     print(f"[{datetime.utcnow()}] Hard deleting organization: {org_name} (ID: {org_id})")
     
