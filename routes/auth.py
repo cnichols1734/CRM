@@ -54,6 +54,17 @@ def register():
 
     form = RegistrationForm()
     if form.validate_on_submit():
+        # Honeypot check - bots fill this hidden field, humans don't see it
+        honeypot = request.form.get('website', '')
+        if honeypot:
+            # Bot detected! Return fake success to not tip them off
+            current_app.logger.warning(f"Bot registration blocked (honeypot): {form.email.data}")
+            flash(
+                'Registration submitted! You will receive an email once approved '
+                '(typically within 24 hours).', 
+                'success'
+            )
+            return redirect(url_for('auth.login'))
         # Get or use company name (add to form if not present)
         company_name = request.form.get('company_name', '').strip()
         if not company_name:
