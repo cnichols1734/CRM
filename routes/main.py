@@ -7,6 +7,9 @@ from datetime import datetime, timedelta, timezone, date
 import pytz
 import os
 import psutil
+import time
+import subprocess
+import requests
 from sqlalchemy import func, extract, text
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import or_, case
@@ -15,6 +18,39 @@ main_bp = Blueprint('main', __name__)
 
 # Track when the app started for uptime calculation
 _app_start_time = datetime.now(timezone.utc)
+
+# Cache the git commit SHA (only read once at startup)
+_git_commit_sha = None
+
+
+def _get_git_commit():
+    """Get the current git commit SHA. Cached after first call."""
+    global _git_commit_sha
+    if _git_commit_sha is not None:
+        return _git_commit_sha
+    
+    # Try environment variable first (set by Railway/CI)
+    _git_commit_sha = os.environ.get('RAILWAY_GIT_COMMIT_SHA', 
+                      os.environ.get('GIT_COMMIT_SHA', 
+                      os.environ.get('COMMIT_SHA', '')))
+    
+    # Fall back to git command if not set
+    if not _git_commit_sha:
+        try:
+            result = subprocess.run(
+                ['git', 'rev-parse', '--short', 'HEAD'],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0:
+                _git_commit_sha = result.stdout.strip()
+        except Exception:
+            _git_commit_sha = 'unknown'
+    
+    # Truncate to short hash if it's a full SHA
+    if len(_git_commit_sha) > 12:
+        _git_commit_sha = _git_commit_sha[:7]
+    
+    return _git_commit_sha
 
 
 # =============================================================================
@@ -25,50 +61,162 @@ _app_start_time = datetime.now(timezone.utc)
 def health_check():
     """
     Health check endpoint for Railway monitoring.
-    Returns app status, database connectivity, memory usage, and uptime.
+    Returns comprehensive system telemetry: database, memory, CPU, process info, and version.
     """
+    import sys
+    import platform
+
     status = "healthy"
+    warnings = []
     checks = {}
-    
-    # Check database connectivity
+
+    # Get git commit SHA for version verification
+    commit_sha = _get_git_commit()
+
+    # Check database connectivity with latency measurement
     try:
+        start_time = time.time()
         db.session.execute(text('SELECT 1'))
-        checks['database'] = {"status": "connected"}
+        latency_ms = round((time.time() - start_time) * 1000, 2)
+
+        checks['database'] = {
+            "status": "connected",
+            "latency_ms": latency_ms
+        }
+
+        # Warn if latency is high
+        if latency_ms > 500:
+            warnings.append(f"Database latency high: {latency_ms}ms")
     except Exception as e:
         checks['database'] = {"status": "error", "message": str(e)}
         status = "unhealthy"
-    
-    # Memory usage
+
+    # Process-level telemetry
     try:
         process = psutil.Process(os.getpid())
         memory_info = process.memory_info()
+        rss_mb = round(memory_info.rss / 1024 / 1024, 2)
+
+        # CPU percent (non-blocking, interval=None uses cached value)
+        cpu_percent = process.cpu_percent(interval=None)
+
         checks['memory'] = {
-            "rss_mb": round(memory_info.rss / 1024 / 1024, 2),
+            "rss_mb": rss_mb,
             "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
         }
+
+        checks['cpu'] = {
+            "process_percent": cpu_percent,
+            "system_percent": psutil.cpu_percent(interval=None),
+            "cpu_count": psutil.cpu_count(),
+        }
+
+        checks['process'] = {
+            "pid": os.getpid(),
+            "threads": process.num_threads(),
+            "open_files": len(process.open_files()),
+        }
+
+        # Net connections (method name varies by psutil version)
+        try:
+            checks['process']['connections'] = len(process.net_connections())
+        except AttributeError:
+            try:
+                checks['process']['connections'] = len(process.connections())
+            except Exception:
+                checks['process']['connections'] = 0
+
+        # Open FD count (unix only)
+        try:
+            checks['process']['open_fds'] = process.num_fds()
+        except (AttributeError, psutil.Error):
+            pass
+
+        # Warn if memory usage is high (over 400MB for a Python app)
+        if rss_mb > 400:
+            warnings.append(f"Memory usage high: {rss_mb}MB")
     except Exception as e:
         checks['memory'] = {"status": "error", "message": str(e)}
-    
+        checks['cpu'] = {"status": "error"}
+        checks['process'] = {"pid": os.getpid()}
+
+    # System-level memory
+    try:
+        sys_mem = psutil.virtual_memory()
+        checks['system_memory'] = {
+            "total_gb": round(sys_mem.total / 1024 / 1024 / 1024, 2),
+            "available_gb": round(sys_mem.available / 1024 / 1024 / 1024, 2),
+            "used_percent": sys_mem.percent,
+        }
+    except Exception:
+        pass
+
     # Uptime
     uptime = datetime.now(timezone.utc) - _app_start_time
+    uptime_seconds = int(uptime.total_seconds())
     checks['uptime'] = {
         "started_at": _app_start_time.isoformat(),
-        "uptime_seconds": int(uptime.total_seconds()),
-        "uptime_human": str(timedelta(seconds=int(uptime.total_seconds())))
+        "uptime_seconds": uptime_seconds,
+        "uptime_human": str(timedelta(seconds=uptime_seconds))
     }
-    
-    # Worker info
-    checks['worker'] = {
-        "pid": os.getpid(),
+
+    # Runtime info
+    checks['runtime'] = {
+        "python_version": sys.version.split()[0],
+        "platform": platform.platform(),
+        "flask_env": os.environ.get('FLASK_ENV', 'production'),
     }
-    
+
+    # External dependencies (as warnings only - don't fail health check)
+    external = {}
+
+    # Check DocuSeal API (if configured) - uses same env var logic as docuseal_client.py
+    docuseal_mode = os.environ.get('DOCUSEAL_MODE', 'test').lower()
+    if docuseal_mode == 'prod':
+        docuseal_key = os.environ.get('DOCUSEAL_API_KEY_PROD', '')
+    else:
+        docuseal_key = os.environ.get('DOCUSEAL_API_KEY_TEST', '')
+    if docuseal_key:
+        try:
+            start_time = time.time()
+            resp = requests.get(
+                'https://api.docuseal.com/templates',
+                headers={'X-Auth-Token': docuseal_key},
+                timeout=5
+            )
+            latency_ms = round((time.time() - start_time) * 1000, 2)
+            external['docuseal'] = {
+                "status": "connected" if resp.status_code == 200 else "error",
+                "latency_ms": latency_ms
+            }
+            if resp.status_code != 200:
+                warnings.append(f"DocuSeal API returned {resp.status_code}")
+        except Exception as e:
+            external['docuseal'] = {"status": "timeout", "message": str(e)}
+            warnings.append("DocuSeal API unreachable")
+
+    if external:
+        checks['external'] = external
+
     response = {
         "status": status,
+        "version": commit_sha,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "checks": checks
     }
-    
+
+    if warnings:
+        response["warnings"] = warnings
+
     return jsonify(response), 200 if status == "healthy" else 503
+
+
+@main_bp.route('/health/ui')
+def health_check_ui():
+    """
+    Health check UI - New Relic-style observability dashboard.
+    """
+    return render_template('health.html')
 
 
 # =============================================================================

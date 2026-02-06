@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OG Telemetry // Origen TechnolOG</title>
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* === RESET & BASE === */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2333;
+            --bg-card: #1a1f2e;
+            --border: #30363d;
+            --border-focus: #58a6ff;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            --neon-green: #00ff88;
+            --neon-cyan: #00d4ff;
+            --neon-blue: #58a6ff;
+            --neon-purple: #bc8cff;
+            --neon-orange: #ff9148;
+            --neon-red: #ff4757;
+            --neon-yellow: #ffd93d;
+            --neon-pink: #ff6b9d;
+        }
+        body {
+            font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', Consolas, monospace;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        /* === SCANLINE OVERLAY === */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 136, 0.008) 2px,
+                rgba(0, 255, 136, 0.008) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        /* === TOP BAR === */
+        .topbar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .topbar-logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--neon-green);
+            letter-spacing: 1px;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+        }
+        .topbar-sep {
+            color: var(--text-muted);
+            font-size: 18px;
+        }
+        .topbar-page {
+            color: var(--text-secondary);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+        }
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .topbar-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .badge-healthy {
+            background: rgba(0, 255, 136, 0.1);
+            color: var(--neon-green);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        .badge-unhealthy {
+            background: rgba(255, 71, 87, 0.1);
+            color: var(--neon-red);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+        }
+        .badge-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: blink 2s ease-in-out infinite;
+        }
+        .badge-dot-green { background: var(--neon-green); box-shadow: 0 0 6px var(--neon-green); }
+        .badge-dot-red { background: var(--neon-red); box-shadow: 0 0 6px var(--neon-red); }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        .topbar-clock {
+            color: var(--text-muted);
+            font-size: 11px;
+            letter-spacing: 1px;
+        }
+
+        /* === LAYOUT === */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 24px;
+        }
+
+        /* === HERO METRICS === */
+        .hero-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .hero-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+        }
+        .hero-card.green::before { background: var(--neon-green); box-shadow: 0 0 8px var(--neon-green); }
+        .hero-card.cyan::before { background: var(--neon-cyan); box-shadow: 0 0 8px var(--neon-cyan); }
+        .hero-card.purple::before { background: var(--neon-purple); box-shadow: 0 0 8px var(--neon-purple); }
+        .hero-card.orange::before { background: var(--neon-orange); box-shadow: 0 0 8px var(--neon-orange); }
+        .hero-card.blue::before { background: var(--neon-blue); box-shadow: 0 0 8px var(--neon-blue); }
+        .hero-label {
+            color: var(--text-muted);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+        }
+        .hero-value {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1;
+        }
+        .hero-unit {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 2px;
+        }
+        .hero-sub {
+            color: var(--text-muted);
+            font-size: 11px;
+            margin-top: 6px;
+        }
+
+        /* === SECTION === */
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            color: var(--text-secondary);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+        .section-header i {
+            font-size: 10px;
+        }
+        .section-line {
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* === CHARTS GRID === */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .chart-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .chart-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .chart-current {
+            font-size: 14px;
+            font-weight: 700;
+        }
+        .sparkline-container {
+            height: 80px;
+            position: relative;
+        }
+        .sparkline-container canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* === PROCESS TABLE === */
+        .process-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        .process-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .process-card-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-key {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .metric-val {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        /* === EXTERNAL SERVICES === */
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        .service-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .service-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .service-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .service-name { font-weight: 600; font-size: 13px; }
+        .service-latency { font-size: 11px; color: var(--text-muted); }
+        .service-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* === EVENT LOG === */
+        .event-log {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .event-log-header {
+            background: var(--bg-secondary);
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+        }
+        .event-log-title {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .event-log-body {
+            padding: 8px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 11px;
+        }
+        .event-log-body::-webkit-scrollbar {
+            width: 4px;
+        }
+        .event-log-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .event-log-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+        .log-line {
+            padding: 3px 16px;
+            display: flex;
+            gap: 12px;
+            font-family: inherit;
+        }
+        .log-line:hover { background: rgba(255, 255, 255, 0.02); }
+        .log-ts { color: var(--text-muted); white-space: nowrap; }
+        .log-level {
+            font-weight: 700;
+            min-width: 44px;
+            text-align: center;
+            border-radius: 2px;
+            padding: 0 4px;
+        }
+        .log-ok { color: var(--neon-green); }
+        .log-warn { color: var(--neon-yellow); }
+        .log-err { color: var(--neon-red); }
+        .log-info { color: var(--neon-cyan); }
+        .log-msg { color: var(--text-secondary); }
+
+        /* === GAUGE === */
+        .gauge-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 8px 0;
+        }
+        .gauge-svg { width: 100%; max-width: 160px; }
+
+        /* === RAW JSON === */
+        .raw-json-toggle {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .raw-json-toggle:hover {
+            color: var(--text-secondary);
+            border-color: var(--text-muted);
+        }
+        .raw-json-pre {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            font-size: 11px;
+            overflow-x: auto;
+            margin-top: 12px;
+            color: var(--neon-green);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* === LOADING === */
+        .loading-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            gap: 20px;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--border);
+            border-top-color: var(--neon-green);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            color: var(--text-muted);
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .loading-bar {
+            width: 200px;
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        .loading-bar-fill {
+            height: 100%;
+            width: 30%;
+            background: var(--neon-green);
+            border-radius: 1px;
+            animation: loading-sweep 1.5s ease-in-out infinite;
+        }
+        @keyframes loading-sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+
+        /* === FOOTER === */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-muted);
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* === RESPONSIVE === */
+        @media (max-width: 1024px) {
+            .hero-grid { grid-template-columns: repeat(3, 1fr); }
+            .charts-grid { grid-template-columns: 1fr; }
+            .process-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 640px) {
+            .hero-grid { grid-template-columns: repeat(2, 1fr); }
+            .process-grid { grid-template-columns: 1fr; }
+            .topbar { padding: 10px 12px; }
+            .container { padding: 12px; }
+            .hero-value { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- TOP BAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <span class="topbar-logo">OG:TELEMETRY</span>
+            <span class="topbar-sep">|</span>
+            <span class="topbar-page">SYSTEM OBSERVABILITY</span>
+        </div>
+        <div class="topbar-right">
+            <div id="status-badge" class="topbar-badge badge-healthy">
+                <span id="status-dot" class="badge-dot badge-dot-green"></span>
+                <span id="status-label">INITIALIZING</span>
+            </div>
+            <span id="live-clock" class="topbar-clock">--:--:--</span>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loading" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing telemetry</div>
+        <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="dashboard" class="container" style="display:none;">
+
+        <!-- HERO METRICS -->
+        <div class="hero-grid">
+            <div class="hero-card green">
+                <div class="hero-label">Commit SHA</div>
+                <div id="h-version" class="hero-value" style="color:var(--neon-green); font-size:22px;">--</div>
+                <div id="h-env" class="hero-sub">--</div>
+            </div>
+            <div class="hero-card cyan">
+                <div class="hero-label">DB Latency</div>
+                <div id="h-latency" class="hero-value" style="color:var(--neon-cyan);">--<span class="hero-unit">ms</span></div>
+                <div id="h-db-status" class="hero-sub">--</div>
+            </div>
+            <div class="hero-card purple">
+                <div class="hero-label">Memory (RSS)</div>
+                <div id="h-memory" class="hero-value" style="color:var(--neon-purple);">--<span class="hero-unit">MB</span></div>
+                <div id="h-vms" class="hero-sub">VMS: --</div>
+            </div>
+            <div class="hero-card orange">
+                <div class="hero-label">CPU (Process)</div>
+                <div id="h-cpu" class="hero-value" style="color:var(--neon-orange);">--<span class="hero-unit">%</span></div>
+                <div id="h-cpu-sys" class="hero-sub">System: --</div>
+            </div>
+            <div class="hero-card blue">
+                <div class="hero-label">Uptime</div>
+                <div id="h-uptime" class="hero-value" style="color:var(--neon-blue); font-size:20px;">--</div>
+                <div id="h-started" class="hero-sub">--</div>
+            </div>
+        </div>
+
+        <!-- SPARKLINE CHARTS -->
+        <div class="section">
+            <div class="section-header">
+                <i class="fas fa-chart-line"></i>
+                <span>Time Series (last 60 samples)</span>
+                <div class="section-line"></div>
+                <span id="poll-indicator" style="color:var(--neon-green);">LIVE</span>
+            </div>
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fas fa-database" style="color:var(--neon-cyan);margin-right:6px;"></i>DB Latency</span>
+                        <span id="chart-latency-val" class="chart-current" style="color:var(--neon-cyan);">--</span>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas id="chart-latency"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fas fa-memory" style="color:var(--neon-purple);margin-right:6px;"></i>Memory RSS</span>
+                        <span id="chart-memory-val" class="chart-current" style="color:var(--neon-purple);">--</span>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas id="chart-memory"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fas fa-microchip" style="color:var(--neon-orange);margin-right:6px;"></i>CPU %</span>
+                        <span id="chart-cpu-val" class="chart-current" style="color:var(--neon-orange);">--</span>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas id="chart-cpu"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <span class="chart-title"><i class="fas fa-network-wired" style="color:var(--neon-green);margin-right:6px;"></i>Connections</span>
+                        <span id="chart-conn-val" class="chart-current" style="color:var(--neon-green);">--</span>
+                    </div>
+                    <div class="sparkline-container">
+                        <canvas id="chart-conn"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROCESS / RUNTIME / SYSTEM -->
+        <div class="section">
+            <div class="section-header">
+                <i class="fas fa-server"></i>
+                <span>Infrastructure</span>
+                <div class="section-line"></div>
+            </div>
+            <div class="process-grid">
+                <div class="process-card">
+                    <div class="process-card-title"><i class="fas fa-cog" style="color:var(--neon-orange);"></i> Process</div>
+                    <div class="metric-row"><span class="metric-key">PID</span><span id="m-pid" class="metric-val" style="color:var(--neon-cyan);">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Threads</span><span id="m-threads" class="metric-val">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Open Files</span><span id="m-files" class="metric-val">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Open FDs</span><span id="m-fds" class="metric-val">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Net Connections</span><span id="m-conns" class="metric-val">--</span></div>
+                </div>
+                <div class="process-card">
+                    <div class="process-card-title"><i class="fas fa-code" style="color:var(--neon-green);"></i> Runtime</div>
+                    <div class="metric-row"><span class="metric-key">Python</span><span id="m-python" class="metric-val" style="color:var(--neon-yellow);">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Platform</span><span id="m-platform" class="metric-val" style="font-size:10px;">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Environment</span><span id="m-flask-env" class="metric-val">--</span></div>
+                    <div class="metric-row"><span class="metric-key">CPU Cores</span><span id="m-cores" class="metric-val">--</span></div>
+                </div>
+                <div class="process-card">
+                    <div class="process-card-title"><i class="fas fa-hdd" style="color:var(--neon-purple);"></i> System Memory</div>
+                    <div class="metric-row"><span class="metric-key">Total</span><span id="m-sys-total" class="metric-val">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Available</span><span id="m-sys-avail" class="metric-val" style="color:var(--neon-green);">--</span></div>
+                    <div class="metric-row"><span class="metric-key">Used</span><span id="m-sys-pct" class="metric-val">--</span></div>
+                    <div id="sys-mem-gauge" class="gauge-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- EXTERNAL SERVICES -->
+        <div id="external-section" class="section" style="display:none;">
+            <div class="section-header">
+                <i class="fas fa-plug"></i>
+                <span>External Dependencies</span>
+                <div class="section-line"></div>
+            </div>
+            <div id="services-grid" class="services-grid"></div>
+        </div>
+
+        <!-- WARNINGS -->
+        <div id="warnings-section" class="section" style="display:none;">
+            <div class="section-header">
+                <i class="fas fa-exclamation-triangle" style="color:var(--neon-yellow);"></i>
+                <span>Active Warnings</span>
+                <div class="section-line"></div>
+            </div>
+            <div id="warnings-container" style="background:rgba(255,217,61,0.05); border:1px solid rgba(255,217,61,0.15); border-radius:8px; padding:12px 16px;"></div>
+        </div>
+
+        <!-- EVENT LOG -->
+        <div class="section">
+            <div class="section-header">
+                <i class="fas fa-terminal"></i>
+                <span>Telemetry Log</span>
+                <div class="section-line"></div>
+            </div>
+            <div class="event-log">
+                <div class="event-log-header">
+                    <div class="event-log-title">
+                        <i class="fas fa-circle" style="color:var(--neon-green);font-size:6px;"></i>
+                        STDOUT
+                    </div>
+                    <button onclick="clearLog()" class="raw-json-toggle" style="padding:3px 8px;font-size:10px;">CLEAR</button>
+                </div>
+                <div id="event-log" class="event-log-body"></div>
+            </div>
+        </div>
+
+        <!-- RAW JSON -->
+        <div class="section" style="margin-top:8px;">
+            <button id="json-btn" onclick="toggleJson()" class="raw-json-toggle">
+                <i class="fas fa-code"></i> RAW PAYLOAD
+            </button>
+            <pre id="raw-json" class="raw-json-pre" style="display:none;"></pre>
+        </div>
+
+        <div class="footer">
+            ORIGEN TECHNOLOG // SYSTEM TELEMETRY v2.0 // POLL INTERVAL 10s // <span id="poll-count">0</span> SAMPLES
+        </div>
+    </div>
+
+    <script>
+    // =========================================================================
+    //  STATE
+    // =========================================================================
+    const MAX_HISTORY = 60;
+    const POLL_MS = 10000;
+    let pollCount = 0;
+    let jsonVisible = false;
+    let history = { latency: [], memory: [], cpu: [], connections: [] };
+    let logLines = [];
+
+    // =========================================================================
+    //  CLOCK
+    // =========================================================================
+    function updateClock() {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        const s = String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('live-clock').textContent = `${h}:${m}:${s} UTC${now.getTimezoneOffset() <= 0 ? '+' : '-'}${Math.abs(now.getTimezoneOffset()/60)}`;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // =========================================================================
+    //  SPARKLINE RENDERER
+    // =========================================================================
+    function drawSparkline(canvasId, data, color, opts = {}) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        const w = rect.width;
+        const h = rect.height;
+
+        ctx.clearRect(0, 0, w, h);
+        if (data.length < 2) return;
+
+        const min = opts.minY !== undefined ? opts.minY : Math.min(...data) * 0.9;
+        const max = opts.maxY !== undefined ? opts.maxY : Math.max(...data) * 1.1 || 1;
+        const range = max - min || 1;
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(48, 54, 61, 0.6)';
+        ctx.lineWidth = 0.5;
+        for (let i = 0; i < 4; i++) {
+            const y = (h / 4) * i;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(w, y);
+            ctx.stroke();
+        }
+
+        // Area fill
+        const gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, color.replace(')', ', 0.2)').replace('rgb', 'rgba'));
+        gradient.addColorStop(1, color.replace(')', ', 0.0)').replace('rgb', 'rgba'));
+
+        ctx.beginPath();
+        ctx.moveTo(0, h);
+        data.forEach((val, i) => {
+            const x = (i / (data.length - 1)) * w;
+            const y = h - ((val - min) / range) * h;
+            if (i === 0) ctx.lineTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.lineTo(w, h);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Line
+        ctx.beginPath();
+        data.forEach((val, i) => {
+            const x = (i / (data.length - 1)) * w;
+            const y = h - ((val - min) / range) * h;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Current value dot
+        if (data.length > 0) {
+            const lastX = w;
+            const lastY = h - ((data[data.length - 1] - min) / range) * h;
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 3, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(lastX, lastY, 6, 0, Math.PI * 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // =========================================================================
+    //  SYSTEM MEMORY GAUGE
+    // =========================================================================
+    function renderGauge(containerId, percent) {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const r = 52;
+        const circumference = 2 * Math.PI * r;
+        const arc = circumference * 0.75; // 270 degrees
+        const filled = (percent / 100) * arc;
+        const color = percent > 85 ? 'var(--neon-red)' : percent > 65 ? 'var(--neon-yellow)' : 'var(--neon-green)';
+
+        el.innerHTML = `
+            <svg class="gauge-svg" viewBox="0 0 120 100">
+                <path d="M 10 80 A 52 52 0 1 1 110 80" fill="none" stroke="var(--border)" stroke-width="6" stroke-linecap="round"/>
+                <path d="M 10 80 A 52 52 0 1 1 110 80" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round"
+                      stroke-dasharray="${arc}" stroke-dashoffset="${arc - filled}"
+                      style="filter: drop-shadow(0 0 4px ${color});"
+                />
+                <text x="60" y="65" text-anchor="middle" fill="${color}" font-size="18" font-weight="700" font-family="inherit">${percent}%</text>
+                <text x="60" y="80" text-anchor="middle" fill="var(--text-muted)" font-size="8" font-family="inherit">SYS MEM</text>
+            </svg>
+        `;
+    }
+
+    // =========================================================================
+    //  EVENT LOG
+    // =========================================================================
+    function addLog(level, msg) {
+        const now = new Date();
+        const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}.${String(now.getMilliseconds()).padStart(3,'0')}`;
+        const levelClass = {OK:'log-ok', WARN:'log-warn', ERR:'log-err', INFO:'log-info'}[level] || 'log-info';
+        logLines.push({ts, level, levelClass, msg});
+        if (logLines.length > 200) logLines.shift();
+        renderLog();
+    }
+    function renderLog() {
+        const el = document.getElementById('event-log');
+        el.innerHTML = logLines.map(l =>
+            `<div class="log-line"><span class="log-ts">${l.ts}</span><span class="log-level ${l.levelClass}">${l.level.padEnd(4)}</span><span class="log-msg">${l.msg}</span></div>`
+        ).join('');
+        el.scrollTop = el.scrollHeight;
+    }
+    function clearLog() {
+        logLines = [];
+        renderLog();
+    }
+
+    // =========================================================================
+    //  FETCH & RENDER
+    // =========================================================================
+    async function fetchHealth() {
+        const t0 = performance.now();
+        try {
+            const res = await fetch('/health');
+            const data = await res.json();
+            const fetchMs = Math.round(performance.now() - t0);
+            pollCount++;
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+
+            // Status badge
+            const badge = document.getElementById('status-badge');
+            const dot = document.getElementById('status-dot');
+            const label = document.getElementById('status-label');
+            if (data.status === 'healthy') {
+                badge.className = 'topbar-badge badge-healthy';
+                dot.className = 'badge-dot badge-dot-green';
+                label.textContent = 'OPERATIONAL';
+            } else {
+                badge.className = 'topbar-badge badge-unhealthy';
+                dot.className = 'badge-dot badge-dot-red';
+                label.textContent = 'DEGRADED';
+            }
+
+            // Hero metrics
+            document.getElementById('h-version').textContent = data.version || 'unknown';
+            const env = data.checks.runtime?.flask_env || 'production';
+            document.getElementById('h-env').textContent = `env: ${env}`;
+
+            const latency = data.checks.database?.latency_ms;
+            document.getElementById('h-latency').innerHTML = latency !== undefined
+                ? `${latency.toFixed(0)}<span class="hero-unit">ms</span>` : '--';
+            document.getElementById('h-db-status').textContent = data.checks.database?.status || '--';
+
+            const rss = data.checks.memory?.rss_mb;
+            const vms = data.checks.memory?.vms_mb;
+            document.getElementById('h-memory').innerHTML = rss !== undefined
+                ? `${rss.toFixed(0)}<span class="hero-unit">MB</span>` : '--';
+            document.getElementById('h-vms').textContent = vms !== undefined ? `VMS: ${vms.toFixed(0)} MB` : '--';
+
+            const cpuProc = data.checks.cpu?.process_percent;
+            const cpuSys = data.checks.cpu?.system_percent;
+            document.getElementById('h-cpu').innerHTML = cpuProc !== undefined
+                ? `${cpuProc.toFixed(1)}<span class="hero-unit">%</span>` : '--';
+            document.getElementById('h-cpu-sys').textContent = cpuSys !== undefined ? `System: ${cpuSys.toFixed(1)}%` : '--';
+
+            const upHuman = data.checks.uptime?.uptime_human || '--';
+            document.getElementById('h-uptime').textContent = upHuman;
+            const started = data.checks.uptime?.started_at;
+            document.getElementById('h-started').textContent = started
+                ? `Since ${new Date(started).toLocaleString()}` : '--';
+
+            // History
+            if (latency !== undefined) history.latency.push(latency);
+            if (rss !== undefined) history.memory.push(rss);
+            if (cpuProc !== undefined) history.cpu.push(cpuProc);
+            const conns = data.checks.process?.connections ?? 0;
+            history.connections.push(conns);
+            Object.keys(history).forEach(k => {
+                if (history[k].length > MAX_HISTORY) history[k].shift();
+            });
+
+            // Draw sparklines
+            drawSparkline('chart-latency', history.latency, 'rgb(0, 212, 255)', { minY: 0 });
+            drawSparkline('chart-memory', history.memory, 'rgb(188, 140, 255)', { minY: 0 });
+            drawSparkline('chart-cpu', history.cpu, 'rgb(255, 145, 72)', { minY: 0, maxY: 100 });
+            drawSparkline('chart-conn', history.connections, 'rgb(0, 255, 136)', { minY: 0 });
+
+            document.getElementById('chart-latency-val').textContent = latency !== undefined ? `${latency.toFixed(1)}ms` : '--';
+            document.getElementById('chart-memory-val').textContent = rss !== undefined ? `${rss.toFixed(1)}MB` : '--';
+            document.getElementById('chart-cpu-val').textContent = cpuProc !== undefined ? `${cpuProc.toFixed(1)}%` : '--';
+            document.getElementById('chart-conn-val').textContent = `${conns}`;
+
+            // Process info
+            const proc = data.checks.process || {};
+            document.getElementById('m-pid').textContent = proc.pid ?? '--';
+            document.getElementById('m-threads').textContent = proc.threads ?? '--';
+            document.getElementById('m-files').textContent = proc.open_files ?? '--';
+            document.getElementById('m-fds').textContent = proc.open_fds ?? '--';
+            document.getElementById('m-conns').textContent = proc.connections ?? '--';
+
+            // Runtime
+            const rt = data.checks.runtime || {};
+            document.getElementById('m-python').textContent = rt.python_version || '--';
+            document.getElementById('m-platform').textContent = rt.platform || '--';
+            document.getElementById('m-flask-env').textContent = rt.flask_env || '--';
+            document.getElementById('m-cores').textContent = data.checks.cpu?.cpu_count ?? '--';
+
+            // System memory
+            const sysMem = data.checks.system_memory || {};
+            document.getElementById('m-sys-total').textContent = sysMem.total_gb ? `${sysMem.total_gb} GB` : '--';
+            document.getElementById('m-sys-avail').textContent = sysMem.available_gb ? `${sysMem.available_gb} GB` : '--';
+            document.getElementById('m-sys-pct').textContent = sysMem.used_percent ? `${sysMem.used_percent}%` : '--';
+            if (sysMem.used_percent) renderGauge('sys-mem-gauge', sysMem.used_percent);
+
+            // External services
+            const ext = data.checks.external;
+            if (ext && Object.keys(ext).length > 0) {
+                document.getElementById('external-section').style.display = '';
+                const grid = document.getElementById('services-grid');
+                grid.innerHTML = '';
+                for (const [name, info] of Object.entries(ext)) {
+                    const ok = info.status === 'connected';
+                    const dotColor = ok ? 'var(--neon-green)' : 'var(--neon-yellow)';
+                    const iconBg = ok ? 'rgba(0,255,136,0.1)' : 'rgba(255,217,61,0.1)';
+                    grid.innerHTML += `
+                        <div class="service-card">
+                            <div class="service-left">
+                                <div class="service-icon" style="background:${iconBg};">
+                                    <i class="fas fa-file-signature" style="color:${dotColor};"></i>
+                                </div>
+                                <div>
+                                    <div class="service-name" style="text-transform:capitalize;">${name}</div>
+                                    <div class="service-latency">${info.latency_ms ? info.latency_ms + 'ms' : info.status}</div>
+                                </div>
+                            </div>
+                            <div class="service-status-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor};"></div>
+                        </div>
+                    `;
+                }
+            }
+
+            // Warnings
+            if (data.warnings && data.warnings.length > 0) {
+                document.getElementById('warnings-section').style.display = '';
+                document.getElementById('warnings-container').innerHTML = data.warnings
+                    .map(w => `<div style="color:var(--neon-yellow);font-size:12px;padding:4px 0;"><i class="fas fa-exclamation-circle" style="margin-right:8px;"></i>${w}</div>`)
+                    .join('');
+            } else {
+                document.getElementById('warnings-section').style.display = 'none';
+            }
+
+            // Event log
+            addLog('OK', `Health poll #${pollCount} completed in ${fetchMs}ms -- db:${latency?.toFixed(0) ?? '?'}ms rss:${rss?.toFixed(0) ?? '?'}MB cpu:${cpuProc?.toFixed(1) ?? '?'}%`);
+            if (data.warnings) {
+                data.warnings.forEach(w => addLog('WARN', w));
+            }
+
+            // Raw JSON
+            document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+            document.getElementById('poll-count').textContent = pollCount;
+
+        } catch (err) {
+            addLog('ERR', `Health fetch failed: ${err.message}`);
+            console.error('Health fetch error:', err);
+        }
+    }
+
+    function toggleJson() {
+        jsonVisible = !jsonVisible;
+        document.getElementById('raw-json').style.display = jsonVisible ? 'block' : 'none';
+    }
+
+    // Window resize redraws sparklines
+    window.addEventListener('resize', () => {
+        drawSparkline('chart-latency', history.latency, 'rgb(0, 212, 255)', { minY: 0 });
+        drawSparkline('chart-memory', history.memory, 'rgb(188, 140, 255)', { minY: 0 });
+        drawSparkline('chart-cpu', history.cpu, 'rgb(255, 145, 72)', { minY: 0, maxY: 100 });
+        drawSparkline('chart-conn', history.connections, 'rgb(0, 255, 136)', { minY: 0 });
+    });
+
+    // Boot
+    addLog('INFO', 'OG:TELEMETRY v2.0 initializing...');
+    addLog('INFO', `User-Agent: ${navigator.userAgent.split(' ').slice(-2).join(' ')}`);
+    fetchHealth();
+    setInterval(fetchHealth, POLL_MS);
+    </script>
+</body>
+</html>
