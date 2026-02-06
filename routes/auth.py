@@ -55,7 +55,7 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # Honeypot check - bots fill this hidden field, humans don't see it
-        honeypot = request.form.get('website', '')
+        honeypot = request.form.get('website', '').strip()
         if honeypot:
             # Bot detected! Return fake success to not tip them off
             current_app.logger.warning(f"Bot registration blocked (honeypot): {form.email.data}")
