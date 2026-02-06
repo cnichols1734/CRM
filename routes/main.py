@@ -14,6 +14,9 @@ from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
 
+# Get module-specific logger for better log control
+logger = logging.getLogger(__name__)
+
 # Track when the app started for uptime calculation
 _app_start_time = datetime.now(timezone.utc)
 
@@ -36,7 +39,7 @@ def health_check():
         db.session.execute(text('SELECT 1'))
         checks['database'] = {"status": "connected"}
     except Exception as e:
-        logging.error(f"Health check database error: {str(e)}", exc_info=True)
+        logger.error("Health check database error", exc_info=True)
         checks['database'] = {"status": "error", "message": "Database connection failed"}
         status = "unhealthy"
     
@@ -49,7 +52,7 @@ def health_check():
             "vms_mb": round(memory_info.vms / 1024 / 1024, 2),
         }
     except Exception as e:
-        logging.error(f"Health check memory monitoring error: {str(e)}", exc_info=True)
+        logger.error("Health check memory monitoring error", exc_info=True)
         checks['memory'] = {"status": "error", "message": "Memory monitoring failed"}
     
     # Uptime
