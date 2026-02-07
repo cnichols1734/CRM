@@ -8,9 +8,10 @@ from flask import request, render_template, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from models import (
     db, Transaction, TransactionType, TransactionParticipant,
-    TransactionDocument, Contact, ContactFile
+    TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile
 )
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import func, case, and_
 from services import audit_service
 from . import transactions_bp
 from .decorators import transactions_required
@@ -86,6 +87,8 @@ def list_transactions():
     # Pre-fetch all primary participants for these transactions in one query
     tx_ids = [tx.id for tx in transactions]
     transaction_contacts = {}
+    document_progress = {}
+    stage_age = {}
     if tx_ids:
         primary_participants = TransactionParticipant.query.options(
             joinedload(TransactionParticipant.contact)
@@ -101,6 +104,91 @@ def list_transactions():
                 'email': p.display_email,
                 'contact_id': p.contact_id
             }
+
+        # Document progress metrics per transaction
+        doc_rows = db.session.query(
+            TransactionDocument.transaction_id.label('transaction_id'),
+            func.count(TransactionDocument.id).label('total_docs'),
+            func.coalesce(
+                func.sum(case((TransactionDocument.status == 'signed', 1), else_=0)),
+                0
+            ).label('signed_docs'),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (and_(
+                            TransactionDocument.is_placeholder.is_(True),
+                            TransactionDocument.status == 'pending'
+                        ), 1),
+                        else_=0
+                    )
+                ),
+                0
+            ).label('pending_placeholders')
+        ).filter(
+            TransactionDocument.transaction_id.in_(tx_ids)
+        ).group_by(
+            TransactionDocument.transaction_id
+        ).all()
+
+        for row in doc_rows:
+            document_progress[row.transaction_id] = {
+                'total': int(row.total_docs or 0),
+                'signed': int(row.signed_docs or 0),
+                'pending_placeholders': int(row.pending_placeholders or 0),
+                'pending_signatures': 0
+            }
+
+        pending_signature_rows = db.session.query(
+            TransactionDocument.transaction_id.label('transaction_id'),
+            func.count(DocumentSignature.id).label('pending_signatures')
+        ).join(
+            DocumentSignature,
+            DocumentSignature.document_id == TransactionDocument.id
+        ).filter(
+            TransactionDocument.transaction_id.in_(tx_ids),
+            TransactionDocument.status != 'voided',
+            DocumentSignature.status.notin_(['signed', 'declined'])
+        ).group_by(
+            TransactionDocument.transaction_id
+        ).all()
+
+        for row in pending_signature_rows:
+            tx_progress = document_progress.setdefault(row.transaction_id, {
+                'total': 0,
+                'signed': 0,
+                'pending_placeholders': 0,
+                'pending_signatures': 0
+            })
+            tx_progress['pending_signatures'] = int(row.pending_signatures or 0)
+
+        # Stage age: days since the latest status-change audit event for each transaction
+        latest_status_change_sq = db.session.query(
+            AuditEvent.transaction_id.label('transaction_id'),
+            func.max(AuditEvent.created_at).label('status_changed_at')
+        ).filter(
+            AuditEvent.transaction_id.in_(tx_ids),
+            AuditEvent.event_type == AuditEvent.TRANSACTION_STATUS_CHANGED
+        ).group_by(
+            AuditEvent.transaction_id
+        ).subquery()
+
+        stage_started_lookup = {
+            row.transaction_id: row.status_changed_at
+            for row in db.session.query(
+                latest_status_change_sq.c.transaction_id,
+                latest_status_change_sq.c.status_changed_at
+            ).all()
+        }
+
+        now = dt.utcnow()
+        for tx in transactions:
+            stage_started_at = stage_started_lookup.get(tx.id) or tx.created_at
+            age_days = max((now.date() - stage_started_at.date()).days, 0)
+            stage_age[tx.id] = {
+                'days': age_days,
+                'started_at': stage_started_at
+            }
     
     # Get transaction types for filter dropdown (org-scoped, cached)
     from services.cache_helpers import get_org_transaction_types
@@ -111,6 +199,8 @@ def list_transactions():
         transactions=transactions,
         transaction_types=transaction_types,
         transaction_contacts=transaction_contacts,
+        document_progress=document_progress,
+        stage_age=stage_age,
         status_filter=status_filter,
         type_filter=type_filter,
         search_query=search_query,
