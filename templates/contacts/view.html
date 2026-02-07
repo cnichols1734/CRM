@@ -3,209 +3,110 @@
 {% block content %}
 <style>
     /* Email body content - render HTML like Gmail */
-    .email-body-content ul {
-        list-style-type: disc;
-        padding-left: 1.5rem;
-        margin: 0.5rem 0;
-    }
-    
-    .email-body-content ol {
-        list-style-type: decimal;
-        padding-left: 1.5rem;
-        margin: 0.5rem 0;
-    }
-    
-    .email-body-content li {
-        margin: 0.25rem 0;
-    }
-    
-    .email-body-content p {
-        margin: 0.5rem 0;
-    }
-    
-    .email-body-content strong, 
-    .email-body-content b {
-        font-weight: 600;
-    }
-    
-    .email-body-content em,
-    .email-body-content i {
-        font-style: italic;
-    }
-    
-    .email-body-content a {
-        color: #2563eb;
-        text-decoration: underline;
-    }
-    
-    .email-body-content blockquote {
-        border-left: 3px solid #e2e8f0;
-        padding-left: 1rem;
-        margin: 0.5rem 0;
-        color: #64748b;
-    }
+    .email-body-content ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+    .email-body-content ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+    .email-body-content li { margin: 0.25rem 0; }
+    .email-body-content p { margin: 0.5rem 0; }
+    .email-body-content strong, .email-body-content b { font-weight: 600; }
+    .email-body-content em, .email-body-content i { font-style: italic; }
+    .email-body-content a { color: #2563eb; text-decoration: underline; }
+    .email-body-content blockquote { border-left: 3px solid #e2e8f0; padding-left: 1rem; margin: 0.5rem 0; color: #64748b; }
 
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes pulse-glow {
-
-        0%,
-        100% {
-            opacity: 0.3;
-        }
-
-        50% {
-            opacity: 0.5;
-        }
-    }
-
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-
-    .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
-        opacity: 0;
-    }
-
-    .animate-fade-in-up-delay-2 {
-        animation: fadeInUp 0.6s ease-out 0.2s forwards;
-        opacity: 0;
-    }
-
-    .animate-fade-in-up-delay-3 {
-        animation: fadeInUp 0.6s ease-out 0.3s forwards;
-        opacity: 0;
-    }
-
-    /* Premium input styling */
+    /* Input styling */
     .premium-input {
         display: block;
         width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 1rem;
-        transition: all 0.2s ease-out;
-    }
-
-    .premium-input:hover {
-        border-color: #cbd5e1;
-    }
-
-    .premium-input:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-
-    .premium-input::placeholder {
-        color: #94a3b8;
-    }
-
-    /* Ensure textareas are full width */
-    textarea.premium-input {
-        min-height: 80px;
-        resize: vertical;
-    }
-
-    /* Premium card hover effect */
-    .premium-card {
-        transition: all 0.3s ease;
-    }
-
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Stacked info item - label on top, value below */
-    .info-item {
-        padding: 0.875rem;
-        background: #f8fafc;
-        border-radius: 0.75rem;
-        border: 1px solid #f1f5f9;
-    }
-
-    .info-item-label {
-        color: #64748b;
-        font-size: 0.75rem;
-        font-weight: 500;
-        margin-bottom: 0.375rem;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-
-    .info-item-value {
-        color: #1e293b;
-        font-weight: 600;
+        padding: 0.625rem 0.875rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        background-color: #fff;
         font-size: 0.9375rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .premium-input:hover { border-color: #cbd5e1; }
+    .premium-input:focus { outline: none; border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08); }
+    .premium-input::placeholder { color: #94a3b8; }
+    textarea.premium-input { min-height: 80px; resize: vertical; }
+
+    /* Detail grid styling */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-cell { padding: 0.625rem 0; border-bottom: 1px solid #f1f5f9; }
+    .detail-cell:nth-last-child(-n+2) { border-bottom: none; }
+    .detail-cell:nth-child(odd) { padding-right: 1.5rem; }
+    .detail-cell:nth-child(even) { padding-left: 1.5rem; border-left: 1px solid #f1f5f9; }
+    .detail-label { color: #64748b; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.125rem; }
+    .detail-value { color: #1e293b; font-size: 0.875rem; font-weight: 500; }
+    @media (max-width: 640px) {
+        .detail-grid { grid-template-columns: 1fr; }
+        .detail-cell:nth-child(even) { padding-left: 0; border-left: none; }
+        .detail-cell:nth-child(odd) { padding-right: 0; }
+        .detail-cell:nth-last-child(1) { border-bottom: none; }
+        .detail-cell:nth-last-child(2) { border-bottom: 1px solid #f1f5f9; }
     }
 
-    /* Legacy info-box for backward compat */
-    .info-box {
-        background: rgba(248, 250, 252, 0.8);
-        border-radius: 0.75rem;
-        padding: 1rem;
-        border: 1px solid #f1f5f9;
+    /* Section divider */
+    .section-title {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 0.75rem;
+        margin-bottom: 0;
     }
+
+    /* Quick action buttons in header */
+    .quick-action-btn {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+        font-size: 0.8125rem; font-weight: 500; color: #475569;
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        transition: all 0.15s ease;
+    }
+    .quick-action-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
+    .quick-action-btn i { font-size: 0.75rem; color: #94a3b8; }
+    .quick-action-btn:hover i { color: #64748b; }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <!-- Premium sticky header -->
-    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-4 flex items-center justify-between">
+<!-- Page wrapper -->
+<div class="min-h-screen bg-slate-50">
+    <!-- Sticky nav bar -->
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="h-12 flex items-center justify-between">
                 <a href="{{ url_for('main.contacts') }}"
-                    class="flex items-center text-slate-600 hover:text-orange-600 transition-colors duration-200 group">
-                    <div
-                        class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center mr-2 group-hover:border-orange-300 group-hover:shadow-md transition-all duration-200">
-                        <i class="fas fa-arrow-left text-sm"></i>
-                    </div>
-                    <span class="font-medium">Back</span>
+                    class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    <span>Contacts</span>
                 </a>
-                <div class="flex items-center space-x-2 sm:space-x-3">
-                    <!-- Previous/Next Navigation (hidden on mobile) -->
+                <div class="flex items-center gap-2">
+                    <!-- Previous/Next Navigation -->
                     <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}"
-                        class="hidden md:inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
-                        <i class="fas fa-arrow-left mr-2 text-slate-400"></i>
-                        <span class="text-slate-700 truncate">{{ prev_contact.first_name }} {{ prev_contact.last_name
-                            }}</span>
+                        class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
+                        <i class="fas fa-arrow-left text-xs text-slate-400"></i>
+                        <span class="truncate max-w-[120px]">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
                     </a>
                     <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}"
-                        class="hidden md:inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 min-w-[140px] justify-center shadow-sm">
-                        <span class="text-slate-700 truncate">{{ next_contact.first_name }} {{ next_contact.last_name
-                            }}</span>
-                        <i class="fas fa-arrow-right ml-2 text-slate-400"></i>
+                        class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
+                        <span class="truncate max-w-[120px]">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
+                        <i class="fas fa-arrow-right text-xs text-slate-400"></i>
                     </a>
+
+                    <div class="w-px h-5 bg-slate-200 hidden md:block"></div>
 
                     <!-- Edit/Save/Cancel Buttons -->
                     <button id="editButton" onclick="toggleEditMode()"
-                        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
-                        <i class="fas fa-pencil-alt mr-2"></i>
-                        Edit Contact
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors">
+                        <i class="fas fa-pencil-alt text-xs"></i>
+                        Edit
                     </button>
                     <button id="saveButton" onclick="saveContact()"
-                        class="hidden inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600 transition-all duration-200">
-                        <i class="fas fa-check mr-2"></i>
-                        Save Changes
+                        class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
+                        <i class="fas fa-check text-xs"></i>
+                        Save
                     </button>
                     <button id="cancelButton" onclick="cancelEdit()"
-                        class="hidden inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-200">
+                        class="hidden inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
                         Cancel
                     </button>
                 </div>
@@ -213,313 +114,272 @@
         </div>
     </div>
 
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex flex-col lg:flex-row gap-8">
+    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="flex flex-col lg:flex-row gap-6">
             <!-- Main Content -->
-            <div class="flex-1 max-w-4xl">
+            <div class="flex-1 min-w-0">
                 <!-- Contact Header Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 p-6 mb-6 premium-card animate-fade-in-up">
-                    <div class="flex items-center">
-                        <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-semibold mr-5 shadow-lg
-                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                            {% set colors = {
-                                'A': 'bg-gradient-to-br from-blue-400 to-blue-600 text-white', 
-                                'B': 'bg-gradient-to-br from-rose-400 to-rose-600 text-white', 
-                                'C': 'bg-gradient-to-br from-green-400 to-green-600 text-white', 
-                                'D': 'bg-gradient-to-br from-amber-400 to-amber-600 text-white',
-                                'E': 'bg-gradient-to-br from-purple-400 to-purple-600 text-white', 
-                                'F': 'bg-gradient-to-br from-pink-400 to-pink-600 text-white',
-                                'G': 'bg-gradient-to-br from-indigo-400 to-indigo-600 text-white', 
-                                'H': 'bg-gradient-to-br from-teal-400 to-teal-600 text-white',
-                                'I': 'bg-gradient-to-br from-orange-400 to-orange-600 text-white', 
-                                'J': 'bg-gradient-to-br from-cyan-400 to-cyan-600 text-white',
-                                'K': 'bg-gradient-to-br from-lime-400 to-lime-600 text-white',
-                                'L': 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white',
-                                'M': 'bg-gradient-to-br from-violet-400 to-violet-600 text-white',
-                                'N': 'bg-gradient-to-br from-fuchsia-400 to-fuchsia-600 text-white',
-                                'O': 'bg-gradient-to-br from-sky-400 to-sky-600 text-white',
-                                'P': 'bg-gradient-to-br from-red-400 to-red-600 text-white',
-                                'Q': 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white',
-                                'R': 'bg-gradient-to-br from-slate-400 to-slate-600 text-white',
-                                'S': 'bg-gradient-to-br from-stone-400 to-stone-600 text-white',
-                                'T': 'bg-gradient-to-br from-zinc-400 to-zinc-600 text-white',
-                                'U': 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white',
-                                'V': 'bg-gradient-to-br from-rose-500 to-pink-600 text-white',
-                                'W': 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white',
-                                'X': 'bg-gradient-to-br from-amber-500 to-orange-600 text-white',
-                                'Y': 'bg-gradient-to-br from-sky-500 to-cyan-600 text-white',
-                                'Z': 'bg-gradient-to-br from-slate-500 to-slate-700 text-white'
-                            } %}
-                            {{ colors[initials[0]] or 'bg-gradient-to-br from-slate-400 to-slate-600 text-white' }}">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-5">
+                    <div class="flex items-start gap-4">
+                        {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                        {% set avatar_colors = {
+                            'A': 'bg-blue-500', 'B': 'bg-rose-500', 'C': 'bg-green-500',
+                            'D': 'bg-amber-500', 'E': 'bg-purple-500', 'F': 'bg-pink-500',
+                            'G': 'bg-indigo-500', 'H': 'bg-teal-500', 'I': 'bg-orange-500',
+                            'J': 'bg-cyan-500', 'K': 'bg-lime-600', 'L': 'bg-emerald-500',
+                            'M': 'bg-violet-500', 'N': 'bg-fuchsia-500', 'O': 'bg-sky-500',
+                            'P': 'bg-red-500', 'Q': 'bg-yellow-500', 'R': 'bg-slate-500',
+                            'S': 'bg-stone-500', 'T': 'bg-zinc-500', 'U': 'bg-blue-600',
+                            'V': 'bg-rose-600', 'W': 'bg-emerald-600', 'X': 'bg-amber-600',
+                            'Y': 'bg-sky-600', 'Z': 'bg-slate-600'
+                        } %}
+                        <div class="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white flex-shrink-0 {{ avatar_colors[initials[0]] or 'bg-slate-500' }}">
                             {{ contact.first_name[0] }}{{ contact.last_name[0] }}
                         </div>
-                        <div class="flex-1">
-                            <div id="viewContactName"
-                                class="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                        <div class="flex-1 min-w-0">
+                            <div id="viewContactName" class="text-xl font-bold text-slate-900">
                                 {{ contact.first_name }} {{ contact.last_name }}
                             </div>
-                            <div id="editContactName" class="hidden space-x-3 mb-3">
+                            <div id="editContactName" class="hidden flex gap-2 mb-2">
                                 <input type="text" name="first_name" value="{{ contact.first_name }}"
-                                    class="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-xl font-semibold focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 hover:border-slate-300 transition-all duration-200"
+                                    class="premium-input text-lg font-semibold max-w-[200px]"
                                     placeholder="First Name">
                                 <input type="text" name="last_name" value="{{ contact.last_name }}"
-                                    class="rounded-xl border-2 border-slate-200 bg-white px-4 py-2 text-xl font-semibold focus:bg-white focus:border-orange-400 focus:ring-2 focus:ring-orange-100 hover:border-slate-300 transition-all duration-200"
+                                    class="premium-input text-lg font-semibold max-w-[200px]"
                                     placeholder="Last Name">
                             </div>
+                            <!-- Contact info line -->
+                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500">
+                                {% if contact.email %}
+                                <a href="mailto:{{ contact.email }}" class="hover:text-slate-700 transition-colors">
+                                    <i class="fas fa-envelope text-xs mr-1 text-slate-400"></i>{{ contact.email }}
+                                </a>
+                                {% endif %}
+                                {% if contact.email and contact.phone %}
+                                <span class="text-slate-300">&middot;</span>
+                                {% endif %}
+                                {% if contact.phone %}
+                                <a href="tel:{{ contact.phone }}" class="hover:text-slate-700 transition-colors">
+                                    <i class="fas fa-phone text-xs mr-1 text-slate-400"></i>{{ contact.phone }}
+                                </a>
+                                {% endif %}
+                            </div>
                             {% if current_user.role == 'admin' %}
-                            <div class="flex items-center text-slate-500 mb-3">
-                                <div
-                                    class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs mr-2 font-medium">
+                            <div class="flex items-center gap-1.5 mt-1.5 text-xs text-slate-400">
+                                <div class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-medium text-slate-500">
                                     {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
                                 </div>
-                                <span class="text-sm">
-                                    Owned by {{ contact.owner.first_name }} {{ contact.owner.last_name }}
-                                </span>
+                                <span>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</span>
                             </div>
                             {% endif %}
-                            <div class="flex flex-wrap gap-2">
+                            {% if contact.groups %}
+                            <div class="flex flex-wrap gap-1.5 mt-2.5">
                                 {% for group in contact.groups %}
-                                <span
-                                    class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200">
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-100">
                                     {{ group.name }}
                                 </span>
                                 {% endfor %}
                             </div>
+                            {% endif %}
                         </div>
+                    </div>
+                    <!-- Quick Actions Row -->
+                    <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                        {% if contact.phone %}
+                        <a href="tel:{{ contact.phone }}" class="quick-action-btn">
+                            <i class="fas fa-phone"></i><span>Call</span>
+                        </a>
+                        {% endif %}
+                        {% if contact.email %}
+                        <button type="button" onclick="openEmailToContact()" class="quick-action-btn">
+                            <i class="fas fa-envelope"></i><span>Email</span>
+                        </button>
+                        {% endif %}
+                        {% if contact.phone %}
+                        <a href="sms:{{ contact.phone }}" class="quick-action-btn">
+                            <i class="fas fa-comment"></i><span>Text</span>
+                        </a>
+                        {% endif %}
+                        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}" class="quick-action-btn">
+                            <i class="fas fa-plus"></i><span>New Task</span>
+                        </a>
+                        <button onclick="showVoiceMemoModal()" class="quick-action-btn">
+                            <i class="fas fa-microphone"></i><span>Voice Memo</span>
+                        </button>
+                        <button onclick="showLogActivityModal()" class="quick-action-btn">
+                            <i class="fas fa-clipboard-list"></i><span>Log Activity</span>
+                        </button>
                     </div>
                 </div>
 
                 <!-- Contact Information Card -->
-                <div
-                    class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-1">
+                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <!-- Edit Form (Hidden by default) -->
                     <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST"
                         id="editContactForm" class="hidden">
                         <div class="divide-y divide-slate-100">
                             <!-- Basic Information Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-user text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="p-5">
+                                <h3 class="section-title">Basic Information</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Email</label>
-                                        <input type="email" name="email" value="{{ contact.email }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Email</label>
+                                        <input type="email" name="email" value="{{ contact.email }}" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Phone</label>
-                                        <input type="tel" name="phone" value="{{ contact.phone }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Phone</label>
+                                        <input type="tel" name="phone" value="{{ contact.phone }}" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Potential
-                                            Commission ($)</label>
-                                        <input type="number" name="potential_commission"
-                                            value="{{ contact.potential_commission }}" step="0.01" min="0"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Potential Commission ($)</label>
+                                        <input type="number" name="potential_commission" value="{{ contact.potential_commission }}" step="0.01" min="0" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Created</label>
-                                        <p class="px-4 py-3 text-slate-600 bg-slate-50 rounded-xl">{{
-                                            contact.created_at.strftime('%B %d, %Y') }}</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Created</label>
+                                        <p class="px-3 py-2 text-slate-500 bg-slate-50 rounded-md text-sm">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Contact Dates Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-calendar-alt text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Last Contact Dates</h2>
-                                </div>
+                            <div class="p-5">
+                                <h3 class="section-title">Last Contact Dates</h3>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <!-- Last Email Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Email</label>
-                                        <input type="date" name="last_email_date"
-                                            value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Email</label>
+                                        <input type="date" name="last_email_date" value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}" class="premium-input">
                                     </div>
-
-                                    <!-- Last Text Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Text</label>
-                                        <input type="date" name="last_text_date"
-                                            value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Text</label>
+                                        <input type="date" name="last_text_date" value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}" class="premium-input">
                                     </div>
-
-                                    <!-- Last Phone Call Date -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last Phone
-                                            Call</label>
-                                        <input type="date" name="last_phone_call_date"
-                                            value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Phone Call</label>
+                                        <input type="date" name="last_phone_call_date" value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}" class="premium-input">
                                     </div>
-
-                                    <!-- Last Contact Date (Read-only) -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Last
-                                            Contact</label>
-                                        <p class="px-4 py-3 text-slate-600 bg-slate-50 rounded-xl">
-                                            {{ contact.last_contact_date.strftime('%B %d, %Y') if
-                                            contact.last_contact_date else 'Never' }}
-                                        </p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Contact</label>
+                                        <p class="px-3 py-2 text-slate-500 bg-slate-50 rounded-md text-sm">{{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Address Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                                        <i class="fas fa-map-marker-alt text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Address</h2>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="p-5">
+                                <h3 class="section-title">Address</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Street
-                                            Address</label>
-                                        <input type="text" name="street_address" value="{{ contact.street_address }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Street Address</label>
+                                        <input type="text" name="street_address" value="{{ contact.street_address }}" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">City</label>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">City</label>
                                         <input type="text" name="city" value="{{ contact.city }}" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">State</label>
-                                        <input type="text" name="state" value="{{ contact.state }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">State</label>
+                                        <input type="text" name="state" value="{{ contact.state }}" class="premium-input">
                                     </div>
-
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">ZIP Code</label>
-                                        <input type="text" name="zip_code" value="{{ contact.zip_code }}"
-                                            class="premium-input">
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">ZIP Code</label>
+                                        <input type="text" name="zip_code" value="{{ contact.zip_code }}" class="premium-input">
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Groups Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <i class="fas fa-users text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
-                                </div>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                            <div class="p-5">
+                                <h3 class="section-title">Groups</h3>
+                                {% set contact_group_ids = contact.groups | map(attribute='id') | list %}
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="editGroupsGrid">
                                     {% for group in all_groups %}
-                                    <label class="relative flex items-center px-4 py-3 rounded-xl text-sm
-                                                    {% if group in contact.groups %}
-                                                        bg-orange-50 border-2 border-orange-400 text-orange-700
-                                                    {% else %}
-                                                        bg-white border-2 border-slate-200 text-slate-700
-                                                    {% endif %}
-                                                    hover:bg-orange-50 hover:border-orange-300
-                                                    cursor-pointer transition-all duration-200">
-                                        <input type="checkbox" name="group_ids" value="{{ group.id }}" {% if group in
-                                            contact.groups %}checked{% endif %}
-                                            class="form-checkbox h-4 w-4 mr-3 rounded border-slate-300 text-orange-500 focus:ring-orange-400">
+                                    {% set is_member = group.id in contact_group_ids %}
+                                    <label class="group-edit-label relative flex items-center px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-150"
+                                           data-originally-selected="{{ 'true' if is_member else 'false' }}">
+                                        <input type="checkbox" name="group_ids" value="{{ group.id }}"
+                                            {% if is_member %}checked{% endif %}
+                                            class="h-3.5 w-3.5 mr-2.5 rounded border-slate-300 text-orange-500 accent-orange-500 focus:ring-orange-400">
                                         <span class="font-medium">{{ group.name }}</span>
                                     </label>
                                     {% endfor %}
                                 </div>
+                                <script>
+                                    // Dynamic group label styling based on checkbox state + original state
+                                    document.addEventListener('DOMContentLoaded', function() {
+                                        function updateGroupLabels() {
+                                            document.querySelectorAll('.group-edit-label').forEach(function(label) {
+                                                var cb = label.querySelector('input[type="checkbox"]');
+                                                var wasSelected = label.dataset.originallySelected === 'true';
+                                                var isChecked = cb.checked;
+
+                                                // Reset inline styles and classes
+                                                label.style.border = '';
+                                                label.style.background = '';
+                                                label.classList.remove(
+                                                    'bg-orange-50', 'text-orange-700',
+                                                    'bg-white', 'text-slate-600', 'text-orange-400'
+                                                );
+
+                                                if (isChecked) {
+                                                    // Currently selected: solid orange
+                                                    label.style.border = '1px solid #fb923c';
+                                                    label.classList.add('bg-orange-50', 'text-orange-700');
+                                                } else if (wasSelected && !isChecked) {
+                                                    // Was selected, now deselected: dashed orange border
+                                                    label.style.border = '2px dashed #fdba74';
+                                                    label.style.background = '#fff7ed';
+                                                    label.classList.add('text-orange-400');
+                                                } else {
+                                                    // Not selected, never was: default
+                                                    label.style.border = '1px solid #e2e8f0';
+                                                    label.classList.add('bg-white', 'text-slate-600');
+                                                }
+                                            });
+                                        }
+                                        // Run on load and on every checkbox change
+                                        updateGroupLabels();
+                                        document.querySelectorAll('.group-edit-label input[type="checkbox"]').forEach(function(cb) {
+                                            cb.addEventListener('change', updateGroupLabels);
+                                        });
+                                    });
+                                </script>
                             </div>
 
                             <!-- Client Details Section in Edit Form -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                                        <i class="fas fa-clipboard-list text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
-                                </div>
-                                <div class="space-y-6">
-                                    <!-- Current Objective -->
+                            <div class="p-5">
+                                <h3 class="section-title">Client Details</h3>
+                                <div class="space-y-4">
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">What does this
-                                            person want right now?</label>
-                                        <textarea name="current_objective" rows="3"
-                                            class="premium-input resize-y">{{ contact.current_objective or '' }}</textarea>
-                                        <p class="mt-2 text-sm text-slate-500">Ex: They want to buy a home, sell a home,
-                                            they're looking for acreage, They are not looking to make a move right now,
-                                            but I want to stay in touch with them.</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">What does this person want right now?</label>
+                                        <textarea name="current_objective" rows="3" class="premium-input resize-y">{{ contact.current_objective or '' }}</textarea>
+                                        <p class="mt-1.5 text-xs text-slate-400">Ex: They want to buy a home, sell a home, they're looking for acreage.</p>
                                     </div>
-
-                                    <!-- Move Timeline -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">What is their
-                                            timeline?</label>
-                                        <textarea name="move_timeline" rows="2"
-                                            class="premium-input resize-y">{{ contact.move_timeline or '' }}</textarea>
-                                        <p class="mt-2 text-sm text-slate-500">Ex: They want to move now, within the
-                                            next 6 months, or within a year?</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">What is their timeline?</label>
+                                        <textarea name="move_timeline" rows="2" class="premium-input resize-y">{{ contact.move_timeline or '' }}</textarea>
+                                        <p class="mt-1.5 text-xs text-slate-400">Ex: They want to move now, within the next 6 months, or within a year?</p>
                                     </div>
-
-                                    <!-- Motivation -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Why do they want to
-                                            move?</label>
-                                        <textarea name="motivation" rows="2"
-                                            class="premium-input resize-y">{{ contact.motivation or '' }}</textarea>
-                                        <p class="mt-2 text-sm text-slate-500">Ex: They are having a baby, want a larger
-                                            home, moving for work, etc.</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Why do they want to move?</label>
+                                        <textarea name="motivation" rows="2" class="premium-input resize-y">{{ contact.motivation or '' }}</textarea>
+                                        <p class="mt-1.5 text-xs text-slate-400">Ex: Having a baby, want a larger home, moving for work, etc.</p>
                                     </div>
-
-                                    <!-- Financial Status -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Have they shared
-                                            any financial details with you?</label>
-                                        <textarea name="financial_status" rows="3"
-                                            class="premium-input resize-y">{{ contact.financial_status or '' }}</textarea>
-                                        <p class="mt-2 text-sm text-slate-500">Ex: Their budget is $x, they have or have
-                                            not been preapproved, they have $x for down payment, they have $x in home
-                                            equity.</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Have they shared any financial details?</label>
+                                        <textarea name="financial_status" rows="3" class="premium-input resize-y">{{ contact.financial_status or '' }}</textarea>
+                                        <p class="mt-1.5 text-xs text-slate-400">Ex: Budget is $x, preapproved status, down payment amount, home equity.</p>
                                     </div>
-
-                                    <!-- Additional Notes -->
                                     <div>
-                                        <label class="block text-sm font-medium text-slate-700 mb-2">Any other details
-                                            to share?</label>
-                                        <textarea name="additional_notes" rows="2"
-                                            class="premium-input resize-y">{{ contact.additional_notes or '' }}</textarea>
-                                        <p class="mt-2 text-sm text-slate-500">Ex: No details at this time</p>
+                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Any other details to share?</label>
+                                        <textarea name="additional_notes" rows="2" class="premium-input resize-y">{{ contact.additional_notes or '' }}</textarea>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Notes Section in Edit Form -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
-                                        <i class="fas fa-sticky-note text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Notes</h2>
-                                </div>
-                                <textarea name="notes" rows="4"
-                                    class="premium-input resize-y">{{ contact.notes }}</textarea>
+                            <div class="p-5">
+                                <h3 class="section-title">Notes</h3>
+                                <textarea name="notes" rows="4" class="premium-input resize-y">{{ contact.notes }}</textarea>
                             </div>
                         </div>
                     </form>
@@ -528,233 +388,131 @@
                     <div id="viewContactInfo">
                         <div class="divide-y divide-slate-100">
                             <!-- Basic Information Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-user text-white text-sm"></i>
+                            <div class="p-5">
+                                <h3 class="section-title">Details</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-cell">
+                                        <div class="detail-label">Email</div>
+                                        <div class="detail-value">{% if contact.email %}<a href="mailto:{{ contact.email }}" class="hover:text-orange-600 transition-colors">{{ contact.email }}</a>{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
                                     </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Basic Information</h2>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="info-item">
-                                        <div class="info-item-label">Email</div>
-                                        <div class="info-item-value">{{ contact.email or 'No email provided' }}</div>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">Phone</div>
+                                        <div class="detail-value">{% if contact.phone %}<a href="tel:{{ contact.phone }}" class="hover:text-orange-600 transition-colors">{{ contact.phone }}</a>{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
                                     </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Phone</div>
-                                        <div class="info-item-value">{{ contact.phone or 'No phone provided' }}</div>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">Commission</div>
+                                        <div class="detail-value">{% if contact.potential_commission is not none %}${{ "{:,.2f}".format(contact.potential_commission|float) }}{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
                                     </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Potential Commission</div>
-                                        <div class="info-item-value text-lg">
-                                            {% if contact.potential_commission is not none %}
-                                            ${{ "{:,.2f}".format(contact.potential_commission|float) }}
-                                            {% else %}
-                                            $0.00
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Created</div>
-                                        <div class="info-item-value">{{ contact.created_at.strftime('%B %d, %Y') }}
-                                        </div>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">Created</div>
+                                        <div class="detail-value text-slate-500">{{ contact.created_at.strftime('%b %d, %Y') }}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Contact Dates Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
-                                        <i class="fas fa-calendar-alt text-white text-sm"></i>
+                            <div class="p-5">
+                                <h3 class="section-title">Last Contact Dates</h3>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
+                                    <div>
+                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Email</div>
+                                        <div id="lastEmailDate" class="text-sm font-medium text-slate-700">{{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date else 'Never' }}</div>
                                     </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Last Contact Dates</h2>
-                                </div>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <div class="info-item">
-                                        <div class="info-item-label">Last Email</div>
-                                        <div class="info-item-value">
-                                            {{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date
-                                            else 'Never' }}
-                                        </div>
+                                    <div>
+                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Text</div>
+                                        <div id="lastTextDate" class="text-sm font-medium text-slate-700">{{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date else 'Never' }}</div>
                                     </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Last Text</div>
-                                        <div class="info-item-value">
-                                            {{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date
-                                            else 'Never' }}
-                                        </div>
+                                    <div>
+                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Phone Call</div>
+                                        <div id="lastPhoneCallDate" class="text-sm font-medium text-slate-700">{{ contact.last_phone_call_date.strftime('%m/%d/%Y') if contact.last_phone_call_date else 'Never' }}</div>
                                     </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Last Phone Call</div>
-                                        <div class="info-item-value">
-                                            {{ contact.last_phone_call_date.strftime('%m/%d/%Y') if
-                                            contact.last_phone_call_date else 'Never' }}
-                                        </div>
-                                    </div>
-
-                                    <div class="info-item">
-                                        <div class="info-item-label">Last Contact</div>
-                                        <div class="info-item-value">
-                                            {{ contact.last_contact_date.strftime('%m/%d/%Y') if
-                                            contact.last_contact_date else 'Never' }}
-                                        </div>
+                                    <div>
+                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Last Contact</div>
+                                        <div id="lastContactDate" class="text-sm font-medium text-slate-700">{{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Address Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                                        <i class="fas fa-map-marker-alt text-white text-sm"></i>
+                            <div class="p-5">
+                                <h3 class="section-title">Address</h3>
+                                <div class="detail-grid">
+                                    <div class="detail-cell">
+                                        <div class="detail-label">Street</div>
+                                        <div class="detail-value">{{ contact.street_address or '\u2014' }}</div>
                                     </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Address</h2>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="md:col-span-2 info-box">
-                                        <h3 class="text-sm font-medium text-slate-500 mb-1">Street Address</h3>
-                                        <p class="text-slate-900 font-medium">{{ contact.street_address or 'No street
-                                            address provided' }}</p>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">City</div>
+                                        <div class="detail-value">{{ contact.city or '\u2014' }}</div>
                                     </div>
-
-                                    <div class="info-box">
-                                        <h3 class="text-sm font-medium text-slate-500 mb-1">City</h3>
-                                        <p class="text-slate-900 font-medium">{{ contact.city or 'No city provided' }}
-                                        </p>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">State</div>
+                                        <div class="detail-value">{{ contact.state or '\u2014' }}</div>
                                     </div>
-
-                                    <div class="info-box">
-                                        <h3 class="text-sm font-medium text-slate-500 mb-1">State</h3>
-                                        <p class="text-slate-900 font-medium">{{ contact.state or 'No state provided' }}
-                                        </p>
-                                    </div>
-
-                                    <div class="info-box">
-                                        <h3 class="text-sm font-medium text-slate-500 mb-1">ZIP Code</h3>
-                                        <p class="text-slate-900 font-medium">{{ contact.zip_code or 'No ZIP code
-                                            provided' }}</p>
+                                    <div class="detail-cell">
+                                        <div class="detail-label">ZIP</div>
+                                        <div class="detail-value">{{ contact.zip_code or '\u2014' }}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Groups Section -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center">
-                                        <i class="fas fa-users text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
-                                </div>
-                                <div class="info-box">
-                                    <div class="flex flex-wrap gap-2">
-                                        {% for group in contact.groups %}
-                                        <span
-                                            class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200">
-                                            {{ group.name }}
-                                        </span>
-                                        {% else %}
-                                        <span class="text-slate-500 italic">No groups assigned</span>
-                                        {% endfor %}
-                                    </div>
+                            <div class="p-5">
+                                <h3 class="section-title">Groups</h3>
+                                <div class="flex flex-wrap gap-1.5">
+                                    {% for group in contact.groups %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-100">
+                                        {{ group.name }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-sm text-slate-300">&mdash;</span>
+                                    {% endfor %}
                                 </div>
                             </div>
 
                             <!-- Client Details Section in View Mode -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                                        <i class="fas fa-clipboard-list text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Client Details</h2>
-                                </div>
-                                <div class="space-y-4">
-                                    <!-- Current Objective -->
+                            <div class="p-5">
+                                <h3 class="section-title">Client Details</h3>
+                                <div class="space-y-3">
                                     <div>
-                                        <h3 class="text-sm font-medium text-slate-500 mb-2">What does this person want
-                                            right now?</h3>
-                                        <div class="info-box">
-                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.current_objective
-                                                or 'No current objective specified' }}</p>
-                                        </div>
+                                        <div class="text-xs font-medium text-slate-400 mb-1">What does this person want right now?</div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.current_objective or '\u2014' }}</p>
                                     </div>
-
-                                    <!-- Move Timeline -->
                                     <div>
-                                        <h3 class="text-sm font-medium text-slate-500 mb-2">What is their timeline?</h3>
-                                        <div class="info-box">
-                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.move_timeline or
-                                                'No timeline specified' }}</p>
-                                        </div>
+                                        <div class="text-xs font-medium text-slate-400 mb-1">Timeline</div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.move_timeline or '\u2014' }}</p>
                                     </div>
-
-                                    <!-- Motivation -->
                                     <div>
-                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Why do they want to move?
-                                        </h3>
-                                        <div class="info-box">
-                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.motivation or 'No
-                                                motivation specified' }}</p>
-                                        </div>
+                                        <div class="text-xs font-medium text-slate-400 mb-1">Motivation</div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.motivation or '\u2014' }}</p>
                                     </div>
-
-                                    <!-- Financial Status -->
                                     <div>
-                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Have they shared any
-                                            financial details with you?</h3>
-                                        <div class="info-box">
-                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.financial_status or
-                                                'No financial details shared' }}</p>
-                                        </div>
+                                        <div class="text-xs font-medium text-slate-400 mb-1">Financial Details</div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.financial_status or '\u2014' }}</p>
                                     </div>
-
-                                    <!-- Additional Notes -->
                                     <div>
-                                        <h3 class="text-sm font-medium text-slate-500 mb-2">Any other details to share?
-                                        </h3>
-                                        <div class="info-box">
-                                            <p class="text-slate-900 whitespace-pre-line">{{ contact.additional_notes or
-                                                'No additional details shared' }}</p>
-                                        </div>
+                                        <div class="text-xs font-medium text-slate-400 mb-1">Other Details</div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.additional_notes or '\u2014' }}</p>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Notes Section in View Mode -->
-                            <div class="p-6">
-                                <div class="flex items-center gap-3 mb-6">
-                                    <div
-                                        class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center">
-                                        <i class="fas fa-sticky-note text-white text-sm"></i>
-                                    </div>
-                                    <h2 class="text-lg font-semibold text-slate-800">Notes</h2>
-                                </div>
-                                <div class="info-box">
-                                    <p class="text-slate-900 whitespace-pre-line">{{ contact.notes or 'No notes added'
-                                        }}</p>
-                                </div>
+                            <div class="p-5">
+                                <h3 class="section-title">Notes</h3>
+                                <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.notes or '\u2014' }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Delete Contact Button -->
-                <div class="mt-6 flex justify-end animate-fade-in-up-delay-2">
+                <!-- Delete Contact -->
+                <div class="mt-4 flex justify-end">
                     <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST"
                         id="deleteContactForm">
                         <button onclick="deleteContact()"
-                            class="inline-flex items-center px-4 py-2 bg-white border-2 border-red-200 rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-300 transition-all duration-200">
-                            <i class="fas fa-trash-alt mr-2"></i>
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">
+                            <i class="fas fa-trash-alt"></i>
                             Delete Contact
                         </button>
                     </form>
@@ -762,48 +520,14 @@
             </div>
 
             <!-- Side Container - Related Tasks & Transactions -->
-            <div class="lg:w-[480px] xl:w-[540px] flex-shrink-0 space-y-4 animate-fade-in-up-delay-3">
-                <!-- Quick Actions Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Quick Actions</h2>
-                    </div>
-                    <div class="p-2">
-                        {% if contact.phone %}
-                        <a href="tel:{{ contact.phone }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-phone text-slate-400 w-4 text-center"></i>
-                            <span class="text-sm text-slate-700">Call</span>
-                        </a>
-                        {% endif %}
-                        {% if contact.email %}
-                        <button type="button" onclick="openEmailToContact()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left">
-                            <i class="fas fa-envelope text-slate-400 w-4 text-center"></i>
-                            <span class="text-sm text-slate-700">Email</span>
-                        </button>
-                        {% endif %}
-                        {% if contact.phone %}
-                        <a href="sms:{{ contact.phone }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-comment text-slate-400 w-4 text-center"></i>
-                            <span class="text-sm text-slate-700">Text</span>
-                        </a>
-                        {% endif %}
-                        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-plus text-slate-400 w-4 text-center"></i>
-                            <span class="text-sm text-slate-700">New Task</span>
-                        </a>
-                        <button onclick="showVoiceMemoModal()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors text-left">
-                            <i class="fas fa-microphone text-slate-400 w-4 text-center"></i>
-                            <span class="text-sm text-slate-700">Voice Memo</span>
-                        </button>
-                    </div>
-                </div>
+            <div class="lg:w-[400px] xl:w-[440px] flex-shrink-0 space-y-4">
 
                 {% if show_transactions %}
                 <!-- Related Transactions Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Transactions</h2>
-                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
                             <i class="fas fa-plus text-[10px] mr-1"></i> New
                         </a>
                     </div>
@@ -851,7 +575,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks</h2>
-                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
                             <i class="fas fa-plus text-[10px] mr-1"></i> New
                         </a>
                     </div>
@@ -951,7 +675,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Files</h2>
-                        <button onclick="document.getElementById('fileUploadInput').click()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                        <button onclick="document.getElementById('fileUploadInput').click()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
                             <i class="fas fa-plus text-[10px] mr-1"></i> Upload
                         </button>
                         <input type="file" id="fileUploadInput" class="hidden"
@@ -1027,7 +751,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity Timeline</h2>
-                        <button onclick="showLogActivityModal()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                        <button onclick="showLogActivityModal()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
                             <i class="fas fa-plus text-[10px] mr-1"></i> Log
                         </button>
                     </div>
@@ -1076,7 +800,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                         <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Voice Memos</h2>
-                        <button onclick="showVoiceMemoModal()" class="inline-flex items-center px-2.5 py-1 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-full hover:bg-orange-100 hover:border-orange-300 hover:text-orange-700 transition-all duration-200">
+                        <button onclick="showVoiceMemoModal()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
                             <i class="fas fa-plus text-[10px] mr-1"></i> Record
                         </button>
                     </div>
@@ -1102,12 +826,12 @@
                         {% if not gmail_connected %}
                         <!-- Gmail Not Connected State -->
                         <div class="p-6 text-center">
-                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-envelope text-blue-400 text-xl"></i>
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-envelope text-slate-400 text-lg"></i>
                             </div>
                             <p class="text-slate-700 font-medium mb-1">See email history</p>
                             <p class="text-slate-500 text-sm mb-4">Connect Gmail to sync conversations</p>
-                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-sm hover:bg-slate-50 transition-colors text-sm font-medium">
+                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-3 py-1.5 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
                                 <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -1121,8 +845,8 @@
                         {% elif email_threads|length == 0 %}
                         <!-- No Emails State -->
                         <div class="p-6 text-center">
-                            <div class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                                <i class="fas fa-inbox text-slate-400 text-xl"></i>
+                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-inbox text-slate-400 text-lg"></i>
                             </div>
                             <p class="text-slate-600 font-medium">No emails yet</p>
                             <p class="text-slate-400 text-sm mt-1">Emails will appear here automatically</p>
@@ -1205,14 +929,13 @@
 <!-- Log Activity Modal -->
 <div id="logActivityModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl">
+        <div class="relative bg-white w-full max-w-md rounded-xl shadow-xl">
             <!-- Modal header -->
             <div
-                class="flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
+                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
                 <div class="flex items-center space-x-3">
-                    <div
-                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-cyan-600 flex items-center justify-center">
-                        <i class="fas fa-clipboard-list text-white"></i>
+                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <i class="fas fa-clipboard-list text-slate-500"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Log Activity</h3>
@@ -1220,7 +943,7 @@
                     </div>
                 </div>
                 <button onclick="closeLogActivityModal()"
-                    class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
                     <i class="fas fa-times text-slate-400"></i>
                 </button>
             </div>
@@ -1234,27 +957,27 @@
                     </label>
                     <div class="grid grid-cols-5 gap-2">
                         <button type="button" onclick="selectActivityType('call')" data-type="call"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all">
+                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
                             <i class="fas fa-phone text-lg text-slate-500 mb-1"></i>
                             <span class="text-xs text-slate-600">Call</span>
                         </button>
                         <button type="button" onclick="selectActivityType('email')" data-type="email"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all">
+                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
                             <i class="fas fa-envelope text-lg text-slate-500 mb-1"></i>
                             <span class="text-xs text-slate-600">Email</span>
                         </button>
                         <button type="button" onclick="selectActivityType('text')" data-type="text"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all">
+                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
                             <i class="fas fa-comment text-lg text-slate-500 mb-1"></i>
                             <span class="text-xs text-slate-600">Text</span>
                         </button>
                         <button type="button" onclick="selectActivityType('meeting')" data-type="meeting"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all">
+                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
                             <i class="fas fa-users text-lg text-slate-500 mb-1"></i>
                             <span class="text-xs text-slate-600">Meeting</span>
                         </button>
                         <button type="button" onclick="selectActivityType('other')" data-type="other"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-200 hover:border-cyan-400 hover:bg-cyan-50 transition-all">
+                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
                             <i class="fas fa-ellipsis-h text-lg text-slate-500 mb-1"></i>
                             <span class="text-xs text-slate-600">Other</span>
                         </button>
@@ -1268,7 +991,7 @@
                         Date <span class="text-red-500">*</span>
                     </label>
                     <input type="date" name="activity_date" id="activityDate" required
-                        class="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-cyan-400 focus:bg-white focus:outline-none transition-all">
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors">
                 </div>
 
                 <!-- Notes -->
@@ -1277,7 +1000,7 @@
                         Notes <span class="text-slate-400">(optional)</span>
                     </label>
                     <textarea name="notes" id="activityNotes" rows="3" placeholder="What did you discuss?"
-                        class="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-cyan-400 focus:bg-white focus:outline-none transition-all resize-none"></textarea>
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors resize-none"></textarea>
                 </div>
 
                 <!-- Follow-up Date -->
@@ -1286,18 +1009,18 @@
                         Follow-up Date <span class="text-slate-400">(optional)</span>
                     </label>
                     <input type="date" name="follow_up_date" id="followUpDate"
-                        class="w-full px-4 py-2.5 border-2 border-slate-200 rounded-xl bg-slate-50 focus:border-cyan-400 focus:bg-white focus:outline-none transition-all">
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors">
                 </div>
             </form>
 
             <!-- Modal footer -->
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
                 <button onclick="closeLogActivityModal()"
-                    class="px-5 py-2.5 border-2 border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all text-sm font-medium text-slate-700">
+                    class="px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-slate-600">
                     Cancel
                 </button>
                 <button onclick="submitLogActivity()" id="logActivitySubmitBtn"
-                    class="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl hover:from-cyan-600 hover:to-cyan-700 transition-all text-sm font-semibold shadow-lg shadow-cyan-500/25">
+                    class="px-5 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors text-sm font-medium">
                     <i class="fas fa-check mr-2"></i>Log Activity
                 </button>
             </div>
@@ -1308,14 +1031,13 @@
 <!-- Voice Memo Recording Modal -->
 <div id="voiceMemoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl">
+        <div class="relative bg-white w-full max-w-md rounded-xl shadow-xl">
             <!-- Modal header -->
             <div
-                class="flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
+                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
                 <div class="flex items-center space-x-3">
-                    <div
-                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center">
-                        <i class="fas fa-microphone text-white"></i>
+                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <i class="fas fa-microphone text-slate-500"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Voice Memo</h3>
@@ -1323,7 +1045,7 @@
                     </div>
                 </div>
                 <button onclick="closeVoiceMemoModal()"
-                    class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
                     <i class="fas fa-times text-slate-400"></i>
                 </button>
             </div>
@@ -1343,7 +1065,7 @@
                 <!-- Record Button -->
                 <div class="mb-6">
                     <button id="voiceMemoRecordBtn" onclick="toggleRecording()"
-                        class="w-20 h-20 rounded-full bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-rose-500/30 hover:from-rose-600 hover:to-pink-700 transition-all duration-200">
+                        class="w-20 h-20 rounded-full bg-rose-500 text-white flex items-center justify-center mx-auto shadow-sm hover:bg-rose-600 transition-colors">
                         <i class="fas fa-microphone text-3xl" id="voiceMemoIcon"></i>
                     </button>
                 </div>
@@ -1364,13 +1086,13 @@
             </div>
 
             <!-- Modal footer -->
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
                 <button onclick="closeVoiceMemoModal()" id="voiceMemoCancelBtn"
-                    class="px-5 py-2.5 border-2 border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all text-sm font-medium text-slate-700">
+                    class="px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-slate-600">
                     Cancel
                 </button>
                 <button onclick="saveVoiceMemo()" id="voiceMemoSaveBtn" disabled
-                    class="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:from-rose-600 hover:to-pink-700 transition-all text-sm font-semibold shadow-lg shadow-rose-500/25">
+                    class="px-5 py-2.5 bg-slate-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-900 transition-colors text-sm font-medium">
                     <i class="fas fa-save mr-2"></i>Save Memo
                 </button>
             </div>
@@ -1381,14 +1103,13 @@
 <!-- Voice Memo Detail Modal -->
 <div id="voiceMemoDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl">
+        <div class="relative bg-white w-full max-w-lg rounded-xl shadow-xl">
             <!-- Modal header -->
             <div
-                class="flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white rounded-t-2xl">
+                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
                 <div class="flex items-center space-x-3">
-                    <div
-                        class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center">
-                        <i class="fas fa-file-audio text-white"></i>
+                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                        <i class="fas fa-file-audio text-slate-500"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-slate-900">Voice Memo</h3>
@@ -1396,7 +1117,7 @@
                     </div>
                 </div>
                 <button onclick="closeVoiceMemoDetailModal()"
-                    class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors">
+                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
                     <i class="fas fa-times text-slate-400"></i>
                 </button>
             </div>
@@ -1424,20 +1145,20 @@
                         </span>
                     </div>
                     <div id="memoDetailTranscript"
-                        class="bg-slate-50 rounded-xl p-4 min-h-[100px] max-h-[300px] overflow-y-auto">
+                        class="bg-slate-50 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto">
                         <p class="text-slate-600 text-sm leading-relaxed" id="memoTranscriptText">-</p>
                     </div>
                 </div>
             </div>
 
             <!-- Modal footer -->
-            <div class="flex justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-2xl">
+            <div class="flex justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
                 <button onclick="deleteVoiceMemoFromDetail()"
-                    class="px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl transition-all text-sm font-medium">
+                    class="px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium">
                     <i class="fas fa-trash-alt mr-1.5"></i>Delete
                 </button>
                 <button onclick="closeVoiceMemoDetailModal()"
-                    class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all text-sm font-medium text-slate-700">
+                    class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-sm font-medium text-slate-600">
                     Close
                 </button>
             </div>
@@ -1450,13 +1171,13 @@
     data-show-all="{{ 'true' if show_all else 'false' }}"
     class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
     <div class="flex min-h-full items-center justify-center p-0 md:p-4">
-        <div class="relative bg-white w-full md:rounded-2xl shadow-2xl md:max-w-4xl min-h-screen md:min-h-0">
+        <div class="relative bg-white w-full md:rounded-xl shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
             <!-- Modal header -->
             <div
-                class="sticky top-0 z-10 flex items-center justify-between px-4 py-4 md:px-6 md:py-5 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white md:rounded-t-2xl">
+                class="sticky top-0 z-10 flex items-center justify-between px-4 py-4 md:px-6 md:py-4 border-b border-slate-200 bg-white md:rounded-t-xl">
                 <div class="flex items-center space-x-4">
                     <div id="modalTaskPriorityIndicator"
-                        class="w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-sm">
+                        class="w-10 h-10 rounded-lg flex items-center justify-center text-base">
                         <i class="fas fa-flag"></i>
                     </div>
                     <div>
@@ -1473,7 +1194,7 @@
                     </div>
                 </div>
                 <button onclick="closeTaskModal()"
-                    class="w-10 h-10 rounded-xl hover:bg-slate-100 flex items-center justify-center transition-colors duration-150">
+                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
                     <i class="fas fa-times text-slate-400"></i>
                 </button>
             </div>
@@ -1482,10 +1203,10 @@
             <div class="px-4 py-4 md:px-6 space-y-4" id="modalTaskContent">
                 <!-- Status and Priority -->
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
+                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
                             <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                                 <i class="fas fa-tasks text-slate-400"></i>
                             </div>
                             <div>
@@ -1494,10 +1215,10 @@
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
+                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
                             <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                                 <i class="fas fa-flag text-slate-400"></i>
                             </div>
                             <div>
@@ -1510,10 +1231,10 @@
 
                 <!-- Due Date and Scheduled Time -->
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
+                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
                             <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                                 <i class="fas fa-calendar text-slate-400"></i>
                             </div>
                             <div>
@@ -1523,10 +1244,10 @@
                         </div>
                     </div>
                     <div id="modalTaskScheduledContainer"
-                        class="hidden bg-slate-50 rounded-xl p-4 flex-1 border border-slate-100">
+                        class="hidden bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
                         <div class="flex items-center space-x-3">
                             <div
-                                class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                                 <i class="fas fa-clock text-slate-400"></i>
                             </div>
                             <div>
@@ -1538,10 +1259,10 @@
                 </div>
 
                 <!-- Task Type and Subtype -->
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div class="flex items-center space-x-3">
                         <div
-                            class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                             <i class="fas fa-tag text-slate-400"></i>
                         </div>
                         <div>
@@ -1557,10 +1278,10 @@
                 </div>
 
                 <!-- Contact -->
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div class="flex items-center space-x-3">
                         <div
-                            class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                             <i class="fas fa-user text-slate-400"></i>
                         </div>
                         <div>
@@ -1572,10 +1293,10 @@
                 </div>
 
                 <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <div id="modalTaskPropertyContainer" class="hidden bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div class="flex items-center space-x-3">
                         <div
-                            class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                             <i class="fas fa-building text-slate-400"></i>
                         </div>
                         <div>
@@ -1586,10 +1307,10 @@
                 </div>
 
                 <!-- Description -->
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
                     <div class="flex items-start space-x-3">
                         <div
-                            class="w-10 h-10 rounded-xl flex items-center justify-center bg-white border border-slate-200 shadow-sm">
+                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
                             <i class="fas fa-align-left text-slate-400"></i>
                         </div>
                         <div class="flex-1">
@@ -1602,16 +1323,16 @@
 
             <!-- Modal footer -->
             <div
-                class="sticky bottom-0 border-t border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 md:rounded-b-2xl">
+                class="sticky bottom-0 border-t border-slate-200 bg-white p-4 md:rounded-b-xl">
                 <div class="flex flex-col md:flex-row md:justify-between gap-3">
                     <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
                         <button onclick="toggleTaskStatus()"
-                            class="flex-1 md:flex-none text-center px-5 py-2.5 border-2 border-slate-200 rounded-xl bg-white hover:bg-slate-50 transition-all duration-150 text-sm font-medium">
+                            class="flex-1 md:flex-none text-center px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium">
                             <span id="modalTaskStatusButton"></span>
                         </button>
                     </div>
                     <a id="modalTaskFullView" href="#"
-                        class="flex-1 md:flex-none text-center px-5 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-150 text-sm font-semibold shadow-lg shadow-orange-500/25">
+                        class="flex-1 md:flex-none text-center px-5 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium">
                         Open Full View
                     </a>
                 </div>
@@ -1674,7 +1395,7 @@
         document.getElementById('voiceMemoStatusText').textContent = 'Tap the button to start recording';
         document.getElementById('voiceMemoIcon').className = 'fas fa-microphone text-3xl';
         document.getElementById('voiceMemoRecordBtn').classList.remove('bg-red-500', 'animate-pulse');
-        document.getElementById('voiceMemoRecordBtn').classList.add('bg-gradient-to-br', 'from-rose-500', 'to-pink-600');
+        document.getElementById('voiceMemoRecordBtn').classList.add('bg-rose-500');
         document.getElementById('voiceMemoPreview').classList.add('hidden');
         document.getElementById('voiceMemoError').classList.add('hidden');
         document.getElementById('voiceMemoSaveBtn').disabled = true;
@@ -1722,7 +1443,7 @@
             // Update UI
             document.getElementById('voiceMemoStatusText').textContent = 'Recording...';
             document.getElementById('voiceMemoIcon').className = 'fas fa-stop text-3xl';
-            document.getElementById('voiceMemoRecordBtn').classList.remove('bg-gradient-to-br', 'from-rose-500', 'to-pink-600');
+            document.getElementById('voiceMemoRecordBtn').classList.remove('bg-rose-500');
             document.getElementById('voiceMemoRecordBtn').classList.add('bg-red-500', 'animate-pulse');
 
             // Start timer
@@ -1767,7 +1488,7 @@
         document.getElementById('voiceMemoStatusText').textContent = 'Recording complete. Preview or save your memo.';
         document.getElementById('voiceMemoIcon').className = 'fas fa-microphone text-3xl';
         document.getElementById('voiceMemoRecordBtn').classList.remove('bg-red-500', 'animate-pulse');
-        document.getElementById('voiceMemoRecordBtn').classList.add('bg-gradient-to-br', 'from-rose-500', 'to-pink-600');
+        document.getElementById('voiceMemoRecordBtn').classList.add('bg-rose-500');
     }
 
     function updateTimerDisplay() {
@@ -2097,11 +1818,11 @@
 
         // Clear activity type button selections
         document.querySelectorAll('.activity-type-btn').forEach(btn => {
-            btn.classList.remove('border-cyan-500', 'bg-cyan-50');
+            btn.classList.remove('border-slate-800', 'bg-slate-50');
             btn.classList.add('border-slate-200');
-            btn.querySelector('i').classList.remove('text-cyan-600');
+            btn.querySelector('i').classList.remove('text-slate-800');
             btn.querySelector('i').classList.add('text-slate-500');
-            btn.querySelector('span').classList.remove('text-cyan-700');
+            btn.querySelector('span').classList.remove('text-slate-800');
             btn.querySelector('span').classList.add('text-slate-600');
         });
 
@@ -2126,11 +1847,11 @@
             const btnType = btn.dataset.type;
             if (btnType === type) {
                 btn.classList.remove('border-slate-200');
-                btn.classList.add('border-cyan-500', 'bg-cyan-50');
+                btn.classList.add('border-slate-800', 'bg-slate-50');
                 btn.querySelector('i').classList.remove('text-slate-500');
-                btn.querySelector('i').classList.add('text-cyan-600');
+                btn.querySelector('i').classList.add('text-slate-800');
                 btn.querySelector('span').classList.remove('text-slate-600');
-                btn.querySelector('span').classList.add('text-cyan-700');
+                btn.querySelector('span').classList.add('text-slate-800');
             } else {
                 btn.classList.remove('border-cyan-500', 'bg-cyan-50');
                 btn.classList.add('border-slate-200');
@@ -2471,9 +2192,9 @@
 
                 // Priority Indicator
                 const priorityIndicator = document.getElementById('modalTaskPriorityIndicator');
-                priorityIndicator.className = `w-12 h-12 rounded-xl flex items-center justify-center text-lg shadow-sm ${task.priority === 'high' ? 'bg-gradient-to-br from-red-400 to-red-500 text-white' :
-                    task.priority === 'medium' ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
-                        'bg-gradient-to-br from-green-400 to-emerald-500 text-white'
+                priorityIndicator.className = `w-10 h-10 rounded-lg flex items-center justify-center text-base ${task.priority === 'high' ? 'bg-red-50 text-red-500' :
+                    task.priority === 'medium' ? 'bg-amber-50 text-amber-500' :
+                        'bg-green-50 text-green-500'
                     }`;
 
                 // Priority
