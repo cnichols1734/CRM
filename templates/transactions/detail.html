@@ -19,30 +19,14 @@
         --focus: rgba(249, 115, 22, 0.1);
     }
 
-    /* Simple page fade-in */
-    @keyframes fadeIn { 
-        from { opacity: 0; } 
-        to { opacity: 1; } 
-    }
-    
-    .page-fade-in {
-        animation: fadeIn 0.4s ease-out forwards;
-    }
-
-    /* Card styles - no lift on hover */
+    /* Card styles - flat, no hover lift */
     .premium-card {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 16px;
+        border-radius: 0.75rem;
         box-shadow: var(--shadow-sm);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
         position: relative;
         z-index: 1;
-    }
-
-    .premium-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: var(--shadow);
     }
 
     /* Status dropdown styling */
@@ -77,7 +61,7 @@
     /* Type badge styles - solid colors, no gradients */
     .type-badge {
         padding: 0.5rem 1rem;
-        border-radius: 9999px;
+        border-radius: 0.375rem;
         font-size: 0.75rem;
         font-weight: 600;
     }
@@ -91,7 +75,7 @@
     /* Status badge styles */
     .status-badge {
         padding: 0.5rem 1rem;
-        border-radius: 9999px;
+        border-radius: 0.375rem;
         font-size: 0.75rem;
         font-weight: 600;
         cursor: pointer;
@@ -134,17 +118,15 @@
 
     /* Button styles */
     .btn-primary {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: #f97316;
         color: #fff;
         font-weight: 600;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
-        transition: all 0.2s ease;
+        border-radius: 0.5rem;
+        transition: background-color 0.15s ease;
     }
-    
+
     .btn-primary:hover {
-        background: linear-gradient(135deg, #ea580c, #dc2626);
-        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+        background: #ea580c;
     }
     
     .btn-secondary {
@@ -152,32 +134,60 @@
         border: 1px solid var(--border);
         color: #64748b;
         font-weight: 500;
-        border-radius: 10px;
-        transition: all 0.2s ease;
-    }
-    
-    .btn-secondary:hover {
-        background: #fff7ed;
-        border-color: #fed7aa;
-        color: #ea580c;
+        border-radius: 0.5rem;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
-    /* Premium button - no transform on hover */
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #475569;
+    }
+
+    /* Premium button */
     .premium-btn {
         transition: background-color 0.15s ease, border-color 0.15s ease;
-        border-radius: 0.75rem;
-    }
-    .premium-btn:hover {
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+        border-radius: 0.5rem;
     }
 
-    /* Icon tiles - allowed to have gradient */
-    .icon-tile {
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* Detail grid - 2 column layout */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-cell { padding: 0.625rem 0; border-bottom: 1px solid #f1f5f9; }
+    .detail-cell:nth-last-child(-n+2) { border-bottom: none; }
+    .detail-cell:nth-child(odd) { padding-right: 1.5rem; }
+    .detail-cell:nth-child(even) { padding-left: 1.5rem; border-left: 1px solid #f1f5f9; }
+    .detail-label { color: #64748b; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.125rem; }
+    .detail-value { color: #1e293b; font-size: 0.875rem; font-weight: 500; }
+    @media (max-width: 640px) {
+        .detail-grid { grid-template-columns: 1fr; }
+        .detail-cell:nth-child(even) { padding-left: 0; border-left: none; }
+        .detail-cell:nth-child(odd) { padding-right: 0; }
+        .detail-cell:nth-last-child(1) { border-bottom: none; }
+        .detail-cell:nth-last-child(2) { border-bottom: 1px solid #f1f5f9; }
     }
+
+    /* Section title - clean uppercase label */
+    .section-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-bottom: 0.75rem;
+        margin-bottom: 0;
+    }
+
+    /* Quick action buttons in sticky header */
+    .quick-action-btn {
+        display: inline-flex; align-items: center; gap: 0.375rem;
+        padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+        font-size: 0.8125rem; font-weight: 500; color: #475569;
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        transition: all 0.15s ease;
+    }
+    .quick-action-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
+    .quick-action-btn i { font-size: 0.75rem; color: #94a3b8; }
+    .quick-action-btn:hover i { color: #64748b; }
 
     /* Info row */
     .info-row {
@@ -211,22 +221,21 @@
     .status-tracker::before {
         content: '';
         position: absolute;
-        top: 20px;
+        top: 18px;
         left: 0;
         right: 0;
-        height: 4px;
+        height: 3px;
         background: var(--border);
         z-index: 0;
     }
-    
+
     .status-tracker-progress {
         position: absolute;
-        top: 20px;
+        top: 18px;
         left: 0;
-        height: 4px;
+        height: 3px;
         background: #f97316;
         z-index: 1;
-        transition: width 0.5s ease-out;
         border-radius: 2px;
     }
     
@@ -240,17 +249,16 @@
     }
     
     .tracker-dot {
-        width: 40px;
-        height: 40px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         font-weight: 600;
-        transition: all 0.2s ease;
         border: 3px solid white;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     
     .tracker-dot.completed {
@@ -261,7 +269,6 @@
     .tracker-dot.current {
         background: #f97316;
         color: white;
-        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.15), 0 2px 4px rgba(0,0,0,0.08);
     }
     
     .tracker-dot.upcoming {
@@ -287,15 +294,15 @@
     .tracker-label.upcoming { color: #94a3b8; }
     .tracker-label.cancelled { color: #dc2626; }
 
-    /* Prominent header badge - no shadow */
+    /* Header badge */
     .prominent-badge {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: 1rem;
-        font-weight: 700;
-        font-size: 0.875rem;
+        gap: 0.375rem;
+        padding: 0.375rem 0.875rem;
+        border-radius: 0.375rem;
+        font-weight: 600;
+        font-size: 0.8125rem;
     }
 
     /* Property Intelligence Tab Switcher */
@@ -327,9 +334,8 @@
     }
     
     .tab-btn.active {
-        background: linear-gradient(135deg, #f97316, #ea580c);
+        background: #f97316;
         color: white;
-        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
     }
     
     .tab-content {
@@ -410,65 +416,66 @@
         max-height: 1000px;
     }
 
-    /* Links - orange on hover */
+    /* Links */
     a.text-slate-500:hover, a.text-slate-600:hover {
-        color: #ea580c;
+        color: #1e293b;
     }
 </style>
 
-<!-- Clean professional background -->
-<div class="min-h-full page-fade-in" style="background: radial-gradient(ellipse 1200px 600px at 10% 0%, rgba(249,115,22,.04), transparent 60%), radial-gradient(ellipse 900px 500px at 100% 30%, rgba(45,62,80,.04), transparent 55%), #f8fafc;">
-    <div class="p-4 md:p-6 max-w-[1600px] mx-auto">
-        <!-- Back Link -->
-        {% set ref = request.args.get('ref') %}
-        {% set contact_id = request.args.get('contact_id') %}
-        {% if ref == 'contact' and contact_id %}
-        <a href="{{ url_for('contacts.view_contact', contact_id=contact_id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Contact
-        </a>
-        {% else %}
-        <a href="{{ url_for('transactions.list_transactions') }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Transactions
-        </a>
-        {% endif %}
-        
-        <!-- Header Section -->
-        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 relative z-50">
-            <div class="flex items-start space-x-4">
-                <!-- Property Icon -->
-                <div class="hidden md:flex icon-tile w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 flex-shrink-0">
-                    <i class="fas fa-home text-white text-lg"></i>
-                </div>
-                <div>
-                    <h1 class="text-2xl md:text-3xl font-bold text-slate-800">{{ transaction.street_address }}</h1>
-                    <p class="text-slate-500 mt-1">
-                        {% if transaction.city %}{{ transaction.city }}, {% endif %}{{ transaction.state }} {{ transaction.zip_code }}
-                        {% if transaction.county %}<span class="text-slate-400 mx-2">&middot;</span>{{ transaction.county }} County{% endif %}
-                    </p>
-                </div>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2">
-                <!-- History Button -->
-                <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
-                   class="btn-secondary px-4 py-2 text-sm flex items-center gap-2">
-                    <i class="fas fa-history"></i>
-                    <span class="hidden sm:inline">History</span>
+<!-- Page wrapper -->
+<div class="min-h-screen bg-slate-50">
+    <!-- Sticky nav bar -->
+    {% set ref = request.args.get('ref') %}
+    {% set contact_id = request.args.get('contact_id') %}
+    <div class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-[1280px] mx-auto px-4 sm:px-6">
+            <div class="h-12 flex items-center justify-between">
+                {% if ref == 'contact' and contact_id %}
+                <a href="{{ url_for('contacts.view_contact', contact_id=contact_id) }}"
+                    class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    <span>Back to Contact</span>
                 </a>
-                <!-- Delete Button -->
-                <button onclick="confirmDelete()"
-                        class="px-4 py-2 text-sm rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-colors flex items-center gap-2">
-                    <i class="fas fa-trash-alt"></i>
-                    <span class="hidden sm:inline">Delete</span>
-                </button>
+                {% else %}
+                <a href="{{ url_for('transactions.list_transactions') }}"
+                    class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    <span>Transactions</span>
+                </a>
+                {% endif %}
+                <div class="flex items-center gap-2">
+                    <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
+                       class="quick-action-btn">
+                        <i class="fas fa-history"></i>
+                        <span class="hidden sm:inline">History</span>
+                    </a>
+                    <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}"
+                       class="quick-action-btn">
+                        <i class="fas fa-pencil-alt"></i>
+                        <span class="hidden sm:inline">Edit</span>
+                    </a>
+                    <button onclick="confirmDelete()"
+                            class="quick-action-btn text-red-500 hover:text-red-600 border-red-200 hover:border-red-300 hover:bg-red-50">
+                        <i class="fas fa-trash-alt text-red-400"></i>
+                        <span class="hidden sm:inline">Delete</span>
+                    </button>
+                </div>
             </div>
         </div>
+    </div>
 
-        <!-- Prominent Type & Status Badges -->
-        <div class="flex flex-wrap items-center gap-4 mb-6 relative" style="z-index: 999;">
+    <div class="p-4 md:p-6 max-w-[1280px] mx-auto">
+        <!-- Header Section -->
+        <div class="mb-4">
+            <h1 class="text-2xl font-bold text-slate-800">{{ transaction.street_address }}</h1>
+            <p class="text-slate-500 text-sm mt-1">
+                {% if transaction.city %}{{ transaction.city }}, {% endif %}{{ transaction.state }} {{ transaction.zip_code }}
+                {% if transaction.county %}<span class="text-slate-400 mx-2">&middot;</span>{{ transaction.county }} County{% endif %}
+            </p>
+        </div>
+
+        <!-- Type & Status Badges -->
+        <div class="flex flex-wrap items-center gap-3 mb-5 relative" style="z-index: 999;">
             <!-- Type Badge - More Prominent -->
             <div class="prominent-badge type-{{ transaction.transaction_type.name }}">
                 <i class="fas fa-{% if transaction.transaction_type.name == 'seller' %}home{% elif transaction.transaction_type.name == 'buyer' %}key{% else %}handshake{% endif %}"></i>
@@ -504,7 +511,7 @@
 
         <!-- Status Progress Tracker (Pizza Tracker) -->
         {% if transaction.status != 'cancelled' %}
-        <div class="premium-card p-6 mb-6">
+        <div class="premium-card p-5 mb-6">
             {# Different status flows for buyers vs sellers #}
             {% if transaction.transaction_type.name == 'buyer' %}
                 {% set statuses = ['showing', 'under_contract', 'closed'] %}
@@ -570,9 +577,9 @@
         {% endif %}
 
         <!-- Main Content Grid -->
-        <div class="flex flex-col lg:flex-row gap-8">
+        <div class="flex flex-col lg:flex-row gap-6">
             <!-- Left Column - Main Info -->
-            <div class="flex-1 max-w-4xl space-y-6">
+            <div class="flex-1 min-w-0 space-y-6">
                 
                 {% if transaction.transaction_type.name == 'buyer' %}
                 <!-- Tab Switcher for Buyer Transactions -->
@@ -592,37 +599,26 @@
                 {% endif %}
                 <!-- Property Details Card -->
                 <div class="premium-card p-6">
-                    <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600">
-                                <i class="fas fa-info-circle text-white"></i>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
+                    <h2 class="section-title">PROPERTY DETAILS</h2>
+
+                    <div class="detail-grid">
+                        <div class="detail-cell">
+                            <div class="detail-label">Full Address</div>
+                            <div class="detail-value">{{ transaction.full_address }}</div>
                         </div>
-                        <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}" 
-                           class="text-sm text-slate-500 hover:text-orange-600 transition-colors">
-                            <i class="fas fa-edit mr-1"></i>Edit
-                        </a>
-                    </div>
-                    
-                    <div class="space-y-0">
-                        <div class="info-row">
-                            <span class="info-label">Full Address</span>
-                            <span class="info-value">{{ transaction.full_address }}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Transaction Type</span>
-                            <span class="info-value">{{ transaction.transaction_type.display_name }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Transaction Type</div>
+                            <div class="detail-value">{{ transaction.transaction_type.display_name }}</div>
                         </div>
                         {% if transaction.ownership_status %}
-                        <div class="info-row">
-                            <span class="info-label">Ownership Status</span>
-                            <span class="info-value">{{ transaction.ownership_status|replace('_', ' ')|title }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Ownership Status</div>
+                            <div class="detail-value">{{ transaction.ownership_status|replace('_', ' ')|title }}</div>
                         </div>
                         {% endif %}
-                        <div class="info-row">
-                            <span class="info-label">Current Status</span>
-                            <span class="info-value">
+                        <div class="detail-cell">
+                            <div class="detail-label">Current Status</div>
+                            <div class="detail-value">
                                 {% set detail_status_labels = {
                                     'preparing_to_list': 'Preparing to List',
                                     'showing': 'Showing',
@@ -631,31 +627,31 @@
                                     'closed': 'Closed',
                                     'cancelled': 'Cancelled/Withdrawn'
                                 } %}
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium status-{{ transaction.status }}">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium status-{{ transaction.status }}">
                                     {{ detail_status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
                                 </span>
-                            </span>
+                            </div>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">Created</span>
-                            <span class="info-value">{{ transaction.created_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Created</div>
+                            <div class="detail-value">{{ transaction.created_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
                         </div>
                         {% if transaction.updated_at and transaction.updated_at != transaction.created_at %}
-                        <div class="info-row">
-                            <span class="info-label">Last Updated</span>
-                            <span class="info-value">{{ transaction.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Last Updated</div>
+                            <div class="detail-value">{{ transaction.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</div>
                         </div>
                         {% endif %}
                         {% if transaction.expected_close_date %}
-                        <div class="info-row">
-                            <span class="info-label">Expected Close Date</span>
-                            <span class="info-value">{{ transaction.expected_close_date.strftime('%B %d, %Y') }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Expected Close Date</div>
+                            <div class="detail-value">{{ transaction.expected_close_date.strftime('%B %d, %Y') }}</div>
                         </div>
                         {% endif %}
                         {% if transaction.actual_close_date %}
-                        <div class="info-row">
-                            <span class="info-label">Actual Close Date</span>
-                            <span class="info-value text-green-600 font-semibold">{{ transaction.actual_close_date.strftime('%B %d, %Y') }}</span>
+                        <div class="detail-cell">
+                            <div class="detail-label">Actual Close Date</div>
+                            <div class="detail-value text-green-600 font-semibold">{{ transaction.actual_close_date.strftime('%B %d, %Y') }}</div>
                         </div>
                         {% endif %}
                     </div>
@@ -664,19 +660,14 @@
                 <!-- Property Questionnaire Card (for Seller Conventional) -->
                 {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
                 <div class="premium-card p-6">
-                    <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600">
-                                <i class="fas fa-clipboard-list text-white"></i>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">Property Questionnaire</h2>
-                        </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="section-title mb-0 pb-0">PROPERTY QUESTIONNAIRE</h2>
                         {% if transaction.intake_data %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-green-100 text-green-700">
                             <i class="fas fa-check mr-1.5"></i>Completed
                         </span>
                         {% else %}
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                        <span class="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-700">
                             <i class="fas fa-clock mr-1.5"></i>Not Started
                         </span>
                         {% endif %}
@@ -719,19 +710,14 @@
 
                 <!-- Documents Card -->
                 <div class="premium-card p-6">
-                    <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
-                                <i class="fas fa-file-alt text-white"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-lg font-bold text-slate-800">Documents</h2>
-                                <p class="text-xs text-slate-500">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
-                            </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <h2 class="section-title mb-0 pb-0">DOCUMENTS</h2>
+                            <p class="text-xs text-slate-500 mt-1">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
                         </div>
-                        <button onclick="showAddDocumentPicker()" 
-                                class="text-sm px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium">
-                            <i class="fas fa-plus mr-2"></i>Add Document
+                        <button onclick="showAddDocumentPicker()"
+                                class="text-sm px-3 py-1.5 bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-200">
+                            <i class="fas fa-plus mr-1.5"></i>Add
                         </button>
                     </div>
                     
@@ -769,17 +755,17 @@
                                     <div class="flex items-center gap-2">
                                         <span class="font-medium text-slate-800">{{ doc.template_name }}</span>
                                         {% if doc.is_placeholder and doc.status == 'pending' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-700">
                                             <i class="fas fa-exclamation-triangle mr-1"></i>Needs Content
                                         </span>
                                         {% elif doc.document_source == 'completed' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">Uploaded</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-100 text-teal-700">Uploaded</span>
                                         {% elif doc.document_source == 'static' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-100 text-teal-700">Static PDF</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-100 text-teal-700">Static PDF</span>
                                         {% elif doc.document_source == 'external' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-100 text-purple-700">External</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-100 text-purple-700">External</span>
                                         {% elif doc.document_source == 'hybrid' %}
-                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-100 text-orange-700">Hybrid</span>
+                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-100 text-orange-700">Hybrid</span>
                                         {% endif %}
                                     </div>
                                     {% if doc.included_reason %}
@@ -793,7 +779,7 @@
                                 {% if doc.status == 'signed' and doc.signed_file_path %}
                                 <!-- Signed with local copy stored -->
                                 <div class="flex items-center gap-2">
-                                    <span class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1
+                                    <span class="px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1
                                         {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
                                         {% if doc.document_source == 'completed' %}
                                         <i class="fas fa-file-upload"></i>Uploaded
@@ -803,7 +789,7 @@
                                         <i class="fas fa-signature"></i>E-Signed
                                         {% endif %}
                                     </span>
-                                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 flex items-center gap-1" 
+                                    <span class="px-2 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600 flex items-center gap-1" 
                                           title="Local copy stored in Supabase{% if doc.signed_file_size %} ({{ (doc.signed_file_size / 1024)|round(1) }} KB){% endif %}">
                                         <i class="fas fa-cloud-download-alt text-xs"></i>
                                         Stored
@@ -811,7 +797,7 @@
                                 </div>
                                 {% elif doc.status == 'signed' %}
                                 <!-- Signed but not yet stored locally -->
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1
+                                <span class="px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1
                                     {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
                                     {% if doc.document_source == 'completed' %}
                                     <i class="fas fa-file-upload"></i>Uploaded
@@ -822,7 +808,7 @@
                                     {% endif %}
                                 </span>
                                 {% else %}
-                                <span class="px-3 py-1 rounded-full text-xs font-semibold
+                                <span class="px-3 py-1 rounded-md text-xs font-semibold
                                     {% if doc.status == 'sent' %}bg-blue-100 text-blue-700
                                     {% elif doc.status == 'filled' %}bg-purple-100 text-purple-700
                                     {% elif doc.status == 'generated' %}bg-indigo-100 text-indigo-700
@@ -838,7 +824,7 @@
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div id="docActionsMenu-{{ doc.id }}" 
-                                         class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-2">
+                                         class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-2">
                                         
                                         <!-- EXTERNAL/HYBRID DOCUMENTS: Edit Fields -->
                                         {% if doc.document_source in ['external', 'hybrid'] %}
@@ -1019,7 +1005,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-12">
-                        <div class="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <div class="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                             <i class="fas fa-folder-open text-2xl text-slate-400"></i>
                         </div>
                         <h3 class="text-slate-800 font-medium mb-1">No documents yet</h3>
@@ -1041,24 +1027,19 @@
                     <div class="premium-card p-6">
                         <!-- Header -->
                         <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-violet-500 to-violet-600">
-                                <i class="fas fa-chart-line text-white"></i>
-                            </div>
                             <div>
-                                <h2 class="text-lg font-bold text-slate-800">Property Intelligence</h2>
-                                    <p class="text-xs text-slate-500" id="intel-last-updated">
-                                        {% if rentcast_fetched_at %}
-                                        Last updated: {{ rentcast_fetched_at.strftime('%B %d, %Y at %I:%M %p') }}
-                                        {% else %}
-                                        No data loaded yet
-                                        {% endif %}
-                                    </p>
-                                </div>
+                                <h2 class="section-title mb-0 pb-0">PROPERTY INTELLIGENCE</h2>
+                                <p class="text-xs text-slate-500 mt-1" id="intel-last-updated">
+                                    {% if rentcast_fetched_at %}
+                                    Last updated: {{ rentcast_fetched_at.strftime('%B %d, %Y at %I:%M %p') }}
+                                    {% else %}
+                                    No data loaded yet
+                                    {% endif %}
+                                </p>
                             </div>
                             {% if rentcast_data %}
                             <button onclick="refreshRentCastData()" id="refresh-btn"
-                                    class="text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium">
+                                    class="text-sm px-3 py-1.5 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors font-medium">
                                 <i class="fas fa-sync-alt mr-2"></i>Refresh
                             </button>
                             {% endif %}
@@ -1067,7 +1048,7 @@
                         <!-- Initial State - No Data -->
                         <div id="intel-initial-state" class="{% if rentcast_data %}hidden{% endif %}">
                             <div class="text-center py-8">
-                                <div class="w-16 h-16 bg-gradient-to-br from-violet-100 to-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <div class="w-16 h-16 bg-violet-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                                     <i class="fas fa-building text-2xl text-violet-600"></i>
                                 </div>
                                 <h3 class="text-slate-800 font-semibold mb-2">Get Property Intelligence</h3>
@@ -1099,7 +1080,7 @@
                         <!-- Error State -->
                         <div id="intel-error-state" class="hidden">
                             <div class="text-center py-8">
-                                <div class="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <div class="w-16 h-16 bg-red-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                                     <i class="fas fa-exclamation-circle text-2xl text-red-500"></i>
                                 </div>
                                 <h3 class="text-slate-800 font-semibold mb-2">Unable to Load Data</h3>
@@ -1115,7 +1096,7 @@
                             <!-- Sale History -->
                             <div class="intel-section" id="section-sale-history">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-emerald-400 to-emerald-500 text-white">
+                                    <div class="intel-section-icon bg-emerald-500 text-white">
                                         <i class="fas fa-dollar-sign"></i>
                                     </div>
                                     <span class="intel-section-title">Sale History</span>
@@ -1128,7 +1109,7 @@
                             <!-- Property Details -->
                             <div class="intel-section" id="section-property-details">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-blue-400 to-blue-500 text-white">
+                                    <div class="intel-section-icon bg-blue-500 text-white">
                                         <i class="fas fa-home"></i>
                                     </div>
                                     <span class="intel-section-title">Property Details</span>
@@ -1141,7 +1122,7 @@
                             <!-- Tax Assessments -->
                             <div class="intel-section" id="section-tax-assessments">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-amber-400 to-amber-500 text-white">
+                                    <div class="intel-section-icon bg-amber-500 text-white">
                                         <i class="fas fa-chart-bar"></i>
                                     </div>
                                     <span class="intel-section-title">Tax Assessments</span>
@@ -1154,7 +1135,7 @@
                             <!-- Property Taxes -->
                             <div class="intel-section" id="section-property-taxes">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-rose-400 to-rose-500 text-white">
+                                    <div class="intel-section-icon bg-rose-500 text-white">
                                         <i class="fas fa-receipt"></i>
                                     </div>
                                     <span class="intel-section-title">Annual Property Taxes</span>
@@ -1167,7 +1148,7 @@
                             <!-- Owner Information -->
                             <div class="intel-section" id="section-owner-info">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-indigo-400 to-indigo-500 text-white">
+                                    <div class="intel-section-icon bg-indigo-500 text-white">
                                         <i class="fas fa-user"></i>
                                     </div>
                                     <span class="intel-section-title">Current Owner</span>
@@ -1180,7 +1161,7 @@
                             <!-- Property Features (Collapsible) -->
                             <div class="intel-section" id="section-features">
                                 <div class="intel-section-header collapsible-header" onclick="toggleFeatures()">
-                                    <div class="intel-section-icon bg-gradient-to-br from-slate-400 to-slate-500 text-white">
+                                    <div class="intel-section-icon bg-slate-500 text-white">
                                         <i class="fas fa-cog"></i>
                                     </div>
                                     <span class="intel-section-title">Property Features</span>
@@ -1196,7 +1177,7 @@
                             <!-- Location Details -->
                             <div class="intel-section" id="section-location">
                                 <div class="intel-section-header">
-                                    <div class="intel-section-icon bg-gradient-to-br from-cyan-400 to-cyan-500 text-white">
+                                    <div class="intel-section-icon bg-cyan-500 text-white">
                                         <i class="fas fa-map-marker-alt"></i>
                                     </div>
                                     <span class="intel-section-title">Location Details</span>
@@ -1212,27 +1193,22 @@
             </div>
 
             <!-- Right Column - Participants & Actions -->
-            <div class="lg:w-[420px] xl:w-[480px] flex-shrink-0 space-y-6">
+            <div class="lg:w-[380px] xl:w-[420px] flex-shrink-0 space-y-6">
                 <!-- Participants Card -->
                 <div class="premium-card p-6">
-                    <div class="flex justify-between items-center mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-600">
-                                <i class="fas fa-users text-white"></i>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">Participants</h2>
-                        </div>
-                        <button onclick="showAddParticipantModal()" 
-                                class="w-8 h-8 rounded-lg bg-slate-100 text-slate-500 hover:bg-orange-100 hover:text-orange-600 transition-all flex items-center justify-center">
-                            <i class="fas fa-plus text-sm"></i>
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="section-title mb-0 pb-0">PARTICIPANTS</h2>
+                        <button onclick="showAddParticipantModal()"
+                                class="text-sm px-3 py-1.5 bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-200">
+                            <i class="fas fa-plus mr-1.5"></i>Add
                         </button>
                     </div>
                     
                     <div class="space-y-3">
                         {% for participant in participants %}
                         <div class="participant-card flex items-start gap-3 p-3 rounded-xl group">
-                            <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-100 to-indigo-200 flex items-center justify-center flex-shrink-0">
-                                <span class="text-indigo-600 font-semibold text-sm">
+                            <div class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                <span class="text-slate-600 font-semibold text-sm">
                                     {{ participant.display_name[:2]|upper }}
                                 </span>
                             </div>
@@ -1240,7 +1216,7 @@
                                 <div class="flex items-center gap-2">
                                     <span class="font-medium text-slate-800 truncate">{{ participant.display_name }}</span>
                                     {% if participant.is_primary %}
-                                    <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full">Primary</span>
+                                    <span class="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-md">Primary</span>
                                     {% endif %}
                                 </div>
                                 <div class="text-sm text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
@@ -1278,16 +1254,9 @@
                 <!-- Contact Files Card -->
                 {% if contact_files %}
                 <div class="premium-card p-6">
-                    <div class="flex items-center justify-between mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600">
-                                <i class="fas fa-folder-open text-white"></i>
-                            </div>
-                            <div>
-                                <h2 class="text-lg font-bold text-slate-800">Contact Files</h2>
-                                <p class="text-xs text-slate-500">Files from associated contacts</p>
-                            </div>
-                        </div>
+                    <div class="mb-4">
+                        <h2 class="section-title mb-0 pb-0">CONTACT FILES</h2>
+                        <p class="text-xs text-slate-500 mt-1">Files from associated contacts</p>
                     </div>
                     
                     <div class="space-y-2 max-h-64 overflow-y-auto">
@@ -1295,23 +1264,23 @@
                         <div class="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors group">
                             <!-- File Icon -->
                             {% if file.is_image %}
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-pink-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-file-image text-white text-sm"></i>
                             </div>
                             {% elif file.file_extension == 'pdf' %}
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-file-pdf text-white text-sm"></i>
                             </div>
                             {% elif file.file_extension in ['doc', 'docx'] %}
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-file-word text-white text-sm"></i>
                             </div>
                             {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-green-400 to-green-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-file-excel text-white text-sm"></i>
                             </div>
                             {% else %}
-                            <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-slate-400 to-slate-500 flex items-center justify-center shadow-sm flex-shrink-0">
+                            <div class="w-9 h-9 rounded-lg bg-slate-500 flex items-center justify-center flex-shrink-0">
                                 <i class="fas fa-file text-white text-sm"></i>
                             </div>
                             {% endif %}
@@ -1341,14 +1310,7 @@
                 {% if transaction.transaction_type.name == 'seller' %}
                 <!-- Listing Info Card (Seller Transactions Only) -->
                 <div class="premium-card p-6">
-                    <div class="flex items-center justify-between mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600">
-                                <i class="fas fa-clipboard-list text-white"></i>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">Listing Info</h2>
-                        </div>
-                    </div>
+                    <h2 class="section-title">LISTING INFO</h2>
                     
                     {% if listing_info %}
                     <div class="space-y-0">
@@ -1479,15 +1441,10 @@
                 {% else %}
                 <!-- Recent Activity Card (Non-Seller Transactions) -->
                 <div class="premium-card p-6">
-                    <div class="flex items-center justify-between mb-5">
-                        <div class="flex items-center gap-3">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-slate-500 to-slate-600">
-                                <i class="fas fa-clock-rotate-left text-white"></i>
-                            </div>
-                            <h2 class="text-lg font-bold text-slate-800">Recent Activity</h2>
-                        </div>
-                        <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}" 
-                           class="text-xs font-medium text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors">
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="section-title mb-0 pb-0">RECENT ACTIVITY</h2>
+                        <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
+                           class="text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1 transition-colors">
                             View All
                             <i class="fas fa-arrow-right text-[10px]"></i>
                         </a>
@@ -1593,7 +1550,7 @@
 <div id="deleteModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeDeleteModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 relative z-10">
             <div class="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
                 <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
             </div>
@@ -1624,7 +1581,7 @@
 <div id="addParticipantModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeParticipantModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative z-10">
+        <div class="bg-white rounded-xl shadow-lg max-w-md w-full p-6 relative z-10">
             <h3 class="text-xl font-bold text-slate-800 mb-5">Add Participant</h3>
             <form id="addParticipantForm">
                 <input type="hidden" name="contact_id" id="participantContactId">
@@ -1663,10 +1620,10 @@
                     
                     <!-- Selected Contact Preview -->
                     <div id="selectedContactPreview" class="hidden">
-                        <div class="bg-gradient-to-r from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200">
+                        <div class="bg-slate-50 rounded-lg p-4 border border-slate-200">
                             <div class="flex items-start justify-between">
                                 <div class="flex items-center gap-3">
-                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm" id="selectedContactInitials">
+                                    <div class="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center text-white font-semibold text-sm" id="selectedContactInitials">
                                     </div>
                                     <div>
                                         <div class="font-semibold text-slate-800" id="selectedContactName"></div>
@@ -1713,7 +1670,7 @@
 <div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeAddDocumentModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full relative z-10 overflow-hidden">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full relative z-10 overflow-hidden">
             
             <!-- Picker View (Initial) -->
             <div id="pickerView" class="p-6">
@@ -1889,7 +1846,7 @@
                             <span id="esignPercent" class="font-medium text-purple-600">0%</span>
                         </div>
                         <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="esignProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            <div id="esignProgressBar" class="h-full bg-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
                     </div>
                     
@@ -1974,7 +1931,7 @@
                             <span id="completedPercent" class="font-medium text-teal-600">0%</span>
                         </div>
                         <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <div id="completedProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                            <div id="completedProgressBar" class="h-full bg-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                         </div>
                     </div>
                     
@@ -2009,7 +1966,7 @@
 <div id="uploadScanModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeUploadScanModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative z-10">
             <div class="flex items-center gap-3 mb-5">
                 <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
                     <i class="fas fa-upload text-teal-600"></i>
@@ -2047,7 +2004,7 @@
                         <span id="uploadPercent" class="font-medium text-teal-600">0%</span>
                     </div>
                     <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div id="uploadProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        <div id="uploadProgressBar" class="h-full bg-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
                 </div>
                 
@@ -2082,7 +2039,7 @@
 <div id="uploadStaticModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeUploadStaticModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative z-10">
             <div class="flex items-center gap-3 mb-5">
                 <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
                     <i class="fas fa-file-upload text-teal-600"></i>
@@ -2127,7 +2084,7 @@
                         <span id="staticPercent" class="font-medium text-teal-600">0%</span>
                     </div>
                     <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div id="staticProgressBar" class="h-full bg-gradient-to-r from-teal-400 to-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        <div id="staticProgressBar" class="h-full bg-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
                 </div>
                 
@@ -2161,7 +2118,7 @@
 <div id="uploadForSignatureModal" class="fixed inset-0 z-50 hidden">
     <div class="modal-overlay absolute inset-0" onclick="closeUploadForSignatureModal()"></div>
     <div class="absolute inset-0 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative z-10">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative z-10">
             <div class="flex items-center gap-3 mb-5">
                 <div class="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
                     <i class="fas fa-file-signature text-purple-600"></i>
@@ -2206,7 +2163,7 @@
                         <span id="signaturePercent" class="font-medium text-purple-600">0%</span>
                     </div>
                     <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div id="signatureProgressBar" class="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                        <div id="signatureProgressBar" class="h-full bg-purple-500 rounded-full transition-all duration-300" style="width: 0%"></div>
                     </div>
                 </div>
                 
@@ -2238,7 +2195,7 @@
 
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
-    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
+    <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-xl shadow-lg border border-slate-200">
         <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
