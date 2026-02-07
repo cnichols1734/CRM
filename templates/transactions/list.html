@@ -4,166 +4,303 @@
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    :root {
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --focus: rgba(249, 115, 22, 0.1);
     }
 
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
+    .premium-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 0.75rem;
+        box-shadow: var(--shadow-sm);
     }
 
-    .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
-        opacity: 0;
+    .btn-primary {
+        background: #f97316;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        border: 1px solid #f97316;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
-    .animate-fade-in-up-delay-2 {
-        animation: fadeInUp 0.6s ease-out 0.2s forwards;
-        opacity: 0;
+    .btn-primary:hover {
+        background: #ea580c;
+        border-color: #ea580c;
     }
 
-    /* Premium table styling */
-    .premium-table {
+    .btn-secondary {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-weight: 500;
+        border-radius: 0.5rem;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #475569;
+    }
+
+    .segmented-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border: 1px solid var(--border);
+        background: #f8fafc;
+        border-radius: 0.5rem;
+    }
+
+    .segmented-btn {
+        padding: 0.4rem 0.9rem;
+        border-radius: 0.375rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #64748b;
+        border: none;
+        background: transparent;
+        transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .segmented-btn:hover {
+        color: #334155;
+        background: #f1f5f9;
+    }
+
+    .segmented-btn.active {
+        background: #f97316;
+        color: white;
+    }
+
+    .search-input,
+    .filter-select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: #fff;
+        color: #1e293b;
+        font-size: 0.875rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .search-input {
+        padding: 0.62rem 2.5rem 0.62rem 2.4rem;
+    }
+
+    .filter-select {
+        padding: 0.62rem 0.85rem;
+    }
+
+    .search-input:focus,
+    .filter-select:focus {
+        outline: none;
+        border-color: #f97316;
+        box-shadow: 0 0 0 3px var(--focus);
+    }
+
+    .tx-table {
         border-collapse: separate;
         border-spacing: 0;
     }
 
-    .premium-table thead th {
-        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+    .tx-table thead th {
+        background: #f8fafc;
+        color: #475569;
+        font-size: 0.75rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.75rem;
-        color: #475569;
+        white-space: nowrap;
     }
 
-    .premium-table tbody tr {
-        transition: all 0.15s ease-out;
-    }
-
-    .premium-table tbody tr:hover {
-        background: linear-gradient(to right, rgba(249, 115, 22, 0.03), rgba(249, 115, 22, 0.08), rgba(249, 115, 22, 0.03));
-    }
-
-    /* Clickable row styling */
-    .premium-table tbody tr.clickable-row {
+    .tx-table tbody tr {
         cursor: pointer;
+        transition: background-color 0.15s ease;
     }
 
-    /* Premium filter pill styling */
-    .filter-pill {
-        transition: all 0.2s ease-out;
+    .tx-table tbody tr:hover {
+        background: #fafafa;
     }
 
-    .filter-pill:hover:not(.active) {
-        background-color: #f1f5f9;
-    }
-
-    .filter-pill.active {
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: white;
-        box-shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.3);
-    }
-
-    /* Premium button styling */
-    .premium-btn {
-        transition: all 0.2s ease-out;
-        border-radius: 0.75rem;
-    }
-
-    .premium-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Premium search input */
-    .premium-search {
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        transition: all 0.2s ease-out;
-    }
-
-    .premium-search:focus {
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-        outline: none;
-    }
-
-    /* Status badge styles */
-    .status-badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
+    .status-badge,
+    .type-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.58rem;
+        border-radius: 0.375rem;
+        font-size: 0.6875rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
+        line-height: 1;
+        white-space: nowrap;
     }
 
     .status-preparing_to_list { background: #fef3c7; color: #92400e; }
+    .status-showing { background: #f3e8ff; color: #7c3aed; }
     .status-active { background: #dcfce7; color: #166534; }
     .status-under_contract { background: #dbeafe; color: #1e40af; }
     .status-closed { background: #e0e7ff; color: #3730a3; }
     .status-cancelled { background: #fee2e2; color: #991b1b; }
 
-    /* Type badge styles */
-    .type-badge {
-        padding: 0.375rem 0.75rem;
-        border-radius: 9999px;
-        font-size: 0.75rem;
-        font-weight: 600;
+    .type-seller { background: #f97316; color: white; }
+    .type-buyer { background: #8b5cf6; color: white; }
+    .type-landlord { background: #06b6d4; color: white; }
+    .type-tenant { background: #10b981; color: white; }
+    .type-referral { background: #6366f1; color: white; }
+
+    .filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.3rem 0.65rem;
+        border-radius: 0.375rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 0.8125rem;
     }
 
-    .type-seller { background: linear-gradient(135deg, #f97316, #ea580c); color: white; }
-    .type-buyer { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
-    .type-landlord { background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; }
-    .type-tenant { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .type-referral { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+    .avatar-pill {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 0.75rem;
+    }
+
+    .empty-state-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 0.75rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        font-size: 1.25rem;
+    }
+
+    .stage-age-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.28rem 0.6rem;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .stage-age-fresh {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .stage-age-watch {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .stage-age-stale {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .doc-progress-track {
+        height: 0.32rem;
+        width: 100%;
+        border-radius: 9999px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+
+    .doc-progress-fill {
+        height: 100%;
+        background: #10b981;
+    }
+
+    .doc-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.22rem 0.5rem;
+        border-radius: 0.35rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        line-height: 1;
+    }
+
+    .doc-chip-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+    }
+
+    .doc-chip-amber {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .doc-chip-slate {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .doc-chip-green {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .created-date {
+        white-space: nowrap;
+        font-size: 0.8125rem;
+    }
+
+    @media (max-width: 640px) {
+        .filter-chip-wrap {
+            gap: 0.5rem;
+        }
+    }
 
 </style>
 
-<!-- Premium gradient background - full width -->
-<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="p-4 md:p-6">
-        <!-- Header Section -->
-        <div class="flex justify-between items-center mb-6 animate-fade-in-up">
-            <div class="flex items-center space-x-3">
-                <!-- Animated Icon -->
-                <div class="hidden md:flex w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg">
-                    <i class="fas fa-file-contract text-white text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-slate-800 hidden md:block">Transactions</h1>
-                    <span class="text-sm text-slate-500">{{ transactions|length }} transaction{% if transactions|length != 1 %}s{% endif %}</span>
-                </div>
+<div class="min-h-screen bg-slate-50">
+    <div class="p-4 md:p-6 max-w-[1680px] mx-auto">
+        <div class="flex flex-col gap-4 mb-5 md:flex-row md:items-center md:justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">Transactions</h1>
+                <p class="text-sm text-slate-500 mt-1">
+                    {{ transactions|length }} transaction{% if transactions|length != 1 %}s{% endif %}
+                </p>
             </div>
             <a href="{{ url_for('transactions.new_transaction') }}"
-               class="text-sm font-medium px-4 py-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg hover:from-orange-600 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200 premium-btn">
-                <i class="fas fa-plus mr-2"></i>
-                <span class="hidden md:inline">New Transaction</span>
+               class="btn-primary inline-flex items-center justify-center gap-2 px-4 py-2 text-sm">
+                <i class="fas fa-plus text-xs"></i>
+                New Transaction
             </a>
         </div>
 
-        <!-- Filter Tabs - Admin Only -->
         {% if current_user.role == 'admin' %}
-        <div class="mb-6 animate-fade-in-up-delay-1">
-            <div class="inline-flex items-center p-1 bg-slate-100 rounded-xl">
+        <div class="mb-4">
+            <div class="segmented-control">
                 <button
-                    class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if show_all %}active{% else %}text-slate-600{% endif %}"
+                    class="segmented-btn {% if show_all %}active{% endif %}"
                     onclick="window.location.href='{{ url_for('transactions.list_transactions', view='all') }}';">
                     All transactions
                 </button>
                 <button
-                    class="filter-pill px-5 py-2 text-sm font-medium rounded-lg {% if not show_all %}active{% else %}text-slate-600{% endif %}"
+                    class="segmented-btn {% if not show_all %}active{% endif %}"
                     onclick="window.location.href='{{ url_for('transactions.list_transactions', view='my') }}';">
                     My transactions
                 </button>
@@ -171,219 +308,283 @@
         </div>
         {% endif %}
 
-        <!-- Search and Filters Bar -->
-        <div class="mb-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 animate-fade-in-up-delay-1">
-            <!-- Search Input -->
-            <div class="relative flex-1 max-w-md">
-                <form method="GET" id="searchForm">
-                    <!-- Preserve filter params -->
-                    {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
-                    {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-                    {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
-                    <input type="text" 
-                           id="searchInput" 
-                           name="q"
-                           placeholder="Search address or contact name..."
-                           class="premium-search w-full pl-11 pr-10 py-2.5 text-sm" 
-                           value="{{ search_query }}"
-                           autocomplete="off">
-                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i>
-                    {% if search_query %}
-                    <button type="button" 
-                            onclick="clearSearch()"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    {% endif %}
-                </form>
-            </div>
-
-            <!-- Filter Dropdowns -->
-            <div class="flex flex-wrap items-center gap-3">
-                <form method="GET" id="filterForm" class="flex flex-wrap items-center gap-3">
-                    <!-- Preserve search and view params -->
-                    {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
-                    {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
-                    
-                    <select name="type" 
-                            onchange="this.form.submit()"
-                            class="px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors cursor-pointer">
-                        <option value="">All Types</option>
-                        {% for tt in transaction_types %}
-                        <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
-                            {{ tt.display_name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-
-                    <select name="status" 
-                            onchange="this.form.submit()"
-                            class="px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors cursor-pointer">
-                        <option value="">All Statuses</option>
-                        <option value="preparing_to_list" {% if status_filter == 'preparing_to_list' %}selected{% endif %}>Preparing to List</option>
-                        <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                        <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
-                        <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
-                        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled/Withdrawn</option>
-                    </select>
-                </form>
-
-                {% if status_filter or type_filter or search_query %}
-                <a href="{{ url_for('transactions.list_transactions', view='all' if show_all else none) }}" 
-                   class="premium-btn text-sm px-4 py-2.5 border-2 border-orange-200 text-orange-600 bg-orange-50 hover:bg-orange-100 flex items-center space-x-2">
-                    <i class="fas fa-times-circle"></i>
-                    <span class="hidden sm:inline">Clear All</span>
-                </a>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Active Filters Display -->
-        {% if search_query or status_filter or type_filter %}
-        <div class="mb-4 flex flex-wrap items-center gap-2 animate-fade-in-up-delay-1">
-            <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active:</span>
-            {% if search_query %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-700 border border-orange-200">
-                <i class="fas fa-search mr-2 text-orange-500"></i>
-                "{{ search_query }}"
-                <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter, view='all' if show_all else none) }}" 
-                   class="ml-2 text-orange-500 hover:text-orange-700">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-            {% endif %}
-            {% if type_filter %}
-            {% for tt in transaction_types %}
-            {% if tt.id|string == type_filter %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-700 border border-purple-200">
-                <i class="fas fa-tag mr-2 text-purple-500"></i>
-                {{ tt.display_name }}
-                <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query, view='all' if show_all else none) }}" 
-                   class="ml-2 text-purple-500 hover:text-purple-700">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-            {% endif %}
-            {% endfor %}
-            {% endif %}
-            {% if status_filter %}
-            {% set filter_status_labels = {
-                'preparing_to_list': 'Preparing to List',
-                'active': 'Active',
-                'under_contract': 'Under Contract',
-                'closed': 'Closed',
-                'cancelled': 'Cancelled/Withdrawn'
-            } %}
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700 border border-blue-200">
-                <i class="fas fa-circle mr-2 text-blue-500"></i>
-                {{ filter_status_labels.get(status_filter, status_filter|replace('_', ' ')|title) }}
-                <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query, view='all' if show_all else none) }}" 
-                   class="ml-2 text-blue-500 hover:text-blue-700">
-                    <i class="fas fa-times"></i>
-                </a>
-            </span>
-            {% endif %}
-        </div>
-        {% endif %}
-
-        <!-- Transactions Table -->
-        {% if transactions %}
-        <div class="animate-fade-in-up-delay-2">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="premium-table w-full">
-                        <thead class="text-sm border-b-2 border-slate-200">
-                            <tr>
-                                <th class="px-6 py-4 text-left">Property</th>
-                                <th class="px-4 py-4 text-left border-l border-slate-200">Contact</th>
-                                {% if current_user.role == 'admin' and show_all %}
-                                <th class="px-4 py-4 text-left border-l border-slate-200">Owner</th>
-                                {% endif %}
-                                <th class="px-4 py-4 text-left border-l border-slate-200">Type</th>
-                                <th class="px-4 py-4 text-left border-l border-slate-200">Status</th>
-                                <th class="px-4 py-4 text-left border-l border-slate-200">Created</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for tx in transactions %}
-                            <tr class="group clickable-row" data-href="{{ url_for('transactions.view_transaction', id=tx.id) }}">
-                                <td class="px-6 py-4">
-                                    <div class="font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">{{ tx.street_address }}</div>
-                                    <div class="text-sm text-slate-500">
-                                        {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
-                                    </div>
-                                </td>
-                                <td class="px-4 py-4 border-l border-slate-100">
-                                    {% if transaction_contacts.get(tx.id) %}
-                                        {% set contact = transaction_contacts[tx.id] %}
-                                        <div class="flex items-center space-x-3">
-                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
-                                                <i class="fas fa-user text-slate-500 text-xs"></i>
-                                            </div>
-                                            <div>
-                                                <div class="font-medium text-slate-800">{{ contact.name }}</div>
-                                                {% if contact.email %}
-                                                <div class="text-xs text-slate-500">{{ contact.email }}</div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    {% else %}
-                                        <span class="text-slate-400 text-sm">No contact</span>
-                                    {% endif %}
-                                </td>
-                                {% if current_user.role == 'admin' and show_all %}
-                                <td class="px-4 py-4 border-l border-slate-100">
-                                    <div class="flex items-center">
-                                        <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-xs mr-2 flex-shrink-0 font-medium text-slate-600">
-                                            {{ tx.created_by.first_name[0] }}{{ tx.created_by.last_name[0] }}
-                                        </div>
-                                        <span class="text-slate-600 text-sm">
-                                            {{ tx.created_by.first_name }} {{ tx.created_by.last_name }}
-                                        </span>
-                                    </div>
-                                </td>
-                                {% endif %}
-                                <td class="px-4 py-4 border-l border-slate-100">
-                                    <span class="type-badge type-{{ tx.transaction_type.name }}">
-                                        {{ tx.transaction_type.display_name }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-4 border-l border-slate-100">
-                                    {% set list_status_labels = {
-                                        'preparing_to_list': 'Preparing to List',
-                                        'active': 'Active',
-                                        'under_contract': 'Under Contract',
-                                        'closed': 'Closed',
-                                        'cancelled': 'Cancelled/Withdrawn'
-                                    } %}
-                                    <span class="status-badge status-{{ tx.status }}">
-                                        {{ list_status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-4 text-slate-500 text-sm border-l border-slate-100">
-                                    {{ tx.created_at.strftime('%b %d, %Y') }}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="premium-card p-4 md:p-5 mb-4">
+            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div class="w-full lg:flex-1 lg:min-w-[620px] lg:pr-4">
+                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Search</label>
+                    <form method="GET" id="searchForm" class="relative">
+                        {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
+                        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                        {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
+                        <input type="text"
+                               id="searchInput"
+                               name="q"
+                               placeholder="Search address or contact name..."
+                               class="search-input"
+                               value="{{ search_query }}"
+                               autocomplete="off">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                        {% if search_query %}
+                        <button type="button"
+                                onclick="clearSearch()"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                            <i class="fas fa-times text-sm"></i>
+                        </button>
+                        {% endif %}
+                    </form>
                 </div>
+
+                <div class="w-full lg:w-auto lg:min-w-[430px]">
+                    <form method="GET" id="filterForm" class="flex flex-col sm:flex-row gap-3">
+                        {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
+                        {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
+
+                        <div class="sm:min-w-[170px]">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Type</label>
+                            <select name="type"
+                                    onchange="this.form.submit()"
+                                    class="filter-select">
+                                <option value="">All Types</option>
+                                {% for tt in transaction_types %}
+                                <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
+                                    {{ tt.display_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="sm:min-w-[190px]">
+                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Status</label>
+                            <select name="status"
+                                    onchange="this.form.submit()"
+                                    class="filter-select">
+                                <option value="">All Statuses</option>
+                                <option value="preparing_to_list" {% if status_filter == 'preparing_to_list' %}selected{% endif %}>Preparing to List</option>
+                                <option value="showing" {% if status_filter == 'showing' %}selected{% endif %}>Showing</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
+                                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
+                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled/Withdrawn</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if search_query or status_filter or type_filter %}
+            <div class="filter-chip-wrap mt-4 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active filters</span>
+                {% if search_query %}
+                <span class="filter-chip">
+                    <i class="fas fa-search text-slate-400 text-xs"></i>
+                    "{{ search_query }}"
+                    <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter, view='all' if show_all else none) }}"
+                       class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-xs"></i>
+                    </a>
+                </span>
+                {% endif %}
+                {% if type_filter %}
+                {% for tt in transaction_types %}
+                {% if tt.id|string == type_filter %}
+                <span class="filter-chip">
+                    <i class="fas fa-tag text-slate-400 text-xs"></i>
+                    {{ tt.display_name }}
+                    <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query, view='all' if show_all else none) }}"
+                       class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-xs"></i>
+                    </a>
+                </span>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                {% if status_filter %}
+                {% set filter_status_labels = {
+                    'preparing_to_list': 'Preparing to List',
+                    'showing': 'Showing',
+                    'active': 'Active',
+                    'under_contract': 'Under Contract',
+                    'closed': 'Closed',
+                    'cancelled': 'Cancelled/Withdrawn'
+                } %}
+                <span class="filter-chip">
+                    <i class="fas fa-circle text-slate-400 text-[10px]"></i>
+                    {{ filter_status_labels.get(status_filter, status_filter|replace('_', ' ')|title) }}
+                    <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query, view='all' if show_all else none) }}"
+                       class="text-slate-400 hover:text-slate-600">
+                        <i class="fas fa-times text-xs"></i>
+                    </a>
+                </span>
+                {% endif %}
+                <a href="{{ url_for('transactions.list_transactions', view='all' if show_all else none) }}"
+                   class="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs">
+                    <i class="fas fa-times-circle text-xs"></i>
+                    Clear all
+                </a>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if transactions %}
+        <div class="premium-card overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="tx-table w-full min-w-[1230px]">
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th class="px-5 py-3 text-left w-[260px]">Property</th>
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[300px]">Contact</th>
+                            {% if current_user.role == 'admin' and show_all %}
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[200px]">Owner</th>
+                            {% endif %}
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[190px]">Type</th>
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[170px]">Status</th>
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[130px]">Stage Age</th>
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[280px]">Document Progress</th>
+                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[130px]">Created</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for tx in transactions %}
+                        {% set stage_info = stage_age.get(tx.id, {'days': 0, 'started_at': tx.created_at}) %}
+                        {% set progress = document_progress.get(tx.id, {
+                            'signed': 0,
+                            'total': 0,
+                            'pending_placeholders': 0,
+                            'pending_signatures': 0
+                        }) %}
+                        {% set signed_docs = progress.get('signed', 0) %}
+                        {% set total_docs = progress.get('total', 0) %}
+                        {% set pending_placeholders = progress.get('pending_placeholders', 0) %}
+                        {% set pending_signatures = progress.get('pending_signatures', 0) %}
+                        {% if total_docs > 0 %}
+                            {% set completion_pct = ((signed_docs / total_docs) * 100)|round(0, 'floor')|int %}
+                        {% else %}
+                            {% set completion_pct = 0 %}
+                        {% endif %}
+                        <tr class="clickable-row" data-href="{{ url_for('transactions.view_transaction', id=tx.id) }}">
+                            <td class="px-5 py-4">
+                                <div class="font-semibold text-slate-800">{{ tx.street_address }}</div>
+                                <div class="text-sm text-slate-500 mt-0.5">
+                                    {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 border-l border-slate-100">
+                                {% if transaction_contacts.get(tx.id) %}
+                                    {% set contact = transaction_contacts[tx.id] %}
+                                    <div class="flex items-center gap-3 min-w-0">
+                                        <span class="avatar-pill">
+                                            <i class="fas fa-user"></i>
+                                        </span>
+                                        <div class="min-w-0">
+                                            <div class="font-medium text-slate-800 truncate">{{ contact.name }}</div>
+                                            {% if contact.email %}
+                                            <div class="text-xs text-slate-500 truncate">{{ contact.email }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <span class="text-slate-400 text-sm">No contact</span>
+                                {% endif %}
+                            </td>
+                            {% if current_user.role == 'admin' and show_all %}
+                            <td class="px-4 py-4 border-l border-slate-100">
+                                <div class="flex items-center gap-2">
+                                    <span class="avatar-pill rounded-md w-7 h-7 text-[11px] font-semibold">
+                                        {{ tx.created_by.first_name[0] }}{{ tx.created_by.last_name[0] }}
+                                    </span>
+                                    <span class="text-slate-600 text-sm">
+                                        {{ tx.created_by.first_name }} {{ tx.created_by.last_name }}
+                                    </span>
+                                </div>
+                            </td>
+                            {% endif %}
+                            <td class="px-4 py-4 border-l border-slate-100 align-top">
+                                <span class="type-badge type-{{ tx.transaction_type.name }}">
+                                    {{ tx.transaction_type.display_name }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 border-l border-slate-100 align-top">
+                                {% set list_status_labels = {
+                                    'preparing_to_list': 'Preparing to List',
+                                    'showing': 'Showing',
+                                    'active': 'Active',
+                                    'under_contract': 'Under Contract',
+                                    'closed': 'Closed',
+                                    'cancelled': 'Cancelled/Withdrawn'
+                                } %}
+                                <span class="status-badge status-{{ tx.status }}">
+                                    {{ list_status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-4 border-l border-slate-100">
+                                {% set stage_days = stage_info.get('days', 0) %}
+                                <span class="stage-age-pill
+                                    {% if stage_days >= 21 %}stage-age-stale
+                                    {% elif stage_days >= 10 %}stage-age-watch
+                                    {% else %}stage-age-fresh{% endif %}">
+                                    {{ stage_days }}d
+                                </span>
+                                {% if stage_info.get('started_at') %}
+                                <div class="text-[11px] text-slate-500 mt-1">
+                                    since {{ stage_info.get('started_at').strftime('%b %d') }}
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-4 border-l border-slate-100">
+                                <div class="min-w-[190px]">
+                                    <div class="flex items-center justify-between text-xs">
+                                        <span class="font-semibold text-slate-700">{{ signed_docs }}/{{ total_docs }} signed</span>
+                                        <span class="text-slate-500">{{ completion_pct }}%</span>
+                                    </div>
+                                    <div class="doc-progress-track mt-1.5">
+                                        <div class="doc-progress-fill" style="width: {{ completion_pct }}%;"></div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1.5 mt-2">
+                                        {% if pending_signatures > 0 %}
+                                        <span class="doc-chip doc-chip-blue">
+                                            {{ pending_signatures }} pending signature{% if pending_signatures != 1 %}s{% endif %}
+                                        </span>
+                                        {% endif %}
+                                        {% if pending_placeholders > 0 %}
+                                        <span class="doc-chip doc-chip-amber">
+                                            {{ pending_placeholders }} placeholder{% if pending_placeholders != 1 %}s{% endif %}
+                                        </span>
+                                        {% endif %}
+                                        {% if total_docs == 0 %}
+                                        <span class="doc-chip doc-chip-slate">No docs</span>
+                                        {% elif pending_signatures == 0 and pending_placeholders == 0 and signed_docs == total_docs %}
+                                        <span class="doc-chip doc-chip-green">Complete</span>
+                                        {% elif pending_signatures == 0 and pending_placeholders == 0 %}
+                                        <span class="doc-chip doc-chip-slate">In progress</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 text-slate-500 border-l border-slate-100 align-top">
+                                <span class="created-date">
+                                {{ tx.created_at.strftime('%b %d, %Y') }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
         {% else %}
-        <!-- Empty State -->
-        <div class="animate-fade-in-up-delay-2">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-12 text-center">
-                <div class="w-20 h-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <i class="fas fa-folder-open text-3xl text-slate-400"></i>
-                </div>
-                <h3 class="text-xl font-bold text-slate-800 mb-2">No transactions yet</h3>
-                <p class="text-slate-500 mb-6 max-w-md mx-auto">Get started by creating your first transaction to manage your real estate deals.</p>
-                <a href="{{ url_for('transactions.new_transaction') }}" 
-                   class="inline-flex items-center text-sm font-medium px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all duration-200">
-                    <i class="fas fa-plus mr-2"></i>New Transaction
-                </a>
+        <div class="premium-card p-10 text-center">
+            <div class="empty-state-icon mx-auto mb-4">
+                <i class="fas fa-folder-open"></i>
             </div>
+            <h3 class="text-xl font-semibold text-slate-800 mb-2">No transactions yet</h3>
+            <p class="text-slate-500 mb-6 max-w-md mx-auto">
+                Get started by creating your first transaction to manage your real estate deals.
+            </p>
+            <a href="{{ url_for('transactions.new_transaction') }}"
+               class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+                <i class="fas fa-plus text-xs"></i>
+                New Transaction
+            </a>
         </div>
         {% endif %}
     </div>

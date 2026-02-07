@@ -4,96 +4,51 @@
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    :root {
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --focus: rgba(249, 115, 22, 0.1);
     }
 
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-
-    .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
-        opacity: 0;
-    }
-
-    /* Premium card styling */
     .premium-card {
-        background: white;
-        border-radius: 1rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-
-    /* Premium input styling */
-    .premium-input {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background-color: #f8fafc;
-        border: 2px solid #e2e8f0;
+        background: var(--panel);
+        border: 1px solid var(--border);
         border-radius: 0.75rem;
-        font-size: 0.875rem;
-        transition: all 0.2s ease-out;
+        box-shadow: var(--shadow-sm);
     }
 
-    .premium-input:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    .section-title {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin: 0;
     }
 
-    .premium-input:disabled {
-        background-color: #f1f5f9;
-        color: #94a3b8;
-        cursor: not-allowed;
+    .section-icon {
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 0.45rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+        border: 1px solid #cbd5e1;
+        color: #64748b;
+        flex-shrink: 0;
+        font-size: 0.75rem;
     }
 
-    /* Premium select styling */
-    .premium-select {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background-color: #f8fafc;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        font-size: 0.875rem;
-        transition: all 0.2s ease-out;
-        cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.75rem center;
-        background-repeat: no-repeat;
-        background-size: 1.5em 1.5em;
-        padding-right: 2.5rem;
-    }
-
-    .premium-select:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-
-    /* Premium button styling */
-    .premium-btn {
-        transition: all 0.2s ease-out;
-        border-radius: 0.75rem;
-    }
-
-    .premium-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Label styling */
     .form-label {
         display: block;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: #374151;
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.45rem;
+        color: #334155;
+        font-size: 0.8125rem;
+        font-weight: 600;
     }
 
     .form-label-required::after {
@@ -101,76 +56,117 @@
         color: #ef4444;
     }
 
-    /* Form group */
-    .form-group {
-        margin-bottom: 1.5rem;
+    .form-input,
+    .form-select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        background: #ffffff;
+        color: var(--text);
+        font-size: 0.875rem;
+        padding: 0.625rem 0.85rem;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
-    /* Helper text */
+    .form-select {
+        cursor: pointer;
+    }
+
+    .form-input:focus,
+    .form-select:focus {
+        border-color: #f97316;
+        box-shadow: 0 0 0 3px var(--focus);
+        outline: none;
+    }
+
+    .form-input:disabled {
+        background: #f8fafc;
+        color: #64748b;
+        cursor: not-allowed;
+    }
+
     .form-helper {
         font-size: 0.75rem;
-        color: #6b7280;
-        margin-top: 0.375rem;
+        color: #64748b;
+        margin-top: 0.35rem;
+    }
+
+    .btn-primary {
+        background: #f97316;
+        color: #fff;
+        font-weight: 600;
+        border-radius: 0.5rem;
+        border: 1px solid #f97316;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-primary:hover {
+        background: #ea580c;
+        border-color: #ea580c;
+    }
+
+    .btn-secondary {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-weight: 500;
+        border-radius: 0.5rem;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+        background: #f1f5f9;
+        border-color: #cbd5e1;
+        color: #475569;
     }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-full bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <div class="p-4 md:p-6 max-w-3xl mx-auto">
-        <!-- Back Link -->
-        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-           class="inline-flex items-center text-slate-500 hover:text-orange-600 text-sm mb-4 transition-colors animate-fade-in-up">
-            <i class="fas fa-arrow-left mr-2"></i>Back to Transaction
+<div class="min-h-screen bg-slate-50">
+    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+        <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+           class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-4">
+            <i class="fas fa-arrow-left text-xs"></i>
+            Back to Transaction
         </a>
-        
-        <!-- Header Section -->
-        <div class="flex items-start space-x-4 mb-6 animate-fade-in-up">
-            <div class="hidden md:flex w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-500 to-orange-600 items-center justify-center shadow-lg flex-shrink-0">
-                <i class="fas fa-edit text-white text-xl"></i>
-            </div>
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Edit Transaction</h1>
-                <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
-            </div>
+
+        <div class="mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Edit Transaction</h1>
+            <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
         </div>
 
-        <!-- Edit Form -->
-        <form action="{{ url_for('transactions.update_transaction', id=transaction.id) }}" method="POST" class="animate-fade-in-up-delay-1">
-            <!-- Property Details Card -->
-            <div class="premium-card p-6 mb-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                        <i class="fas fa-home text-white"></i>
+        <form action="{{ url_for('transactions.update_transaction', id=transaction.id) }}" method="POST" class="space-y-6">
+            <div class="premium-card p-5 md:p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="section-icon"><i class="fas fa-home"></i></span>
+                    <div>
+                        <h2 class="section-title">Property Details</h2>
+                        <p class="text-xs text-slate-500 mt-1">Update address and location information.</p>
                     </div>
-                    <h2 class="text-lg font-bold text-slate-800">Property Details</h2>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Street Address -->
-                    <div class="form-group md:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
                         <label class="form-label form-label-required">Street Address</label>
-                        <input type="text" 
-                               name="street_address" 
+                        <input type="text"
+                               name="street_address"
                                value="{{ transaction.street_address }}"
-                               class="premium-input"
+                               class="form-input"
                                required
                                placeholder="123 Main Street">
                     </div>
 
-                    <!-- City -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">City</label>
-                        <input type="text" 
-                               name="city" 
+                        <input type="text"
+                               name="city"
                                value="{{ transaction.city or '' }}"
-                               class="premium-input"
+                               class="form-input"
                                placeholder="Houston">
                     </div>
 
-                    <!-- State -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">State</label>
-                        <select name="state" class="premium-select">
+                        <select name="state" class="form-select">
                             <option value="TX" {% if transaction.state == 'TX' %}selected{% endif %}>Texas</option>
                             <option value="AL" {% if transaction.state == 'AL' %}selected{% endif %}>Alabama</option>
                             <option value="AK" {% if transaction.state == 'AK' %}selected{% endif %}>Alaska</option>
@@ -224,67 +220,75 @@
                         </select>
                     </div>
 
-                    <!-- ZIP Code -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">ZIP Code</label>
-                        <input type="text" 
-                               name="zip_code" 
+                        <input type="text"
+                               name="zip_code"
                                value="{{ transaction.zip_code or '' }}"
-                               class="premium-input"
+                               class="form-input"
                                placeholder="77002"
                                maxlength="10">
                     </div>
 
-                    <!-- County -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">County</label>
-                        <input type="text" 
-                               name="county" 
+                        <input type="text"
+                               name="county"
                                value="{{ transaction.county or '' }}"
-                               class="premium-input"
+                               class="form-input"
                                placeholder="Harris">
                     </div>
                 </div>
             </div>
 
-            <!-- Transaction Details Card -->
-            <div class="premium-card p-6 mb-6">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                        <i class="fas fa-file-contract text-white"></i>
+            <div class="premium-card p-5 md:p-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <span class="section-icon"><i class="fas fa-file-contract"></i></span>
+                    <div>
+                        <h2 class="section-title">Transaction Details</h2>
+                        <p class="text-xs text-slate-500 mt-1">Review and update transaction metadata and dates.</p>
                     </div>
-                    <h2 class="text-lg font-bold text-slate-800">Transaction Details</h2>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Transaction Type (Read-only) -->
-                    <div class="form-group">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
                         <label class="form-label">Transaction Type</label>
-                        <input type="text" 
+                        <input type="text"
                                value="{{ transaction.transaction_type.display_name }}"
-                               class="premium-input"
+                               class="form-input"
                                disabled>
                         <p class="form-helper">Transaction type cannot be changed after creation.</p>
                     </div>
 
-                    <!-- Status -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">Status</label>
-                        <select name="status" class="premium-select">
-                            <option value="draft" {% if transaction.status == 'draft' %}selected{% endif %}>Draft</option>
-                            <option value="active" {% if transaction.status == 'active' %}selected{% endif %}>Active</option>
-                            <option value="pending" {% if transaction.status == 'pending' %}selected{% endif %}>Pending</option>
-                            <option value="under_contract" {% if transaction.status == 'under_contract' %}selected{% endif %}>Under Contract</option>
-                            <option value="closed" {% if transaction.status == 'closed' %}selected{% endif %}>Closed</option>
-                            <option value="cancelled" {% if transaction.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        {% set status_labels = {
+                            'preparing_to_list': 'Preparing to List',
+                            'showing': 'Showing',
+                            'active': 'Active',
+                            'under_contract': 'Under Contract',
+                            'closed': 'Closed',
+                            'cancelled': 'Cancelled/Withdrawn'
+                        } %}
+                        {% set status_options = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled'] %}
+                        <select name="status" class="form-select">
+                            {% for status in status_options %}
+                            <option value="{{ status }}" {% if transaction.status == status %}selected{% endif %}>
+                                {{ status_labels[status] }}
+                            </option>
+                            {% endfor %}
+                            {% if transaction.status and transaction.status not in status_options %}
+                            <option value="{{ transaction.status }}" selected>
+                                {{ transaction.status|replace('_', ' ')|title }} (Legacy)
+                            </option>
+                            {% endif %}
                         </select>
                     </div>
 
-                    <!-- Ownership Status (for Seller transactions) -->
                     {% if transaction.transaction_type.name == 'seller' %}
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">Ownership Status</label>
-                        <select name="ownership_status" class="premium-select">
+                        <select name="ownership_status" class="form-select">
                             <option value="">Select...</option>
                             <option value="conventional" {% if transaction.ownership_status == 'conventional' %}selected{% endif %}>Conventional</option>
                             <option value="builder" {% if transaction.ownership_status == 'builder' %}selected{% endif %}>Builder</option>
@@ -294,40 +298,37 @@
                     </div>
                     {% endif %}
 
-                    <!-- Expected Close Date -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">Expected Close Date</label>
-                        <input type="date" 
-                               name="expected_close_date" 
+                        <input type="date"
+                               name="expected_close_date"
                                value="{{ transaction.expected_close_date.strftime('%Y-%m-%d') if transaction.expected_close_date else '' }}"
-                               class="premium-input">
+                               class="form-input">
                     </div>
 
-                    <!-- Actual Close Date (show only if status is closed) -->
-                    <div class="form-group">
+                    <div>
                         <label class="form-label">Actual Close Date</label>
-                        <input type="date" 
-                               name="actual_close_date" 
+                        <input type="date"
+                               name="actual_close_date"
                                value="{{ transaction.actual_close_date.strftime('%Y-%m-%d') if transaction.actual_close_date else '' }}"
-                               class="premium-input">
+                               class="form-input">
                         <p class="form-helper">Set when the transaction officially closes.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Form Actions -->
             <div class="flex flex-col sm:flex-row gap-3 justify-end">
-                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}" 
-                   class="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors text-center">
+                <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
+                   class="btn-secondary px-6 py-2.5 text-sm text-center">
                     Cancel
                 </a>
-                <button type="submit" 
-                        class="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl font-medium hover:from-orange-600 hover:to-orange-700 shadow-lg hover:shadow-xl transition-all">
-                    <i class="fas fa-save mr-2"></i>Save Changes
+                <button type="submit"
+                        class="btn-primary px-6 py-2.5 text-sm inline-flex items-center justify-center gap-2">
+                    <i class="fas fa-save text-xs"></i>
+                    Save Changes
                 </button>
             </div>
         </form>
     </div>
 </div>
 {% endblock %}
-
