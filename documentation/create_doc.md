@@ -124,10 +124,24 @@ Fields in the YAML use **source paths** to reference this context:
 
 #### Step 1: Get DocuSeal Template Info
 
-Get the template ID and field/role names from DocuSeal:
-- Template ID: `2661511`
-- Roles: `Broker's Agent`, `Seller`, `Seller 2`
-- Fields: `Broker's Printed Name` (text), signature fields, date fields
+**Fetch fields and roles from the DocuSeal API** (requires `DOCUSEAL_API_KEY_PROD` or `DOCUSEAL_API_KEY_TEST` in `.env`):
+
+```bash
+curl -s -H "X-Auth-Token: YOUR_API_KEY" "https://api.docuseal.com/templates/TEMPLATE_ID" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print('=== ROLES ===')
+for s in data.get('submitters', []):
+    print(f\"  {s['name']}\")
+print('=== FIELDS (by role) ===')
+role_map = {s['uuid']: s['name'] for s in data.get('submitters', [])}
+for f in data.get('fields', []):
+    role = role_map.get(f.get('submitter_uuid', ''), 'Unknown')
+    print(f\"  {role}: {f['name']} (type={f['type']}, readonly={f.get('readonly')})\")
+"
+```
+
+Copy field names **exactly** from the API response—including Unicode characters (e.g., non-breaking space `\u00A0`). Fields with empty names cannot be mapped (schema requires `docuseal_field` minLength 1).
 
 #### Step 2: Create YAML Definition
 
@@ -210,8 +224,8 @@ The `DocumentLoader.load_all()` runs on app startup. Restart Flask to load the n
 #### Step 1: Get DocuSeal Template Info
 
 - Template ID: `2468023`
-- Roles: `Seller`, `Seller 2`, `Agent`
-- Fields: Many form fields (list price, address, dates, etc.)
+- Roles: `System` (auto-complete), `Seller`, `Seller 2` (optional), `Broker` (agent signs)
+- Fields: 142 fields—see `documents/listing-agreement.yml` for full mapping reference
 
 #### Step 2: Create YAML Definition
 
@@ -397,14 +411,21 @@ fields: [...]                # Zero or more fields
     - transaction.zip_code
   template: "{0}, {1}, {2} {3}"
 
-# Conditional field
+# Conditional field (use static:X for yes/no checkboxes)
 - field_key: option_checkbox
   docuseal_field: "Option A"
   role_key: seller
-  source: form.selected_option
-  transform: checkbox
+  source: static:X
   condition_field: form.selected_option
-  condition_equals: option_a
+  condition_equals: "yes"
+
+# Conditional with form value (e.g., commission amount)
+- field_key: commission_amount
+  docuseal_field: "Commission %"
+  role_key: system
+  source: form.total_commission
+  condition_field: form.offer_buyer_agent_comp
+  condition_equals: "yes"
 ```
 
 ### Source Path Syntax
@@ -489,6 +510,20 @@ The system checks if `email_source` resolves to a value. If not, the role is ski
 | Co-seller (`role='seller', is_primary=False`) | "Seller 2" |
 | Listing agent (`role='listing_agent'`) | "Agent" or "Broker" |
 | Buyer's agent | "Buyer's Agent" |
+
+### The "System" Role Pattern
+
+Some DocuSeal templates use a **System** role for fields that are auto-populated and never require human signing. Map these with `auto_complete: true`:
+
+```yaml
+- role_key: system
+  docuseal_role: "System"
+  email_source: user.email
+  name_source: user.full_name
+  auto_complete: true
+```
+
+All System role fields should have `source` or `sources` (no `source: null` for readonly text fields). Manual fields (initials, signatures) stay on Seller/Broker roles.
 
 ---
 
@@ -597,8 +632,20 @@ Locations to check (search for `'form': doc.field_data`):
 1. **Document not loading**: Check YAML syntax, restart app
 2. **Fields not populated**: Check source path, ensure context includes organization
 3. **Role not appearing**: Check `optional` flag, verify email resolves
-4. **Wrong field in DocuSeal**: Verify `docuseal_field` matches EXACTLY
+4. **Wrong field in DocuSeal**: Verify `docuseal_field` matches EXACTLY (copy from API—including Unicode like `\u00A0` for non-breaking space)
 5. **Transform not working**: Check transform name is valid
+6. **Conditional checkbox not showing**: Use `source: static:X` with `condition_field`/`condition_equals`, not `source: form.x` + transform
+
+### DocuSeal Mapping Checklist (Complex Documents)
+
+When mapping a document with many fields (e.g., Listing Agreement):
+
+1. **Fetch template via API**—get exact field names and roles; note which are readonly vs manual
+2. **Define all 4 role types** if template has them: System (auto-complete), Seller, Seller 2 (optional), Broker (agent signs)
+3. **Map readonly fields** to form/transaction/user/organization sources; use `source: null` for initials/signatures/dates
+4. **Use conditional logic** for mutually exclusive options (e.g., MLS yes/no, 5A vs 5B compensation)—`condition_field` + `condition_equals` + `source: static:X`
+5. **Repeated fields** (e.g., "Listing Concerning" on each page)—map all instances to the same combined source
+6. **Skip empty-name fields**—DocuSeal templates may have unnamed fields; schema cannot map them
 
 ---
 
@@ -784,3 +831,10 @@ See `documents/t47-affidavit.yml` for a form-driven document with:
 - Multiple DocuSeal fields mapped to same form input (`form.declarant` → "Declarant" and "Seller Name")
 - Cross-document data pulling (property description from Listing Agreement)
 - Real-time field sync in Fill All Forms (JavaScript in `fill_all_documents.html`)
+
+See `documents/listing-agreement.yml` for a complex multi-role document with:
+- System role (`auto_complete: true`) for 79 readonly auto-populated fields
+- Seller and Seller 2 (optional) with pre-filled contact info + manual initials/signatures
+- Broker role (agent signs)—no auto_complete
+- Conditional fields for MLS, financing, compensation sections
+- Combined sources for address fields
