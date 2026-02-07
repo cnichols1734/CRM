@@ -1,157 +1,360 @@
 {% extends "base.html" %}
 
+{% block head_scripts %}
+<style>
+    :root {
+        --brand-navy: #2d3e50;
+        --brand-orange: #f97316;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .page-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .admin-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .admin-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: var(--shadow);
+    }
+
+    .icon-tile {
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-admin-primary {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-primary:hover {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-admin-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-danger:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-admin-success {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-success:hover {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-admin-warning {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-warning:hover {
+        background: linear-gradient(135deg, #d97706, #b45309);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .metric-card {
+        border-radius: 12px;
+        transition: box-shadow 0.15s ease;
+    }
+
+    .metric-card:hover {
+        box-shadow: var(--shadow);
+    }
+
+    .admin-select:focus {
+        outline: none;
+        border-color: #f97316;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+
+    .timeline-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        margin-top: 6px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-6xl mx-auto">
+<div class="page-fade-in max-w-6xl mx-auto p-4 md:p-6" style="background: radial-gradient(ellipse at top, rgba(45,62,80,0.03), transparent 70%);">
     <!-- Header -->
-    <div class="mb-8 flex items-center justify-between">
+    <div class="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-            <a href="{{ url_for('platform.dashboard') }}" class="text-blue-600 hover:underline text-sm">
-                ← Back to Dashboard
+            <a href="{{ url_for('platform.dashboard') }}" class="text-slate-400 hover:text-orange-500 transition-colors text-sm inline-flex items-center">
+                <i class="fas fa-arrow-left mr-1.5"></i> Back to Dashboard
             </a>
-            <h1 class="text-3xl font-bold text-gray-900 mt-2">{{ org.name }}</h1>
-            <p class="text-gray-600">{{ org.slug }}</p>
+            <div class="flex items-center mt-3">
+                <div class="icon-tile w-12 h-12 mr-4" style="background: linear-gradient(135deg, var(--brand-navy), #475569);">
+                    <i class="fas fa-building text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-800">{{ org.name }}</h1>
+                    <p class="text-slate-400">{{ org.slug }}</p>
+                </div>
+            </div>
             {% if owner_email %}
-            <p class="text-sm text-gray-500 mt-1">
-                <i class="fas fa-user-shield text-gray-400 mr-1"></i>
-                Admin: <a href="mailto:{{ owner_email }}" class="text-blue-600 hover:underline">{{ owner_email }}</a>
+            <p class="text-sm text-slate-500 mt-2 ml-16">
+                <i class="fas fa-user-shield text-slate-400 mr-1"></i>
+                Admin: <a href="mailto:{{ owner_email }}" class="text-blue-600 hover:text-orange-500 transition-colors">{{ owner_email }}</a>
             </p>
             {% endif %}
         </div>
-        <div>
-            <span class="px-3 py-1 inline-flex text-sm font-semibold rounded-full
+        <div class="md:mt-4">
+            <span class="px-4 py-1.5 inline-flex text-sm font-semibold rounded-full
                 {% if org.status == 'active' %}bg-green-100 text-green-800
                 {% elif org.status == 'pending_approval' %}bg-amber-100 text-amber-800
                 {% elif org.status == 'suspended' %}bg-red-100 text-red-800
-                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                {% else %}bg-slate-100 text-slate-600{% endif %}">
                 {{ org.status|replace('_', ' ')|title }}
             </span>
         </div>
     </div>
-    
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Info -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Metrics (from organization_metrics table only) -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Usage Metrics</h3>
+            <!-- Metrics -->
+            <div class="admin-card p-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-chart-bar text-slate-400 mr-2"></i>Usage Metrics
+                </h3>
                 {% if metrics %}
                 <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 rounded p-4">
-                        <p class="text-sm text-gray-500">Users</p>
-                        <p class="text-2xl font-semibold">{{ metrics.user_count }}</p>
+                    <div class="metric-card bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-4">
+                        <div class="flex items-center">
+                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #60a5fa, #2563eb);">
+                                <i class="fas fa-users text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-blue-600 font-medium">Users</p>
+                                <p class="text-2xl font-semibold text-blue-900">{{ metrics.user_count }}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-gray-50 rounded p-4">
-                        <p class="text-sm text-gray-500">Contacts</p>
-                        <p class="text-2xl font-semibold">{{ metrics.contact_count }}</p>
+                    <div class="metric-card bg-gradient-to-br from-green-50 to-green-100 border border-green-200 p-4">
+                        <div class="flex items-center">
+                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #4ade80, #16a34a);">
+                                <i class="fas fa-address-book text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-green-600 font-medium">Contacts</p>
+                                <p class="text-2xl font-semibold text-green-900">{{ metrics.contact_count }}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-gray-50 rounded p-4">
-                        <p class="text-sm text-gray-500">Tasks</p>
-                        <p class="text-2xl font-semibold">{{ metrics.task_count }}</p>
+                    <div class="metric-card bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 p-4">
+                        <div class="flex items-center">
+                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #c084fc, #9333ea);">
+                                <i class="fas fa-tasks text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-purple-600 font-medium">Tasks</p>
+                                <p class="text-2xl font-semibold text-purple-900">{{ metrics.task_count }}</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="bg-gray-50 rounded p-4">
-                        <p class="text-sm text-gray-500">Transactions</p>
-                        <p class="text-2xl font-semibold">{{ metrics.transaction_count }}</p>
+                    <div class="metric-card bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 p-4">
+                        <div class="flex items-center">
+                            <div class="icon-tile w-8 h-8 mr-3" style="background: linear-gradient(135deg, #fbbf24, #d97706);">
+                                <i class="fas fa-file-contract text-white text-xs"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-amber-600 font-medium">Transactions</p>
+                                <p class="text-2xl font-semibold text-amber-900">{{ metrics.transaction_count }}</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p class="text-xs text-gray-400 mt-4">Last updated: {{ metrics.updated_at.strftime('%b %d, %Y %I:%M %p') if metrics.updated_at else 'Never' }}</p>
+                <p class="text-xs text-slate-400 mt-4">
+                    <i class="fas fa-clock mr-1"></i>Last updated: {{ metrics.updated_at.strftime('%b %d, %Y %I:%M %p') if metrics.updated_at else 'Never' }}
+                </p>
                 {% else %}
-                <p class="text-gray-500">No metrics available yet.</p>
+                <p class="text-slate-400">No metrics available yet.</p>
                 {% endif %}
             </div>
-            
+
             <!-- Audit Log -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Recent Admin Actions</h3>
+            <div class="admin-card p-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-history text-slate-400 mr-2"></i>Recent Admin Actions
+                </h3>
                 {% if audit_logs %}
                 <div class="space-y-3">
                     {% for log in audit_logs %}
-                    <div class="border-b border-gray-100 pb-2">
-                        <div class="flex items-center justify-between">
-                            <span class="text-sm font-medium text-gray-900">{{ log.action|replace('_', ' ')|title }}</span>
-                            <span class="text-xs text-gray-500">{{ log.created_at.strftime('%b %d, %Y') }}</span>
+                    <div class="flex gap-3 {% if not loop.last %}pb-3 border-b border-slate-100{% endif %}">
+                        <div class="timeline-dot mt-1.5
+                            {% if 'approved' in log.action %}bg-green-400
+                            {% elif 'suspended' in log.action or 'rejected' in log.action %}bg-red-400
+                            {% elif 'changed' in log.action %}bg-blue-400
+                            {% else %}bg-slate-300{% endif %}">
                         </div>
-                        {% if log.details %}
-                        <p class="text-xs text-gray-500">{{ log.details }}</p>
-                        {% endif %}
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-slate-700">{{ log.action|replace('_', ' ')|title }}</span>
+                                <span class="text-xs text-slate-400">{{ log.created_at.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            {% if log.details %}
+                            <p class="text-xs text-slate-400 mt-0.5">{{ log.details }}</p>
+                            {% endif %}
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-gray-500">No admin actions yet.</p>
+                <p class="text-slate-400">No admin actions yet.</p>
                 {% endif %}
             </div>
         </div>
-        
+
         <!-- Actions Sidebar -->
         <div class="space-y-6">
             <!-- Subscription -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Subscription</h3>
-                <p class="text-sm text-gray-600 mb-2">
-                    Current Tier: <span class="font-semibold capitalize">{{ org.subscription_tier }}</span>
-                </p>
-                <p class="text-sm text-gray-600 mb-4">
-                    Max Users: {{ org.max_users or 'Unlimited' }}<br>
-                    Max Contacts: {{ org.max_contacts or 'Unlimited' }}<br>
-                    Can Invite: {{ 'Yes' if org.can_invite_users else 'No' }}
-                </p>
+            <div class="admin-card p-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-tag text-slate-400 mr-2"></i>Subscription
+                </h3>
+                <div class="mb-4">
+                    <span class="inline-flex px-3 py-1.5 text-sm font-semibold rounded-full
+                        {% if org.subscription_tier == 'enterprise' %}bg-purple-100 text-purple-800
+                        {% elif org.subscription_tier == 'pro' %}bg-blue-100 text-blue-800
+                        {% else %}bg-slate-100 text-slate-600{% endif %}">
+                        {{ org.subscription_tier|capitalize }} Tier
+                    </span>
+                </div>
+                <div class="text-sm text-slate-500 space-y-1 mb-4">
+                    <p><i class="fas fa-users text-slate-300 w-5 text-center mr-1"></i> Max Users: <span class="text-slate-700 font-medium">{{ org.max_users or 'Unlimited' }}</span></p>
+                    <p><i class="fas fa-address-book text-slate-300 w-5 text-center mr-1"></i> Max Contacts: <span class="text-slate-700 font-medium">{{ org.max_contacts or 'Unlimited' }}</span></p>
+                    <p><i class="fas fa-user-plus text-slate-300 w-5 text-center mr-1"></i> Can Invite: <span class="text-slate-700 font-medium">{{ 'Yes' if org.can_invite_users else 'No' }}</span></p>
+                </div>
                 <form action="{{ url_for('platform.update_org_tier', org_id=org.id) }}" method="POST">
-                    <select name="tier" class="w-full rounded-md border-gray-300 mb-3">
+                    <select name="tier" class="admin-select w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 mb-3">
                         {% for tier_name in tier_defaults.keys() %}
                         <option value="{{ tier_name }}" {% if tier_name == org.subscription_tier %}selected{% endif %}>
                             {{ tier_name|capitalize }}
                         </option>
                         {% endfor %}
                     </select>
-                    <button type="submit" class="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
-                        Update Tier
+                    <button type="submit" class="btn-admin-primary w-full px-4 py-2 text-sm">
+                        <i class="fas fa-save mr-1"></i> Update Tier
                     </button>
                 </form>
             </div>
-            
+
             <!-- Status Actions -->
-            <div class="bg-white rounded-lg shadow p-6">
-                <h3 class="text-lg font-semibold mb-4">Status Actions</h3>
+            <div class="admin-card p-6">
+                <h3 class="text-lg font-semibold text-slate-800 mb-4 flex items-center">
+                    <i class="fas fa-cog text-slate-400 mr-2"></i>Status Actions
+                </h3>
                 {% if org.status == 'pending_approval' %}
                 <form action="{{ url_for('platform.approve_org', org_id=org.id) }}" method="POST" class="mb-2">
-                    <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Approve Organization
+                    <button type="submit" class="btn-admin-success w-full px-4 py-2 text-sm">
+                        <i class="fas fa-check mr-1"></i> Approve Organization
                     </button>
                 </form>
                 {% elif org.status == 'active' %}
                 <form action="{{ url_for('platform.suspend_org', org_id=org.id) }}" method="POST" class="mb-2">
                     <input type="hidden" name="reason" value="Admin action">
-                    <button type="submit" class="w-full bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
-                        Suspend Organization
+                    <button type="submit" class="btn-admin-danger w-full px-4 py-2 text-sm">
+                        <i class="fas fa-ban mr-1"></i> Suspend Organization
                     </button>
                 </form>
                 {% elif org.status in ['suspended', 'pending_deletion'] %}
                 <form action="{{ url_for('platform.reactivate_org', org_id=org.id) }}" method="POST" class="mb-2">
-                    <button type="submit" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
-                        Reactivate Organization
+                    <button type="submit" class="btn-admin-success w-full px-4 py-2 text-sm">
+                        <i class="fas fa-redo mr-1"></i> Reactivate Organization
                     </button>
                 </form>
                 {% endif %}
-                
-                <!-- Repair button - creates missing default data and sends approval email -->
-                <form action="{{ url_for('platform.repair_org', org_id=org.id) }}" method="POST" class="mt-4 pt-4 border-t border-gray-200">
-                    <button type="submit" class="w-full bg-amber-500 text-white px-4 py-2 rounded-md hover:bg-amber-600" 
+
+                <!-- Repair button -->
+                <form action="{{ url_for('platform.repair_org', org_id=org.id) }}" method="POST" class="mt-4 pt-4 border-t border-slate-100">
+                    <button type="submit" class="btn-admin-warning w-full px-4 py-2 text-sm"
                             onclick="return confirm('This will create any missing default data and send the approval email to the org owner. Continue?')">
-                        Repair Organization
+                        <i class="fas fa-wrench mr-1"></i> Repair Organization
                     </button>
-                    <p class="text-xs text-gray-500 mt-1">Creates missing default data and sends approval email to owner</p>
+                    <p class="text-xs text-slate-400 mt-2">Creates missing default data and sends approval email to owner</p>
                 </form>
             </div>
-            
+
             <!-- Org Info -->
-            <div class="bg-gray-50 rounded-lg p-6 text-sm">
-                <p class="text-gray-600"><strong>Created:</strong> {{ org.created_at.strftime('%B %d, %Y') }}</p>
-                {% if org.approved_at %}
-                <p class="text-gray-600 mt-1"><strong>Approved:</strong> {{ org.approved_at.strftime('%B %d, %Y') }}</p>
-                {% endif %}
-                {% if org.deletion_scheduled_at %}
-                <p class="text-red-600 mt-1"><strong>Deletion Date:</strong> {{ org.deletion_scheduled_at.strftime('%B %d, %Y') }}</p>
-                {% endif %}
+            <div class="admin-card p-6" style="background: linear-gradient(135deg, #fafafa, #f1f5f9);">
+                <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">Organization Info</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-calendar-plus text-slate-300 mt-0.5"></i>
+                        <div>
+                            <p class="text-slate-400 text-xs">Created</p>
+                            <p class="text-slate-700 font-medium">{{ org.created_at.strftime('%B %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    {% if org.approved_at %}
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-check-circle text-green-400 mt-0.5"></i>
+                        <div>
+                            <p class="text-slate-400 text-xs">Approved</p>
+                            <p class="text-slate-700 font-medium">{{ org.approved_at.strftime('%B %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if org.deletion_scheduled_at %}
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-trash-alt text-red-400 mt-0.5"></i>
+                        <div>
+                            <p class="text-red-400 text-xs">Deletion Scheduled</p>
+                            <p class="text-red-600 font-medium">{{ org.deletion_scheduled_at.strftime('%B %d, %Y') }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

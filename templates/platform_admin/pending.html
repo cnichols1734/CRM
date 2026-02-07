@@ -1,37 +1,155 @@
 {% extends "base.html" %}
 
+{% block head_scripts %}
+<style>
+    :root {
+        --brand-navy: #2d3e50;
+        --brand-orange: #f97316;
+        --bg: #f8fafc;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
+        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .page-fade-in {
+        animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .admin-card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .admin-card:hover {
+        border-color: #cbd5e1;
+        box-shadow: var(--shadow);
+    }
+
+    .icon-tile {
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .btn-admin-approve {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(34, 197, 94, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-approve:hover {
+        background: linear-gradient(135deg, #16a34a, #15803d);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+    }
+
+    .btn-admin-danger {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        color: #fff;
+        font-weight: 600;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-danger:hover {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-admin-secondary {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: #64748b;
+        font-weight: 500;
+        border-radius: 10px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-admin-secondary:hover {
+        background: #fff7ed;
+        border-color: #fed7aa;
+        color: #ea580c;
+    }
+
+    .admin-select:focus {
+        outline: none;
+        border-color: #f97316;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="max-w-6xl mx-auto">
+<div class="page-fade-in max-w-6xl mx-auto p-4 md:p-6" style="background: radial-gradient(ellipse at top, rgba(45,62,80,0.03), transparent 70%);">
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Pending Approvals</h1>
-        <p class="mt-2 text-gray-600">Review and approve new organization registrations</p>
+        <a href="{{ url_for('platform.dashboard') }}" class="text-slate-400 hover:text-orange-500 transition-colors text-sm inline-flex items-center">
+            <i class="fas fa-arrow-left mr-1.5"></i> Back to Dashboard
+        </a>
+        <div class="flex items-center mt-3">
+            <div class="icon-tile w-12 h-12 mr-4" style="background: linear-gradient(135deg, var(--brand-orange), #ea580c);">
+                <i class="fas fa-inbox text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Pending Approvals</h1>
+                <p class="text-slate-500">Review and approve new organization registrations</p>
+            </div>
+            {% if orgs %}
+            <span class="ml-3 bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-sm font-semibold">{{ orgs|length }}</span>
+            {% endif %}
+        </div>
     </div>
-    
+
     {% if orgs %}
     <div class="space-y-4">
         {% for org in orgs %}
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-start justify-between">
-                <div>
-                    <h3 class="text-lg font-semibold text-gray-900">{{ org.name }}</h3>
-                    <p class="text-sm text-gray-500">{{ org.slug }}</p>
-                    <p class="text-sm text-gray-500 mt-1">
-                        Registered: {{ org.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                    </p>
-                    {% if org.id in org_owners %}
-                    <p class="text-sm text-gray-600 mt-2">
-                        <i class="fas fa-envelope mr-1"></i>{{ org_owners[org.id] }}
-                    </p>
-                    {% endif %}
+        <div class="admin-card p-6">
+            <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-3">
+                        <div class="icon-tile w-10 h-10 flex-shrink-0" style="background: linear-gradient(135deg, var(--brand-navy), #475569);">
+                            <i class="fas fa-building text-white"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-slate-800">{{ org.name }}</h3>
+                            <p class="text-sm text-slate-400">{{ org.slug }}</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 ml-13 space-y-1">
+                        <p class="text-sm text-slate-500 flex items-center">
+                            <i class="fas fa-calendar text-slate-300 w-5 text-center mr-2"></i>
+                            Registered: {{ org.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        </p>
+                        {% if org.id in org_owners %}
+                        <p class="text-sm text-slate-500 flex items-center">
+                            <i class="fas fa-envelope text-slate-300 w-5 text-center mr-2"></i>
+                            {{ org_owners[org.id] }}
+                        </p>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="flex space-x-3">
+                <div class="flex gap-3 md:flex-shrink-0">
                     <form action="{{ url_for('platform.approve_org', org_id=org.id) }}" method="POST">
-                        <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700">
+                        <button type="submit" class="btn-admin-approve px-5 py-2.5 text-sm inline-flex items-center">
                             <i class="fas fa-check mr-2"></i>Approve
                         </button>
                     </form>
-                    <button onclick="showRejectModal({{ org.id }}, '{{ org.name }}')" 
-                            class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
+                    <button onclick="showRejectModal({{ org.id }}, '{{ org.name }}')"
+                            class="btn-admin-danger px-5 py-2.5 text-sm inline-flex items-center">
                         <i class="fas fa-times mr-2"></i>Reject
                     </button>
                 </div>
@@ -40,31 +158,37 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="bg-white rounded-lg shadow p-8 text-center">
-        <div class="text-gray-400 mb-4">
-            <i class="fas fa-check-circle text-6xl"></i>
+    <div class="admin-card p-12 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0);">
+            <i class="fas fa-check-circle text-4xl text-green-500"></i>
         </div>
-        <p class="text-gray-600">No pending approvals</p>
-        <a href="{{ url_for('platform.dashboard') }}" class="mt-4 inline-block text-blue-600 hover:underline">
-            ← Back to Dashboard
+        <h3 class="text-lg font-semibold text-slate-700 mb-1">All Caught Up</h3>
+        <p class="text-slate-400 mb-4">No pending approvals at this time</p>
+        <a href="{{ url_for('platform.dashboard') }}" class="btn-admin-secondary inline-flex items-center px-4 py-2 text-sm">
+            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
         </a>
     </div>
     {% endif %}
 </div>
 
 <!-- Reject Modal -->
-<div id="rejectModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h3 class="text-lg font-medium mb-4">Reject Organization</h3>
-        <p class="text-sm text-gray-600 mb-4">Are you sure you want to reject <strong id="rejectOrgName"></strong>?</p>
+<div id="rejectModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div class="bg-white max-w-md w-full mx-4 p-6" style="border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div class="flex items-center mb-4">
+            <div class="icon-tile w-10 h-10 mr-3" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                <i class="fas fa-exclamation-triangle text-white"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-slate-800">Reject Organization</h3>
+        </div>
+        <p class="text-sm text-slate-500 mb-4">Are you sure you want to reject <strong class="text-slate-700" id="rejectOrgName"></strong>?</p>
         <form id="rejectForm" method="POST">
             <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700">Reason (optional)</label>
-                <textarea name="reason" rows="3" class="mt-1 block w-full rounded-md border-gray-300"></textarea>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Reason (optional)</label>
+                <textarea name="reason" rows="3" class="admin-select w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700"></textarea>
             </div>
-            <div class="flex justify-end space-x-3">
-                <button type="button" onclick="hideRejectModal()" class="px-4 py-2 border border-gray-300 rounded-md">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Reject</button>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="hideRejectModal()" class="btn-admin-secondary px-4 py-2 text-sm">Cancel</button>
+                <button type="submit" class="btn-admin-danger px-4 py-2 text-sm">Reject</button>
             </div>
         </form>
     </div>
@@ -79,5 +203,8 @@ function showRejectModal(orgId, orgName) {
 function hideRejectModal() {
     document.getElementById('rejectModal').classList.add('hidden');
 }
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') hideRejectModal();
+});
 </script>
 {% endblock %}
