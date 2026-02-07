@@ -1328,6 +1328,16 @@
                             <span class="info-label">Listing Expiration Date</span>
                             <span class="info-value">{{ listing_info.listing_end_date or '—' }}</span>
                         </div>
+                        {% if listing_info.commission_type == '5b' %}
+                        <div class="info-row">
+                            <span class="info-label">Broker's Fee (Origen Realty)</span>
+                            <span class="info-value">{{ listing_info.broker_fee or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Buyer Side Commission</span>
+                            <span class="info-value text-slate-400 italic">N/A — Listing Broker Only (Section 5B)</span>
+                        </div>
+                        {% else %}
                         <div class="info-row">
                             <span class="info-label">Total Commission</span>
                             <span class="info-value">{{ listing_info.total_commission or '—' }}</span>
@@ -1336,6 +1346,7 @@
                             <span class="info-label">Buyer Side Commission</span>
                             <span class="info-value">{{ listing_info.buyer_commission or '—' }}</span>
                         </div>
+                        {% endif %}
                     </div>
                     {% else %}
                     <div class="text-center py-6 mb-4">

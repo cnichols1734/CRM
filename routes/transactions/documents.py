@@ -395,6 +395,8 @@ def fill_all_documents(id):
     documents = transaction.documents.filter(
         TransactionDocument.template_slug.in_(form_driven_slugs)
     ).order_by(TransactionDocument.created_at).all()
+    # Always show listing agreement first in the fill-all UI
+    documents = sorted(documents, key=lambda d: (0 if d.template_slug == 'listing-agreement' else 1, d.created_at))
     
     # Get preview-only documents (like IABS)
     preview_documents = transaction.documents.filter(

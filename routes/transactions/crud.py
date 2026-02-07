@@ -416,15 +416,6 @@ def view_transaction(id):
         if listing_doc and listing_doc.status != 'pending' and listing_doc.field_data:
             field_data = listing_doc.field_data
             # Build listing info from field data
-            # Buyer side commission: prefer percentage, fallback to flat fee
-            buyer_commission = field_data.get('buyer_agent_percent')
-            if buyer_commission:
-                buyer_commission = f"{buyer_commission}%"
-            else:
-                buyer_flat = field_data.get('buyer_agent_flat')
-                if buyer_flat:
-                    buyer_commission = f"${buyer_flat}"
-            
             # Format dates as "January 14, 2026"
             def format_date(date_str):
                 if not date_str:
@@ -435,13 +426,45 @@ def view_transaction(id):
                 except (ValueError, TypeError):
                     return date_str
             
-            listing_info = {
-                'list_price': field_data.get('list_price'),
-                'listing_start_date': format_date(field_data.get('listing_start_date')),
-                'listing_end_date': format_date(field_data.get('listing_end_date')),
-                'total_commission': field_data.get('total_commission'),
-                'buyer_commission': buyer_commission,
-            }
+            # Determine commission structure: Section 5A (with buyer agent) vs 5B (listing broker only)
+            # Detect by checking which fields are populated
+            listing_only_percent = field_data.get('listing_only_percent')
+            listing_only_flat = field_data.get('listing_only_flat')
+            is_listing_broker_only = bool(listing_only_percent or listing_only_flat)
+            
+            if is_listing_broker_only:
+                # Section 5B: Listing broker only
+                broker_fee = None
+                if listing_only_percent:
+                    broker_fee = f"{listing_only_percent}%"
+                elif listing_only_flat:
+                    broker_fee = f"${listing_only_flat}"
+                
+                listing_info = {
+                    'list_price': field_data.get('list_price'),
+                    'listing_start_date': format_date(field_data.get('listing_start_date')),
+                    'listing_end_date': format_date(field_data.get('listing_end_date')),
+                    'commission_type': '5b',
+                    'broker_fee': broker_fee,
+                }
+            else:
+                # Section 5A: With buyer agent compensation
+                buyer_commission = field_data.get('buyer_agent_percent')
+                if buyer_commission:
+                    buyer_commission = f"{buyer_commission}%"
+                else:
+                    buyer_flat = field_data.get('buyer_agent_flat')
+                    if buyer_flat:
+                        buyer_commission = f"${buyer_flat}"
+                
+                listing_info = {
+                    'list_price': field_data.get('list_price'),
+                    'listing_start_date': format_date(field_data.get('listing_start_date')),
+                    'listing_end_date': format_date(field_data.get('listing_end_date')),
+                    'commission_type': '5a',
+                    'total_commission': field_data.get('total_commission'),
+                    'buyer_commission': buyer_commission,
+                }
     
     # Get lockbox combo from extra_data (always available for seller transactions)
     lockbox_combo = None
