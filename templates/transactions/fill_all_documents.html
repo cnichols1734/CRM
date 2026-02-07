@@ -421,6 +421,30 @@
         color: #1e293b;
     }
 
+    /* Toast: top center, slide-in */
+    #toast.toast-enter:not(.hidden) {
+        animation: toastSlideIn 0.35s ease-out forwards;
+    }
+    @keyframes toastSlideIn {
+        from {
+            opacity: 0;
+            transform: translate(-50%, -100%);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+        }
+    }
+    #toast.toast-warning #toastContent {
+        border-color: #f59e0b;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        box-shadow: 0 8px 24px rgba(245, 158, 11, 0.25);
+    }
+    #toast.toast-warning #toastMessage {
+        color: #92400e;
+        font-weight: 600;
+    }
+
     /* Floating action bar */
     .floating-action-bar {
         position: fixed;
@@ -1021,11 +1045,11 @@
     </div>
 </div>
 
-<!-- Toast Notification -->
-<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
+<!-- Toast Notification (top center, slides in) -->
+<div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[1001] hidden toast-enter">
     <div id="toastContent"
-        class="flex items-center gap-3 px-5 py-4 bg-white rounded-2xl shadow-2xl border border-slate-200">
-        <i id="toastIcon" class="fas fa-info-circle text-blue-500"></i>
+        class="flex items-center gap-3 px-6 py-4 bg-white rounded-xl shadow-2xl border-2 border-slate-200 min-w-[320px] max-w-[480px]">
+        <i id="toastIcon" class="fas fa-info-circle text-blue-500 text-lg flex-shrink-0"></i>
         <span id="toastMessage" class="text-sm font-medium text-slate-700"></span>
     </div>
 </div>
@@ -1053,6 +1077,9 @@
 
         // Initialize T-47.1 property description sync from Listing Agreement
         initializeT47PropertyDescSync();
+
+        // Cross-document sync: Listing Agreement <-> Seller Net Proceeds
+        initializeCrossDocSync();
     });
 
     // =============================================================================
@@ -1218,6 +1245,163 @@
             // Initial sync
             if (laCountyField.value) {
                 t47CountyField.value = laCountyField.value;
+            }
+        }
+    }
+
+    // =============================================================================
+    // CROSS-DOCUMENT SYNC: LISTING AGREEMENT <-> SELLER NET PROCEEDS
+    // =============================================================================
+
+    function initializeCrossDocSync() {
+        const laListPrice = document.querySelector('input[name*="_field_list_price"]');
+        const snpSalesPrice = document.querySelector('input[name*="_field_sales_price"]');
+        const laStartDate = document.querySelector('input[name*="_field_listing_start_date"]');
+        const snpClosingDate = document.querySelector('input[name*="_field_closing_date"]');
+
+        if (!laListPrice && !snpSalesPrice && !laStartDate && !snpClosingDate) {
+            return;
+        }
+
+        const snpDocId = snpSalesPrice ? (snpSalesPrice.id && snpSalesPrice.id.startsWith('snp_salesPrice_') ? snpSalesPrice.id.replace('snp_salesPrice_', '') : null) : null;
+
+        function parseMoney(val) {
+            if (val == null || val === '') return null;
+            const s = String(val).replace(/[$,]/g, '').trim();
+            const n = parseFloat(s);
+            return isNaN(n) ? null : n;
+        }
+        function formatMoney(num) {
+            if (num == null || isNaN(num)) return '';
+            return Number(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        // ---- List price <-> Sales price (bidirectional) ----
+        if (laListPrice && snpSalesPrice) {
+            laListPrice.addEventListener('input', function () {
+                const raw = this.value.replace(/[$,]/g, '').trim();
+                if (raw === '') {
+                    snpSalesPrice.value = '';
+                } else {
+                    const n = parseFloat(raw);
+                    if (!isNaN(n)) {
+                        snpSalesPrice.value = formatMoney(n);
+                        snpSalesPrice.dispatchEvent(new Event('input', { bubbles: true }));
+                        if (snpDocId && typeof snpRecalculateAll === 'function') {
+                            snpRecalculateAll(snpDocId);
+                        }
+                    }
+                }
+            });
+            laListPrice.addEventListener('change', function () {
+                const raw = this.value.replace(/[$,]/g, '').trim();
+                if (raw !== '') {
+                    const n = parseFloat(raw);
+                    if (!isNaN(n)) {
+                        snpSalesPrice.value = formatMoney(n);
+                        snpSalesPrice.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (snpDocId && typeof snpRecalculateAll === 'function') {
+                            snpRecalculateAll(snpDocId);
+                        }
+                    }
+                }
+            });
+
+            snpSalesPrice.addEventListener('change', function () {
+                const num = parseMoney(this.value);
+                if (num != null) {
+                    const prev = laListPrice.value;
+                    const newVal = formatMoney(num);
+                    laListPrice.value = newVal;
+                    laListPrice.dispatchEvent(new Event('input', { bubbles: true }));
+                    if (prev !== newVal) {
+                        showToast('Sales Price was updated in Seller Net Proceeds. Listing Agreement list price has been updated to match — please verify this is correct.', 'warning');
+                    }
+                }
+            });
+
+            if (laListPrice.value && !snpSalesPrice.value) {
+                const n = parseMoney(laListPrice.value);
+                if (n != null) {
+                    snpSalesPrice.value = formatMoney(n);
+                    if (snpDocId && typeof snpRecalculateAll === 'function') {
+                        snpRecalculateAll(snpDocId);
+                    }
+                }
+            }
+        }
+
+        // ---- Financing checkboxes (shared: conventional, va, fha, cash) ----
+        const sharedFinancing = ['conventional', 'va', 'fha', 'cash'];
+        const laSections = document.querySelectorAll('.doc-section');
+        let laSection = null;
+        let snpSection = null;
+        laSections.forEach(section => {
+            if (section.querySelector('input[name*="_field_list_price"]')) laSection = section;
+            if (section.querySelector('input[name*="_field_sales_price"]')) snpSection = section;
+        });
+
+        if (laSection && snpSection) {
+            sharedFinancing.forEach(key => {
+                const laCheck = laSection.querySelector(`input[name*="_field_financing_${key}"]`);
+                const snpCheck = snpSection.querySelector(`input[name*="_field_financing_${key}"]`);
+                if (!laCheck || !snpCheck) return;
+
+                laCheck.addEventListener('change', function () {
+                    snpCheck.checked = this.checked;
+                    snpCheck.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                snpCheck.addEventListener('change', function () {
+                    const wasChecked = laCheck.checked;
+                    laCheck.checked = this.checked;
+                    laCheck.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (wasChecked !== laCheck.checked) {
+                        showToast('Financing selection was updated in Seller Net Proceeds. Listing Agreement has been updated to match — please verify this is correct.', 'warning');
+                    }
+                });
+
+                if (laCheck.checked && !snpCheck.checked) {
+                    snpCheck.checked = true;
+                } else if (!laCheck.checked && snpCheck.checked) {
+                    laCheck.checked = true;
+                }
+            });
+        }
+
+        // ---- Closing date from listing start + 90 days (one-way LA -> SNP) ----
+        if (laStartDate && snpClosingDate) {
+            snpClosingDate.dataset.autoSynced = snpClosingDate.value ? 'false' : 'true';
+
+            function setClosingFromStart() {
+                const startVal = laStartDate.value;
+                if (!startVal) return;
+                const start = new Date(startVal);
+                if (isNaN(start.getTime())) return;
+                const close = new Date(start);
+                close.setDate(close.getDate() + 90);
+                const closeStr = close.toISOString().slice(0, 10);
+                if (snpClosingDate.dataset.autoSynced !== 'false') {
+                    snpClosingDate.value = closeStr;
+                    snpClosingDate.dataset.autoSynced = 'true';
+                    snpClosingDate.dispatchEvent(new Event('change', { bubbles: true }));
+                    if (snpDocId && typeof snpRecalculateAll === 'function') {
+                        snpRecalculateAll(snpDocId);
+                    }
+                }
+            }
+
+            laStartDate.addEventListener('change', setClosingFromStart);
+            laStartDate.addEventListener('input', setClosingFromStart);
+
+            snpClosingDate.addEventListener('focus', function () {
+                this.dataset.autoSynced = 'false';
+            });
+            snpClosingDate.addEventListener('change', function () {
+                this.dataset.autoSynced = 'false';
+            });
+
+            if (laStartDate.value && (!snpClosingDate.value || snpClosingDate.dataset.autoSynced === 'true')) {
+                setClosingFromStart();
             }
         }
     }
@@ -1434,19 +1618,22 @@
         const icon = document.getElementById('toastIcon');
         document.getElementById('toastMessage').textContent = message;
 
-        icon.className = 'fas';
+        toast.classList.remove('toast-warning');
+        icon.className = 'fas flex-shrink-0 text-lg';
         if (type === 'success') {
             icon.classList.add('fa-check-circle', 'text-green-500');
         } else if (type === 'error') {
             icon.classList.add('fa-exclamation-circle', 'text-red-500');
         } else if (type === 'warning') {
-            icon.classList.add('fa-exclamation-triangle', 'text-amber-500');
+            icon.classList.add('fa-exclamation-triangle', 'text-amber-600');
+            toast.classList.add('toast-warning');
         } else {
             icon.classList.add('fa-info-circle', 'text-blue-500');
         }
 
         toast.classList.remove('hidden');
-        setTimeout(() => toast.classList.add('hidden'), 4000);
+        const duration = type === 'warning' ? 6000 : 4000;
+        setTimeout(() => toast.classList.add('hidden'), duration);
     }
 
     function toggleCheckbox(element) {
