@@ -476,6 +476,11 @@
                                 </button>
                             </form>
                             {% endif %}
+                            <button onclick="confirmDelete({{ org.id }}, '{{ org.name }}')"
+                                    class="text-red-600 hover:text-red-800 transition-colors ml-2"
+                                    title="Permanently delete">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
                             {% endif %}
                         </td>
                     </tr>
@@ -526,10 +531,46 @@
     </div>
 </div>
 
+<!-- Delete Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center" style="transition: opacity 0.2s ease;">
+    <div class="bg-white max-w-md w-full mx-4 p-6" style="border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+        <div class="flex items-center mb-4">
+            <div class="icon-tile w-10 h-10 mr-3" style="background: linear-gradient(135deg, #dc2626, #991b1b);">
+                <i class="fas fa-skull-crossbones text-white"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-slate-800">Permanently Delete Organization</h3>
+        </div>
+        <p class="text-slate-500 mb-3">This will <strong class="text-red-600">permanently delete</strong> <strong class="text-slate-700" id="deleteOrgName"></strong> and all associated data:</p>
+        <ul class="text-sm text-slate-500 mb-4 ml-4 list-disc space-y-1">
+            <li>All users and their settings</li>
+            <li>All contacts, tasks, and files</li>
+            <li>All transactions and documents</li>
+            <li>All activity and audit history</li>
+        </ul>
+        <p class="text-sm text-red-600 font-medium mb-4"><i class="fas fa-exclamation-triangle mr-1"></i> This action cannot be undone.</p>
+        <form id="deleteForm" method="POST" onsubmit="return validateDeleteConfirmation()">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-600 mb-1">Type <strong class="text-red-600 font-mono">production</strong> to confirm</label>
+                <input type="text" id="deleteConfirmInput" autocomplete="off" spellcheck="false"
+                       class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+                       placeholder="Type production to confirm..." oninput="checkDeleteConfirmation()">
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="closeDeleteModal()" class="btn-admin-secondary px-4 py-2 text-sm">
+                    Cancel
+                </button>
+                <button type="submit" id="deleteSubmitBtn" disabled class="px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-300 cursor-not-allowed transition-all">
+                    <i class="fas fa-trash-alt mr-1"></i> Delete Permanently
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 function confirmSuspend(orgId, orgName) {
     document.getElementById('suspendOrgName').textContent = orgName;
-    document.getElementById('suspendForm').action = '/platform-admin/orgs/' + orgId + '/suspend';
+    document.getElementById('suspendForm').action = '/platform/orgs/' + orgId + '/suspend';
     document.getElementById('suspendModal').classList.remove('hidden');
 }
 
@@ -537,9 +578,43 @@ function closeSuspendModal() {
     document.getElementById('suspendModal').classList.add('hidden');
 }
 
-// Close modal on escape key
+function confirmDelete(orgId, orgName) {
+    document.getElementById('deleteOrgName').textContent = orgName;
+    document.getElementById('deleteForm').action = '/platform/orgs/' + orgId + '/delete';
+    document.getElementById('deleteConfirmInput').value = '';
+    checkDeleteConfirmation();
+    document.getElementById('deleteModal').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('deleteConfirmInput').focus(); }, 100);
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    document.getElementById('deleteConfirmInput').value = '';
+    checkDeleteConfirmation();
+}
+
+function checkDeleteConfirmation() {
+    var input = document.getElementById('deleteConfirmInput').value.trim().toLowerCase();
+    var btn = document.getElementById('deleteSubmitBtn');
+    if (input === 'production') {
+        btn.disabled = false;
+        btn.className = 'btn-admin-danger px-4 py-2 text-sm';
+    } else {
+        btn.disabled = true;
+        btn.className = 'px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-300 cursor-not-allowed transition-all';
+    }
+}
+
+function validateDeleteConfirmation() {
+    return document.getElementById('deleteConfirmInput').value.trim().toLowerCase() === 'production';
+}
+
+// Close modals on escape key
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') closeSuspendModal();
+    if (e.key === 'Escape') {
+        closeSuspendModal();
+        closeDeleteModal();
+    }
 });
 </script>
 {% endblock %}

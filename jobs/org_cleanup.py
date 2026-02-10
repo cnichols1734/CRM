@@ -39,10 +39,22 @@ def cleanup_pending_deletions():
     return deleted_count
 
 
+def _safe_delete(db, sql, params):
+    """Execute a DELETE inside a SAVEPOINT so a single failure doesn't poison the transaction."""
+    try:
+        nested = db.session.begin_nested()  # SAVEPOINT
+        db.session.execute(text(sql), params)
+        nested.commit()
+    except Exception as e:
+        nested.rollback()  # rolls back to SAVEPOINT, outer transaction continues
+        print(f"[WARN] Skipped: {sql.strip().splitlines()[0]} — {e}")
+
+
 def hard_delete_organization(org_id: int, org_name: str):
     """
     Permanently delete an organization and ALL its data.
     Order matters due to foreign key constraints (ON DELETE RESTRICT).
+    Each delete uses a SAVEPOINT so one missing table won't abort the whole transaction.
     
     Args:
         org_id: The organization ID to delete
@@ -52,103 +64,135 @@ def hard_delete_organization(org_id: int, org_name: str):
     
     print(f"[{datetime.utcnow()}] Hard deleting organization: {org_name} (ID: {org_id})")
     
-    # Delete in dependency order (children before parents)
-    # Use raw SQL to bypass RLS for deletion
+    # Set RLS context to the target org so DELETE statements can see its rows
+    db.session.execute(text("SET LOCAL app.current_org_id = :oid"), {'oid': org_id})
     
-    # 1. Document signatures
-    db.session.execute(text("""
+    p = {'oid': org_id}
+    
+    # Delete in dependency order (children before parents)
+    # Each step uses a SAVEPOINT so a missing/renamed table won't break the rest
+    
+    # 1. Document signatures (depends on transaction_documents)
+    _safe_delete(db, """
         DELETE FROM document_signatures 
         WHERE document_id IN (
             SELECT td.id FROM transaction_documents td
             JOIN transactions t ON td.transaction_id = t.id
             WHERE t.organization_id = :oid
         )
-    """), {'oid': org_id})
+    """, p)
     
-    # 2. Transaction documents
-    db.session.execute(text("""
+    # 2. Transaction documents (depends on transactions)
+    _safe_delete(db, """
         DELETE FROM transaction_documents 
         WHERE transaction_id IN (
             SELECT id FROM transactions WHERE organization_id = :oid
         )
-    """), {'oid': org_id})
+    """, p)
     
-    # 3. Transaction participants
-    db.session.execute(text("""
+    # 3. Transaction participants (depends on transactions, contacts)
+    _safe_delete(db, """
         DELETE FROM transaction_participants 
         WHERE transaction_id IN (
             SELECT id FROM transactions WHERE organization_id = :oid
         )
-    """), {'oid': org_id})
+    """, p)
     
-    # 4. Audit events for transactions
-    db.session.execute(text("""
+    # 4. Audit events (depends on transactions)
+    _safe_delete(db, """
         DELETE FROM audit_events 
         WHERE transaction_id IN (
             SELECT id FROM transactions WHERE organization_id = :oid
         )
-    """), {'oid': org_id})
+    """, p)
     
     # 5. Transactions
-    db.session.execute(text(
-        "DELETE FROM transactions WHERE organization_id = :oid"
-    ), {'oid': org_id})
+    _safe_delete(db, "DELETE FROM transactions WHERE organization_id = :oid", p)
     
-    # 6. Tasks (depends on contacts)
-    db.session.execute(text(
-        "DELETE FROM task WHERE organization_id = :oid"
-    ), {'oid': org_id})
+    # 6. Transaction types (referenced by transactions - now safe)
+    _safe_delete(db, "DELETE FROM transaction_types WHERE organization_id = :oid", p)
     
-    # 7. Contact files
-    db.session.execute(text("""
+    # 7. Tasks (depends on contacts, task_type, task_subtype, users)
+    _safe_delete(db, "DELETE FROM task WHERE organization_id = :oid", p)
+    
+    # 8. Task subtypes (referenced by tasks - now safe)
+    _safe_delete(db, "DELETE FROM task_subtype WHERE organization_id = :oid", p)
+    
+    # 9. Task types (referenced by tasks/subtypes - now safe)
+    _safe_delete(db, "DELETE FROM task_type WHERE organization_id = :oid", p)
+    
+    # 10. Interactions (depends on contacts, users)
+    _safe_delete(db, "DELETE FROM interaction WHERE organization_id = :oid", p)
+    
+    # 11. Contact-group junction table (many-to-many, must go before contacts and contact_group)
+    _safe_delete(db, """
+        DELETE FROM contact_groups 
+        WHERE contact_id IN (
+            SELECT id FROM contact WHERE organization_id = :oid
+        )
+    """, p)
+    
+    # 12. Contact files (depends on contacts)
+    _safe_delete(db, """
         DELETE FROM contact_files 
         WHERE contact_id IN (
             SELECT id FROM contact WHERE organization_id = :oid
         )
-    """), {'oid': org_id})
+    """, p)
     
-    # 8. Contacts
-    db.session.execute(text(
-        "DELETE FROM contact WHERE organization_id = :oid"
-    ), {'oid': org_id})
+    # 13. Contact voice memos (depends on contacts)
+    _safe_delete(db, """
+        DELETE FROM contact_voice_memos 
+        WHERE contact_id IN (
+            SELECT id FROM contact WHERE organization_id = :oid
+        )
+    """, p)
     
-    # 9. Contact groups
-    db.session.execute(text(
-        "DELETE FROM contact_group WHERE organization_id = :oid"
-    ), {'oid': org_id})
+    # 14. Contact emails (depends on contacts)
+    _safe_delete(db, """
+        DELETE FROM contact_emails 
+        WHERE contact_id IN (
+            SELECT id FROM contact WHERE organization_id = :oid
+        )
+    """, p)
     
-    # 10. Other org-scoped tables
-    org_tables = [
-        'action_plan', 'daily_todo_lists', 'user_todos',
-        'company_updates', 'sendgrid_template', 'organization_invites'
-    ]
-    for table in org_tables:
-        try:
-            db.session.execute(text(
-                f'DELETE FROM "{table}" WHERE organization_id = :oid'
-            ), {'oid': org_id})
-        except Exception as e:
-            print(f"[WARN] Could not delete from {table}: {e}")
+    # 15. Contacts
+    _safe_delete(db, "DELETE FROM contact WHERE organization_id = :oid", p)
     
-    # 11. Organization metrics
-    db.session.execute(text(
-        "DELETE FROM organization_metrics WHERE organization_id = :oid"
-    ), {'oid': org_id})
+    # 16. Contact groups
+    _safe_delete(db, "DELETE FROM contact_group WHERE organization_id = :oid", p)
     
-    # 12. Platform audit logs for this org
-    db.session.execute(text(
-        "DELETE FROM platform_audit_log WHERE target_org_id = :oid"
-    ), {'oid': org_id})
+    # 17. Company update reactions/comments/views (RESTRICT on org_id)
+    _safe_delete(db, "DELETE FROM company_update_reactions WHERE organization_id = :oid", p)
+    _safe_delete(db, "DELETE FROM company_update_comments WHERE organization_id = :oid", p)
+    _safe_delete(db, "DELETE FROM company_update_views WHERE organization_id = :oid", p)
     
-    # 13. Users (finally)
-    db.session.execute(text(
-        'DELETE FROM "user" WHERE organization_id = :oid'
-    ), {'oid': org_id})
+    # 18. Chat messages (no org_id — delete via conversation FK)
+    _safe_delete(db, """
+        DELETE FROM chat_messages 
+        WHERE conversation_id IN (
+            SELECT id FROM chat_conversations WHERE organization_id = :oid
+        )
+    """, p)
     
-    # 14. Organization itself
-    db.session.execute(text(
-        "DELETE FROM organizations WHERE id = :oid"
-    ), {'oid': org_id})
+    # 19. Other org-scoped tables
+    for table in ['action_plan', 'daily_todo_list', 'user_todos',
+                  'company_updates', 'sendgrid_template', 'organization_invites',
+                  'agent_resources', 'chat_conversations',
+                  'user_email_integrations']:
+        _safe_delete(db, f'DELETE FROM "{table}" WHERE organization_id = :oid', p)
+    
+    # 20. Organization metrics
+    _safe_delete(db, "DELETE FROM organization_metrics WHERE organization_id = :oid", p)
+    
+    # 21. Platform audit logs for this org
+    _safe_delete(db, "DELETE FROM platform_audit_log WHERE target_org_id = :oid", p)
+    
+    # 22. Users (finally)
+    _safe_delete(db, 'DELETE FROM "user" WHERE organization_id = :oid', p)
+    
+    # 23. Organization itself
+    _safe_delete(db, "DELETE FROM organizations WHERE id = :oid", p)
     
     db.session.commit()
     

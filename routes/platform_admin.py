@@ -397,6 +397,30 @@ def reactivate_org(org_id):
     return redirect(url_for('platform.view_org', org_id=org_id))
 
 
+@platform_bp.route('/orgs/<int:org_id>/delete', methods=['POST'])
+@login_required
+@platform_admin_required
+def delete_org(org_id):
+    """Permanently delete an organization and all its data."""
+    org = Organization.query.get_or_404(org_id)
+    
+    if org.is_platform_admin:
+        flash('Cannot delete platform admin organization.', 'error')
+        return redirect(url_for('platform.dashboard'))
+    
+    org_name = org.name
+    
+    try:
+        from jobs.org_cleanup import hard_delete_organization
+        hard_delete_organization(org_id, org_name)
+        flash(f'Organization "{org_name}" and all its data have been permanently deleted.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to delete organization: {str(e)}', 'error')
+    
+    return redirect(url_for('platform.dashboard'))
+
+
 @platform_bp.route('/orgs/<int:org_id>/update-tier', methods=['POST'])
 @login_required
 @platform_admin_required
