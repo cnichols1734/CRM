@@ -132,7 +132,7 @@ def hard_delete_organization(org_id: int, org_name: str):
     
     # 12. Contact voice memos (depends on contacts)
     _safe_delete(db, """
-        DELETE FROM contact_voice_memo 
+        DELETE FROM contact_voice_memos 
         WHERE contact_id IN (
             SELECT id FROM contact WHERE organization_id = :oid
         )
@@ -158,9 +158,10 @@ def hard_delete_organization(org_id: int, org_name: str):
     _safe_delete(db, "DELETE FROM company_update_views WHERE organization_id = :oid", p)
     
     # 17. Other org-scoped tables
-    for table in ['action_plan', 'daily_todo_lists', 'user_todos',
+    for table in ['action_plan', 'daily_todo_list', 'user_todos',
                   'company_updates', 'sendgrid_template', 'organization_invites',
-                  'agent_resource', 'chat_conversation', 'user_email_integration']:
+                  'agent_resources', 'chat_conversations', 'chat_messages',
+                  'user_email_integrations']:
         _safe_delete(db, f'DELETE FROM "{table}" WHERE organization_id = :oid', p)
     
     # 18. Organization metrics
