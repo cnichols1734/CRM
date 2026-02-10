@@ -548,12 +548,18 @@
             <li>All activity and audit history</li>
         </ul>
         <p class="text-sm text-red-600 font-medium mb-4"><i class="fas fa-exclamation-triangle mr-1"></i> This action cannot be undone.</p>
-        <form id="deleteForm" method="POST">
+        <form id="deleteForm" method="POST" onsubmit="return validateDeleteConfirmation()">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-slate-600 mb-1">Type <strong class="text-red-600 font-mono">production</strong> to confirm</label>
+                <input type="text" id="deleteConfirmInput" autocomplete="off" spellcheck="false"
+                       class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400"
+                       placeholder="Type production to confirm..." oninput="checkDeleteConfirmation()">
+            </div>
             <div class="flex justify-end gap-3">
                 <button type="button" onclick="closeDeleteModal()" class="btn-admin-secondary px-4 py-2 text-sm">
                     Cancel
                 </button>
-                <button type="submit" class="btn-admin-danger px-4 py-2 text-sm">
+                <button type="submit" id="deleteSubmitBtn" disabled class="px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-300 cursor-not-allowed transition-all">
                     <i class="fas fa-trash-alt mr-1"></i> Delete Permanently
                 </button>
             </div>
@@ -575,11 +581,32 @@ function closeSuspendModal() {
 function confirmDelete(orgId, orgName) {
     document.getElementById('deleteOrgName').textContent = orgName;
     document.getElementById('deleteForm').action = '/platform/orgs/' + orgId + '/delete';
+    document.getElementById('deleteConfirmInput').value = '';
+    checkDeleteConfirmation();
     document.getElementById('deleteModal').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('deleteConfirmInput').focus(); }, 100);
 }
 
 function closeDeleteModal() {
     document.getElementById('deleteModal').classList.add('hidden');
+    document.getElementById('deleteConfirmInput').value = '';
+    checkDeleteConfirmation();
+}
+
+function checkDeleteConfirmation() {
+    var input = document.getElementById('deleteConfirmInput').value.trim().toLowerCase();
+    var btn = document.getElementById('deleteSubmitBtn');
+    if (input === 'production') {
+        btn.disabled = false;
+        btn.className = 'btn-admin-danger px-4 py-2 text-sm';
+    } else {
+        btn.disabled = true;
+        btn.className = 'px-4 py-2 text-sm rounded-lg font-medium text-white bg-red-300 cursor-not-allowed transition-all';
+    }
+}
+
+function validateDeleteConfirmation() {
+    return document.getElementById('deleteConfirmInput').value.trim().toLowerCase() === 'production';
 }
 
 // Close modals on escape key
