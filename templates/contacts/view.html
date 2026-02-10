@@ -81,18 +81,24 @@
                 </a>
                 <div class="flex items-center gap-2">
                     <!-- Previous/Next Navigation -->
+                    {% if prev_contact %}
                     <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}"
                         class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
                         <i class="fas fa-arrow-left text-xs text-slate-400"></i>
                         <span class="truncate max-w-[120px]">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
                     </a>
+                    {% endif %}
+                    {% if next_contact %}
                     <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}"
                         class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
                         <span class="truncate max-w-[120px]">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
                         <i class="fas fa-arrow-right text-xs text-slate-400"></i>
                     </a>
+                    {% endif %}
 
+                    {% if prev_contact or next_contact %}
                     <div class="w-px h-5 bg-slate-200 hidden md:block"></div>
+                    {% endif %}
 
                     <!-- Edit/Save/Cancel Buttons -->
                     <button id="editButton" onclick="toggleEditMode()"
