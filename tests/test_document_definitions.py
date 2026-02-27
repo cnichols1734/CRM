@@ -263,12 +263,12 @@ class TestTransforms:
     """Test field value transforms."""
     
     def test_currency_transform(self):
-        """Currency transform should format numbers."""
+        """Currency transform strips formatting for DocuSeal (raw numbers)."""
         from services.documents.transforms import transform_currency
         
-        assert transform_currency(500000) == "$500,000.00"
-        assert transform_currency("500000") == "$500,000.00"
-        assert transform_currency(1234.5) == "$1,234.50"
+        assert transform_currency(500000) == "500000"
+        assert transform_currency("$500,000.00") == "500000.00"
+        assert transform_currency("1,234.50") == "1234.50"
     
     def test_phone_transform(self):
         """Phone transform should format 10-digit numbers."""
