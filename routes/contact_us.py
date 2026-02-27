@@ -13,6 +13,16 @@ def contact_us():
     try:
         data = request.get_json()
         
+        # Honeypot check - bots fill this hidden field, humans don't see it
+        honeypot = data.get('company_name', '').strip()
+        if honeypot:
+            # Bot detected! Return fake success to not tip them off
+            current_app.logger.warning(f"Bot contact form blocked (honeypot): {data.get('email', 'unknown')}")
+            return jsonify({
+                'success': True,
+                'message': 'Message sent successfully! We\'ll get back to you soon.'
+            }), 200
+        
         subject = data.get('subject', '').strip()
         message = data.get('message', '').strip()
         user_email = data.get('email', '').strip()

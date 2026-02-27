@@ -20,6 +20,12 @@
             
             <!-- Form -->
             <form id="contactUsForm" class="px-8 py-6">
+                <!-- Honeypot field - invisible to humans, bots will fill it -->
+                <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+                    <label for="contactCompanyName">Leave this field empty</label>
+                    <input type="text" name="company_name" id="contactCompanyName" tabindex="-1" autocomplete="off" value="">
+                </div>
+                
                 <!-- Subject Field -->
                 <div class="mb-5">
                     <label for="contactSubject" class="block text-sm font-semibold text-brand-700 mb-2">
@@ -180,7 +186,8 @@ document.getElementById('contactUsForm')?.addEventListener('submit', async funct
     const data = {
         subject: formData.get('subject'),
         message: formData.get('message'),
-        email: formData.get('email')
+        email: formData.get('email'),
+        company_name: formData.get('company_name')
     };
     
     try {
