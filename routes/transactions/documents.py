@@ -21,7 +21,7 @@ from .helpers import build_prefill_data
 @transactions_required
 def add_document(id):
     """Add a document to a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -113,15 +113,12 @@ def add_document(id):
 @transactions_required
 def remove_document(id, doc_id):
     """Remove a document from a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    doc = TransactionDocument.query.get_or_404(doc_id)
-
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 
     try:
         # Log audit event before deletion
@@ -144,15 +141,12 @@ def document_form(id, doc_id):
         DocumentLoader, DocumentType, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        abort(404)
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Get document definition from new system
     definition = DocumentLoader.get(doc.template_slug)
@@ -307,15 +301,12 @@ def document_form(id, doc_id):
 @transactions_required
 def save_document_form(id, doc_id):
     """Save the document form data."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        abort(404)
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     try:
         # Get form data
@@ -381,7 +372,7 @@ def fill_all_documents(id):
         DocumentLoader, DocumentType, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -544,7 +535,7 @@ def save_all_documents(id):
     """
     from services.documents import DocumentLoader
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -611,15 +602,12 @@ def upload_scanned_document(id, doc_id):
     from datetime import datetime
     from services.supabase_storage import upload_scanned_document as upload_scan
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be filled/generated to upload a scan
     if doc.status not in ['filled', 'generated']:
@@ -720,15 +708,12 @@ def upload_static_document(id, doc_id):
     from datetime import datetime
     from services.supabase_storage import upload_external_document as upload_static
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be a placeholder in pending status
     if not doc.is_placeholder:
@@ -834,15 +819,12 @@ def upload_placeholder_for_signature(id, doc_id):
     from datetime import datetime
     from services.supabase_storage import upload_external_document as upload_external
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be a placeholder in pending status
     if not doc.is_placeholder:
@@ -954,7 +936,7 @@ def upload_external_document(id):
     from datetime import datetime
     from services.supabase_storage import upload_external_document as upload_external
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -1072,7 +1054,7 @@ def upload_completed_document(id):
     from datetime import datetime
     from services.supabase_storage import upload_external_document as upload_storage
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -1179,17 +1161,13 @@ def document_field_editor(id, doc_id):
     
     Used for external documents and hybrid wet+esign flows.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         flash('Unauthorized access.', 'error')
         return redirect(url_for('transactions.view_transaction', id=id))
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        flash('Document not found.', 'error')
-        return redirect(url_for('transactions.view_transaction', id=id))
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Get participants for the signer dropdown
     participants = transaction.participants.all()
@@ -1223,15 +1201,12 @@ def save_field_placements(id, doc_id):
     
     Called from the visual field editor when the user saves their work.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     try:
         data = request.get_json()
@@ -1279,15 +1254,12 @@ def send_adhoc_document(id, doc_id):
     from services.documents.docuseal_client import DocuSealClient
     from services.documents.types import Submitter
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Extract field placements data
     # Handle both old format (list) and new format (dict with fields, page_dimensions, render_scale)
@@ -1513,15 +1485,12 @@ def convert_to_hybrid(id, doc_id):
     This allows a document that was printed, wet-signed by one party, and scanned
     to be sent for e-signature to remaining parties.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be wet-signed with a stored file
     if doc.signing_method != 'physical':

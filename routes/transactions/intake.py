@@ -22,7 +22,7 @@ def intake_questionnaire(id):
     """Show the intake questionnaire for a transaction."""
     from services.intake_service import get_intake_schema
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -52,7 +52,7 @@ def save_intake(id):
     """Save intake questionnaire answers."""
     from services.intake_service import get_intake_schema, validate_intake_data
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -119,7 +119,7 @@ def preview_document_changes(id):
     """
     from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -308,7 +308,7 @@ def generate_document_package(id):
     from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
     from services.documents import DocumentLoader, FieldResolver
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)

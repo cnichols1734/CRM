@@ -20,7 +20,7 @@ from .decorators import transactions_required
 @transactions_required
 def add_participant(id):
     """Add a participant to a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -91,15 +91,14 @@ def add_participant(id):
 @transactions_required
 def remove_participant(id, participant_id):
     """Remove a participant from a transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
 
-    participant = TransactionParticipant.query.get_or_404(participant_id)
-
-    if participant.transaction_id != transaction.id:
-        abort(404)
+    participant = TransactionParticipant.query.filter_by(
+        id=participant_id, transaction_id=transaction.id
+    ).first_or_404()
 
     try:
         # Log audit event before deletion

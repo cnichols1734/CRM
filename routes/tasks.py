@@ -173,9 +173,7 @@ def create_task():
 @tasks_bp.route('/tasks/<int:task_id>/edit', methods=['POST'])
 @login_required
 def edit_task(task_id):
-    task = db.session.get(Task, task_id)
-    if not task:
-        abort(404)
+    task = Task.query.filter_by(id=task_id, organization_id=current_user.organization_id).first_or_404()
 
     try:
         user_tz = get_user_timezone()
@@ -209,7 +207,7 @@ def edit_task(task_id):
         if new_type_id:
             task.type_id = int(new_type_id)
             if new_subtype_id:
-                subtype = db.session.get(TaskSubtype, int(new_subtype_id))
+                subtype = TaskSubtype.query.filter_by(id=int(new_subtype_id), organization_id=current_user.organization_id).first()
                 if subtype and str(subtype.task_type_id) == new_type_id:
                     task.subtype_id = int(new_subtype_id)
 
@@ -235,9 +233,7 @@ def edit_task(task_id):
 @tasks_bp.route('/tasks/<int:task_id>/delete', methods=['POST'])
 @login_required
 def delete_task(task_id):
-    task = db.session.get(Task, task_id)
-    if not task:
-        abort(404)
+    task = Task.query.filter_by(id=task_id, organization_id=current_user.organization_id).first_or_404()
 
     if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
         abort(403)
@@ -261,7 +257,7 @@ def delete_task(task_id):
 @tasks_bp.route('/tasks/types/<int:type_id>/subtypes')
 @login_required
 def get_task_subtypes(type_id):
-    subtypes = TaskSubtype.query.filter_by(task_type_id=type_id).all()
+    subtypes = TaskSubtype.query.filter_by(task_type_id=type_id, organization_id=current_user.organization_id).all()
     return jsonify([{
         'id': subtype.id,
         'name': subtype.name
@@ -330,9 +326,7 @@ def view_task(task_id):
 @tasks_bp.route('/tasks/<int:task_id>/quick-update', methods=['POST'])
 @login_required
 def quick_update_task(task_id):
-    task = db.session.get(Task, task_id)
-    if not task:
-        abort(404)
+    task = Task.query.filter_by(id=task_id, organization_id=current_user.organization_id).first_or_404()
     
     if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
         abort(403)

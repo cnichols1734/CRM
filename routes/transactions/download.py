@@ -27,15 +27,12 @@ def download_signed_document(id, doc_id):
     from services.docuseal_service import get_signed_document_urls, DOCUSEAL_MOCK_MODE
     from services.supabase_storage import get_transaction_document_url
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if doc.status != 'signed':
         return jsonify({
@@ -83,15 +80,12 @@ def view_stored_signed_document(id, doc_id):
     """
     from services.supabase_storage import get_transaction_document_url, format_file_size
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.signed_file_path:
         return jsonify({
@@ -127,15 +121,12 @@ def view_static_document(id, doc_id):
     """
     from services.supabase_storage import get_transaction_document_url, format_file_size
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.source_file_path:
         return jsonify({
@@ -176,7 +167,7 @@ def get_all_documents_print_pdf(id):
     )
     from services.documents.types import Submitter
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -421,15 +412,12 @@ def get_document_print_pdf(id, doc_id):
     """
     from services.documents.docuseal_client import DocuSealClient
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Check if document has been filled
     if doc.status == 'pending':

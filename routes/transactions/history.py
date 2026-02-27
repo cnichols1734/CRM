@@ -23,7 +23,7 @@ def transaction_history(id):
     Get the audit history for a transaction.
     Returns a paginated list of all events related to this transaction.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -65,7 +65,7 @@ def view_transaction_history(id):
     """
     Render the transaction history page.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -83,15 +83,12 @@ def document_history(id, doc_id):
     """
     Get the audit history for a specific document.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    doc = TransactionDocument.query.get_or_404(doc_id)
-
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 
     # Get events for this document
     events = audit_service.get_document_history(document_id=doc_id)
