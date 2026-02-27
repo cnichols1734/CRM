@@ -113,7 +113,18 @@ class TestContactUs:
             'email': 'test@example.com',
             'message': 'Hello, I have a question.',
         })
+        # 200 = success, 400 = validation, 500 = expected when SENDGRID_API_KEY absent
         assert resp.status_code in (200, 400, 500)
+        data = resp.get_json()
+        assert 'success' in data or 'message' in data
+
+    def test_contact_form_validation(self, client, seed):
+        resp = client.post('/contact-us', json={
+            'subject': '',
+            'email': '',
+            'message': '',
+        })
+        assert resp.status_code == 400
 
 
 class TestAgentNavigation:

@@ -23,10 +23,12 @@ class TestLogin:
         assert b'Dashboard' in resp.data or b'dashboard' in resp.data.lower()
 
     def test_login_wrong_password(self, client, seed):
+        client.get('/logout')
         resp = client.post('/login', data={
             'username': 'owner_a', 'password': 'wrongpassword',
         }, follow_redirects=True)
-        assert b'Invalid' in resp.data or b'incorrect' in resp.data.lower() or resp.status_code == 200
+        assert resp.status_code == 200
+        assert b'Invalid' in resp.data or b'incorrect' in resp.data.lower()
 
     def test_login_nonexistent_user(self, client, seed):
         client.get('/logout')  # Ensure no session carryover from other tests

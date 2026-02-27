@@ -253,6 +253,14 @@ def login(client, username, password='password123'):
     }, follow_redirects=True)
 
 
+@pytest.fixture(autouse=True)
+def _rollback_after_test(app):
+    """Roll back uncommitted DB changes after each test to prevent state leakage."""
+    yield
+    with app.app_context():
+        _db.session.rollback()
+
+
 @pytest.fixture()
 def client(app):
     """Provide a fresh test client per test."""

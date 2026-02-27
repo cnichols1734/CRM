@@ -37,7 +37,7 @@ class TestAIChatAPI:
     def test_chat_unauthenticated(self, client, seed):
         client.get('/logout')
         resp = client.post('/api/ai-chat', json={'message': 'Hello'})
-        assert resp.status_code in (302, 401, 403, 500)
+        assert resp.status_code in (302, 401, 403)
 
 
 class TestActionPlanAPI:

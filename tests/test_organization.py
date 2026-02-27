@@ -31,8 +31,8 @@ class TestOrgSettings:
     def test_update_settings_admin_denied(self, admin_a_client, seed):
         resp = admin_a_client.post('/org/settings/update', data={
             'name': 'Admin Should Not Update',
-        }, follow_redirects=True)
-        assert resp.status_code in (200, 302, 403)
+        })
+        assert resp.status_code == 403
 
     def test_update_settings_agent_denied(self, agent_a_client, seed):
         resp = agent_a_client.post('/org/settings/update', data={
@@ -53,12 +53,19 @@ class TestOrgMembers:
         assert resp.status_code in (302, 403)
 
     def test_update_member_role(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            f'/org/members/{seed["agent_a"]}/update-role',
-            data={'role': 'admin'},
-            follow_redirects=True,
-        )
-        assert resp.status_code == 200
+        try:
+            resp = owner_a_client.post(
+                f'/org/members/{seed["agent_a"]}/update-role',
+                data={'role': 'admin'},
+                follow_redirects=True,
+            )
+            assert resp.status_code == 200
+        finally:
+            owner_a_client.post(
+                f'/org/members/{seed["agent_a"]}/update-role',
+                data={'role': 'agent'},
+                follow_redirects=True,
+            )
 
     def test_update_member_role_agent_denied(self, agent_a_client, seed):
         resp = agent_a_client.post(

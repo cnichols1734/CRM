@@ -102,7 +102,7 @@ class TestTransactionStatusAPI:
             json={'status': 'active'},
             content_type='application/json',
         )
-        assert resp.status_code in (200, 400)
+        assert resp.status_code == 200
 
     def test_update_status_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.post(
