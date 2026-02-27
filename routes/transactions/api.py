@@ -53,7 +53,7 @@ def search_contacts():
 @transactions_required
 def get_signers(id):
     """Get list of signers for a transaction document."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'signers': [], 'error': 'Unauthorized'}), 403
@@ -88,7 +88,7 @@ def get_signers(id):
 @transactions_required
 def update_status(id):
     """Update transaction status via AJAX."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -120,7 +120,7 @@ def update_status(id):
 @transactions_required
 def update_lockbox_combo(id):
     """Update the lockbox combo for a seller transaction."""
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
@@ -172,7 +172,7 @@ def fetch_rentcast_data(id):
     """
     from services.rentcast_service import fetch_property_data
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     # Authorization check
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
@@ -252,7 +252,7 @@ def get_rentcast_data(id):
     Get cached RentCast data for a transaction (if available).
     Does not trigger a new API fetch - use POST for that.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     # Authorization check
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':

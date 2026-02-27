@@ -29,7 +29,7 @@ def preview_all_documents(id):
         DocumentLoader, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -272,7 +272,7 @@ def send_all_for_signature(id):
     from services.documents.types import Submitter
     from services.documents.exceptions import DocuSealAPIError
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
@@ -692,15 +692,12 @@ def document_preview(id, doc_id):
         DocumentLoader, DocumentType, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        abort(404)
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be filled to preview
     if doc.status not in ['filled', 'generated', 'draft']:
@@ -780,15 +777,12 @@ def send_for_signature(id, doc_id):
         DocumentLoader, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Check document is ready to send (must be filled or generated/previewed)
     if doc.status not in ['filled', 'generated']:
@@ -899,15 +893,12 @@ def check_signature_status(id, doc_id):
     """Check the signature status of a document."""
     from services.docuseal_service import get_submission, DOCUSEAL_MOCK_MODE
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.docuseal_submission_id:
         return jsonify({
@@ -959,15 +950,12 @@ def void_document(id, doc_id):
     Void a sent document and reset it to 'filled' status so it can be re-sent.
     This clears the DocuSeal submission and allows the agent to preview/send again.
     """
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if doc.status not in ['sent', 'generated']:
         return jsonify({
@@ -1011,15 +999,12 @@ def resend_signature_request(id, doc_id):
     """
     from services.docuseal_service import resend_signature_emails, DOCUSEAL_MOCK_MODE
 
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
 
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    doc = TransactionDocument.query.get_or_404(doc_id)
-
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 
     if doc.status != 'sent':
         return jsonify({
@@ -1075,15 +1060,12 @@ def simulate_signature(id, doc_id):
             'error': 'Simulation only available in mock mode'
         }), 400
     
-    transaction = Transaction.query.get_or_404(id)
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    doc = TransactionDocument.query.get_or_404(doc_id)
-    
-    if doc.transaction_id != transaction.id:
-        return jsonify({'success': False, 'error': 'Document not found'}), 404
+    doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.docuseal_submission_id:
         return jsonify({
