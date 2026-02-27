@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, ContactEmail, ContactVoiceMemo
-from feature_flags import can_access_transactions
+from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo
+from feature_flags import can_access_transactions, feature_required
 from forms import ContactForm
 from services import supabase_storage
 from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
@@ -9,8 +9,11 @@ import csv
 from io import StringIO
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload, selectinload
-from datetime import datetime
+from datetime import datetime, timedelta, time, timezone
 import pytz
+import logging
+
+logger = logging.getLogger(__name__)
 
 contacts_bp = Blueprint('contacts', __name__)
 
@@ -1256,6 +1259,138 @@ def get_email_thread(contact_id, thread_id):
         'success': True,
         'messages': [email.to_dict() for email in emails]
     })
+
+
+# =============================================================================
+# AI TASK SUGGESTIONS
+# =============================================================================
+
+@contacts_bp.route('/contact/<int:contact_id>/task-suggestions', methods=['POST'])
+@login_required
+@feature_required('AI_TASK_SUGGESTIONS')
+def generate_task_suggestions(contact_id):
+    """Generate AI-powered task suggestions for a contact."""
+    from services.task_suggestions import generate_task_suggestions as _generate
+
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+    try:
+        suggestions = _generate(
+            contact_id=contact_id,
+            org_id=current_user.organization_id,
+            user_id=current_user.id
+        )
+        return jsonify({'success': True, 'suggestions': suggestions})
+
+    except ValueError as e:
+        logger.warning(f"Task suggestion validation error for contact {contact_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 422
+
+    except Exception as e:
+        logger.error(f"Task suggestion generation failed for contact {contact_id}: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Could not generate suggestions right now. Please try again.'
+        }), 500
+
+
+@contacts_bp.route('/contact/<int:contact_id>/task-suggestions/create', methods=['POST'])
+@login_required
+@feature_required('AI_TASK_SUGGESTIONS')
+def create_task_from_suggestion(contact_id):
+    """Create a real task from an AI suggestion."""
+    from services.task_suggestions import resolve_type_ids
+
+    contact = org_query(Contact).filter_by(id=contact_id).first_or_404()
+
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        return jsonify({'success': False, 'error': 'Permission denied'}), 403
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'No data provided'}), 400
+
+    try:
+        subject = data.get('subject', '').strip()
+        if not subject:
+            return jsonify({'success': False, 'error': 'Subject is required'}), 400
+
+        suggestion = {
+            'task_type': data.get('task_type', 'Call'),
+            'task_subtype': data.get('task_subtype', 'Follow-up'),
+        }
+        task_type, task_subtype = resolve_type_ids(
+            suggestion, current_user.organization_id
+        )
+
+        if not task_type or not task_subtype:
+            return jsonify({'success': False, 'error': 'Could not resolve task type'}), 400
+
+        due_in_days = data.get('due_in_days', 3)
+        if not isinstance(due_in_days, int) or due_in_days < 1:
+            due_in_days = 3
+
+        from routes.tasks import get_user_timezone, convert_to_utc
+        user_tz = get_user_timezone()
+        due_date = datetime.now(user_tz) + timedelta(days=due_in_days)
+        due_date = datetime.combine(due_date.date(), time(23, 59, 59))
+        utc_due_date = convert_to_utc(due_date, user_tz)
+
+        task = Task(
+            organization_id=current_user.organization_id,
+            contact_id=contact_id,
+            assigned_to_id=current_user.id,
+            created_by_id=current_user.id,
+            type_id=task_type.id,
+            subtype_id=task_subtype.id,
+            subject=subject[:200],
+            description=data.get('description', '')[:500] or None,
+            priority=data.get('priority', 'medium'),
+            due_date=utc_due_date,
+        )
+
+        db.session.add(task)
+        db.session.commit()
+
+        # Non-blocking calendar sync
+        try:
+            from services import calendar_service
+            from models import UserEmailIntegration
+            integration = UserEmailIntegration.query.filter_by(
+                user_id=current_user.id
+            ).first()
+            if integration and integration.calendar_sync_enabled:
+                base_url = request.url_root.rstrip('/')
+                calendar_service.sync_task_to_calendar(task, base_url)
+        except Exception as e:
+            logger.warning(f"Calendar sync failed for suggested task {task.id}: {e}")
+
+        from routes.tasks import convert_to_local
+        local_due = convert_to_local(task.due_date, user_tz)
+        days_until = (local_due.date() - datetime.now(user_tz).date()).days
+
+        return jsonify({
+            'success': True,
+            'task': {
+                'id': task.id,
+                'subject': task.subject,
+                'priority': task.priority,
+                'due_date': local_due.strftime('%b %d, %Y'),
+                'days_until_due': days_until,
+                'task_type_name': task_type.name,
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to create task from suggestion: {e}")
+        return jsonify({
+            'success': False,
+            'error': 'Failed to create task. Please try again.'
+        }), 500
 
 
 # =============================================================================
