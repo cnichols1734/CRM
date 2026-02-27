@@ -7,19 +7,50 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  # -------------------------------------------------------------------
+  # Job 1: Pytest integration tests (Flask test client, no browser)
+  # -------------------------------------------------------------------
+  pytest:
     runs-on: ubuntu-latest
-    
+
     env:
-      # Test credentials - set these as GitHub Secrets
+      DATABASE_URL: sqlite:////tmp/test_integration.db
+      SECRET_KEY: ci-test-secret-key
+      FLASK_ENV: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r tests/requirements.txt
+
+      - name: Run pytest integration tests
+        run: |
+          pytest tests/ -x -v --ignore=tests/run_tests.py --ignore=tests/run_scheduled_tests.py --ignore=tests/test_idor_protection.py --ignore=tests/test_sendgrid.py --tb=short
+          pytest tests/test_idor_protection.py -x -v --tb=short
+
+  # -------------------------------------------------------------------
+  # Job 2: Playwright browser tests (requires running app + secrets)
+  # -------------------------------------------------------------------
+  playwright:
+    runs-on: ubuntu-latest
+
+    env:
       TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
       TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      # Database URL for tests (uses Supabase)
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      # Optional: OpenAI key if AI features are tested
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      # Flask environment
       FLASK_ENV: development
 
     steps:
@@ -44,9 +75,7 @@ jobs:
       - name: Start Flask app
         run: |
           python app.py &
-          # Wait for server to start
           sleep 5
-          # Verify server is running
           curl --retry 5 --retry-delay 2 --retry-connrefused http://127.0.0.1:5011/login
 
       - name: Run integration tests
@@ -60,4 +89,3 @@ jobs:
           path: |
             tests/*.png
             tests/*.log
-
