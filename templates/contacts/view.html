@@ -753,6 +753,78 @@
                     </div>
                 </div>
 
+                <!-- AI Smart Actions Card -->
+                {% if org_has_feature('AI_TASK_SUGGESTIONS') %}
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="smartActionsCard">
+                    <div class="px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50 flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <div class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
+                                <i class="fas fa-lightbulb text-white text-[10px]"></i>
+                            </div>
+                            <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Smart Actions</h2>
+                        </div>
+                        <button onclick="generateSmartActions()" id="smartActionsBtn"
+                            class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-orange-600 hover:text-orange-700 bg-white hover:bg-orange-50 border border-orange-200 rounded-md transition-all shadow-sm">
+                            <i class="fas fa-wand-magic-sparkles text-[10px]"></i>
+                            <span id="smartActionsBtnText">Get Ideas</span>
+                        </button>
+                    </div>
+
+                    <div id="smartActionsContainer">
+                        <!-- Empty state -->
+                        <div id="smartActionsEmpty" class="px-4 py-8 text-center">
+                            <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
+                                <i class="fas fa-robot text-amber-400 text-lg"></i>
+                            </div>
+                            <p class="text-sm font-medium text-slate-600 mb-1">AI-Powered Task Ideas</p>
+                            <p class="text-xs text-slate-400 max-w-[240px] mx-auto">Get 3 personalized task suggestions based on this contact's full history</p>
+                        </div>
+
+                        <!-- Loading state (hidden) -->
+                        <div id="smartActionsLoading" class="hidden px-4 py-6">
+                            <div class="flex flex-col items-center gap-3">
+                                <div class="relative w-10 h-10">
+                                    <div class="absolute inset-0 rounded-full border-2 border-orange-100"></div>
+                                    <div class="absolute inset-0 rounded-full border-2 border-orange-500 border-t-transparent animate-spin"></div>
+                                    <div class="absolute inset-2 rounded-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
+                                        <i class="fas fa-brain text-orange-400 text-[10px]"></i>
+                                    </div>
+                                </div>
+                                <div class="text-center">
+                                    <p class="text-sm font-medium text-slate-600">Analyzing contact data...</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">Tasks, emails, interactions & more</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Error state (hidden) -->
+                        <div id="smartActionsError" class="hidden px-4 py-6 text-center">
+                            <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
+                                <i class="fas fa-exclamation-triangle text-red-400"></i>
+                            </div>
+                            <p class="text-sm text-slate-600 mb-1" id="smartActionsErrorMsg">Something went wrong</p>
+                            <button onclick="generateSmartActions()"
+                                class="text-xs text-orange-600 hover:text-orange-700 font-medium">
+                                <i class="fas fa-redo mr-1"></i>Try Again
+                            </button>
+                        </div>
+
+                        <!-- Suggestions list (hidden) -->
+                        <div id="smartActionsList" class="hidden divide-y divide-slate-100">
+                            <!-- Suggestions will be rendered here by JS -->
+                        </div>
+
+                        <!-- Regenerate footer (hidden) -->
+                        <div id="smartActionsFooter" class="hidden px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
+                            <button onclick="generateSmartActions()"
+                                class="w-full text-center text-xs text-slate-500 hover:text-orange-600 font-medium transition-colors py-0.5">
+                                <i class="fas fa-refresh mr-1"></i>Regenerate Ideas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Unified Activity Timeline Card -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
@@ -2668,6 +2740,255 @@
         });
     }
 </script>
+
+<!-- Smart Actions -->
+{% if org_has_feature('AI_TASK_SUGGESTIONS') %}
+<script>
+    const CONTACT_ID = {{ contact.id }};
+    let smartActionsGenerated = false;
+
+    function generateSmartActions() {
+        const btn = document.getElementById('smartActionsBtn');
+        const btnText = document.getElementById('smartActionsBtnText');
+        const emptyState = document.getElementById('smartActionsEmpty');
+        const loadingState = document.getElementById('smartActionsLoading');
+        const errorState = document.getElementById('smartActionsError');
+        const listContainer = document.getElementById('smartActionsList');
+        const footer = document.getElementById('smartActionsFooter');
+
+        // Show loading
+        btn.disabled = true;
+        btnText.textContent = 'Thinking...';
+        emptyState.classList.add('hidden');
+        errorState.classList.add('hidden');
+        listContainer.classList.add('hidden');
+        footer.classList.add('hidden');
+        loadingState.classList.remove('hidden');
+
+        fetch(`/contact/${CONTACT_ID}/task-suggestions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingState.classList.add('hidden');
+            btn.disabled = false;
+            btnText.textContent = 'Refresh';
+
+            if (!data.success) {
+                document.getElementById('smartActionsErrorMsg').textContent =
+                    data.error || 'Something went wrong';
+                errorState.classList.remove('hidden');
+                return;
+            }
+
+            renderSuggestions(data.suggestions);
+            listContainer.classList.remove('hidden');
+            footer.classList.remove('hidden');
+            smartActionsGenerated = true;
+        })
+        .catch(error => {
+            console.error('Smart Actions error:', error);
+            loadingState.classList.add('hidden');
+            btn.disabled = false;
+            btnText.textContent = 'Get Ideas';
+            document.getElementById('smartActionsErrorMsg').textContent =
+                'Network error. Please try again.';
+            errorState.classList.remove('hidden');
+        });
+    }
+
+    function renderSuggestions(suggestions) {
+        const container = document.getElementById('smartActionsList');
+        container.innerHTML = '';
+
+        const priorityConfig = {
+            high: { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', icon: 'fa-arrow-up', label: 'High' },
+            medium: { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', icon: 'fa-minus', label: 'Med' },
+            low: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', icon: 'fa-arrow-down', label: 'Low' }
+        };
+
+        const typeIcons = {
+            'Call': 'fa-phone',
+            'Meeting': 'fa-users',
+            'Email': 'fa-envelope',
+            'Document': 'fa-file-alt'
+        };
+
+        suggestions.forEach((s, index) => {
+            const p = priorityConfig[s.priority] || priorityConfig.medium;
+            const typeIcon = typeIcons[s.task_type] || 'fa-tasks';
+            const dueLabel = s.due_in_days === 1 ? 'Tomorrow' :
+                             s.due_in_days <= 3 ? `In ${s.due_in_days} days` :
+                             `In ${s.due_in_days} days`;
+
+            const card = document.createElement('div');
+            card.className = 'p-3.5 hover:bg-slate-50/50 transition-colors suggestion-item';
+            card.dataset.index = index;
+            card.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <i class="fas ${typeIcon} ${p.text} text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h4 class="text-sm font-semibold text-slate-800 leading-tight flex-1">${escapeHtml(s.subject)}</h4>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed mb-2">${escapeHtml(s.reason)}</p>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${p.bg} ${p.text} border ${p.border}">
+                                <i class="fas ${p.icon} text-[8px]"></i> ${p.label}
+                            </span>
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                                <i class="far fa-clock text-[8px]"></i> ${dueLabel}
+                            </span>
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                                ${escapeHtml(s.task_type)} · ${escapeHtml(s.task_subtype)}
+                            </span>
+                        </div>
+                    </div>
+                    <button onclick="addSuggestedTask(${index})"
+                        class="add-task-btn flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-md shadow-sm transition-all hover:shadow mt-0.5"
+                        title="Create this task">
+                        <i class="fas fa-plus text-[9px]"></i>
+                        <span>Add</span>
+                    </button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+
+        // Store suggestions data for the add action
+        container._suggestions = suggestions;
+    }
+
+    function addSuggestedTask(index) {
+        const container = document.getElementById('smartActionsList');
+        const suggestions = container._suggestions;
+        if (!suggestions || !suggestions[index]) return;
+
+        const s = suggestions[index];
+        const item = container.querySelector(`.suggestion-item[data-index="${index}"]`);
+        const btn = item.querySelector('.add-task-btn');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[9px]"></i>';
+
+        fetch(`/contact/${CONTACT_ID}/task-suggestions/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                subject: s.subject,
+                description: s.description,
+                priority: s.priority,
+                due_in_days: s.due_in_days,
+                task_type: s.task_type,
+                task_subtype: s.task_subtype
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                btn.className = 'flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-md mt-0.5';
+                btn.innerHTML = '<i class="fas fa-check text-[9px]"></i><span>Added</span>';
+                btn.disabled = true;
+                item.classList.add('bg-emerald-50/40');
+
+                insertTaskIntoSidebar(data.task);
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-exclamation text-[9px]"></i><span>Retry</span>';
+                btn.className = 'add-task-btn flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md shadow-sm transition-all hover:shadow mt-0.5';
+            }
+        })
+        .catch(error => {
+            console.error('Add task error:', error);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-exclamation text-[9px]"></i><span>Retry</span>';
+            btn.className = 'add-task-btn flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-md shadow-sm transition-all hover:shadow mt-0.5';
+        });
+    }
+
+    function insertTaskIntoSidebar(task) {
+        const pendingList = document.getElementById('pendingTasks');
+        if (!pendingList) return;
+
+        // Remove "No active tasks" empty state if present
+        const emptyMsg = pendingList.querySelector('.text-center');
+        if (emptyMsg && emptyMsg.textContent.includes('No active tasks')) {
+            emptyMsg.remove();
+        }
+
+        const priorityColors = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-green-500' };
+        const dotClass = priorityColors[task.priority] || 'bg-amber-500';
+
+        const d = task.days_until_due;
+        let dueText, dueClass;
+        if (d < 0) { dueText = Math.abs(d) + 'd overdue'; dueClass = 'text-red-500'; }
+        else if (d === 0) { dueText = 'Due today'; dueClass = 'text-orange-500'; }
+        else if (d === 1) { dueText = 'Due tomorrow'; dueClass = 'text-amber-600'; }
+        else if (d <= 2) { dueText = 'Due in ' + d + 'd'; dueClass = 'text-amber-600'; }
+        else { dueText = 'Due in ' + d + 'd'; dueClass = 'text-slate-500'; }
+
+        const row = document.createElement('div');
+        row.className = 'p-3 hover:bg-slate-50 transition-colors duration-150';
+        row.style.animation = 'fadeIn 0.3s ease-out';
+        row.innerHTML = `
+            <div class="flex items-center gap-3">
+                <div class="w-2 h-2 rounded-full flex-shrink-0 ${dotClass}"></div>
+                <div class="flex-1 min-w-0">
+                    <a href="#" data-task-id="${task.id}"
+                        class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate block transition-colors">
+                        ${escapeHtml(task.subject)}
+                    </a>
+                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                        <span>${escapeHtml(task.task_type_name)}</span>
+                        <span class="text-slate-300">&middot;</span>
+                        <span class="${dueClass}">${dueText}</span>
+                    </div>
+                </div>
+                <button onclick="quickUpdateStatus(${task.id}, true)"
+                    class="w-6 h-6 rounded text-slate-300 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all flex-shrink-0">
+                    <i class="fas fa-check text-xs"></i>
+                </button>
+            </div>
+        `;
+
+        pendingList.prepend(row);
+
+        // Wire up the task link to open the modal
+        const taskLink = row.querySelector('.task-link');
+        if (taskLink && typeof openTaskModal === 'function') {
+            taskLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                openTaskModal(this.getAttribute('data-task-id'));
+            });
+        }
+
+        // Make sure we're showing the pending tab
+        if (typeof switchTaskView === 'function') {
+            switchTaskView('pending');
+        }
+
+        // Brief highlight
+        row.style.backgroundColor = '#f0fdf4';
+        setTimeout(() => { row.style.backgroundColor = ''; }, 1500);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endif %}
 
 <!-- Activity Timeline Manager -->
 <script src="{{ url_for('static', filename='js/activity-timeline.js') }}"></script>

@@ -26,6 +26,7 @@ TIER_FEATURES = {
         'AI_CHAT': True,  # Enabled with daily message limit (see tier_limits.py)
         'AI_DAILY_TODO': False,
         'AI_ACTION_PLAN': False,
+        'AI_TASK_SUGGESTIONS': False,
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
         'MARKETING': False,
@@ -42,6 +43,7 @@ TIER_FEATURES = {
         'AI_CHAT': True,
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
+        'AI_TASK_SUGGESTIONS': True,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKETING': False,  # Still disabled for all
@@ -56,6 +58,7 @@ TIER_FEATURES = {
         'AI_CHAT': True,
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
+        'AI_TASK_SUGGESTIONS': True,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKETING': True,  # Only enterprise has marketing
