@@ -914,6 +914,10 @@ class TransactionDocument(db.Model):
     # (e.g., Special Tax District Notice, Referral Agreement when agent-provided)
     is_placeholder = db.Column(db.Boolean, default=False)
     
+    # AI extraction status for uploaded documents (null = not applicable)
+    extraction_status = db.Column(db.String(20))  # pending, processing, complete, failed
+    extraction_error = db.Column(db.Text)  # error details on failure
+    
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
