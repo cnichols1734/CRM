@@ -116,15 +116,19 @@ def preview_document_changes(id):
     """
     Preview what documents will be added/removed/kept based on intake answers.
     Returns a diff with clear explanations of WHY each change is happening.
+    Uses the shared compute_document_diff helper so preview and generate
+    stay in sync.
     """
-    from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
+    from services.intake_service import (
+        get_intake_schema, validate_intake_data, compute_document_diff,
+        get_question_labels
+    )
     
     transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     
-    # Get the schema
     schema = get_intake_schema(
         transaction.transaction_type.name,
         transaction.ownership_status
@@ -133,11 +137,7 @@ def preview_document_changes(id):
     if not schema:
         return jsonify({'success': False, 'error': 'Schema not found'}), 404
     
-    # Build question labels lookup
-    question_labels = {}
-    for section in schema.get('sections', []):
-        for question in section.get('questions', []):
-            question_labels[question['id']] = question['label']
+    question_labels = get_question_labels(schema)
     
     # Parse incoming intake data from request
     data = request.get_json() if request.is_json else None
@@ -154,10 +154,8 @@ def preview_document_changes(id):
     else:
         new_intake_data = data.get('intake_data', {})
     
-    # Get old intake data for comparison
     old_intake_data = transaction.intake_data or {}
     
-    # Validate
     is_valid, missing = validate_intake_data(schema, new_intake_data)
     if not is_valid:
         return jsonify({
@@ -172,7 +170,6 @@ def preview_document_changes(id):
         old_val = old_intake_data.get(field_id)
         new_val = new_intake_data.get(field_id)
         if old_val != new_val:
-            # Format values for display
             def format_val(v):
                 if v is True:
                     return 'Yes'
@@ -188,7 +185,7 @@ def preview_document_changes(id):
                 'new_value': format_val(new_val)
             }
     
-    # Build a map of document slug -> triggering rule condition
+    # Build a map of document slug -> triggering rule condition for explanations
     doc_rules = {}
     for rule in schema.get('document_rules', []):
         slug = rule['slug']
@@ -202,74 +199,41 @@ def preview_document_changes(id):
                 'condition': cond
             }
     
-    # Evaluate document rules with new answers
-    required_docs = evaluate_document_rules(schema, new_intake_data)
-    
-    # Get existing documents
+    # Use shared diff helper
     existing_docs = {doc.template_slug: doc for doc in transaction.documents.all()}
-    existing_slugs = set(existing_docs.keys())
+    diff = compute_document_diff(schema, new_intake_data, existing_docs)
     
-    # Get required slugs
-    required_slugs = {doc['slug'] for doc in required_docs}
-    required_docs_by_slug = {doc['slug']: doc for doc in required_docs}
-    
-    # Compute diff
-    to_keep = existing_slugs & required_slugs
-    to_remove = existing_slugs - required_slugs
-    to_add = required_slugs - existing_slugs
-    
-    # Helper to build explanation for a document change
     def get_change_explanation(slug, is_addition):
         rule = doc_rules.get(slug, {})
         if rule.get('always'):
-            return None  # Always-included docs don't need explanation
-        
+            return None
         field = rule.get('field')
         if field and field in changed_questions:
             change = changed_questions[field]
-            if is_addition:
-                return f"You changed \"{change['label']}\" from {change['old_value']} to {change['new_value']}"
-            else:
-                return f"You changed \"{change['label']}\" from {change['old_value']} to {change['new_value']}"
+            return f"You changed \"{change['label']}\" from {change['old_value']} to {change['new_value']}"
         return None
     
-    # Check for blocked removals (sent/signed docs)
-    blocked_removals = []
-    safe_removals = []
-    for slug in to_remove:
-        doc = existing_docs[slug]
-        explanation = get_change_explanation(slug, False)
-        
-        if doc.status in ('sent', 'signed'):
-            blocked_removals.append({
-                'slug': slug,
-                'name': doc.template_name,
-                'status': doc.status,
-                'explanation': explanation,
-                'blocked_reason': f'This document is already {doc.status} and cannot be automatically removed. Void it first if you need to remove it.'
-            })
-        else:
-            safe_removals.append({
-                'slug': slug,
-                'name': doc.template_name,
-                'status': doc.status,
-                'explanation': explanation
-            })
+    # Enrich removals with explanations
+    for removal in diff['safe_removals']:
+        removal['explanation'] = get_change_explanation(removal['slug'], False)
     
-    # Build additions list with explanations
+    blocked_with_detail = []
+    for blocked in diff['blocked_removals']:
+        blocked['explanation'] = get_change_explanation(blocked['slug'], False)
+        blocked['blocked_reason'] = f"This document is already {blocked['status']} and cannot be automatically removed. Void it first if you need to remove it."
+        blocked_with_detail.append(blocked)
+    
     additions = []
-    for slug in to_add:
-        doc_info = required_docs_by_slug[slug]
-        explanation = get_change_explanation(slug, True)
+    for slug in diff['to_add']:
+        doc_info = diff['required_docs_by_slug'][slug]
         additions.append({
             'slug': slug,
             'name': doc_info['name'],
-            'explanation': explanation
+            'explanation': get_change_explanation(slug, True)
         })
     
-    # Build keep list
     kept = []
-    for slug in to_keep:
+    for slug in diff['to_keep']:
         doc = existing_docs[slug]
         kept.append({
             'slug': slug,
@@ -277,25 +241,28 @@ def preview_document_changes(id):
             'status': doc.status
         })
     
-    # Determine if this is initial generation or update
-    is_initial = len(existing_slugs) == 0
-    has_changes = len(to_add) > 0 or len(safe_removals) > 0
+    managed_existing = {s for s in existing_docs if not s.startswith('custom-')}
+    is_initial = len(managed_existing) == 0
+    has_changes = len(diff['to_add']) > 0 or len(diff['safe_removals']) > 0
+    
+    document_workflow = schema.get('document_workflow', 'docuseal')
     
     return jsonify({
         'success': True,
         'is_initial': is_initial,
         'has_changes': has_changes,
+        'document_workflow': document_workflow,
         'summary': {
-            'total_docs': len(required_docs),
+            'total_docs': len(diff['required_docs']),
             'adding': len(additions),
-            'removing': len(safe_removals),
+            'removing': len(diff['safe_removals']),
             'keeping': len(kept),
-            'blocked': len(blocked_removals)
+            'blocked': len(blocked_with_detail)
         },
         'additions': additions,
-        'removals': safe_removals,
+        'removals': diff['safe_removals'],
         'kept': kept,
-        'blocked': blocked_removals,
+        'blocked': blocked_with_detail,
         'changed_questions': list(changed_questions.values())
     })
 
@@ -304,16 +271,23 @@ def preview_document_changes(id):
 @login_required
 @transactions_required
 def generate_document_package(id):
-    """Generate the document package based on intake answers."""
-    from services.intake_service import get_intake_schema, evaluate_document_rules, validate_intake_data
-    from services.documents import DocumentLoader, FieldResolver
+    """Generate the document package based on intake answers.
+
+    Branches on schema.document_workflow:
+      - 'placeholder_upload_only': all docs become placeholders for external
+        creation/signing (e.g. ZipForms).
+      - default / 'docuseal': legacy template-based flow with DocuSeal
+        integration (form-driven, pdf-preview, etc.).
+    """
+    from services.intake_service import (
+        get_intake_schema, validate_intake_data, compute_document_diff
+    )
     
     transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
     
     if transaction.created_by_id != current_user.id and current_user.role != 'admin':
         abort(403)
     
-    # Get the schema
     schema = get_intake_schema(
         transaction.transaction_type.name,
         transaction.ownership_status
@@ -323,162 +297,138 @@ def generate_document_package(id):
         flash('Schema not found for this transaction type.', 'error')
         return redirect(url_for('transactions.view_transaction', id=id))
     
-    # Validate that all required questions are answered
     is_valid, missing = validate_intake_data(schema, transaction.intake_data or {})
     
     if not is_valid:
-        flash(f'Please answer all required questions before generating the document package.', 'error')
+        flash('Please answer all required questions before generating the document package.', 'error')
         return redirect(url_for('transactions.intake_questionnaire', id=id))
     
-    # Evaluate document rules
-    required_docs = evaluate_document_rules(schema, transaction.intake_data)
+    document_workflow = schema.get('document_workflow', 'docuseal')
     
     try:
-        # =================================================================
-        # SMART DIFF-BASED SYNC
-        # Instead of deleting all docs, compare old vs new and only
-        # add/remove what changed. Preserves filled data and signatures.
-        # =================================================================
-        
-        # Get existing documents indexed by slug
         existing_docs = {doc.template_slug: doc for doc in transaction.documents.all()}
-        existing_slugs = set(existing_docs.keys())
-        
-        # Get required slugs from new rules
-        required_slugs = {doc['slug'] for doc in required_docs}
-        required_docs_by_slug = {doc['slug']: doc for doc in required_docs}
-        
-        # Compute diff
-        to_keep = existing_slugs & required_slugs
-        to_remove = existing_slugs - required_slugs
-        to_add = required_slugs - existing_slugs
-        
-        # Track results for user feedback
+        diff = compute_document_diff(schema, transaction.intake_data, existing_docs)
+
+        managed_existing = {s for s in existing_docs if not s.startswith('custom-')}
+
         added_count = 0
         removed_count = 0
-        blocked_removals = []
-        
-        # =================================================================
-        # HANDLE REMOVALS (with safety check for sent/signed docs)
-        # =================================================================
-        for slug in to_remove:
-            doc = existing_docs[slug]
-            
-            # Safety check: don't auto-remove docs that are sent or signed
-            if doc.status in ('sent', 'signed'):
-                blocked_removals.append(doc.template_name)
-                continue
-            
-            # Log removal before deleting
+        blocked_names = [b['name'] for b in diff['blocked_removals']]
+
+        # ---- REMOVALS (same for both workflows) ----
+        for removal in diff['safe_removals']:
+            doc = existing_docs[removal['slug']]
             audit_service.log_document_removed(
                 transaction_id=transaction.id,
                 document_id=doc.id,
                 template_name=doc.template_name
             )
-            
-            # Delete the document (cascade handles signatures)
             db.session.delete(doc)
             removed_count += 1
-        
-        # =================================================================
-        # HANDLE ADDITIONS (create new TransactionDocument records)
-        # =================================================================
-        for slug in to_add:
-            doc_info = required_docs_by_slug[slug]
-            
-            # Check if this is a placeholder document (agent will upload content later)
-            is_placeholder = doc_info.get('is_placeholder', False)
-            
-            # Check if this is a preview-only document
-            definition = DocumentLoader.get(slug)
-            is_preview = definition and definition.is_pdf_preview
-            
-            # Determine document_source and status based on document type
-            if is_placeholder:
-                # Placeholder documents: agent needs to upload content later
-                document_source = 'placeholder'
-                status = 'pending'
-            elif is_preview:
-                # Preview-only documents are auto-filled
-                document_source = 'template'
-                status = 'filled'
-            else:
-                # Regular template documents
-                document_source = 'template'
-                status = 'pending'
-            
-            tx_doc = TransactionDocument(
-                organization_id=current_user.organization_id,
-                transaction_id=transaction.id,
-                template_slug=slug,
-                template_name=doc_info['name'],
-                included_reason=doc_info['reason'] if not doc_info.get('always') else None,
-                status=status,
-                is_placeholder=is_placeholder,
-                document_source=document_source
-            )
-            
-            # Auto-populate field_data for preview-only documents (not placeholders)
-            if is_preview and definition and not is_placeholder:
-                context = {
-                    'user': current_user,
-                    'transaction': transaction,
-                    'form': {},
-                    'organization': current_user.organization
-                }
-                resolved_fields = FieldResolver.resolve(definition, context)
-                field_data = {}
-                for field in resolved_fields:
-                    if field.value:
-                        field_data[field.field_key] = field.value
-                tx_doc.field_data = field_data
-            
-            db.session.add(tx_doc)
-            db.session.flush()  # Get the ID for audit log
-            
-            # Log addition
-            audit_service.log_document_added(tx_doc, tx_doc.included_reason)
-            added_count += 1
-        
-        # =================================================================
-        # LOG PACKAGE SYNC EVENT (if this is a regeneration)
-        # =================================================================
-        if existing_slugs:
-            # This is a re-sync, not initial generation
-            # Calculate actually removed (excluding blocked)
-            actually_removed = [s for s in to_remove if existing_docs[s].status not in ('sent', 'signed')]
-            
+
+        # ---- ADDITIONS ----
+        if document_workflow == 'placeholder_upload_only':
+            # All documents are placeholders — no YAML templates, no DocuSeal
+            for slug in diff['to_add']:
+                doc_info = diff['required_docs_by_slug'][slug]
+                tx_doc = TransactionDocument(
+                    organization_id=current_user.organization_id,
+                    transaction_id=transaction.id,
+                    template_slug=slug,
+                    template_name=doc_info['name'],
+                    included_reason=doc_info['reason'] if not doc_info.get('always') else None,
+                    status='pending',
+                    is_placeholder=True,
+                    document_source='placeholder'
+                )
+                db.session.add(tx_doc)
+                db.session.flush()
+                audit_service.log_document_added(tx_doc, tx_doc.included_reason)
+                added_count += 1
+        else:
+            # Legacy DocuSeal template flow
+            from services.documents import DocumentLoader, FieldResolver
+
+            for slug in diff['to_add']:
+                doc_info = diff['required_docs_by_slug'][slug]
+                is_placeholder = doc_info.get('is_placeholder', False)
+                definition = DocumentLoader.get(slug)
+                is_preview = definition and definition.is_pdf_preview
+
+                if is_placeholder:
+                    document_source = 'placeholder'
+                    status = 'pending'
+                elif is_preview:
+                    document_source = 'template'
+                    status = 'filled'
+                else:
+                    document_source = 'template'
+                    status = 'pending'
+
+                tx_doc = TransactionDocument(
+                    organization_id=current_user.organization_id,
+                    transaction_id=transaction.id,
+                    template_slug=slug,
+                    template_name=doc_info['name'],
+                    included_reason=doc_info['reason'] if not doc_info.get('always') else None,
+                    status=status,
+                    is_placeholder=is_placeholder,
+                    document_source=document_source
+                )
+
+                if is_preview and definition and not is_placeholder:
+                    context = {
+                        'user': current_user,
+                        'transaction': transaction,
+                        'form': {},
+                        'organization': current_user.organization
+                    }
+                    resolved_fields = FieldResolver.resolve(definition, context)
+                    field_data = {}
+                    for field in resolved_fields:
+                        if field.value:
+                            field_data[field.field_key] = field.value
+                    tx_doc.field_data = field_data
+
+                db.session.add(tx_doc)
+                db.session.flush()
+                audit_service.log_document_added(tx_doc, tx_doc.included_reason)
+                added_count += 1
+
+        # ---- AUDIT ----
+        if managed_existing:
+            actually_removed = [r['slug'] for r in diff['safe_removals']]
             audit_service.log_event(
                 event_type=AuditEvent.DOCUMENT_PACKAGE_SYNCED,
                 transaction_id=transaction.id,
                 event_data={
-                    'added': list(to_add),
+                    'added': list(diff['to_add']),
                     'removed': actually_removed,
-                    'kept': list(to_keep),
-                    'blocked': blocked_removals
+                    'kept': list(diff['to_keep']),
+                    'blocked': blocked_names,
+                    'workflow': document_workflow
                 }
             )
         else:
-            # Initial generation
             all_docs = transaction.documents.all()
             audit_service.log_document_package_generated(transaction, all_docs)
 
         db.session.commit()
-        
-        # Build user feedback message
+
+        # ---- USER FEEDBACK ----
         messages = []
         if added_count:
             messages.append(f'{added_count} document(s) added')
         if removed_count:
             messages.append(f'{removed_count} document(s) removed')
-        if to_keep and not added_count and not removed_count:
+        if diff['to_keep'] and not added_count and not removed_count:
             messages.append('No changes needed')
-        if not existing_slugs:
-            messages = [f'{len(required_docs)} document(s) generated']
-        
-        if blocked_removals:
-            flash(f'Warning: Could not remove {", ".join(blocked_removals)} because they are already sent/signed. Void them first if needed.', 'warning')
-        
+        if not managed_existing:
+            messages = [f'{len(diff["required_docs"])} document(s) generated']
+
+        if blocked_names:
+            flash(f'Warning: Could not remove {", ".join(blocked_names)} because they are already sent/signed. Void them first if needed.', 'warning')
+
         flash(f'Document package updated: {", ".join(messages)}!', 'success')
         return redirect(url_for('transactions.view_transaction', id=id))
         

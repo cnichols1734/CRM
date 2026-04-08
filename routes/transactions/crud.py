@@ -479,6 +479,15 @@ def view_transaction(id):
         rentcast_data = transaction.rentcast_data
         rentcast_fetched_at = transaction.rentcast_fetched_at
     
+    # Determine intake schema availability and document workflow mode
+    from services.intake_service import get_intake_schema
+    intake_schema = get_intake_schema(
+        transaction.transaction_type.name,
+        transaction.ownership_status
+    )
+    has_intake_schema = intake_schema is not None
+    document_workflow_mode = intake_schema.get('document_workflow', 'docuseal') if intake_schema else None
+    
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
@@ -488,7 +497,9 @@ def view_transaction(id):
         listing_info=listing_info,
         lockbox_combo=lockbox_combo,
         rentcast_data=rentcast_data,
-        rentcast_fetched_at=rentcast_fetched_at
+        rentcast_fetched_at=rentcast_fetched_at,
+        has_intake_schema=has_intake_schema,
+        document_workflow_mode=document_workflow_mode
     )
 
 

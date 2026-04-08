@@ -2,6 +2,7 @@
   "schema_version": "1.0",
   "transaction_type": "seller",
   "ownership_status": "conventional",
+  "document_workflow": "placeholder_upload_only",
   "title": "Property Questionnaire",
   "description": "Answer these questions to determine which documents are required for this listing.",
   "sections": [

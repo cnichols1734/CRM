@@ -895,6 +895,7 @@ class TransactionDocument(db.Model):
     signed_file_path = db.Column(db.String(500))  # Path in Supabase storage
     signed_file_size = db.Column(db.Integer)  # Size in bytes
     signed_file_downloaded_at = db.Column(db.DateTime)  # When downloaded from DocuSeal
+    signed_original_filename = db.Column(db.String(255))  # Original filename from upload
     
     # Signing method: 'esign', 'physical', or null (not yet signed)
     signing_method = db.Column(db.String(20), nullable=True)
