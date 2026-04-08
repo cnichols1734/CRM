@@ -379,8 +379,6 @@ def create_transaction():
 @transactions_required
 def view_transaction(id):
     """View a single transaction."""
-    from datetime import datetime
-    
     # Load transaction with transaction_type - SCOPED TO ORGANIZATION
     transaction = Transaction.query.options(
         joinedload(Transaction.transaction_type)
@@ -410,61 +408,13 @@ def view_transaction(id):
     
     # For seller transactions, extract listing info from the listing agreement document
     listing_info = None
+    listing_extraction_status = None
     if transaction.transaction_type.name == 'seller':
-        # Find the listing agreement document (use Python filter on already-loaded documents)
+        from services.transaction_helpers import build_listing_info
+        listing_info = build_listing_info(documents)
         listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
-        if listing_doc and listing_doc.status != 'pending' and listing_doc.field_data:
-            field_data = listing_doc.field_data
-            # Build listing info from field data
-            # Format dates as "January 14, 2026"
-            def format_date(date_str):
-                if not date_str:
-                    return None
-                try:
-                    dt_obj = datetime.strptime(date_str, '%Y-%m-%d')
-                    return dt_obj.strftime('%B %d, %Y')
-                except (ValueError, TypeError):
-                    return date_str
-            
-            # Determine commission structure: Section 5A (with buyer agent) vs 5B (listing broker only)
-            # Detect by checking which fields are populated
-            listing_only_percent = field_data.get('listing_only_percent')
-            listing_only_flat = field_data.get('listing_only_flat')
-            is_listing_broker_only = bool(listing_only_percent or listing_only_flat)
-            
-            if is_listing_broker_only:
-                # Section 5B: Listing broker only
-                broker_fee = None
-                if listing_only_percent:
-                    broker_fee = f"{listing_only_percent}%"
-                elif listing_only_flat:
-                    broker_fee = f"${listing_only_flat}"
-                
-                listing_info = {
-                    'list_price': field_data.get('list_price'),
-                    'listing_start_date': format_date(field_data.get('listing_start_date')),
-                    'listing_end_date': format_date(field_data.get('listing_end_date')),
-                    'commission_type': '5b',
-                    'broker_fee': broker_fee,
-                }
-            else:
-                # Section 5A: With buyer agent compensation
-                buyer_commission = field_data.get('buyer_agent_percent')
-                if buyer_commission:
-                    buyer_commission = f"{buyer_commission}%"
-                else:
-                    buyer_flat = field_data.get('buyer_agent_flat')
-                    if buyer_flat:
-                        buyer_commission = f"${buyer_flat}"
-                
-                listing_info = {
-                    'list_price': field_data.get('list_price'),
-                    'listing_start_date': format_date(field_data.get('listing_start_date')),
-                    'listing_end_date': format_date(field_data.get('listing_end_date')),
-                    'commission_type': '5a',
-                    'total_commission': field_data.get('total_commission'),
-                    'buyer_commission': buyer_commission,
-                }
+        if listing_doc:
+            listing_extraction_status = listing_doc.extraction_status
     
     # Get lockbox combo from extra_data (always available for seller transactions)
     lockbox_combo = None
@@ -495,12 +445,50 @@ def view_transaction(id):
         documents=documents,
         contact_files=contact_files,
         listing_info=listing_info,
+        listing_extraction_status=listing_extraction_status,
         lockbox_combo=lockbox_combo,
         rentcast_data=rentcast_data,
         rentcast_fetched_at=rentcast_fetched_at,
         has_intake_schema=has_intake_schema,
         document_workflow_mode=document_workflow_mode
     )
+
+
+@transactions_bp.route('/<int:id>/extraction-status')
+@login_required
+@transactions_required
+def extraction_status(id):
+    """Check document extraction status and return listing info if ready."""
+    from flask import jsonify
+    from services.transaction_helpers import build_listing_info
+
+    transaction = Transaction.query.filter_by(
+        id=id, organization_id=current_user.organization_id
+    ).first_or_404()
+
+    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
+        abort(403)
+
+    documents = TransactionDocument.query.filter_by(
+        transaction_id=transaction.id
+    ).all()
+
+    listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
+
+    status = None
+    error = None
+    if listing_doc:
+        status = listing_doc.extraction_status
+        error = listing_doc.extraction_error
+
+    listing_info = build_listing_info(documents) if transaction.transaction_type.name == 'seller' else None
+
+    return jsonify({
+        'extraction_status': status,
+        'extraction_error': error,
+        'ready': status in ('complete', 'failed'),
+        'listing_info': listing_info,
+    })
 
 
 @transactions_bp.route('/<int:id>/edit')

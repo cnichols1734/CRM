@@ -18,6 +18,7 @@ Usage:
     )
 """
 
+import json
 import openai
 import logging
 from config import Config
@@ -390,3 +391,60 @@ def generate_vision_response(
     except Exception as legacy_error:
         logger.error(f"FATAL: All vision models failed. Error: {str(legacy_error)}")
         raise
+
+
+# =============================================================================
+# DOCUMENT EXTRACTION (structured data from document images)
+# =============================================================================
+
+EXTRACTION_MODEL = "gpt-4.1-mini"
+
+
+def generate_document_extraction(
+    system_prompt: str,
+    user_prompt: str,
+    images: list = None,
+    api_key: str = None
+) -> dict:
+    """
+    Extract structured data from document images using GPT-4.1-mini.
+    Returns parsed JSON dict. Uses json_object response format for
+    guaranteed valid JSON output.
+
+    Args:
+        system_prompt: Instructions for the extraction task
+        user_prompt: Field definitions and format instructions
+        images: List of base64-encoded PNG image strings (one per page)
+        api_key: Optional API key override
+
+    Returns:
+        dict with extracted field values
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        raise ValueError("OpenAI API key is not configured")
+
+    client = openai.OpenAI(api_key=key)
+
+    user_content = [{"type": "text", "text": user_prompt}]
+    for img_b64 in images or []:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {"url": f"data:image/png;base64,{img_b64}", "detail": "high"}
+        })
+
+    logger.info(f"Document extraction: sending {len(images or [])} page images to {EXTRACTION_MODEL}")
+
+    response = client.chat.completions.create(
+        model=EXTRACTION_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_content}
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.1
+    )
+
+    result = json.loads(response.choices[0].message.content)
+    logger.info(f"Document extraction: received {len(result)} fields from {EXTRACTION_MODEL}")
+    return result

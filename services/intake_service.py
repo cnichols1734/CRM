@@ -175,8 +175,35 @@ def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) 
 def post_upload_processing(doc, file_data: bytes):
     """
     Hook for post-upload processing on fulfilled placeholder documents.
-    Currently a no-op. Will be extended with OCR to extract property
-    information from uploaded PDFs and populate transaction fields.
+    Spawns a background thread to extract structured data from the uploaded
+    PDF via AI vision, then stores results in doc.field_data.
     """
-    pass
+    import threading
+    import logging
+
+    from services.document_extractor import EXTRACTION_SCHEMAS
+
+    if doc.template_slug not in EXTRACTION_SCHEMAS:
+        return
+
+    doc_id = doc.id
+    org_id = doc.organization_id
+
+    from flask import current_app
+    app = current_app._get_current_object()
+    logger = logging.getLogger(__name__)
+
+    def _run():
+        with app.app_context():
+            try:
+                from models import db
+                from services.document_extractor import extract_document_data
+                extract_document_data(doc_id, org_id, file_data)
+            except Exception as e:
+                logger.error(f"Document extraction failed for doc {doc_id}: {e}", exc_info=True)
+            finally:
+                db.session.remove()
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
 

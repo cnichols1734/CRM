@@ -951,6 +951,12 @@ def fulfill_placeholder_document(id, doc_id):
         doc.is_placeholder = False
         doc.updated_at = datetime.utcnow()
 
+        from services.document_extractor import EXTRACTION_SCHEMAS
+        if doc.template_slug in EXTRACTION_SCHEMAS:
+            doc.extraction_status = 'pending'
+            doc.extraction_error = None
+            doc.field_data = None
+
         if is_replace and old_path:
             try:
                 delete_storage(old_path)

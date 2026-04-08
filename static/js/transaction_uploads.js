@@ -1019,3 +1019,121 @@ if (addPlaceholderForm) {
         });
     });
 }
+
+
+// =============================================================================
+// EXTRACTION STATUS POLLING (listing info auto-populate)
+// =============================================================================
+
+(function() {
+    const card = document.getElementById('listing-info-card');
+    if (!card) return;
+
+    const status = card.dataset.extractionStatus;
+    if (status !== 'pending' && status !== 'processing') return;
+
+    const txId = card.dataset.transactionId;
+    const contentEl = document.getElementById('listing-info-content');
+    if (!txId || !contentEl) return;
+
+    const POLL_INTERVAL = 4000;
+    const MAX_POLLS = 8;
+    let polls = 0;
+
+    const timer = setInterval(function() {
+        polls++;
+
+        fetch(`/transactions/${txId}/extraction-status`)
+            .then(r => r.json())
+            .then(data => {
+                if (data.ready) {
+                    clearInterval(timer);
+                    if (data.listing_info) {
+                        renderListingInfo(contentEl, data.listing_info);
+                    } else if (data.extraction_status === 'failed') {
+                        renderStatusMessage(contentEl, 'bg-red-50', 'fas fa-exclamation-triangle text-red-400', 'Data extraction failed. Try re-uploading the document.');
+                    } else {
+                        renderStatusMessage(contentEl, 'bg-amber-50', 'fas fa-exclamation-triangle text-amber-400', 'Could not extract listing data from this document. Try re-uploading a clearer copy.');
+                    }
+                } else if (polls >= MAX_POLLS) {
+                    clearInterval(timer);
+                    renderStatusMessage(contentEl, 'bg-amber-50', 'fas fa-clock text-amber-400', 'Extraction is taking longer than expected.');
+                }
+            })
+            .catch(function() {
+                if (polls >= MAX_POLLS) clearInterval(timer);
+            });
+    }, POLL_INTERVAL);
+
+    function renderStatusMessage(el, bgClass, iconClass, message) {
+        el.textContent = '';
+        var outer = document.createElement('div');
+        outer.className = 'text-center py-6 mb-4';
+        var iconWrap = document.createElement('div');
+        iconWrap.className = 'w-12 h-12 ' + bgClass + ' rounded-xl flex items-center justify-center mx-auto mb-3';
+        var icon = document.createElement('i');
+        icon.className = iconClass;
+        iconWrap.appendChild(icon);
+        outer.appendChild(iconWrap);
+        var msg = document.createElement('p');
+        msg.className = 'text-sm text-slate-500';
+        msg.textContent = message;
+        outer.appendChild(msg);
+        el.appendChild(outer);
+    }
+
+    function renderListingInfo(el, info) {
+        el.textContent = '';
+
+        function makeRow(label, value, extraClasses) {
+            var row = document.createElement('div');
+            row.className = 'info-row';
+            var labelEl = document.createElement('span');
+            labelEl.className = 'info-label';
+            labelEl.textContent = label;
+            var valueEl = document.createElement('span');
+            valueEl.className = 'info-value' + (extraClasses ? ' ' + extraClasses : '');
+            valueEl.textContent = value || '\u2014';
+            row.appendChild(labelEl);
+            row.appendChild(valueEl);
+            return row;
+        }
+
+        var wrapper = document.createElement('div');
+        wrapper.className = 'space-y-0';
+
+        var price = info.list_price || '\u2014';
+        wrapper.appendChild(makeRow('List Price', price, 'text-emerald-600 font-semibold'));
+        wrapper.appendChild(makeRow('Listing Start Date', info.listing_start_date));
+        wrapper.appendChild(makeRow('Listing Expiration Date', info.listing_end_date));
+
+        if (info.commission_type === '5b') {
+            wrapper.appendChild(makeRow("Broker's Fee (Origen Realty)", info.broker_fee));
+            wrapper.appendChild(makeRow('Buyer Side Commission', 'N/A \u2014 Listing Broker Only (Section 5B)', 'text-slate-400 italic'));
+        } else {
+            wrapper.appendChild(makeRow('Total Commission', info.total_commission));
+            wrapper.appendChild(makeRow('Buyer Side Commission', info.buyer_commission));
+        }
+
+        var protectionVal = info.protection_period_days ? info.protection_period_days + ' days' : null;
+        wrapper.appendChild(makeRow('Protection Period', protectionVal));
+        wrapper.appendChild(makeRow('Accepted Financing', info.financing_types));
+        wrapper.appendChild(makeRow('HOA Required', info.has_hoa));
+
+        if (info.special_provisions) {
+            var divider = document.createElement('div');
+            divider.className = 'pt-3 mt-3 border-t border-slate-100';
+            var spLabel = document.createElement('span');
+            spLabel.className = 'info-label block mb-1';
+            spLabel.textContent = 'Special Provisions';
+            var spText = document.createElement('p');
+            spText.className = 'text-sm text-slate-700 leading-relaxed';
+            spText.textContent = info.special_provisions;
+            divider.appendChild(spLabel);
+            divider.appendChild(spText);
+            wrapper.appendChild(divider);
+        }
+
+        el.appendChild(wrapper);
+    }
+})();

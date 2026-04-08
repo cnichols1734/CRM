@@ -1304,15 +1304,24 @@
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 <!-- Listing Info Card (Seller Transactions Only) -->
-                <div class="premium-card p-6">
+                <div class="premium-card p-6" id="listing-info-card" data-transaction-id="{{ transaction.id }}" data-extraction-status="{{ listing_extraction_status or '' }}">
                     <h2 class="section-title">LISTING INFO</h2>
                     
-                    {% if listing_info %}
+                    <div id="listing-info-content">
+                    {% if listing_extraction_status in ('pending', 'processing') %}
+                    <div class="text-center py-6 mb-4" id="extraction-loading">
+                        <div class="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-spinner fa-spin text-blue-500"></i>
+                        </div>
+                        <p class="text-sm text-slate-600 font-medium">Extracting listing data...</p>
+                        <p class="text-xs text-slate-400 mt-1">This usually takes 10–20 seconds</p>
+                    </div>
+                    {% elif listing_info %}
                     <div class="space-y-0">
                         <div class="info-row">
                             <span class="info-label">List Price</span>
                             <span class="info-value text-emerald-600 font-semibold">
-                                {% if listing_info.list_price %}${{ listing_info.list_price }}{% else %}—{% endif %}
+                                {{ listing_info.list_price or '—' }}
                             </span>
                         </div>
                         <div class="info-row">
@@ -1342,15 +1351,41 @@
                             <span class="info-value">{{ listing_info.buyer_commission or '—' }}</span>
                         </div>
                         {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">Protection Period</span>
+                            <span class="info-value">{% if listing_info.protection_period_days %}{{ listing_info.protection_period_days }} days{% else %}—{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Accepted Financing</span>
+                            <span class="info-value">{{ listing_info.financing_types or '—' }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">HOA Required</span>
+                            <span class="info-value">{{ listing_info.has_hoa or '—' }}</span>
+                        </div>
+                        {% if listing_info.special_provisions %}
+                        <div class="pt-3 mt-3 border-t border-slate-100">
+                            <span class="info-label block mb-1">Special Provisions</span>
+                            <p class="text-sm text-slate-700 leading-relaxed">{{ listing_info.special_provisions }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% elif listing_extraction_status == 'failed' %}
+                    <div class="text-center py-6 mb-4">
+                        <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                            <i class="fas fa-exclamation-triangle text-red-400"></i>
+                        </div>
+                        <p class="text-sm text-slate-500">Data extraction failed. Try re-uploading the document.</p>
                     </div>
                     {% else %}
                     <div class="text-center py-6 mb-4">
                         <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-3">
                             <i class="fas fa-file-alt text-slate-400"></i>
                         </div>
-                        <p class="text-sm text-slate-500">Complete the Listing Agreement to populate this section</p>
+                        <p class="text-sm text-slate-500">Upload the Listing Agreement to populate this section</p>
                     </div>
                     {% endif %}
+                    </div>
                     
                     <!-- Lockbox Combo (always editable) -->
                     <div class="{% if listing_info %}pt-4 mt-4 border-t border-slate-100{% endif %}">
