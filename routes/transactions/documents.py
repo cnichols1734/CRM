@@ -108,6 +108,66 @@ def add_document(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@transactions_bp.route('/<int:id>/documents/add-placeholder', methods=['POST'])
+@login_required
+@transactions_required
+def add_custom_placeholder(id):
+    """Add a custom placeholder document to a transaction.
+
+    Used in the placeholder_upload_only workflow to let agents add extra
+    documents beyond what the questionnaire generated.  Uses a 'custom-<uuid>'
+    slug so it falls outside the document_rules set and survives re-sync.
+    """
+    import uuid
+
+    transaction = Transaction.query.get_or_404(id)
+
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    document_name = (request.form.get('document_name') or '').strip()
+    if not document_name:
+        data = request.get_json(silent=True) or {}
+        document_name = data.get('document_name', '').strip()
+
+    if not document_name:
+        return jsonify({'success': False, 'error': 'Document name is required'}), 400
+
+    try:
+        custom_slug = f"custom-{uuid.uuid4().hex[:12]}"
+
+        doc = TransactionDocument(
+            organization_id=current_user.organization_id,
+            transaction_id=transaction.id,
+            template_slug=custom_slug,
+            template_name=document_name,
+            included_reason='Manually added',
+            status='pending',
+            is_placeholder=True,
+            document_source='placeholder'
+        )
+        db.session.add(doc)
+        db.session.flush()
+
+        audit_service.log_document_added(doc, 'Manually added placeholder')
+
+        db.session.commit()
+
+        return jsonify({
+            'success': True,
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status,
+                'source': doc.document_source
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>', methods=['DELETE'])
 @login_required
 @transactions_required
@@ -797,6 +857,143 @@ def upload_static_document(id, doc_id):
             }
         })
         
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# =============================================================================
+# FULFILL PLACEHOLDER (upload completed/signed document to an existing placeholder)
+# =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/fulfill', methods=['POST'])
+@login_required
+@transactions_required
+def fulfill_placeholder_document(id, doc_id):
+    """
+    Upload a completed/signed PDF to fulfill an existing placeholder document.
+
+    Used in the placeholder_upload_only workflow where agents create and sign
+    documents externally (e.g. in ZipForms) then upload the finished PDF here.
+    Sets status='signed', document_source='completed' so the document counts
+    as terminal/complete in progress tracking.
+    """
+    from datetime import datetime
+    from services.supabase_storage import upload_external_document as upload_storage, delete_transaction_document as delete_storage
+    from services.intake_service import post_upload_processing
+
+    transaction = Transaction.query.get_or_404(id)
+
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    doc = TransactionDocument.query.get_or_404(doc_id)
+
+    if doc.transaction_id != transaction.id:
+        return jsonify({'success': False, 'error': 'Document not found'}), 404
+
+    # Allow upload for any doc that hasn't reached a terminal DocuSeal-signed
+    # state. This covers: pending placeholders (initial upload), completed docs
+    # (replace), and legacy template/external/hybrid docs in any pre-signed
+    # state that are now part of a placeholder-mode transaction.
+    docuseal_signed = doc.status == 'signed' and doc.document_source not in ('completed', 'placeholder')
+
+    if docuseal_signed:
+        return jsonify({
+            'success': False,
+            'error': 'This document was signed via DocuSeal and cannot be replaced through upload.'
+        }), 400
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+    file = request.files['file']
+
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+    allowed_extensions = {'pdf'}
+    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+
+    if file_ext not in allowed_extensions:
+        return jsonify({
+            'success': False,
+            'error': 'Only PDF files are allowed'
+        }), 400
+
+    file_data = file.read()
+    file_size = len(file_data)
+
+    max_size = 25 * 1024 * 1024
+    if file_size > max_size:
+        return jsonify({
+            'success': False,
+            'error': 'File too large. Maximum size is 25MB.'
+        }), 400
+
+    try:
+        result = upload_storage(
+            transaction_id=transaction.id,
+            file_data=file_data,
+            original_filename=file.filename,
+            content_type='application/pdf'
+        )
+
+        is_replace = doc.status == 'signed' and doc.signed_file_path
+        old_path = doc.signed_file_path if is_replace else None
+
+        doc.signed_file_path = result['path']
+        doc.signed_file_size = file_size
+        doc.signed_original_filename = file.filename
+        doc.signed_at = datetime.utcnow()
+        doc.status = 'signed'
+        doc.document_source = 'completed'
+        doc.is_placeholder = False
+        doc.updated_at = datetime.utcnow()
+
+        if is_replace and old_path:
+            try:
+                delete_storage(old_path)
+            except Exception:
+                pass
+
+        event_data = {
+            'document_name': doc.template_name,
+            'document_slug': doc.template_slug,
+            'original_filename': file.filename,
+            'file_size': file_size,
+            'storage_path': result['path']
+        }
+        if is_replace and old_path:
+            event_data['replaced_file_path'] = old_path
+
+        event_desc = f"Document replaced: {doc.template_name}" if is_replace else f"Placeholder fulfilled with uploaded document: {doc.template_name}"
+        audit_service.log_event(
+            event_type='document_placeholder_fulfilled',
+            transaction_id=transaction.id,
+            document_id=doc.id,
+            description=event_desc,
+            event_data=event_data,
+            source='app',
+            actor_id=current_user.id
+        )
+
+        db.session.commit()
+
+        post_upload_processing(doc, file_data)
+
+        return jsonify({
+            'success': True,
+            'message': 'Document uploaded successfully',
+            'document': {
+                'id': doc.id,
+                'name': doc.template_name,
+                'status': doc.status,
+                'source': doc.document_source,
+                'signed_file_path': doc.signed_file_path
+            }
+        })
+
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

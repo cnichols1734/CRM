@@ -115,3 +115,68 @@ def get_question_labels(schema: dict) -> dict:
             labels[question['id']] = question['label']
     return labels
 
+
+def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) -> dict:
+    """
+    Evaluate document rules and compute add/remove/keep diff against existing docs.
+
+    Manually added placeholder docs (slugs starting with 'custom-') are excluded
+    from the diff so they survive questionnaire re-sync.
+
+    Args:
+        schema: The intake schema with document_rules
+        intake_data: The user's questionnaire answers
+        existing_docs: Dict of {template_slug: TransactionDocument} for the transaction
+
+    Returns:
+        Dict with keys:
+            required_docs_by_slug, to_add, to_remove, to_keep,
+            blocked_removals, safe_removals
+    """
+    required_docs = evaluate_document_rules(schema, intake_data)
+    required_docs_by_slug = {doc['slug']: doc for doc in required_docs}
+    required_slugs = set(required_docs_by_slug.keys())
+
+    # Exclude manually-added custom placeholders from diffing
+    managed_slugs = {slug for slug in existing_docs if not slug.startswith('custom-')}
+
+    to_keep = managed_slugs & required_slugs
+    to_remove = managed_slugs - required_slugs
+    to_add = required_slugs - managed_slugs
+
+    blocked_removals = []
+    safe_removals = []
+    for slug in to_remove:
+        doc = existing_docs[slug]
+        if doc.status in ('sent', 'signed'):
+            blocked_removals.append({
+                'slug': slug,
+                'name': doc.template_name,
+                'status': doc.status,
+            })
+        else:
+            safe_removals.append({
+                'slug': slug,
+                'name': doc.template_name,
+                'status': doc.status,
+            })
+
+    return {
+        'required_docs': required_docs,
+        'required_docs_by_slug': required_docs_by_slug,
+        'to_add': to_add,
+        'to_remove': to_remove,
+        'to_keep': to_keep,
+        'blocked_removals': blocked_removals,
+        'safe_removals': safe_removals,
+    }
+
+
+def post_upload_processing(doc, file_data: bytes):
+    """
+    Hook for post-upload processing on fulfilled placeholder documents.
+    Currently a no-op. Will be extended with OCR to extract property
+    information from uploaded PDFs and populate transaction fields.
+    """
+    pass
+

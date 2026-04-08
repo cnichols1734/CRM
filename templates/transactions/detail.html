@@ -100,7 +100,7 @@
         transition: background-color 0.15s ease;
     }
     .doc-row:hover {
-        background: #fafafa;
+        background: #f8fafc;
     }
 
     /* Participant card */
@@ -598,7 +598,7 @@
                 <div id="content-details" class="tab-content active space-y-6">
                 {% endif %}
                 <!-- Property Details Card -->
-                <div class="premium-card p-6">
+                <div id="transaction-documents-card" class="premium-card p-6">
                     <h2 class="section-title">PROPERTY DETAILS</h2>
 
                     <div class="detail-grid">
@@ -657,8 +657,8 @@
                     </div>
                 </div>
 
-                <!-- Property Questionnaire Card (for Seller Conventional) -->
-                {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
+                <!-- Property Questionnaire Card -->
+                {% if has_intake_schema %}
                 <div class="premium-card p-6">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="section-title mb-0 pb-0">PROPERTY QUESTIONNAIRE</h2>
@@ -713,106 +713,62 @@
                     <div class="flex justify-between items-center mb-4">
                         <div>
                             <h2 class="section-title mb-0 pb-0">DOCUMENTS</h2>
-                            <p class="text-xs text-slate-500 mt-1">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
+                            {% if document_workflow_mode == 'placeholder_upload_only' and documents %}
+                            {% set uploaded_count = documents|selectattr('status', 'equalto', 'signed')|list|length %}
+                            <p class="text-xs text-slate-400 mt-1">{{ uploaded_count }}/{{ documents|length }} uploaded</p>
+                            {% else %}
+                            <p class="text-xs text-slate-400 mt-1">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
+                            {% endif %}
                         </div>
+                        {% if document_workflow_mode == 'placeholder_upload_only' %}
+                        <button onclick="showAddPlaceholderModal()"
+                                class="text-sm px-3 py-1.5 bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-200">
+                            <i class="fas fa-plus mr-1.5"></i>Add
+                        </button>
+                        {% else %}
                         <button onclick="showAddDocumentPicker()"
                                 class="text-sm px-3 py-1.5 bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors font-medium border border-slate-200">
                             <i class="fas fa-plus mr-1.5"></i>Add
                         </button>
+                        {% endif %}
                     </div>
                     
                     {% if documents %}
-                    <div class="space-y-2">
+                    <div class="divide-y divide-slate-100">
                         {% for doc in documents %}
-                        <div class="doc-row flex items-center justify-between p-4 rounded-xl border 
-                            {% if doc.is_placeholder and doc.status == 'pending' %}border-amber-300 bg-amber-50
-                            {% else %}border-slate-100{% endif %}">
-                            <div class="flex items-center gap-4">
-                                <div class="w-12 h-12 rounded-xl flex items-center justify-center
-                                    {% if doc.is_placeholder and doc.status == 'pending' %}bg-amber-100
-                                    {% elif doc.status == 'signed' and doc.document_source == 'completed' %}bg-teal-100
-                                    {% elif doc.status == 'signed' %}bg-green-100
-                                    {% elif doc.status == 'sent' %}bg-blue-100
-                                    {% elif doc.status == 'filled' %}bg-purple-100
-                                    {% else %}bg-slate-100{% endif %}">
-                                    {% if doc.is_placeholder and doc.status == 'pending' %}
-                                    <i class="fas fa-exclamation-circle text-amber-600 text-lg"></i>
-                                    {% elif doc.status == 'signed' and doc.document_source == 'completed' %}
-                                    <i class="fas fa-file-upload text-teal-600 text-lg"></i>
-                                    {% elif doc.status == 'signed' and doc.signing_method == 'physical' %}
-                                    <i class="fas fa-pen-nib text-green-600 text-lg"></i>
-                                    {% elif doc.status == 'signed' %}
-                                    <i class="fas fa-file-signature text-green-600 text-lg"></i>
-                                    {% elif doc.status == 'sent' %}
-                                    <i class="fas fa-paper-plane text-blue-600 text-lg"></i>
-                                    {% elif doc.status == 'filled' %}
-                                    <i class="fas fa-file-check text-purple-600 text-lg"></i>
-                                    {% else %}
-                                    <i class="fas fa-file-alt text-slate-400 text-lg"></i>
-                                    {% endif %}
-                                </div>
-                                <div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-medium text-slate-800">{{ doc.template_name }}</span>
-                                        {% if doc.is_placeholder and doc.status == 'pending' %}
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-amber-100 text-amber-700">
-                                            <i class="fas fa-exclamation-triangle mr-1"></i>Needs Content
-                                        </span>
-                                        {% elif doc.document_source == 'completed' %}
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-100 text-teal-700">Uploaded</span>
-                                        {% elif doc.document_source == 'static' %}
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-teal-100 text-teal-700">Static PDF</span>
-                                        {% elif doc.document_source == 'external' %}
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-100 text-purple-700">External</span>
-                                        {% elif doc.document_source == 'hybrid' %}
-                                        <span class="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-orange-100 text-orange-700">Hybrid</span>
-                                        {% endif %}
-                                    </div>
-                                    {% if doc.included_reason %}
-                                    <div class="text-xs text-slate-500 mt-0.5">
-                                        <i class="fas fa-info-circle mr-1 text-slate-400"></i>{{ doc.included_reason }}
-                                    </div>
+                        {% set awaiting_upload = (document_workflow_mode == 'placeholder_upload_only' and doc.status != 'signed') or (doc.is_placeholder and doc.status == 'pending') %}
+                        <div id="transaction-document-{{ doc.id }}" class="doc-row flex items-center justify-between py-3 px-1 group scroll-mt-28">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <i class="fas {% if doc.status == 'signed' %}fa-file-contract text-emerald-500{% elif awaiting_upload %}fa-file-upload text-slate-400{% elif doc.status == 'sent' %}fa-file-export text-blue-500{% elif doc.status == 'filled' %}fa-file-alt text-purple-500{% else %}fa-file text-slate-300{% endif %} text-lg flex-shrink-0"></i>
+                                <div class="min-w-0">
+                                    <span class="text-sm font-medium text-slate-800 block truncate">{{ doc.template_name }}</span>
+                                    {% if doc.status == 'signed' and doc.signed_original_filename %}
+                                    <span class="text-xs text-slate-400 block truncate" title="{{ doc.signed_original_filename }}"><i class="fas fa-paperclip mr-0.5 text-slate-300"></i>{{ doc.signed_original_filename }}</span>
+                                    {% elif doc.included_reason %}
+                                    <span class="text-xs text-slate-400 block truncate">{{ doc.included_reason }}</span>
                                     {% endif %}
                                 </div>
                             </div>
-                            <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2 flex-shrink-0 ml-3">
                                 {% if doc.status == 'signed' and doc.signed_file_path %}
-                                <!-- Signed with local copy stored -->
-                                <div class="flex items-center gap-2">
-                                    <span class="px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1
-                                        {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
-                                        {% if doc.document_source == 'completed' %}
-                                        <i class="fas fa-file-upload"></i>Uploaded
-                                        {% elif doc.signing_method == 'physical' %}
-                                        <i class="fas fa-pen-nib"></i>Wet Signed
-                                        {% else %}
-                                        <i class="fas fa-signature"></i>E-Signed
-                                        {% endif %}
-                                    </span>
-                                    <span class="px-2 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-600 flex items-center gap-1" 
-                                          title="Local copy stored in Supabase{% if doc.signed_file_size %} ({{ (doc.signed_file_size / 1024)|round(1) }} KB){% endif %}">
-                                        <i class="fas fa-cloud-download-alt text-xs"></i>
-                                        Stored
-                                    </span>
-                                </div>
-                                {% elif doc.status == 'signed' %}
-                                <!-- Signed but not yet stored locally -->
-                                <span class="px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1
-                                    {% if doc.document_source == 'completed' %}bg-teal-100 text-teal-700{% else %}bg-green-100 text-green-700{% endif %}">
-                                    {% if doc.document_source == 'completed' %}
-                                    <i class="fas fa-file-upload"></i>Uploaded
-                                    {% elif doc.signing_method == 'physical' %}
-                                    <i class="fas fa-pen-nib"></i>Wet Signed
-                                    {% else %}
-                                    <i class="fas fa-signature"></i>E-Signed
-                                    {% endif %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <i class="fas fa-check text-[10px]"></i>
+                                    {% if doc.document_source == 'completed' %}Uploaded{% elif doc.signing_method == 'physical' %}Wet Signed{% else %}E-Signed{% endif %}
                                 </span>
+                                {% elif doc.status == 'signed' %}
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                    <i class="fas fa-check text-[10px]"></i>Signed
+                                </span>
+                                {% elif awaiting_upload %}
+                                <button onclick='showFulfillPlaceholderModal({{ doc.id }}, {{ doc.template_name|tojson }})' 
+                                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium text-slate-500 bg-white border border-slate-200 hover:border-slate-300 hover:text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                                    <i class="fas fa-upload text-[10px]"></i>Upload
+                                </button>
                                 {% else %}
-                                <span class="px-3 py-1 rounded-md text-xs font-semibold
-                                    {% if doc.status == 'sent' %}bg-blue-100 text-blue-700
-                                    {% elif doc.status == 'filled' %}bg-purple-100 text-purple-700
-                                    {% elif doc.status == 'generated' %}bg-indigo-100 text-indigo-700
-                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium
+                                    {% if doc.status == 'sent' %}bg-blue-50 text-blue-600 border border-blue-200
+                                    {% elif doc.status == 'filled' %}bg-purple-50 text-purple-600 border border-purple-200
+                                    {% else %}bg-slate-50 text-slate-500 border border-slate-200{% endif %}">
                                     {{ doc.status|title }}
                                 </span>
                                 {% endif %}
@@ -820,13 +776,58 @@
                                 <!-- Actions Dropdown Menu -->
                                 <div class="relative doc-actions-dropdown">
                                     <button onclick="toggleDocActionsMenu({{ doc.id }})" 
-                                            class="p-2 rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-all">
-                                        <i class="fas fa-ellipsis-v"></i>
+                                            class="p-1.5 rounded-md text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                                        <i class="fas fa-ellipsis-v text-sm"></i>
                                     </button>
                                     <div id="docActionsMenu-{{ doc.id }}" 
                                          class="hidden absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 z-50 py-2">
                                         
-                                        <!-- EXTERNAL/HYBRID DOCUMENTS: Edit Fields -->
+                                        {% if document_workflow_mode == 'placeholder_upload_only' %}
+                                        {# ============================================================ #}
+                                        {# PLACEHOLDER UPLOAD ONLY WORKFLOW                             #}
+                                        {# Handles: pending placeholders, legacy template docs that     #}
+                                        {# haven't been signed, and already-uploaded completed docs.    #}
+                                        {# ============================================================ #}
+                                        
+                                        {% if doc.status != 'signed' %}
+                                        <button onclick='showFulfillPlaceholderModal({{ doc.id }}, {{ doc.template_name|tojson }})'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-upload w-5 text-slate-400"></i>
+                                            <span class="ml-2">Upload Document</span>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        {% if doc.status == 'signed' and doc.signed_file_path %}
+                                        <button onclick="viewStoredDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-eye w-5 text-slate-400"></i>
+                                            <span class="ml-2">View Document</span>
+                                        </button>
+                                        <button onclick="downloadDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-download w-5 text-slate-400"></i>
+                                            <span class="ml-2">Download</span>
+                                        </button>
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                        <button onclick='showFulfillPlaceholderModal({{ doc.id }}, {{ doc.template_name|tojson }}, true)'
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                                            <i class="fas fa-sync-alt w-5 text-slate-400"></i>
+                                            <span class="ml-2">Replace Document</span>
+                                        </button>
+                                        {% endif %}
+                                        
+                                        <div class="border-t border-slate-100 my-1"></div>
+                                        <button onclick="removeDocument({{ doc.id }})" 
+                                                class="w-full flex items-center px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors">
+                                            <i class="fas fa-trash-alt w-5 text-red-400"></i>
+                                            <span class="ml-2">Remove</span>
+                                        </button>
+                                        
+                                        {% else %}
+                                        {# ============================================================ #}
+                                        {# LEGACY DOCUSEAL WORKFLOW (preserved for future reactivation) #}
+                                        {# ============================================================ #}
+                                        
                                         {% if doc.document_source in ['external', 'hybrid'] %}
                                         <a href="{{ url_for('transactions.document_field_editor', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-purple-600 hover:bg-purple-50 transition-colors">
@@ -843,7 +844,6 @@
                                         <div class="border-t border-slate-100 my-2"></div>
                                         {% endif %}
                                         
-                                        <!-- PLACEHOLDER DOCUMENTS: Upload options -->
                                         {% if doc.is_placeholder and doc.status == 'pending' %}
                                         <div class="px-4 py-1.5 text-xs font-semibold text-amber-600 uppercase tracking-wider">
                                             Placeholder - Add Content
@@ -861,7 +861,6 @@
                                         <div class="border-t border-slate-100 my-2"></div>
                                         {% endif %}
                                         
-                                        <!-- STATIC DOCUMENTS: View options -->
                                         {% if doc.document_source == 'static' and doc.status == 'filled' %}
                                         <button onclick="viewStaticDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-teal-600 hover:bg-teal-50 transition-colors">
@@ -876,7 +875,6 @@
                                         <div class="border-t border-slate-100 my-2"></div>
                                         {% endif %}
                                         
-                                        <!-- PENDING: Fill Form (Template docs only, not placeholders) -->
                                         {% if doc.status == 'pending' and doc.document_source != 'external' and not doc.is_placeholder %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 transition-colors">
@@ -885,7 +883,6 @@
                                         </a>
                                         {% endif %}
                                         
-                                        <!-- FILLED/GENERATED: Edit, Preview, Signing Options (not for static or external docs) -->
                                         {% if doc.status in ['filled', 'generated'] and doc.document_source not in ['static', 'external'] %}
                                         <a href="{{ url_for('transactions.document_form', id=transaction.id, doc_id=doc.id) }}" 
                                            class="flex items-center px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
@@ -914,7 +911,6 @@
                                         </button>
                                         {% endif %}
                                         
-                                        <!-- SENT: Awaiting Signatures -->
                                         {% if doc.status == 'sent' %}
                                         <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                             Awaiting Signatures
@@ -937,7 +933,6 @@
                                         </button>
                                         {% endif %}
                                         
-                                        <!-- SIGNED: View/Download -->
                                         {% if doc.status == 'signed' %}
                                         <div class="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                             {% if doc.document_source == 'completed' %}Uploaded{% elif doc.signing_method == 'physical' %}Wet Signed{% else %}E-Signed{% endif %}
@@ -983,13 +978,13 @@
                                         {% endif %}
                                         {% endif %}
                                         
-                                        <!-- Remove Document -->
                                         <div class="border-t border-slate-100 my-2"></div>
                                         <button onclick="removeDocument({{ doc.id }})" 
                                                 class="w-full flex items-center px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
                                             <i class="fas fa-trash-alt w-5"></i>
                                             <span class="ml-2">Remove Document</span>
                                         </button>
+                                        {% endif %}{# end workflow mode branch #}
                                     </div>
                                 </div>
                             </div>
@@ -997,21 +992,21 @@
                         {% endfor %}
                     </div>
                     
-                    <!-- Bulk Actions -->
+                    <!-- Bulk Actions (hidden in placeholder-only workflow) -->
+                    {% if document_workflow_mode != 'placeholder_upload_only' %}
                     <div class="mt-5 pt-5 border-t border-slate-100">
                         <button onclick="fillAllForms()" class="btn-primary w-full px-4 py-3 text-sm">
                             <i class="fas fa-edit mr-2"></i>Fill All Forms
                         </button>
                     </div>
+                    {% endif %}
                     {% else %}
-                    <div class="text-center py-12">
-                        <div class="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-folder-open text-2xl text-slate-400"></i>
-                        </div>
-                        <h3 class="text-slate-800 font-medium mb-1">No documents yet</h3>
-                        <p class="text-slate-500 text-sm mb-4">
-                            {% if transaction.transaction_type.name == 'seller' and transaction.ownership_status == 'conventional' %}
-                            Complete the questionnaire to generate the document package.
+                    <div class="text-center py-10">
+                        <i class="fas fa-folder-open text-3xl text-slate-200 mb-3"></i>
+                        <h3 class="text-slate-600 font-medium text-sm mb-1">No documents yet</h3>
+                        <p class="text-slate-400 text-xs">
+                            {% if has_intake_schema %}
+                            Complete the questionnaire to generate documents.
                             {% else %}
                             Click "Add" to start building your document package.
                             {% endif %}
@@ -2204,6 +2199,133 @@
     </div>
 </div>
 
+<!-- Fulfill Placeholder Modal (placeholder_upload_only workflow) -->
+<div id="fulfillPlaceholderModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeFulfillPlaceholderModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 bg-teal-100 rounded-xl flex items-center justify-center">
+                    <i class="fas fa-cloud-upload-alt text-teal-600"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Upload Completed Document</h3>
+                    <p id="fulfillDocName" class="text-sm text-slate-500"></p>
+                </div>
+            </div>
+            
+            <div id="fulfillInfoBanner" class="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                <p class="text-sm text-teal-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Upload the signed document from ZipForms. It will be stored and marked as complete.
+                </p>
+            </div>
+
+            <div id="fulfillReplaceBanner" class="hidden mb-4 p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                <p class="text-sm text-amber-800 font-medium">
+                    <i class="fas fa-exclamation-triangle mr-1"></i>
+                    This document already has an uploaded file.
+                </p>
+                <p class="text-sm text-amber-700 mt-1">
+                    Uploading a new file will <strong>permanently delete</strong> the existing document and replace it with the new one. This cannot be undone.
+                </p>
+            </div>
+            
+            <form id="fulfillPlaceholderForm" enctype="multipart/form-data">
+                <input type="hidden" id="fulfillDocId" name="doc_id" value="">
+                
+                <div id="fulfillDropZone" 
+                     class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-colors mb-4"
+                     onclick="document.getElementById('fulfillFileInput').click()">
+                    <div id="fulfillDropContent">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-300 mb-3"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="text-xs text-slate-400 mt-1">or click to browse</p>
+                    </div>
+                    <div id="fulfillFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf text-4xl text-red-500 mb-3"></i>
+                        <p id="fulfillFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="fulfillFileSize" class="text-xs text-slate-400 mt-1"></p>
+                    </div>
+                </div>
+                <input type="file" id="fulfillFileInput" name="file" accept=".pdf" class="hidden" onchange="handleFulfillFileSelect(this)">
+                
+                <div id="fulfillProgress" class="hidden mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="fulfillPercent" class="font-medium text-teal-600">0%</span>
+                    </div>
+                    <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="fulfillProgressBar" class="h-full bg-teal-500 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div id="fulfillError" class="hidden mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p id="fulfillErrorText" class="text-sm text-red-600"></p>
+                </div>
+                
+                <p class="text-xs text-slate-400 mb-4">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeFulfillPlaceholderModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="fulfillUploadBtn" disabled
+                            class="flex-1 px-4 py-3 bg-teal-500 text-white rounded-lg font-medium hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload mr-2"></i>Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Custom Placeholder Modal (placeholder_upload_only workflow) -->
+<div id="addPlaceholderModal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-overlay absolute inset-0" onclick="closeAddPlaceholderModal()"></div>
+    <div class="absolute inset-0 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-lg max-w-lg w-full p-6 relative z-10">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-slate-800">Add Document Placeholder</h3>
+                <button onclick="closeAddPlaceholderModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <i class="fas fa-times text-lg"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-sm text-amber-700">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    This creates a placeholder for a document you will prepare and upload later.
+                </p>
+            </div>
+            
+            <form id="addPlaceholderForm">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Document Name *</label>
+                    <input type="text" id="placeholderDocName" name="document_name" required
+                           class="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm focus:border-orange-500 focus:ring-0 transition-colors" 
+                           placeholder="e.g., Amendment to Contract">
+                </div>
+                
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeAddPlaceholderModal()" 
+                            class="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="btn-primary flex-1 px-4 py-3">
+                        Add Placeholder
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 z-50 hidden">
     <div id="toastContent" class="flex items-center gap-3 px-5 py-4 bg-white rounded-xl shadow-lg border border-slate-200">
@@ -2217,7 +2339,8 @@
     window.TX_CONFIG = {
         transactionId: {{ transaction.id }},
         rentcastData: {{ rentcast_data|tojson if rentcast_data else 'null' }},
-        fillAllFormsUrl: '{{ url_for("transactions.fill_all_documents", id=transaction.id) }}'
+        fillAllFormsUrl: '{{ url_for("transactions.fill_all_documents", id=transaction.id) }}',
+        documentWorkflowMode: {{ (document_workflow_mode or '')|tojson }}
     };
 </script>
 <script src="{{ url_for('static', filename='js/transaction_detail.js') }}"></script>

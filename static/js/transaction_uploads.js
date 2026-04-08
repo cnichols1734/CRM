@@ -4,6 +4,29 @@
  */
 
 // =============================================================================
+// SCROLL POSITION PERSISTENCE
+// =============================================================================
+
+const DOCUMENTS_SECTION_ID = 'transaction-documents-card';
+
+function reloadPreservingScroll(targetId) {
+    // Set the hash on the current URL, then reload.
+    // The browser reloads the full page from the server and then scrolls
+    // to the hash element natively — no JS timing issues.
+    const target = targetId || DOCUMENTS_SECTION_ID;
+    history.replaceState(null, '', '#' + target);
+    window.location.reload();
+}
+
+// After the reload, clean the hash from the URL so it doesn't persist.
+window.addEventListener('load', function () {
+    const hash = window.location.hash;
+    if (hash === '#' + DOCUMENTS_SECTION_ID || hash.startsWith('#transaction-document-')) {
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+});
+
+// =============================================================================
 // SHARED HELPER
 // =============================================================================
 
@@ -135,7 +158,7 @@ if (uploadForm) {
                 if (data.success) {
                     showToast('Scanned document uploaded successfully!', 'success');
                     closeUploadScanModal();
-                    location.reload();
+                    reloadPreservingScroll(`transaction-document-${currentUploadDocId}`);
                 } else {
                     showUploadError(data.error || 'Upload failed');
                     document.getElementById('uploadProgress').classList.add('hidden');
@@ -296,7 +319,7 @@ if (esignForm) {
                     if (data.redirect_url) {
                         window.location.href = data.redirect_url;
                     } else {
-                        location.reload();
+                        reloadPreservingScroll(`transaction-document-${currentSignatureDocId}`);
                     }
                 } else {
                     showEsignError(data.error || 'Upload failed');
@@ -454,7 +477,7 @@ if (completedForm) {
                 if (data.success) {
                     showToast('Document uploaded successfully!', 'success');
                     closeAddDocumentModal();
-                    location.reload();
+                    reloadPreservingScroll();
                 } else {
                     showCompletedError(data.error || 'Upload failed');
                     document.getElementById('completedProgress').classList.add('hidden');
@@ -605,7 +628,7 @@ if (staticForm) {
                 if (data.success) {
                     showToast('Document uploaded successfully!', 'success');
                     closeUploadStaticModal();
-                    location.reload();
+                    reloadPreservingScroll(`transaction-document-${currentStaticDocId}`);
                 } else {
                     showStaticError(data.error || 'Upload failed');
                     document.getElementById('staticProgress').classList.add('hidden');
@@ -760,7 +783,7 @@ if (signatureForm) {
                     if (data.redirect_url) {
                         window.location.href = data.redirect_url;
                     } else {
-                        location.reload();
+                        reloadPreservingScroll();
                     }
                 } else {
                     showSignatureError(data.error || 'Upload failed');
@@ -787,5 +810,212 @@ if (signatureForm) {
 
         xhr.open('POST', `/transactions/${transactionId}/documents/${currentSignatureDocId}/upload-for-signature`);
         xhr.send(formData);
+    });
+}
+
+
+// =============================================================================
+// FULFILL PLACEHOLDER MODAL (placeholder_upload_only workflow)
+// =============================================================================
+
+let currentFulfillDocId = null;
+
+function showFulfillPlaceholderModal(docId, docName, isReplace) {
+    currentFulfillDocId = docId;
+    document.getElementById('fulfillDocId').value = docId;
+    document.getElementById('fulfillDocName').textContent = docName;
+
+    document.getElementById('fulfillFileInput').value = '';
+    document.getElementById('fulfillDropContent').classList.remove('hidden');
+    document.getElementById('fulfillFileInfo').classList.add('hidden');
+    document.getElementById('fulfillProgress').classList.add('hidden');
+    document.getElementById('fulfillError').classList.add('hidden');
+    document.getElementById('fulfillUploadBtn').disabled = true;
+
+    const infoBanner = document.getElementById('fulfillInfoBanner');
+    const replaceBanner = document.getElementById('fulfillReplaceBanner');
+    const uploadBtn = document.getElementById('fulfillUploadBtn');
+
+    if (isReplace) {
+        infoBanner.classList.add('hidden');
+        replaceBanner.classList.remove('hidden');
+        uploadBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Replace & Delete Old';
+    } else {
+        infoBanner.classList.remove('hidden');
+        replaceBanner.classList.add('hidden');
+        uploadBtn.innerHTML = '<i class="fas fa-upload mr-2"></i>Upload';
+    }
+
+    document.getElementById('fulfillPlaceholderModal').classList.remove('hidden');
+}
+
+function closeFulfillPlaceholderModal() {
+    document.getElementById('fulfillPlaceholderModal').classList.add('hidden');
+    currentFulfillDocId = null;
+}
+
+function handleFulfillFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+        showFulfillError('Please select a PDF file.');
+        return;
+    }
+
+    const maxSize = 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showFulfillError('File too large. Maximum size is 25MB.');
+        return;
+    }
+
+    document.getElementById('fulfillDropContent').classList.add('hidden');
+    document.getElementById('fulfillFileInfo').classList.remove('hidden');
+    document.getElementById('fulfillFileName').textContent = file.name;
+    document.getElementById('fulfillFileSize').textContent = formatFileSize(file.size);
+    document.getElementById('fulfillError').classList.add('hidden');
+    document.getElementById('fulfillUploadBtn').disabled = false;
+}
+
+function showFulfillError(message) {
+    document.getElementById('fulfillError').classList.remove('hidden');
+    document.getElementById('fulfillErrorText').textContent = message;
+    document.getElementById('fulfillUploadBtn').disabled = true;
+}
+
+// Drag and drop for fulfill placeholder
+const fulfillDropZone = document.getElementById('fulfillDropZone');
+if (fulfillDropZone) {
+    fulfillDropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('border-teal-400', 'bg-teal-50/30');
+    });
+
+    fulfillDropZone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+    });
+
+    fulfillDropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const fileInput = document.getElementById('fulfillFileInput');
+            fileInput.files = files;
+            handleFulfillFileSelect(fileInput);
+        }
+    });
+}
+
+// Fulfill placeholder form submission
+const fulfillForm = document.getElementById('fulfillPlaceholderForm');
+if (fulfillForm) {
+    fulfillForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const fileInput = document.getElementById('fulfillFileInput');
+        const file = fileInput.files[0];
+        if (!file) {
+            showFulfillError('Please select a file first.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        document.getElementById('fulfillProgress').classList.remove('hidden');
+        document.getElementById('fulfillUploadBtn').disabled = true;
+
+        const xhr = new XMLHttpRequest();
+        const transactionId = TX_CONFIG.transactionId;
+
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('fulfillPercent').textContent = percent + '%';
+                document.getElementById('fulfillProgressBar').style.width = percent + '%';
+            }
+        });
+
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    showToast('Document uploaded successfully!', 'success');
+                    closeFulfillPlaceholderModal();
+                    reloadPreservingScroll(`transaction-document-${currentFulfillDocId}`);
+                } else {
+                    showFulfillError(data.error || 'Upload failed');
+                    document.getElementById('fulfillProgress').classList.add('hidden');
+                    document.getElementById('fulfillUploadBtn').disabled = false;
+                }
+            } else {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    showFulfillError(data.error || 'Upload failed');
+                } catch (err) {
+                    showFulfillError('Upload failed. Please try again.');
+                }
+                document.getElementById('fulfillProgress').classList.add('hidden');
+                document.getElementById('fulfillUploadBtn').disabled = false;
+            }
+        });
+
+        xhr.addEventListener('error', function() {
+            showFulfillError('Network error. Please try again.');
+            document.getElementById('fulfillProgress').classList.add('hidden');
+            document.getElementById('fulfillUploadBtn').disabled = false;
+        });
+
+        xhr.open('POST', `/transactions/${transactionId}/documents/${currentFulfillDocId}/fulfill`);
+        xhr.send(formData);
+    });
+}
+
+
+// =============================================================================
+// ADD CUSTOM PLACEHOLDER MODAL (placeholder_upload_only workflow)
+// =============================================================================
+
+function showAddPlaceholderModal() {
+    document.getElementById('placeholderDocName').value = '';
+    document.getElementById('addPlaceholderModal').classList.remove('hidden');
+}
+
+function closeAddPlaceholderModal() {
+    document.getElementById('addPlaceholderModal').classList.add('hidden');
+}
+
+const addPlaceholderForm = document.getElementById('addPlaceholderForm');
+if (addPlaceholderForm) {
+    addPlaceholderForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const docName = document.getElementById('placeholderDocName').value.trim();
+        if (!docName) return;
+
+        const transactionId = TX_CONFIG.transactionId;
+        const formData = new FormData();
+        formData.append('document_name', docName);
+
+        fetch(`/transactions/${transactionId}/documents/add-placeholder`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showToast('Placeholder added successfully!', 'success');
+                closeAddPlaceholderModal();
+                reloadPreservingScroll();
+            } else {
+                showToast(data.error || 'Failed to add placeholder', 'error');
+            }
+        })
+        .catch(() => {
+            showToast('Network error. Please try again.', 'error');
+        });
     });
 }
