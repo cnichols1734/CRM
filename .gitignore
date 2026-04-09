@@ -155,3 +155,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Frontend toolchain
+node_modules/
+.vite/
+!static/dist/
+!static/dist/**

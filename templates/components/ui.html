@@ -1,0 +1,68 @@
+{% macro page_header(title, description='', eyebrow='') -%}
+<div class="crm-page-header">
+    <div class="crm-page-header__copy">
+        {% if eyebrow %}
+        <div class="crm-page-header__eyebrow">{{ eyebrow }}</div>
+        {% endif %}
+        <h1 class="crm-page-title">{{ title }}</h1>
+        {% if description %}
+        <p class="crm-page-description">{{ description }}</p>
+        {% endif %}
+    </div>
+    {% if caller %}
+    <div class="crm-page-actions">
+        {{ caller() }}
+    </div>
+    {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro section_header(title, description='', kicker='', badge='') -%}
+<div>
+    {% if kicker %}
+    <div class="crm-section-kicker">{{ kicker }}</div>
+    {% endif %}
+    <div class="mt-1 flex items-center gap-3">
+        <h2 class="crm-section-title">{{ title }}</h2>
+        {% if badge %}
+        <span class="crm-badge">{{ badge }}</span>
+        {% endif %}
+    </div>
+    {% if description %}
+    <p class="crm-section-description">{{ description }}</p>
+    {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro avatar(initials, size='md') -%}
+{% set size_class = {
+    'sm': 'crm-avatar crm-avatar-sm',
+    'lg': 'crm-avatar crm-avatar-lg'
+}.get(size, 'crm-avatar crm-avatar-md') %}
+<span class="{{ size_class }}">{{ initials }}</span>
+{%- endmacro %}
+
+{% macro badge(label, tone='neutral') -%}
+{% set tone_class = {
+    'accent': 'crm-badge crm-badge-accent',
+    'success': 'crm-badge crm-badge-success',
+    'warning': 'crm-badge crm-badge-warning',
+    'info': 'crm-badge crm-badge-info'
+}.get(tone, 'crm-badge') %}
+<span class="{{ tone_class }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro empty_state(title, description, icon='fa-circle') -%}
+<div class="crm-empty crm-empty-center">
+    <div class="crm-empty-icon">
+        <i class="fas {{ icon }}"></i>
+    </div>
+    <h3 class="mt-3 text-sm font-semibold text-slate-900">{{ title }}</h3>
+    <p class="mt-1 max-w-md text-sm text-slate-500">{{ description }}</p>
+    {% if caller %}
+    <div class="mt-3 flex flex-wrap items-center justify-center gap-3">
+        {{ caller() }}
+    </div>
+    {% endif %}
+</div>
+{%- endmacro %}

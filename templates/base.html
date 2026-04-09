@@ -50,6 +50,8 @@
         rel="stylesheet">
     <!-- Add AI Chat Widget styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
+    <!-- Local app bundle for progressive frontend rewrite -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.css') }}">
     <!-- NProgress - YouTube-style progress bar for navigation feedback -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" />
     <style>
@@ -140,21 +142,21 @@
 
         /* B.O.B. Assistant Button - Header */
         .bob-assistant-btn {
-            background: linear-gradient(135deg, #f97316 0%, #fb7185 50%, #f43f5e 100%);
-            color: white;
+            background: #0f172a;
+            color: #e2e8f0;
             padding: 8px 16px;
             border-radius: 20px;
-            border: none;
+            border: 1px solid #334155;
             cursor: pointer;
-            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
-            transition: all 0.2s ease;
+            box-shadow: none;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
         .bob-assistant-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.45);
+            background: #1e293b;
+            border-color: #475569;
         }
         .bob-assistant-btn:active {
-            transform: translateY(0);
+            background: #0f172a;
         }
         .bob-assistant-icon {
             width: 18px;
@@ -165,19 +167,19 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #f97316 0%, #fb7185 50%, #f43f5e 100%);
-            color: white;
-            border: none;
+            background: #0f172a;
+            color: #e2e8f0;
+            border: 1px solid #334155;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
-            transition: all 0.2s ease;
+            box-shadow: none;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
         }
         .bob-assistant-btn-mobile:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.45);
+            background: #1e293b;
+            border-color: #475569;
         }
         .bob-assistant-btn-mobile svg {
             width: 20px;
@@ -205,10 +207,10 @@
     {% block head_scripts %}{% endblock %}
 </head>
 
-<body class="h-screen flex flex-col bg-[#2d3e50]">
+<body class="h-screen flex flex-col bg-slate-950">
 
     <!-- Top Header - Hidden on Mobile -->
-    <header class="text-white h-14 items-center justify-between hidden md:flex">
+    <header class="text-white h-14 items-center justify-between hidden border-b border-slate-800 bg-slate-950 md:flex">
         <div class="pl-4">
             <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
                 class="block h-24 w-auto object-contain mt-2.5" />
@@ -240,11 +242,11 @@
     </header>
 
     <!-- Mobile Header -->
-    <header class="text-white h-14 flex items-center justify-between px-2 md:hidden">
+    <header class="text-white h-14 flex items-center justify-between border-b border-slate-800 bg-slate-950 px-2 md:hidden">
         <div class="flex items-center">
             {% if current_user.is_authenticated %}
             <button id="mobileMenuToggle" onclick="toggleMobileNavMenu()"
-                class="w-10 h-10 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg transition-colors flex-shrink-0">
+                class="w-10 h-10 flex items-center justify-center text-white hover:bg-slate-800 rounded-lg transition-colors flex-shrink-0">
                 <i class="fas fa-bars text-xl"></i>
             </button>
             {% endif %}
@@ -263,7 +265,7 @@
             </button>
             {% endif %}
             <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
-                class="w-8 h-8 rounded-full bg-[#3d4d63] text-white flex items-center justify-center text-sm font-semibold">
+                class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
             </button>
             {% else %}
@@ -406,12 +408,12 @@
         <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileNavMenu()"></div>
 
         <!-- Menu Panel -->
-        <div class="absolute left-0 top-0 bottom-0 w-72 bg-[#2d3e50] shadow-xl">
+        <div class="absolute left-0 top-0 bottom-0 w-72 bg-slate-950 shadow-xl">
             <!-- Header -->
-            <div class="h-14 flex items-center justify-between px-4 border-b border-[#3d4d63]">
+            <div class="h-14 flex items-center justify-between px-4 border-b border-slate-800">
                 <span class="text-white font-semibold">Menu</span>
                 <button onclick="toggleMobileNavMenu()"
-                    class="w-8 h-8 flex items-center justify-center text-white hover:bg-[#3d4d63] rounded-lg">
+                    class="w-8 h-8 flex items-center justify-center text-white hover:bg-slate-800 rounded-lg">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -419,56 +421,56 @@
             <!-- Navigation Links -->
             <nav class="py-4">
                 <a href="{{ url_for('main.dashboard') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.dashboard' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-chart-line w-6 mr-3"></i>
                     Dashboard
                 </a>
                 <a href="{{ url_for('main.contacts') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.contacts' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.contacts' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-address-book w-6 mr-3"></i>
                     Contacts
                 </a>
                 {% if current_user.role == 'admin' and org_has_feature('TRANSACTIONS') %}
                 <a href="{{ url_for('transactions.list_transactions') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-file-contract w-6 mr-3"></i>
                     Transactions
                 </a>
                 {% endif %}
                 <a href="{{ url_for('tasks.tasks') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'tasks.tasks' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-tasks w-6 mr-3"></i>
                     Client Tasks
                 </a>
                 <a href="{{ url_for('user_todo.user_todo') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'user_todo.user_todo' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-check-square w-6 mr-3"></i>
                     To Do List
                 </a>
                 {% if org_has_feature('MARKETING') %}
                 <a href="{{ url_for('main.marketing') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.marketing' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-bullhorn w-6 mr-3"></i>
                     Marketing
                 </a>
                 {% endif %}
                 {% if org_has_feature('AI_ACTION_PLAN') %}
                 <a href="{{ url_for('action_plan.action_plan') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'action_plan.action_plan' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-rocket w-6 mr-3"></i>
                     OG Action Plan
                 </a>
                 {% endif %}
                 <a href="{{ url_for('company_updates.list_updates') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-[#3d4d63] border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('company_updates.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-newspaper w-6 mr-3"></i>
                     Company Updates
                 </a>
                 
                 <!-- Mobile Resources Accordion -->
-                <div class="mt-2 border-t border-[#3d4d63] pt-2">
+                <div class="mt-2 border-t border-slate-800 pt-2">
                     <button id="mobileResourcesBtn" type="button"
-                        class="flex items-center w-full px-6 py-3 text-white hover:bg-[#3d4d63]">
+                        class="flex items-center w-full px-6 py-3 text-white hover:bg-slate-800">
                         <i class="fas fa-book w-6 mr-3"></i>
                         <span class="flex-1 text-left">Resources</span>
                         <i id="mobileResourcesChevron" class="fas fa-chevron-down transition-transform duration-200"></i>
@@ -891,7 +893,7 @@
 
         <!-- Main Content -->
         <main
-            class="flex-1 overflow-auto bg-white md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300"
+            class="flex-1 overflow-auto bg-slate-50 md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300"
             id="mainContent">
             <div class="content-wrapper">
                 {% block content %}{% endblock %}
@@ -908,6 +910,7 @@
 
     <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>
 
     {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
     <!-- AI Chat Widget will be injected here by JavaScript -->

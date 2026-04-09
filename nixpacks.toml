@@ -1,0 +1,15 @@
+# Nixpacks configuration for Railway
+# Tells Railway to install both Python AND Node.js, then build the Vite frontend
+# before starting the Python app.
+
+[phases.setup]
+nixPkgs = ["...", "nodejs_20"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt", "npm ci"]
+
+[phases.build]
+cmds = ["npm run build"]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:5011 --workers 4 --timeout 120 --max-requests 10000 --max-requests-jitter 500"

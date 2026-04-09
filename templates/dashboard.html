@@ -1,1167 +1,492 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header, section_header, avatar, badge, empty_state %}
 
 {% block head_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
-<style>
-    /* Dashboard - Clean, Professional Style */
-    :root {
-        --brand-navy: #2d3e50;
-        --brand-navy-2: #1a2634;
-        --brand-orange: #f97316;
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-        --focus: rgba(45, 62, 80, 0.12);
-    }
-    
-    /* Simple page fade-in */
-    @keyframes fadeIn { 
-        from { opacity: 0; } 
-        to { opacity: 1; } 
-    }
-    
-    .page-fade-in {
-        animation: fadeIn 0.4s ease-out forwards;
-    }
-    
-    /* Card styles - no lift on hover */
-    .dashboard-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        box-shadow: var(--shadow-sm);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    
-    .dashboard-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: var(--shadow);
-    }
-    
-    /* Input focus styling */
-    .dashboard-input:focus {
-        outline: none;
-        border-color: #f97316;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-    
-    /* Section headers - clean, no gradient */
-    .section-header {
-        background: #fafafa;
-    }
-    
-    /* Task item hover - subtle background */
-    .task-item {
-        transition: background-color 0.15s ease;
-    }
-    
-    .task-item:hover {
-        background-color: #fafafa;
-    }
-    
-    /* Mobile-specific styles */
-    @media (max-width: 767px) {
-        .mobile-task-item {
-            flex-direction: column;
-            align-items: flex-start !important;
-        }
-        .mobile-task-item .task-meta {
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-    }
-    
-    /* Pipeline column sizing */
-    .pipeline-column {
-        min-width: 280px;
-        max-width: 320px;
-    }
-    
-    @media (min-width: 1024px) {
-        .pipeline-column {
-            min-width: 0;
-            max-width: none;
-            flex: 1;
-        }
-    }
-    
-    /* Scrollbar styling */
-    .pipeline-scroll-container {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(203, 213, 225, 0.5) transparent;
-    }
-    
-    .pipeline-scroll-container::-webkit-scrollbar {
-        height: 6px;
-    }
-    
-    .pipeline-scroll-container::-webkit-scrollbar-track {
-        background: transparent;
-    }
-    
-    .pipeline-scroll-container::-webkit-scrollbar-thumb {
-        background: rgba(203, 213, 225, 0.5);
-        border-radius: 3px;
-    }
-    
-    .pipeline-scroll-container::-webkit-scrollbar-thumb:hover {
-        background: rgba(203, 213, 225, 0.8);
-    }
-    
-    /* Deal cards - clean hover, no transform */
-    .deal-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    
-    .deal-card:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-    }
-    
-    /* Scroll fade indicators */
-    .pipeline-fade-left {
-        background: linear-gradient(to right, rgba(248, 250, 252, 1), transparent);
-    }
-    
-    .pipeline-fade-right {
-        background: linear-gradient(to left, rgba(248, 250, 252, 1), transparent);
-    }
-    
-    /* Primary action button - orange gradient */
-    .btn-primary {
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: #fff;
-        font-weight: 600;
-        border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
-        transition: all 0.2s ease;
-    }
-    
-    .btn-primary:hover {
-        background: linear-gradient(135deg, #ea580c, #dc2626);
-        box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-    }
-    
-    /* Secondary/outline buttons */
-    .btn-secondary {
-        background: #f8fafc;
-        border: 1px solid var(--border);
-        color: #64748b;
-        font-weight: 500;
-        border-radius: 10px;
-        transition: all 0.2s ease;
-    }
-    
-    .btn-secondary:hover {
-        background: #fff7ed;
-        border-color: #fed7aa;
-        color: #ea580c;
-    }
-    
-    /* Icon tiles - allowed to have gradient */
-    .icon-tile {
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    /* Links - orange on hover */
-    .dashboard-link {
-        color: var(--muted);
-        font-weight: 500;
-        transition: color 0.15s ease;
-    }
-    
-    .dashboard-link:hover {
-        color: #ea580c;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
-<div class="min-h-screen page-fade-in" style="background: radial-gradient(ellipse 1200px 600px at 10% 0%, rgba(249,115,22,.04), transparent 60%), radial-gradient(ellipse 900px 500px at 100% 30%, rgba(45,62,80,.04), transparent 55%), #f8fafc;">
-    <div class="p-4 md:p-6">
-        
-        <!-- Header -->
-        <div class="mb-6 md:mb-8 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-3 md:space-x-4">
-                    <div class="icon-tile w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600">
-                        <i class="fas fa-chart-line text-white text-lg md:text-xl"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-xl md:text-2xl font-bold text-slate-800">Dashboard</h1>
-                        <p class="text-slate-500 text-sm md:text-base">Welcome back, {{ current_user.first_name }}</p>
-                    </div>
-                </div>
-                
-                <!-- Mobile Daily Todo Button (Feature Gated) -->
-                {% if org_has_feature('AI_DAILY_TODO') %}
-                <button 
-                    onclick="showDailyTodoModal()"
-                    class="md:hidden btn-primary p-3"
-                >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </button>
-                {% endif %}
-            </div>
-            
-            {% if show_dashboard_joke %}
-            <!-- Joke of the Day (inline) -->
-            <div id="joke-container" class="hidden md:flex flex-1 justify-center" data-enabled="true">
-                <div class="inline-flex items-center px-4 py-2.5 bg-white rounded-xl border border-slate-200">
-                    <div class="icon-tile w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 mr-3">
-                        <i class="fas fa-lightbulb text-white text-sm"></i>
-                    </div>
-                    <p id="joke-text" class="text-slate-600 italic text-sm max-w-md">Loading a laugh...</p>
-                </div>
-            </div>
-            {% endif %}
-            
-            <!-- Desktop Daily Todo Button (Feature Gated) -->
-            {% if org_has_feature('AI_DAILY_TODO') %}
-            <button 
-                onclick="showDailyTodoModal()"
-                class="hidden md:flex items-center btn-primary px-5 py-2.5"
-            >
-                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <div class="flex flex-col items-start text-left">
-                    <span class="text-sm font-semibold">Daily To-Do List</span>
-                    <span class="text-xs opacity-80">Generated by B.O.B.</span>
-                </div>
-            </button>
-            {% endif %}
-        </div>
+{% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count if show_transactions else 0 %}
+{% set is_first_run = total_contacts == 0 and total_deals == 0 and upcoming_tasks|length == 0 %}
 
-        <!-- Latest Update Notification Banner -->
-        {% if latest_update %}
-        <a href="{{ url_for('company_updates.view_update', update_id=latest_update.id) }}" 
-           class="block mb-6 group">
-            <div class="bg-slate-800 rounded-xl border border-slate-700 px-4 py-3 flex items-center justify-between transition-colors hover:bg-slate-750" style="--tw-bg-opacity: 1;">
-                <div class="flex items-center gap-3">
-                    <!-- Dot -->
-                    <div class="flex-shrink-0 w-2 h-2 bg-orange-500 rounded-full"></div>
-                    
-                    <!-- Badge -->
-                    <span class="flex-shrink-0 px-2 py-0.5 bg-white/10 rounded-full text-white text-xs font-semibold">
-                        NEW
-                    </span>
-                    
-                    <!-- Content -->
-                    <div class="flex items-center gap-2 text-white min-w-0">
-                        <span class="font-semibold truncate">{{ latest_update.title }}</span>
-                        <span class="hidden sm:inline text-white/50">—</span>
-                        <span class="hidden sm:inline text-white/70 text-sm truncate">{{ (latest_update.excerpt | unescape)[:60] }}{% if latest_update.excerpt|length > 60 %}...{% endif %}</span>
-                    </div>
-                </div>
-                
-                <!-- Arrow -->
-                <div class="flex-shrink-0 flex items-center gap-2 text-white/70 group-hover:text-white transition-colors">
-                    <span class="hidden md:inline text-sm font-medium">Read Update</span>
-                    <i class="fas fa-arrow-right"></i>
-                </div>
+<div class="crm-page" data-controller="dashboard-page">
+    <div class="crm-page__inner">
+        {% call page_header('Dashboard', '', 'Workspace') %}
+            <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">
+                <i class="fas fa-address-book text-xs"></i>
+                Contacts
+            </a>
+            {% if show_transactions %}
+            <a href="{{ url_for('transactions.create_transaction') }}" class="crm-btn crm-btn-primary">
+                <i class="fas fa-plus text-xs"></i>
+                New transaction
+            </a>
+            {% else %}
+            <a href="{{ url_for('contacts.create_contact') }}" class="crm-btn crm-btn-primary">
+                <i class="fas fa-plus text-xs"></i>
+                Create contact
+            </a>
+            {% endif %}
+        {% endcall %}
+
+        {% if latest_update and not is_first_run %}
+        <a href="{{ url_for('company_updates.view_update', update_id=latest_update.id) }}"
+           class="mb-6 flex items-center justify-between gap-4 rounded-md bg-slate-800 px-4 py-2.5 transition-colors hover:bg-slate-700">
+            <div class="flex min-w-0 items-center gap-3">
+                <i class="fas fa-bullhorn text-xs text-slate-400"></i>
+                <span class="truncate text-sm font-medium text-slate-200">{{ latest_update.title }}</span>
             </div>
+            <span class="shrink-0 text-xs font-medium text-slate-400">
+                Read <i class="fas fa-arrow-right ml-1"></i>
+            </span>
         </a>
         {% endif %}
 
-        <!-- Filter Tabs (Only show for admin) -->
         {% if current_user.role == 'admin' %}
-        <div class="mb-6 md:mb-8">
-            <div class="inline-flex bg-slate-100 rounded-xl p-1">
-                <button 
-                    class="px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if show_all %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md{% else %}text-slate-600 hover:bg-slate-50{% endif %}"
-                    onclick="window.location.href='{{ url_for('main.dashboard', view='all') }}'"
-                >
-                    <i class="fas fa-users mr-2"></i>All contacts
-                </button>
-                <button 
-                    class="px-5 py-2 text-sm font-medium rounded-lg transition-all duration-200 {% if not show_all %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md{% else %}text-slate-600 hover:bg-slate-50{% endif %}"
-                    onclick="window.location.href='{{ url_for('main.dashboard', view='my') }}'"
-                >
-                    <i class="fas fa-user mr-2"></i>My contacts
-                </button>
+        <div class="mb-4">
+            <div class="crm-segment">
+                <a href="{{ url_for('main.dashboard', view='my') }}"
+                   class="crm-segment__item {% if not show_all %}is-active{% endif %}">
+                    My contacts
+                </a>
+                <a href="{{ url_for('main.dashboard', view='all') }}"
+                   class="crm-segment__item {% if show_all %}is-active{% endif %}">
+                    All contacts
+                </a>
             </div>
         </div>
         {% endif %}
 
-        <!-- Key Metrics Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
-            <!-- Total Commission Card -->
-            <div class="dashboard-card p-4 md:p-6">
-                <div class="flex items-center justify-between mb-3 md:mb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
-                            <i class="fas fa-dollar-sign text-white text-sm md:text-base"></i>
-                        </div>
-                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Potential Commission</h3>
+        {% if is_first_run %}
+        <div class="crm-surface mb-6" {% if not current_user.has_seen_dashboard_onboarding %}data-dashboard-page-target="onboarding"{% endif %}>
+            <div class="crm-surface-body">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="max-w-2xl">
+                        <div class="crm-section-kicker">Get Started</div>
+                        <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Set up the workspace around your first real client.</h2>
+                        <p class="mt-2 text-sm text-slate-500">Add contacts, then this view populates automatically.</p>
                     </div>
-                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">All time</span>
-                </div>
-                <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-slate-800">${{ "{:,.0f}".format(total_commission) }}</span>
-                </div>
-            </div>
-
-            <!-- Total Contacts Card -->
-            <div class="dashboard-card p-4 md:p-6">
-                <div class="flex items-center justify-between mb-3 md:mb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-blue-600">
-                            <i class="fas fa-users text-white text-sm md:text-base"></i>
-                        </div>
-                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Total Contacts</h3>
-                    </div>
-                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Active</span>
-                </div>
-                <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-slate-800">{{ total_contacts }}</span>
-                </div>
-            </div>
-
-            <!-- Average Commission Card -->
-            <div class="dashboard-card p-4 md:p-6">
-                <div class="flex items-center justify-between mb-3 md:mb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="icon-tile w-9 h-9 md:w-10 md:h-10 bg-gradient-to-br from-violet-500 to-violet-600">
-                            <i class="fas fa-chart-bar text-white text-sm md:text-base"></i>
-                        </div>
-                        <h3 class="text-xs md:text-sm font-semibold text-slate-600">Average Commission</h3>
-                    </div>
-                    <span class="bg-slate-100 text-slate-600 text-xs font-medium px-2 py-0.5 md:px-2.5 md:py-1 rounded-full hidden sm:inline">Per contact</span>
-                </div>
-                <div class="flex items-baseline">
-                    <span class="text-2xl md:text-3xl font-bold text-slate-800">${{ "{:,.0f}".format(avg_commission) }}</span>
-                </div>
-            </div>
-        </div>
-
-        {% if show_transactions %}
-        <!-- Transaction Pipeline Section -->
-        <div class="mb-6 md:mb-8">
-            <div class="dashboard-card overflow-hidden">
-                <!-- Pipeline Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <!-- Left side: Icon, Title, and Pipeline Value -->
-                        <div class="flex items-center gap-4">
-                            <div class="flex items-center space-x-3">
-                                <div class="icon-tile w-11 h-11 md:w-12 md:h-12 bg-gradient-to-br from-orange-500 to-orange-600">
-                                    <i class="fas fa-hand-holding-usd text-white text-lg md:text-xl"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-base md:text-lg font-bold text-slate-800">Transaction Pipeline</h3>
-                                    <p class="text-xs md:text-sm text-slate-500 hidden sm:block">Your deals in motion</p>
-                                </div>
-                            </div>
-                            <!-- Pipeline Value Badge -->
-                            <div class="hidden sm:flex items-center gap-3 ml-4 pl-4 border-l border-slate-200">
-                                <div>
-                                    <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pipeline Value</div>
-                                    <div class="flex items-baseline gap-1">
-                                        <span id="pipelineValueCounter" class="text-2xl md:text-3xl font-bold text-slate-800" data-value="{{ pipeline_value }}">
-                                            $0
-                                        </span>
-                                    </div>
-                                </div>
-                                {% if ytd_closed_value > 0 %}
-                                <div class="hidden lg:block pl-3 border-l border-slate-200">
-                                    <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Closed YTD</div>
-                                    <div class="text-lg font-bold text-slate-800">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <!-- Right side: View All Button -->
-                        <a href="{{ url_for('transactions.list_transactions') }}" 
-                           class="btn-primary inline-flex items-center justify-center px-4 py-2.5 text-sm">
-                            <span>View All Transactions</span>
-                            <i class="fas fa-arrow-right ml-2"></i>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-file-import text-xs"></i>
+                            Import contacts
                         </a>
-                    </div>
-                    
-                    <!-- Mobile Pipeline Value -->
-                    <div class="sm:hidden mt-4 flex items-center gap-4">
-                        <div class="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
-                            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pipeline</div>
-                            <div class="text-xl font-bold text-slate-800">${{ "{:,.0f}".format(pipeline_value) }}</div>
-                        </div>
-                        {% if ytd_closed_value > 0 %}
-                        <div class="flex-1 bg-slate-50 rounded-lg p-3 border border-slate-200">
-                            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Closed YTD</div>
-                            <div class="text-xl font-bold text-slate-800">${{ "{:,.0f}".format(ytd_closed_value) }}</div>
-                        </div>
+                        <a href="{{ url_for('contacts.create_contact') }}" class="crm-btn crm-btn-primary">
+                            <i class="fas fa-user-plus text-xs"></i>
+                            Add first contact
+                        </a>
+                        {% if not current_user.has_seen_dashboard_onboarding %}
+                        <button type="button"
+                                class="crm-btn crm-btn-subtle"
+                                data-action="dashboard-page#dismissOnboarding">
+                            Dismiss
+                        </button>
                         {% endif %}
                     </div>
                 </div>
-                
-                <!-- Pipeline Kanban Board -->
-                <div class="p-4 md:p-6 bg-white">
-                    {% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count %}
-                    
-                    {% if total_deals > 0 %}
-                    <!-- Kanban Columns -->
-                    <div class="relative">
-                        <!-- Scroll fade indicators (mobile) -->
-                        <div class="lg:hidden absolute left-0 top-0 bottom-0 w-8 pipeline-fade-left z-10 pointer-events-none"></div>
-                        <div class="lg:hidden absolute right-0 top-0 bottom-0 w-8 pipeline-fade-right z-10 pointer-events-none"></div>
-                        
-                        <div class="pipeline-scroll-container flex gap-4 overflow-x-auto lg:overflow-visible pb-4 lg:pb-0 -mx-4 px-4 lg:mx-0 lg:px-0">
-                            
-                            <!-- Preparing Column -->
-                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
-                                    <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-slate-200 flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-clipboard-list text-slate-600 text-sm"></i>
-                                            <span class="font-semibold text-slate-700 text-sm">Preparing</span>
-                                        </div>
-                                        <span class="bg-slate-400 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                            {{ transactions_by_status.preparing.count }}
-                                        </span>
-                                    </div>
-                                    <!-- Column Body -->
-                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
-                                        {% for tx in transactions_by_status.preparing.transactions %}
-                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="deal-card block p-4 cursor-pointer">
-                                            <div class="flex items-center justify-between mb-1">
-                                                <div class="font-semibold text-slate-800 text-sm truncate flex-1 mr-2" title="{{ tx.address }}">
-                                                    {{ tx.address[:25] }}{% if tx.address|length > 25 %}...{% endif %}
-                                                </div>
-                                                <span class="text-[10px] font-medium px-1.5 py-0.5 rounded {% if tx.status == 'showing' %}bg-violet-100 text-violet-700{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                                    {{ tx.status_label }}
-                                                </span>
-                                            </div>
-                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-slate-400"></i>
-                                                {{ tx.client_name }}
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                {% if tx.expected_close_date %}
-                                                <span class="text-xs text-slate-500">
-                                                    <i class="far fa-calendar-alt mr-1"></i>
-                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
-                                                    {% if days_to_close > 0 %}
-                                                        Closes in {{ days_to_close }}d
-                                                    {% elif days_to_close == 0 %}
-                                                        Closes today
-                                                    {% else %}
-                                                        {{ tx.expected_close_date.strftime('%b %d') }}
-                                                    {% endif %}
-                                                </span>
-                                                {% else %}
-                                                <span class="text-xs text-slate-400">No close date</span>
-                                                {% endif %}
-                                                <span class="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                                    ${{ "{:,.0f}".format(tx.commission) }}
-                                                </span>
-                                            </div>
-                                        </a>
-                                        {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <span class="text-xs">No deals</span>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Active Column -->
-                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
-                                    <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-teal-100 flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-home text-teal-600 text-sm"></i>
-                                            <span class="font-semibold text-teal-700 text-sm">Active</span>
-                                        </div>
-                                        <span class="bg-teal-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                            {{ transactions_by_status.active.count }}
-                                        </span>
-                                    </div>
-                                    <!-- Column Body -->
-                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
-                                        {% for tx in transactions_by_status.active.transactions %}
-                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="deal-card block p-4 cursor-pointer">
-                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
-                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
-                                            </div>
-                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-teal-500"></i>
-                                                {{ tx.client_name }}
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                {% if tx.expected_close_date %}
-                                                <span class="text-xs text-slate-500">
-                                                    <i class="far fa-calendar-alt mr-1"></i>
-                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
-                                                    {% if days_to_close > 0 %}
-                                                        Closes in {{ days_to_close }}d
-                                                    {% elif days_to_close == 0 %}
-                                                        Closes today
-                                                    {% else %}
-                                                        {{ tx.expected_close_date.strftime('%b %d') }}
-                                                    {% endif %}
-                                                </span>
-                                                {% else %}
-                                                <span class="text-xs text-slate-400">No close date</span>
-                                                {% endif %}
-                                                <span class="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
-                                                    ${{ "{:,.0f}".format(tx.commission) }}
-                                                </span>
-                                            </div>
-                                        </a>
-                                        {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <span class="text-xs">No deals</span>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Under Contract Column -->
-                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
-                                    <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-amber-100 flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-file-signature text-amber-600 text-sm"></i>
-                                            <span class="font-semibold text-amber-700 text-sm">Under Contract</span>
-                                        </div>
-                                        <span class="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                            {{ transactions_by_status.under_contract.count }}
-                                        </span>
-                                    </div>
-                                    <!-- Column Body -->
-                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
-                                        {% for tx in transactions_by_status.under_contract.transactions %}
-                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="deal-card block p-4 cursor-pointer">
-                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
-                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
-                                            </div>
-                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-amber-500"></i>
-                                                {{ tx.client_name }}
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                {% if tx.expected_close_date %}
-                                                <span class="text-xs text-slate-500">
-                                                    <i class="far fa-calendar-alt mr-1"></i>
-                                                    {% set days_to_close = (tx.expected_close_date - now.date()).days %}
-                                                    {% if days_to_close > 0 %}
-                                                        Closes in {{ days_to_close }}d
-                                                    {% elif days_to_close == 0 %}
-                                                        Closes today
-                                                    {% else %}
-                                                        {{ tx.expected_close_date.strftime('%b %d') }}
-                                                    {% endif %}
-                                                </span>
-                                                {% else %}
-                                                <span class="text-xs text-slate-400">No close date</span>
-                                                {% endif %}
-                                                <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                                                    ${{ "{:,.0f}".format(tx.commission) }}
-                                                </span>
-                                            </div>
-                                        </a>
-                                        {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <span class="text-xs">No deals</span>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Closed YTD Column -->
-                            <div class="pipeline-column flex-shrink-0 lg:flex-shrink">
-                                <div class="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden h-full">
-                                    <!-- Column Header -->
-                                    <div class="px-4 py-3 bg-sky-100 flex items-center justify-between">
-                                        <div class="flex items-center gap-2">
-                                            <i class="fas fa-check-circle text-sky-600 text-sm"></i>
-                                            <span class="font-semibold text-sky-700 text-sm">Closed YTD</span>
-                                        </div>
-                                        <span class="bg-sky-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-                                            {{ transactions_by_status.closed.count }}
-                                        </span>
-                                    </div>
-                                    <!-- Column Body -->
-                                    <div class="p-3 space-y-3 min-h-[200px] max-h-[400px] overflow-y-auto">
-                                        {% for tx in transactions_by_status.closed.transactions %}
-                                        <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" 
-                                           class="deal-card block p-4 cursor-pointer">
-                                            <div class="font-semibold text-slate-800 text-sm mb-1 truncate" title="{{ tx.address }}">
-                                                {{ tx.address[:30] }}{% if tx.address|length > 30 %}...{% endif %}
-                                            </div>
-                                            <div class="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                                                <i class="fas fa-user text-sky-500"></i>
-                                                {{ tx.client_name }}
-                                            </div>
-                                            <div class="flex items-center justify-between">
-                                                {% if tx.actual_close_date %}
-                                                <span class="text-xs text-sky-600 font-medium">
-                                                    <i class="fas fa-check mr-1"></i>
-                                                    Closed {{ tx.actual_close_date.strftime('%b %d') }}
-                                                </span>
-                                                {% else %}
-                                                <span class="text-xs text-sky-500">Closed</span>
-                                                {% endif %}
-                                                <span class="text-xs font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded">
-                                                    ${{ "{:,.0f}".format(tx.commission) }}
-                                                </span>
-                                            </div>
-                                        </a>
-                                        {% else %}
-                                        <div class="flex flex-col items-center justify-center h-[160px] text-slate-400">
-                                            <i class="fas fa-inbox text-2xl mb-2"></i>
-                                            <span class="text-xs">No deals</span>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-                            </div>
-                            
+
+                <div class="mt-6 grid gap-4 md:grid-cols-3">
+                    <div class="crm-surface-muted p-4">
+                        <div class="crm-icon-block">
+                            <i class="fas fa-address-book text-sm"></i>
                         </div>
+                        <h3 class="mt-4 text-sm font-semibold text-slate-900">1. Build the database</h3>
+                        <p class="mt-2 text-sm text-slate-500">Import your sphere or add a contact.</p>
+                    </div>
+                    {% if show_transactions %}
+                    <div class="crm-surface-muted p-4">
+                        <div class="crm-icon-block">
+                            <i class="fas fa-file-contract text-sm"></i>
+                        </div>
+                        <h3 class="mt-4 text-sm font-semibold text-slate-900">2. Track active deals</h3>
+                        <p class="mt-2 text-sm text-slate-500">Add a transaction to track live deals.</p>
                     </div>
                     {% else %}
-                    <!-- Empty State -->
-                    <div class="py-12 flex flex-col items-center justify-center text-center">
-                        <div class="w-20 h-20 bg-orange-50 rounded-2xl flex items-center justify-center mb-6">
-                            <i class="fas fa-home-lg-alt text-3xl text-orange-400"></i>
+                    <div class="crm-surface-muted p-4">
+                        <div class="crm-icon-block">
+                            <i class="fas fa-user-check text-sm"></i>
                         </div>
-                        <h4 class="text-xl font-bold text-slate-800 mb-2">No Active Deals Yet</h4>
-                        <p class="text-slate-500 text-sm mb-6 max-w-sm">Start tracking your transactions to see your deals flow through the pipeline.</p>
-                        <a href="{{ url_for('transactions.create_transaction') }}" 
-                           class="btn-primary inline-flex items-center px-5 py-2.5 text-sm">
-                            <i class="fas fa-plus mr-2"></i>
-                            Start Your First Transaction
-                        </a>
+                        <h3 class="mt-4 text-sm font-semibold text-slate-900">2. Keep follow-up tight</h3>
+                        <p class="mt-2 text-sm text-slate-500">Use tasks to keep follow-up tight.</p>
                     </div>
                     {% endif %}
+                    <div class="crm-surface-muted p-4">
+                        <div class="crm-icon-block">
+                            <i class="fas fa-tasks text-sm"></i>
+                        </div>
+                        <h3 class="mt-4 text-sm font-semibold text-slate-900">3. Work your next action</h3>
+                        <p class="mt-2 text-sm text-slate-500">Tasks and top contacts surface here.</p>
+                    </div>
                 </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="crm-kpi-grid mb-6">
+            <div class="crm-kpi">
+                <div class="crm-kpi__label">Potential commission</div>
+                <div class="crm-kpi__value">${{ "{:,.0f}".format(total_commission) }}</div>
+                <div class="crm-kpi__meta">Across {{ total_contacts }} tracked contacts.</div>
+            </div>
+            <div class="crm-kpi">
+                <div class="crm-kpi__label">Tracked contacts</div>
+                <div class="crm-kpi__value">{{ total_contacts }}</div>
+                <div class="crm-kpi__meta">{% if show_all %}Organization-wide view{% else %}Your working book{% endif %}</div>
+            </div>
+            <div class="crm-kpi">
+                <div class="crm-kpi__label">Average commission</div>
+                <div class="crm-kpi__value">${{ "{:,.0f}".format(avg_commission) }}</div>
+                <div class="crm-kpi__meta">Per contact with tracked value.</div>
             </div>
         </div>
         {% endif %}
 
-        <!-- Upcoming Tasks and Todos Section -->
-        <div class="mb-6 md:mb-8 grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-            <!-- Upcoming Tasks Section -->
-            <div class="dashboard-card overflow-hidden">
-                <!-- Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200">
-                    <div class="flex items-center justify-between gap-3 mb-3">
-                        <div class="flex items-center space-x-3 min-w-0">
-                            <div class="icon-tile w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 flex-shrink-0">
-                                <i class="fas fa-tasks text-white"></i>
+        {% if show_transactions %}
+        <section class="crm-surface mb-6">
+            <div class="crm-surface-header">
+                <div>
+                    {{ section_header('Transaction Pipeline', '', 'Pipeline', '$' ~ "{:,.0f}".format(pipeline_value) ~ ' open') }}
+                </div>
+                <div class="crm-page-actions">
+                    {% if ytd_closed_value > 0 %}
+                    {{ badge('$' ~ "{:,.0f}".format(ytd_closed_value) ~ ' closed YTD', 'success') }}
+                    {% endif %}
+                    <a href="{{ url_for('transactions.list_transactions') }}" class="crm-btn crm-btn-secondary">
+                        View all transactions
+                    </a>
+                </div>
+            </div>
+
+            <div class="crm-surface-body">
+                {% if total_deals > 0 %}
+                <div class="crm-board">
+                    <div class="crm-board-column">
+                        <div class="crm-board-column__header">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-slate-900">Preparing</span>
                             </div>
-                            <div class="min-w-0">
-                                <h3 class="text-base md:text-lg font-bold text-slate-800">Upcoming Client Tasks</h3>
-                            </div>
+                            {{ badge(transactions_by_status.preparing.count|string) }}
                         </div>
-                        <a href="{{ url_for('tasks.tasks') }}" 
-                           class="btn-secondary inline-flex items-center px-3 md:px-4 py-2 text-sm flex-shrink-0">
-                            <span class="hidden sm:inline">View all</span>
-                            <span class="sm:hidden">All</span>
-                            <i class="fas fa-arrow-right ml-2"></i>
-                        </a>
+                        <div class="crm-board-column__body">
+                            {% for tx in transactions_by_status.preparing.transactions %}
+                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
+                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
+                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span>{{ tx.status_label }}</span>
+                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    <!-- Task Window Selector -->
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-xs text-slate-500 font-medium">Showing next:</span>
-                        <div class="inline-flex items-center bg-slate-100 rounded-lg p-1 gap-1">
-                            <button onclick="updateTaskWindow(7)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 7 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
-                                    data-days="7">
-                                7 days
-                            </button>
-                            <button onclick="updateTaskWindow(30)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 30 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
-                                    data-days="30">
-                                30 days
-                            </button>
-                            <button onclick="updateTaskWindow(60)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 60 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
-                                    data-days="60">
-                                60 days
-                            </button>
-                            <button onclick="updateTaskWindow(90)" 
-                                    class="task-window-btn px-3 py-1.5 text-xs font-medium rounded-md transition-all duration-200 {% if task_window_days == 90 %}bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}"
-                                    data-days="90">
-                                90 days
-                            </button>
+
+                    <div class="crm-board-column">
+                        <div class="crm-board-column__header">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-slate-900">Active</span>
+                            </div>
+                            {{ badge(transactions_by_status.active.count|string, 'info') }}
+                        </div>
+                        <div class="crm-board-column__body">
+                            {% for tx in transactions_by_status.active.transactions %}
+                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
+                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
+                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span>{% if tx.expected_close_date %}{{ tx.expected_close_date.strftime('%b %d') }}{% else %}No close date{% endif %}</span>
+                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="crm-board-column">
+                        <div class="crm-board-column__header">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-slate-900">Under Contract</span>
+                            </div>
+                            {{ badge(transactions_by_status.under_contract.count|string, 'warning') }}
+                        </div>
+                        <div class="crm-board-column__body">
+                            {% for tx in transactions_by_status.under_contract.transactions %}
+                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
+                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
+                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span>{% if tx.expected_close_date %}{{ tx.expected_close_date.strftime('%b %d') }}{% else %}No close date{% endif %}</span>
+                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="crm-board-column">
+                        <div class="crm-board-column__header">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-slate-900">Closed YTD</span>
+                            </div>
+                            {{ badge(transactions_by_status.closed.count|string, 'success') }}
+                        </div>
+                        <div class="crm-board-column__body">
+                            {% for tx in transactions_by_status.closed.transactions %}
+                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
+                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
+                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
+                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                                    <span>{% if tx.actual_close_date %}Closed {{ tx.actual_close_date.strftime('%b %d') }}{% else %}Closed{% endif %}</span>
+                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
+                            {% endfor %}
                         </div>
                     </div>
                 </div>
+                {% else %}
+                {% call empty_state('No transactions yet', 'Add a transaction to get started.', 'fa-file-contract') %}
+                    <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">Go to contacts</a>
+                    <a href="{{ url_for('transactions.create_transaction') }}" class="crm-btn crm-btn-primary">Start first transaction</a>
+                {% endcall %}
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
 
-                <!-- Task List -->
-                <div class="overflow-y-auto" style="max-height: 420px;">
+        <div class="mb-6 grid gap-4 xl:grid-cols-2">
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    <div>
+                        {{ section_header('Upcoming Client Tasks', '', 'Tasks') }}
+                    </div>
+                    <div class="flex flex-col items-end gap-3">
+                        <div class="crm-segment">
+                            {% for days in [7, 30, 60, 90] %}
+                            <button type="button"
+                                    data-action="dashboard-page#setTaskWindow"
+                                    data-days="{{ days }}"
+                                    data-dashboard-page-target="taskWindowButton"
+                                    class="crm-segment__item {% if task_window_days == days %}is-active{% endif %}">
+                                {{ days }}d
+                            </button>
+                            {% endfor %}
+                        </div>
+                        <a href="{{ url_for('tasks.tasks') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">View all tasks</a>
+                    </div>
+                </div>
+                <div class="crm-surface-body">
                     {% if upcoming_tasks %}
-                    <div class="divide-y divide-slate-100">
+                    <div class="crm-stack">
                         {% for task in upcoming_tasks %}
                         {% set task_date = task.due_date.date() %}
                         {% set current_date = now.date() %}
                         {% set days_until_due = (task_date - current_date).days %}
-                        
-                        <!-- Desktop Task View -->
-                        <div class="task-item group transition-all duration-200 hidden md:block">
-                            <div class="p-4">
-                                <div class="flex items-start">
-                                    <!-- Left Side: Priority and Status -->
-                                    <div class="flex items-center space-x-3">
-                                        <!-- Status Checkbox -->
-                                        <div class="flex items-center">
-                                            <input type="checkbox"
-                                                class="h-5 w-5 text-orange-500 rounded border-2 border-slate-300 focus:ring-orange-500 focus:ring-offset-0 cursor-pointer transition-colors hover:border-orange-400"
-                                                {% if task.status == 'completed' %}checked{% endif %}
-                                                onchange="updateTaskStatus({{ task.id }}, this.checked)">
-                                        </div>
-                                        <!-- Priority -->
-                                        <div class="relative">
-                                            <button onclick="togglePriorityMenu({{ task.id }})"
-                                                    class="w-8 h-8 rounded-lg flex items-center justify-center transition-colors {% if task.priority == 'high' %}bg-red-50 text-red-600 hover:bg-red-100{% elif task.priority == 'medium' %}bg-amber-50 text-amber-600 hover:bg-amber-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %}">
-                                                <i class="fas fa-flag text-sm"></i>
-                                            </button>
-                                            <div id="priority-menu-{{ task.id }}"
-                                                 class="hidden fixed mt-1 w-36 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[100] overflow-hidden">
-                                                <div class="py-1" role="menu">
-                                                    <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
-                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-red-500 mr-3"></span>
-                                                        High
-                                                    </button>
-                                                    <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
-                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-amber-500 mr-3"></span>
-                                                        Medium
-                                                    </button>
-                                                    <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
-                                                            class="flex items-center px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                                        <span class="w-3 h-3 rounded-full bg-green-500 mr-3"></span>
-                                                        Low
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Task Info (Middle) -->
-                                    <div class="flex-1 min-w-0 ml-4">
-                                        <div class="flex items-center flex-wrap gap-2">
-                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                               class="text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors">
-                                                {{ task.subject }}
-                                            </a>
-                                            <div class="flex items-center space-x-2">
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
-                                                    {{ task.task_type.name }}
-                                                </span>
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-50 text-slate-500">
-                                                    {{ task.task_subtype.name }}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {% if current_user.role == 'admin' and show_all %}
-                                        <div class="flex items-center text-slate-500 text-sm mt-1">
-                                            <div class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium mr-2">
-                                                {{ task.assigned_to.first_name[0] }}{{ task.assigned_to.last_name[0] }}
-                                            </div>
-                                            <span>{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name }}</span>
-                                        </div>
-                                        {% endif %}
-
-                                        <!-- Task Details -->
-                                        <div class="mt-2 flex items-center flex-wrap gap-3 text-sm text-slate-500">
-                                            <!-- Due Date with Color Coding -->
-                                            <div class="flex items-center px-2 py-1 rounded {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-amber-50 text-amber-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                                <i class="far fa-calendar-alt mr-1.5"></i>
-                                                <span class="font-medium">
-                                                    {% if days_until_due < 0 %}
-                                                        Overdue by {{ days_until_due|abs }} day{{ 's' if days_until_due|abs != 1 }}
-                                                    {% elif days_until_due == 0 %}
-                                                        Due today
-                                                    {% elif days_until_due == 1 %}
-                                                        Due tomorrow
-                                                    {% else %}
-                                                        Due in {{ days_until_due }} days
-                                                    {% endif %}
-                                                </span>
-                                            </div>
-
-                                            <!-- Contact -->
-                                            {% if task.contact %}
-                                            <div class="flex items-center">
-                                                <i class="far fa-user mr-1.5 text-slate-400"></i>
-                                                <a href="#" 
-                                                   onclick="openContactModal({{ task.contact.id }}); return false;"
-                                                   class="hover:text-orange-600 transition-colors">
-                                                    {{ task.contact.first_name }} {{ task.contact.last_name }}
-                                                </a>
-                                            </div>
-                                            {% endif %}
-
-                                            <!-- Scheduled Time -->
-                                            {% if task.scheduled_time %}
-                                            <div class="flex items-center">
-                                                <i class="far fa-clock mr-1.5 text-slate-400"></i>
-                                                {{ task.scheduled_time.strftime('%I:%M %p') }}
-                                            </div>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-
-                                    <!-- Right Side: Quick Actions -->
-                                    <div class="flex items-center space-x-2 ml-4">
-                                        <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
-                                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                               class="p-2 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                               title="View Details">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <button onclick="deleteTask({{ task.id }})"
-                                                    class="p-2 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Delete Task">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Mobile Task View -->
-                        <div class="task-item md:hidden p-4">
+                        <div class="crm-list-item">
                             <div class="flex items-start gap-3">
-                                <!-- Checkbox -->
                                 <input type="checkbox"
-                                    class="mt-1 h-5 w-5 text-orange-500 rounded border-2 border-slate-300 focus:ring-orange-500 cursor-pointer flex-shrink-0"
-                                    {% if task.status == 'completed' %}checked{% endif %}
-                                    onchange="updateTaskStatus({{ task.id }}, this.checked)">
-                                
-                                <!-- Task Content -->
-                                <div class="flex-1 min-w-0">
+                                       class="mt-1 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                                       {% if task.status == 'completed' %}checked{% endif %}
+                                       onchange="updateTaskStatus({{ task.id }}, this.checked)">
+                                <div class="min-w-0">
                                     <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                       class="block font-semibold text-slate-800 mb-1">
+                                       class="crm-table-link block truncate">
                                         {{ task.subject }}
                                     </a>
-                                    
-                                    <!-- Due date badge -->
-                                    <div class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium mb-2 {% if days_until_due < 0 %}bg-red-50 text-red-600{% elif days_until_due == 0 %}bg-amber-50 text-amber-600{% elif days_until_due <= 2 %}bg-amber-50 text-amber-600{% else %}bg-slate-100 text-slate-600{% endif %}">
-                                        <i class="far fa-calendar-alt mr-1"></i>
-                                        {% if days_until_due < 0 %}Overdue{% elif days_until_due == 0 %}Today{% elif days_until_due == 1 %}Tomorrow{% else %}{{ days_until_due }}d{% endif %}
-                                    </div>
-                                    
-                                    <!-- Meta info row -->
-                                    <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                        <!-- Priority indicator -->
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded {% if task.priority == 'high' %}bg-red-50 text-red-600{% elif task.priority == 'medium' %}bg-amber-50 text-amber-600{% else %}bg-green-50 text-green-600{% endif %}">
-                                            <i class="fas fa-flag mr-1 text-[10px]"></i>{{ task.priority|capitalize }}
-                                        </span>
-                                        
-                                        <!-- Type -->
-                                        <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                                            {{ task.task_type.name }}
-                                        </span>
-                                        
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                        {{ badge(task.task_type.name) }}
+                                        {% if days_until_due < 0 %}
+                                        {{ badge('Overdue ' ~ (days_until_due|abs) ~ 'd', 'warning') }}
+                                        {% elif days_until_due == 0 %}
+                                        {{ badge('Due today', 'warning') }}
+                                        {% elif days_until_due == 1 %}
+                                        {{ badge('Due tomorrow', 'accent') }}
+                                        {% else %}
+                                        {{ badge('Due in ' ~ days_until_due ~ 'd') }}
+                                        {% endif %}
                                         {% if task.contact %}
-                                        <span class="flex items-center">
-                                            <i class="far fa-user mr-1"></i>{{ task.contact.first_name }} {{ task.contact.last_name }}
-                                        </span>
+                                        <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                                           class="text-xs font-medium text-slate-600 hover:text-slate-900">
+                                            {{ task.contact.first_name }} {{ task.contact.last_name }}
+                                        </a>
                                         {% endif %}
                                     </div>
                                 </div>
-                                
-                                <!-- View arrow -->
-                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                                   class="flex-shrink-0 p-2 text-slate-400">
-                                    <i class="fas fa-chevron-right"></i>
-                                </a>
                             </div>
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
+                               class="text-slate-400 hover:text-slate-700">
+                                <i class="fas fa-chevron-right text-xs"></i>
+                            </a>
                         </div>
                         {% endfor %}
                     </div>
                     {% else %}
-                    <div class="px-6 py-12 text-center">
-                        <div class="w-16 h-16 bg-orange-50 rounded-xl flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-tasks text-orange-400 text-2xl"></i>
-                        </div>
-                        <div class="text-slate-500 font-medium mb-2">No upcoming client tasks</div>
-                        <a href="{{ url_for('tasks.create_task') }}" 
-                           class="inline-flex items-center text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus mr-2"></i>
-                            Create a new client task
-                        </a>
-                    </div>
+                    {% call empty_state('No upcoming client tasks', 'Create a task to get started.', 'fa-tasks') %}
+                        <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Create task</a>
+                    {% endcall %}
                     {% endif %}
                 </div>
-            </div>
+            </section>
 
-            <!-- Active Todos Section -->
-            <div class="dashboard-card overflow-hidden">
-                <!-- Header -->
-                <div class="px-4 md:px-6 py-4 md:py-5 section-header border-b border-slate-200 flex items-center justify-between gap-3">
-                    <div class="flex items-center space-x-3 min-w-0">
-                        <div class="icon-tile w-10 h-10 bg-gradient-to-br from-violet-500 to-violet-600 flex-shrink-0">
-                            <i class="fas fa-check-square text-white"></i>
-                        </div>
-                        <div class="min-w-0">
-                            <h3 class="text-base md:text-lg font-bold text-slate-800">Active To Do's</h3>
-                            <p class="text-xs md:text-sm text-slate-500 hidden sm:block">Your current to do list</p>
-                        </div>
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    <div>
+                        {{ section_header("Personal To-Do List", "", "To Do") }}
                     </div>
-                    <a href="{{ url_for('user_todo.user_todo') }}" 
-                       class="btn-secondary inline-flex items-center px-3 md:px-4 py-2 text-sm flex-shrink-0">
-                        <span class="hidden sm:inline">View all</span>
-                        <span class="sm:hidden">All</span>
-                        <i class="fas fa-arrow-right ml-2"></i>
-                    </a>
+                    <a href="{{ url_for('user_todo.user_todo') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Open full list</a>
                 </div>
-
-                <!-- Todo List -->
-                <div class="overflow-y-auto" style="max-height: 420px;">
-                    <div class="px-4 md:px-6 py-4 md:py-6">
-                        <!-- New Todo Input -->
-                        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
-                            <div class="flex-1 relative">
-                                <input type="text" id="dashboardNewTodoInput" 
-                                       class="dashboard-input block w-full rounded-lg border border-slate-200 bg-white pl-11 pr-4 py-3 text-slate-900 placeholder-slate-400 hover:border-slate-300 transition-colors" 
-                                       placeholder="Add a new to do...">
-                                <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400">
-                                    <i class="fas fa-plus-circle"></i>
-                                </span>
-                            </div>
-                            <button id="dashboardAddTodoBtn" 
-                                    class="btn-primary px-5 py-3 text-sm">
-                                Add To Do
-                            </button>
-                        </div>
-                        <div class="h-[228px] overflow-y-auto">
-                            <ul id="dashboardActiveTodoList" class="space-y-3">
-                                <!-- Active todos will be inserted here via JavaScript -->
-                            </ul>
-                        </div>
+                <div class="crm-surface-body">
+                    <div class="mb-4 flex flex-col gap-3 sm:flex-row">
+                        <input type="text"
+                               id="dashboardNewTodoInput"
+                               class="crm-input flex-1"
+                               placeholder="Add a personal to do...">
+                        <button id="dashboardAddTodoBtn" class="crm-btn crm-btn-primary">
+                            Add to do
+                        </button>
+                    </div>
+                    <div class="max-h-[320px] overflow-y-auto">
+                        <ul id="dashboardActiveTodoList" class="space-y-3"></ul>
                     </div>
                 </div>
-            </div>
+            </section>
         </div>
 
-        <!-- Charts and Tables Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-            <!-- Group Distribution Chart -->
-            <div class="dashboard-card p-4 md:p-6 lg:col-span-1 overflow-hidden">
-                <div class="flex items-center justify-between mb-4 md:mb-6 gap-2">
-                    <div class="flex items-center space-x-3 min-w-0">
-                        <div class="icon-tile w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 flex-shrink-0">
-                            <i class="fas fa-pie-chart text-white"></i>
-                        </div>
-                        <h3 class="text-base md:text-lg font-bold text-slate-800">Contact Groups</h3>
+        {% if total_contacts > 0 %}
+        <div class="grid gap-4 xl:grid-cols-3">
+            <section class="crm-surface xl:col-span-1">
+                <div class="crm-surface-header">
+                    <div>
+                        {{ section_header('Contact Groups', '', 'Segments') }}
                     </div>
-                    <span class="text-xs md:text-sm font-medium text-slate-500 bg-slate-100 px-2 md:px-3 py-1 rounded-full flex-shrink-0">Distribution</span>
+                    {{ badge(group_stats|length ~ ' active', 'info') }}
                 </div>
-                <div id="groupChart" style="min-height: 250px;" class="w-full"></div>
-                <div class="mt-4 pt-4 border-t border-slate-200 overflow-y-auto" style="max-height: 200px;">
-                    <div class="space-y-2">
+                <div class="crm-surface-body">
+                    {% if group_stats %}
+                    <div id="groupChart" class="mx-auto min-h-[220px]"></div>
+                    <div class="mt-4 space-y-2 border-t border-slate-200 pt-4">
                         {% for group in group_stats %}
-                        <div class="flex items-center justify-between text-sm p-2 rounded-lg hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center">
-                                <div class="w-3 h-3 rounded-full mr-3" style="background: {{ ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'][loop.index0 % 6] }}"></div>
-                                <span class="text-slate-600 font-medium">{{ group.name }}</span>
-                            </div>
-                            <span class="font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded text-xs">{{ group.count }}</span>
+                        <div class="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+                            <span class="text-sm font-medium text-slate-700">{{ group.name }}</span>
+                            {{ badge(group.count|string) }}
                         </div>
                         {% endfor %}
                     </div>
+                    {% else %}
+                    {% call empty_state('No groups yet', 'Create groups to segment contacts.', 'fa-layer-group') %}{% endcall %}
+                    {% endif %}
                 </div>
-            </div>
+            </section>
 
-            <!-- Top Contacts Table -->
-            <div class="dashboard-card p-4 md:p-6 lg:col-span-2 overflow-hidden">
-                <div class="flex items-center space-x-3 mb-4 md:mb-6">
-                    <div class="icon-tile w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600">
-                        <i class="fas fa-trophy text-white"></i>
+            <section class="crm-surface xl:col-span-2">
+                <div class="crm-surface-header">
+                    <div>
+                        {{ section_header('Top Contacts by Commission', '', 'Contacts') }}
                     </div>
-                    <h3 class="text-lg font-bold text-slate-800">Top Contacts by Commission</h3>
+                    <a href="{{ url_for('main.contacts') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Open contacts</a>
                 </div>
-                
-                <!-- Desktop Table (hidden on mobile) -->
-                <div class="hidden md:block overflow-x-auto">
-                    <table class="min-w-full">
-                        <thead>
-                            <tr class="border-b border-slate-200">
-                                {% if current_user.role == 'admin' and show_all %}
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Owner</th>
-                                {% endif %}
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Name</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Contact</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
-                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Commission</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100">
-                            {% for contact in top_contacts %}
-                            <tr class="hover:bg-slate-50 transition-colors">
-                                {% if current_user.role == 'admin' and show_all %}
-                                <td class="px-4 py-4">
-                                    <div class="flex items-center">
-                                        <div class="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-xs font-medium text-slate-600 mr-2">
-                                            {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
-                                        </div>
-                                        <span class="text-sm text-slate-600">
-                                            {{ contact.owner.first_name }} {{ contact.owner.last_name }}
-                                        </span>
-                                    </div>
-                                </td>
-                                {% endif %}
-                                <td class="px-4 py-4 whitespace-nowrap">
-                                    <div class="flex flex-col">
-                                        <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
-                                           class="text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors">
-                                            {{ contact.first_name }} {{ contact.last_name }}
-                                        </a>
-                                        <div class="flex flex-wrap gap-1 mt-1">
-                                            {% for group in contact.groups[:2] %}
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
-                                                    {{ group.name }}
-                                                </span>
-                                            {% endfor %}
-                                            {% if contact.groups|length > 2 %}
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
-                                                    +{{ contact.groups|length - 2 }}
-                                                </span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="px-4 py-4 text-sm text-slate-500">
-                                    {{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}
-                                </td>
-                                <td class="px-4 py-4 text-sm text-slate-500 max-w-[200px] truncate">
-                                    {{ contact.email or '--' }}
-                                </td>
-                                <td class="px-4 py-4 text-right">
-                                    <span class="text-sm font-bold text-slate-800">
-                                        ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
-                                    </span>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- Mobile Cards (hidden on desktop) -->
-                <div class="md:hidden space-y-3">
-                    {% for contact in top_contacts %}
-                    <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" 
-                       class="block bg-slate-50 rounded-lg p-4 hover:bg-slate-100 transition-colors border border-slate-200">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center">
-                                <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 font-semibold mr-3">
-                                    {{ contact.first_name[0] }}{{ contact.last_name[0] }}
-                                </div>
-                                <div>
-                                    <div class="font-semibold text-slate-800">{{ contact.first_name }} {{ contact.last_name }}</div>
+                <div class="crm-surface-body">
+                    {% if top_contacts %}
+                    <div class="crm-table-wrap border-0 shadow-none">
+                        <table class="crm-table">
+                            <thead>
+                                <tr>
                                     {% if current_user.role == 'admin' and show_all %}
-                                    <div class="text-xs text-slate-500">{{ contact.owner.first_name }} {{ contact.owner.last_name }}</div>
+                                    <th>Owner</th>
                                     {% endif %}
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-lg font-bold text-slate-800">
-                                    ${{ "{:,.0f}".format(contact.potential_commission or 0) }}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span class="flex items-center">
-                                <i class="far fa-calendar-alt mr-1"></i>
-                                {{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never contacted' }}
-                            </span>
-                            {% for group in contact.groups[:2] %}
-                            <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-600">{{ group.name }}</span>
-                            {% endfor %}
-                        </div>
-                    </a>
-                    {% endfor %}
+                                    <th>Name</th>
+                                    <th>Last Contact</th>
+                                    <th>Email</th>
+                                    <th class="text-right">Commission</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contact in top_contacts %}
+                                <tr onclick="window.location.href='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">
+                                    {% if current_user.role == 'admin' and show_all %}
+                                    <td>
+                                        <div class="flex items-center gap-2">
+                                            {{ avatar(contact.owner.first_name[0] ~ contact.owner.last_name[0], 'sm') }}
+                                            <span>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</span>
+                                        </div>
+                                    </td>
+                                    {% endif %}
+                                    <td>
+                                        <div class="flex items-center gap-3">
+                                            {{ avatar(contact.first_name[0] ~ contact.last_name[0]) }}
+                                            <div class="min-w-0">
+                                                <div class="crm-table-link truncate">{{ contact.first_name }} {{ contact.last_name }}</div>
+                                                <div class="mt-1 flex flex-wrap items-center gap-1">
+                                                    {% for group in contact.groups[:2] %}
+                                                    {{ badge(group.name) }}
+                                                    {% endfor %}
+                                                    {% if contact.groups|length > 2 %}
+                                                    {{ badge('+' ~ (contact.groups|length - 2)) }}
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never' }}</td>
+                                    <td>{{ contact.email or '--' }}</td>
+                                    <td class="text-right font-semibold text-slate-900">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    {% call empty_state('No high-value contacts yet', 'Add commission values to contacts.', 'fa-user-tie') %}{% endcall %}
+                    {% endif %}
                 </div>
-            </div>
+            </section>
         </div>
+        {% endif %}
     </div>
 </div>
 
-<!-- Include modals -->
-{% include 'modals/contact_modal.html' %}
 {% if org_has_feature('AI_DAILY_TODO') %}
 {% include 'modals/daily_todo_modal.html' %}
 {% endif %}
-{% include 'modals/dashboard_onboarding.html' %}
 
-<!-- Todo Item Template -->
 <template id="todoItemTemplate">
-    <li class="todo-item min-h-[68px] group bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-        <div class="px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center flex-1 min-w-0">
-                <div class="flex-shrink-0 flex items-center space-x-3">
-                    <div class="relative">
-                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded cursor-pointer transition-colors hover:border-orange-400">
-                        <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white scale-0 transition-transform duration-200 pointer-events-none check-icon">
-                            <i class="fas fa-check text-xs"></i>
-                        </span>
-                    </div>
-                </div>
-                <div class="ml-4 flex-1 relative group">
-                    <!-- Normal Text View -->
-                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-                        <!-- Text will be inserted here -->
-                    </p>
-                    <!-- Edit Input (hidden by default) -->
-                    <div class="todo-edit-container hidden absolute inset-0 flex items-center">
-                        <input type="text" 
-                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-colors" 
-                               placeholder="Edit to do...">
-                    </div>
-                    <!-- Edit hint (visible on hover) -->
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <i class="fas fa-pencil-alt mr-1"></i>Double-click to edit
+    <li class="todo-item group rounded-md border border-slate-200 bg-white">
+        <div class="flex items-center justify-between gap-4 px-4 py-3">
+            <div class="flex min-w-0 flex-1 items-center gap-3">
+                <div class="relative">
+                    <input type="checkbox" class="todo-checkbox h-5 w-5 rounded border-2 border-slate-300 text-orange-500 focus:ring-0 focus:outline-none cursor-pointer">
+                    <span class="check-icon pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 text-white transition-transform duration-200">
+                        <i class="fas fa-check text-[10px]"></i>
                     </span>
                 </div>
+                <div class="relative flex-1">
+                    <p class="todo-text cursor-pointer rounded px-3 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"></p>
+                    <div class="todo-edit-container absolute inset-0 hidden items-center">
+                        <input type="text"
+                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none"
+                               placeholder="Edit to do...">
+                    </div>
+                </div>
             </div>
-            <div class="ml-4 flex-shrink-0">
-                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-colors rounded hover:bg-red-50 group-hover:opacity-100 opacity-0">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            <button class="delete-todo rounded p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
     </li>
 </template>
 
-<!-- ApexCharts -->
+{% if group_stats %}
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+{% endif %}
 <script>
-// Task update function
 function updateTaskStatus(taskId, completed) {
     fetch(`/tasks/${taskId}/quick-update`, {
         method: 'POST',
@@ -1180,279 +505,50 @@ function updateTaskStatus(taskId, completed) {
     });
 }
 
-// Priority update functions
-function quickUpdatePriority(taskId, priority) {
-    fetch(`/tasks/${taskId}/quick-update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `priority=${priority}`
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task priority');
-    });
-}
-
-function togglePriorityMenu(taskId) {
-    const button = event.currentTarget;
-    const menu = document.getElementById(`priority-menu-${taskId}`);
-    const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-    
-    // Close all other menus
-    allMenus.forEach(m => {
-        if (m.id !== `priority-menu-${taskId}`) {
-            m.classList.add('hidden');
-        }
-    });
-    
-    // Toggle this menu
-    menu.classList.toggle('hidden');
-    
-    if (!menu.classList.contains('hidden')) {
-        // Get button position
-        const rect = button.getBoundingClientRect();
-        
-        // Position menu below the button
-        menu.style.left = `${rect.left}px`;
-        menu.style.top = `${rect.bottom}px`;
-        
-        // Ensure menu doesn't go off screen
-        const menuRect = menu.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        
-        if (menuRect.right > viewportWidth) {
-            menu.style.left = `${viewportWidth - menuRect.width - 10}px`;
-        }
-        
-        if (menuRect.bottom > viewportHeight) {
-            menu.style.top = `${rect.top - menuRect.height}px`;
-        }
-    }
-}
-
-// Close priority menus when clicking outside
-document.addEventListener('click', function(event) {
-    const isClickInsideMenu = event.target.closest('[id^="priority-menu-"]');
-    const isClickOnPriorityButton = event.target.closest('button[onclick^="togglePriorityMenu"]');
-    
-    if (!isClickInsideMenu && !isClickOnPriorityButton) {
-        const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-        allMenus.forEach(menu => menu.classList.add('hidden'));
-    }
-});
-
-// Task window preference update function
-function updateTaskWindow(days) {
-    fetch('/api/update-task-window', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ days: parseInt(days) })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            // Reload the page to show tasks with new window
-            window.location.reload();
-        } else {
-            alert('Error updating task window: ' + (data.error || 'Unknown error'));
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task window preference');
-    });
-}
-
-// Pipeline Value Counter Animation
+{% if group_stats %}
 document.addEventListener('DOMContentLoaded', function() {
-    const counterEl = document.getElementById('pipelineValueCounter');
-    if (counterEl) {
-        const targetValue = parseFloat(counterEl.dataset.value) || 0;
-        const duration = 1500; // ms
-        const startTime = performance.now();
-        
-        function formatCurrency(value) {
-            return '$' + Math.round(value).toLocaleString('en-US');
-        }
-        
-        function easeOutExpo(t) {
-            return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-        }
-        
-        function animate(currentTime) {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const easedProgress = easeOutExpo(progress);
-            const currentValue = targetValue * easedProgress;
-            
-            counterEl.textContent = formatCurrency(currentValue);
-            
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            }
-        }
-        
-        // Start animation after a small delay for effect
-        setTimeout(() => {
-            requestAnimationFrame(animate);
-        }, 300);
-    }
-});
+    const chartRoot = document.querySelector('#groupChart');
+    if (!chartRoot) return;
 
-// Initialize Group Distribution Chart
-document.addEventListener('DOMContentLoaded', function() {
-    var groupData = {{ group_stats|tojson|safe }};
-    var chartOptions = {
-        series: groupData.map(function(item) { return item.count; }),
+    const groupData = {{ group_stats|tojson|safe }};
+    if (!groupData.length) return;
+
+    const chart = new ApexCharts(chartRoot, {
+        series: groupData.map(item => item.count),
         chart: {
             width: '100%',
-            height: 250,
+            height: 220,
             type: 'donut'
         },
-        labels: groupData.map(function(item) { return item.name; }),
-        colors: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'],
-        plotOptions: {
-            pie: {
-                donut: {
-                    size: '75%'
-                }
-            }
-        },
+        labels: groupData.map(item => item.name),
+        colors: ['#f97316', '#0f172a', '#475569', '#94a3b8', '#cbd5e1', '#e2e8f0'],
         dataLabels: {
             enabled: false
         },
         legend: {
             show: false
         },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '78%'
+                }
+            }
+        },
+        stroke: {
+            width: 0
+        },
         tooltip: {
-            enabled: true,
             y: {
                 formatter: function(value) {
                     return value + ' contacts';
                 }
             }
         }
-    };
+    });
 
-    var chart = new ApexCharts(document.querySelector("#groupChart"), chartOptions);
     chart.render();
 });
-</script>
-
-{% endblock %}
-
-{% block scripts %}
-<!-- Include the daily todo JavaScript -->
-<script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
-
-<!-- Todo Item Template -->
-<template id="todoItemTemplate">
-    <li class="todo-item min-h-[68px] group bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors">
-        <div class="px-4 py-3 flex items-center justify-between">
-            <div class="flex items-center flex-1 min-w-0">
-                <div class="flex-shrink-0 flex items-center space-x-3">
-                    <div class="relative">
-                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-500 focus:ring-0 focus:outline-none border-2 border-slate-300 rounded cursor-pointer transition-colors hover:border-orange-400">
-                        <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white scale-0 transition-transform duration-200 pointer-events-none check-icon">
-                            <i class="fas fa-check text-xs"></i>
-                        </span>
-                    </div>
-                </div>
-                <div class="ml-4 flex-1 relative group">
-                    <!-- Normal Text View -->
-                    <p class="todo-text text-sm font-medium text-slate-800 break-words py-2 px-3 rounded hover:bg-slate-50 cursor-pointer transition-colors">
-                        <!-- Text will be inserted here -->
-                    </p>
-                    <!-- Edit Input (hidden by default) -->
-                    <div class="todo-edit-container hidden absolute inset-0 flex items-center">
-                        <input type="text" 
-                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-slate-300 transition-colors" 
-                               placeholder="Edit to do...">
-                    </div>
-                    <!-- Edit hint (visible on hover) -->
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <i class="fas fa-pencil-alt mr-1"></i>Double-click to edit
-                    </span>
-                </div>
-            </div>
-            <div class="ml-4 flex-shrink-0">
-                <button class="delete-todo p-2 text-slate-400 hover:text-red-500 transition-colors rounded hover:bg-red-50 group-hover:opacity-100 opacity-0">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    </li>
-</template>
-
-<!-- Task functionality -->
-<script>
-function handleTaskComplete(event, taskId) {
-    // Prevent the default checkbox action so we can do our fetch first
-    event.preventDefault();
-
-    const checkbox = event.target;          // The checkbox that was clicked
-    const isCompleted = checkbox.checked;   // true if box is checked
-    const taskElement = checkbox.closest('.group'); // The .group container for that task row
-
-    // Send the status update to the server
-    fetch(`/tasks/${taskId}/quick-update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `status=${isCompleted ? 'completed' : 'pending'}`
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        return response.json(); // Expecting {status: 'success'} from your route
-    })
-    .then(data => {
-        // Once the task is successfully updated, do the fade-out
-        taskElement.style.transition = 'opacity 0.3s ease-out';
-        taskElement.style.opacity = '0';
-
-        setTimeout(() => {
-            // Remove the task from the DOM
-            taskElement.remove();
-
-            // Optionally, if you want to show a "No upcoming tasks" message
-            // after removing all tasks, check if the container is now empty:
-            const taskListContainer = document.querySelector('.divide-y');
-            if (taskListContainer && taskListContainer.children.length === 0) {
-                taskListContainer.innerHTML = `
-                    <div class="px-6 py-8 text-center">
-                        <div class="text-slate-500">No upcoming client tasks</div>
-                        <a href="/tasks/new" 
-                           class="mt-2 inline-flex items-center text-sm text-orange-600 hover:text-orange-700">
-                            <i class="fas fa-plus mr-2"></i>
-                            Create a new client task
-                        </a>
-                    </div>
-                `;
-            }
-        }, 300);
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task status');
-        // If there was an error, revert the checkbox
-        checkbox.checked = !checkbox.checked;
-    });
-}
-
+{% endif %}
 </script>
 {% endblock %}

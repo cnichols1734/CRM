@@ -380,8 +380,11 @@ def contacts():
             else:
                 query = query.order_by(*[attr.desc() for attr in sort_attrs])
 
-    # Add eager loading for groups to avoid N+1 queries in template
-    query = query.options(selectinload(Contact.groups))
+    # Add eager loading for groups/owners to avoid N+1 queries in template
+    query = query.options(
+        selectinload(Contact.groups),
+        joinedload(Contact.owner)
+    )
     
     # Apply pagination
     total_contacts = query.count()  # Get total count before pagination
@@ -439,7 +442,10 @@ def dashboard():
     avg_commission = float(stats.avg_commission or 0)
 
     # Get top 5 contacts by commission using SQL LIMIT (not Python sort)
-    top_contacts = base_contact_query.filter(
+    top_contacts = base_contact_query.options(
+        joinedload(Contact.owner),
+        selectinload(Contact.groups)
+    ).filter(
         Contact.potential_commission.isnot(None)
     ).order_by(
         Contact.potential_commission.desc()
