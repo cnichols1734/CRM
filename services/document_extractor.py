@@ -47,7 +47,7 @@ def _render_pdf_to_images(file_data: bytes) -> list:
     doc = fitz.open(stream=file_data, filetype="pdf")
     try:
         for page in doc:
-            pix = page.get_pixmap(dpi=200)
+            pix = page.get_pixmap(dpi=150)
             png_bytes = pix.tobytes("png")
             images.append(base64.b64encode(png_bytes).decode('ascii'))
     finally:

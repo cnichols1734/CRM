@@ -172,38 +172,42 @@ def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) 
     }
 
 
-def post_upload_processing(doc, file_data: bytes):
+def post_upload_processing(doc):
     """
-    Hook for post-upload processing on fulfilled placeholder documents.
-    Spawns a background thread to extract structured data from the uploaded
-    PDF via AI vision, then stores results in doc.field_data.
-    """
-    import threading
-    import logging
+    Enqueue background AI extraction for fulfilled placeholder documents.
 
+    Non-fatal: if Redis/RQ is unavailable the upload still succeeds and
+    extraction_status stays 'pending' for later retry.
+    """
+    import logging
     from services.document_extractor import EXTRACTION_SCHEMAS
 
     if doc.template_slug not in EXTRACTION_SCHEMAS:
         return
 
-    doc_id = doc.id
-    org_id = doc.organization_id
-
-    from flask import current_app
-    app = current_app._get_current_object()
     logger = logging.getLogger(__name__)
 
-    def _run():
-        with app.app_context():
-            try:
-                from models import db
-                from services.document_extractor import extract_document_data
-                extract_document_data(doc_id, org_id, file_data)
-            except Exception as e:
-                logger.error(f"Document extraction failed for doc {doc_id}: {e}", exc_info=True)
-            finally:
-                db.session.remove()
+    try:
+        from redis import Redis
+        from rq import Queue
+        from config import Config
 
-    thread = threading.Thread(target=_run, daemon=True)
-    thread.start()
+        conn = Redis.from_url(
+            Config.REDIS_URL,
+            socket_connect_timeout=2,
+            socket_timeout=2,
+        )
+        q = Queue('doc_extraction', connection=conn)
+        q.enqueue(
+            'jobs.document_extraction.extract_document_job',
+            doc_id=doc.id,
+            org_id=doc.organization_id,
+            job_timeout=300,
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to enqueue extraction for doc {doc.id}: {e}. "
+            "extraction_status remains 'pending' for manual retry.",
+            exc_info=True,
+        )
 

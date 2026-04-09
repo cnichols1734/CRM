@@ -42,6 +42,9 @@ class Config:
     # SendGrid configuration
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
+    # Redis / RQ task queue
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
     # RentCast API configuration
     RENTCAST_API_KEY = os.getenv('RENTCAST_API_KEY')
     RENTCAST_REFRESH_HOURS = int(os.getenv('RENTCAST_REFRESH_HOURS', 48))  # Hours before allowing re-fetch
