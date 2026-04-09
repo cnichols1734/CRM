@@ -43,6 +43,10 @@ Pillow==12.1.0
 # PDF rendering (for document extraction - renders pages to images)
 PyMuPDF==1.25.4
 
+# Task queue (background document extraction)
+redis==7.4.0
+rq==2.7.0
+
 # Server
 gunicorn==23.0.0
 

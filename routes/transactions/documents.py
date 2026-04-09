@@ -986,7 +986,7 @@ def fulfill_placeholder_document(id, doc_id):
 
         db.session.commit()
 
-        post_upload_processing(doc, file_data)
+        post_upload_processing(doc)
 
         return jsonify({
             'success': True,
