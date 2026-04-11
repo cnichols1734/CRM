@@ -6,18 +6,21 @@ Usage:
     .venv/bin/python3 scripts/import_tax_data.py chambers         # Chambers only
     .venv/bin/python3 scripts/import_tax_data.py hcad             # HCAD only
     .venv/bin/python3 scripts/import_tax_data.py liberty          # Liberty only
+    .venv/bin/python3 scripts/import_tax_data.py fort_bend        # Fort Bend only
 
 Data files:
     tax_data/chambers.csv           - Chambers County (CSV, ~43k rows)
     tax_data/real_acct.txt          - Harris County main (TAB-separated, ~1.6M rows)
     tax_data/building_res.txt       - Harris County buildings (TAB-separated, ~1.3M rows)
     tax_data/liberty_county.txt     - Liberty County property file (fixed-width)
+    tax_data/fort_bend_county_tax_data/... - Fort Bend County export bundle (CSV)
 """
 import csv
 import sys
 import os
 import re
 import time
+from collections import defaultdict
 
 sys.stdout.reconfigure(line_buffering=True)
 csv.field_size_limit(sys.maxsize)
@@ -234,6 +237,65 @@ def _load_liberty_home_improvements(info_path, detail_path):
         ))
 
     return home_prop_ids, property_sq_ft, improvement_rows
+
+
+def _load_fort_bend_home_property_ids(filepath):
+    home_prop_ids = set()
+    with open(filepath, 'r', newline='', encoding='utf-8-sig', errors='replace') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            prop_id = clean(row.get('PropertyID'))
+            if not prop_id:
+                continue
+            if clean(row.get('Type')) in {'R', 'M'}:
+                home_prop_ids.add(prop_id)
+    return home_prop_ids
+
+
+def _load_fort_bend_acreage(filepath):
+    homesite_acres = defaultdict(float)
+    total_acres = defaultdict(float)
+
+    with open(filepath, 'r', newline='', encoding='utf-8-sig', errors='replace') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            prop_id = clean(row.get('PropertyID'))
+            if not prop_id:
+                continue
+
+            acreage = safe_decimal(row.get('Acres'))
+            square_feet = safe_decimal(row.get('SquareFeet'))
+            area_acres = acreage if acreage and acreage > 0 else (
+                (square_feet / 43560.0) if square_feet and square_feet > 0 else None
+            )
+            if not area_acres or area_acres <= 0:
+                continue
+
+            total_acres[prop_id] += area_acres
+            homesite_flag = safe_decimal(row.get('HomesiteFlag'))
+            if homesite_flag and homesite_flag > 0:
+                homesite_acres[prop_id] += area_acres
+
+    acreage_by_prop = {}
+    prop_ids = set(total_acres) | set(homesite_acres)
+    for prop_id in prop_ids:
+        acreage_by_prop[prop_id] = homesite_acres.get(prop_id) or total_acres.get(prop_id)
+    return acreage_by_prop
+
+
+def _fort_bend_site_addr(row):
+    situs = clean(row.get('Situs'))
+    if situs:
+        first_part = clean(situs.split(',')[0])
+        if first_part:
+            return first_part
+
+    return build_site_address(
+        clean(row.get('SitusStreetNumber')),
+        clean(row.get('SitusPreDirectional')),
+        clean(row.get('SitusStreetName')),
+        clean(row.get('SitusStreetSuffix')),
+    )
 
 
 def import_chambers(app):
@@ -655,6 +717,129 @@ def import_liberty(app):
     )
 
 
+def import_fort_bend(app):
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    base_dir = os.path.join(repo_root, 'tax_data', 'fort_bend_county_tax_data')
+
+    property_path = os.path.join(base_dir, 'PropertyProperty-E', 'PropertyDataExport4558080.txt')
+    improvement_path = os.path.join(base_dir, 'PropertyImprovement-E', 'PropertyDataExport4558083.txt')
+    land_path = os.path.join(base_dir, 'PropertyLand-E', 'PropertyDataExport4558082.txt')
+
+    missing = [path for path in [property_path, improvement_path, land_path] if not os.path.exists(path)]
+    if missing:
+        print("ERROR: Fort Bend County source files not found")
+        return
+
+    print("=== Importing Fort Bend County home data ===")
+    start = time.time()
+
+    home_prop_ids = _load_fort_bend_home_property_ids(improvement_path)
+    acreage_by_prop = _load_fort_bend_acreage(land_path)
+
+    print(f"  Fort Bend home properties identified: {len(home_prop_ids):,}")
+    print(f"  Fort Bend properties with acreage: {len(acreage_by_prop):,}")
+
+    conn = _get_raw_conn(app)
+    cursor = conn.cursor()
+
+    print("Truncating fort_bend_properties...")
+    cursor.execute("DELETE FROM fort_bend_properties")
+    conn.commit()
+
+    prop_cols = [
+        'property_id', 'quick_ref_id', 'property_number',
+        'legal_desc', 'legal_location_code', 'legal_location_desc', 'legal_acres',
+        'market_value', 'assessed_value', 'land_value', 'improvement_value',
+        'sq_ft', 'nbhd_code', 'nbhd_desc',
+        'situs', 'site_addr_1', 'normalized_site_addr',
+        'situs_pre_directional', 'situs_street_number', 'situs_street_name',
+        'situs_street_suffix', 'situs_post_directional',
+        'situs_city', 'situs_state', 'situs_zip',
+        'acreage', 'is_residential_home',
+    ]
+
+    batch = []
+    count = 0
+
+    with open(property_path, 'r', newline='', encoding='utf-8-sig', errors='replace') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            property_id = clean(row.get('PropertyID'))
+            if not property_id or property_id not in home_prop_ids:
+                continue
+
+            site_addr_1 = _fort_bend_site_addr(row)
+            acreage = acreage_by_prop.get(property_id)
+            if acreage is None:
+                acreage = safe_decimal(row.get('LegalAcres'))
+
+            market_value = safe_int(row.get('CurrMarketValue'))
+            if market_value is None:
+                market_value = safe_int(row.get('MarketValue'))
+
+            assessed_value = safe_int(row.get('CurrAssessedValue'))
+            if assessed_value is None:
+                assessed_value = safe_int(row.get('AssessedValue'))
+
+            land_value = safe_int(row.get('CurrLandValue'))
+            if land_value is None:
+                land_value = safe_int(row.get('LandValue'))
+
+            improvement_value = safe_int(row.get('CurrImprovmentValue'))
+            if improvement_value is None:
+                improvement_value = safe_int(row.get('ImprovmentValue'))
+
+            batch.append((
+                property_id,
+                clean(row.get('QuickRefID')),
+                clean(row.get('PropertyNumber')),
+                clean(row.get('LegalDesc')),
+                clean(row.get('LegalLocationCode')),
+                clean(row.get('LegalLocationDesc')),
+                safe_decimal(row.get('LegalAcres')),
+                market_value,
+                assessed_value,
+                land_value,
+                improvement_value,
+                safe_int(row.get('SquareFootage')),
+                clean(row.get('NbhdCode')),
+                clean(row.get('NbhdDesc')),
+                clean(row.get('Situs')),
+                site_addr_1,
+                normalize_address_text(site_addr_1),
+                clean(row.get('SitusPreDirectional')),
+                clean(row.get('SitusStreetNumber')),
+                clean(row.get('SitusStreetName')),
+                clean(row.get('SitusStreetSuffix')),
+                clean(row.get('SitusPostDirectional')),
+                clean(row.get('SitusCity')),
+                clean(row.get('SitusState')),
+                clean(row.get('SitusZip')),
+                acreage,
+                True,
+            ))
+
+            if len(batch) >= BATCH_SIZE:
+                _bulk_insert(cursor, 'fort_bend_properties', prop_cols, batch)
+                conn.commit()
+                count += len(batch)
+                if count % 25000 < BATCH_SIZE:
+                    elapsed = time.time() - start
+                    print(f"  Fort Bend properties: {count:,} rows... ({elapsed:.0f}s)")
+                batch = []
+
+    if batch:
+        _bulk_insert(cursor, 'fort_bend_properties', prop_cols, batch)
+        conn.commit()
+        count += len(batch)
+
+    cursor.close()
+    conn.close()
+
+    elapsed = time.time() - start
+    print(f"=== Fort Bend import complete: {count:,} properties in {elapsed:.1f}s ===")
+
+
 if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else 'all'
     app = create_app()
@@ -667,5 +852,7 @@ if __name__ == '__main__':
         import_hcad(app)
     if target in ('all', 'liberty'):
         import_liberty(app)
+    if target in ('all', 'fort_bend', 'fortbend'):
+        import_fort_bend(app)
 
     print("\nDone!")

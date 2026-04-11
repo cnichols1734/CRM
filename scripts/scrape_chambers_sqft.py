@@ -2,17 +2,16 @@
 Scrape square footage from chamberscad.org for Chambers County properties.
 
 Navigates directly to each property's detail page via URL, finds the
-Improvement Building table, and sums residential sqft (RES MAS rows).
+Improvement Building table, and sums sq ft for MLS-style Gross Living Area (GLA):
+main structure (RES MAS / RES FRM), upper/second story, half-story, additions,
+converted garage, finished attic. Excludes garages, porches, patios, unfinished
+attic, etc.
 
 Usage:
-    # Test mode: visible browser, first 3 properties
     python3 scripts/scrape_chambers_sqft.py --limit 3 --visible
-
-    # Full run: headless, all un-scraped properties with improvements
     python3 scripts/scrape_chambers_sqft.py
-
-    # Resume after interruption (only processes sq_ft IS NULL)
-    python3 scripts/scrape_chambers_sqft.py
+    # Recompute all improved properties (overwrites existing sq_ft)
+    python3 scripts/scrape_chambers_sqft.py --rescan
 
 Requires: playwright (pip install playwright && playwright install chromium)
 This is a standalone script -- playwright is NOT an app runtime dependency.
@@ -46,24 +45,29 @@ DELAY_MIN = 0.8
 DELAY_MAX = 1.2
 
 
-def get_properties_to_scrape(app, limit=None):
-    """Return list of (id, parcel_id) for Chambers properties needing sqft."""
+def get_properties_to_scrape(app, limit=None, rescan=False):
+    """Return list of (id, parcel_id) for Chambers properties to scrape.
+
+    By default only rows with sq_ft IS NULL. With rescan=True, all properties
+    with improvements (overwrites prior sq_ft).
+    """
     from models import db, ChambersProperty
 
     with app.app_context():
-        query = ChambersProperty.query.filter(
-            ChambersProperty.sq_ft.is_(None),
-            db.or_(
-                db.and_(
-                    ChambersProperty.improvement_hs_val.isnot(None),
-                    ChambersProperty.improvement_hs_val > 0,
-                ),
-                db.and_(
-                    ChambersProperty.improvement_nhs_val.isnot(None),
-                    ChambersProperty.improvement_nhs_val > 0,
-                ),
+        has_imp = db.or_(
+            db.and_(
+                ChambersProperty.improvement_hs_val.isnot(None),
+                ChambersProperty.improvement_hs_val > 0,
             ),
-        ).order_by(ChambersProperty.id)
+            db.and_(
+                ChambersProperty.improvement_nhs_val.isnot(None),
+                ChambersProperty.improvement_nhs_val > 0,
+            ),
+        )
+        query = ChambersProperty.query.filter(has_imp)
+        if not rescan:
+            query = query.filter(ChambersProperty.sq_ft.is_(None))
+        query = query.order_by(ChambersProperty.id)
 
         if limit:
             query = query.limit(limit)
@@ -88,7 +92,7 @@ def scrape_property(page, parcel_id):
     """
     Navigate directly to a property detail page and extract sqft.
 
-    Returns total residential sqft (int), or 0 if no RES MAS rows found.
+    Returns total GLA sqft (int), or 0 if no matching improvement rows.
     Raises on navigation/scraping failure.
     """
     url = DETAIL_URL.format(parcel_id=parcel_id)
@@ -109,14 +113,50 @@ def scrape_property(page, parcel_id):
 
 def extract_residential_sqft(page):
     """
-    Parse the Improvement Building table on the detail page.
-    Sum the Sqft column for rows where Type starts with "RES MAS".
-    Returns int (0 if no residential rows found).
+    Sum Improvement Building sq ft for MLS-style GLA (finished living area).
+
+    Includes: RES MAS / RES FRM, UPPER / 2ND FLR, 1/2 STRY, ADD / ADDN,
+    CONV GAR, FIN ATTIC. Excludes garages (non-converted), porches, patios,
+    unfinished attic, storage, etc.
     """
     total = 0
 
     # The page uses JavaScript to render tables; extract via JS for reliability
     sqft_data = page.evaluate('''() => {
+        function norm(s) {
+            return s.replace(/\\s+/g, ' ').trim().toUpperCase();
+        }
+        /** CAD "Type" cell → counts toward gross living area (MLS-style). */
+        function isGlaType(typeRaw) {
+            const t = norm(typeRaw);
+            if (!t) return false;
+
+            // Converted garage counts as living area; check before generic GAR exclude
+            if (t.includes('CONV') && t.includes('GAR')) return true;
+
+            // Main structure
+            if (t.startsWith('RES MAS') || t.startsWith('RES FRM')) return true;
+
+            // Additional finished stories / levels
+            if (t === 'UPPER' || t.startsWith('UPPER ')) return true;
+            if (t.includes('2ND') && (t.includes('FLR') || t.includes('FLOOR'))) return true;
+            if ((t.includes('1/2') || t.includes('HALF')) && t.includes('STRY')) return true;
+
+            // Finished additions (whole-word ADD / ADDN)
+            if (/\\bADDN?\\b/.test(t)) return true;
+
+            // Finished attic
+            if ((t.includes('FIN') && t.includes('ATTIC')) || t.startsWith('FIN ATT')) return true;
+
+            // Non-GLA — do not count
+            if (t.includes('UNF') && t.includes('ATTIC')) return false;
+            if (/GARAGE|ATT\\s*GAR|DET\\s*GAR|\\bGAR\\b/i.test(t)) return false;
+            if (/POR\\s*CH|PORCH|OPEN\\s*PORCH|CVRD\\s*PCH|CVRD\\s*PORCH/i.test(t)) return false;
+            if (/\\bPATIO\\b|\\bDECK\\b|STORAGE|SHED|OUTBLDG|OUT\\s*BLDG/i.test(t)) return false;
+
+            return false;
+        }
+
         const results = [];
         const tables = document.querySelectorAll('table');
         for (const table of tables) {
@@ -130,10 +170,10 @@ def extract_residential_sqft(page):
             for (const row of rows) {
                 const cells = row.querySelectorAll('td');
                 if (cells.length <= Math.max(typeIdx, sqftIdx)) continue;
-                const type = cells[typeIdx].textContent.trim().toUpperCase();
+                const type = cells[typeIdx].textContent.trim();
                 const sqft = cells[sqftIdx].textContent.trim().replace(/,/g, '');
-                if (type.startsWith('RES MAS')) {
-                    results.push({type, sqft: parseInt(sqft) || 0});
+                if (isGlaType(type)) {
+                    results.push({type: norm(type), sqft: parseInt(sqft, 10) || 0});
                 }
             }
         }
@@ -152,14 +192,19 @@ def main():
                         help='Max properties to scrape (default: all)')
     parser.add_argument('--visible', action='store_true',
                         help='Run browser in visible (non-headless) mode')
+    parser.add_argument('--rescan', action='store_true',
+                        help='Re-scrape all improved properties (overwrite existing sq_ft)')
     args = parser.parse_args()
 
     from app import create_app
     app = create_app()
 
-    properties = get_properties_to_scrape(app, limit=args.limit)
+    properties = get_properties_to_scrape(
+        app, limit=args.limit, rescan=args.rescan)
     total = len(properties)
     log.info(f'Found {total} properties to scrape')
+    if args.rescan:
+        log.info('Rescan mode: existing sq_ft values will be overwritten')
 
     if total == 0:
         log.info('Nothing to do')
@@ -187,7 +232,7 @@ def main():
                 if sqft > 0:
                     log.info(f'[{idx+1}/{total}] Parcel {parcel_id}: {sqft} sqft')
                 else:
-                    log.info(f'[{idx+1}/{total}] Parcel {parcel_id}: no RES MAS rows (sq_ft=0)')
+                    log.info(f'[{idx+1}/{total}] Parcel {parcel_id}: no GLA rows matched (sq_ft=0)')
 
             except (PlaywrightTimeout, Exception) as e:
                 failed += 1

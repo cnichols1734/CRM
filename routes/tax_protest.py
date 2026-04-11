@@ -107,7 +107,7 @@ def search_property():
 
     if not property_record:
         return jsonify({
-            'error': f'No property found matching "{contact.street_address}" in Chambers, Harris, or Liberty County tax records'
+            'error': f'No property found matching "{contact.street_address}" in Chambers, Harris, Liberty, or Fort Bend County tax records'
         }), 404
 
     market_value = property_record.get('market_value')
@@ -143,6 +143,23 @@ def search_property():
         if not subdivision or not subdivision_code:
             return jsonify({
                 'error': 'Could not determine Liberty subdivision from tax data',
+                'main_property': property_record,
+                'source': source,
+            }), 422
+        comparables = find_comparables(
+            subdivision,
+            zip_code,
+            market_value,
+            source,
+            main_sq_ft=main_sq_ft,
+            subdivision_code=subdivision_code,
+            main_acreage=main_acreage,
+        )
+    elif source == 'fort_bend':
+        subdivision = property_record.get('subdivision')
+        if not subdivision or not subdivision_code:
+            return jsonify({
+                'error': 'Could not determine Fort Bend neighborhood from tax data',
                 'main_property': property_record,
                 'source': source,
             }), 422
@@ -227,6 +244,7 @@ def download_csv():
         'chambers': 'Chambers',
         'hcad': 'Harris',
         'liberty': 'Liberty',
+        'fort_bend': 'Fort Bend',
     }.get(cached['source'], cached['source'].title())
     subdivision = cached.get('subdivision', '')
 
