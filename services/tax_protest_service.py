@@ -503,23 +503,43 @@ def get_subdivision_stats(
         else:
             sub_filter = HcadProperty.lgl_2 == subdivision
         rows = (
-            HcadProperty.query.filter(
+            db.session.query(HcadProperty.tot_mkt_val)
+            .join(HcadBuilding, HcadProperty.acct == HcadBuilding.acct)
+            .filter(
                 sub_filter,
                 HcadProperty.tot_mkt_val.isnot(None),
                 HcadProperty.tot_mkt_val > 0,
+                HcadProperty.site_addr_1.isnot(None),
+                HcadProperty.site_addr_1 != "",
+                HcadProperty.str_num.isnot(None),
+                HcadProperty.str_num != "0",
+                HcadBuilding.im_sq_ft.isnot(None),
+                HcadBuilding.im_sq_ft > 0,
             )
-            .with_entities(
-                HcadProperty.tot_mkt_val,
-            )
+            .group_by(HcadProperty.id)
             .order_by(HcadProperty.tot_mkt_val.asc())
             .all()
         )
     elif source == "chambers" and subdivision:
+        has_improvement = db.or_(
+            db.and_(
+                ChambersProperty.improvement_hs_val.isnot(None),
+                ChambersProperty.improvement_hs_val > 0,
+            ),
+            db.and_(
+                ChambersProperty.improvement_nhs_val.isnot(None),
+                ChambersProperty.improvement_nhs_val > 0,
+            ),
+        )
         rows = (
             ChambersProperty.query.filter(
                 ChambersProperty.legal1.ilike(f"%{subdivision}%"),
                 ChambersProperty.market_value.isnot(None),
                 ChambersProperty.market_value > 0,
+                ChambersProperty.prop_street_number.isnot(None),
+                ChambersProperty.prop_street_number != "0",
+                ChambersProperty.prop_street.isnot(None),
+                has_improvement,
             )
             .with_entities(
                 ChambersProperty.market_value,
