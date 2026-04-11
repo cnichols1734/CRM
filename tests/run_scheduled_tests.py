@@ -163,6 +163,19 @@ class CRMScheduledTestSuite:
             self.browser.close()
         if self.playwright:
             self.playwright.stop()
+
+    def dismiss_ai_chat_panel(self):
+        """Close BOB/AI chat overlay so it cannot intercept form clicks (high z-index)."""
+        self.page.evaluate("""() => {
+            const overlay = document.getElementById('bob-overlay');
+            if (overlay) overlay.classList.remove('visible');
+            const panel = document.getElementById('bob-panel');
+            if (panel) {
+                panel.classList.remove('open', 'modal');
+            }
+            document.body.classList.remove('bob-fullscreen-open');
+            document.body.style.overflow = '';
+        }""")
     
     # ==================== AUTHENTICATION TESTS ====================
     
@@ -240,6 +253,7 @@ class CRMScheduledTestSuite:
             self.log("Navigating to create contact page...", "step")
             self.page.goto(f"{self.base_url}/contacts/create")
             self.page.wait_for_load_state("networkidle")
+            self.dismiss_ai_chat_panel()
             self.log("", "ok")
             
             # Generate unique test data
@@ -267,7 +281,8 @@ class CRMScheduledTestSuite:
             group_count = group_checkboxes.count()
             print(f" (found {group_count} groups)")  # Debug output
             if group_count > 0:
-                group_checkboxes.first.check()
+                self.dismiss_ai_chat_panel()
+                group_checkboxes.first.check(force=True)
                 # Verify checkbox is checked
                 is_checked = group_checkboxes.first.is_checked()
                 print(f"  → Group checkbox checked: {is_checked}")
