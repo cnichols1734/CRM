@@ -46,6 +46,7 @@ from routes.platform_admin import platform_bp
 from routes.contact_us import contact_bp
 from routes.gmail_integration import gmail_bp
 from routes.reports import reports_bp
+from routes.tax_protest import tax_protest_bp
 
 def create_app():
     app = Flask(__name__)
@@ -156,6 +157,7 @@ def create_app():
     app.register_blueprint(contact_bp)
     app.register_blueprint(gmail_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(tax_protest_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

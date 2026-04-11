@@ -1484,3 +1484,90 @@ class ContactEmail(db.Model):
             'body_html': self.body_html,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+# =============================================================================
+# TAX PROTEST REFERENCE DATA (shared, no org_id / no RLS)
+# =============================================================================
+
+class ChambersProperty(db.Model):
+    """Chambers County tax appraisal records."""
+    __tablename__ = 'chambers_properties'
+
+    id = db.Column(db.Integer, primary_key=True)
+    parcel_id = db.Column(db.String(50), index=True)
+    account = db.Column(db.String(50), index=True)
+    street = db.Column(db.String(200))
+    street_overflow = db.Column(db.String(200))
+    city = db.Column(db.String(100))
+    zip5 = db.Column(db.String(10))
+    prop_street_number = db.Column(db.String(20), index=True)
+    prop_street = db.Column(db.String(100), index=True)
+    prop_street_dir = db.Column(db.String(10))
+    prop_city = db.Column(db.String(100))
+    prop_zip5 = db.Column(db.String(10), index=True)
+    legal1 = db.Column(db.String(500))
+    legal2 = db.Column(db.String(500))
+    legal3 = db.Column(db.String(500))
+    legal4 = db.Column(db.String(500))
+    acres = db.Column(db.Numeric(14, 4))
+    market_value = db.Column(db.Integer)
+    improvement_hs_val = db.Column(db.Integer)
+    improvement_nhs_val = db.Column(db.Integer)
+
+    def __repr__(self):
+        return f'<ChambersProperty {self.prop_street_number} {self.prop_street}>'
+
+
+class HcadProperty(db.Model):
+    """Harris County (HCAD) tax appraisal records."""
+    __tablename__ = 'hcad_properties'
+
+    id = db.Column(db.Integer, primary_key=True)
+    acct = db.Column(db.String(30), unique=True, index=True)
+    str_num = db.Column(db.String(30), index=True)
+    str_num_sfx = db.Column(db.String(50))
+    str = db.Column(db.String(200), index=True)
+    str_sfx = db.Column(db.String(50))
+    str_sfx_dir = db.Column(db.String(50))
+    str_unit = db.Column(db.String(50))
+    site_addr_1 = db.Column(db.String(200))
+    site_addr_2 = db.Column(db.String(100))
+    site_addr_3 = db.Column(db.String(30), index=True)
+    acreage = db.Column(db.Numeric(14, 4))
+    assessed_val = db.Column(db.Integer)
+    tot_appr_val = db.Column(db.Integer)
+    tot_mkt_val = db.Column(db.Integer)
+    lgl_1 = db.Column(db.String(500))
+    lgl_2 = db.Column(db.String(500))
+    lgl_3 = db.Column(db.String(500))
+    lgl_4 = db.Column(db.String(500))
+
+    neighborhood_code = db.Column(db.String(20), index=True)
+
+    buildings = db.relationship('HcadBuilding', backref='property', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<HcadProperty {self.site_addr_1}>'
+
+
+class HcadNeighborhoodCode(db.Model):
+    """HCAD neighborhood code lookup table."""
+    __tablename__ = 'hcad_neighborhood_codes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    cd = db.Column(db.String(20), unique=True, index=True)
+    grp_cd = db.Column(db.String(20))
+    dscr = db.Column(db.String(500))
+
+    def __repr__(self):
+        return f'<HcadNeighborhoodCode {self.cd} {self.dscr}>'
+
+
+class HcadBuilding(db.Model):
+    """Harris County building records (sq footage)."""
+    __tablename__ = 'hcad_buildings'
+
+    id = db.Column(db.Integer, primary_key=True)
+    acct = db.Column(db.String(30), db.ForeignKey('hcad_properties.acct'), nullable=False, index=True)
+    im_sq_ft = db.Column(db.Integer)
