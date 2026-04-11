@@ -24,14 +24,13 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-                <!-- Dropdown results -->
                 <div id="searchDropdown"
                      class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto hidden">
                 </div>
             </div>
         </div>
 
-        <!-- Loading Spinner -->
+        <!-- Loading -->
         <div id="loadingState" class="hidden">
             <div class="premium-card p-12 text-center">
                 <div class="inline-flex items-center gap-3 text-slate-500">
@@ -44,7 +43,7 @@
             </div>
         </div>
 
-        <!-- Error State -->
+        <!-- Error -->
         <div id="errorState" class="hidden">
             <div class="premium-card p-6 border-l-4 border-red-400">
                 <div class="flex items-start gap-3">
@@ -57,9 +56,10 @@
             </div>
         </div>
 
-        <!-- Results Section -->
+        <!-- Results -->
         <div id="resultsSection" class="hidden">
-            <!-- Main Property Card -->
+
+            <!-- Subject Property -->
             <div class="premium-card p-5 mb-4 bg-amber-50/60 border border-amber-200/60">
                 <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                     <div>
@@ -91,16 +91,51 @@
                 </div>
             </div>
 
-            <!-- Results Count + Actions -->
+            <!-- Neighborhood Position Chart -->
+            <div id="statsCard" class="hidden premium-card mb-4 overflow-hidden">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2.5">
+                        <i class="fas fa-chart-bar text-orange-500 text-sm"></i>
+                        <span class="text-sm font-semibold text-slate-700">Neighborhood Position</span>
+                        <span id="statsPctBadge" class="hidden rounded-full px-2.5 py-0.5 text-xs font-semibold"></span>
+                    </div>
+                    <span id="statsSubdivisionLabel" class="text-xs text-slate-400 truncate max-w-xs text-right"></span>
+                </div>
+                <div class="px-5 pt-4 pb-5">
+                    <!-- Summary row: ring + legend -->
+                    <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 mb-5">
+                        <!-- Animated percentile ring -->
+                        <div class="flex-none flex flex-col items-center">
+                            <div class="relative w-16 h-16">
+                                <svg viewBox="0 0 100 100" width="64" height="64" class="-rotate-90">
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+                                    <circle id="statsRingFg" cx="50" cy="50" r="40" fill="none"
+                                            stroke="#10b981" stroke-width="14" stroke-linecap="round"
+                                            stroke-dasharray="251.33" stroke-dashoffset="251.33"
+                                            style="transition:stroke-dashoffset 0.9s ease,stroke 0.4s ease"/>
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span id="statsPercentilePct" class="text-base font-bold text-slate-900 leading-none tabular-nums"></span>
+                                    <span class="text-[8px] text-slate-400 font-medium mt-0.5">pctile</span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Legend chips -->
+                        <div id="statsLine" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"></div>
+                    </div>
+                    <!-- Chart -->
+                    <div id="statsChartWrap" class="w-full"></div>
+                </div>
+            </div>
+
+            <!-- Count + Actions -->
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <p id="resultsCount" class="text-sm text-slate-600"></p>
                 <div class="flex items-center gap-2">
-                    <a id="downloadBtn" href="#"
-                       class="crm-btn crm-btn-primary text-sm">
+                    <a id="downloadBtn" href="#" class="crm-btn crm-btn-primary text-sm">
                         <i class="fas fa-download text-xs mr-1"></i> Download CSV
                     </a>
-                    <button type="button" id="clearResults"
-                            class="crm-btn crm-btn-secondary text-sm">
+                    <button type="button" id="clearResults" class="crm-btn crm-btn-secondary text-sm">
                         <i class="fas fa-times text-xs mr-1"></i> Clear
                     </button>
                 </div>
@@ -133,70 +168,246 @@
                             <th>Legal Description</th>
                         </tr>
                     </thead>
-                    <tbody id="comparablesBody">
-                    </tbody>
+                    <tbody id="comparablesBody"></tbody>
                 </table>
             </div>
 
             <!-- Mobile Cards -->
-            <div id="mobileCards" class="md:hidden space-y-3 mt-4">
-            </div>
+            <div id="mobileCards" class="md:hidden space-y-3 mt-4"></div>
         </div>
     </div>
 </div>
 
 <script>
-(function() {
-    const searchInput = document.getElementById('contactSearch');
-    const searchDropdown = document.getElementById('searchDropdown');
-    const clearSearchBtn = document.getElementById('clearSearch');
-    const loadingState = document.getElementById('loadingState');
-    const errorState = document.getElementById('errorState');
-    const resultsSection = document.getElementById('resultsSection');
+(function () {
+    // ─── State ───────────────────────────────────────────────────────────
     let searchTimeout;
     let sortAsc = true;
     let currentComparables = [];
     let currentMainProperty = null;
 
-    function fmt(val) {
-        if (val == null || val === '') return '—';
-        return '$' + Number(val).toLocaleString();
+    const searchInput    = document.getElementById('contactSearch');
+    const searchDropdown = document.getElementById('searchDropdown');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const loadingState   = document.getElementById('loadingState');
+    const errorState     = document.getElementById('errorState');
+    const resultsSection = document.getElementById('resultsSection');
+
+    // ─── Formatters ──────────────────────────────────────────────────────
+    function fmt(v) {
+        if (v == null || v === '') return '—';
+        return '$' + Number(v).toLocaleString();
+    }
+    function fmtNum(v) {
+        if (v == null || v === '') return '—';
+        return Number(v).toLocaleString();
+    }
+    function fmtK(v) {
+        if (v == null) return '';
+        if (Math.abs(v) >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+        return '$' + Math.round(v / 1000) + 'k';
+    }
+    function ordinalSuffix(v) {
+        var abs = Math.abs(Number(v));
+        var mod100 = abs % 100;
+        if (mod100 >= 11 && mod100 <= 13) return 'th';
+        switch (abs % 10) {
+            case 1: return 'st';
+            case 2: return 'nd';
+            case 3: return 'rd';
+            default: return 'th';
+        }
     }
 
-    function fmtNum(val) {
-        if (val == null || val === '') return '—';
-        return Number(val).toLocaleString();
-    }
+    // ─── Chart ───────────────────────────────────────────────────────────
+    function buildChart(dist, subjectValue, minVal, maxVal) {
+        if (!dist || dist.length === 0 || minVal == null || maxVal == null) return '';
 
-    // Debounced contact search
-    searchInput.addEventListener('input', function() {
-        const q = this.value.trim();
-        clearSearchBtn.classList.toggle('hidden', !q);
+        // SVG coordinate space
+        const W = 600, H = 170;
+        const PAD = { t: 28, r: 10, b: 28, l: 10 };
+        const cW = W - PAD.l - PAD.r;
+        const cH = H - PAD.t - PAD.b;
+        const n = dist.length;
+        const maxCnt = Math.max.apply(null, dist.map(function (b) { return b.count; })) || 1;
+        const range = maxVal > minVal ? maxVal - minVal : 1;
+        const bW = cW / n;
+        const bucketSize = range / n;
+        const barBottom = PAD.t + cH;
 
-        clearTimeout(searchTimeout);
-        if (q.length < 2) {
-            searchDropdown.classList.add('hidden');
-            return;
+        // Which bucket holds the subject?
+        var subjectIdx = Math.floor((subjectValue - minVal) / bucketSize);
+        subjectIdx = Math.max(0, Math.min(n - 1, subjectIdx));
+
+        // Subject vertical line X (exact value position)
+        var rawX = PAD.l + cW * (subjectValue - minVal) / range;
+        var mX = Math.max(PAD.l + 4, Math.min(W - PAD.r - 4, rawX));
+        var anchor = mX > W * 0.72 ? 'end' : mX < W * 0.28 ? 'start' : 'middle';
+
+        // ── Bars ─────────────────────────────────────────────────────────
+        var bars = '';
+        for (var i = 0; i < n; i++) {
+            var b = dist[i];
+            var x = PAD.l + i * bW;
+            var gap = Math.max(2, bW * 0.1);
+            var bH = b.count > 0 ? Math.max(8, cH * b.count / maxCnt) : 0;
+            var y = barBottom - bH;
+
+            // Color: green (cheaper), amber (subject bucket), slate (pricier)
+            var fill = i < subjectIdx  ? '#34d399'
+                     : i === subjectIdx ? '#fbbf24'
+                     :                   '#cbd5e1';
+
+            bars += '<rect'
+                + ' x="' + (x + gap).toFixed(1) + '"'
+                + ' y="' + y.toFixed(1) + '"'
+                + ' width="' + Math.max(2, bW - 2 * gap).toFixed(1) + '"'
+                + ' height="' + bH.toFixed(1) + '"'
+                + ' rx="4" fill="' + fill + '"/>';
+
+            // Count label — above bar, vertically clamped so it doesn't go off top
+            if (b.count > 0) {
+                var countY = Math.max(14, y - 6);
+                bars += '<text'
+                    + ' x="' + (x + bW / 2).toFixed(1) + '"'
+                    + ' y="' + countY.toFixed(1) + '"'
+                    + ' text-anchor="middle" font-size="12" fill="#475569" font-weight="600">'
+                    + b.count + '</text>';
+            }
         }
 
-        searchTimeout = setTimeout(() => {
-            fetch(`/tax-protest/search-contacts?q=${encodeURIComponent(q)}`)
-                .then(r => r.json())
-                .then(contacts => {
+        // ── Axis labels (first, last, + one mid if space) ────────────────
+        var axis = '';
+        // First bucket
+        axis += '<text x="' + (PAD.l + bW / 2).toFixed(1) + '" y="' + (H - 4)
+              + '" text-anchor="middle" font-size="9" fill="#94a3b8">' + dist[0].label + '</text>';
+        // Last bucket
+        axis += '<text x="' + (PAD.l + (n - 0.5) * bW).toFixed(1) + '" y="' + (H - 4)
+              + '" text-anchor="middle" font-size="9" fill="#94a3b8">' + fmtK(maxVal) + '</text>';
+        // Middle bucket (skip if too close to subject label)
+        var midI = Math.floor(n / 2);
+        if (Math.abs(midI - subjectIdx) > 1 && Math.abs(n - midI) > 1 && midI !== 0) {
+            var midX = PAD.l + (midI + 0.5) * bW;
+            if (Math.abs(midX - mX) > 50) {
+                axis += '<text x="' + midX.toFixed(1) + '" y="' + (H - 4)
+                      + '" text-anchor="middle" font-size="9" fill="#94a3b8">' + dist[midI].label + '</text>';
+            }
+        }
+
+        // ── Subject marker line + value label ────────────────────────────
+        var marker =
+            // Dashed vertical line
+            '<line'
+            + ' x1="' + mX.toFixed(1) + '" y1="' + PAD.t
+            + '" x2="' + mX.toFixed(1) + '" y2="' + (barBottom + 4).toFixed(1) + '"'
+            + ' stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,3" opacity="0.85"/>'
+            // Small circle at line bottom
+            + '<circle cx="' + mX.toFixed(1) + '" cy="' + (barBottom + 4).toFixed(1)
+            + '" r="3.5" fill="#f59e0b"/>'
+            // Value label just below the circle, above the axis labels
+            + '<text'
+            + ' x="' + mX.toFixed(1) + '"'
+            + ' y="' + (barBottom + 18).toFixed(1) + '"'
+            + ' text-anchor="' + anchor + '"'
+            + ' font-size="10" fill="#b45309" font-weight="700">'
+            + fmtK(subjectValue) + ' \u2191 you'
+            + '</text>';
+
+        return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '"'
+             + ' style="display:block;overflow:visible">'
+             + bars + axis + marker
+             + '</svg>';
+    }
+
+    // ─── Stats card renderer ──────────────────────────────────────────────
+    function renderStats(stats, subdivision, subjectValue) {
+        var card = document.getElementById('statsCard');
+        if (!stats || !stats.total_homes) { card.classList.add('hidden'); return; }
+
+        var lower  = stats.lower_values  || 0;
+        var higher = stats.higher_values || 0;
+        var total  = stats.total_homes   || 0;
+        var pct    = Math.round(stats.percentile || 0);
+
+        // Subdivision label
+        document.getElementById('statsSubdivisionLabel').textContent =
+            (subdivision || '') + ' \u00B7 ' + total + ' home' + (total === 1 ? '' : 's');
+
+        // Percentile pill in header
+        var pillCls = pct >= 75 ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
+                    : pct >= 50 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
+                    : pct >= 25 ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
+                    :             'bg-slate-100 text-slate-500 ring-1 ring-slate-200';
+        var pill = document.getElementById('statsPctBadge');
+        pill.className = 'rounded-full px-2.5 py-0.5 text-xs font-semibold ' + pillCls;
+        pill.textContent = pct + ordinalSuffix(pct) + ' percentile';
+        pill.classList.remove('hidden');
+
+        // Animated ring  (r=40, circumference = 2π×40 ≈ 251.33)
+        var CIRC = 251.33;
+        var ringColor = pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : pct >= 25 ? '#f97316' : '#94a3b8';
+        document.getElementById('statsPercentilePct').textContent = pct + '%';
+        var ring = document.getElementById('statsRingFg');
+        ring.style.stroke = ringColor;
+        ring.style.transition = 'none';
+        ring.style.strokeDashoffset = CIRC.toFixed(2);
+        ring.getBoundingClientRect();
+        ring.style.transition = 'stroke-dashoffset 0.9s ease,stroke 0.4s ease';
+        requestAnimationFrame(function () {
+            ring.style.strokeDashoffset = (CIRC * (1 - pct / 100)).toFixed(2);
+        });
+
+        // Summary legend row
+        document.getElementById('statsLine').innerHTML =
+            '<span class="flex items-center gap-2">'
+            + '<span class="inline-block w-3 h-3 rounded-[3px] bg-emerald-400 flex-none"></span>'
+            + '<span class="font-semibold text-slate-800 tabular-nums">' + lower + '</span>'
+            + '<span class="text-slate-500">cheaper in subdivision</span>'
+            + '</span>'
+            + '<span class="text-slate-300 select-none">\u00B7</span>'
+            + '<span class="flex items-center gap-2">'
+            + '<span class="inline-block w-3 h-3 rounded-[3px] bg-amber-400 flex-none"></span>'
+            + '<span class="text-slate-500">Subject</span>'
+            + '<span class="font-semibold text-slate-800 tabular-nums">' + fmt(subjectValue) + '</span>'
+            + '</span>'
+            + '<span class="text-slate-300 select-none">\u00B7</span>'
+            + '<span class="flex items-center gap-2">'
+            + '<span class="inline-block w-3 h-3 rounded-[3px] bg-slate-300 flex-none"></span>'
+            + '<span class="font-semibold text-slate-800 tabular-nums">' + higher + '</span>'
+            + '<span class="text-slate-500">more expensive</span>'
+            + '</span>';
+
+        // Chart
+        document.getElementById('statsChartWrap').innerHTML =
+            buildChart(stats.value_distribution, subjectValue, stats.min_value, stats.max_value);
+
+        card.classList.remove('hidden');
+    }
+
+    // ─── Contact search ───────────────────────────────────────────────────
+    searchInput.addEventListener('input', function () {
+        var q = this.value.trim();
+        clearSearchBtn.classList.toggle('hidden', !q);
+        clearTimeout(searchTimeout);
+        if (q.length < 2) { searchDropdown.classList.add('hidden'); return; }
+
+        searchTimeout = setTimeout(function () {
+            fetch('/tax-protest/search-contacts?q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (contacts) {
                     if (!contacts.length) {
                         searchDropdown.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500">No contacts found</div>';
                     } else {
-                        searchDropdown.innerHTML = contacts.map(c => `
-                            <button type="button"
-                                    class="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                                    data-contact-id="${c.id}">
-                                <div class="font-medium text-slate-800 text-sm">${c.name}</div>
-                                <div class="text-xs text-slate-500 mt-0.5">${c.address || 'No address'}</div>
-                            </button>
-                        `).join('');
-
-                        searchDropdown.querySelectorAll('[data-contact-id]').forEach(btn => {
-                            btn.addEventListener('click', () => {
+                        searchDropdown.innerHTML = contacts.map(function (c) {
+                            return '<button type="button"'
+                                + ' class="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0"'
+                                + ' data-contact-id="' + c.id + '">'
+                                + '<div class="font-medium text-slate-800 text-sm">' + c.name + '</div>'
+                                + '<div class="text-xs text-slate-500 mt-0.5">' + (c.address || 'No address') + '</div>'
+                                + '</button>';
+                        }).join('');
+                        searchDropdown.querySelectorAll('[data-contact-id]').forEach(function (btn) {
+                            btn.addEventListener('click', function () {
                                 searchDropdown.classList.add('hidden');
                                 searchInput.value = btn.querySelector('.font-medium').textContent;
                                 runPropertySearch(btn.dataset.contactId);
@@ -208,23 +419,22 @@
         }, 300);
     });
 
-    clearSearchBtn.addEventListener('click', () => {
+    clearSearchBtn.addEventListener('click', function () {
         searchInput.value = '';
         clearSearchBtn.classList.add('hidden');
         searchDropdown.classList.add('hidden');
         hideAll();
     });
 
-    document.getElementById('clearResults').addEventListener('click', () => {
+    document.getElementById('clearResults').addEventListener('click', function () {
         searchInput.value = '';
         clearSearchBtn.classList.add('hidden');
         hideAll();
     });
 
-    document.addEventListener('click', (e) => {
-        if (!document.getElementById('searchContainer').contains(e.target)) {
+    document.addEventListener('click', function (e) {
+        if (!document.getElementById('searchContainer').contains(e.target))
             searchDropdown.classList.add('hidden');
-        }
     });
 
     function hideAll() {
@@ -233,28 +443,27 @@
         resultsSection.classList.add('hidden');
     }
 
+    // ─── Property search ─────────────────────────────────────────────────
     function runPropertySearch(contactId) {
         hideAll();
         loadingState.classList.remove('hidden');
 
         fetch('/tax-protest/search', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({contact_id: contactId}),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contact_id: contactId }),
         })
-        .then(r => r.json().then(data => ({status: r.status, data})))
-        .then(({status, data}) => {
+        .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
+        .then(function (res) {
             loadingState.classList.add('hidden');
-
-            if (status >= 400 || data.error) {
+            if (res.status >= 400 || res.data.error) {
                 errorState.classList.remove('hidden');
-                document.getElementById('errorMessage').textContent = data.error || 'An error occurred';
+                document.getElementById('errorMessage').textContent = res.data.error || 'An error occurred';
                 return;
             }
-
-            displayResults(data);
+            displayResults(res.data);
         })
-        .catch(err => {
+        .catch(function () {
             loadingState.classList.add('hidden');
             errorState.classList.remove('hidden');
             document.getElementById('errorMessage').textContent = 'Network error. Please try again.';
@@ -263,103 +472,91 @@
 
     function displayResults(data) {
         currentMainProperty = data.main_property;
-        currentComparables = data.comparables || [];
-        const county = {
-            chambers: 'Chambers County',
-            hcad: 'Harris County',
-            liberty: 'Liberty County',
-            fort_bend: 'Fort Bend County',
-        }[data.source] || 'County Tax Data';
+        currentComparables  = data.comparables || [];
 
-        document.getElementById('countyBadge').textContent = county;
-        document.getElementById('mainAddress').textContent = data.main_property.full_address || data.main_property.address;
-        document.getElementById('mainCityZip').textContent =
-            [data.main_property.city, data.main_property.zip].filter(Boolean).join(', ');
-        document.getElementById('mainValue').textContent = fmt(data.main_property.market_value);
+        var county = { chambers: 'Chambers County', hcad: 'Harris County',
+                       liberty: 'Liberty County', fort_bend: 'Fort Bend County' }[data.source]
+                   || 'County Tax Data';
+
+        document.getElementById('countyBadge').textContent    = county;
+        document.getElementById('mainAddress').textContent     = data.main_property.full_address || data.main_property.address;
+        document.getElementById('mainCityZip').textContent     = [data.main_property.city, data.main_property.zip].filter(Boolean).join(', ');
+        document.getElementById('mainValue').textContent       = fmt(data.main_property.market_value);
         document.getElementById('mainSubdivision').textContent = data.subdivision;
 
-        const sqFtWrap = document.getElementById('mainSqFtWrap');
+        var sqFtWrap = document.getElementById('mainSqFtWrap');
         if (data.main_property.sq_ft) {
             document.getElementById('mainSqFt').textContent = fmtNum(data.main_property.sq_ft);
             sqFtWrap.classList.remove('hidden');
-        } else {
-            sqFtWrap.classList.add('hidden');
-        }
+        } else { sqFtWrap.classList.add('hidden'); }
 
-        const acreageWrap = document.getElementById('mainAcreageWrap');
+        var acreageWrap = document.getElementById('mainAcreageWrap');
         if (data.main_property.acreage) {
             document.getElementById('mainAcreage').textContent = data.main_property.acreage.toFixed(2);
             acreageWrap.classList.remove('hidden');
-        } else {
-            acreageWrap.classList.add('hidden');
-        }
+        } else { acreageWrap.classList.add('hidden'); }
 
-        const zipSuffix = data.main_property.zip ? ` (${data.main_property.zip})` : '';
+        var zipSuffix = data.main_property.zip ? ' (' + data.main_property.zip + ')' : '';
         document.getElementById('resultsCount').textContent =
-            `Found ${data.total_comparables} propert${data.total_comparables === 1 ? 'y' : 'ies'} with lower market value in ${data.subdivision || 'neighborhood'}${zipSuffix}`;
+            'Found ' + data.total_comparables
+            + ' propert' + (data.total_comparables === 1 ? 'y' : 'ies')
+            + ' with lower market value in ' + (data.subdivision || 'neighborhood') + zipSuffix;
 
         document.getElementById('downloadBtn').href = '/tax-protest/download-csv';
+
+        renderStats(data.subdivision_stats, data.subdivision, data.main_property.market_value);
 
         sortAsc = true;
         renderTable();
         resultsSection.classList.remove('hidden');
     }
 
-    document.getElementById('sortValue').addEventListener('click', () => {
+    document.getElementById('sortValue').addEventListener('click', function () {
         sortAsc = !sortAsc;
-        const icon = document.querySelector('#sortValue i');
-        icon.className = sortAsc ? 'fas fa-sort-amount-up text-xs ml-1' : 'fas fa-sort-amount-down text-xs ml-1';
+        document.querySelector('#sortValue i').className =
+            sortAsc ? 'fas fa-sort-amount-up text-xs ml-1' : 'fas fa-sort-amount-down text-xs ml-1';
         renderTable();
     });
 
     function renderTable() {
-        const sorted = [...currentComparables].sort((a, b) =>
-            sortAsc ? (a.market_value || 0) - (b.market_value || 0)
-                    : (b.market_value || 0) - (a.market_value || 0)
-        );
+        var sorted = currentComparables.slice().sort(function (a, b) {
+            return sortAsc ? (a.market_value || 0) - (b.market_value || 0)
+                           : (b.market_value || 0) - (a.market_value || 0);
+        });
+        var allRows = [Object.assign({}, currentMainProperty, { _isMain: true })].concat(sorted);
 
-        const allRows = [
-            {...currentMainProperty, _isMain: true},
-            ...sorted,
-        ];
+        document.getElementById('comparablesBody').innerHTML = allRows.map(function (p) {
+            return '<tr class="' + (p._isMain ? 'bg-amber-50 font-medium' : 'hover:bg-slate-50') + '">'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.full_address || p.address || '') + '">'
+                + (p._isMain ? '<i class="fas fa-star text-amber-500 text-xs mr-1"></i>' : '')
+                + (p.full_address || p.address || '') + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis">' + (p.city || '') + '</td>'
+                + '<td>' + (p.zip || '') + '</td>'
+                + '<td style="text-align:right">' + fmt(p.market_value) + '</td>'
+                + '<td style="text-align:right">' + (p.sq_ft ? fmtNum(p.sq_ft) : '—') + '</td>'
+                + '<td style="text-align:right">' + (p.acreage ? p.acreage.toFixed(2) : '—') + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.subdivision || p.legal2 || '') + '">' + (p.subdivision || p.legal2 || '') + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.legal1 || '') + '">' + (p.legal1 || '') + '</td>'
+                + '</tr>';
+        }).join('');
 
-        // Desktop table
-        const tbody = document.getElementById('comparablesBody');
-        tbody.innerHTML = allRows.map(p => `
-            <tr class="${p._isMain ? 'bg-amber-50 font-medium' : 'hover:bg-slate-50'}">
-                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.full_address || p.address || ''}">
-                    ${p._isMain ? '<i class="fas fa-star text-amber-500 text-xs mr-1"></i>' : ''}
-                    ${p.full_address || p.address || ''}
-                </td>
-                <td style="overflow:hidden;text-overflow:ellipsis">${p.city || ''}</td>
-                <td>${p.zip || ''}</td>
-                <td style="text-align:right">${fmt(p.market_value)}</td>
-                <td style="text-align:right">${p.sq_ft ? fmtNum(p.sq_ft) : '—'}</td>
-                <td style="text-align:right">${p.acreage ? p.acreage.toFixed(2) : '—'}</td>
-                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.subdivision || p.legal2 || ''}">${p.subdivision || p.legal2 || ''}</td>
-                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.legal1 || ''}">${p.legal1 || ''}</td>
-            </tr>
-        `).join('');
-
-        // Mobile cards
-        const mobileContainer = document.getElementById('mobileCards');
-        mobileContainer.innerHTML = allRows.map(p => `
-            <div class="premium-card p-4 ${p._isMain ? 'bg-amber-50/60 border-amber-200/60' : ''}">
-                <div class="flex items-start justify-between mb-2">
-                    <div>
-                        ${p._isMain ? '<span class="text-xs font-bold text-amber-700 uppercase">Subject Property</span>' : ''}
-                        <p class="font-medium text-slate-800 text-sm">${p.full_address || p.address || ''}</p>
-                        <p class="text-xs text-slate-500">${[p.city, p.zip].filter(Boolean).join(', ')}</p>
-                    </div>
-                    <span class="font-semibold text-sm text-slate-900">${fmt(p.market_value)}</span>
-                </div>
-                <div class="flex gap-4 text-xs text-slate-500">
-                    ${p.sq_ft ? `<span>Sq Ft: ${fmtNum(p.sq_ft)}</span>` : ''}
-                    ${p.acreage ? `<span>Acres: ${p.acreage.toFixed(2)}</span>` : ''}
-                </div>
-            </div>
-        `).join('');
+        document.getElementById('mobileCards').innerHTML = allRows.map(function (p) {
+            return '<div class="premium-card p-4 ' + (p._isMain ? 'bg-amber-50/60 border-amber-200/60' : '') + '">'
+                + '<div class="flex items-start justify-between mb-2">'
+                + '<div>'
+                + (p._isMain ? '<span class="text-xs font-bold text-amber-700 uppercase">Subject Property</span>' : '')
+                + '<p class="font-medium text-slate-800 text-sm">' + (p.full_address || p.address || '') + '</p>'
+                + '<p class="text-xs text-slate-500">' + [p.city, p.zip].filter(Boolean).join(', ') + '</p>'
+                + '</div>'
+                + '<span class="font-semibold text-sm text-slate-900">' + fmt(p.market_value) + '</span>'
+                + '</div>'
+                + '<div class="flex gap-4 text-xs text-slate-500">'
+                + (p.sq_ft ? '<span>Sq Ft: ' + fmtNum(p.sq_ft) + '</span>' : '')
+                + (p.acreage ? '<span>Acres: ' + p.acreage.toFixed(2) + '</span>' : '')
+                + '</div>'
+                + '</div>';
+        }).join('');
     }
-})();
+}());
 </script>
 {% endblock %}

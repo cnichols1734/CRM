@@ -3,6 +3,7 @@ Tax Protest service layer.
 Handles address lookup in county tax data, LLM-based subdivision extraction,
 comparable property queries, and search result caching for CSV consistency.
 """
+
 import re
 import logging
 from flask import session
@@ -18,6 +19,9 @@ from models import (
 )
 
 logger = logging.getLogger(__name__)
+
+SQ_FT_RANGE = 250
+MIN_COMPARABLES = 5
 
 SUBDIVISION_SYSTEM_PROMPT = (
     "You are a Texas property legal description parser. "
@@ -40,24 +44,43 @@ SUBDIVISION_EXAMPLES = (
 def normalize_address(address):
     """Normalize a street address for matching."""
     if not address:
-        return ''
+        return ""
     addr = address.upper().strip()
     replacements = {
-        ' STREET': ' ST', ' DRIVE': ' DR', ' AVENUE': ' AVE',
-        ' BOULEVARD': ' BLVD', ' LANE': ' LN', ' COURT': ' CT',
-        ' CIRCLE': ' CIR', ' PLACE': ' PL', ' ROAD': ' RD',
-        ' HIGHWAY': ' HWY', ' PARKWAY': ' PKWY',
+        " STREET": " ST",
+        " DRIVE": " DR",
+        " AVENUE": " AVE",
+        " BOULEVARD": " BLVD",
+        " LANE": " LN",
+        " COURT": " CT",
+        " CIRCLE": " CIR",
+        " PLACE": " PL",
+        " ROAD": " RD",
+        " HIGHWAY": " HWY",
+        " PARKWAY": " PKWY",
     }
     for old, new in replacements.items():
         addr = addr.replace(old, new)
-    addr = addr.replace('FARM TO MARKET', 'FM')
-    addr = re.sub(r'\s*(APT|UNIT|STE|SUITE|#)\s*\S*$', '', addr)
-    addr = re.sub(r'\s+', ' ', addr).strip()
+    addr = addr.replace("FARM TO MARKET", "FM")
+    addr = re.sub(r"\s*(APT|UNIT|STE|SUITE|#)\s*\S*$", "", addr)
+    addr = re.sub(r"\s+", " ", addr).strip()
     return addr
 
 
-DIRECTIONAL_PREFIXES = {'N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW',
-                         'NORTH', 'SOUTH', 'EAST', 'WEST'}
+DIRECTIONAL_PREFIXES = {
+    "N",
+    "S",
+    "E",
+    "W",
+    "NE",
+    "NW",
+    "SE",
+    "SW",
+    "NORTH",
+    "SOUTH",
+    "EAST",
+    "WEST",
+}
 
 
 def _parse_street_parts(address):
@@ -67,7 +90,7 @@ def _parse_street_parts(address):
     addr = normalize_address(address)
     if not addr:
         return None, None, None
-    match = re.match(r'^(\d+)\s+(.+)', addr)
+    match = re.match(r"^(\d+)\s+(.+)", addr)
     if not match:
         return None, None, addr
     street_num = match.group(1)
@@ -75,7 +98,7 @@ def _parse_street_parts(address):
     parts = remainder.split()
     if parts and parts[0] in DIRECTIONAL_PREFIXES:
         direction = parts[0]
-        street_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+        street_name = " ".join(parts[1:]) if len(parts) > 1 else ""
         return street_num, direction, street_name
     return street_num, None, remainder
 
@@ -88,32 +111,34 @@ def find_property_in_tax_data(street_address, city, zip_code):
     """
     normalized_address = normalize_address(street_address)
     street_num, direction, street_name = _parse_street_parts(street_address)
-    zip_clean = (zip_code or '').strip()[:5]
-    city_clean = (city or '').strip().upper()
+    zip_clean = (zip_code or "").strip()[:5]
+    city_clean = (city or "").strip().upper()
 
     # --- Chambers County ---
     chambers_result = _search_chambers(street_num, direction, street_name, zip_clean)
     if chambers_result:
-        return chambers_result, 'chambers'
+        return chambers_result, "chambers"
 
     # --- Harris County (HCAD) ---
-    hcad_result = _search_hcad(normalized_address, street_num, direction, street_name, zip_clean)
+    hcad_result = _search_hcad(
+        normalized_address, street_num, direction, street_name, zip_clean
+    )
     if hcad_result:
-        return hcad_result, 'hcad'
+        return hcad_result, "hcad"
 
     # --- Liberty County ---
     liberty_result = _search_liberty(
         normalized_address, street_num, street_name, city_clean, zip_clean
     )
     if liberty_result:
-        return liberty_result, 'liberty'
+        return liberty_result, "liberty"
 
     # --- Fort Bend County ---
     fort_bend_result = _search_fort_bend(
         normalized_address, street_num, street_name, city_clean, zip_clean
     )
     if fort_bend_result:
-        return fort_bend_result, 'fort_bend'
+        return fort_bend_result, "fort_bend"
 
     return None, None
 
@@ -128,7 +153,7 @@ def _search_chambers(street_num, direction, street_name, zip_code):
     first_word = street_name.split()[0]
     base_filters = [
         ChambersProperty.prop_street_number == street_num,
-        ChambersProperty.prop_street.ilike(f'{first_word}%'),
+        ChambersProperty.prop_street.ilike(f"{first_word}%"),
     ]
     if direction:
         base_filters.append(ChambersProperty.prop_street_dir == direction)
@@ -173,7 +198,7 @@ def _search_hcad(normalized_address, street_num, direction, street_name, zip_cod
         first_word = street_name.split()[0]
         base_filters = [
             HcadProperty.str_num == street_num,
-            HcadProperty.str.ilike(f'{first_word}%'),
+            HcadProperty.str.ilike(f"{first_word}%"),
         ]
         if direction:
             base_filters.append(HcadProperty.str_sfx_dir == direction)
@@ -197,7 +222,7 @@ def _search_hcad(normalized_address, street_num, direction, street_name, zip_cod
     # Last resort: fuzzy match on full site_addr_1
     if street_num and street_name:
         result = HcadProperty.query.filter(
-            HcadProperty.site_addr_1.ilike(f'{street_num} {street_name}%'),
+            HcadProperty.site_addr_1.ilike(f"{street_num} {street_name}%"),
         ).first()
         if result:
             return _hcad_found(result)
@@ -229,7 +254,7 @@ def _search_liberty(normalized_address, street_num, street_name, city, zip_code)
     if street_name:
         first_word = street_name.split()[0]
         street_filters = [
-            LibertyProperty.situs_street.ilike(f'{first_word}%'),
+            LibertyProperty.situs_street.ilike(f"{first_word}%"),
             *base_filter,
         ]
         if street_num:
@@ -259,7 +284,7 @@ def _search_liberty(normalized_address, street_num, street_name, city, zip_code)
 
         if street_num:
             result = LibertyProperty.query.filter(
-                LibertyProperty.site_addr_1.ilike(f'{street_num} {first_word}%'),
+                LibertyProperty.site_addr_1.ilike(f"{street_num} {first_word}%"),
                 *base_filter,
             ).first()
             if result:
@@ -292,7 +317,7 @@ def _search_fort_bend(normalized_address, street_num, street_name, city, zip_cod
     if street_name:
         first_word = street_name.split()[0]
         street_filters = [
-            FortBendProperty.situs_street_name.ilike(f'{first_word}%'),
+            FortBendProperty.situs_street_name.ilike(f"{first_word}%"),
             *base_filter,
         ]
         if street_num:
@@ -322,7 +347,7 @@ def _search_fort_bend(normalized_address, street_num, street_name, city, zip_cod
 
         if street_num:
             result = FortBendProperty.query.filter(
-                FortBendProperty.site_addr_1.ilike(f'{street_num} {first_word}%'),
+                FortBendProperty.site_addr_1.ilike(f"{street_num} {first_word}%"),
                 *base_filter,
             ).first()
             if result:
@@ -336,11 +361,11 @@ def _is_valid_subdivision(lgl_2):
     if not lgl_2 or not lgl_2.strip():
         return False
     val = lgl_2.strip().upper()
-    if val.startswith('('):
+    if val.startswith("("):
         return False
-    if re.match(r'^BLK\s+\d', val):
+    if re.match(r"^BLK\s+\d", val):
         return False
-    if re.match(r'^(LTS?\s|LOTS?\s|TRS?\s)', val):
+    if re.match(r"^(LTS?\s|LOTS?\s|TRS?\s)", val):
         return False
     if len(val) < 3:
         return False
@@ -350,9 +375,11 @@ def _is_valid_subdivision(lgl_2):
 def _hcad_found(result):
     """Helper to load sq_ft and return dict for a matched HCAD property."""
 
-    sq_ft = db.session.query(db.func.max(HcadBuilding.im_sq_ft)).filter(
-        HcadBuilding.acct == result.acct
-    ).scalar()
+    sq_ft = (
+        db.session.query(db.func.max(HcadBuilding.im_sq_ft))
+        .filter(HcadBuilding.acct == result.acct)
+        .scalar()
+    )
 
     return _hcad_to_dict(result, sq_ft)
 
@@ -367,6 +394,7 @@ def extract_subdivision_llm(legal_description):
 
     try:
         from services.ai_service import generate_ai_response
+
         prompt = f"{SUBDIVISION_EXAMPLES}\nLegal description: '{legal_description}'"
         result = generate_ai_response(
             system_prompt=SUBDIVISION_SYSTEM_PROMPT,
@@ -375,7 +403,7 @@ def extract_subdivision_llm(legal_description):
             reasoning_effort="low",
         )
         cleaned = result.strip().strip("'\"").upper()
-        if cleaned and cleaned != 'UNKNOWN' and len(cleaned) > 1:
+        if cleaned and cleaned != "UNKNOWN" and len(cleaned) > 1:
             return cleaned
     except Exception as e:
         logger.warning(f"LLM subdivision extraction failed, falling back to regex: {e}")
@@ -392,12 +420,12 @@ def extract_subdivision_regex(legal_description):
         return None
 
     text = legal_description.upper().strip()
-    text = re.sub(r'^(LOTS?\s+)?[\d\s&,\.]+\s+', '', text)
-    text = re.sub(r'^(TRS?\s+)[\d\s&,\.]+\s*', '', text)
-    text = re.sub(r'^(ALL\s+)?BLK\s+\d+\s*', '', text)
-    text = re.sub(r'\s+SEC(TION)?\s+\d+.*$', '', text)
-    text = re.sub(r'\s+BLK\s+\d+.*$', '', text)
-    text = re.sub(r'\s+PH(ASE)?\s+\d+.*$', '', text)
+    text = re.sub(r"^(LOTS?\s+)?[\d\s&,\.]+\s+", "", text)
+    text = re.sub(r"^(TRS?\s+)[\d\s&,\.]+\s*", "", text)
+    text = re.sub(r"^(ALL\s+)?BLK\s+\d+\s*", "", text)
+    text = re.sub(r"\s+SEC(TION)?\s+\d+.*$", "", text)
+    text = re.sub(r"\s+BLK\s+\d+.*$", "", text)
+    text = re.sub(r"\s+PH(ASE)?\s+\d+.*$", "", text)
 
     text = text.strip()
     if text and len(text) > 1 and not text.isdigit():
@@ -413,9 +441,149 @@ def get_neighborhood_name(neighborhood_code):
     return nc.dscr if nc else None
 
 
-def find_comparables(subdivision, zip_code, market_value, source,
-                     main_sq_ft=None, fuzzy_subdivision=False,
-                     subdivision_code=None, main_acreage=None):
+def get_subdivision_stats(
+    subdivision,
+    zip_code,
+    market_value,
+    source,
+    fuzzy_subdivision=False,
+    subdivision_code=None,
+    sibling_codes=None,
+):
+    """Compute subdivision-level statistics for the subject property.
+
+    Returns dict with:
+      total_homes: total residential homes in the subdivision
+      lower_values: how many have a lower market value
+      higher_values: how many have a higher market value
+      percentile: where the subject falls (e.g. 90 means 90% of homes are cheaper)
+      value_distribution: list of {label, count} buckets for charting
+    """
+    if source == "liberty" and subdivision_code:
+        codes = [subdivision_code]
+        if not sibling_codes:
+            sibling_codes = _find_liberty_sibling_codes(subdivision_code)
+        if sibling_codes:
+            codes.extend(sibling_codes)
+        rows = (
+            LibertyProperty.query.filter(
+                LibertyProperty.is_residential_home.is_(True),
+                LibertyProperty.market_value.isnot(None),
+                LibertyProperty.market_value > 0,
+                LibertyProperty.abs_subdv_cd.in_(codes),
+            )
+            .with_entities(
+                LibertyProperty.market_value,
+            )
+            .order_by(LibertyProperty.market_value.asc())
+            .all()
+        )
+    elif source == "fort_bend" and subdivision_code:
+        codes = [subdivision_code]
+        if not sibling_codes:
+            sibling_codes = _find_fort_bend_sibling_codes(subdivision_code)
+        if sibling_codes:
+            codes.extend(sibling_codes)
+        rows = (
+            FortBendProperty.query.filter(
+                FortBendProperty.is_residential_home.is_(True),
+                FortBendProperty.market_value.isnot(None),
+                FortBendProperty.market_value > 0,
+                FortBendProperty.nbhd_code.in_(codes),
+            )
+            .with_entities(
+                FortBendProperty.market_value,
+            )
+            .order_by(FortBendProperty.market_value.asc())
+            .all()
+        )
+    elif source == "hcad" and subdivision:
+        if fuzzy_subdivision:
+            sub_filter = HcadProperty.lgl_2.ilike(f"%{subdivision}%")
+        else:
+            sub_filter = HcadProperty.lgl_2 == subdivision
+        rows = (
+            HcadProperty.query.filter(
+                sub_filter,
+                HcadProperty.tot_mkt_val.isnot(None),
+                HcadProperty.tot_mkt_val > 0,
+            )
+            .with_entities(
+                HcadProperty.tot_mkt_val,
+            )
+            .order_by(HcadProperty.tot_mkt_val.asc())
+            .all()
+        )
+    elif source == "chambers" and subdivision:
+        rows = (
+            ChambersProperty.query.filter(
+                ChambersProperty.legal1.ilike(f"%{subdivision}%"),
+                ChambersProperty.market_value.isnot(None),
+                ChambersProperty.market_value > 0,
+            )
+            .with_entities(
+                ChambersProperty.market_value,
+            )
+            .order_by(ChambersProperty.market_value.asc())
+            .all()
+        )
+    else:
+        return None
+
+    values = [int(r[0]) for r in rows if r[0] is not None]
+    sorted_values = sorted(values)
+    total_homes = len(sorted_values)
+    lower_values = sum(1 for v in sorted_values if v < market_value)
+    higher_values = sum(1 for v in sorted_values if v > market_value)
+    percentile = (
+        round((lower_values / total_homes) * 100, 1) if total_homes > 0 else None
+    )
+
+    return {
+        "total_homes": total_homes,
+        "lower_values": lower_values,
+        "higher_values": higher_values,
+        "percentile": percentile,
+        "value_distribution": _bucket_values(sorted_values),
+        "min_value": sorted_values[0] if sorted_values else None,
+        "max_value": sorted_values[-1] if sorted_values else None,
+        "median_value": (
+            sorted_values[len(sorted_values) // 2] if sorted_values else None
+        ),
+    }
+
+
+def _bucket_values(values, num_buckets=8):
+    """Return evenly sized buckets across the full observed value range."""
+    if not values:
+        return []
+    min_val = min(values)
+    max_val = max(values)
+    if min_val == max_val:
+        return [{"label": f"${min_val / 1000:.0f}k", "count": len(values)}]
+    bucket_size = (max_val - min_val) / num_buckets
+    buckets = []
+    for i in range(num_buckets):
+        lo = min_val + i * bucket_size
+        hi = lo + bucket_size
+        if i == num_buckets - 1:
+            count = sum(1 for v in values if lo <= v <= hi)
+        else:
+            count = sum(1 for v in values if lo <= v < hi)
+        buckets.append({"label": f"${lo / 1000:.0f}k", "count": count})
+    return buckets
+
+
+def find_comparables(
+    subdivision,
+    zip_code,
+    market_value,
+    source,
+    main_sq_ft=None,
+    fuzzy_subdivision=False,
+    subdivision_code=None,
+    main_acreage=None,
+):
     """
     Find properties in the same subdivision and zip with lower market value.
     For HCAD: matches on lgl_2 (exact when from structured data, ILIKE when
@@ -423,16 +591,21 @@ def find_comparables(subdivision, zip_code, market_value, source,
     For Chambers: uses ILIKE on legal1 (no sq ft band; HCAD still uses ±250).
     Returns list of property dicts.
     """
-    SQ_FT_RANGE = 250
 
-    if source == 'chambers':
+    if source == "chambers":
         if not subdivision:
             return []
 
-        pattern = f'%{subdivision}%'
+        pattern = f"%{subdivision}%"
         has_improvement = db.or_(
-            db.and_(ChambersProperty.improvement_hs_val.isnot(None), ChambersProperty.improvement_hs_val > 0),
-            db.and_(ChambersProperty.improvement_nhs_val.isnot(None), ChambersProperty.improvement_nhs_val > 0),
+            db.and_(
+                ChambersProperty.improvement_hs_val.isnot(None),
+                ChambersProperty.improvement_hs_val > 0,
+            ),
+            db.and_(
+                ChambersProperty.improvement_nhs_val.isnot(None),
+                ChambersProperty.improvement_nhs_val > 0,
+            ),
         )
         base_filters = [
             ChambersProperty.legal1.ilike(pattern),
@@ -440,50 +613,59 @@ def find_comparables(subdivision, zip_code, market_value, source,
             ChambersProperty.market_value > 0,
             ChambersProperty.market_value < market_value,
             ChambersProperty.prop_street_number.isnot(None),
-            ChambersProperty.prop_street_number != '0',
+            ChambersProperty.prop_street_number != "0",
             ChambersProperty.prop_street.isnot(None),
             has_improvement,
         ]
 
         if zip_code:
-            results = ChambersProperty.query.filter(
-                ChambersProperty.prop_zip5 == zip_code,
-                *base_filters,
-            ).order_by(ChambersProperty.market_value.asc()).all()
+            results = (
+                ChambersProperty.query.filter(
+                    ChambersProperty.prop_zip5 == zip_code,
+                    *base_filters,
+                )
+                .order_by(ChambersProperty.market_value.asc())
+                .all()
+            )
             if results:
                 return [_chambers_to_dict(r) for r in results]
 
-        results = ChambersProperty.query.filter(
-            *base_filters,
-        ).order_by(ChambersProperty.market_value.asc()).all()
+        results = (
+            ChambersProperty.query.filter(
+                *base_filters,
+            )
+            .order_by(ChambersProperty.market_value.asc())
+            .all()
+        )
         return [_chambers_to_dict(r) for r in results]
 
-    elif source == 'hcad':
+    elif source == "hcad":
         if not subdivision:
             return []
 
         if fuzzy_subdivision:
-            sub_filter = HcadProperty.lgl_2.ilike(f'%{subdivision}%')
+            sub_filter = HcadProperty.lgl_2.ilike(f"%{subdivision}%")
         else:
-            sub_filter = (HcadProperty.lgl_2 == subdivision)
+            sub_filter = HcadProperty.lgl_2 == subdivision
 
         def _hcad_query(use_zip):
-            q = db.session.query(
-                HcadProperty,
-                db.func.max(HcadBuilding.im_sq_ft).label('max_sq_ft')
-            ).join(
-                HcadBuilding, HcadProperty.acct == HcadBuilding.acct
-            ).filter(
-                sub_filter,
-                HcadProperty.tot_mkt_val.isnot(None),
-                HcadProperty.tot_mkt_val > 0,
-                HcadProperty.tot_mkt_val < market_value,
-                HcadProperty.site_addr_1.isnot(None),
-                HcadProperty.site_addr_1 != '',
-                HcadProperty.str_num.isnot(None),
-                HcadProperty.str_num != '0',
-                HcadBuilding.im_sq_ft.isnot(None),
-                HcadBuilding.im_sq_ft > 0,
+            q = (
+                db.session.query(
+                    HcadProperty, db.func.max(HcadBuilding.im_sq_ft).label("max_sq_ft")
+                )
+                .join(HcadBuilding, HcadProperty.acct == HcadBuilding.acct)
+                .filter(
+                    sub_filter,
+                    HcadProperty.tot_mkt_val.isnot(None),
+                    HcadProperty.tot_mkt_val > 0,
+                    HcadProperty.tot_mkt_val < market_value,
+                    HcadProperty.site_addr_1.isnot(None),
+                    HcadProperty.site_addr_1 != "",
+                    HcadProperty.str_num.isnot(None),
+                    HcadProperty.str_num != "0",
+                    HcadBuilding.im_sq_ft.isnot(None),
+                    HcadBuilding.im_sq_ft > 0,
+                )
             )
             if use_zip and zip_code:
                 q = q.filter(HcadProperty.site_addr_3 == zip_code)
@@ -503,232 +685,431 @@ def find_comparables(subdivision, zip_code, market_value, source,
 
         return [_hcad_to_dict(prop, sq_ft) for prop, sq_ft in results]
 
-    elif source == 'liberty':
+    elif source == "liberty":
         if not subdivision_code:
             return []
 
-        profile = LibertyCodeProfile.query.filter_by(abs_subdv_cd=subdivision_code).first()
-        strategy = profile.strategy if profile and profile.strategy else 'strict'
-        if strategy == 'reject':
+        profile = LibertyCodeProfile.query.filter_by(
+            abs_subdv_cd=subdivision_code
+        ).first()
+        strategy = profile.strategy if profile and profile.strategy else "strict"
+        if strategy == "reject":
             return []
 
-        base_filters = [
-            LibertyProperty.is_residential_home.is_(True),
-            LibertyProperty.abs_subdv_cd == subdivision_code,
-            LibertyProperty.market_value.isnot(None),
-            LibertyProperty.market_value > 0,
-            LibertyProperty.market_value < market_value,
-            LibertyProperty.site_addr_1.isnot(None),
-            LibertyProperty.site_addr_1 != '',
-        ]
+        results = _liberty_comparable_query(
+            subdivision_code,
+            market_value,
+            strategy,
+            zip_code,
+            main_acreage,
+            use_zip=True,
+        )
+        if not results:
+            results = _liberty_comparable_query(
+                subdivision_code,
+                market_value,
+                strategy,
+                zip_code,
+                main_acreage,
+                use_zip=False,
+            )
 
-        def _liberty_query(use_zip):
-            q = LibertyProperty.query.filter(*base_filters)
-            if use_zip and zip_code:
-                q = q.filter(LibertyProperty.situs_zip == zip_code)
-
-            if strategy == 'strict':
-                if main_sq_ft and main_sq_ft > 0:
-                    q = q.filter(
-                        LibertyProperty.sq_ft.isnot(None),
-                        LibertyProperty.sq_ft.between(
-                            max(0, main_sq_ft - 300),
-                            main_sq_ft + 300,
-                        )
+        if len(results) < MIN_COMPARABLES:
+            sibling_codes = _find_liberty_sibling_codes(subdivision_code)
+            if sibling_codes:
+                logger.info(
+                    "Liberty %s returned %d comparables, expanding to siblings: %s",
+                    subdivision_code,
+                    len(results),
+                    sibling_codes,
+                )
+                for sibling_cd in sibling_codes:
+                    sibling_profile = LibertyCodeProfile.query.filter_by(
+                        abs_subdv_cd=sibling_cd
+                    ).first()
+                    sibling_strategy = (
+                        sibling_profile.strategy
+                        if sibling_profile and sibling_profile.strategy
+                        else "strict"
                     )
-                if main_acreage and main_acreage > 0:
-                    tol = min(5.0, max(0.25, main_acreage * 0.5))
-                    q = q.filter(
-                        LibertyProperty.legal_acreage.isnot(None),
-                        LibertyProperty.legal_acreage.between(
-                            max(0, main_acreage - tol),
-                            main_acreage + tol,
-                        )
+                    if sibling_strategy == "reject":
+                        continue
+                    sibling_results = _liberty_comparable_query(
+                        sibling_cd,
+                        market_value,
+                        sibling_strategy,
+                        zip_code,
+                        main_acreage,
+                        use_zip=True,
                     )
+                    if not sibling_results:
+                        sibling_results = _liberty_comparable_query(
+                            sibling_cd,
+                            market_value,
+                            sibling_strategy,
+                            zip_code,
+                            main_acreage,
+                            use_zip=False,
+                        )
+                    results.extend(sibling_results)
+                    if len(results) >= MIN_COMPARABLES:
+                        break
 
-            return q.order_by(LibertyProperty.market_value.asc()).all()
-
-        results = _liberty_query(use_zip=True)
-        if results:
-            return [_liberty_to_dict(r) for r in results]
-
-        results = _liberty_query(use_zip=False)
         return [_liberty_to_dict(r) for r in results]
 
-    elif source == 'fort_bend':
+    elif source == "fort_bend":
         if not subdivision_code:
             return []
 
-        base_filters = [
-            FortBendProperty.is_residential_home.is_(True),
-            FortBendProperty.nbhd_code == subdivision_code,
-            FortBendProperty.market_value.isnot(None),
-            FortBendProperty.market_value > 0,
-            FortBendProperty.market_value < market_value,
-            FortBendProperty.site_addr_1.isnot(None),
-            FortBendProperty.site_addr_1 != '',
-        ]
+        results = _fort_bend_comparable_query(
+            subdivision_code,
+            market_value,
+            main_sq_ft,
+            zip_code,
+            use_zip=True,
+        )
+        if not results:
+            results = _fort_bend_comparable_query(
+                subdivision_code,
+                market_value,
+                main_sq_ft,
+                zip_code,
+                use_zip=False,
+            )
 
-        def _fort_bend_query(use_zip):
-            q = FortBendProperty.query.filter(*base_filters)
-            if use_zip and zip_code:
-                q = q.filter(FortBendProperty.situs_zip == zip_code)
-            if main_sq_ft and main_sq_ft > 0:
-                q = q.filter(
-                    FortBendProperty.sq_ft.isnot(None),
-                    FortBendProperty.sq_ft.between(
-                        max(0, main_sq_ft - SQ_FT_RANGE),
-                        main_sq_ft + SQ_FT_RANGE,
-                    )
+        if len(results) < MIN_COMPARABLES:
+            sibling_codes = _find_fort_bend_sibling_codes(subdivision_code)
+            if sibling_codes:
+                logger.info(
+                    "Fort Bend %s returned %d comparables, expanding to siblings: %s",
+                    subdivision_code,
+                    len(results),
+                    sibling_codes,
                 )
-            return q.order_by(FortBendProperty.market_value.asc()).all()
+                for sibling_cd in sibling_codes:
+                    sibling_results = _fort_bend_comparable_query(
+                        sibling_cd,
+                        market_value,
+                        main_sq_ft,
+                        zip_code,
+                        use_zip=True,
+                    )
+                    if not sibling_results:
+                        sibling_results = _fort_bend_comparable_query(
+                            sibling_cd,
+                            market_value,
+                            main_sq_ft,
+                            zip_code,
+                            use_zip=False,
+                        )
+                    results.extend(sibling_results)
+                    if len(results) >= MIN_COMPARABLES:
+                        break
 
-        results = _fort_bend_query(use_zip=True)
-        if results:
-            return [_fort_bend_to_dict(r) for r in results]
-
-        results = _fort_bend_query(use_zip=False)
         return [_fort_bend_to_dict(r) for r in results]
 
     return []
 
 
+_SUBDIVISION_SECTION_RE = re.compile(
+    r",\s*SEC(?:TION)?\s*\d+"
+    r"|,\s*SEC\s*\d+"
+    r"|\s+SEC(?:TION)?\s+\d+"
+    r"$",
+    re.IGNORECASE,
+)
+
+
+def _extract_base_subdivision_name(desc):
+    """Strip section suffixes like ', SEC 4' or ' SECTION 2' from a subdivision name."""
+    if not desc:
+        return ""
+    return _SUBDIVISION_SECTION_RE.sub("", desc).strip()
+
+
+def _find_liberty_sibling_codes(subdivision_code):
+    """Find other subdivision codes that share the same base subdivision name.
+
+    Liberty County splits one subdivision into multiple codes by section (e.g.,
+    'RAVEN HILL RANCH' vs 'RAVEN HILL RANCH, SEC 4'). When a code has very few
+    homes and returns 0 comparables, expand the search to sibling sections.
+    """
+    main_record = LibertyProperty.query.filter(
+        LibertyProperty.abs_subdv_cd == subdivision_code,
+        LibertyProperty.is_residential_home.is_(True),
+    ).first()
+    if not main_record or not main_record.abs_subdv_desc:
+        return []
+
+    base_name = _extract_base_subdivision_name(main_record.abs_subdv_desc)
+    if not base_name:
+        return []
+
+    pattern = f"{base_name}%"
+    sibling_rows = (
+        db.session.query(
+            LibertyProperty.abs_subdv_cd,
+        )
+        .filter(
+            LibertyProperty.abs_subdv_desc.ilike(pattern),
+            LibertyProperty.abs_subdv_cd != subdivision_code,
+            LibertyProperty.is_residential_home.is_(True),
+        )
+        .distinct()
+        .all()
+    )
+
+    return [row[0] for row in sibling_rows]
+
+
+def _liberty_comparable_query(
+    subdivision_code, market_value, strategy, zip_code, main_acreage, use_zip
+):
+    """Execute a Liberty County comparable property query."""
+    base_filters = [
+        LibertyProperty.is_residential_home.is_(True),
+        LibertyProperty.abs_subdv_cd == subdivision_code,
+        LibertyProperty.market_value.isnot(None),
+        LibertyProperty.market_value > 0,
+        LibertyProperty.market_value < market_value,
+        LibertyProperty.site_addr_1.isnot(None),
+        LibertyProperty.site_addr_1 != "",
+    ]
+
+    q = LibertyProperty.query.filter(*base_filters)
+    if use_zip and zip_code:
+        q = q.filter(LibertyProperty.situs_zip == zip_code)
+
+    if strategy == "strict":
+        if main_acreage and main_acreage > 0:
+            tol = min(5.0, max(0.25, main_acreage * 0.5))
+            q = q.filter(
+                LibertyProperty.legal_acreage.isnot(None),
+                LibertyProperty.legal_acreage.between(
+                    max(0, main_acreage - tol),
+                    main_acreage + tol,
+                ),
+            )
+
+    return q.order_by(LibertyProperty.market_value.asc()).all()
+
+
+def _find_fort_bend_sibling_codes(subdivision_code):
+    """Find other neighborhood codes sharing the same base neighborhood name.
+
+    Uses nbhd_desc to find sibling sections (e.g. 'SIENNA PLANTATION SEC 1'
+    and 'SIENNA PLANTATION SEC 2').
+    """
+    main_record = FortBendProperty.query.filter(
+        FortBendProperty.nbhd_code == subdivision_code,
+        FortBendProperty.is_residential_home.is_(True),
+    ).first()
+    if not main_record or not main_record.nbhd_desc:
+        return []
+
+    base_name = _extract_base_subdivision_name(main_record.nbhd_desc)
+    if not base_name:
+        return []
+
+    pattern = f"{base_name}%"
+    sibling_rows = (
+        db.session.query(
+            FortBendProperty.nbhd_code,
+        )
+        .filter(
+            FortBendProperty.nbhd_desc.ilike(pattern),
+            FortBendProperty.nbhd_code != subdivision_code,
+            FortBendProperty.is_residential_home.is_(True),
+        )
+        .distinct()
+        .all()
+    )
+
+    return [row[0] for row in sibling_rows]
+
+
+def _fort_bend_comparable_query(
+    subdivision_code, market_value, main_sq_ft, zip_code, use_zip
+):
+    """Execute a Fort Bend County comparable property query."""
+    base_filters = [
+        FortBendProperty.is_residential_home.is_(True),
+        FortBendProperty.nbhd_code == subdivision_code,
+        FortBendProperty.market_value.isnot(None),
+        FortBendProperty.market_value > 0,
+        FortBendProperty.market_value < market_value,
+        FortBendProperty.site_addr_1.isnot(None),
+        FortBendProperty.site_addr_1 != "",
+    ]
+
+    q = FortBendProperty.query.filter(*base_filters)
+    if use_zip and zip_code:
+        q = q.filter(FortBendProperty.situs_zip == zip_code)
+    if main_sq_ft and main_sq_ft > 0:
+        q = q.filter(
+            FortBendProperty.sq_ft.isnot(None),
+            FortBendProperty.sq_ft.between(
+                max(0, main_sq_ft - SQ_FT_RANGE),
+                main_sq_ft + SQ_FT_RANGE,
+            ),
+        )
+    return q.order_by(FortBendProperty.market_value.asc()).all()
+
+
 def _chambers_to_dict(record):
     """Convert a ChambersProperty to a display dict."""
     return {
-        'id': record.id,
-        'source': 'chambers',
-        'address': f"{record.prop_street_number or ''} {record.prop_street or ''}".strip(),
-        'full_address': f"{record.prop_street_number or ''} {record.prop_street or ''} {record.prop_street_dir or ''}".strip(),
-        'city': record.prop_city,
-        'zip': record.prop_zip5,
-        'market_value': record.market_value,
-        'legal1': record.legal1,
-        'legal2': record.legal2,
-        'legal3': record.legal3,
-        'legal4': record.legal4,
-        'sq_ft': record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
-        'acreage': float(record.acres) if record.acres else None,
-        'parcel_id': record.parcel_id,
-        'account': record.account,
+        "id": record.id,
+        "source": "chambers",
+        "address": f"{record.prop_street_number or ''} {record.prop_street or ''}".strip(),
+        "full_address": f"{record.prop_street_number or ''} {record.prop_street or ''} {record.prop_street_dir or ''}".strip(),
+        "city": record.prop_city,
+        "zip": record.prop_zip5,
+        "market_value": record.market_value,
+        "legal1": record.legal1,
+        "legal2": record.legal2,
+        "legal3": record.legal3,
+        "legal4": record.legal4,
+        "sq_ft": record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
+        "acreage": float(record.acres) if record.acres else None,
+        "parcel_id": record.parcel_id,
+        "account": record.account,
     }
 
 
 def _hcad_to_dict(record, sq_ft=None):
     """Convert an HcadProperty to a display dict."""
     return {
-        'id': record.id,
-        'source': 'hcad',
-        'address': record.site_addr_1 or f"{record.str_num or ''} {record.str or ''}".strip(),
-        'full_address': record.site_addr_1 or '',
-        'city': record.site_addr_2,
-        'zip': record.site_addr_3,
-        'market_value': record.tot_mkt_val,
-        'legal1': record.lgl_1,
-        'legal2': record.lgl_2,
-        'legal3': record.lgl_3,
-        'legal4': record.lgl_4,
-        'sq_ft': sq_ft,
-        'acreage': float(record.acreage) if record.acreage else None,
-        'parcel_id': None,
-        'account': record.acct,
-        'neighborhood_code': record.neighborhood_code,
-        'subdivision': record.lgl_2,
+        "id": record.id,
+        "source": "hcad",
+        "address": record.site_addr_1
+        or f"{record.str_num or ''} {record.str or ''}".strip(),
+        "full_address": record.site_addr_1 or "",
+        "city": record.site_addr_2,
+        "zip": record.site_addr_3,
+        "market_value": record.tot_mkt_val,
+        "legal1": record.lgl_1,
+        "legal2": record.lgl_2,
+        "legal3": record.lgl_3,
+        "legal4": record.lgl_4,
+        "sq_ft": sq_ft,
+        "acreage": float(record.acreage) if record.acreage else None,
+        "parcel_id": None,
+        "account": record.acct,
+        "neighborhood_code": record.neighborhood_code,
+        "subdivision": record.lgl_2,
     }
 
 
 def _liberty_to_dict(record):
     """Convert a LibertyProperty to a display dict."""
     return {
-        'id': record.id,
-        'source': 'liberty',
-        'address': record.site_addr_1 or ' '.join(
-            part for part in [record.situs_num, record.situs_street_prefx, record.situs_street, record.situs_street_suffix]
+        "id": record.id,
+        "source": "liberty",
+        "address": record.site_addr_1
+        or " ".join(
+            part
+            for part in [
+                record.situs_num,
+                record.situs_street_prefx,
+                record.situs_street,
+                record.situs_street_suffix,
+            ]
             if part
         ).strip(),
-        'full_address': record.site_addr_1 or '',
-        'city': record.situs_city,
-        'zip': record.situs_zip,
-        'market_value': record.market_value,
-        'legal1': record.legal_desc,
-        'legal2': record.abs_subdv_desc,
-        'legal3': record.legal_desc2,
-        'legal4': None,
-        'sq_ft': record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
-        'acreage': float(record.legal_acreage) if record.legal_acreage else None,
-        'parcel_id': record.prop_id,
-        'account': record.geo_id,
-        'subdivision': record.abs_subdv_desc,
-        'subdivision_code': record.abs_subdv_cd,
+        "full_address": record.site_addr_1 or "",
+        "city": record.situs_city,
+        "zip": record.situs_zip,
+        "market_value": record.market_value,
+        "legal1": record.legal_desc,
+        "legal2": record.abs_subdv_desc,
+        "legal3": record.legal_desc2,
+        "legal4": None,
+        "sq_ft": record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
+        "acreage": float(record.legal_acreage) if record.legal_acreage else None,
+        "parcel_id": record.prop_id,
+        "account": record.geo_id,
+        "subdivision": record.abs_subdv_desc,
+        "subdivision_code": record.abs_subdv_cd,
     }
 
 
 def _fort_bend_to_dict(record):
     """Convert a FortBendProperty to a display dict."""
     return {
-        'id': record.id,
-        'source': 'fort_bend',
-        'address': record.site_addr_1 or record.situs or '',
-        'full_address': record.site_addr_1 or record.situs or '',
-        'city': record.situs_city,
-        'zip': record.situs_zip,
-        'market_value': record.market_value,
-        'legal1': record.legal_desc,
-        'legal2': record.nbhd_desc,
-        'legal3': record.legal_location_desc,
-        'legal4': None,
-        'sq_ft': record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
-        'acreage': float(record.acreage) if record.acreage else (
-            float(record.legal_acres) if record.legal_acres else None
-        ),
-        'parcel_id': record.property_id,
-        'account': record.property_number,
-        'subdivision': record.nbhd_desc,
-        'subdivision_code': record.nbhd_code,
+        "id": record.id,
+        "source": "fort_bend",
+        "address": record.site_addr_1 or record.situs or "",
+        "full_address": record.site_addr_1 or record.situs or "",
+        "city": record.situs_city,
+        "zip": record.situs_zip,
+        "market_value": record.market_value,
+        "legal1": record.legal_desc,
+        "legal2": record.nbhd_desc,
+        "legal3": record.legal_location_desc,
+        "legal4": None,
+        "sq_ft": record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
+        "acreage": float(record.acreage)
+        if record.acreage
+        else (float(record.legal_acres) if record.legal_acres else None),
+        "parcel_id": record.property_id,
+        "account": record.property_number,
+        "subdivision": record.nbhd_desc,
+        "subdivision_code": record.nbhd_code,
     }
 
 
-def cache_search_result(source, subdivision, main_property_id, contact_id,
-                        zip_code, neighborhood_code=None, main_sq_ft=None,
-                        fuzzy_subdivision=False, subdivision_code=None,
-                        main_acreage=None):
+def cache_search_result(
+    source,
+    subdivision,
+    main_property_id,
+    contact_id,
+    zip_code,
+    neighborhood_code=None,
+    main_sq_ft=None,
+    fuzzy_subdivision=False,
+    subdivision_code=None,
+    main_acreage=None,
+):
     """Store search params in Flask session for CSV download consistency."""
-    session['tax_protest_result'] = {
-        'source': source,
-        'subdivision': subdivision,
-        'main_property_id': main_property_id,
-        'contact_id': contact_id,
-        'zip_code': zip_code,
-        'neighborhood_code': neighborhood_code,
-        'subdivision_code': subdivision_code,
-        'main_sq_ft': main_sq_ft,
-        'main_acreage': main_acreage,
-        'fuzzy_subdivision': fuzzy_subdivision,
+    session["tax_protest_result"] = {
+        "source": source,
+        "subdivision": subdivision,
+        "main_property_id": main_property_id,
+        "contact_id": contact_id,
+        "zip_code": zip_code,
+        "neighborhood_code": neighborhood_code,
+        "subdivision_code": subdivision_code,
+        "main_sq_ft": main_sq_ft,
+        "main_acreage": main_acreage,
+        "fuzzy_subdivision": fuzzy_subdivision,
     }
 
 
 def get_cached_search_result():
     """Retrieve cached search params from Flask session."""
-    return session.get('tax_protest_result')
+    return session.get("tax_protest_result")
 
 
 def get_main_property_by_id(property_id, source):
     """Load a single property record by its ID and source."""
-    if source == 'chambers':
+    if source == "chambers":
         record = ChambersProperty.query.get(property_id)
         return _chambers_to_dict(record) if record else None
-    elif source == 'hcad':
+    elif source == "hcad":
         record = HcadProperty.query.get(property_id)
         if not record:
             return None
-        sq_ft = db.session.query(db.func.max(HcadBuilding.im_sq_ft)).filter(
-            HcadBuilding.acct == record.acct
-        ).scalar()
+        sq_ft = (
+            db.session.query(db.func.max(HcadBuilding.im_sq_ft))
+            .filter(HcadBuilding.acct == record.acct)
+            .scalar()
+        )
         return _hcad_to_dict(record, sq_ft)
-    elif source == 'liberty':
+    elif source == "liberty":
         record = LibertyProperty.query.get(property_id)
         return _liberty_to_dict(record) if record else None
-    elif source == 'fort_bend':
+    elif source == "fort_bend":
         record = FortBendProperty.query.get(property_id)
         return _fort_bend_to_dict(record) if record else None
     return None
