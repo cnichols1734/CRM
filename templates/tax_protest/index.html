@@ -906,11 +906,11 @@
             ? escapeHtml(contact.address || contact.street_address || '')
             : 'No property address on file yet';
         var statusTone = contact.has_address
-            ? '<span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Ready to search</span>'
-            : '<span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700">Address missing</span>';
+            ? '<span class="inline-flex items-center rounded border border-emerald-200/80 bg-emerald-50/80 px-1.5 py-0.5 text-[11px] font-medium text-emerald-800">Ready to search</span>'
+            : '<span class="inline-flex items-center rounded border border-amber-200/80 bg-amber-50/80 px-1.5 py-0.5 text-[11px] font-medium text-amber-900">Address missing</span>';
         var actionButton = contact.has_address
-            ? '<button type="button" data-action="select-contact" data-contact-id="' + contact.id + '" data-contact-name="' + escapeHtml(contact.name) + '" class="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Select</button>'
-            : '<button type="button" data-action="edit-contact" data-contact-id="' + contact.id + '" class="inline-flex items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100">Edit contact</button>';
+            ? '<button type="button" data-action="select-contact" data-contact-id="' + contact.id + '" data-contact-name="' + escapeHtml(contact.name) + '" class="inline-flex items-center justify-center rounded border border-slate-300 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:bg-slate-800">Select</button>'
+            : '<button type="button" data-action="edit-contact" data-contact-id="' + contact.id + '" class="inline-flex items-center justify-center rounded border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">Edit contact</button>';
         return '<div class="contact-picker-card ' + (contact.has_address ? '' : 'contact-picker-card--missing') + '">'
             + '<div class="min-w-0 flex-1">'
             + '<div class="flex flex-wrap items-center gap-2">'
@@ -928,13 +928,12 @@
             ? contacts.map(buildContactResultRow).join('')
             : '<div class="px-4 py-4 text-sm text-slate-500">No contacts match. Create a new contact below.</div>';
         html += '<div class="border-t border-slate-200 bg-slate-50/80 px-4 py-3">'
-            + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(query) + '" class="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-orange-200 hover:bg-orange-50">'
+            + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(query) + '" class="flex w-full items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50">'
             + '<span>'
-            + '<span class="block text-sm font-semibold text-slate-900">Create contact</span>'
+            + '<span class="block text-sm font-medium text-slate-900">Create contact</span>'
             + '<span class="mt-0.5 block text-xs text-slate-500">Opens the form with your search text prefilled.</span>'
             + '</span>'
-            + '<span class="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">'
-            + '<i class="fas fa-user-plus text-[10px]"></i>'
+            + '<span class="max-w-[45%] truncate border border-slate-200 bg-slate-50 px-2 py-1 text-right text-xs font-medium text-slate-600">'
             + escapeHtml(query)
             + '</span>'
             + '</button>'
@@ -959,9 +958,9 @@
                 .catch(function () {
                     searchDropdown.innerHTML = '<div class="px-4 py-4 text-sm text-slate-500">Could not load contacts right now.</div>'
                         + '<div class="border-t border-slate-200 bg-slate-50/80 px-4 py-3">'
-                        + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(q) + '" class="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-orange-200 hover:bg-orange-50">'
-                        + '<span><span class="block text-sm font-semibold text-slate-900">Create contact</span><span class="mt-0.5 block text-xs text-slate-500">Add them here instead.</span></span>'
-                        + '<span class="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700"><i class="fas fa-user-plus text-[10px]"></i>' + escapeHtml(q) + '</span>'
+                        + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(q) + '" class="flex w-full items-center justify-between gap-3 rounded border border-slate-200 bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50">'
+                        + '<span><span class="block text-sm font-medium text-slate-900">Create contact</span><span class="mt-0.5 block text-xs text-slate-500">Add them here instead.</span></span>'
+                        + '<span class="max-w-[45%] truncate border border-slate-200 bg-slate-50 px-2 py-1 text-right text-xs font-medium text-slate-600">' + escapeHtml(q) + '</span>'
                         + '</button>'
                         + '</div>';
                     searchDropdown.classList.remove('hidden');
