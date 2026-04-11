@@ -5,15 +5,18 @@ Usage:
     .venv/bin/python3 scripts/import_tax_data.py                 # Import all
     .venv/bin/python3 scripts/import_tax_data.py chambers         # Chambers only
     .venv/bin/python3 scripts/import_tax_data.py hcad             # HCAD only
+    .venv/bin/python3 scripts/import_tax_data.py liberty          # Liberty only
 
 Data files:
     tax_data/chambers.csv           - Chambers County (CSV, ~43k rows)
     tax_data/real_acct.txt          - Harris County main (TAB-separated, ~1.6M rows)
     tax_data/building_res.txt       - Harris County buildings (TAB-separated, ~1.3M rows)
+    tax_data/liberty_county.txt     - Liberty County property file (fixed-width)
 """
 import csv
 import sys
 import os
+import re
 import time
 
 sys.stdout.reconfigure(line_buffering=True)
@@ -54,6 +57,64 @@ def safe_decimal(val):
         return None
 
 
+def safe_decimal_implied(val, scale=4):
+    cleaned = clean(val)
+    if not cleaned:
+        return None
+    digits = ''.join(ch for ch in cleaned if ch.isdigit() or ch == '-')
+    if not digits:
+        return None
+    try:
+        return int(digits) / (10 ** scale)
+    except (ValueError, TypeError):
+        return None
+
+
+def fixed_text(line, start, end):
+    return clean(line[start - 1:end])
+
+
+def fixed_int(line, start, end):
+    return safe_int(line[start - 1:end])
+
+
+def fixed_decimal_implied(line, start, end, scale=4):
+    return safe_decimal_implied(line[start - 1:end], scale=scale)
+
+
+def normalize_address_text(address):
+    if not address:
+        return None
+    addr = address.upper().strip()
+    replacements = {
+        ' STREET': ' ST', ' DRIVE': ' DR', ' AVENUE': ' AVE',
+        ' BOULEVARD': ' BLVD', ' LANE': ' LN', ' COURT': ' CT',
+        ' CIRCLE': ' CIR', ' PLACE': ' PL', ' ROAD': ' RD',
+        ' HIGHWAY': ' HWY', ' PARKWAY': ' PKWY',
+    }
+    for old, new in replacements.items():
+        addr = addr.replace(old, new)
+    addr = addr.replace('FARM TO MARKET', 'FM')
+    addr = re.sub(r'\s*(APT|UNIT|STE|SUITE|#)\s*\S*$', '', addr)
+    addr = re.sub(r'\s+', ' ', addr).strip()
+    return addr or None
+
+
+def build_site_address(street_num, street_prefix, street_name, street_suffix, unit=None):
+    parts = [street_num, street_prefix, street_name, street_suffix]
+    address = ' '.join(part for part in parts if part).strip()
+    if unit:
+        address = f"{address} UNIT {unit}".strip()
+    return address or None
+
+
+def resolve_existing_path(*candidates):
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return candidate
+    return None
+
+
 def _get_raw_conn(app):
     """Get a raw psycopg2 connection from the SQLAlchemy engine."""
     with app.app_context():
@@ -70,6 +131,109 @@ def _bulk_insert(cursor, table, columns, rows):
     if table == 'hcad_properties':
         sql += " ON CONFLICT (acct) DO NOTHING"
     execute_values(cursor, sql, rows, template=template, page_size=BATCH_SIZE)
+
+
+def _load_liberty_subdivision_lookup(filepath):
+    lookup = {}
+    with open(filepath, 'r', encoding='utf-8-sig', errors='replace') as f:
+        for raw_line in f:
+            line = raw_line.rstrip('\r\n')
+            code = fixed_text(line, 1, 10)
+            if not code:
+                continue
+            lookup[code] = fixed_text(line, 11, 50)
+    return lookup
+
+
+def _choose_liberty_sq_ft(area_parts):
+    main_area = area_parts.get('main_area', 0)
+    story_area = area_parts.get('story_area', 0)
+    mobile_area = area_parts.get('mobile_area', 0)
+    best = max(main_area, story_area, mobile_area)
+    return best or None
+
+
+def _load_liberty_home_improvements(info_path, detail_path):
+    improvements = {}
+
+    print("Parsing Liberty improvement info...")
+    with open(info_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+        for raw_line in f:
+            line = raw_line.rstrip('\r\n')
+            prop_id = fixed_text(line, 1, 12)
+            imprv_id = fixed_text(line, 17, 28)
+            if not prop_id or not imprv_id:
+                continue
+
+            imprv_type_cd = fixed_text(line, 29, 38)
+            imprv_type_desc = fixed_text(line, 39, 63)
+            is_residential = imprv_type_cd in {'R', 'M'} or imprv_type_desc in {'RESIDENTIAL', 'MOBILE HOME'}
+            if not is_residential:
+                continue
+
+            key = (prop_id, imprv_id)
+            improvements[key] = {
+                'prop_id': prop_id,
+                'imprv_id': imprv_id,
+                'imprv_type_cd': imprv_type_cd,
+                'imprv_type_desc': imprv_type_desc,
+                'imprv_homesite': fixed_text(line, 69, 69),
+                'imprv_val': fixed_int(line, 70, 83),
+                'residential_sq_ft': None,
+                'is_residential': True,
+            }
+
+    print("Parsing Liberty improvement detail...")
+    detail_area_by_key = {}
+    with open(detail_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+        for raw_line in f:
+            line = raw_line.rstrip('\r\n')
+            prop_id = fixed_text(line, 1, 12)
+            imprv_id = fixed_text(line, 17, 28)
+            key = (prop_id, imprv_id)
+            if key not in improvements:
+                continue
+
+            detail_type = fixed_text(line, 41, 50) or ''
+            detail_desc = fixed_text(line, 51, 75) or ''
+            area = fixed_int(line, 94, 108)
+            if not area or area <= 0:
+                continue
+
+            buckets = detail_area_by_key.setdefault(key, {
+                'main_area': 0,
+                'story_area': 0,
+                'mobile_area': 0,
+            })
+            if 'M HOME' in detail_desc:
+                buckets['mobile_area'] += area
+            elif detail_type == 'MA':
+                buckets['main_area'] += area
+            elif detail_type.startswith('MA'):
+                buckets['story_area'] += area
+
+    improvement_rows = []
+    property_sq_ft = {}
+    home_prop_ids = set()
+
+    for key, info in improvements.items():
+        home_prop_ids.add(info['prop_id'])
+        residential_sq_ft = _choose_liberty_sq_ft(detail_area_by_key.get(key, {}))
+        info['residential_sq_ft'] = residential_sq_ft
+        if residential_sq_ft:
+            property_sq_ft[info['prop_id']] = max(property_sq_ft.get(info['prop_id']) or 0, residential_sq_ft)
+        improvement_rows.append((
+            info['prop_id'],
+            info['imprv_id'],
+            info['imprv_type_cd'],
+            info['imprv_type_desc'],
+            info['imprv_homesite'],
+            info['imprv_val'],
+            residential_sq_ft,
+            True,
+        ))
+
+    return home_prop_ids, property_sq_ft, improvement_rows
 
 
 def import_chambers(app):
@@ -335,6 +499,162 @@ def import_hcad(app):
     print(f"=== HCAD import complete: {count:,} properties + {bld_count:,} buildings in {total_elapsed:.1f}s ===")
 
 
+def import_liberty(app):
+    repo_root = os.path.dirname(os.path.dirname(__file__))
+    downloads_dir = os.path.join(os.path.expanduser('~'), 'Downloads', '2026 PRELIMARY APPRAISAL ROLL')
+
+    property_path = resolve_existing_path(
+        os.path.join(repo_root, 'tax_data', 'liberty_county.txt'),
+        os.path.join(downloads_dir, '2026-03-31_002100_APPRAISAL_ENTITY_INFO.TXT'),
+    )
+    subdv_path = resolve_existing_path(
+        os.path.join(repo_root, 'tax_data', '2026-03-31_002100_APPRAISAL_ABSTRACT_SUBDV.TXT'),
+        os.path.join(downloads_dir, '2026-03-31_002100_APPRAISAL_ABSTRACT_SUBDV.TXT'),
+    )
+    imprv_info_path = resolve_existing_path(
+        os.path.join(repo_root, 'tax_data', '2026-03-31_002100_APPRAISAL_IMPROVEMENT_INFO.TXT'),
+        os.path.join(downloads_dir, '2026-03-31_002100_APPRAISAL_IMPROVEMENT_INFO.TXT'),
+    )
+    imprv_detail_path = resolve_existing_path(
+        os.path.join(repo_root, 'tax_data', '2026-03-31_002100_APPRAISAL_IMPROVEMENT_DETAIL.TXT'),
+        os.path.join(downloads_dir, '2026-03-31_002100_APPRAISAL_IMPROVEMENT_DETAIL.TXT'),
+    )
+
+    missing = [
+        path for path in [property_path, subdv_path, imprv_info_path, imprv_detail_path]
+        if not path
+    ]
+    if missing:
+        print("ERROR: Liberty County source files not found")
+        return
+
+    print("=== Importing Liberty County home data ===")
+    start = time.time()
+
+    subdv_lookup = _load_liberty_subdivision_lookup(subdv_path)
+    home_prop_ids, property_sq_ft, improvement_rows = _load_liberty_home_improvements(
+        imprv_info_path, imprv_detail_path
+    )
+
+    print(f"  Liberty home properties identified: {len(home_prop_ids):,}")
+    print(f"  Liberty residential/mobile improvements: {len(improvement_rows):,}")
+
+    conn = _get_raw_conn(app)
+    cursor = conn.cursor()
+
+    print("Truncating liberty_improvements and liberty_properties...")
+    cursor.execute("DELETE FROM liberty_improvements")
+    cursor.execute("DELETE FROM liberty_properties")
+    conn.commit()
+
+    prop_cols = [
+        'prop_id', 'geo_id', 'prop_type_cd',
+        'situs_num', 'situs_street_prefx', 'situs_street', 'situs_street_suffix', 'situs_unit',
+        'situs_city', 'situs_zip', 'site_addr_1', 'normalized_site_addr',
+        'legal_desc', 'legal_desc2', 'legal_acreage',
+        'abs_subdv_cd', 'abs_subdv_desc',
+        'appraised_val', 'assessed_val', 'market_value',
+        'imprv_hstd_val', 'imprv_non_hstd_val',
+        'sq_ft', 'is_residential_home',
+    ]
+
+    batch = []
+    count = 0
+    imported_prop_ids = set()
+    with open(property_path, 'r', encoding='utf-8-sig', errors='replace') as f:
+        for raw_line in f:
+            line = raw_line.rstrip('\r\n')
+            prop_id = fixed_text(line, 1, 12)
+            if not prop_id or prop_id not in home_prop_ids:
+                continue
+            imported_prop_ids.add(prop_id)
+
+            situs_num = fixed_text(line, 4460, 4474)
+            situs_prefx = fixed_text(line, 1040, 1049)
+            situs_street = fixed_text(line, 1050, 1099)
+            situs_suffix = fixed_text(line, 1100, 1109)
+            situs_unit = fixed_text(line, 4475, 4479)
+            site_addr_1 = build_site_address(situs_num, situs_prefx, situs_street, situs_suffix, situs_unit)
+
+            abs_subdv_cd = fixed_text(line, 1676, 1685)
+            abs_subdv_desc = subdv_lookup.get(abs_subdv_cd) if abs_subdv_cd else None
+
+            batch.append((
+                prop_id,
+                fixed_text(line, 547, 596),
+                fixed_text(line, 13, 17),
+                situs_num,
+                situs_prefx,
+                situs_street,
+                situs_suffix,
+                situs_unit,
+                fixed_text(line, 1110, 1139),
+                fixed_text(line, 1140, 1149),
+                site_addr_1,
+                normalize_address_text(site_addr_1),
+                fixed_text(line, 1150, 1404),
+                fixed_text(line, 1405, 1659),
+                fixed_decimal_implied(line, 1660, 1675, scale=4),
+                abs_subdv_cd,
+                abs_subdv_desc,
+                fixed_int(line, 1916, 1930),
+                fixed_int(line, 1946, 1960),
+                fixed_int(line, 4214, 4227),
+                fixed_int(line, 1826, 1840),
+                fixed_int(line, 1841, 1855),
+                property_sq_ft.get(prop_id),
+                True,
+            ))
+
+            if len(batch) >= BATCH_SIZE:
+                _bulk_insert(cursor, 'liberty_properties', prop_cols, batch)
+                conn.commit()
+                count += len(batch)
+                if count % 25000 < BATCH_SIZE:
+                    elapsed = time.time() - start
+                    print(f"  Liberty properties: {count:,} rows... ({elapsed:.0f}s)")
+                batch = []
+
+    if batch:
+        _bulk_insert(cursor, 'liberty_properties', prop_cols, batch)
+        conn.commit()
+        count += len(batch)
+
+    print(f"  Liberty properties complete: {count:,} rows")
+
+    imprv_cols = [
+        'prop_id', 'imprv_id', 'imprv_type_cd', 'imprv_type_desc',
+        'imprv_homesite', 'imprv_val', 'residential_sq_ft', 'is_residential',
+    ]
+    batch = []
+    imprv_count = 0
+    skipped_improvements = 0
+    for row in improvement_rows:
+        if row[0] not in imported_prop_ids:
+            skipped_improvements += 1
+            continue
+        batch.append(row)
+        if len(batch) >= BATCH_SIZE:
+            _bulk_insert(cursor, 'liberty_improvements', imprv_cols, batch)
+            conn.commit()
+            imprv_count += len(batch)
+            batch = []
+
+    if batch:
+        _bulk_insert(cursor, 'liberty_improvements', imprv_cols, batch)
+        conn.commit()
+        imprv_count += len(batch)
+
+    cursor.close()
+    conn.close()
+
+    elapsed = time.time() - start
+    print(
+        f"=== Liberty import complete: {count:,} properties + {imprv_count:,} improvements "
+        f"in {elapsed:.1f}s (skipped {skipped_improvements:,} orphan improvements) ==="
+    )
+
+
 if __name__ == '__main__':
     target = sys.argv[1] if len(sys.argv) > 1 else 'all'
     app = create_app()
@@ -345,5 +665,7 @@ if __name__ == '__main__':
         import_hcad_neighborhoods(app)
     if target in ('all', 'hcad'):
         import_hcad(app)
+    if target in ('all', 'liberty'):
+        import_liberty(app)
 
     print("\nDone!")

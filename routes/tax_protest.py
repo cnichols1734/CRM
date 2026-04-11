@@ -107,18 +107,20 @@ def search_property():
 
     if not property_record:
         return jsonify({
-            'error': f'No property found matching "{contact.street_address}" in Chambers or Harris County tax records'
+            'error': f'No property found matching "{contact.street_address}" in Chambers, Harris, or Liberty County tax records'
         }), 404
 
     market_value = property_record.get('market_value')
     zip_code = property_record.get('zip')
     neighborhood_code = property_record.get('neighborhood_code')
+    subdivision_code = property_record.get('subdivision_code')
     main_sq_ft = property_record.get('sq_ft')
+    main_acreage = property_record.get('acreage')
     subdivision = None
+    fuzzy = False
 
     if source == 'hcad':
         lgl_2 = property_record.get('legal2') or ''
-        fuzzy = False
         if _is_valid_subdivision(lgl_2):
             subdivision = lgl_2.strip()
         else:
@@ -134,6 +136,24 @@ def search_property():
             subdivision, zip_code, market_value, source,
             main_sq_ft=main_sq_ft,
             fuzzy_subdivision=fuzzy,
+            main_acreage=main_acreage,
+        )
+    elif source == 'liberty':
+        subdivision = property_record.get('subdivision')
+        if not subdivision or not subdivision_code:
+            return jsonify({
+                'error': 'Could not determine Liberty subdivision from tax data',
+                'main_property': property_record,
+                'source': source,
+            }), 422
+        comparables = find_comparables(
+            subdivision,
+            zip_code,
+            market_value,
+            source,
+            main_sq_ft=main_sq_ft,
+            subdivision_code=subdivision_code,
+            main_acreage=main_acreage,
         )
     else:
         legal_desc = property_record.get('legal1', '')
@@ -145,7 +165,8 @@ def search_property():
                 'source': source,
             }), 422
         comparables = find_comparables(subdivision, zip_code, market_value, source,
-                                       main_sq_ft=main_sq_ft)
+                                       main_sq_ft=main_sq_ft,
+                                       main_acreage=main_acreage)
 
     cache_search_result(
         source=source,
@@ -154,8 +175,10 @@ def search_property():
         contact_id=contact.id,
         zip_code=zip_code,
         neighborhood_code=neighborhood_code,
+        subdivision_code=subdivision_code,
         main_sq_ft=main_sq_ft,
-        fuzzy_subdivision=fuzzy if source == 'hcad' else False,
+        main_acreage=main_acreage,
+        fuzzy_subdivision=fuzzy,
     )
 
     return jsonify({
@@ -189,6 +212,8 @@ def download_csv():
         cached['source'],
         main_sq_ft=cached.get('main_sq_ft'),
         fuzzy_subdivision=cached.get('fuzzy_subdivision', False),
+        subdivision_code=cached.get('subdivision_code'),
+        main_acreage=cached.get('main_acreage'),
     )
 
     output = StringIO()
@@ -198,7 +223,11 @@ def download_csv():
                'Acreage', 'Subdivision', 'Legal Description', 'Account', 'County']
     writer.writerow(headers)
 
-    county = 'Chambers' if cached['source'] == 'chambers' else 'Harris'
+    county = {
+        'chambers': 'Chambers',
+        'hcad': 'Harris',
+        'liberty': 'Liberty',
+    }.get(cached['source'], cached['source'].title())
     subdivision = cached.get('subdivision', '')
 
     def write_row(prop, row_type='Comparable'):
