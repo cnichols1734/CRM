@@ -1572,3 +1572,90 @@ class HcadBuilding(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     acct = db.Column(db.String(30), db.ForeignKey('hcad_properties.acct'), nullable=False, index=True)
     im_sq_ft = db.Column(db.Integer)
+
+
+class LibertyProperty(db.Model):
+    """Liberty County home-focused tax appraisal records."""
+    __tablename__ = 'liberty_properties'
+
+    id = db.Column(db.Integer, primary_key=True)
+    prop_id = db.Column(db.String(20), unique=True, index=True)
+    geo_id = db.Column(db.String(50), index=True)
+    prop_type_cd = db.Column(db.String(10), index=True)
+    situs_num = db.Column(db.String(20), index=True)
+    situs_street_prefx = db.Column(db.String(20))
+    situs_street = db.Column(db.String(100), index=True)
+    situs_street_suffix = db.Column(db.String(20))
+    situs_unit = db.Column(db.String(20))
+    situs_city = db.Column(db.String(100))
+    situs_zip = db.Column(db.String(10), index=True)
+    site_addr_1 = db.Column(db.String(200))
+    normalized_site_addr = db.Column(db.String(200), index=True)
+    legal_desc = db.Column(db.String(500))
+    legal_desc2 = db.Column(db.String(500))
+    legal_acreage = db.Column(db.Numeric(16, 4))
+    abs_subdv_cd = db.Column(db.String(10), index=True)
+    abs_subdv_desc = db.Column(db.String(200), index=True)
+    appraised_val = db.Column(db.Integer)
+    assessed_val = db.Column(db.Integer)
+    market_value = db.Column(db.Integer)
+    imprv_hstd_val = db.Column(db.Integer)
+    imprv_non_hstd_val = db.Column(db.Integer)
+    sq_ft = db.Column(db.Integer)
+    is_residential_home = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
+    improvements = db.relationship('LibertyImprovement', backref='property', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<LibertyProperty {self.site_addr_1 or self.geo_id}>'
+
+
+class LibertyImprovement(db.Model):
+    """Liberty County residential/mobile-home improvements used to classify homes."""
+    __tablename__ = 'liberty_improvements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    prop_id = db.Column(db.String(20), db.ForeignKey('liberty_properties.prop_id'), nullable=False, index=True)
+    imprv_id = db.Column(db.String(20), nullable=False, index=True)
+    imprv_type_cd = db.Column(db.String(10))
+    imprv_type_desc = db.Column(db.String(50))
+    imprv_homesite = db.Column(db.String(1))
+    imprv_val = db.Column(db.Integer)
+    residential_sq_ft = db.Column(db.Integer)
+    is_residential = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('prop_id', 'imprv_id', name='uq_liberty_improvement_prop_imprv'),
+    )
+
+    def __repr__(self):
+        return f'<LibertyImprovement {self.prop_id}/{self.imprv_id}>'
+
+
+class LibertyCodeProfile(db.Model):
+    """Stored strategy metadata for Liberty subdivision/abstract codes."""
+    __tablename__ = 'liberty_code_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    abs_subdv_cd = db.Column(db.String(10), unique=True, index=True, nullable=False)
+    abs_subdv_desc = db.Column(db.String(200), index=True)
+    property_count = db.Column(db.Integer, nullable=False, default=0)
+    avg_acreage = db.Column(db.Numeric(14, 4))
+    median_acreage = db.Column(db.Numeric(14, 4))
+    pct_with_situs_num = db.Column(db.Numeric(8, 4))
+    pct_with_sq_ft = db.Column(db.Numeric(8, 4))
+    distinct_street_count = db.Column(db.Integer)
+    distinct_zip_count = db.Column(db.Integer)
+    sample_addresses = db.Column(db.JSON)
+    sample_legal_descriptions = db.Column(db.JSON)
+    bucket = db.Column(db.String(30), index=True)
+    strategy = db.Column(db.String(20), index=True)
+    confidence = db.Column(db.Numeric(5, 4))
+    rationale = db.Column(db.Text)
+    model_name = db.Column(db.String(50))
+    prompt_version = db.Column(db.String(30))
+    classified_at = db.Column(db.DateTime)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<LibertyCodeProfile {self.abs_subdv_cd} {self.strategy}>'

@@ -264,7 +264,11 @@
     function displayResults(data) {
         currentMainProperty = data.main_property;
         currentComparables = data.comparables || [];
-        const county = data.source === 'chambers' ? 'Chambers County' : 'Harris County';
+        const county = {
+            chambers: 'Chambers County',
+            hcad: 'Harris County',
+            liberty: 'Liberty County',
+        }[data.source] || 'County Tax Data';
 
         document.getElementById('countyBadge').textContent = county;
         document.getElementById('mainAddress').textContent = data.main_property.full_address || data.main_property.address;
@@ -289,8 +293,9 @@
             acreageWrap.classList.add('hidden');
         }
 
+        const zipSuffix = data.main_property.zip ? ` (${data.main_property.zip})` : '';
         document.getElementById('resultsCount').textContent =
-            `Found ${data.total_comparables} propert${data.total_comparables === 1 ? 'y' : 'ies'} with lower market value in ${data.subdivision || 'neighborhood'} (${data.main_property.zip || ''})`;
+            `Found ${data.total_comparables} propert${data.total_comparables === 1 ? 'y' : 'ies'} with lower market value in ${data.subdivision || 'neighborhood'}${zipSuffix}`;
 
         document.getElementById('downloadBtn').href = '/tax-protest/download-csv';
 
