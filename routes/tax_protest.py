@@ -144,7 +144,8 @@ def search_property():
                 'main_property': property_record,
                 'source': source,
             }), 422
-        comparables = find_comparables(subdivision, zip_code, market_value, source)
+        comparables = find_comparables(subdivision, zip_code, market_value, source,
+                                       main_sq_ft=main_sq_ft)
 
     cache_search_result(
         source=source,

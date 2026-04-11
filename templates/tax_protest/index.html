@@ -108,19 +108,29 @@
 
             <!-- Comparables Table -->
             <div class="crm-table-wrap">
-                <table class="crm-table" id="comparablesTable">
+                <table class="crm-table" id="comparablesTable" style="table-layout:fixed;width:100%;">
+                    <colgroup>
+                        <col style="width:22%;">
+                        <col style="width:10%;">
+                        <col style="width:7%;">
+                        <col style="width:12%;">
+                        <col style="width:8%;">
+                        <col style="width:8%;">
+                        <col style="width:14%;">
+                        <col style="width:19%;">
+                    </colgroup>
                     <thead>
                         <tr>
-                            <th class="text-left">Address</th>
-                            <th class="text-left">City</th>
-                            <th class="text-left">Zip</th>
-                            <th class="text-right cursor-pointer hover:text-orange-600" id="sortValue">
+                            <th>Address</th>
+                            <th>City</th>
+                            <th>Zip</th>
+                            <th style="text-align:right" class="cursor-pointer hover:text-orange-600" id="sortValue">
                                 Market Value <i class="fas fa-sort-amount-up text-xs ml-1"></i>
                             </th>
-                            <th class="text-right">Sq Ft</th>
-                            <th class="text-right">Acreage</th>
-                            <th class="text-left">Subdivision</th>
-                            <th class="text-left">Legal Description</th>
+                            <th style="text-align:right">Sq Ft</th>
+                            <th style="text-align:right">Acreage</th>
+                            <th>Subdivision</th>
+                            <th>Legal Description</th>
                         </tr>
                     </thead>
                     <tbody id="comparablesBody">
@@ -311,17 +321,17 @@
         const tbody = document.getElementById('comparablesBody');
         tbody.innerHTML = allRows.map(p => `
             <tr class="${p._isMain ? 'bg-amber-50 font-medium' : 'hover:bg-slate-50'}">
-                <td class="text-sm">
+                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.full_address || p.address || ''}">
                     ${p._isMain ? '<i class="fas fa-star text-amber-500 text-xs mr-1"></i>' : ''}
                     ${p.full_address || p.address || ''}
                 </td>
-                <td class="text-sm">${p.city || ''}</td>
-                <td class="text-sm">${p.zip || ''}</td>
-                <td class="text-sm text-right">${fmt(p.market_value)}</td>
-                <td class="text-sm text-right">${p.sq_ft ? fmtNum(p.sq_ft) : '—'}</td>
-                <td class="text-sm text-right">${p.acreage ? p.acreage.toFixed(2) : '—'}</td>
-                <td class="text-sm text-slate-500">${p.subdivision || p.legal2 || ''}</td>
-                <td class="text-sm text-slate-500 max-w-[200px] truncate" title="${p.legal1 || ''}">${p.legal1 || ''}</td>
+                <td style="overflow:hidden;text-overflow:ellipsis">${p.city || ''}</td>
+                <td>${p.zip || ''}</td>
+                <td style="text-align:right">${fmt(p.market_value)}</td>
+                <td style="text-align:right">${p.sq_ft ? fmtNum(p.sq_ft) : '—'}</td>
+                <td style="text-align:right">${p.acreage ? p.acreage.toFixed(2) : '—'}</td>
+                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.subdivision || p.legal2 || ''}">${p.subdivision || p.legal2 || ''}</td>
+                <td style="overflow:hidden;text-overflow:ellipsis" title="${p.legal1 || ''}">${p.legal1 || ''}</td>
             </tr>
         `).join('');
 
