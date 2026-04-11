@@ -37,36 +37,6 @@
                 resize: vertical;
             }
 
-            .premium-checkbox-card {
-                display: flex;
-                align-items: center;
-                gap: 0.75rem;
-                padding: 0.875rem 1rem;
-                border: 2px solid #e2e8f0;
-                border-radius: 1rem;
-                background: #ffffff;
-                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
-                cursor: pointer;
-            }
-
-            .premium-checkbox-card:hover {
-                border-color: #fdba74;
-                background: #fff7ed;
-                transform: translateY(-1px);
-            }
-
-            .premium-checkbox-card:has(input:checked) {
-                border-color: #fb923c;
-                background: #fff7ed;
-            }
-
-            .premium-checkbox-card input {
-                width: 1rem;
-                height: 1rem;
-                accent-color: #f97316;
-                flex-shrink: 0;
-            }
-
             .modal-field-error {
                 margin-top: 0.5rem;
                 font-size: 0.875rem;
@@ -279,15 +249,14 @@
                     <div class="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
                         <div class="flex items-start justify-between gap-4">
                             <div class="flex items-center gap-4">
-                                <div id="contactModalIconWrap" class="relative">
-                                    <div id="contactModalIconBg" class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
-                                        <i id="contactModalIcon" class="fas fa-user-plus text-xl text-white"></i>
+                                <div id="contactModalIconWrap" class="relative shrink-0">
+                                    <div id="contactModalIconBg" class="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md">
+                                        <i id="contactModalIcon" class="fas fa-user-plus text-lg text-white"></i>
                                     </div>
                                 </div>
                                 <div>
-                                    <div id="contactModalEyebrow" class="text-xs font-semibold uppercase tracking-[0.2em] text-orange-500">Tax Protest</div>
-                                    <h2 id="contactModalTitle" class="mt-1 text-2xl font-bold text-slate-900">Create Contact</h2>
-                                    <p id="contactModalSubtitle" class="mt-1 text-sm text-slate-500">Add a contact without leaving the tax protest workflow.</p>
+                                    <h2 id="contactModalTitle" class="text-xl font-bold text-slate-900 sm:text-2xl">Create contact</h2>
+                                    <p id="contactModalSubtitle" class="mt-1 text-sm text-slate-500">Same fields as the main contact form. A street address is required for search.</p>
                                 </div>
                             </div>
                             <button type="button" id="contactModalClose" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700">
@@ -308,113 +277,100 @@
                             </div>
                         </div>
 
-                        <div class="grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-                            <div class="space-y-8">
-                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                                    <div class="mb-6 flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
-                                            <i class="fas fa-user text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-semibold text-slate-900">Basic Information</h3>
-                                            <p class="text-sm text-slate-500">This mirrors the main contact form, trimmed for the tax workflow.</p>
-                                        </div>
+                        <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                            <div>
+                                <div class="mb-6 flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                                        <i class="fas fa-user text-sm"></i>
                                     </div>
-                                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                                        <div>
-                                            <label for="contactModalFirstName" class="mb-2 block text-sm font-medium text-slate-700">First Name</label>
-                                            <input id="contactModalFirstName" name="first_name" type="text" class="premium-input" autocomplete="given-name">
-                                            <p data-error-for="first_name" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalLastName" class="mb-2 block text-sm font-medium text-slate-700">Last Name</label>
-                                            <input id="contactModalLastName" name="last_name" type="text" class="premium-input" autocomplete="family-name">
-                                            <p data-error-for="last_name" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalEmail" class="mb-2 block text-sm font-medium text-slate-700">Email</label>
-                                            <input id="contactModalEmail" name="email" type="email" class="premium-input" autocomplete="email">
-                                            <p data-error-for="email" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalPhone" class="mb-2 block text-sm font-medium text-slate-700">Phone</label>
-                                            <input id="contactModalPhone" name="phone" type="tel" class="premium-input" autocomplete="tel">
-                                            <p data-error-for="phone" class="modal-field-error hidden"></p>
-                                        </div>
+                                    <h3 class="text-lg font-semibold text-slate-800">Basic Information</h3>
+                                </div>
+                                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                    <div>
+                                        <label for="contactModalFirstName" class="mb-2 block text-sm font-medium text-slate-700">First Name</label>
+                                        <input id="contactModalFirstName" name="first_name" type="text" class="premium-input" autocomplete="given-name">
+                                        <p data-error-for="first_name" class="modal-field-error hidden"></p>
                                     </div>
-                                </section>
-
-                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                                    <div class="mb-6 flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 text-white">
-                                            <i class="fas fa-location-dot text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-semibold text-slate-900">Property Address</h3>
-                                            <p class="text-sm text-slate-500">A street address is required before tax protest search can run.</p>
-                                        </div>
+                                    <div>
+                                        <label for="contactModalLastName" class="mb-2 block text-sm font-medium text-slate-700">Last Name</label>
+                                        <input id="contactModalLastName" name="last_name" type="text" class="premium-input" autocomplete="family-name">
+                                        <p data-error-for="last_name" class="modal-field-error hidden"></p>
                                     </div>
-                                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
-                                        <div class="md:col-span-2">
-                                            <label for="contactModalStreet" class="mb-2 block text-sm font-medium text-slate-700">Street Address</label>
-                                            <input id="contactModalStreet" name="street_address" type="text" class="premium-input" autocomplete="street-address">
-                                            <p data-error-for="street_address" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalCity" class="mb-2 block text-sm font-medium text-slate-700">City</label>
-                                            <input id="contactModalCity" name="city" type="text" class="premium-input" autocomplete="address-level2">
-                                            <p data-error-for="city" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalState" class="mb-2 block text-sm font-medium text-slate-700">State</label>
-                                            <input id="contactModalState" name="state" type="text" class="premium-input" autocomplete="address-level1">
-                                            <p data-error-for="state" class="modal-field-error hidden"></p>
-                                        </div>
-                                        <div>
-                                            <label for="contactModalZip" class="mb-2 block text-sm font-medium text-slate-700">ZIP Code</label>
-                                            <input id="contactModalZip" name="zip_code" type="text" class="premium-input" autocomplete="postal-code">
-                                            <p data-error-for="zip_code" class="modal-field-error hidden"></p>
-                                        </div>
+                                    <div>
+                                        <label for="contactModalEmail" class="mb-2 block text-sm font-medium text-slate-700">Email</label>
+                                        <input id="contactModalEmail" name="email" type="email" class="premium-input" autocomplete="email">
+                                        <p data-error-for="email" class="modal-field-error hidden"></p>
                                     </div>
-                                </section>
+                                    <div>
+                                        <label for="contactModalPhone" class="mb-2 block text-sm font-medium text-slate-700">Phone</label>
+                                        <input id="contactModalPhone" name="phone" type="tel" class="premium-input" autocomplete="tel">
+                                        <p data-error-for="phone" class="modal-field-error hidden"></p>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div class="space-y-8">
-                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                                    <div class="mb-6 flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 text-white">
-                                            <i class="fas fa-users text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-semibold text-slate-900">Groups</h3>
-                                            <p class="text-sm text-slate-500">Keep the same group assignment step users already see in contacts.</p>
-                                        </div>
+                            <div class="border-t border-slate-100 pt-6">
+                                <div class="mb-6 flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+                                        <i class="fas fa-map-marker-alt text-sm"></i>
                                     </div>
-                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <h3 class="text-lg font-semibold text-slate-800">Address</h3>
+                                </div>
+                                <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                    <div class="md:col-span-2">
+                                        <label for="contactModalStreet" class="mb-2 block text-sm font-medium text-slate-700">Street Address</label>
+                                        <input id="contactModalStreet" name="street_address" type="text" class="premium-input" autocomplete="street-address">
+                                        <p data-error-for="street_address" class="modal-field-error hidden"></p>
+                                    </div>
+                                    <div>
+                                        <label for="contactModalCity" class="mb-2 block text-sm font-medium text-slate-700">City</label>
+                                        <input id="contactModalCity" name="city" type="text" class="premium-input" autocomplete="address-level2">
+                                        <p data-error-for="city" class="modal-field-error hidden"></p>
+                                    </div>
+                                    <div>
+                                        <label for="contactModalState" class="mb-2 block text-sm font-medium text-slate-700">State</label>
+                                        <input id="contactModalState" name="state" type="text" class="premium-input" autocomplete="address-level1">
+                                        <p data-error-for="state" class="modal-field-error hidden"></p>
+                                    </div>
+                                    <div>
+                                        <label for="contactModalZip" class="mb-2 block text-sm font-medium text-slate-700">ZIP Code</label>
+                                        <input id="contactModalZip" name="zip_code" type="text" class="premium-input" autocomplete="postal-code">
+                                        <p data-error-for="zip_code" class="modal-field-error hidden"></p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="border-t border-slate-100 pt-6">
+                                <div class="mb-6 flex flex-wrap items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-violet-600 text-white">
+                                        <i class="fas fa-users text-sm"></i>
+                                    </div>
+                                    <h3 class="text-lg font-semibold text-slate-800">Groups</h3>
+                                    <span class="text-sm text-slate-500">(Select at least one)</span>
+                                </div>
+                                <div class="rounded-xl border border-slate-100 bg-slate-50/50 p-6">
+                                    <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
                                         {% for group in contact_groups %}
-                                        <label class="premium-checkbox-card">
-                                            <input type="checkbox" name="group_ids" value="{{ group.id }}" data-group-id="{{ group.id }}">
-                                            <span class="text-sm font-medium text-slate-700">{{ group.name }}</span>
+                                        <label class="relative flex cursor-pointer items-center rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm transition-all duration-200 hover:border-orange-300 hover:bg-orange-50 has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50">
+                                            <input type="checkbox" name="group_ids" value="{{ group.id }}" data-group-id="{{ group.id }}" class="form-checkbox mr-3 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-400">
+                                            <span class="font-medium text-slate-700">{{ group.name }}</span>
                                         </label>
                                         {% endfor %}
                                     </div>
-                                    <p data-error-for="group_ids" class="modal-field-error hidden"></p>
-                                </section>
+                                </div>
+                                <p data-error-for="group_ids" class="modal-field-error hidden"></p>
+                            </div>
 
-                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                                    <div class="mb-6 flex items-center gap-3">
-                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white">
-                                            <i class="fas fa-note-sticky text-sm"></i>
-                                        </div>
-                                        <div>
-                                            <h3 class="text-lg font-semibold text-slate-900">Notes</h3>
-                                            <p class="text-sm text-slate-500">Optional CRM notes if the user wants to capture extra context here.</p>
-                                        </div>
+                            <div class="border-t border-slate-100 pt-6">
+                                <div class="mb-6 flex items-center gap-3">
+                                    <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-slate-600 to-slate-800 text-white">
+                                        <i class="fas fa-sticky-note text-sm"></i>
                                     </div>
-                                    <label for="contactModalNotes" class="mb-2 block text-sm font-medium text-slate-700">Notes</label>
-                                    <textarea id="contactModalNotes" name="notes" class="premium-input" rows="6"></textarea>
-                                    <p data-error-for="notes" class="modal-field-error hidden"></p>
-                                </section>
+                                    <h3 class="text-lg font-semibold text-slate-800">Notes</h3>
+                                </div>
+                                <label for="contactModalNotes" class="mb-2 block text-sm font-medium text-slate-700">Notes</label>
+                                <textarea id="contactModalNotes" name="notes" class="premium-input" rows="5"></textarea>
+                                <p data-error-for="notes" class="modal-field-error hidden"></p>
                             </div>
                         </div>
 
@@ -460,7 +416,6 @@
         loading: document.getElementById('contactModalLoading'),
         title: document.getElementById('contactModalTitle'),
         subtitle: document.getElementById('contactModalSubtitle'),
-        eyebrow: document.getElementById('contactModalEyebrow'),
         icon: document.getElementById('contactModalIcon'),
         iconBg: document.getElementById('contactModalIconBg'),
         submit: document.getElementById('contactModalSubmit'),
@@ -780,17 +735,15 @@
 
     function configureModal(mode) {
         if (mode === 'create') {
-            contactModal.eyebrow.textContent = 'Create Contact';
-            contactModal.title.textContent = 'Add Contact In Place';
-            contactModal.subtitle.textContent = 'Create the CRM record here, then search again without leaving tax protest.';
-            contactModal.icon.className = 'fas fa-user-plus text-xl text-white';
-            contactModal.iconBg.className = 'flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20';
+            contactModal.title.textContent = 'Create contact';
+            contactModal.subtitle.textContent = 'Same fields as the main contact form. A street address is required for search.';
+            contactModal.icon.className = 'fas fa-user-plus text-lg text-white';
+            contactModal.iconBg.className = 'flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-md';
         } else {
-            contactModal.eyebrow.textContent = 'Update Contact';
-            contactModal.title.textContent = 'Add The Missing Property Address';
-            contactModal.subtitle.textContent = 'Update this contact in-place, close the modal, and search them again from here.';
-            contactModal.icon.className = 'fas fa-pen text-xl text-white';
-            contactModal.iconBg.className = 'flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20';
+            contactModal.title.textContent = 'Edit contact';
+            contactModal.subtitle.textContent = 'Update the record, then search again to load comparables.';
+            contactModal.icon.className = 'fas fa-pen text-lg text-white';
+            contactModal.iconBg.className = 'flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-md';
         }
         setModalSaving(false);
     }
@@ -917,7 +870,7 @@
             errors.last_name = ['Last name is required.'];
         }
         if (!streetAddress) {
-            errors.street_address = ['Street address is required to run a tax protest search.'];
+            errors.street_address = ['Street address is required for search.'];
         }
         if (!selectedGroups.length) {
             errors.group_ids = ['Select at least one group.'];
@@ -928,7 +881,7 @@
         });
 
         if (Object.keys(errors).length) {
-            showModalAlert('Fill in the required contact details before saving.', 'error');
+            showModalAlert('Please complete the required fields.', 'error');
             return false;
         }
         return true;
@@ -943,8 +896,7 @@
         searchInput.focus();
         searchInput.select();
         showSearchStatus(
-            (modalState.mode === 'create' ? 'Contact created. ' : 'Contact updated. ')
-            + 'Search again to continue.',
+            modalState.mode === 'create' ? 'Contact saved. Search again to load results.' : 'Contact updated. Search again to load results.',
             'success'
         );
     }
@@ -974,12 +926,12 @@
     function renderSearchDropdown(contacts, query) {
         var html = contacts.length
             ? contacts.map(buildContactResultRow).join('')
-            : '<div class="px-4 py-4 text-sm text-slate-500">No matching contacts yet. Create one here and stay in the tax protest flow.</div>';
+            : '<div class="px-4 py-4 text-sm text-slate-500">No contacts match. Create a new contact below.</div>';
         html += '<div class="border-t border-slate-200 bg-slate-50/80 px-4 py-3">'
             + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(query) + '" class="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-orange-200 hover:bg-orange-50">'
             + '<span>'
             + '<span class="block text-sm font-semibold text-slate-900">Create contact</span>'
-            + '<span class="mt-0.5 block text-xs text-slate-500">Need someone else? Add them from this same screen.</span>'
+            + '<span class="mt-0.5 block text-xs text-slate-500">Opens the form with your search text prefilled.</span>'
             + '</span>'
             + '<span class="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">'
             + '<i class="fas fa-user-plus text-[10px]"></i>'
