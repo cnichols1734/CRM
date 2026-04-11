@@ -14,6 +14,7 @@ from models import (
     HcadNeighborhoodCode,
     LibertyProperty,
     LibertyCodeProfile,
+    FortBendProperty,
 )
 
 logger = logging.getLogger(__name__)
@@ -81,7 +82,8 @@ def _parse_street_parts(address):
 
 def find_property_in_tax_data(street_address, city, zip_code):
     """
-    Search for a property in Chambers County first, then Harris County, then Liberty County.
+    Search for a property in Chambers County first, then Harris County,
+    then Liberty County, then Fort Bend County.
     Returns (record_dict, source) or (None, None).
     """
     normalized_address = normalize_address(street_address)
@@ -95,7 +97,7 @@ def find_property_in_tax_data(street_address, city, zip_code):
         return chambers_result, 'chambers'
 
     # --- Harris County (HCAD) ---
-    hcad_result = _search_hcad(street_num, direction, street_name, zip_clean)
+    hcad_result = _search_hcad(normalized_address, street_num, direction, street_name, zip_clean)
     if hcad_result:
         return hcad_result, 'hcad'
 
@@ -105,6 +107,13 @@ def find_property_in_tax_data(street_address, city, zip_code):
     )
     if liberty_result:
         return liberty_result, 'liberty'
+
+    # --- Fort Bend County ---
+    fort_bend_result = _search_fort_bend(
+        normalized_address, street_num, street_name, city_clean, zip_clean
+    )
+    if fort_bend_result:
+        return fort_bend_result, 'fort_bend'
 
     return None, None
 
@@ -119,7 +128,7 @@ def _search_chambers(street_num, direction, street_name, zip_code):
     first_word = street_name.split()[0]
     base_filters = [
         ChambersProperty.prop_street_number == street_num,
-        ChambersProperty.prop_street.ilike(f'%{first_word}%'),
+        ChambersProperty.prop_street.ilike(f'{first_word}%'),
     ]
     if direction:
         base_filters.append(ChambersProperty.prop_street_dir == direction)
@@ -141,15 +150,30 @@ def _search_chambers(street_num, direction, street_name, zip_code):
     return None
 
 
-def _search_hcad(street_num, direction, street_name, zip_code):
+def _search_hcad(normalized_address, street_num, direction, street_name, zip_code):
     """Search Harris County by address components.
     Matches street number, direction (via str_sfx_dir), and first word of street name.
     Falls back to relaxed search without zip if initial search misses."""
+    if normalized_address:
+        if zip_code:
+            result = HcadProperty.query.filter(
+                HcadProperty.site_addr_3 == zip_code,
+                db.func.upper(HcadProperty.site_addr_1) == normalized_address,
+            ).first()
+            if result:
+                return _hcad_found(result)
+
+        result = HcadProperty.query.filter(
+            db.func.upper(HcadProperty.site_addr_1) == normalized_address,
+        ).first()
+        if result:
+            return _hcad_found(result)
+
     if street_num and street_name:
         first_word = street_name.split()[0]
         base_filters = [
             HcadProperty.str_num == street_num,
-            HcadProperty.str.ilike(f'%{first_word}%'),
+            HcadProperty.str.ilike(f'{first_word}%'),
         ]
         if direction:
             base_filters.append(HcadProperty.str_sfx_dir == direction)
@@ -173,7 +197,7 @@ def _search_hcad(street_num, direction, street_name, zip_code):
     # Last resort: fuzzy match on full site_addr_1
     if street_num and street_name:
         result = HcadProperty.query.filter(
-            HcadProperty.site_addr_1.ilike(f'%{street_num}%{street_name.split()[0]}%'),
+            HcadProperty.site_addr_1.ilike(f'{street_num} {street_name}%'),
         ).first()
         if result:
             return _hcad_found(result)
@@ -205,7 +229,7 @@ def _search_liberty(normalized_address, street_num, street_name, city, zip_code)
     if street_name:
         first_word = street_name.split()[0]
         street_filters = [
-            LibertyProperty.situs_street.ilike(f'%{first_word}%'),
+            LibertyProperty.situs_street.ilike(f'{first_word}%'),
             *base_filter,
         ]
         if street_num:
@@ -235,11 +259,74 @@ def _search_liberty(normalized_address, street_num, street_name, city, zip_code)
 
         if street_num:
             result = LibertyProperty.query.filter(
-                LibertyProperty.site_addr_1.ilike(f'%{street_num}%{first_word}%'),
+                LibertyProperty.site_addr_1.ilike(f'{street_num} {first_word}%'),
                 *base_filter,
             ).first()
             if result:
                 return _liberty_to_dict(result)
+
+    return None
+
+
+def _search_fort_bend(normalized_address, street_num, street_name, city, zip_code):
+    """Search Fort Bend County home records using normalized address, then relaxed fallbacks."""
+    base_filter = [FortBendProperty.is_residential_home.is_(True)]
+
+    if normalized_address:
+        if zip_code:
+            result = FortBendProperty.query.filter(
+                FortBendProperty.normalized_site_addr == normalized_address,
+                FortBendProperty.situs_zip == zip_code,
+                *base_filter,
+            ).first()
+            if result:
+                return _fort_bend_to_dict(result)
+
+        result = FortBendProperty.query.filter(
+            FortBendProperty.normalized_site_addr == normalized_address,
+            *base_filter,
+        ).first()
+        if result:
+            return _fort_bend_to_dict(result)
+
+    if street_name:
+        first_word = street_name.split()[0]
+        street_filters = [
+            FortBendProperty.situs_street_name.ilike(f'{first_word}%'),
+            *base_filter,
+        ]
+        if street_num:
+            street_filters.append(FortBendProperty.situs_street_number == street_num)
+
+        if zip_code:
+            result = FortBendProperty.query.filter(
+                FortBendProperty.situs_zip == zip_code,
+                *street_filters,
+            ).first()
+            if result:
+                return _fort_bend_to_dict(result)
+
+        if city:
+            result = FortBendProperty.query.filter(
+                db.func.upper(FortBendProperty.situs_city) == city,
+                *street_filters,
+            ).first()
+            if result:
+                return _fort_bend_to_dict(result)
+
+        result = FortBendProperty.query.filter(
+            *street_filters,
+        ).first()
+        if result:
+            return _fort_bend_to_dict(result)
+
+        if street_num:
+            result = FortBendProperty.query.filter(
+                FortBendProperty.site_addr_1.ilike(f'{street_num} {first_word}%'),
+                *base_filter,
+            ).first()
+            if result:
+                return _fort_bend_to_dict(result)
 
     return None
 
@@ -468,6 +555,41 @@ def find_comparables(subdivision, zip_code, market_value, source,
         results = _liberty_query(use_zip=False)
         return [_liberty_to_dict(r) for r in results]
 
+    elif source == 'fort_bend':
+        if not subdivision_code:
+            return []
+
+        base_filters = [
+            FortBendProperty.is_residential_home.is_(True),
+            FortBendProperty.nbhd_code == subdivision_code,
+            FortBendProperty.market_value.isnot(None),
+            FortBendProperty.market_value > 0,
+            FortBendProperty.market_value < market_value,
+            FortBendProperty.site_addr_1.isnot(None),
+            FortBendProperty.site_addr_1 != '',
+        ]
+
+        def _fort_bend_query(use_zip):
+            q = FortBendProperty.query.filter(*base_filters)
+            if use_zip and zip_code:
+                q = q.filter(FortBendProperty.situs_zip == zip_code)
+            if main_sq_ft and main_sq_ft > 0:
+                q = q.filter(
+                    FortBendProperty.sq_ft.isnot(None),
+                    FortBendProperty.sq_ft.between(
+                        max(0, main_sq_ft - SQ_FT_RANGE),
+                        main_sq_ft + SQ_FT_RANGE,
+                    )
+                )
+            return q.order_by(FortBendProperty.market_value.asc()).all()
+
+        results = _fort_bend_query(use_zip=True)
+        if results:
+            return [_fort_bend_to_dict(r) for r in results]
+
+        results = _fort_bend_query(use_zip=False)
+        return [_fort_bend_to_dict(r) for r in results]
+
     return []
 
 
@@ -541,6 +663,31 @@ def _liberty_to_dict(record):
     }
 
 
+def _fort_bend_to_dict(record):
+    """Convert a FortBendProperty to a display dict."""
+    return {
+        'id': record.id,
+        'source': 'fort_bend',
+        'address': record.site_addr_1 or record.situs or '',
+        'full_address': record.site_addr_1 or record.situs or '',
+        'city': record.situs_city,
+        'zip': record.situs_zip,
+        'market_value': record.market_value,
+        'legal1': record.legal_desc,
+        'legal2': record.nbhd_desc,
+        'legal3': record.legal_location_desc,
+        'legal4': None,
+        'sq_ft': record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
+        'acreage': float(record.acreage) if record.acreage else (
+            float(record.legal_acres) if record.legal_acres else None
+        ),
+        'parcel_id': record.property_id,
+        'account': record.property_number,
+        'subdivision': record.nbhd_desc,
+        'subdivision_code': record.nbhd_code,
+    }
+
+
 def cache_search_result(source, subdivision, main_property_id, contact_id,
                         zip_code, neighborhood_code=None, main_sq_ft=None,
                         fuzzy_subdivision=False, subdivision_code=None,
@@ -581,4 +728,7 @@ def get_main_property_by_id(property_id, source):
     elif source == 'liberty':
         record = LibertyProperty.query.get(property_id)
         return _liberty_to_dict(record) if record else None
+    elif source == 'fort_bend':
+        record = FortBendProperty.query.get(property_id)
+        return _fort_bend_to_dict(record) if record else None
     return None

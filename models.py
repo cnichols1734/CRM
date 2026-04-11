@@ -1659,3 +1659,40 @@ class LibertyCodeProfile(db.Model):
 
     def __repr__(self):
         return f'<LibertyCodeProfile {self.abs_subdv_cd} {self.strategy}>'
+
+
+class FortBendProperty(db.Model):
+    """Fort Bend County home-focused tax appraisal records."""
+    __tablename__ = 'fort_bend_properties'
+
+    id = db.Column(db.Integer, primary_key=True)
+    property_id = db.Column(db.String(20), unique=True, index=True)
+    quick_ref_id = db.Column(db.String(20), index=True)
+    property_number = db.Column(db.String(40), index=True)
+    legal_desc = db.Column(db.String(1000))
+    legal_location_code = db.Column(db.String(50))
+    legal_location_desc = db.Column(db.String(500))
+    legal_acres = db.Column(db.Numeric(16, 4))
+    market_value = db.Column(db.Integer)
+    assessed_value = db.Column(db.Integer)
+    land_value = db.Column(db.Integer)
+    improvement_value = db.Column(db.Integer)
+    sq_ft = db.Column(db.Integer)
+    nbhd_code = db.Column(db.String(20), index=True)
+    nbhd_desc = db.Column(db.String(500), index=True)
+    situs = db.Column(db.String(255))
+    site_addr_1 = db.Column(db.String(200))
+    normalized_site_addr = db.Column(db.String(200), index=True)
+    situs_pre_directional = db.Column(db.String(20))
+    situs_street_number = db.Column(db.String(20), index=True)
+    situs_street_name = db.Column(db.String(100), index=True)
+    situs_street_suffix = db.Column(db.String(20))
+    situs_post_directional = db.Column(db.String(20))
+    situs_city = db.Column(db.String(100))
+    situs_state = db.Column(db.String(10))
+    situs_zip = db.Column(db.String(10), index=True)
+    acreage = db.Column(db.Numeric(16, 4))
+    is_residential_home = db.Column(db.Boolean, nullable=False, default=False, index=True)
+
+    def __repr__(self):
+        return f'<FortBendProperty {self.site_addr_1 or self.property_number}>'
