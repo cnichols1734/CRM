@@ -132,8 +132,11 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <p id="resultsCount" class="text-sm text-slate-600"></p>
                 <div class="flex items-center gap-2">
-                    <a id="downloadBtn" href="#" class="crm-btn crm-btn-primary text-sm">
-                        <i class="fas fa-download text-xs mr-1"></i> Download CSV
+                    <a id="downloadExcelBtn" href="#" class="crm-btn crm-btn-primary text-sm">
+                        <i class="fas fa-file-excel text-xs mr-1"></i> Download Excel Report
+                    </a>
+                    <a id="downloadCsvBtn" href="#" class="crm-btn crm-btn-secondary text-sm">
+                        <i class="fas fa-file-csv text-xs mr-1"></i> CSV
                     </a>
                     <button type="button" id="clearResults" class="crm-btn crm-btn-secondary text-sm">
                         <i class="fas fa-times text-xs mr-1"></i> Clear
@@ -502,7 +505,8 @@
             + ' propert' + (data.total_comparables === 1 ? 'y' : 'ies')
             + ' with lower market value in ' + (data.subdivision || 'neighborhood') + zipSuffix;
 
-        document.getElementById('downloadBtn').href = '/tax-protest/download-csv';
+        document.getElementById('downloadExcelBtn').href = '/tax-protest/download-xlsx';
+        document.getElementById('downloadCsvBtn').href = '/tax-protest/download-csv';
 
         renderStats(data.subdivision_stats, data.subdivision, data.main_property.market_value);
 
