@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block mobile_title %}Tax Protest{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {% call page_header('Tax Protest', '', 'Property Tax Comparison Tool') %}
+        {% endcall %}
+
+        <!-- Contact Search -->
+        <div class="mb-6">
+            <div class="relative max-w-md" id="searchContainer">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text"
+                           id="contactSearch"
+                           placeholder="Search by client name or address..."
+                           class="w-full pl-9 pr-10 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 shadow-sm"
+                           autocomplete="off">
+                    <button type="button" id="clearSearch"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 hidden">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <!-- Dropdown results -->
+                <div id="searchDropdown"
+                     class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto hidden">
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingState" class="hidden">
+            <div class="premium-card p-12 text-center">
+                <div class="inline-flex items-center gap-3 text-slate-500">
+                    <svg class="animate-spin h-6 w-6 text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span class="text-sm font-medium">Searching tax records...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="hidden">
+            <div class="premium-card p-6 border-l-4 border-red-400">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-exclamation-circle text-red-500 mt-0.5"></i>
+                    <div>
+                        <p class="font-medium text-slate-800">Property Not Found</p>
+                        <p id="errorMessage" class="text-sm text-slate-600 mt-1"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="hidden">
+            <!-- Main Property Card -->
+            <div class="premium-card p-5 mb-4 bg-amber-50/60 border border-amber-200/60">
+                <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-700">Subject Property</span>
+                            <span id="countyBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700"></span>
+                        </div>
+                        <h3 id="mainAddress" class="text-lg font-semibold text-slate-900"></h3>
+                        <p id="mainCityZip" class="text-sm text-slate-600 mt-0.5"></p>
+                    </div>
+                    <div class="flex flex-wrap gap-4 text-sm">
+                        <div>
+                            <span class="text-slate-500 block text-xs uppercase tracking-wide">Market Value</span>
+                            <span id="mainValue" class="font-semibold text-slate-900"></span>
+                        </div>
+                        <div id="mainSqFtWrap">
+                            <span class="text-slate-500 block text-xs uppercase tracking-wide">Sq Ft</span>
+                            <span id="mainSqFt" class="font-semibold text-slate-900"></span>
+                        </div>
+                        <div id="mainAcreageWrap">
+                            <span class="text-slate-500 block text-xs uppercase tracking-wide">Acreage</span>
+                            <span id="mainAcreage" class="font-semibold text-slate-900"></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-500 block text-xs uppercase tracking-wide">Subdivision</span>
+                            <span id="mainSubdivision" class="font-semibold text-slate-900"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Count + Actions -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <p id="resultsCount" class="text-sm text-slate-600"></p>
+                <div class="flex items-center gap-2">
+                    <a id="downloadBtn" href="#"
+                       class="crm-btn crm-btn-primary text-sm">
+                        <i class="fas fa-download text-xs mr-1"></i> Download CSV
+                    </a>
+                    <button type="button" id="clearResults"
+                            class="crm-btn crm-btn-secondary text-sm">
+                        <i class="fas fa-times text-xs mr-1"></i> Clear
+                    </button>
+                </div>
+            </div>
+
+            <!-- Comparables Table -->
+            <div class="crm-table-wrap">
+                <table class="crm-table" id="comparablesTable">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Address</th>
+                            <th class="text-left">City</th>
+                            <th class="text-left">Zip</th>
+                            <th class="text-right cursor-pointer hover:text-orange-600" id="sortValue">
+                                Market Value <i class="fas fa-sort-amount-up text-xs ml-1"></i>
+                            </th>
+                            <th class="text-right">Sq Ft</th>
+                            <th class="text-right">Acreage</th>
+                            <th class="text-left">Subdivision</th>
+                            <th class="text-left">Legal Description</th>
+                        </tr>
+                    </thead>
+                    <tbody id="comparablesBody">
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile Cards -->
+            <div id="mobileCards" class="md:hidden space-y-3 mt-4">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const searchInput = document.getElementById('contactSearch');
+    const searchDropdown = document.getElementById('searchDropdown');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const resultsSection = document.getElementById('resultsSection');
+    let searchTimeout;
+    let sortAsc = true;
+    let currentComparables = [];
+    let currentMainProperty = null;
+
+    function fmt(val) {
+        if (val == null || val === '') return '—';
+        return '$' + Number(val).toLocaleString();
+    }
+
+    function fmtNum(val) {
+        if (val == null || val === '') return '—';
+        return Number(val).toLocaleString();
+    }
+
+    // Debounced contact search
+    searchInput.addEventListener('input', function() {
+        const q = this.value.trim();
+        clearSearchBtn.classList.toggle('hidden', !q);
+
+        clearTimeout(searchTimeout);
+        if (q.length < 2) {
+            searchDropdown.classList.add('hidden');
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`/tax-protest/search-contacts?q=${encodeURIComponent(q)}`)
+                .then(r => r.json())
+                .then(contacts => {
+                    if (!contacts.length) {
+                        searchDropdown.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500">No contacts found</div>';
+                    } else {
+                        searchDropdown.innerHTML = contacts.map(c => `
+                            <button type="button"
+                                    class="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                                    data-contact-id="${c.id}">
+                                <div class="font-medium text-slate-800 text-sm">${c.name}</div>
+                                <div class="text-xs text-slate-500 mt-0.5">${c.address || 'No address'}</div>
+                            </button>
+                        `).join('');
+
+                        searchDropdown.querySelectorAll('[data-contact-id]').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                searchDropdown.classList.add('hidden');
+                                searchInput.value = btn.querySelector('.font-medium').textContent;
+                                runPropertySearch(btn.dataset.contactId);
+                            });
+                        });
+                    }
+                    searchDropdown.classList.remove('hidden');
+                });
+        }, 300);
+    });
+
+    clearSearchBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        clearSearchBtn.classList.add('hidden');
+        searchDropdown.classList.add('hidden');
+        hideAll();
+    });
+
+    document.getElementById('clearResults').addEventListener('click', () => {
+        searchInput.value = '';
+        clearSearchBtn.classList.add('hidden');
+        hideAll();
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!document.getElementById('searchContainer').contains(e.target)) {
+            searchDropdown.classList.add('hidden');
+        }
+    });
+
+    function hideAll() {
+        loadingState.classList.add('hidden');
+        errorState.classList.add('hidden');
+        resultsSection.classList.add('hidden');
+    }
+
+    function runPropertySearch(contactId) {
+        hideAll();
+        loadingState.classList.remove('hidden');
+
+        fetch('/tax-protest/search', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({contact_id: contactId}),
+        })
+        .then(r => r.json().then(data => ({status: r.status, data})))
+        .then(({status, data}) => {
+            loadingState.classList.add('hidden');
+
+            if (status >= 400 || data.error) {
+                errorState.classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = data.error || 'An error occurred';
+                return;
+            }
+
+            displayResults(data);
+        })
+        .catch(err => {
+            loadingState.classList.add('hidden');
+            errorState.classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = 'Network error. Please try again.';
+        });
+    }
+
+    function displayResults(data) {
+        currentMainProperty = data.main_property;
+        currentComparables = data.comparables || [];
+        const county = data.source === 'chambers' ? 'Chambers County' : 'Harris County';
+
+        document.getElementById('countyBadge').textContent = county;
+        document.getElementById('mainAddress').textContent = data.main_property.full_address || data.main_property.address;
+        document.getElementById('mainCityZip').textContent =
+            [data.main_property.city, data.main_property.zip].filter(Boolean).join(', ');
+        document.getElementById('mainValue').textContent = fmt(data.main_property.market_value);
+        document.getElementById('mainSubdivision').textContent = data.subdivision;
+
+        const sqFtWrap = document.getElementById('mainSqFtWrap');
+        if (data.main_property.sq_ft) {
+            document.getElementById('mainSqFt').textContent = fmtNum(data.main_property.sq_ft);
+            sqFtWrap.classList.remove('hidden');
+        } else {
+            sqFtWrap.classList.add('hidden');
+        }
+
+        const acreageWrap = document.getElementById('mainAcreageWrap');
+        if (data.main_property.acreage) {
+            document.getElementById('mainAcreage').textContent = data.main_property.acreage.toFixed(2);
+            acreageWrap.classList.remove('hidden');
+        } else {
+            acreageWrap.classList.add('hidden');
+        }
+
+        document.getElementById('resultsCount').textContent =
+            `Found ${data.total_comparables} propert${data.total_comparables === 1 ? 'y' : 'ies'} with lower market value in ${data.subdivision || 'neighborhood'} (${data.main_property.zip || ''})`;
+
+        document.getElementById('downloadBtn').href = '/tax-protest/download-csv';
+
+        sortAsc = true;
+        renderTable();
+        resultsSection.classList.remove('hidden');
+    }
+
+    document.getElementById('sortValue').addEventListener('click', () => {
+        sortAsc = !sortAsc;
+        const icon = document.querySelector('#sortValue i');
+        icon.className = sortAsc ? 'fas fa-sort-amount-up text-xs ml-1' : 'fas fa-sort-amount-down text-xs ml-1';
+        renderTable();
+    });
+
+    function renderTable() {
+        const sorted = [...currentComparables].sort((a, b) =>
+            sortAsc ? (a.market_value || 0) - (b.market_value || 0)
+                    : (b.market_value || 0) - (a.market_value || 0)
+        );
+
+        const allRows = [
+            {...currentMainProperty, _isMain: true},
+            ...sorted,
+        ];
+
+        // Desktop table
+        const tbody = document.getElementById('comparablesBody');
+        tbody.innerHTML = allRows.map(p => `
+            <tr class="${p._isMain ? 'bg-amber-50 font-medium' : 'hover:bg-slate-50'}">
+                <td class="text-sm">
+                    ${p._isMain ? '<i class="fas fa-star text-amber-500 text-xs mr-1"></i>' : ''}
+                    ${p.full_address || p.address || ''}
+                </td>
+                <td class="text-sm">${p.city || ''}</td>
+                <td class="text-sm">${p.zip || ''}</td>
+                <td class="text-sm text-right">${fmt(p.market_value)}</td>
+                <td class="text-sm text-right">${p.sq_ft ? fmtNum(p.sq_ft) : '—'}</td>
+                <td class="text-sm text-right">${p.acreage ? p.acreage.toFixed(2) : '—'}</td>
+                <td class="text-sm text-slate-500">${p.subdivision || p.legal2 || ''}</td>
+                <td class="text-sm text-slate-500 max-w-[200px] truncate" title="${p.legal1 || ''}">${p.legal1 || ''}</td>
+            </tr>
+        `).join('');
+
+        // Mobile cards
+        const mobileContainer = document.getElementById('mobileCards');
+        mobileContainer.innerHTML = allRows.map(p => `
+            <div class="premium-card p-4 ${p._isMain ? 'bg-amber-50/60 border-amber-200/60' : ''}">
+                <div class="flex items-start justify-between mb-2">
+                    <div>
+                        ${p._isMain ? '<span class="text-xs font-bold text-amber-700 uppercase">Subject Property</span>' : ''}
+                        <p class="font-medium text-slate-800 text-sm">${p.full_address || p.address || ''}</p>
+                        <p class="text-xs text-slate-500">${[p.city, p.zip].filter(Boolean).join(', ')}</p>
+                    </div>
+                    <span class="font-semibold text-sm text-slate-900">${fmt(p.market_value)}</span>
+                </div>
+                <div class="flex gap-4 text-xs text-slate-500">
+                    ${p.sq_ft ? `<span>Sq Ft: ${fmtNum(p.sq_ft)}</span>` : ''}
+                    ${p.acreage ? `<span>Acres: ${p.acreage.toFixed(2)}</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+})();
+</script>
+{% endblock %}

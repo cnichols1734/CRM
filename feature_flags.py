@@ -30,6 +30,7 @@ TIER_FEATURES = {
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
         'MARKETING': False,
+        'TAX_PROTEST': False,
         
         # Fun features
         'SHOW_DASHBOARD_JOKE': False,
@@ -47,6 +48,7 @@ TIER_FEATURES = {
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKETING': False,  # Still disabled for all
+        'TAX_PROTEST': False,
         'SHOW_DASHBOARD_JOKE': True,
     },
     'enterprise': {
@@ -61,7 +63,8 @@ TIER_FEATURES = {
         'AI_TASK_SUGGESTIONS': True,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
-        'MARKETING': True,  # Only enterprise has marketing
+        'MARKETING': True,
+        'TAX_PROTEST': True,
         'SHOW_DASHBOARD_JOKE': True,
     }
 }
