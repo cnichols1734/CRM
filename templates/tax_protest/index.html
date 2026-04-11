@@ -9,9 +9,91 @@
         {% call page_header('Tax Protest', '', 'Property Tax Comparison Tool') %}
         {% endcall %}
 
+        <style>
+            .premium-input {
+                display: block;
+                width: 100%;
+                padding: 0.75rem 1rem;
+                border: 2px solid #e2e8f0;
+                border-radius: 0.875rem;
+                background: #f8fafc;
+                color: #0f172a;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+            }
+
+            .premium-input:hover {
+                border-color: #cbd5e1;
+            }
+
+            .premium-input:focus {
+                outline: none;
+                border-color: #f97316;
+                background: #ffffff;
+                box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+            }
+
+            textarea.premium-input {
+                min-height: 88px;
+                resize: vertical;
+            }
+
+            .premium-checkbox-card {
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                padding: 0.875rem 1rem;
+                border: 2px solid #e2e8f0;
+                border-radius: 1rem;
+                background: #ffffff;
+                transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
+                cursor: pointer;
+            }
+
+            .premium-checkbox-card:hover {
+                border-color: #fdba74;
+                background: #fff7ed;
+                transform: translateY(-1px);
+            }
+
+            .premium-checkbox-card:has(input:checked) {
+                border-color: #fb923c;
+                background: #fff7ed;
+            }
+
+            .premium-checkbox-card input {
+                width: 1rem;
+                height: 1rem;
+                accent-color: #f97316;
+                flex-shrink: 0;
+            }
+
+            .modal-field-error {
+                margin-top: 0.5rem;
+                font-size: 0.875rem;
+                color: #dc2626;
+            }
+
+            .contact-picker-card {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 1rem;
+                padding: 1rem;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            .contact-picker-card:last-child {
+                border-bottom: 0;
+            }
+
+            .contact-picker-card--missing {
+                background: linear-gradient(180deg, rgba(255, 247, 237, 0.9), rgba(255, 255, 255, 1));
+            }
+        </style>
+
         <!-- Contact Search -->
         <div class="mb-6">
-            <div class="relative max-w-md" id="searchContainer">
+            <div class="relative max-w-3xl" id="searchContainer">
                 <div class="relative">
                     <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
                     <input type="text"
@@ -28,6 +110,7 @@
                      class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-64 overflow-y-auto hidden">
                 </div>
             </div>
+            <div id="searchStatus" class="hidden mt-3 max-w-3xl rounded-xl border px-4 py-3 text-sm"></div>
         </div>
 
         <!-- Loading -->
@@ -102,26 +185,36 @@
                     <span id="statsSubdivisionLabel" class="text-xs text-slate-400 truncate max-w-xs text-right"></span>
                 </div>
                 <div class="px-5 pt-4 pb-5">
-                    <!-- Summary row: ring + legend -->
-                    <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 mb-5">
-                        <!-- Animated percentile ring -->
-                        <div class="flex-none flex flex-col items-center">
-                            <div class="relative w-16 h-16">
-                                <svg viewBox="0 0 100 100" width="64" height="64" class="-rotate-90">
-                                    <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
-                                    <circle id="statsRingFg" cx="50" cy="50" r="40" fill="none"
-                                            stroke="#10b981" stroke-width="14" stroke-linecap="round"
-                                            stroke-dasharray="251.33" stroke-dashoffset="251.33"
-                                            style="transition:stroke-dashoffset 0.9s ease,stroke 0.4s ease"/>
-                                </svg>
-                                <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span id="statsPercentilePct" class="text-base font-bold text-slate-900 leading-none tabular-nums"></span>
-                                    <span class="text-[8px] text-slate-400 font-medium mt-0.5">pctile</span>
+                    <div class="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div class="min-w-0 flex-1">
+                            <!-- Summary row: ring + legend -->
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
+                                <!-- Animated percentile ring -->
+                                <div class="flex-none flex flex-col items-center">
+                                    <div class="relative w-16 h-16">
+                                        <svg viewBox="0 0 100 100" width="64" height="64" class="-rotate-90">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="14"/>
+                                            <circle id="statsRingFg" cx="50" cy="50" r="40" fill="none"
+                                                    stroke="#10b981" stroke-width="14" stroke-linecap="round"
+                                                    stroke-dasharray="251.33" stroke-dashoffset="251.33"
+                                                    style="transition:stroke-dashoffset 0.9s ease,stroke 0.4s ease"/>
+                                        </svg>
+                                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span id="statsPercentilePct" class="text-base font-bold text-slate-900 leading-none tabular-nums"></span>
+                                            <span class="text-[8px] text-slate-400 font-medium mt-0.5">pctile</span>
+                                        </div>
+                                    </div>
                                 </div>
+                                <!-- Legend chips -->
+                                <div id="statsLine" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"></div>
                             </div>
                         </div>
-                        <!-- Legend chips -->
-                        <div id="statsLine" class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"></div>
+
+                        <div id="statsMedianCallout" class="hidden lg:min-w-[220px] rounded-2xl border border-orange-100 bg-gradient-to-br from-orange-50 to-amber-50 px-4 py-3 shadow-sm shadow-orange-100/40">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-orange-600">Neighborhood Median</div>
+                            <div id="statsMedianValue" class="mt-1 text-2xl font-bold leading-none text-slate-900 tabular-nums"></div>
+                            <div class="mt-1 text-xs text-slate-500">Median market value across the neighborhood.</div>
+                        </div>
                     </div>
                     <!-- Chart -->
                     <div id="statsChartWrap" class="w-full"></div>
@@ -178,38 +271,240 @@
             <!-- Mobile Cards -->
             <div id="mobileCards" class="md:hidden space-y-3 mt-4"></div>
         </div>
+
+        <div id="contactModalBackdrop" class="fixed inset-0 z-[70] hidden">
+            <div class="absolute inset-0 bg-slate-950/55 backdrop-blur-sm"></div>
+            <div class="relative flex min-h-full items-center justify-center p-4 sm:p-6">
+                <div id="contactModalPanel" class="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-[28px] border border-slate-200 bg-white shadow-2xl shadow-slate-900/20">
+                    <div class="sticky top-0 z-10 border-b border-slate-100 bg-white/95 px-6 py-5 backdrop-blur">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex items-center gap-4">
+                                <div id="contactModalIconWrap" class="relative">
+                                    <div id="contactModalIconBg" class="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20">
+                                        <i id="contactModalIcon" class="fas fa-user-plus text-xl text-white"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div id="contactModalEyebrow" class="text-xs font-semibold uppercase tracking-[0.2em] text-orange-500">Tax Protest</div>
+                                    <h2 id="contactModalTitle" class="mt-1 text-2xl font-bold text-slate-900">Create Contact</h2>
+                                    <p id="contactModalSubtitle" class="mt-1 text-sm text-slate-500">Add a contact without leaving the tax protest workflow.</p>
+                                </div>
+                            </div>
+                            <button type="button" id="contactModalClose" class="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <form id="contactModalForm" class="space-y-8 p-6 sm:p-8">
+                        <div id="contactModalAlert" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
+                        <div id="contactModalLoading" class="hidden rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+                            <div class="flex items-center gap-3">
+                                <svg class="h-5 w-5 animate-spin text-orange-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                </svg>
+                                <span>Loading contact details...</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+                            <div class="space-y-8">
+                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                    <div class="mb-6 flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 text-white">
+                                            <i class="fas fa-user text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-slate-900">Basic Information</h3>
+                                            <p class="text-sm text-slate-500">This mirrors the main contact form, trimmed for the tax workflow.</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                        <div>
+                                            <label for="contactModalFirstName" class="mb-2 block text-sm font-medium text-slate-700">First Name</label>
+                                            <input id="contactModalFirstName" name="first_name" type="text" class="premium-input" autocomplete="given-name">
+                                            <p data-error-for="first_name" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalLastName" class="mb-2 block text-sm font-medium text-slate-700">Last Name</label>
+                                            <input id="contactModalLastName" name="last_name" type="text" class="premium-input" autocomplete="family-name">
+                                            <p data-error-for="last_name" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalEmail" class="mb-2 block text-sm font-medium text-slate-700">Email</label>
+                                            <input id="contactModalEmail" name="email" type="email" class="premium-input" autocomplete="email">
+                                            <p data-error-for="email" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalPhone" class="mb-2 block text-sm font-medium text-slate-700">Phone</label>
+                                            <input id="contactModalPhone" name="phone" type="tel" class="premium-input" autocomplete="tel">
+                                            <p data-error-for="phone" class="modal-field-error hidden"></p>
+                                        </div>
+                                    </div>
+                                </section>
+
+                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                    <div class="mb-6 flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 text-white">
+                                            <i class="fas fa-location-dot text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-slate-900">Property Address</h3>
+                                            <p class="text-sm text-slate-500">A street address is required before tax protest search can run.</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                                        <div class="md:col-span-2">
+                                            <label for="contactModalStreet" class="mb-2 block text-sm font-medium text-slate-700">Street Address</label>
+                                            <input id="contactModalStreet" name="street_address" type="text" class="premium-input" autocomplete="street-address">
+                                            <p data-error-for="street_address" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalCity" class="mb-2 block text-sm font-medium text-slate-700">City</label>
+                                            <input id="contactModalCity" name="city" type="text" class="premium-input" autocomplete="address-level2">
+                                            <p data-error-for="city" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalState" class="mb-2 block text-sm font-medium text-slate-700">State</label>
+                                            <input id="contactModalState" name="state" type="text" class="premium-input" autocomplete="address-level1">
+                                            <p data-error-for="state" class="modal-field-error hidden"></p>
+                                        </div>
+                                        <div>
+                                            <label for="contactModalZip" class="mb-2 block text-sm font-medium text-slate-700">ZIP Code</label>
+                                            <input id="contactModalZip" name="zip_code" type="text" class="premium-input" autocomplete="postal-code">
+                                            <p data-error-for="zip_code" class="modal-field-error hidden"></p>
+                                        </div>
+                                    </div>
+                                </section>
+                            </div>
+
+                            <div class="space-y-8">
+                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                    <div class="mb-6 flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 text-white">
+                                            <i class="fas fa-users text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-slate-900">Groups</h3>
+                                            <p class="text-sm text-slate-500">Keep the same group assignment step users already see in contacts.</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        {% for group in contact_groups %}
+                                        <label class="premium-checkbox-card">
+                                            <input type="checkbox" name="group_ids" value="{{ group.id }}" data-group-id="{{ group.id }}">
+                                            <span class="text-sm font-medium text-slate-700">{{ group.name }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                    <p data-error-for="group_ids" class="modal-field-error hidden"></p>
+                                </section>
+
+                                <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                                    <div class="mb-6 flex items-center gap-3">
+                                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-slate-600 to-slate-800 text-white">
+                                            <i class="fas fa-note-sticky text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-slate-900">Notes</h3>
+                                            <p class="text-sm text-slate-500">Optional CRM notes if the user wants to capture extra context here.</p>
+                                        </div>
+                                    </div>
+                                    <label for="contactModalNotes" class="mb-2 block text-sm font-medium text-slate-700">Notes</label>
+                                    <textarea id="contactModalNotes" name="notes" class="premium-input" rows="6"></textarea>
+                                    <p data-error-for="notes" class="modal-field-error hidden"></p>
+                                </section>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col-reverse gap-3 border-t border-slate-100 pt-6 sm:flex-row sm:justify-end">
+                            <button type="button" id="contactModalCancel" class="inline-flex items-center justify-center rounded-xl border-2 border-slate-200 px-6 py-3 font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50">
+                                Cancel
+                            </button>
+                            <button type="submit" id="contactModalSubmit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-7 py-3 font-semibold text-white shadow-lg shadow-orange-500/20 transition hover:from-orange-600 hover:to-amber-600">
+                                <i id="contactModalSubmitIcon" class="fas fa-check"></i>
+                                <span id="contactModalSubmitText">Save Contact</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
 (function () {
-    // ─── State ───────────────────────────────────────────────────────────
     let searchTimeout;
     let sortAsc = true;
     let currentComparables = [];
     let currentMainProperty = null;
+    let isSavingContact = false;
+    let isLoadingContact = false;
+    const contactCsrfToken = {{ (csrf_token() if csrf_token is defined else '')|tojson }};
 
-    const searchInput    = document.getElementById('contactSearch');
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('contactSearch');
     const searchDropdown = document.getElementById('searchDropdown');
     const clearSearchBtn = document.getElementById('clearSearch');
-    const loadingState   = document.getElementById('loadingState');
-    const errorState     = document.getElementById('errorState');
+    const searchStatus = document.getElementById('searchStatus');
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
     const resultsSection = document.getElementById('resultsSection');
+    const contactModal = {
+        backdrop: document.getElementById('contactModalBackdrop'),
+        panel: document.getElementById('contactModalPanel'),
+        form: document.getElementById('contactModalForm'),
+        alert: document.getElementById('contactModalAlert'),
+        loading: document.getElementById('contactModalLoading'),
+        title: document.getElementById('contactModalTitle'),
+        subtitle: document.getElementById('contactModalSubtitle'),
+        eyebrow: document.getElementById('contactModalEyebrow'),
+        icon: document.getElementById('contactModalIcon'),
+        iconBg: document.getElementById('contactModalIconBg'),
+        submit: document.getElementById('contactModalSubmit'),
+        submitText: document.getElementById('contactModalSubmitText'),
+        submitIcon: document.getElementById('contactModalSubmitIcon'),
+        cancel: document.getElementById('contactModalCancel'),
+        close: document.getElementById('contactModalClose'),
+        fields: {
+            first_name: document.getElementById('contactModalFirstName'),
+            last_name: document.getElementById('contactModalLastName'),
+            email: document.getElementById('contactModalEmail'),
+            phone: document.getElementById('contactModalPhone'),
+            street_address: document.getElementById('contactModalStreet'),
+            city: document.getElementById('contactModalCity'),
+            state: document.getElementById('contactModalState'),
+            zip_code: document.getElementById('contactModalZip'),
+            notes: document.getElementById('contactModalNotes'),
+        },
+    };
+    contactModal.fields.group_ids = Array.prototype.slice.call(
+        contactModal.form.querySelectorAll('input[name="group_ids"]')
+    );
+    const modalState = {
+        mode: 'create',
+        contactId: null,
+        query: '',
+    };
 
-    // ─── Formatters ──────────────────────────────────────────────────────
     function fmt(v) {
         if (v == null || v === '') return '—';
         return '$' + Number(v).toLocaleString();
     }
+
     function fmtNum(v) {
         if (v == null || v === '') return '—';
         return Number(v).toLocaleString();
     }
+
     function fmtK(v) {
         if (v == null) return '';
         if (Math.abs(v) >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
         return '$' + Math.round(v / 1000) + 'k';
     }
+
     function ordinalSuffix(v) {
         var abs = Math.abs(Number(v));
         var mod100 = abs % 100;
@@ -222,11 +517,41 @@
         }
     }
 
-    // ─── Chart ───────────────────────────────────────────────────────────
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatPhoneInput(value) {
+        var digits = String(value || '').replace(/\D/g, '').slice(0, 10);
+        var formatted = '';
+        if (digits.length > 0) formatted += '(' + digits.substring(0, 3);
+        if (digits.length >= 4) formatted += ') ' + digits.substring(3, 6);
+        if (digits.length >= 7) formatted += '-' + digits.substring(6, 10);
+        return formatted;
+    }
+
+    function showSearchStatus(message, tone) {
+        var toneClasses = tone === 'success'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : 'border-orange-200 bg-orange-50 text-orange-700';
+        searchStatus.className = 'mt-3 max-w-3xl rounded-xl border px-4 py-3 text-sm ' + toneClasses;
+        searchStatus.textContent = message;
+        searchStatus.classList.remove('hidden');
+    }
+
+    function clearSearchStatus() {
+        searchStatus.classList.add('hidden');
+        searchStatus.textContent = '';
+    }
+
     function buildChart(dist, subjectValue, minVal, maxVal) {
         if (!dist || dist.length === 0 || minVal == null || maxVal == null) return '';
 
-        // SVG coordinate space
         const W = 600, H = 170;
         const PAD = { t: 28, r: 10, b: 28, l: 10 };
         const cW = W - PAD.l - PAD.r;
@@ -238,16 +563,13 @@
         const bucketSize = range / n;
         const barBottom = PAD.t + cH;
 
-        // Which bucket holds the subject?
         var subjectIdx = Math.floor((subjectValue - minVal) / bucketSize);
         subjectIdx = Math.max(0, Math.min(n - 1, subjectIdx));
 
-        // Subject vertical line X (exact value position)
         var rawX = PAD.l + cW * (subjectValue - minVal) / range;
         var mX = Math.max(PAD.l + 4, Math.min(W - PAD.r - 4, rawX));
         var anchor = mX > W * 0.72 ? 'end' : mX < W * 0.28 ? 'start' : 'middle';
 
-        // ── Bars ─────────────────────────────────────────────────────────
         var bars = '';
         for (var i = 0; i < n; i++) {
             var b = dist[i];
@@ -256,7 +578,6 @@
             var bH = b.count > 0 ? Math.max(8, cH * b.count / maxCnt) : 0;
             var y = barBottom - bH;
 
-            // Color: green (cheaper), amber (subject bucket), slate (pricier)
             var fill = i < subjectIdx  ? '#34d399'
                      : i === subjectIdx ? '#fbbf24'
                      :                   '#cbd5e1';
@@ -268,7 +589,6 @@
                 + ' height="' + bH.toFixed(1) + '"'
                 + ' rx="4" fill="' + fill + '"/>';
 
-            // Count label — above bar, vertically clamped so it doesn't go off top
             if (b.count > 0) {
                 var countY = Math.max(14, y - 6);
                 bars += '<text'
@@ -279,15 +599,11 @@
             }
         }
 
-        // ── Axis labels (first, last, + one mid if space) ────────────────
         var axis = '';
-        // First bucket
         axis += '<text x="' + (PAD.l + bW / 2).toFixed(1) + '" y="' + (H - 4)
               + '" text-anchor="middle" font-size="9" fill="#94a3b8">' + dist[0].label + '</text>';
-        // Last bucket
         axis += '<text x="' + (PAD.l + (n - 0.5) * bW).toFixed(1) + '" y="' + (H - 4)
               + '" text-anchor="middle" font-size="9" fill="#94a3b8">' + fmtK(maxVal) + '</text>';
-        // Middle bucket (skip if too close to subject label)
         var midI = Math.floor(n / 2);
         if (Math.abs(midI - subjectIdx) > 1 && Math.abs(n - midI) > 1 && midI !== 0) {
             var midX = PAD.l + (midI + 0.5) * bW;
@@ -297,23 +613,19 @@
             }
         }
 
-        // ── Subject marker line + value label ────────────────────────────
         var marker =
-            // Dashed vertical line
             '<line'
             + ' x1="' + mX.toFixed(1) + '" y1="' + PAD.t
             + '" x2="' + mX.toFixed(1) + '" y2="' + (barBottom + 4).toFixed(1) + '"'
             + ' stroke="#f59e0b" stroke-width="2" stroke-dasharray="5,3" opacity="0.85"/>'
-            // Small circle at line bottom
             + '<circle cx="' + mX.toFixed(1) + '" cy="' + (barBottom + 4).toFixed(1)
             + '" r="3.5" fill="#f59e0b"/>'
-            // Value label just below the circle, above the axis labels
             + '<text'
             + ' x="' + mX.toFixed(1) + '"'
             + ' y="' + (barBottom + 18).toFixed(1) + '"'
             + ' text-anchor="' + anchor + '"'
             + ' font-size="10" fill="#b45309" font-weight="700">'
-            + fmtK(subjectValue) + ' \u2191 you'
+            + fmtK(subjectValue) + ' subject'
             + '</text>';
 
         return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '"'
@@ -322,7 +634,6 @@
              + '</svg>';
     }
 
-    // ─── Stats card renderer ──────────────────────────────────────────────
     function renderStats(stats, subdivision, subjectValue) {
         var card = document.getElementById('statsCard');
         if (!stats || !stats.total_homes) { card.classList.add('hidden'); return; }
@@ -331,12 +642,12 @@
         var higher = stats.higher_values || 0;
         var total  = stats.total_homes   || 0;
         var pct    = Math.round(stats.percentile || 0);
+        var median = stats.median_value;
 
         // Subdivision label
         document.getElementById('statsSubdivisionLabel').textContent =
             (subdivision || '') + ' \u00B7 ' + total + ' home' + (total === 1 ? '' : 's');
 
-        // Percentile pill in header
         var pillCls = pct >= 75 ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-200'
                     : pct >= 50 ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-200'
                     : pct >= 25 ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-200'
@@ -346,7 +657,6 @@
         pill.textContent = pct + ordinalSuffix(pct) + ' percentile';
         pill.classList.remove('hidden');
 
-        // Animated ring  (r=40, circumference = 2π×40 ≈ 251.33)
         var CIRC = 251.33;
         var ringColor = pct >= 75 ? '#10b981' : pct >= 50 ? '#f59e0b' : pct >= 25 ? '#f97316' : '#94a3b8';
         document.getElementById('statsPercentilePct').textContent = pct + '%';
@@ -360,85 +670,43 @@
             ring.style.strokeDashoffset = (CIRC * (1 - pct / 100)).toFixed(2);
         });
 
-        // Summary legend row
-        document.getElementById('statsLine').innerHTML =
+        var medianCallout = document.getElementById('statsMedianCallout');
+        if (median != null) {
+            document.getElementById('statsMedianValue').textContent = fmt(median);
+            medianCallout.classList.remove('hidden');
+        } else {
+            document.getElementById('statsMedianValue').textContent = '';
+            medianCallout.classList.add('hidden');
+        }
+
+        var legendHtml =
             '<span class="flex items-center gap-2">'
             + '<span class="inline-block w-3 h-3 rounded-[3px] bg-emerald-400 flex-none"></span>'
             + '<span class="font-semibold text-slate-800 tabular-nums">' + lower + '</span>'
-            + '<span class="text-slate-500">cheaper in subdivision</span>'
+            + '<span class="text-slate-500">valued for less</span>'
             + '</span>'
             + '<span class="text-slate-300 select-none">\u00B7</span>'
             + '<span class="flex items-center gap-2">'
             + '<span class="inline-block w-3 h-3 rounded-[3px] bg-amber-400 flex-none"></span>'
             + '<span class="text-slate-500">Subject</span>'
             + '<span class="font-semibold text-slate-800 tabular-nums">' + fmt(subjectValue) + '</span>'
-            + '</span>'
-            + '<span class="text-slate-300 select-none">\u00B7</span>'
+            + '</span>';
+
+        legendHtml +=
+            '<span class="text-slate-300 select-none">\u00B7</span>'
             + '<span class="flex items-center gap-2">'
             + '<span class="inline-block w-3 h-3 rounded-[3px] bg-slate-300 flex-none"></span>'
             + '<span class="font-semibold text-slate-800 tabular-nums">' + higher + '</span>'
-            + '<span class="text-slate-500">more expensive</span>'
+            + '<span class="text-slate-500">valued for more</span>'
             + '</span>';
 
-        // Chart
+        document.getElementById('statsLine').innerHTML = legendHtml;
+
         document.getElementById('statsChartWrap').innerHTML =
             buildChart(stats.value_distribution, subjectValue, stats.min_value, stats.max_value);
 
         card.classList.remove('hidden');
     }
-
-    // ─── Contact search ───────────────────────────────────────────────────
-    searchInput.addEventListener('input', function () {
-        var q = this.value.trim();
-        clearSearchBtn.classList.toggle('hidden', !q);
-        clearTimeout(searchTimeout);
-        if (q.length < 2) { searchDropdown.classList.add('hidden'); return; }
-
-        searchTimeout = setTimeout(function () {
-            fetch('/tax-protest/search-contacts?q=' + encodeURIComponent(q))
-                .then(function (r) { return r.json(); })
-                .then(function (contacts) {
-                    if (!contacts.length) {
-                        searchDropdown.innerHTML = '<div class="px-4 py-3 text-sm text-slate-500">No contacts found</div>';
-                    } else {
-                        searchDropdown.innerHTML = contacts.map(function (c) {
-                            return '<button type="button"'
-                                + ' class="w-full text-left px-4 py-3 hover:bg-slate-50 border-b border-slate-100 last:border-0"'
-                                + ' data-contact-id="' + c.id + '">'
-                                + '<div class="font-medium text-slate-800 text-sm">' + c.name + '</div>'
-                                + '<div class="text-xs text-slate-500 mt-0.5">' + (c.address || 'No address') + '</div>'
-                                + '</button>';
-                        }).join('');
-                        searchDropdown.querySelectorAll('[data-contact-id]').forEach(function (btn) {
-                            btn.addEventListener('click', function () {
-                                searchDropdown.classList.add('hidden');
-                                searchInput.value = btn.querySelector('.font-medium').textContent;
-                                runPropertySearch(btn.dataset.contactId);
-                            });
-                        });
-                    }
-                    searchDropdown.classList.remove('hidden');
-                });
-        }, 300);
-    });
-
-    clearSearchBtn.addEventListener('click', function () {
-        searchInput.value = '';
-        clearSearchBtn.classList.add('hidden');
-        searchDropdown.classList.add('hidden');
-        hideAll();
-    });
-
-    document.getElementById('clearResults').addEventListener('click', function () {
-        searchInput.value = '';
-        clearSearchBtn.classList.add('hidden');
-        hideAll();
-    });
-
-    document.addEventListener('click', function (e) {
-        if (!document.getElementById('searchContainer').contains(e.target))
-            searchDropdown.classList.add('hidden');
-    });
 
     function hideAll() {
         loadingState.classList.add('hidden');
@@ -446,9 +714,424 @@
         resultsSection.classList.add('hidden');
     }
 
-    // ─── Property search ─────────────────────────────────────────────────
+    function setModalLoading(isLoading, message) {
+        isLoadingContact = isLoading;
+        contactModal.loading.classList.toggle('hidden', !isLoading);
+        if (isLoading && message) {
+            contactModal.loading.querySelector('span').textContent = message;
+        }
+        contactModal.submit.disabled = isLoading || isSavingContact;
+        contactModal.cancel.disabled = isLoading || isSavingContact;
+        contactModal.close.disabled = isLoading || isSavingContact;
+    }
+
+    function setModalSaving(isSaving) {
+        isSavingContact = isSaving;
+        contactModal.submit.disabled = isSaving || isLoadingContact;
+        contactModal.cancel.disabled = isSaving || isLoadingContact;
+        contactModal.close.disabled = isSaving || isLoadingContact;
+        contactModal.submitText.textContent = isSaving
+            ? (modalState.mode === 'create' ? 'Creating Contact...' : 'Saving Changes...')
+            : (modalState.mode === 'create' ? 'Create Contact' : 'Save Changes');
+        contactModal.submitIcon.className = isSaving
+            ? 'fas fa-spinner animate-spin'
+            : (modalState.mode === 'create' ? 'fas fa-user-plus' : 'fas fa-check');
+    }
+
+    function showModalAlert(message, tone) {
+        var toneClasses = tone === 'warning'
+            ? 'border-orange-200 bg-orange-50 text-orange-700'
+            : 'border-red-200 bg-red-50 text-red-700';
+        contactModal.alert.className = 'rounded-2xl border px-4 py-3 text-sm ' + toneClasses;
+        contactModal.alert.textContent = message;
+        contactModal.alert.classList.remove('hidden');
+    }
+
+    function hideModalAlert() {
+        contactModal.alert.classList.add('hidden');
+        contactModal.alert.textContent = '';
+    }
+
+    function clearModalErrors() {
+        hideModalAlert();
+        Array.prototype.forEach.call(
+            contactModal.form.querySelectorAll('[data-error-for]'),
+            function (node) {
+                node.textContent = '';
+                node.classList.add('hidden');
+            }
+        );
+    }
+
+    function setFieldError(fieldName, messages) {
+        var node = contactModal.form.querySelector('[data-error-for="' + fieldName + '"]');
+        if (!node) return;
+        node.textContent = Array.isArray(messages) ? messages[0] : messages;
+        node.classList.remove('hidden');
+    }
+
+    function clearModalForm() {
+        contactModal.form.reset();
+        contactModal.fields.group_ids.forEach(function (checkbox) {
+            checkbox.checked = false;
+        });
+        clearModalErrors();
+    }
+
+    function configureModal(mode) {
+        if (mode === 'create') {
+            contactModal.eyebrow.textContent = 'Create Contact';
+            contactModal.title.textContent = 'Add Contact In Place';
+            contactModal.subtitle.textContent = 'Create the CRM record here, then search again without leaving tax protest.';
+            contactModal.icon.className = 'fas fa-user-plus text-xl text-white';
+            contactModal.iconBg.className = 'flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 shadow-lg shadow-orange-500/20';
+        } else {
+            contactModal.eyebrow.textContent = 'Update Contact';
+            contactModal.title.textContent = 'Add The Missing Property Address';
+            contactModal.subtitle.textContent = 'Update this contact in-place, close the modal, and search them again from here.';
+            contactModal.icon.className = 'fas fa-pen text-xl text-white';
+            contactModal.iconBg.className = 'flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/20';
+        }
+        setModalSaving(false);
+    }
+
+    function splitCreateQuery(query) {
+        var clean = String(query || '').trim();
+        if (!clean) {
+            return { first_name: '', last_name: '', street_address: '' };
+        }
+        if (/\d/.test(clean)) {
+            return { first_name: '', last_name: '', street_address: clean };
+        }
+        var parts = clean.split(/\s+/).filter(Boolean);
+        return {
+            first_name: parts[0] || '',
+            last_name: parts.length > 1 ? parts.slice(1).join(' ') : '',
+            street_address: '',
+        };
+    }
+
+    function populateModalFields(contact) {
+        contactModal.fields.first_name.value = contact.first_name || '';
+        contactModal.fields.last_name.value = contact.last_name || '';
+        contactModal.fields.email.value = contact.email || '';
+        contactModal.fields.phone.value = contact.phone || '';
+        contactModal.fields.street_address.value = contact.street_address || '';
+        contactModal.fields.city.value = contact.city || '';
+        contactModal.fields.state.value = contact.state || '';
+        contactModal.fields.zip_code.value = contact.zip_code || '';
+        contactModal.fields.notes.value = contact.notes || '';
+        contactModal.fields.group_ids.forEach(function (checkbox) {
+            checkbox.checked = !!(contact.groups || []).find(function (group) {
+                return String(group.id) === checkbox.value;
+            });
+        });
+    }
+
+    function showModal() {
+        contactModal.backdrop.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeContactModal() {
+        if (isSavingContact || isLoadingContact) return;
+        contactModal.backdrop.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+        modalState.contactId = null;
+    }
+
+    function openCreateModal(query) {
+        modalState.mode = 'create';
+        modalState.contactId = null;
+        modalState.query = String(query || searchInput.value || '').trim();
+        configureModal('create');
+        clearModalForm();
+        setModalLoading(false);
+        showModal();
+
+        var prefill = splitCreateQuery(modalState.query);
+        contactModal.fields.first_name.value = prefill.first_name;
+        contactModal.fields.last_name.value = prefill.last_name;
+        contactModal.fields.street_address.value = prefill.street_address;
+        setTimeout(function () {
+            if (contactModal.fields.first_name.value) {
+                contactModal.fields.last_name.focus();
+            } else if (contactModal.fields.street_address.value) {
+                contactModal.fields.first_name.focus();
+            } else {
+                contactModal.fields.first_name.focus();
+            }
+        }, 20);
+    }
+
+    function openEditModal(contactId) {
+        modalState.mode = 'edit';
+        modalState.contactId = contactId;
+        modalState.query = String(searchInput.value || '').trim();
+        configureModal('edit');
+        clearModalForm();
+        showModal();
+        setModalLoading(true, 'Loading contact details...');
+        showModalAlert('This contact is missing a street address. Add it here, save, then search them again.', 'warning');
+
+        fetch('/contact/' + contactId, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function (result) {
+                setModalLoading(false);
+                if (!result.ok) {
+                    showModalAlert(result.data.error || 'Could not load this contact.', 'error');
+                    return;
+                }
+                populateModalFields(result.data);
+                setTimeout(function () {
+                    contactModal.fields.street_address.focus();
+                }, 20);
+            })
+            .catch(function () {
+                setModalLoading(false);
+                showModalAlert('Could not load this contact. Please try again.', 'error');
+            });
+    }
+
+    function validateModalForm() {
+        clearModalErrors();
+
+        var errors = {};
+        var firstName = contactModal.fields.first_name.value.trim();
+        var lastName = contactModal.fields.last_name.value.trim();
+        var streetAddress = contactModal.fields.street_address.value.trim();
+        var selectedGroups = contactModal.fields.group_ids.filter(function (checkbox) {
+            return checkbox.checked;
+        });
+
+        if (!firstName) {
+            errors.first_name = ['First name is required.'];
+        }
+        if (!lastName) {
+            errors.last_name = ['Last name is required.'];
+        }
+        if (!streetAddress) {
+            errors.street_address = ['Street address is required to run a tax protest search.'];
+        }
+        if (!selectedGroups.length) {
+            errors.group_ids = ['Select at least one group.'];
+        }
+
+        Object.keys(errors).forEach(function (key) {
+            setFieldError(key, errors[key]);
+        });
+
+        if (Object.keys(errors).length) {
+            showModalAlert('Fill in the required contact details before saving.', 'error');
+            return false;
+        }
+        return true;
+    }
+
+    function handleContactSaveSuccess(payload) {
+        var savedContact = payload.contact || {};
+        closeContactModal();
+        searchDropdown.classList.add('hidden');
+        searchInput.value = savedContact.name || modalState.query || '';
+        clearSearchBtn.classList.toggle('hidden', !searchInput.value);
+        searchInput.focus();
+        searchInput.select();
+        showSearchStatus(
+            (modalState.mode === 'create' ? 'Contact created. ' : 'Contact updated. ')
+            + 'Search again to continue.',
+            'success'
+        );
+    }
+
+    function buildContactResultRow(contact) {
+        var addressText = contact.has_address
+            ? escapeHtml(contact.address || contact.street_address || '')
+            : 'No property address on file yet';
+        var statusTone = contact.has_address
+            ? '<span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Ready to search</span>'
+            : '<span class="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700">Address missing</span>';
+        var actionButton = contact.has_address
+            ? '<button type="button" data-action="select-contact" data-contact-id="' + contact.id + '" data-contact-name="' + escapeHtml(contact.name) + '" class="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Select</button>'
+            : '<button type="button" data-action="edit-contact" data-contact-id="' + contact.id + '" class="inline-flex items-center justify-center rounded-xl border border-orange-200 bg-orange-50 px-3 py-2 text-xs font-semibold text-orange-700 transition hover:bg-orange-100">Edit contact</button>';
+        return '<div class="contact-picker-card ' + (contact.has_address ? '' : 'contact-picker-card--missing') + '">'
+            + '<div class="min-w-0 flex-1">'
+            + '<div class="flex flex-wrap items-center gap-2">'
+            + '<div class="truncate text-sm font-semibold text-slate-900">' + escapeHtml(contact.name) + '</div>'
+            + statusTone
+            + '</div>'
+            + '<div class="mt-1 text-xs text-slate-500">' + addressText + '</div>'
+            + '</div>'
+            + '<div class="flex-shrink-0">' + actionButton + '</div>'
+            + '</div>';
+    }
+
+    function renderSearchDropdown(contacts, query) {
+        var html = contacts.length
+            ? contacts.map(buildContactResultRow).join('')
+            : '<div class="px-4 py-4 text-sm text-slate-500">No matching contacts yet. Create one here and stay in the tax protest flow.</div>';
+        html += '<div class="border-t border-slate-200 bg-slate-50/80 px-4 py-3">'
+            + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(query) + '" class="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-orange-200 hover:bg-orange-50">'
+            + '<span>'
+            + '<span class="block text-sm font-semibold text-slate-900">Create contact</span>'
+            + '<span class="mt-0.5 block text-xs text-slate-500">Need someone else? Add them from this same screen.</span>'
+            + '</span>'
+            + '<span class="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">'
+            + '<i class="fas fa-user-plus text-[10px]"></i>'
+            + escapeHtml(query)
+            + '</span>'
+            + '</button>'
+            + '</div>';
+        searchDropdown.innerHTML = html;
+        searchDropdown.classList.remove('hidden');
+    }
+
+    searchInput.addEventListener('input', function () {
+        var q = this.value.trim();
+        clearSearchBtn.classList.toggle('hidden', !q);
+        clearTimeout(searchTimeout);
+        clearSearchStatus();
+        if (q.length < 2) { searchDropdown.classList.add('hidden'); return; }
+
+        searchTimeout = setTimeout(function () {
+            fetch('/tax-protest/search-contacts?q=' + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (contacts) {
+                    renderSearchDropdown(contacts, q);
+                })
+                .catch(function () {
+                    searchDropdown.innerHTML = '<div class="px-4 py-4 text-sm text-slate-500">Could not load contacts right now.</div>'
+                        + '<div class="border-t border-slate-200 bg-slate-50/80 px-4 py-3">'
+                        + '<button type="button" data-action="create-contact" data-query="' + escapeHtml(q) + '" class="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-orange-200 hover:bg-orange-50">'
+                        + '<span><span class="block text-sm font-semibold text-slate-900">Create contact</span><span class="mt-0.5 block text-xs text-slate-500">Add them here instead.</span></span>'
+                        + '<span class="inline-flex items-center gap-2 rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700"><i class="fas fa-user-plus text-[10px]"></i>' + escapeHtml(q) + '</span>'
+                        + '</button>'
+                        + '</div>';
+                    searchDropdown.classList.remove('hidden');
+                });
+        }, 300);
+    });
+
+    searchDropdown.addEventListener('click', function (event) {
+        var trigger = event.target.closest('[data-action]');
+        if (!trigger) return;
+
+        var action = trigger.getAttribute('data-action');
+        if (action === 'select-contact') {
+            searchDropdown.classList.add('hidden');
+            searchInput.value = trigger.getAttribute('data-contact-name') || '';
+            clearSearchBtn.classList.toggle('hidden', !searchInput.value);
+            clearSearchStatus();
+            runPropertySearch(trigger.getAttribute('data-contact-id'));
+            return;
+        }
+
+        if (action === 'edit-contact') {
+            searchDropdown.classList.add('hidden');
+            openEditModal(trigger.getAttribute('data-contact-id'));
+            return;
+        }
+
+        if (action === 'create-contact') {
+            searchDropdown.classList.add('hidden');
+            openCreateModal(trigger.getAttribute('data-query') || searchInput.value);
+        }
+    });
+
+    clearSearchBtn.addEventListener('click', function () {
+        searchInput.value = '';
+        clearSearchBtn.classList.add('hidden');
+        searchDropdown.classList.add('hidden');
+        clearSearchStatus();
+        hideAll();
+    });
+
+    document.getElementById('clearResults').addEventListener('click', function () {
+        searchInput.value = '';
+        clearSearchBtn.classList.add('hidden');
+        clearSearchStatus();
+        hideAll();
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!searchContainer.contains(e.target))
+            searchDropdown.classList.add('hidden');
+    });
+
+    contactModal.fields.phone.addEventListener('input', function (event) {
+        event.target.value = formatPhoneInput(event.target.value);
+    });
+
+    contactModal.cancel.addEventListener('click', closeContactModal);
+    contactModal.close.addEventListener('click', closeContactModal);
+    contactModal.backdrop.addEventListener('click', function (event) {
+        if (!contactModal.panel.contains(event.target)) {
+            closeContactModal();
+        }
+    });
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !contactModal.backdrop.classList.contains('hidden')) {
+            closeContactModal();
+        }
+    });
+
+    contactModal.form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        if (isSavingContact || isLoadingContact) return;
+        if (!validateModalForm()) return;
+
+        setModalSaving(true);
+        clearModalErrors();
+
+        var formData = new FormData(contactModal.form);
+        if (contactCsrfToken) {
+            formData.set('csrf_token', contactCsrfToken);
+        }
+        formData.set('phone', formatPhoneInput(contactModal.fields.phone.value));
+
+        var endpoint = modalState.mode === 'create'
+            ? '/contacts/create'
+            : '/contacts/' + modalState.contactId + '/edit';
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData,
+        })
+            .then(function (response) {
+                return response.json().then(function (payload) {
+                    return { ok: response.ok, payload: payload };
+                });
+            })
+            .then(function (result) {
+                setModalSaving(false);
+                if (!result.ok || result.payload.status === 'error') {
+                    var payload = result.payload || {};
+                    var errors = payload.errors || {};
+                    Object.keys(errors).forEach(function (key) {
+                        if (errors[key] && errors[key].length) {
+                            setFieldError(key, errors[key]);
+                        }
+                    });
+                    showModalAlert(payload.message || 'Could not save this contact.', 'error');
+                    return;
+                }
+                handleContactSaveSuccess(result.payload);
+            })
+            .catch(function () {
+                setModalSaving(false);
+                showModalAlert('Could not save this contact. Please try again.', 'error');
+            });
+    });
+
     function runPropertySearch(contactId) {
         hideAll();
+        clearSearchStatus();
         loadingState.classList.remove('hidden');
 
         fetch('/tax-protest/search', {
@@ -530,27 +1213,34 @@
         var allRows = [Object.assign({}, currentMainProperty, { _isMain: true })].concat(sorted);
 
         document.getElementById('comparablesBody').innerHTML = allRows.map(function (p) {
+            var address = escapeHtml(p.full_address || p.address || '');
+            var city = escapeHtml(p.city || '');
+            var zip = escapeHtml(p.zip || '');
+            var subdivision = escapeHtml(p.subdivision || p.legal2 || '');
+            var legal1 = escapeHtml(p.legal1 || '');
             return '<tr class="' + (p._isMain ? 'bg-amber-50 font-medium' : 'hover:bg-slate-50') + '">'
-                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.full_address || p.address || '') + '">'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + address + '">'
                 + (p._isMain ? '<i class="fas fa-star text-amber-500 text-xs mr-1"></i>' : '')
-                + (p.full_address || p.address || '') + '</td>'
-                + '<td style="overflow:hidden;text-overflow:ellipsis">' + (p.city || '') + '</td>'
-                + '<td>' + (p.zip || '') + '</td>'
+                + address + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis">' + city + '</td>'
+                + '<td>' + zip + '</td>'
                 + '<td style="text-align:right">' + fmt(p.market_value) + '</td>'
                 + '<td style="text-align:right">' + (p.sq_ft ? fmtNum(p.sq_ft) : '—') + '</td>'
                 + '<td style="text-align:right">' + (p.acreage ? p.acreage.toFixed(2) : '—') + '</td>'
-                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.subdivision || p.legal2 || '') + '">' + (p.subdivision || p.legal2 || '') + '</td>'
-                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + (p.legal1 || '') + '">' + (p.legal1 || '') + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + subdivision + '">' + subdivision + '</td>'
+                + '<td style="overflow:hidden;text-overflow:ellipsis" title="' + legal1 + '">' + legal1 + '</td>'
                 + '</tr>';
         }).join('');
 
         document.getElementById('mobileCards').innerHTML = allRows.map(function (p) {
+            var address = escapeHtml(p.full_address || p.address || '');
+            var cityZip = escapeHtml([p.city, p.zip].filter(Boolean).join(', '));
             return '<div class="premium-card p-4 ' + (p._isMain ? 'bg-amber-50/60 border-amber-200/60' : '') + '">'
                 + '<div class="flex items-start justify-between mb-2">'
                 + '<div>'
                 + (p._isMain ? '<span class="text-xs font-bold text-amber-700 uppercase">Subject Property</span>' : '')
-                + '<p class="font-medium text-slate-800 text-sm">' + (p.full_address || p.address || '') + '</p>'
-                + '<p class="text-xs text-slate-500">' + [p.city, p.zip].filter(Boolean).join(', ') + '</p>'
+                + '<p class="font-medium text-slate-800 text-sm">' + address + '</p>'
+                + '<p class="text-xs text-slate-500">' + cityZip + '</p>'
                 + '</div>'
                 + '<span class="font-semibold text-sm text-slate-900">' + fmt(p.market_value) + '</span>'
                 + '</div>'

@@ -17,6 +17,27 @@ logger = logging.getLogger(__name__)
 
 contacts_bp = Blueprint('contacts', __name__)
 
+
+def _is_ajax_request():
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
+def _serialize_contact_summary(contact):
+    addr_parts = [
+        part for part in [contact.street_address, contact.city, contact.state, contact.zip_code]
+        if part
+    ]
+    return {
+        'id': contact.id,
+        'name': f'{contact.first_name} {contact.last_name}',
+        'address': ', '.join(addr_parts),
+        'street_address': contact.street_address,
+        'city': contact.city,
+        'state': contact.state,
+        'zip_code': contact.zip_code,
+        'has_address': bool(contact.street_address and contact.street_address.strip()),
+    }
+
 def get_user_timezone():
     """Helper function to get user's timezone"""
     return pytz.timezone('America/Chicago')
@@ -178,6 +199,8 @@ def create_contact():
     # Multi-tenant: Check contact limit
     allowed, message = org_can_add_contact()
     if not allowed:
+        if _is_ajax_request():
+            return jsonify({'status': 'error', 'message': message}), 403
         flash(message, 'error')
         return redirect(url_for('main.contacts'))
     
@@ -226,6 +249,12 @@ def create_contact():
 
         db.session.add(contact)
         db.session.commit()
+
+        if _is_ajax_request():
+            return jsonify({
+                'status': 'success',
+                'contact': _serialize_contact_summary(contact),
+            }), 200
         
         # Handle return_to=transaction redirect
         if return_to == 'transaction' and transaction_id:
@@ -234,6 +263,13 @@ def create_contact():
         
         flash('Contact created successfully!', 'success')
         return redirect(url_for('main.contacts'))
+
+    if _is_ajax_request() and request.method == 'POST':
+        return jsonify({
+            'status': 'error',
+            'message': 'Please correct the highlighted fields.',
+            'errors': form.errors,
+        }), 400
 
     return render_template('contacts/form.html', form=form, return_transaction_id=transaction_id)
 
@@ -252,10 +288,14 @@ def edit_contact(contact_id):
     last_name = request.form.get('last_name')
 
     if not first_name or not last_name:
-        return {
+        return jsonify({
             'status': 'error',
-            'message': 'First name and last name are required'
-        }, 400
+            'message': 'First name and last name are required',
+            'errors': {
+                'first_name': ['First name is required'] if not first_name else [],
+                'last_name': ['Last name is required'] if not last_name else [],
+            },
+        }), 400
 
     try:
         contact.first_name = first_name
@@ -297,12 +337,16 @@ def edit_contact(contact_id):
         ).all()
 
         db.session.commit()
-        flash('Contact updated successfully!', 'success')
-        return {'status': 'success'}, 200
+        if not _is_ajax_request():
+            flash('Contact updated successfully!', 'success')
+        return jsonify({
+            'status': 'success',
+            'contact': _serialize_contact_summary(contact),
+        }), 200
 
     except Exception as e:
         db.session.rollback()
-        return {'status': 'error', 'message': str(e)}, 500
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @contacts_bp.route('/contacts/<int:contact_id>/delete', methods=['POST'])

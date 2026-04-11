@@ -25,11 +25,12 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
 from PIL import Image as PILImage, ImageDraw, ImageFont
 
-from models import db, Contact
+from models import db, Contact, ContactGroup
 from feature_flags import feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from services.tax_protest_service import (
     find_property_in_tax_data,
+    extract_chambers_subdivision,
     extract_subdivision_llm,
     find_comparables,
     get_neighborhood_name,
@@ -38,6 +39,7 @@ from services.tax_protest_service import (
     get_cached_search_result,
     get_main_property_by_id,
     _is_valid_subdivision,
+    build_chambers_subdivision_match_terms,
 )
 
 tax_protest_bp = Blueprint("tax_protest", __name__, url_prefix="/tax-protest")
@@ -68,6 +70,24 @@ def _safe_filename(address, suffix):
     addr = address or "unknown"
     base = re.sub(r"[^a-zA-Z0-9]+", "_", addr).strip("_") or "unknown"
     return f"{base}{suffix}"
+
+
+def _contact_search_payload(contact):
+    addr_parts = [
+        part
+        for part in [contact.street_address, contact.city, contact.state, contact.zip_code]
+        if part
+    ]
+    return {
+        "id": contact.id,
+        "name": f"{contact.first_name} {contact.last_name}",
+        "address": ", ".join(addr_parts),
+        "street_address": contact.street_address,
+        "city": contact.city,
+        "state": contact.state,
+        "zip_code": contact.zip_code,
+        "has_address": bool(contact.street_address and contact.street_address.strip()),
+    }
 
 
 def _format_axis_value(value):
@@ -187,6 +207,7 @@ def _load_cached_export_data():
         fuzzy_subdivision=cached.get("fuzzy_subdivision", False),
         subdivision_code=cached.get("subdivision_code"),
         main_acreage=cached.get("main_acreage"),
+        subdivision_match_terms=cached.get("subdivision_match_terms"),
     )
     subdivision_stats = get_subdivision_stats(
         cached["subdivision"],
@@ -195,6 +216,7 @@ def _load_cached_export_data():
         cached["source"],
         fuzzy_subdivision=cached.get("fuzzy_subdivision", False),
         subdivision_code=cached.get("subdivision_code"),
+        subdivision_match_terms=cached.get("subdivision_match_terms"),
     )
 
     county = COUNTY_LABELS.get(cached["source"], cached["source"].title())
@@ -568,7 +590,12 @@ def _build_xlsx_report(export_data):
 @feature_required("TAX_PROTEST")
 def index():
     """Main Tax Protest page."""
-    return render_template("tax_protest/index.html")
+    contact_groups = (
+        org_query(ContactGroup)
+        .order_by(ContactGroup.sort_order.asc(), ContactGroup.name.asc())
+        .all()
+    )
+    return render_template("tax_protest/index.html", contact_groups=contact_groups)
 
 
 @tax_protest_bp.route("/search-contacts")
@@ -597,24 +624,9 @@ def search_contacts():
             Contact.city.ilike(search_term),
             Contact.zip_code.ilike(search_term),
         )
-    ).limit(15)
+    ).order_by(Contact.first_name.asc(), Contact.last_name.asc()).limit(15)
 
-    results = []
-    for c in query.all():
-        addr_parts = [p for p in [c.street_address, c.city, c.state, c.zip_code] if p]
-        results.append(
-            {
-                "id": c.id,
-                "name": f"{c.first_name} {c.last_name}",
-                "address": ", ".join(addr_parts),
-                "street_address": c.street_address,
-                "city": c.city,
-                "state": c.state,
-                "zip_code": c.zip_code,
-            }
-        )
-
-    return jsonify(results)
+    return jsonify([_contact_search_payload(contact) for contact in query.all()])
 
 
 @tax_protest_bp.route("/search", methods=["POST"])
@@ -650,6 +662,7 @@ def search_property():
     main_acreage = property_record.get("acreage")
     subdivision = None
     fuzzy = False
+    subdivision_match_terms = None
 
     if source == "hcad":
         lgl_2 = property_record.get("legal2") or ""
@@ -715,7 +728,14 @@ def search_property():
         )
     else:
         legal_desc = property_record.get("legal1", "")
-        subdivision = extract_subdivision_llm(legal_desc)
+        if source == "chambers":
+            subdivision = extract_chambers_subdivision(legal_desc)
+            subdivision_match_terms = build_chambers_subdivision_match_terms(
+                subdivision,
+                legal_desc,
+            )
+        else:
+            subdivision = extract_subdivision_llm(legal_desc)
         if not subdivision:
             return jsonify(
                 {
@@ -731,6 +751,7 @@ def search_property():
             source,
             main_sq_ft=main_sq_ft,
             main_acreage=main_acreage,
+            subdivision_match_terms=subdivision_match_terms,
         )
 
     cache_search_result(
@@ -744,6 +765,7 @@ def search_property():
         main_sq_ft=main_sq_ft,
         main_acreage=main_acreage,
         fuzzy_subdivision=fuzzy,
+        subdivision_match_terms=subdivision_match_terms,
     )
 
     subdivision_stats = get_subdivision_stats(
@@ -753,6 +775,7 @@ def search_property():
         source,
         fuzzy_subdivision=fuzzy,
         subdivision_code=subdivision_code,
+        subdivision_match_terms=subdivision_match_terms,
     )
 
     return jsonify(

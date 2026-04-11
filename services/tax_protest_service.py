@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 SQ_FT_RANGE = 250
 MIN_COMPARABLES = 5
+CHAMBERS_CONNECTOR_TOKENS = {"ON", "AT", "OF", "IN"}
 
 SUBDIVISION_SYSTEM_PROMPT = (
     "You are a Texas property legal description parser. "
@@ -433,6 +434,127 @@ def extract_subdivision_regex(legal_description):
     return None
 
 
+def _normalize_subdivision_text(text):
+    if not text:
+        return None
+    normalized = re.sub(r"\s+", " ", str(text).upper()).strip(" ,-&")
+    if normalized.startswith("THE "):
+        normalized = normalized[4:].strip()
+    return normalized or None
+
+
+def _looks_like_subdivision_name(text):
+    normalized = _normalize_subdivision_text(text)
+    if not normalized or len(normalized) < 3 or normalized.isdigit():
+        return False
+    if re.match(r"^(?:BK|BLK|BLOCK)\s+[A-Z0-9]", normalized):
+        return False
+    if re.match(r"^(?:LOTS?|LTS?|LT|TRS?|TR|TRACTS?|TRACT)\s+[A-Z0-9]", normalized):
+        return False
+    if re.match(r"^(?:SEC|SECTION|PH|PHASE)\s+[A-Z0-9]", normalized):
+        return False
+    return True
+
+
+def _extract_chambers_subdivision_regex(legal_description):
+    """Best-effort Chambers cleanup when the LLM result is unavailable."""
+    if not legal_description:
+        return None
+
+    text = re.sub(r"\s+", " ", legal_description.upper()).strip()
+
+    previous = None
+    while text != previous:
+        previous = text
+        text = re.sub(
+            r"^(?:LOTS?|LTS?|LT|TRS?|TR|TRACTS?|TRACT)\s+[A-Z0-9/&\-.]+(?:\s*[,&-]\s*[A-Z0-9/&\-.]+)*\s*",
+            "",
+            text,
+        )
+        text = re.sub(
+            r"^(?:BK|BLK|BLOCK|SEC(?:TION)?|PH(?:ASE)?)\s+[A-Z0-9/&\-.]+\s*",
+            "",
+            text,
+        )
+        text = re.sub(r"^ALL\s+", "", text)
+
+    text = re.sub(r"\s+SEC(?:TION)?\s+[A-Z0-9/&\-.]+.*$", "", text)
+    text = re.sub(r"\s+(?:BK|BLK|BLOCK)\s+[A-Z0-9/&\-.]+.*$", "", text)
+    text = re.sub(r"\s+PH(?:ASE)?\s+[A-Z0-9/&\-.]+.*$", "", text)
+
+    normalized = _normalize_subdivision_text(text)
+    if _looks_like_subdivision_name(normalized):
+        return normalized
+    return None
+
+
+def extract_chambers_subdivision(legal_description):
+    """Extract the Chambers subdivision token from noisy legal1 strings.
+
+    Chambers legal descriptions often look like:
+      LOT 31 SEC 5 PLANTATION ON CB
+      LT 6 SEC 11 PLANTATION ON COTTON BAYOU
+      BK 1 LT 16 SELLERS STATION
+      LOT 16 SEC 5 THE PLANTATION ON COTTON BAYOU
+
+    We now prefer the LLM extraction because it handles the county's messy legal
+    descriptions better. If that misses, we fall back to Chambers-specific
+    cleanup and then the generic regex extractor.
+    """
+    if not legal_description:
+        return None
+
+    llm_result = _normalize_subdivision_text(extract_subdivision_llm(legal_description))
+    if _looks_like_subdivision_name(llm_result):
+        return llm_result
+
+    chambers_regex = _extract_chambers_subdivision_regex(legal_description)
+    if _looks_like_subdivision_name(chambers_regex):
+        return chambers_regex
+
+    generic = _normalize_subdivision_text(extract_subdivision_regex(legal_description))
+    if _looks_like_subdivision_name(generic):
+        return generic
+
+    return llm_result or chambers_regex or generic
+
+
+def build_chambers_subdivision_match_terms(subdivision, legal_description=None):
+    """Return a small set of broader Chambers match terms.
+
+    Chambers stores one subdivision under several legal1 variants. For
+    example, a subject may be "PLANTATION ON CB" while nearby homes are stored
+    as "PLANTATION ON", "PLANTATION ON COTTON", or
+    "THE PLANTATION ON COTTON BAYOU ...".
+    """
+    candidates = []
+    for raw in (
+        subdivision,
+        extract_chambers_subdivision(legal_description),
+        _extract_chambers_subdivision_regex(legal_description),
+    ):
+        normalized = _normalize_subdivision_text(raw)
+        if normalized and normalized not in candidates:
+            candidates.append(normalized)
+
+    terms = []
+    for candidate in candidates:
+        if candidate not in terms:
+            terms.append(candidate)
+
+        tokens = candidate.split()
+        if (
+            len(tokens) >= 3
+            and tokens[-2] in CHAMBERS_CONNECTOR_TOKENS
+            and (len(tokens[-1]) <= 3 or len(tokens) == 3)
+        ):
+            broader = " ".join(tokens[:-1]).strip()
+            if broader and broader not in terms:
+                terms.append(broader)
+
+    return terms
+
+
 def get_neighborhood_name(neighborhood_code):
     """Resolve a neighborhood code to its description from the lookup table."""
     if not neighborhood_code:
@@ -449,6 +571,7 @@ def get_subdivision_stats(
     fuzzy_subdivision=False,
     subdivision_code=None,
     sibling_codes=None,
+    subdivision_match_terms=None,
 ):
     """Compute subdivision-level statistics for the subject property.
 
@@ -521,6 +644,16 @@ def get_subdivision_stats(
             .all()
         )
     elif source == "chambers" and subdivision:
+        match_terms = subdivision_match_terms or build_chambers_subdivision_match_terms(
+            subdivision
+        )
+        sub_filters = [
+            ChambersProperty.legal1.ilike(f"%{term}%")
+            for term in match_terms
+            if term
+        ]
+        if not sub_filters:
+            sub_filters = [ChambersProperty.legal1.ilike(f"%{subdivision}%")]
         has_improvement = db.or_(
             db.and_(
                 ChambersProperty.improvement_hs_val.isnot(None),
@@ -533,7 +666,7 @@ def get_subdivision_stats(
         )
         rows = (
             ChambersProperty.query.filter(
-                ChambersProperty.legal1.ilike(f"%{subdivision}%"),
+                db.or_(*sub_filters),
                 ChambersProperty.market_value.isnot(None),
                 ChambersProperty.market_value > 0,
                 ChambersProperty.prop_street_number.isnot(None),
@@ -603,6 +736,7 @@ def find_comparables(
     fuzzy_subdivision=False,
     subdivision_code=None,
     main_acreage=None,
+    subdivision_match_terms=None,
 ):
     """
     Find properties in the same subdivision and zip with lower market value.
@@ -616,7 +750,16 @@ def find_comparables(
         if not subdivision:
             return []
 
-        pattern = f"%{subdivision}%"
+        match_terms = subdivision_match_terms or build_chambers_subdivision_match_terms(
+            subdivision
+        )
+        sub_filters = [
+            ChambersProperty.legal1.ilike(f"%{term}%")
+            for term in match_terms
+            if term
+        ]
+        if not sub_filters:
+            sub_filters = [ChambersProperty.legal1.ilike(f"%{subdivision}%")]
         has_improvement = db.or_(
             db.and_(
                 ChambersProperty.improvement_hs_val.isnot(None),
@@ -628,7 +771,7 @@ def find_comparables(
             ),
         )
         base_filters = [
-            ChambersProperty.legal1.ilike(pattern),
+            db.or_(*sub_filters),
             ChambersProperty.market_value.isnot(None),
             ChambersProperty.market_value > 0,
             ChambersProperty.market_value < market_value,
@@ -1090,6 +1233,7 @@ def cache_search_result(
     fuzzy_subdivision=False,
     subdivision_code=None,
     main_acreage=None,
+    subdivision_match_terms=None,
 ):
     """Store search params in Flask session for CSV download consistency."""
     session["tax_protest_result"] = {
@@ -1103,6 +1247,7 @@ def cache_search_result(
         "main_sq_ft": main_sq_ft,
         "main_acreage": main_acreage,
         "fuzzy_subdivision": fuzzy_subdivision,
+        "subdivision_match_terms": subdivision_match_terms,
     }
 
 
