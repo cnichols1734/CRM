@@ -441,6 +441,139 @@ def get_neighborhood_name(neighborhood_code):
     return nc.dscr if nc else None
 
 
+def get_subdivision_stats(
+    subdivision,
+    zip_code,
+    market_value,
+    source,
+    fuzzy_subdivision=False,
+    subdivision_code=None,
+    sibling_codes=None,
+):
+    """Compute subdivision-level statistics for the subject property.
+
+    Returns dict with:
+      total_homes: total residential homes in the subdivision
+      lower_values: how many have a lower market value
+      higher_values: how many have a higher market value
+      percentile: where the subject falls (e.g. 90 means 90% of homes are cheaper)
+      value_distribution: list of {label, count} buckets for charting
+    """
+    if source == "liberty" and subdivision_code:
+        codes = [subdivision_code]
+        if not sibling_codes:
+            sibling_codes = _find_liberty_sibling_codes(subdivision_code)
+        if sibling_codes:
+            codes.extend(sibling_codes)
+        rows = (
+            LibertyProperty.query.filter(
+                LibertyProperty.is_residential_home.is_(True),
+                LibertyProperty.market_value.isnot(None),
+                LibertyProperty.market_value > 0,
+                LibertyProperty.abs_subdv_cd.in_(codes),
+            )
+            .with_entities(
+                LibertyProperty.market_value,
+            )
+            .order_by(LibertyProperty.market_value.asc())
+            .all()
+        )
+    elif source == "fort_bend" and subdivision_code:
+        codes = [subdivision_code]
+        if not sibling_codes:
+            sibling_codes = _find_fort_bend_sibling_codes(subdivision_code)
+        if sibling_codes:
+            codes.extend(sibling_codes)
+        rows = (
+            FortBendProperty.query.filter(
+                FortBendProperty.is_residential_home.is_(True),
+                FortBendProperty.market_value.isnot(None),
+                FortBendProperty.market_value > 0,
+                FortBendProperty.nbhd_code.in_(codes),
+            )
+            .with_entities(
+                FortBendProperty.market_value,
+            )
+            .order_by(FortBendProperty.market_value.asc())
+            .all()
+        )
+    elif source == "hcad" and subdivision:
+        if fuzzy_subdivision:
+            sub_filter = HcadProperty.lgl_2.ilike(f"%{subdivision}%")
+        else:
+            sub_filter = HcadProperty.lgl_2 == subdivision
+        rows = (
+            HcadProperty.query.filter(
+                sub_filter,
+                HcadProperty.tot_mkt_val.isnot(None),
+                HcadProperty.tot_mkt_val > 0,
+            )
+            .with_entities(
+                HcadProperty.tot_mkt_val,
+            )
+            .order_by(HcadProperty.tot_mkt_val.asc())
+            .all()
+        )
+    elif source == "chambers" and subdivision:
+        rows = (
+            ChambersProperty.query.filter(
+                ChambersProperty.legal1.ilike(f"%{subdivision}%"),
+                ChambersProperty.market_value.isnot(None),
+                ChambersProperty.market_value > 0,
+            )
+            .with_entities(
+                ChambersProperty.market_value,
+            )
+            .order_by(ChambersProperty.market_value.asc())
+            .all()
+        )
+    else:
+        return None
+
+    values = [int(r[0]) for r in rows if r[0] is not None]
+    sorted_values = sorted(values)
+    total_homes = len(sorted_values)
+    lower_values = sum(1 for v in sorted_values if v < market_value)
+    higher_values = sum(1 for v in sorted_values if v > market_value)
+    percentile = (
+        round((lower_values / total_homes) * 100, 1) if total_homes > 0 else None
+    )
+
+    return {
+        "total_homes": total_homes,
+        "lower_values": lower_values,
+        "higher_values": higher_values,
+        "percentile": percentile,
+        "value_distribution": _bucket_values(sorted_values),
+        "min_value": sorted_values[0] if sorted_values else None,
+        "max_value": sorted_values[-1] if sorted_values else None,
+        "median_value": (
+            sorted_values[len(sorted_values) // 2] if sorted_values else None
+        ),
+    }
+
+
+def _bucket_values(values, num_buckets=8):
+    """Return evenly sized buckets across the full observed value range."""
+    if not values:
+        return []
+    min_val = min(values)
+    max_val = max(values)
+    if min_val == max_val:
+        return [{"label": f"${min_val / 1000:.0f}k", "count": len(values)}]
+    bucket_size = (max_val - min_val) / num_buckets
+    buckets = []
+    for i in range(num_buckets):
+        lo = min_val + i * bucket_size
+        hi = lo + bucket_size
+        if i == num_buckets - 1:
+            count = sum(1 for v in values if lo <= v <= hi)
+        else:
+            count = sum(1 for v in values if lo <= v < hi)
+        buckets.append({"label": f"${lo / 1000:.0f}k", "count": count})
+    return buckets
+
+
 def find_comparables(
     subdivision,
     zip_code,
