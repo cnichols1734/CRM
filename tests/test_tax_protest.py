@@ -298,6 +298,19 @@ def test_search_property_expands_chambers_subdivision_match_terms(owner_a_client
 def test_tax_protest_search_contacts_marks_missing_address(owner_a_client, seed, monkeypatch):
     monkeypatch.setattr(feature_flags_module, "org_has_feature", lambda *args, **kwargs: True)
 
+    # Own row: seed "Jane" is mutated by other tests (e.g. edit → "JaneEdited"), so do not rely on it.
+    no_street = owner_a_client.post(
+        "/contacts/create",
+        data={
+            "first_name": "TaxProtNoAddr",
+            "last_name": "Search",
+            "email": "taxprotnoaddr@test.com",
+            "group_ids": str(seed["group_a1"]),
+        },
+        follow_redirects=True,
+    )
+    assert no_street.status_code == 200
+
     create_response = owner_a_client.post(
         "/contacts/create",
         data={
@@ -313,10 +326,11 @@ def test_tax_protest_search_contacts_marks_missing_address(owner_a_client, seed,
     )
     assert create_response.status_code == 200
 
-    missing_response = owner_a_client.get("/tax-protest/search-contacts?q=Jane")
+    missing_response = owner_a_client.get("/tax-protest/search-contacts?q=TaxProtNoAddr")
     assert missing_response.status_code == 200
     missing_payload = missing_response.get_json()
-    assert missing_payload[0]["name"] == "Jane Doe"
+    assert missing_payload, "no-address contact should appear in search (check create form validation)"
+    assert missing_payload[0]["name"] == "TaxProtNoAddr Search"
     assert missing_payload[0]["has_address"] is False
 
     addressed_response = owner_a_client.get("/tax-protest/search-contacts?q=Addressed")
