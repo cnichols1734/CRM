@@ -251,7 +251,7 @@ def find_comparables(subdivision, zip_code, market_value, source,
     Find properties in the same subdivision and zip with lower market value.
     For HCAD: matches on lgl_2 (exact when from structured data, ILIKE when
     from LLM extraction), requires a building, and filters to within 250 sq ft.
-    For Chambers: uses ILIKE on legal1.
+    For Chambers: uses ILIKE on legal1 (no sq ft band; HCAD still uses ±250).
     Returns list of property dicts.
     """
     SQ_FT_RANGE = 250
@@ -275,16 +275,6 @@ def find_comparables(subdivision, zip_code, market_value, source,
             ChambersProperty.prop_street.isnot(None),
             has_improvement,
         ]
-
-        if main_sq_ft and main_sq_ft > 0:
-            base_filters.extend([
-                ChambersProperty.sq_ft.isnot(None),
-                ChambersProperty.sq_ft > 0,
-                ChambersProperty.sq_ft.between(
-                    main_sq_ft - SQ_FT_RANGE,
-                    main_sq_ft + SQ_FT_RANGE,
-                ),
-            ])
 
         if zip_code:
             results = ChambersProperty.query.filter(
