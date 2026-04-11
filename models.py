@@ -1514,6 +1514,7 @@ class ChambersProperty(db.Model):
     market_value = db.Column(db.Integer)
     improvement_hs_val = db.Column(db.Integer)
     improvement_nhs_val = db.Column(db.Integer)
+    sq_ft = db.Column(db.Integer)
 
     def __repr__(self):
         return f'<ChambersProperty {self.prop_street_number} {self.prop_street}>'

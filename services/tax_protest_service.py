@@ -46,15 +46,28 @@ def normalize_address(address):
     return addr
 
 
+DIRECTIONAL_PREFIXES = {'N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW',
+                         'NORTH', 'SOUTH', 'EAST', 'WEST'}
+
+
 def _parse_street_parts(address):
-    """Extract street number and street name from a full address."""
+    """Extract street number, direction, and street name from a full address.
+    Returns (street_num, direction_or_None, street_name).
+    """
     addr = normalize_address(address)
     if not addr:
-        return None, None
+        return None, None, None
     match = re.match(r'^(\d+)\s+(.+)', addr)
-    if match:
-        return match.group(1), match.group(2)
-    return None, addr
+    if not match:
+        return None, None, addr
+    street_num = match.group(1)
+    remainder = match.group(2)
+    parts = remainder.split()
+    if parts and parts[0] in DIRECTIONAL_PREFIXES:
+        direction = parts[0]
+        street_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+        return street_num, direction, street_name
+    return street_num, None, remainder
 
 
 def find_property_in_tax_data(street_address, city, zip_code):
@@ -62,42 +75,47 @@ def find_property_in_tax_data(street_address, city, zip_code):
     Search for a property in Chambers County first, then Harris County.
     Returns (record_dict, source) or (None, None).
     """
-    street_num, street_name = _parse_street_parts(street_address)
+    street_num, direction, street_name = _parse_street_parts(street_address)
     zip_clean = (zip_code or '').strip()[:5]
 
     # --- Chambers County ---
-    chambers_result = _search_chambers(street_num, street_name, zip_clean)
+    chambers_result = _search_chambers(street_num, direction, street_name, zip_clean)
     if chambers_result:
         return chambers_result, 'chambers'
 
     # --- Harris County (HCAD) ---
-    hcad_result = _search_hcad(street_num, street_name, zip_clean)
+    hcad_result = _search_hcad(street_num, direction, street_name, zip_clean)
     if hcad_result:
         return hcad_result, 'hcad'
 
     return None, None
 
 
-def _search_chambers(street_num, street_name, zip_code):
+def _search_chambers(street_num, direction, street_name, zip_code):
     """Search Chambers County by address components.
-    Tries with zip first, retries without if no match (handles data entry mismatches)."""
+    Matches street number, direction (if present), and first word of street name.
+    Tries with zip first, retries without if no match."""
     if not street_num or not street_name:
         return None
 
     first_word = street_name.split()[0]
+    base_filters = [
+        ChambersProperty.prop_street_number == street_num,
+        ChambersProperty.prop_street.ilike(f'%{first_word}%'),
+    ]
+    if direction:
+        base_filters.append(ChambersProperty.prop_street_dir == direction)
 
     if zip_code:
         result = ChambersProperty.query.filter(
             ChambersProperty.prop_zip5 == zip_code,
-            ChambersProperty.prop_street_number == street_num,
-            ChambersProperty.prop_street.ilike(f'%{first_word}%'),
+            *base_filters,
         ).first()
         if result:
             return _chambers_to_dict(result)
 
     result = ChambersProperty.query.filter(
-        ChambersProperty.prop_street_number == street_num,
-        ChambersProperty.prop_street.ilike(f'%{first_word}%'),
+        *base_filters,
     ).first()
     if result:
         return _chambers_to_dict(result)
@@ -105,27 +123,31 @@ def _search_chambers(street_num, street_name, zip_code):
     return None
 
 
-def _search_hcad(street_num, street_name, zip_code):
+def _search_hcad(street_num, direction, street_name, zip_code):
     """Search Harris County by address components.
-    Uses site_addr_1 (full combined address) to avoid str/str_sfx column split issues.
+    Matches street number, direction (via str_sfx_dir), and first word of street name.
     Falls back to relaxed search without zip if initial search misses."""
     if street_num and street_name:
         first_word = street_name.split()[0]
+        base_filters = [
+            HcadProperty.str_num == street_num,
+            HcadProperty.str.ilike(f'%{first_word}%'),
+        ]
+        if direction:
+            base_filters.append(HcadProperty.str_sfx_dir == direction)
 
         # Try with zip first
         if zip_code:
             result = HcadProperty.query.filter(
                 HcadProperty.site_addr_3 == zip_code,
-                HcadProperty.str_num == street_num,
-                HcadProperty.str.ilike(f'%{first_word}%'),
+                *base_filters,
             ).first()
             if result:
                 return _hcad_found(result)
 
         # Retry without zip (contact may have wrong/missing zip)
         result = HcadProperty.query.filter(
-            HcadProperty.str_num == street_num,
-            HcadProperty.str.ilike(f'%{first_word}%'),
+            *base_filters,
         ).first()
         if result:
             return _hcad_found(result)
@@ -254,6 +276,16 @@ def find_comparables(subdivision, zip_code, market_value, source,
             has_improvement,
         ]
 
+        if main_sq_ft and main_sq_ft > 0:
+            base_filters.extend([
+                ChambersProperty.sq_ft.isnot(None),
+                ChambersProperty.sq_ft > 0,
+                ChambersProperty.sq_ft.between(
+                    main_sq_ft - SQ_FT_RANGE,
+                    main_sq_ft + SQ_FT_RANGE,
+                ),
+            ])
+
         if zip_code:
             results = ChambersProperty.query.filter(
                 ChambersProperty.prop_zip5 == zip_code,
@@ -329,7 +361,7 @@ def _chambers_to_dict(record):
         'legal2': record.legal2,
         'legal3': record.legal3,
         'legal4': record.legal4,
-        'sq_ft': None,
+        'sq_ft': record.sq_ft if record.sq_ft and record.sq_ft > 0 else None,
         'acreage': float(record.acres) if record.acres else None,
         'parcel_id': record.parcel_id,
         'account': record.account,
