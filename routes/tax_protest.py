@@ -25,6 +25,7 @@ from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
 from PIL import Image as PILImage, ImageDraw, ImageFont
 
+from forms import ContactForm
 from models import db, Contact, ContactGroup
 from feature_flags import feature_required
 from services.tenant_service import org_query, can_view_all_org_data
@@ -595,7 +596,11 @@ def index():
         .order_by(ContactGroup.sort_order.asc(), ContactGroup.name.asc())
         .all()
     )
-    return render_template("tax_protest/index.html", contact_groups=contact_groups)
+    return render_template(
+        "tax_protest/index.html",
+        contact_groups=contact_groups,
+        contact_form=ContactForm(),
+    )
 
 
 @tax_protest_bp.route("/search-contacts")
