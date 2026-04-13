@@ -3,6 +3,7 @@ Regression tests for the tax protest stats flow.
 """
 
 from io import BytesIO
+import re
 from types import SimpleNamespace
 from zipfile import ZipFile
 
@@ -361,6 +362,45 @@ def test_create_contact_ajax_returns_json_summary(owner_a_client, seed):
     assert payload["contact"]["name"] == "Tax Modal"
     assert payload["contact"]["has_address"] is True
     assert "444 Cedar Lane" in payload["contact"]["address"]
+
+
+def test_tax_protest_modal_create_contact_includes_csrf_token(app, owner_a_client, seed, monkeypatch):
+    monkeypatch.setattr(feature_flags_module, "org_has_feature", lambda *args, **kwargs: True)
+    original_csrf_setting = app.config["WTF_CSRF_ENABLED"]
+    app.config["WTF_CSRF_ENABLED"] = True
+
+    try:
+        page = owner_a_client.get("/tax-protest/")
+        assert page.status_code == 200
+
+        html = page.get_data(as_text=True)
+        match = re.search(
+            r'<input[^>]+id="contactModalCsrfToken"[^>]+name="csrf_token"[^>]+value="([^"]+)"',
+            html,
+        )
+        assert match, "tax protest contact modal should render a CSRF token"
+
+        response = owner_a_client.post(
+            "/contacts/create",
+            data={
+                "csrf_token": match.group(1),
+                "first_name": "Csrf",
+                "last_name": "Covered",
+                "street_address": "500 Cypress Creek",
+                "city": "Houston",
+                "state": "TX",
+                "zip_code": "77003",
+                "group_ids": str(seed["group_a1"]),
+            },
+            headers={"X-Requested-With": "XMLHttpRequest"},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["status"] == "success"
+        assert payload["contact"]["name"] == "Csrf Covered"
+    finally:
+        app.config["WTF_CSRF_ENABLED"] = original_csrf_setting
 
 
 def test_download_xlsx_returns_report_with_embedded_chart(owner_a_client, monkeypatch):

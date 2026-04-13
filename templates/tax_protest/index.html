@@ -266,6 +266,7 @@
                     </div>
 
                     <form id="contactModalForm" class="space-y-8 p-6 sm:p-8">
+                        {{ contact_form.csrf_token(id="contactModalCsrfToken") }}
                         <div id="contactModalAlert" class="hidden rounded-2xl border px-4 py-3 text-sm"></div>
                         <div id="contactModalLoading" class="hidden rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-500">
                             <div class="flex items-center gap-3">
@@ -398,8 +399,6 @@
     let currentMainProperty = null;
     let isSavingContact = false;
     let isLoadingContact = false;
-    const contactCsrfToken = {{ (csrf_token() if csrf_token is defined else '')|tojson }};
-
     const searchContainer = document.getElementById('searchContainer');
     const searchInput = document.getElementById('contactSearch');
     const searchDropdown = document.getElementById('searchDropdown');
@@ -1040,9 +1039,6 @@
         clearModalErrors();
 
         var formData = new FormData(contactModal.form);
-        if (contactCsrfToken) {
-            formData.set('csrf_token', contactCsrfToken);
-        }
         formData.set('phone', formatPhoneInput(contactModal.fields.phone.value));
 
         var endpoint = modalState.mode === 'create'
