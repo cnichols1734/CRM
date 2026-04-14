@@ -12,15 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      # Test credentials - set these as GitHub Secrets
-      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      # Database URL for tests (uses Supabase)
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      # Optional: OpenAI key if AI features are tested
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      # Flask environment
+      TEST_USERNAME: browser-test@example.com
+      TEST_PASSWORD: browser-test-password123
+      DATABASE_URL: sqlite:////tmp/scheduled_browser_integration.db
+      SECRET_KEY: ci-test-secret-key
       FLASK_ENV: development
 
     steps:
@@ -52,6 +47,9 @@ jobs:
       - name: Install Playwright browsers
         run: playwright install chromium
 
+      - name: Bootstrap isolated browser test database
+        run: python tests/bootstrap_browser_test_db.py
+
       - name: Start Flask app
         run: |
           python app.py &
@@ -77,4 +75,3 @@ jobs:
         run: |
           echo "::warning::Scheduled tests failed on main branch! Check the logs for details."
           # You can add Slack/Discord/email notification here later
-

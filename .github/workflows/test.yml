@@ -56,11 +56,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      TEST_USERNAME: ${{ secrets.TEST_USERNAME }}
-      TEST_PASSWORD: ${{ secrets.TEST_PASSWORD }}
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      SECRET_KEY: ${{ secrets.SECRET_KEY }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      TEST_USERNAME: browser-test@example.com
+      TEST_PASSWORD: browser-test-password123
+      DATABASE_URL: sqlite:////tmp/browser_integration.db
+      SECRET_KEY: ci-test-secret-key
       FLASK_ENV: development
 
     steps:
@@ -91,6 +90,9 @@ jobs:
 
       - name: Install Playwright browsers
         run: playwright install chromium
+
+      - name: Bootstrap isolated browser test database
+        run: python tests/bootstrap_browser_test_db.py
 
       - name: Start Flask app
         run: |
