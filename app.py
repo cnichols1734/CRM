@@ -10,6 +10,7 @@ import logging
 import sys
 import pytz
 from datetime import datetime
+from urllib.parse import urlparse
 from sqlalchemy.exc import SAWarning
 warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .* will copy column .*')
 
@@ -348,7 +349,27 @@ def create_app():
 
 app = create_app()
 
+def _is_local_database_url(database_url):
+    """Only local SQLite/localhost databases are safe for direct app.py runs."""
+    if not database_url:
+        return False
+
+    parsed = urlparse(database_url)
+    if parsed.scheme.startswith('sqlite'):
+        return True
+
+    return (parsed.hostname or '').lower() in {'localhost', '127.0.0.1', '::1'}
+
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
+    database_url = app.config.get('SQLALCHEMY_DATABASE_URI')
+    if not _is_local_database_url(database_url) and os.getenv('ALLOW_REMOTE_APP_RUN') != '1':
+        raise RuntimeError(
+            "Refusing to run app.py directly against a non-local DATABASE_URL. "
+            "Set ALLOW_REMOTE_APP_RUN=1 only if you intentionally want that."
+        )
+
+    if database_url and database_url.startswith('sqlite'):
+        with app.app_context():
+            db.create_all()
     app.run(host='0.0.0.0', port=5011, debug=True)

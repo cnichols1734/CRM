@@ -27,11 +27,10 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from dotenv import load_dotenv
 from playwright.sync_api import sync_playwright, expect
+from tests.browser_test_support import configure_browser_test_environment, ensure_local_base_url
 
-# Load environment variables from project root .env
-load_dotenv(project_root / '.env')
+configure_browser_test_environment(project_root)
 
 
 class Colors:
@@ -82,6 +81,7 @@ class CRMScheduledTestSuite:
     
     def __init__(self, base_url: str, headless: bool = True, slow_mo: int = 0):
         self.base_url = base_url.rstrip('/')
+        ensure_local_base_url(self.base_url)
         self.headless = headless
         self.slow_mo = slow_mo
         self.results = TestResult()
@@ -97,7 +97,7 @@ class CRMScheduledTestSuite:
         self.test_password = os.getenv('TEST_PASSWORD')
         
         if not self.test_username or not self.test_password:
-            raise ValueError("TEST_USERNAME and TEST_PASSWORD must be set in .env file")
+            raise ValueError("TEST_USERNAME and TEST_PASSWORD must be set in the environment")
         
         # Playwright objects
         self.playwright = None
@@ -935,4 +935,3 @@ Examples:
 
 if __name__ == '__main__':
     main()
-

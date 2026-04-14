@@ -13,8 +13,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 _TEST_DB = 'sqlite:////tmp/test_integration.db'
 
-if 'DATABASE_URL' not in os.environ:
-    os.environ['DATABASE_URL'] = _TEST_DB
+# Force pytest onto an isolated local database, even if the shell env points
+# at a hosted database such as Supabase.
+os.environ['DATABASE_URL'] = _TEST_DB
+os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+os.environ.setdefault('FLASK_ENV', 'testing')
 
 from app import create_app
 from models import (
