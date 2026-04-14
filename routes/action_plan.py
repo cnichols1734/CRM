@@ -9,7 +9,6 @@ import logging
 
 # Set up logging for action plan generation
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 action_plan_bp = Blueprint('action_plan', __name__)
 
