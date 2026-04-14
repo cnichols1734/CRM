@@ -7,7 +7,6 @@ class RegistrationForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     first_name = StringField('First Name', validators=[DataRequired()])
     last_name = StringField('Last Name', validators=[DataRequired()])
-    phone = StringField('Phone Number', validators=[Optional(), Length(max=20)])
     license_number = StringField(
         'License Number',
         validators=[
@@ -29,7 +28,7 @@ class RegistrationForm(FlaskForm):
     licensed_supervisor_phone = StringField('Licensed Supervisor Phone', validators=[Optional(), Length(max=20)])
     password = PasswordField('Password', validators=[DataRequired()])
     confirm_password = PasswordField('Confirm Password',
-                                   validators=[DataRequired(), EqualTo('password')])
+                                   validators=[DataRequired(), EqualTo('password', message='Passwords must match.')])
     submit = SubmitField('Register')
 
 class LoginForm(FlaskForm):
