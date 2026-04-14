@@ -1,17 +1,7 @@
 from dotenv import load_dotenv
 load_dotenv()  # Load .env file before any other imports
 
-# Initialize New Relic APM (must be before other imports to instrument them)
-# Using NR_LICENSE_KEY to avoid Railway/Nixpacks auto-detection at build time
 import os
-nr_license = os.environ.get('NR_LICENSE_KEY')
-if nr_license:
-    try:
-        os.environ['NEW_RELIC_LICENSE_KEY'] = nr_license
-        import newrelic.agent
-        newrelic.agent.initialize('newrelic.ini')
-    except ImportError:
-        print("Warning: newrelic package not installed, skipping APM initialization")
 
 import warnings
 import html
