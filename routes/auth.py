@@ -3,6 +3,11 @@ from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 from services.email_service import get_email_service
+from services.tenant_service import (
+    create_default_groups_for_org,
+    create_default_task_types_for_org,
+    create_default_transaction_types_for_org,
+)
 from functools import wraps
 from datetime import datetime, timedelta
 from utils import generate_unique_slug
@@ -46,8 +51,8 @@ def terms_privacy():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """
-    Multi-tenant registration.
-    Creates a new organization in pending_approval status and the owner user.
+    Multi-tenant self-serve registration.
+    Creates an active organization and logs the owner in immediately.
     """
     if current_user.is_authenticated:
         return redirect(url_for('main.contacts'))
@@ -60,8 +65,7 @@ def register():
             # Bot detected! Return fake success to not tip them off
             current_app.logger.warning(f"Bot registration blocked (honeypot): {form.email.data}")
             flash(
-                'Registration submitted! You will receive an email once approved '
-                '(typically within 24 hours).', 
+                'Thanks for signing up. If your account was created successfully, you can log in shortly.',
                 'success'
             )
             return redirect(url_for('auth.login'))
@@ -74,12 +78,13 @@ def register():
         # Generate unique slug with collision handling
         slug = generate_unique_slug(company_name)
         
-        # Create org in pending_approval status (free tier)
+        # Self-serve signups are active immediately. Abuse is handled separately.
         org = Organization(
             name=company_name,
             slug=slug,
             subscription_tier='free',
-            status='pending_approval',
+            status='active',
+            approved_at=datetime.utcnow(),
             max_users=1,
             max_contacts=10000,
             can_invite_users=False
@@ -111,7 +116,6 @@ def register():
             email=form.email.data,
             first_name=form.first_name.data,
             last_name=form.last_name.data,
-            phone=form.phone.data if form.phone.data else None,
             license_number=form.license_number.data if form.license_number.data else None,
             licensed_supervisor=form.licensed_supervisor.data if form.licensed_supervisor.data else None,
             licensed_supervisor_license=form.licensed_supervisor_license.data if form.licensed_supervisor_license.data else None,
@@ -121,18 +125,30 @@ def register():
             is_super_admin=False
         )
         user.set_password(form.password.data)
+        user.last_login = datetime.utcnow()
         db.session.add(user)
         db.session.commit()
-        
-        # TODO: Notify platform admins for approval
-        # notify_platform_admins_new_org_registration(org, user)
-        
-        flash(
-            'Registration submitted! You will receive an email once approved '
-            '(typically within 24 hours).', 
-            'success'
-        )
-        return redirect(url_for('auth.login'))
+
+        try:
+            create_default_groups_for_org(org.id)
+            create_default_task_types_for_org(org.id)
+            create_default_transaction_types_for_org(org.id)
+        except Exception:
+            current_app.logger.exception(
+                'Failed to seed default org data during signup org_id=%s owner_email=%s',
+                org.id,
+                user.email,
+            )
+            flash(
+                'Your account was created, but we could not finish the default setup. '
+                'Please contact support before adding contacts.',
+                'warning'
+            )
+            return redirect(url_for('auth.login'))
+
+        login_user(user)
+        flash('Welcome to Origen. Your account is ready to use.', 'success')
+        return redirect(url_for('main.dashboard'))
 
     return render_template('auth/register.html', form=form)
 
