@@ -1130,10 +1130,18 @@
         } else { acreageWrap.classList.add('hidden'); }
 
         var zipSuffix = data.main_property.zip ? ' (' + data.main_property.zip + ')' : '';
-        document.getElementById('resultsCount').textContent =
-            'Found ' + data.total_comparables
-            + ' propert' + (data.total_comparables === 1 ? 'y' : 'ies')
-            + ' with lower market value in ' + (data.subdivision || 'neighborhood') + zipSuffix;
+        if (data.comparables_truncated) {
+            document.getElementById('resultsCount').textContent =
+                'Showing the first ' + data.comparables_displayed
+                + ' lower-value propert' + (data.comparables_displayed === 1 ? 'y' : 'ies')
+                + ' in ' + (data.subdivision || 'neighborhood') + zipSuffix
+                + '. Download CSV or Excel for the full result set.';
+        } else {
+            document.getElementById('resultsCount').textContent =
+                'Found ' + data.total_comparables
+                + ' propert' + (data.total_comparables === 1 ? 'y' : 'ies')
+                + ' with lower market value in ' + (data.subdivision || 'neighborhood') + zipSuffix;
+        }
 
         document.getElementById('downloadExcelBtn').href = '/tax-protest/download-xlsx';
         document.getElementById('downloadCsvBtn').href = '/tax-protest/download-csv';

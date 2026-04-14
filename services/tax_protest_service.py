@@ -727,6 +727,12 @@ def _bucket_values(values, num_buckets=8):
     return buckets
 
 
+def _limit_query(query, limit):
+    if limit is None:
+        return query
+    return query.limit(limit + 1)
+
+
 def find_comparables(
     subdivision,
     zip_code,
@@ -737,6 +743,7 @@ def find_comparables(
     subdivision_code=None,
     main_acreage=None,
     subdivision_match_terms=None,
+    limit=None,
 ):
     """
     Find properties in the same subdivision and zip with lower market value.
@@ -783,21 +790,25 @@ def find_comparables(
 
         if zip_code:
             results = (
-                ChambersProperty.query.filter(
-                    ChambersProperty.prop_zip5 == zip_code,
-                    *base_filters,
+                _limit_query(
+                    ChambersProperty.query.filter(
+                        ChambersProperty.prop_zip5 == zip_code,
+                        *base_filters,
+                    ).order_by(ChambersProperty.market_value.asc()),
+                    limit,
                 )
-                .order_by(ChambersProperty.market_value.asc())
                 .all()
             )
             if results:
                 return [_chambers_to_dict(r) for r in results]
 
         results = (
-            ChambersProperty.query.filter(
-                *base_filters,
+            _limit_query(
+                ChambersProperty.query.filter(
+                    *base_filters,
+                ).order_by(ChambersProperty.market_value.asc()),
+                limit,
             )
-            .order_by(ChambersProperty.market_value.asc())
             .all()
         )
         return [_chambers_to_dict(r) for r in results]
@@ -840,7 +851,10 @@ def find_comparables(
                         main_sq_ft + SQ_FT_RANGE,
                     )
                 )
-            return q.order_by(HcadProperty.tot_mkt_val.asc()).all()
+            return _limit_query(
+                q.order_by(HcadProperty.tot_mkt_val.asc()),
+                limit,
+            ).all()
 
         results = _hcad_query(use_zip=True)
         if not results:
@@ -866,6 +880,7 @@ def find_comparables(
             zip_code,
             main_acreage,
             use_zip=True,
+            limit=limit,
         )
         if not results:
             results = _liberty_comparable_query(
@@ -875,9 +890,10 @@ def find_comparables(
                 zip_code,
                 main_acreage,
                 use_zip=False,
+                limit=limit,
             )
 
-        if len(results) < MIN_COMPARABLES:
+        if len(results) < MIN_COMPARABLES and (limit is None or len(results) <= limit):
             sibling_codes = _find_liberty_sibling_codes(subdivision_code)
             if sibling_codes:
                 logger.info(
@@ -904,6 +920,7 @@ def find_comparables(
                         zip_code,
                         main_acreage,
                         use_zip=True,
+                        limit=None if limit is None else max(limit + 1 - len(results), 1),
                     )
                     if not sibling_results:
                         sibling_results = _liberty_comparable_query(
@@ -913,9 +930,12 @@ def find_comparables(
                             zip_code,
                             main_acreage,
                             use_zip=False,
+                            limit=None if limit is None else max(limit + 1 - len(results), 1),
                         )
                     results.extend(sibling_results)
-                    if len(results) >= MIN_COMPARABLES:
+                    if len(results) >= MIN_COMPARABLES or (
+                        limit is not None and len(results) > limit
+                    ):
                         break
 
         return [_liberty_to_dict(r) for r in results]
@@ -930,6 +950,7 @@ def find_comparables(
             main_sq_ft,
             zip_code,
             use_zip=True,
+            limit=limit,
         )
         if not results:
             results = _fort_bend_comparable_query(
@@ -938,9 +959,10 @@ def find_comparables(
                 main_sq_ft,
                 zip_code,
                 use_zip=False,
+                limit=limit,
             )
 
-        if len(results) < MIN_COMPARABLES:
+        if len(results) < MIN_COMPARABLES and (limit is None or len(results) <= limit):
             sibling_codes = _find_fort_bend_sibling_codes(subdivision_code)
             if sibling_codes:
                 logger.info(
@@ -956,6 +978,7 @@ def find_comparables(
                         main_sq_ft,
                         zip_code,
                         use_zip=True,
+                        limit=None if limit is None else max(limit + 1 - len(results), 1),
                     )
                     if not sibling_results:
                         sibling_results = _fort_bend_comparable_query(
@@ -964,9 +987,12 @@ def find_comparables(
                             main_sq_ft,
                             zip_code,
                             use_zip=False,
+                            limit=None if limit is None else max(limit + 1 - len(results), 1),
                         )
                     results.extend(sibling_results)
-                    if len(results) >= MIN_COMPARABLES:
+                    if len(results) >= MIN_COMPARABLES or (
+                        limit is not None and len(results) > limit
+                    ):
                         break
 
         return [_fort_bend_to_dict(r) for r in results]
@@ -1026,7 +1052,7 @@ def _find_liberty_sibling_codes(subdivision_code):
 
 
 def _liberty_comparable_query(
-    subdivision_code, market_value, strategy, zip_code, main_acreage, use_zip
+    subdivision_code, market_value, strategy, zip_code, main_acreage, use_zip, limit=None
 ):
     """Execute a Liberty County comparable property query."""
     base_filters = [
@@ -1054,7 +1080,10 @@ def _liberty_comparable_query(
                 ),
             )
 
-    return q.order_by(LibertyProperty.market_value.asc()).all()
+    return _limit_query(
+        q.order_by(LibertyProperty.market_value.asc()),
+        limit,
+    ).all()
 
 
 def _find_fort_bend_sibling_codes(subdivision_code):
@@ -1092,7 +1121,7 @@ def _find_fort_bend_sibling_codes(subdivision_code):
 
 
 def _fort_bend_comparable_query(
-    subdivision_code, market_value, main_sq_ft, zip_code, use_zip
+    subdivision_code, market_value, main_sq_ft, zip_code, use_zip, limit=None
 ):
     """Execute a Fort Bend County comparable property query."""
     base_filters = [
@@ -1116,7 +1145,10 @@ def _fort_bend_comparable_query(
                 main_sq_ft + SQ_FT_RANGE,
             ),
         )
-    return q.order_by(FortBendProperty.market_value.asc()).all()
+    return _limit_query(
+        q.order_by(FortBendProperty.market_value.asc()),
+        limit,
+    ).all()
 
 
 def _chambers_to_dict(record):
