@@ -5,7 +5,10 @@ extract subdivisions via LLM, find lower-value comparables, and export results.
 """
 
 import csv
+import logging
+import os
 import re
+import time
 from functools import lru_cache
 from io import BytesIO, StringIO
 
@@ -24,7 +27,14 @@ from openpyxl import Workbook
 from openpyxl.drawing.image import Image as XLImage
 from openpyxl.styles import Alignment, Font, PatternFill
 from PIL import Image as PILImage, ImageDraw, ImageFont
+from werkzeug.exceptions import HTTPException
 
+try:
+    import psutil
+except ImportError:  # pragma: no cover - psutil is available in production
+    psutil = None
+
+from forms import ContactForm
 from models import db, Contact, ContactGroup
 from feature_flags import feature_required
 from services.tenant_service import org_query, can_view_all_org_data
@@ -43,6 +53,7 @@ from services.tax_protest_service import (
 )
 
 tax_protest_bp = Blueprint("tax_protest", __name__, url_prefix="/tax-protest")
+logger = logging.getLogger(__name__)
 
 COUNTY_LABELS = {
     "chambers": "Chambers",
@@ -54,6 +65,38 @@ EXPORT_XLSX_MIMETYPE = (
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 )
 EXPORT_FONT_PATH = "/System/Library/Fonts/Helvetica.ttc"
+SEARCH_COMPARABLE_LIMIT = 250
+
+
+def _elapsed_ms(started_at):
+    return round((time.perf_counter() - started_at) * 1000, 1)
+
+
+def _current_rss_mb():
+    if psutil is None:
+        return None
+    try:
+        process = psutil.Process(os.getpid())
+        return round(process.memory_info().rss / 1024 / 1024, 1)
+    except Exception:
+        return None
+
+
+def _log_tax_event(event, **fields):
+    payload = " ".join(
+        f"{key}={value}"
+        for key, value in fields.items()
+        if value is not None and value != ""
+    )
+    logger.info("tax_protest_%s %s", event, payload)
+
+
+def _coerce_positive_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
 
 
 def _authorized_contact(contact_id):
@@ -595,7 +638,11 @@ def index():
         .order_by(ContactGroup.sort_order.asc(), ContactGroup.name.asc())
         .all()
     )
-    return render_template("tax_protest/index.html", contact_groups=contact_groups)
+    return render_template(
+        "tax_protest/index.html",
+        contact_groups=contact_groups,
+        contact_form=ContactForm(),
+    )
 
 
 @tax_protest_bp.route("/search-contacts")
@@ -639,46 +686,162 @@ def search_property():
         return jsonify({"error": "contact_id required"}), 400
 
     contact = _authorized_contact(data["contact_id"])
+    source = None
+    route_started = time.perf_counter()
+    log_context = {
+        "contact_id": contact.id,
+        "user_id": current_user.id,
+        "org_id": current_user.organization_id,
+    }
+    _log_tax_event("search_started", **log_context, rss_mb=_current_rss_mb())
 
     if not contact.street_address:
         return jsonify({"error": "Contact has no street address on file"}), 400
 
-    property_record, source = find_property_in_tax_data(
-        contact.street_address, contact.city, contact.zip_code
-    )
+    try:
+        lookup_started = time.perf_counter()
+        property_record, source = find_property_in_tax_data(
+            contact.street_address, contact.city, contact.zip_code
+        )
+        lookup_ms = _elapsed_ms(lookup_started)
+        _log_tax_event(
+            "search_lookup_complete",
+            **log_context,
+            source=source,
+            lookup_ms=lookup_ms,
+            rss_mb=_current_rss_mb(),
+        )
 
-    if not property_record:
-        return jsonify(
-            {
-                "error": f'No property found matching "{contact.street_address}" in Chambers, Harris, Liberty, or Fort Bend County tax records'
-            }
-        ), 404
-
-    market_value = property_record.get("market_value")
-    zip_code = property_record.get("zip")
-    neighborhood_code = property_record.get("neighborhood_code")
-    subdivision_code = property_record.get("subdivision_code")
-    main_sq_ft = property_record.get("sq_ft")
-    main_acreage = property_record.get("acreage")
-    subdivision = None
-    fuzzy = False
-    subdivision_match_terms = None
-
-    if source == "hcad":
-        lgl_2 = property_record.get("legal2") or ""
-        if _is_valid_subdivision(lgl_2):
-            subdivision = lgl_2.strip()
-        else:
-            subdivision = extract_subdivision_llm(property_record.get("legal1", ""))
-            fuzzy = True
-        if not subdivision:
+        if not property_record:
             return jsonify(
                 {
-                    "error": "Could not determine subdivision from property legal description",
+                    "error": f'No property found matching "{contact.street_address}" in Chambers, Harris, Liberty, or Fort Bend County tax records'
+                }
+            ), 404
+
+        market_value = _coerce_positive_number(property_record.get("market_value"))
+        if market_value is None:
+            _log_tax_event(
+                "search_invalid_market_value",
+                **log_context,
+                source=source,
+                property_id=property_record.get("id"),
+                rss_mb=_current_rss_mb(),
+            )
+            return jsonify(
+                {
+                    "error": "Property has no market value available in tax data",
                     "main_property": property_record,
                     "source": source,
                 }
             ), 422
+
+        zip_code = property_record.get("zip")
+        neighborhood_code = property_record.get("neighborhood_code")
+        subdivision_code = property_record.get("subdivision_code")
+        main_sq_ft = property_record.get("sq_ft")
+        main_acreage = property_record.get("acreage")
+        subdivision = None
+        fuzzy = False
+        subdivision_match_terms = None
+        llm_ms = 0.0
+
+        if source == "hcad":
+            lgl_2 = property_record.get("legal2") or ""
+            if _is_valid_subdivision(lgl_2):
+                subdivision = lgl_2.strip()
+            else:
+                _log_tax_event("search_llm_started", **log_context, source=source)
+                llm_started = time.perf_counter()
+                subdivision = extract_subdivision_llm(property_record.get("legal1", ""))
+                llm_ms = _elapsed_ms(llm_started)
+                fuzzy = True
+                _log_tax_event(
+                    "search_llm_complete",
+                    **log_context,
+                    source=source,
+                    llm_ms=llm_ms,
+                    subdivision_found=bool(subdivision),
+                    rss_mb=_current_rss_mb(),
+                )
+            if not subdivision:
+                return jsonify(
+                    {
+                        "error": "Could not determine subdivision from property legal description",
+                        "main_property": property_record,
+                        "source": source,
+                    }
+                ), 422
+        elif source == "liberty":
+            subdivision = property_record.get("subdivision")
+            if not subdivision or not subdivision_code:
+                return jsonify(
+                    {
+                        "error": "Could not determine Liberty subdivision from tax data",
+                        "main_property": property_record,
+                        "source": source,
+                    }
+                ), 422
+        elif source == "fort_bend":
+            subdivision = property_record.get("subdivision")
+            if not subdivision or not subdivision_code:
+                return jsonify(
+                    {
+                        "error": "Could not determine Fort Bend neighborhood from tax data",
+                        "main_property": property_record,
+                        "source": source,
+                    }
+                ), 422
+        else:
+            legal_desc = property_record.get("legal1", "")
+            if source == "chambers":
+                _log_tax_event("search_llm_started", **log_context, source=source)
+                llm_started = time.perf_counter()
+                subdivision = extract_chambers_subdivision(legal_desc)
+                llm_ms = _elapsed_ms(llm_started)
+                subdivision_match_terms = build_chambers_subdivision_match_terms(
+                    subdivision,
+                    legal_desc,
+                )
+                _log_tax_event(
+                    "search_llm_complete",
+                    **log_context,
+                    source=source,
+                    llm_ms=llm_ms,
+                    subdivision_found=bool(subdivision),
+                    rss_mb=_current_rss_mb(),
+                )
+            else:
+                _log_tax_event("search_llm_started", **log_context, source=source)
+                llm_started = time.perf_counter()
+                subdivision = extract_subdivision_llm(legal_desc)
+                llm_ms = _elapsed_ms(llm_started)
+                _log_tax_event(
+                    "search_llm_complete",
+                    **log_context,
+                    source=source,
+                    llm_ms=llm_ms,
+                    subdivision_found=bool(subdivision),
+                    rss_mb=_current_rss_mb(),
+                )
+            if not subdivision:
+                return jsonify(
+                    {
+                        "error": "Could not extract subdivision from property legal description",
+                        "main_property": property_record,
+                        "source": source,
+                    }
+                ), 422
+
+        _log_tax_event(
+            "search_comparables_started",
+            **log_context,
+            source=source,
+            limit=SEARCH_COMPARABLE_LIMIT,
+            fuzzy=fuzzy,
+            rss_mb=_current_rss_mb(),
+        )
+        comparables_started = time.perf_counter()
         comparables = find_comparables(
             subdivision,
             zip_code,
@@ -686,108 +849,104 @@ def search_property():
             source,
             main_sq_ft=main_sq_ft,
             fuzzy_subdivision=fuzzy,
-            main_acreage=main_acreage,
-        )
-    elif source == "liberty":
-        subdivision = property_record.get("subdivision")
-        if not subdivision or not subdivision_code:
-            return jsonify(
-                {
-                    "error": "Could not determine Liberty subdivision from tax data",
-                    "main_property": property_record,
-                    "source": source,
-                }
-            ), 422
-        comparables = find_comparables(
-            subdivision,
-            zip_code,
-            market_value,
-            source,
-            main_sq_ft=main_sq_ft,
             subdivision_code=subdivision_code,
             main_acreage=main_acreage,
+            subdivision_match_terms=subdivision_match_terms,
+            limit=SEARCH_COMPARABLE_LIMIT,
         )
-    elif source == "fort_bend":
-        subdivision = property_record.get("subdivision")
-        if not subdivision or not subdivision_code:
-            return jsonify(
-                {
-                    "error": "Could not determine Fort Bend neighborhood from tax data",
-                    "main_property": property_record,
-                    "source": source,
-                }
-            ), 422
-        comparables = find_comparables(
-            subdivision,
-            zip_code,
-            market_value,
-            source,
-            main_sq_ft=main_sq_ft,
+        comparables_ms = _elapsed_ms(comparables_started)
+        comparables_truncated = len(comparables) > SEARCH_COMPARABLE_LIMIT
+        if comparables_truncated:
+            comparables = comparables[:SEARCH_COMPARABLE_LIMIT]
+        _log_tax_event(
+            "search_comparables_complete",
+            **log_context,
+            source=source,
+            comparables_ms=comparables_ms,
+            comparables_returned=len(comparables),
+            comparables_truncated=comparables_truncated,
+            rss_mb=_current_rss_mb(),
+        )
+
+        cache_search_result(
+            source=source,
+            subdivision=subdivision,
+            main_property_id=property_record["id"],
+            contact_id=contact.id,
+            zip_code=zip_code,
+            neighborhood_code=neighborhood_code,
             subdivision_code=subdivision_code,
-            main_acreage=main_acreage,
-        )
-    else:
-        legal_desc = property_record.get("legal1", "")
-        if source == "chambers":
-            subdivision = extract_chambers_subdivision(legal_desc)
-            subdivision_match_terms = build_chambers_subdivision_match_terms(
-                subdivision,
-                legal_desc,
-            )
-        else:
-            subdivision = extract_subdivision_llm(legal_desc)
-        if not subdivision:
-            return jsonify(
-                {
-                    "error": "Could not extract subdivision from property legal description",
-                    "main_property": property_record,
-                    "source": source,
-                }
-            ), 422
-        comparables = find_comparables(
-            subdivision,
-            zip_code,
-            market_value,
-            source,
             main_sq_ft=main_sq_ft,
             main_acreage=main_acreage,
+            fuzzy_subdivision=fuzzy,
             subdivision_match_terms=subdivision_match_terms,
         )
 
-    cache_search_result(
-        source=source,
-        subdivision=subdivision,
-        main_property_id=property_record["id"],
-        contact_id=contact.id,
-        zip_code=zip_code,
-        neighborhood_code=neighborhood_code,
-        subdivision_code=subdivision_code,
-        main_sq_ft=main_sq_ft,
-        main_acreage=main_acreage,
-        fuzzy_subdivision=fuzzy,
-        subdivision_match_terms=subdivision_match_terms,
-    )
+        _log_tax_event(
+            "search_stats_started",
+            **log_context,
+            source=source,
+            rss_mb=_current_rss_mb(),
+        )
+        stats_started = time.perf_counter()
+        subdivision_stats = get_subdivision_stats(
+            subdivision,
+            zip_code,
+            market_value,
+            source,
+            fuzzy_subdivision=fuzzy,
+            subdivision_code=subdivision_code,
+            subdivision_match_terms=subdivision_match_terms,
+        )
+        stats_ms = _elapsed_ms(stats_started)
+        _log_tax_event(
+            "search_stats_complete",
+            **log_context,
+            source=source,
+            stats_ms=stats_ms,
+            total_homes=(subdivision_stats or {}).get("total_homes"),
+            rss_mb=_current_rss_mb(),
+        )
 
-    subdivision_stats = get_subdivision_stats(
-        subdivision,
-        zip_code,
-        market_value,
-        source,
-        fuzzy_subdivision=fuzzy,
-        subdivision_code=subdivision_code,
-        subdivision_match_terms=subdivision_match_terms,
-    )
+        total_ms = _elapsed_ms(route_started)
+        _log_tax_event(
+            "search_complete",
+            **log_context,
+            source=source,
+            total_ms=total_ms,
+            lookup_ms=lookup_ms,
+            llm_ms=llm_ms,
+            comparables_ms=comparables_ms,
+            stats_ms=stats_ms,
+            comparables_returned=len(comparables),
+            comparables_truncated=comparables_truncated,
+            rss_mb=_current_rss_mb(),
+        )
 
-    return jsonify(
-        {
-            "source": source,
-            "subdivision": subdivision,
-            "main_property": property_record,
-            "comparables": comparables,
-            "total_comparables": len(comparables),
-            "subdivision_stats": subdivision_stats,
-        }
-    )
+        return jsonify(
+            {
+                "source": source,
+                "subdivision": subdivision,
+                "main_property": property_record,
+                "comparables": comparables,
+                "total_comparables": len(comparables),
+                "comparables_displayed": len(comparables),
+                "comparables_truncated": comparables_truncated,
+                "subdivision_stats": subdivision_stats,
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception(
+            "tax_protest_search_failed contact_id=%s user_id=%s org_id=%s source=%s rss_mb=%s",
+            contact.id,
+            current_user.id,
+            current_user.organization_id,
+            source,
+            _current_rss_mb(),
+        )
+        raise
 
 
 @tax_protest_bp.route("/download-csv")
@@ -795,6 +954,7 @@ def search_property():
 @feature_required("TAX_PROTEST")
 def download_csv():
     """Download CSV of comparables using cached search result."""
+    started_at = time.perf_counter()
     export_data = _load_cached_export_data()
     output = StringIO()
     writer = csv.writer(output)
@@ -817,6 +977,16 @@ def download_csv():
 
     output.seek(0)
     filename = _safe_filename(export_data["contact"].street_address, ".csv")
+    _log_tax_event(
+        "download_csv_complete",
+        contact_id=export_data["contact"].id,
+        user_id=current_user.id,
+        org_id=current_user.organization_id,
+        source=export_data["cached"].get("source"),
+        rows=len(export_data["rows"]),
+        total_ms=_elapsed_ms(started_at),
+        rss_mb=_current_rss_mb(),
+    )
 
     return Response(
         output.getvalue(),
@@ -833,10 +1003,30 @@ def download_csv():
 @feature_required("TAX_PROTEST")
 def download_xlsx():
     """Download an Excel report with a summary sheet and embedded chart."""
+    started_at = time.perf_counter()
     export_data = _load_cached_export_data()
+    _log_tax_event(
+        "download_xlsx_started",
+        contact_id=export_data["contact"].id,
+        user_id=current_user.id,
+        org_id=current_user.organization_id,
+        source=export_data["cached"].get("source"),
+        rows=len(export_data["rows"]),
+        rss_mb=_current_rss_mb(),
+    )
     workbook_stream = _build_xlsx_report(export_data)
     filename = _safe_filename(
         export_data["contact"].street_address, "_tax_protest_report.xlsx"
+    )
+    _log_tax_event(
+        "download_xlsx_complete",
+        contact_id=export_data["contact"].id,
+        user_id=current_user.id,
+        org_id=current_user.organization_id,
+        source=export_data["cached"].get("source"),
+        rows=len(export_data["rows"]),
+        total_ms=_elapsed_ms(started_at),
+        rss_mb=_current_rss_mb(),
     )
 
     return send_file(

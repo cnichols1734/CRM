@@ -54,9 +54,6 @@ gunicorn==23.0.0
 # System monitoring (for health checks)
 psutil==5.9.8
 
-# Observability
-newrelic==11.2.0
-
 # Testing
 pytest==9.0.2
 email_validator

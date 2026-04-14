@@ -329,14 +329,14 @@
                     <!-- Header -->
                     <div class="text-center mb-8">
                         <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Get Started Free</h2>
-                        <p class="text-slate-500">Create your account in seconds</p>
+                        <p class="text-slate-500">Create your account and start using it right away</p>
                     </div>
                     
                     <!-- Benefits -->
                     <div class="flex items-center justify-center gap-6 mb-8 text-sm text-slate-500">
                         <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Unlimited Contacts</span>
                         <span class="text-slate-300">·</span>
-                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>2-Min Setup</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Instant Access</span>
                         <span class="text-slate-300">·</span>
                         <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Secure</span>
                     </div>
@@ -393,17 +393,6 @@
                             {% endif %}
                         </div>
 
-                        <!-- Phone -->
-                        <div class="input-group">
-                            {{ form.phone(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Phone number") }}
-                            <i class="input-icon fas fa-phone"></i>
-                            {% if form.phone.errors %}
-                                {% for error in form.phone.errors %}
-                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-
                         <!-- Password Fields -->
                         <div class="grid grid-cols-2 gap-3">
                             <div class="input-group">
@@ -416,7 +405,7 @@
                                 {% endif %}
                             </div>
                             <div class="input-group">
-                                {{ form.confirm_password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Confirm") }}
+                                {{ form.confirm_password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Confirm password") }}
                                 <i class="input-icon fas fa-lock"></i>
                                 {% if form.confirm_password.errors %}
                                     {% for error in form.confirm_password.errors %}

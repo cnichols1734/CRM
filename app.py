@@ -1,20 +1,13 @@
 from dotenv import load_dotenv
 load_dotenv()  # Load .env file before any other imports
 
-# Initialize New Relic APM (must be before other imports to instrument them)
-# Using NR_LICENSE_KEY to avoid Railway/Nixpacks auto-detection at build time
 import os
-nr_license = os.environ.get('NR_LICENSE_KEY')
-if nr_license:
-    try:
-        os.environ['NEW_RELIC_LICENSE_KEY'] = nr_license
-        import newrelic.agent
-        newrelic.agent.initialize('newrelic.ini')
-    except ImportError:
-        print("Warning: newrelic package not installed, skipping APM initialization")
 
 import warnings
 import html
+import time
+import logging
+import sys
 import pytz
 from datetime import datetime
 from urllib.parse import urlparse
@@ -24,7 +17,13 @@ warnings.filterwarnings('ignore', category=SAWarning, message='.*relationship .*
 # Timezone for display (Central Time)
 CENTRAL_TZ = pytz.timezone('America/Chicago')
 
-from flask import Flask, render_template, session, redirect, url_for, flash
+try:
+    import psutil
+except ImportError:  # pragma: no cover - psutil is installed in production
+    psutil = None
+
+from flask import Flask, render_template, session, redirect, url_for, flash, request, g
+from flask.logging import default_handler
 from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -49,9 +48,60 @@ from routes.gmail_integration import gmail_bp
 from routes.reports import reports_bp
 from routes.tax_protest import tax_protest_bp
 
+SLOW_REQUEST_WARNING_MS = 2000
+
+
+class _MaxLevelFilter(logging.Filter):
+    def __init__(self, exclusive_upper_bound):
+        super().__init__()
+        self.exclusive_upper_bound = exclusive_upper_bound
+
+    def filter(self, record):
+        return record.levelno < self.exclusive_upper_bound
+
+
+def configure_application_logging():
+    """Send non-error app logs to stdout so Railway reserves red for real errors."""
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.addFilter(_MaxLevelFilter(logging.ERROR))
+    stdout_handler.setFormatter(formatter)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.ERROR)
+    stderr_handler.setFormatter(formatter)
+
+    root_logger.addHandler(stdout_handler)
+    root_logger.addHandler(stderr_handler)
+    logging.captureWarnings(True)
+
+
+configure_application_logging()
+
+
+def _current_rss_mb():
+    if psutil is None:
+        return None
+    try:
+        process = psutil.Process(os.getpid())
+        return round(process.memory_info().rss / 1024 / 1024, 1)
+    except Exception:
+        return None
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+
+    if default_handler in app.logger.handlers:
+        app.logger.removeHandler(default_handler)
+    app.logger.propagate = True
+    app.logger.setLevel(logging.INFO)
 
     # Initialize extensions
     db.init_app(app)
@@ -163,6 +213,10 @@ def create_app():
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT
     # =========================================================================
+
+    @app.before_request
+    def start_request_timer():
+        g._request_started_at = time.perf_counter()
     
     @app.before_request
     def set_tenant_context():
@@ -235,6 +289,34 @@ def create_app():
         """Record when session was created for invalidation checks."""
         if current_user.is_authenticated and '_session_created_at' not in session:
             session['_session_created_at'] = datetime.utcnow().timestamp()
+
+        started_at = getattr(g, '_request_started_at', None)
+        if started_at is not None:
+            duration_ms = round((time.perf_counter() - started_at) * 1000, 1)
+            endpoint = request.endpoint or 'unknown'
+            user_id = current_user.id if current_user.is_authenticated else None
+            org_id = current_user.organization_id if current_user.is_authenticated else None
+            should_log = (
+                endpoint.startswith('tax_protest.')
+                or duration_ms >= SLOW_REQUEST_WARNING_MS
+                or response.status_code >= 500
+            )
+            if should_log:
+                log_fn = app.logger.warning if (
+                    duration_ms >= SLOW_REQUEST_WARNING_MS or response.status_code >= 500
+                ) else app.logger.info
+                log_fn(
+                    'request_summary method=%s path=%s endpoint=%s status=%s duration_ms=%s rss_mb=%s user_id=%s org_id=%s pid=%s',
+                    request.method,
+                    request.path,
+                    endpoint,
+                    response.status_code,
+                    duration_ms,
+                    _current_rss_mb(),
+                    user_id,
+                    org_id,
+                    os.getpid(),
+                )
         return response
 
     @app.teardown_appcontext

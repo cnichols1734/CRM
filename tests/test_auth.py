@@ -4,8 +4,10 @@ Integration tests for authentication routes.
 Covers: login, logout, registration, profile view/update, password reset,
 user management (admin), and access control.
 """
+from pathlib import Path
 import pytest
 from conftest import login
+from models import ContactGroup, TaskType, TransactionType, User
 
 
 class TestLogin:
@@ -95,6 +97,55 @@ class TestRegistration:
     def test_register_page_loads(self, client, seed):
         resp = client.get('/register')
         assert resp.status_code in (200, 302)
+
+    def test_register_template_shows_confirm_password_and_not_phone(self, seed):
+        template = Path(__file__).resolve().parents[1] / 'templates' / 'auth' / 'register.html'
+        contents = template.read_text()
+        assert 'form.confirm_password' in contents
+        assert 'Confirm password' in contents
+        assert 'form.phone' not in contents
+
+    def test_register_allows_immediate_login(self, client, seed):
+        resp = client.post('/register', data={
+            'company_name': 'Fast Lane Realty',
+            'first_name': 'Nina',
+            'last_name': 'Agent',
+            'email': 'nina@test.com',
+            'password': 'supersecure123',
+            'confirm_password': 'supersecure123',
+        }, follow_redirects=True)
+
+        assert resp.status_code == 200
+        resp = client.get('/logout', follow_redirects=True)
+        assert resp.status_code == 200
+
+        login_resp = client.post('/login', data={
+            'username': 'nina@test.com',
+            'password': 'supersecure123',
+        }, follow_redirects=True)
+
+        assert login_resp.status_code == 200
+        assert b'pending approval' not in login_resp.data.lower()
+        assert b'Dashboard' in login_resp.data or b'dashboard' in login_resp.data.lower()
+
+    def test_register_seeds_default_org_data(self, client, app, seed):
+        resp = client.post('/register', data={
+            'company_name': 'Seeded Realty',
+            'first_name': 'Sam',
+            'last_name': 'Seeder',
+            'email': 'sam.seeded@test.com',
+            'password': 'supersecure123',
+            'confirm_password': 'supersecure123',
+        }, follow_redirects=True)
+
+        assert resp.status_code == 200
+
+        with app.app_context():
+            user = User.query.filter_by(email='sam.seeded@test.com').first()
+            assert user is not None
+            assert ContactGroup.query.filter_by(organization_id=user.organization_id).count() > 0
+            assert TaskType.query.filter_by(organization_id=user.organization_id).count() > 0
+            assert TransactionType.query.filter_by(organization_id=user.organization_id).count() > 0
 
     def test_terms_privacy_page(self, client, seed):
         resp = client.get('/terms-privacy')
