@@ -227,6 +227,127 @@ def test_search_property_returns_subdivision_stats(owner_a_client, monkeypatch):
     assert payload["subdivision"] == "MARYVILLE"
     assert payload["main_property"]["market_value"] == 591000
     assert payload["subdivision_stats"] == fake_stats
+    assert payload["comparables_truncated"] is False
+
+
+def test_search_property_truncates_large_comparable_payload(owner_a_client, monkeypatch):
+    monkeypatch.setattr(feature_flags_module, "org_has_feature", lambda *args, **kwargs: True)
+
+    fake_contact = SimpleNamespace(
+        id=999,
+        street_address="156 Maryville Lane",
+        city="Cleveland",
+        zip_code="77327",
+    )
+    fake_property = {
+        "id": "liberty-1",
+        "address": "156 Maryville Lane",
+        "full_address": "156 Maryville Lane, Cleveland, TX 77327",
+        "city": "Cleveland",
+        "zip": "77327",
+        "market_value": 591000,
+        "sq_ft": 2184,
+        "acreage": 0.23,
+        "subdivision": "MARYVILLE",
+        "subdivision_code": "007206",
+        "neighborhood_code": None,
+    }
+    fake_stats = {
+        "total_homes": 21,
+        "lower_values": 2,
+        "higher_values": 18,
+        "percentile": 9.5,
+        "value_distribution": [{"label": "$362k", "count": 21}],
+        "min_value": 362000,
+        "max_value": 1162000,
+        "median_value": 505000,
+    }
+    fake_comparables = [
+        {"id": f"comp-{index}", "market_value": 400000 + index}
+        for index in range(tax_protest_route.SEARCH_COMPARABLE_LIMIT + 5)
+    ]
+
+    monkeypatch.setattr(
+        tax_protest_route,
+        "_authorized_contact",
+        lambda contact_id: fake_contact,
+    )
+    monkeypatch.setattr(
+        tax_protest_route,
+        "find_property_in_tax_data",
+        lambda street_address, city, zip_code: (fake_property, "liberty"),
+    )
+    monkeypatch.setattr(
+        tax_protest_route,
+        "find_comparables",
+        lambda *args, **kwargs: fake_comparables,
+    )
+    monkeypatch.setattr(
+        tax_protest_route,
+        "cache_search_result",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        tax_protest_route,
+        "get_subdivision_stats",
+        lambda *args, **kwargs: fake_stats,
+    )
+
+    response = owner_a_client.post(
+        "/tax-protest/search",
+        json={"contact_id": fake_contact.id},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["comparables_truncated"] is True
+    assert payload["comparables_displayed"] == tax_protest_route.SEARCH_COMPARABLE_LIMIT
+    assert len(payload["comparables"]) == tax_protest_route.SEARCH_COMPARABLE_LIMIT
+
+
+def test_search_property_returns_422_when_market_value_missing(owner_a_client, monkeypatch):
+    monkeypatch.setattr(feature_flags_module, "org_has_feature", lambda *args, **kwargs: True)
+
+    fake_contact = SimpleNamespace(
+        id=999,
+        street_address="156 Maryville Lane",
+        city="Cleveland",
+        zip_code="77327",
+    )
+    fake_property = {
+        "id": "hcad-1",
+        "address": "156 Maryville Lane",
+        "full_address": "156 Maryville Lane, Cleveland, TX 77327",
+        "city": "Cleveland",
+        "zip": "77327",
+        "market_value": None,
+        "sq_ft": 2184,
+        "acreage": 0.23,
+        "legal1": "MARYVILLE SEC 1",
+        "legal2": "MARYVILLE",
+        "subdivision_code": None,
+        "neighborhood_code": None,
+    }
+
+    monkeypatch.setattr(
+        tax_protest_route,
+        "_authorized_contact",
+        lambda contact_id: fake_contact,
+    )
+    monkeypatch.setattr(
+        tax_protest_route,
+        "find_property_in_tax_data",
+        lambda street_address, city, zip_code: (fake_property, "hcad"),
+    )
+
+    response = owner_a_client.post(
+        "/tax-protest/search",
+        json={"contact_id": fake_contact.id},
+    )
+
+    assert response.status_code == 422
+    payload = response.get_json()
+    assert payload["error"] == "Property has no market value available in tax data"
 
 
 def test_search_property_expands_chambers_subdivision_match_terms(owner_a_client, monkeypatch):
