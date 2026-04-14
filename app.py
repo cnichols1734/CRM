@@ -16,6 +16,8 @@ if nr_license:
 import warnings
 import html
 import time
+import logging
+import sys
 import pytz
 from datetime import datetime
 from sqlalchemy.exc import SAWarning
@@ -30,6 +32,7 @@ except ImportError:  # pragma: no cover - psutil is installed in production
     psutil = None
 
 from flask import Flask, render_template, session, redirect, url_for, flash, request, g
+from flask.logging import default_handler
 from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
 from flask_migrate import Migrate
@@ -57,6 +60,40 @@ from routes.tax_protest import tax_protest_bp
 SLOW_REQUEST_WARNING_MS = 2000
 
 
+class _MaxLevelFilter(logging.Filter):
+    def __init__(self, exclusive_upper_bound):
+        super().__init__()
+        self.exclusive_upper_bound = exclusive_upper_bound
+
+    def filter(self, record):
+        return record.levelno < self.exclusive_upper_bound
+
+
+def configure_application_logging():
+    """Send non-error app logs to stdout so Railway reserves red for real errors."""
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.setLevel(logging.INFO)
+
+    formatter = logging.Formatter('%(levelname)s:%(name)s:%(message)s')
+
+    stdout_handler = logging.StreamHandler(sys.stdout)
+    stdout_handler.setLevel(logging.INFO)
+    stdout_handler.addFilter(_MaxLevelFilter(logging.ERROR))
+    stdout_handler.setFormatter(formatter)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setLevel(logging.ERROR)
+    stderr_handler.setFormatter(formatter)
+
+    root_logger.addHandler(stdout_handler)
+    root_logger.addHandler(stderr_handler)
+    logging.captureWarnings(True)
+
+
+configure_application_logging()
+
+
 def _current_rss_mb():
     if psutil is None:
         return None
@@ -69,6 +106,11 @@ def _current_rss_mb():
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+
+    if default_handler in app.logger.handlers:
+        app.logger.removeHandler(default_handler)
+    app.logger.propagate = True
+    app.logger.setLevel(logging.INFO)
 
     # Initialize extensions
     db.init_app(app)
