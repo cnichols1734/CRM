@@ -108,6 +108,12 @@ def register():
                 flash('Username cannot be an email address. Please choose a different username.', 'error')
                 return render_template('auth/register.html', form=form)
         
+        # Check for duplicate email before inserting
+        if User.query.filter_by(email=form.email.data).first():
+            db.session.rollback()
+            flash('An account with that email already exists. Try logging in instead.', 'error')
+            return render_template('auth/register.html', form=form)
+
         # Create user as owner of the new org
         user = User(
             organization_id=org.id,

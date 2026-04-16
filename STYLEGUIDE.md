@@ -1,5 +1,11 @@
 # UI Style Guide
 
+## Agent Usage
+
+For frontend work, use `.impeccable.md` for product context, aesthetic direction, and anti-patterns. Use this file for concrete implementation details such as tokens, component classes, macros, and migration patterns.
+
+If this file and the surrounding product disagree, preserve the established CRM design language unless the user explicitly asks for a redesign.
+
 This document describes the design system used on pages that have been migrated to the new frontend stack. Use this as the reference when converting remaining pages.
 
 ## Stack

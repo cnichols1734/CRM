@@ -551,4 +551,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 {% endif %}
 </script>
+
+{% if not current_user.has_seen_dashboard_onboarding %}
+{% include 'modals/dashboard_onboarding.html' %}
+{% endif %}
 {% endblock %}
