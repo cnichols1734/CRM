@@ -124,19 +124,49 @@
         {% else %}
         <div class="crm-kpi-grid mb-6">
             <div class="crm-kpi">
-                <div class="crm-kpi__label">Potential commission</div>
-                <div class="crm-kpi__value">${{ "{:,.0f}".format(total_commission) }}</div>
-                <div class="crm-kpi__meta">Across {{ total_contacts }} tracked contacts.</div>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__icon crm-kpi__icon--blue">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                    <div>
+                        <div class="crm-kpi__label">Potential commission</div>
+                        <div class="crm-kpi__value">${{ "{:,.0f}".format(total_commission) }}</div>
+                        <div class="crm-kpi__meta">Across {{ total_contacts }} tracked contacts.</div>
+                    </div>
+                </div>
+                <svg class="crm-sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0,24 L15,22 L28,20 L42,16 L55,18 L70,11 L85,7 L100,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
             <div class="crm-kpi">
-                <div class="crm-kpi__label">Tracked contacts</div>
-                <div class="crm-kpi__value">{{ total_contacts }}</div>
-                <div class="crm-kpi__meta">{% if show_all %}Organization-wide view{% else %}Your working book{% endif %}</div>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__icon crm-kpi__icon--peach">
+                        <i class="fas fa-user-friends"></i>
+                    </div>
+                    <div>
+                        <div class="crm-kpi__label">Tracked contacts</div>
+                        <div class="crm-kpi__value">{{ total_contacts }}</div>
+                        <div class="crm-kpi__meta">{% if show_all %}Organization-wide view{% else %}Your working book{% endif %}</div>
+                    </div>
+                </div>
+                <svg class="crm-sparkline crm-sparkline--orange" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0,22 L15,20 L28,17 L42,19 L55,14 L70,13 L85,9 L100,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
             <div class="crm-kpi">
-                <div class="crm-kpi__label">Average commission</div>
-                <div class="crm-kpi__value">${{ "{:,.0f}".format(avg_commission) }}</div>
-                <div class="crm-kpi__meta">Per contact with tracked value.</div>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__icon crm-kpi__icon--slate">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <div class="crm-kpi__label">Average commission</div>
+                        <div class="crm-kpi__value">${{ "{:,.0f}".format(avg_commission) }}</div>
+                        <div class="crm-kpi__meta">Per contact with tracked value.</div>
+                    </div>
+                </div>
+                <svg class="crm-sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M0,20 L15,18 L28,19 L42,14 L55,13 L70,10 L85,7 L100,5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
             </div>
         </div>
         {% endif %}

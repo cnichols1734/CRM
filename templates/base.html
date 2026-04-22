@@ -83,7 +83,517 @@
 
         :root {
             --sidebar-width: 4rem;
-            --sidebar-expanded-width: 11rem;
+            --sidebar-expanded-width: 12.5rem;
+        }
+
+        html.sidebar-expanded {
+            --sidebar-width: var(--sidebar-expanded-width);
+        }
+
+        /* Shared dark shell surface: gradient covers the header, sidebar, and the
+           area behind the main content's rounded top-left corner so they read as
+           one continuous dark panel with no dividing line. */
+        body.crm-shell {
+            background: linear-gradient(180deg, #0e1729 0%, #0a111f 60%, #070d18 100%);
+        }
+
+        /* Top header: transparent (sits on the shared shell gradient) */
+        header.crm-topbar {
+            background: transparent !important;
+            border-bottom: none !important;
+        }
+
+        /* Sidebar: transparent so the body gradient shows through */
+        .crm-sidebar {
+            background: transparent;
+            color: #cbd5e1;
+            border-right: none;
+        }
+
+        /* Width is controlled by the CSS variable, animated for smooth expand/collapse. */
+        @media (min-width: 768px) {
+            aside#sidebar.crm-sidebar {
+                width: var(--sidebar-width) !important;
+                transition: width 0.24s ease;
+                /* Clip label text as the sidebar shrinks instead of re-flowing links. */
+                overflow-x: hidden;
+            }
+            main#mainContent {
+                margin-left: var(--sidebar-width) !important;
+                transition: margin-left 0.24s ease;
+            }
+        }
+        /* The scrollable nav also clips horizontally, so overflowing labels get
+           covered by the shrinking sidebar edge cleanly. */
+        #sidebarNav {
+            overflow-x: hidden;
+        }
+
+        /* Header logo sits on the shared dark shell; no width clipping so the
+           logo stays the same size whether the sidebar is collapsed or expanded. */
+        .crm-header-logo {
+            flex-shrink: 0;
+        }
+
+        /* Sidebar toggle row: anchored at a fixed left offset so the hamburger
+           icon sits in the same x-position as the nav-link icons below it and
+           never moves while the sidebar is collapsing or expanding. */
+        .crm-sidebar-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0.75rem 0 0 0.9375rem;
+        }
+
+        /* Sidebar toggle hamburger */
+        .crm-sidebar-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 0.5rem;
+            color: #cbd5e1;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .crm-sidebar-toggle:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #ffffff;
+        }
+
+        .crm-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            /* Fixed horizontal padding so the icon's x-position never changes
+               between collapsed and expanded states - the label is simply
+               clipped by the shrinking sidebar width. */
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            color: #cbd5e1;
+            font-size: 0.875rem;
+            font-weight: 500;
+            line-height: 1.1;
+            white-space: nowrap;
+            min-width: 0;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .crm-nav-link > i,
+        .crm-nav-link > .crm-sidebar-avatar {
+            flex-shrink: 0;
+        }
+
+        .crm-nav-link i {
+            width: 1.125rem;
+            text-align: center;
+            font-size: 0.95rem;
+            color: #94a3b8;
+        }
+
+        .crm-nav-link:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .crm-nav-link:hover i {
+            color: #cbd5e1;
+        }
+
+        .crm-nav-link.is-active {
+            background: #1e293b;
+            color: #ffffff;
+        }
+
+        .crm-nav-link.is-active i {
+            color: #f97316;
+        }
+
+        .crm-sidebar-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0.25rem;
+            border-radius: 0.5rem;
+            width: 100%;
+            color: #e2e8f0;
+            white-space: nowrap;
+            min-width: 0;
+            transition: background-color 0.15s ease;
+        }
+        .crm-sidebar-profile > .crm-sidebar-avatar {
+            flex-shrink: 0;
+        }
+
+        .crm-sidebar-profile:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .crm-sidebar-avatar {
+            height: 2.25rem;
+            width: 2.25rem;
+            border-radius: 9999px;
+            background: #1e293b;
+            color: #f1f5f9;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        /* Labels / profile text / chevrons stay rendered at their natural size
+           at all times. They get cleanly clipped by the sidebar's shrinking
+           width, which gives the "curtain closing" collapse effect. */
+        .crm-nav-link > span,
+        .crm-sidebar-profile-text,
+        .crm-sidebar-profile-chevron {
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        /* Keep the Resources accordion panel hidden when the sidebar is collapsed
+           (otherwise the sub-items would still be keyboard-reachable). */
+        html:not(.sidebar-expanded) #agentResourcesPanel {
+            display: none;
+        }
+        /* Footer divider: faint border that matches the dark shell */
+        .crm-sidebar-footer {
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* User menu: portaled to <body> with fixed positioning (see base.js) so it
+           is not clipped by the sidebar overflow or limited to sidebar width. */
+        .crm-user-dropdown {
+            position: fixed;
+            left: 0;
+            top: auto;
+            right: auto;
+            min-width: 17rem;
+            max-width: min(22rem, calc(100vw - 1rem));
+            width: max-content;
+            z-index: 100;
+        }
+
+        /* Floating tooltip shown next to collapsed-sidebar links */
+        #sidebar-tooltip {
+            position: fixed;
+            transform: translateY(-50%);
+            padding: 0.4rem 0.7rem;
+            background: #1e293b;
+            color: #f8fafc;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 9999;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+        }
+        #sidebar-tooltip.is-visible {
+            opacity: 1;
+        }
+
+        /* ------- Utility controls (search + assistant + bell + chevron) ------- */
+        .crm-utility-search {
+            position: relative;
+            flex: 0 1 22rem;
+            min-width: 0;
+        }
+
+        .crm-utility-search input {
+            width: 100%;
+            height: 2.25rem;
+            border-radius: 0.5rem;
+            padding-right: 0.9rem;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            padding: 0 2.75rem 0 2.25rem;
+            font-size: 0.8125rem;
+            color: #0f172a;
+        }
+
+        .crm-utility-search input::placeholder {
+            color: #94a3b8;
+        }
+
+        .crm-utility-search input:focus {
+            outline: none;
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+        }
+
+        .crm-utility-search .search-icon {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 0.75rem;
+        }
+
+        /* Search results dropdown */
+        .crm-search-results {
+            position: absolute;
+            top: calc(100% + 0.35rem);
+            left: 0;
+            right: 0;
+            min-width: 22rem;
+            max-height: min(32rem, calc(100vh - 5rem));
+            overflow-y: auto;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.625rem;
+            box-shadow: 0 14px 40px -12px rgba(15, 23, 42, 0.25), 0 4px 14px -6px rgba(15, 23, 42, 0.12);
+            z-index: 60;
+            padding: 0.35rem 0;
+            opacity: 0;
+            transform: translateY(-2px);
+            transition: opacity 0.12s ease, transform 0.12s ease;
+        }
+        .crm-search-results[data-open="true"] {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .crm-search-group {
+            padding: 0.2rem 0;
+        }
+        .crm-search-group + .crm-search-group {
+            border-top: 1px solid #eef2f7;
+            margin-top: 0.2rem;
+            padding-top: 0.35rem;
+        }
+        .crm-search-group-label {
+            display: block;
+            padding: 0.25rem 0.85rem 0.3rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+        .crm-search-item {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.5rem 0.85rem;
+            color: #0f172a;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.12s ease;
+        }
+        .crm-search-item:hover,
+        .crm-search-item.is-active {
+            background: #f1f5f9;
+        }
+        .crm-search-item__icon {
+            flex-shrink: 0;
+            height: 1.9rem;
+            width: 1.9rem;
+            border-radius: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #475569;
+            font-size: 0.8rem;
+        }
+        .crm-search-item__body {
+            min-width: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+        .crm-search-item__title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #0f172a;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .crm-search-item__subtitle {
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.25;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .crm-search-item mark {
+            background: rgba(249, 115, 22, 0.18);
+            color: inherit;
+            border-radius: 2px;
+            padding: 0 1px;
+        }
+        .crm-search-type-pill {
+            flex-shrink: 0;
+            margin-left: 0.5rem;
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 999px;
+            padding: 0.15rem 0.5rem;
+        }
+        .crm-search-state {
+            padding: 0.9rem 1rem;
+            font-size: 0.8125rem;
+            color: #64748b;
+            text-align: center;
+        }
+        .crm-search-state__hint {
+            display: block;
+            margin-top: 0.25rem;
+            font-size: 0.7rem;
+            color: #94a3b8;
+        }
+
+        .crm-utility-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            height: 2.25rem;
+            padding: 0 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+
+        .crm-utility-btn:hover {
+            background: #f8fafc;
+        }
+
+        .crm-utility-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 2.25rem;
+            width: 2.25rem;
+            border-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .crm-utility-icon-btn:hover {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
+        /* Notifications: wider control + popover (fills space from removed menu chevron) */
+        .crm-notifications-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: flex-start;
+        }
+        .crm-utility-icon-btn--bell {
+            width: 3.25rem;
+            min-width: 3.25rem;
+            height: 2.25rem;
+        }
+        .crm-utility-icon-btn--bell i {
+            font-size: 1.05rem;
+        }
+        .crm-notification-popover {
+            position: absolute;
+            top: calc(100% + 0.35rem);
+            right: 0;
+            min-width: 13rem;
+            padding: 0.85rem 1rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -4px rgba(15, 23, 42, 0.1);
+            z-index: 70;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #64748b;
+            line-height: 1.35;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(-4px);
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .crm-notification-popover.is-open {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .crm-notification-popover {
+                transition-duration: 0.01ms;
+            }
+        }
+
+        .crm-utility-btn .assistant-star {
+            color: #f97316;
+            font-size: 0.8rem;
+        }
+
+        /* ------- KPI card with chart slot ------- */
+        .crm-kpi {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .crm-kpi__main {
+            display: flex;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+
+        .crm-kpi__icon {
+            flex-shrink: 0;
+            height: 2.25rem;
+            width: 2.25rem;
+            border-radius: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+
+        .crm-kpi__icon--blue {
+            background: #eff6ff;
+            color: #3b82f6;
+        }
+
+        .crm-kpi__icon--peach {
+            background: #fff1e6;
+            color: #f97316;
+        }
+
+        .crm-kpi__icon--slate {
+            background: #eff6ff;
+            color: #3b82f6;
+        }
+
+        .crm-sparkline {
+            flex-shrink: 0;
+            width: 6.5rem;
+            height: 2.5rem;
+            align-self: center;
+            color: #3b82f6;
+        }
+
+        .crm-sparkline--orange {
+            color: #f97316;
         }
 
         .toast-message {
@@ -186,59 +696,69 @@
             height: 20px;
         }
     </style>
-    <!-- Initialize sidebar state immediately before DOM loads -->
+    <!-- Restore sidebar expand/collapse state before first paint to avoid FOUC. -->
     <script>
         (function () {
-            const isExpanded = localStorage.getItem('sidebarExpanded') === 'true';
-            if (isExpanded) {
-                document.documentElement.style.setProperty('--sidebar-width', 'var(--sidebar-expanded-width)');
-                document.documentElement.classList.add('sidebar-expanded');
-                // Prevent FOUC by setting initial styles
-                const style = document.createElement('style');
-                style.setAttribute('data-initial-sidebar', '');
-                style.textContent = `
-                    #sidebar { width: var(--sidebar-expanded-width) !important; }
-                    #mainContent { margin-left: var(--sidebar-expanded-width) !important; }
-                `;
-                document.head.appendChild(style);
-            }
+            try {
+                var stored = localStorage.getItem('sidebar-expanded');
+                if (stored === null) {
+                    stored = window.matchMedia('(min-width: 1280px)').matches ? 'true' : 'false';
+                }
+                if (stored === 'true') {
+                    document.documentElement.classList.add('sidebar-expanded');
+                }
+            } catch (e) { /* ignore */ }
         })();
     </script>
     {% block head_scripts %}{% endblock %}
 </head>
 
-<body class="h-screen flex flex-col bg-slate-950">
+<body class="crm-shell h-screen flex flex-col">
 
     <!-- Top Header - Hidden on Mobile -->
-    <header class="text-white h-14 items-center justify-between hidden border-b border-slate-800 bg-slate-950 md:flex">
-        <div class="pl-4">
+    <header class="crm-topbar text-white h-14 items-center justify-between hidden md:flex">
+        <div class="crm-header-logo pl-4 pr-6 flex items-center h-full">
             <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
-                class="block h-24 w-auto object-contain mt-2.5" />
+                class="block h-14 w-auto object-contain" />
         </div>
-        <div class="flex items-center space-x-4 pr-4 relative">
-            {% if current_user.is_authenticated %}
+        {% if current_user.is_authenticated %}
+        <div class="flex items-center gap-2 pr-4">
+            <form class="crm-utility-search" onsubmit="event.preventDefault();" role="search" autocomplete="off">
+                <i class="fas fa-search search-icon"></i>
+                <input id="crmGlobalSearchInput" type="text"
+                       placeholder="Search contacts, transactions..."
+                       aria-label="Search"
+                       aria-autocomplete="list"
+                       aria-controls="crmGlobalSearchResults"
+                       aria-expanded="false" />
+                <div id="crmGlobalSearchResults" class="crm-search-results" role="listbox" aria-label="Search results" hidden></div>
+            </form>
             {% if org_has_feature('AI_CHAT') %}
-            <button id="bob-toggle-desktop" class="bob-assistant-btn flex items-center gap-2 text-sm font-semibold transition-all">
-                <svg class="bob-assistant-icon" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <button id="bob-toggle-desktop" type="button" class="crm-utility-btn">
+                <svg class="assistant-star" width="14" height="14" viewBox="0 0 32 32" fill="none">
                     <path d="M16 2L18.5 12L28 14L18.5 16.5L16 28L13.5 16.5L4 14L13.5 12L16 2Z" fill="currentColor"/>
-                    <path d="M8 6L9 9L12 10L9 11L8 14L7 11L4 10L7 9L8 6Z" fill="currentColor" opacity="0.7"/>
-                    <path d="M24 20L25 23L28 24L25 25L24 28L23 25L20 24L23 23L24 20Z" fill="currentColor" opacity="0.7"/>
                 </svg>
                 <span>Assistant</span>
             </button>
-            <span class="text-gray-500 mx-3">|</span>
             {% endif %}
-            <a href="{{ url_for('auth.logout') }}" class="text-white hover:text-gray-200 flex items-center gap-2 text-sm font-medium">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
-            </a>
-            {% else %}
+            <div class="crm-notifications-wrap" id="crmNotificationsWrap">
+                <button type="button" id="crmNotificationsBtn" class="crm-utility-icon-btn crm-utility-icon-btn--bell"
+                        aria-label="Notifications" aria-expanded="false" aria-controls="crmNotificationPopover">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
+                </button>
+                <div id="crmNotificationPopover" class="crm-notification-popover" role="status" aria-hidden="true">
+                    No notifications
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex items-center space-x-4 pr-4">
             <a href="{{ url_for('auth.login') }}" class="text-white hover:text-gray-200 flex items-center gap-2 text-sm font-medium">
                 <i class="fas fa-sign-in-alt"></i>
                 <span>Login</span>
             </a>
-            {% endif %}
         </div>
+        {% endif %}
     </header>
 
     <!-- Mobile Header -->
@@ -439,12 +959,12 @@
                 {% endif %}
                 <a href="{{ url_for('tasks.tasks') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'tasks.tasks' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
-                    <i class="fas fa-tasks w-6 mr-3"></i>
+                    <i class="fas fa-clipboard-list w-6 mr-3"></i>
                     Client Tasks
                 </a>
                 <a href="{{ url_for('user_todo.user_todo') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'user_todo.user_todo' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
-                    <i class="fas fa-check-square w-6 mr-3"></i>
+                    <i class="fas fa-circle-check w-6 mr-3"></i>
                     To Do List
                 </a>
                 {% if org_has_feature('MARKETING') %}
@@ -529,399 +1049,240 @@
     <div class="flex flex-1 overflow-hidden relative">
         <!-- Sidebar - Hidden on Mobile -->
         <aside id="sidebar"
-            class="w-16 transition-all duration-300 ease-in-out flex-col z-10 hidden md:flex h-full">
-            
-            <!-- Fixed Top: Toggle Button -->
-            <div class="flex-shrink-0 w-full flex justify-center py-4">
-                <button id="sidebarToggle" class="p-2.5 rounded-lg hover:bg-[#3d4d63] text-white">
-                    <i class="fas fa-bars"></i>
+            class="crm-sidebar flex-shrink-0 flex-col z-10 hidden md:flex h-full">
+
+            <!-- Collapse / expand toggle -->
+            <div class="crm-sidebar-toggle-row">
+                <button id="crmSidebarToggle" type="button" class="crm-sidebar-toggle"
+                        aria-label="Toggle sidebar" aria-pressed="false">
+                    <i class="fas fa-bars text-sm"></i>
                 </button>
             </div>
 
-            <!-- Scrollable Middle: Navigation Icons -->
-            <nav class="flex-1 min-h-0 overflow-y-auto py-2" id="sidebarNav">
-
-            <!-- Dashboard Icon with Tooltip -->
-            <div class="relative group mb-8 w-full px-3">
+            <!-- Scrollable Navigation -->
+            <nav class="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1" id="sidebarNav">
+                {% if current_user.is_authenticated %}
                 <a href="{{ url_for('main.dashboard') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.dashboard' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-chart-line"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Dashboard</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Dashboard
-                </div>
-            </div>
 
-            <!-- Contacts Icon with Tooltip -->
-            <div class="relative group mb-8 w-full px-3">
                 <a href="{{ url_for('main.contacts') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.contacts' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-address-book"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Contacts</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint == 'main.contacts' or (request.endpoint and request.endpoint.startswith('contacts.')) %}is-active{% endif %}">
+                    <i class="fas fa-address-book"></i>
+                    <span>Contacts</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Contacts
-                </div>
-            </div>
 
-            <!-- Transactions Icon with Tooltip (Admin Only + Feature Gated) -->
-            {% if current_user.is_authenticated and current_user.role == 'admin' and org_has_feature('TRANSACTIONS') %}
-            <div class="relative group mb-8 w-full px-3">
+                {% if can_access_transactions(current_user) %}
                 <a href="{{ url_for('transactions.list_transactions') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('transactions.') %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-file-contract"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Transactions</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('transactions.') %}is-active{% endif %}">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Transactions</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Transactions
-                </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Tasks Icon with Tooltip -->
-            <div class="relative group mb-8 w-full px-3">
                 <a href="{{ url_for('tasks.tasks') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'tasks.tasks' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-tasks"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Client
-                            Tasks</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint == 'tasks.tasks' %}is-active{% endif %}">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Tasks</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Client Tasks
-                </div>
-            </div>
 
-            <!-- Todo List Icon with Tooltip -->
-            <div class="relative group mb-8 w-full px-3">
                 <a href="{{ url_for('user_todo.user_todo') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'user_todo.user_todo' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-check-square"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">To
-                            Do List</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint == 'user_todo.user_todo' %}is-active{% endif %}">
+                    <i class="fas fa-circle-check"></i>
+                    <span>To-Dos</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    To Do List
-                </div>
-            </div>
 
-            <!-- Marketing Icon with Tooltip (Feature Gated) -->
-            {% if org_has_feature('MARKETING') %}
-            <div class="relative group mb-8 w-full px-3">
+                {% if org_has_feature('MARKETING') %}
                 <a href="{{ url_for('main.marketing') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'main.marketing' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-bullhorn"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Marketing</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint == 'main.marketing' %}is-active{% endif %}">
+                    <i class="fas fa-bullhorn"></i>
+                    <span>Marketing</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Marketing
-                </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Tax Protest Icon with Tooltip (Feature Gated) -->
-            {% if org_has_feature('TAX_PROTEST') %}
-            <div class="relative group mb-8 w-full px-3">
-                <a href="{{ url_for('tax_protest.index') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('tax_protest.') %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-gavel"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Tax
-                            Protest</span>
-                    </div>
-                </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Tax Protest
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- OG Action Plan Icon with Tooltip (Feature Gated) -->
-            {% if org_has_feature('AI_ACTION_PLAN') %}
-            <div class="relative group mb-8 w-full px-3">
-                <a href="{{ url_for('action_plan.action_plan') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint == 'action_plan.action_plan' %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-rocket"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">OG
-                            Action Plan</span>
-                    </div>
-                </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    OG Action Plan
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Company Updates Icon with Tooltip -->
-            <div class="relative group mb-8 w-full px-3">
-                <a href="{{ url_for('company_updates.list_updates') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('company_updates.') %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-newspaper"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Updates</span>
-                    </div>
-                </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Company Updates
-                </div>
-            </div>
-
-            <!-- Reports Icon with Tooltip (only show if user can access reports) -->
-            {% if current_user.is_authenticated and can_access_reports(current_user) %}
-            <div class="relative group mb-8 w-full px-3">
+                {% if can_access_reports(current_user) %}
                 <a href="{{ url_for('reports.landing') }}"
-                    class="sidebar-link flex items-center p-2.5 rounded-lg hover:bg-[#3d4d63] {% if request.endpoint and request.endpoint.startswith('reports.') %}text-orange-500{% else %}text-white{% endif %}">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-chart-pie"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Reports</span>
-                    </div>
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}is-active{% endif %}">
+                    <i class="fas fa-chart-pie"></i>
+                    <span>Reports</span>
                 </a>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Reports & Analytics
-                </div>
-            </div>
-            {% endif %}
+                {% endif %}
 
-            <!-- Agent Resources Accordion -->
-            <div class="relative group mb-8 w-full px-3" id="agentResourcesAccordion">
-                <button id="agentResourcesBtn" type="button"
-                    class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white"
-                    aria-controls="agentResourcesPanel" aria-expanded="false">
-                    <div class="w-full flex items-center relative pr-6">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-book"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Resources</span>
+                {% if org_has_feature('TAX_PROTEST') %}
+                <a href="{{ url_for('tax_protest.index') }}"
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('tax_protest.') %}is-active{% endif %}">
+                    <i class="fas fa-gavel"></i>
+                    <span>Tax Protest</span>
+                </a>
+                {% endif %}
+
+                {% if org_has_feature('AI_ACTION_PLAN') %}
+                <a href="{{ url_for('action_plan.action_plan') }}"
+                   class="crm-nav-link {% if request.endpoint == 'action_plan.action_plan' %}is-active{% endif %}">
+                    <i class="fas fa-rocket"></i>
+                    <span>OG Action Plan</span>
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('company_updates.list_updates') }}"
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('company_updates.') %}is-active{% endif %}">
+                    <i class="fas fa-newspaper"></i>
+                    <span>Updates</span>
+                </a>
+
+                <!-- Agent Resources Accordion -->
+                <div class="pt-1" id="agentResourcesAccordion">
+                    <button id="agentResourcesBtn" type="button"
+                            class="crm-nav-link w-full"
+                            aria-controls="agentResourcesPanel" aria-expanded="false">
+                        <i class="fas fa-book"></i>
+                        <span>Resources</span>
                         <i id="agentResourcesChevron" aria-hidden="true"
-                            class="fas fa-chevron-down transition-transform duration-200 absolute right-2"></i>
+                           class="fas fa-chevron-down text-[0.65rem] transition-transform duration-200 ml-auto"></i>
+                    </button>
+                    <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
+                         class="hidden mt-1 ml-6 pl-3 border-l border-slate-700">
+                        <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
                     </div>
-                </button>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Agent Resources
                 </div>
-                <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
-                    class="hidden mt-2 ml-3 pl-3 border-l border-gray-700">
-                    <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
-                </div>
-            </div>
 
+                <!-- Support -->
+                <button onclick="openContactUsModal('app')" type="button"
+                        class="crm-nav-link w-full">
+                    <i class="fas fa-hands-helping"></i>
+                    <span>Support</span>
+                </button>
+
+                {% if current_user.is_super_admin %}
+                <a href="{{ url_for('platform.dashboard') }}"
+                   class="crm-nav-link text-orange-300">
+                    <i class="fas fa-crown"></i>
+                    <span>Platform Admin</span>
+                </a>
+                {% endif %}
+
+                {% if current_user.org_role in ['owner', 'admin'] %}
+                <a href="{{ url_for('org.settings') }}"
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('org.') %}is-active{% endif %}">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </a>
+                {% endif %}
+                {% endif %}
             </nav>
             <!-- End Scrollable Nav -->
 
-            <!-- Fixed Bottom: Support + User Icon (always visible) -->
-            <div class="flex-shrink-0 flex flex-col items-center py-4 border-t border-[#3d4d63]/50">
-
-            <!-- Support/Help Icon with Tooltip -->
-            <div class="relative group mb-6 w-full px-3">
-                <button onclick="openContactUsModal('app')"
-                    class="sidebar-link flex items-center w-full p-2.5 rounded-lg hover:bg-[#3d4d63] text-white transition-colors duration-200">
-                    <div class="w-full flex items-center">
-                        <div class="flex justify-center w-[24px]">
-                            <i class="fas fa-hands-helping"></i>
-                        </div>
-                        <span
-                            class="sidebar-text ml-3 opacity-0 w-0 transition-all duration-300 overflow-hidden whitespace-nowrap">Support</span>
-                    </div>
-                </button>
-                <div
-                    class="hidden opacity-0 transition-opacity duration-200 absolute left-full ml-2 top-2 bg-gray-800 text-white text-sm py-1 px-2 rounded whitespace-nowrap tooltip-label">
-                    Contact Support
-                </div>
-            </div>
-
-            <!-- User Icon and Dropdown -->
+            <!-- User Profile Footer -->
             {% if current_user.is_authenticated %}
-            <div class="relative w-full flex justify-center">
-                <button id="userIcon"
-                    class="w-10 h-10 rounded-full hover:bg-[#3d4d63] text-white flex items-center justify-center text-lg font-semibold transition-colors duration-200 cursor-pointer">
-                    {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+            <div class="relative flex-shrink-0 crm-sidebar-footer px-3 py-3">
+                <button id="userIcon" type="button" class="crm-sidebar-profile"
+                        aria-expanded="false" aria-haspopup="true" aria-controls="userDropdown">
+                    <span class="crm-sidebar-avatar">
+                        {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
+                    </span>
+                    <span class="crm-sidebar-profile-text min-w-0 flex-1 text-left">
+                        <span class="block truncate text-sm font-semibold text-white">
+                            {{ current_user.first_name }} {{ current_user.last_name }}
+                        </span>
+                        <span class="block truncate text-xs text-slate-400">View profile</span>
+                    </span>
+                    <i class="crm-sidebar-profile-chevron fas fa-chevron-up text-[0.65rem] text-slate-400"></i>
                 </button>
 
-                <!-- Dropdown -->
+                <!-- Dropdown (moved to document.body on load — base.js) -->
                 <div id="userDropdown"
-                    class="hidden absolute bottom-0 left-full ml-4 w-80 bg-gray-50 rounded-md shadow-lg border border-gray-200 z-50 transition-opacity duration-300 opacity-0">
+                     class="crm-user-dropdown hidden bg-white rounded-md shadow-xl border border-slate-200 transition-opacity duration-200 opacity-0 max-h-[70vh] overflow-y-auto">
                     <!-- User Info Section -->
-                    <div class="p-6 border-b border-gray-200">
-                        <div class="flex items-center space-x-4">
-                            <div
-                                class="flex-shrink-0 w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
-                                <span class="text-blue-600 text-lg font-semibold">
+                    <div class="p-4 border-b border-gray-200">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0 w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                                <span class="text-blue-600 text-sm font-semibold">
                                     {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
                                 </span>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <div class="font-medium text-gray-900 mb-0.5">{{ current_user.first_name }} {{
-                                    current_user.last_name }}</div>
-                                <div class="text-sm text-gray-500 truncate">{{ current_user.email }}</div>
+                                <div class="font-medium text-gray-900 text-sm">{{ current_user.first_name }} {{ current_user.last_name }}</div>
+                                <div class="text-xs text-gray-500 truncate">{{ current_user.email }}</div>
                             </div>
                         </div>
-                        <div class="mt-3 text-sm text-gray-500">
+                        <div class="mt-2 text-xs text-gray-500">
                             Role: <span class="font-medium capitalize">{{ current_user.role }}</span>
                         </div>
                     </div>
 
-                    <!-- Admin Tools Section -->
                     {% if current_user.role == 'admin' %}
                     <div class="py-2">
-                        <div class="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</div>
-                        <a href="{{ url_for('admin.manage_groups') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
-                            Manage Groups
+                        <div class="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</div>
+                        <a href="{{ url_for('admin.manage_groups') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>Manage Groups
                         </a>
-                        <a href="{{ url_for('admin.manage_resources') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-link w-5 mr-3 text-gray-400"></i>
-                            Manage Resources
+                        <a href="{{ url_for('admin.manage_resources') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-link w-5 mr-3 text-gray-400"></i>Manage Resources
                         </a>
                         {% if org_has_feature('MARKETING') %}
-                        <a href="{{ url_for('marketing.templates_list') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>
-                            Email Templates
+                        <a href="{{ url_for('marketing.templates_list') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-envelope-open-text w-5 mr-3 text-gray-400"></i>Email Templates
                         </a>
                         {% endif %}
                         {% if org_has_feature('DOCUMENT_GENERATION') %}
-                        <a href="{{ url_for('admin.document_mapper_v2_list') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>
-                            Document Mapping
+                        <a href="{{ url_for('admin.document_mapper_v2_list') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-file-signature w-5 mr-3 text-gray-400"></i>Document Mapping
                         </a>
                         {% endif %}
                     </div>
                     <div class="border-t border-gray-200"></div>
                     {% endif %}
 
-                    <!-- Organization Section -->
                     {% if current_user.org_role in ['owner', 'admin'] %}
                     <div class="py-2">
-                        <div class="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Organization</div>
-                        <a href="{{ url_for('org.settings') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-building w-5 mr-3 text-gray-400"></i>
-                            Settings
+                        <div class="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Organization</div>
+                        <a href="{{ url_for('org.settings') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-building w-5 mr-3 text-gray-400"></i>Settings
                         </a>
-                        <a href="{{ url_for('org.members') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-user-friends w-5 mr-3 text-gray-400"></i>
-                            Members
+                        <a href="{{ url_for('org.members') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-user-friends w-5 mr-3 text-gray-400"></i>Members
                         </a>
-                        <a href="{{ url_for('org.usage') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-chart-pie w-5 mr-3 text-gray-400"></i>
-                            Usage & Limits
+                        <a href="{{ url_for('org.usage') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-chart-pie w-5 mr-3 text-gray-400"></i>Usage & Limits
                         </a>
                     </div>
                     <div class="border-t border-gray-200"></div>
                     {% endif %}
 
-                    <!-- Platform Admin Section -->
                     {% if current_user.is_super_admin %}
                     <div class="py-2">
-                        <div class="px-4 py-1.5 text-xs font-semibold text-orange-400 uppercase tracking-wider">Platform</div>
-                        <a href="{{ url_for('platform.dashboard') }}"
-                            class="flex items-center px-6 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium">
-                            <i class="fas fa-crown w-5 mr-3 text-orange-500"></i>
-                            Admin Dashboard
+                        <div class="px-4 py-1 text-xs font-semibold text-orange-400 uppercase tracking-wider">Platform</div>
+                        <a href="{{ url_for('platform.dashboard') }}" class="flex items-center px-4 py-2 text-sm text-orange-600 hover:bg-orange-50 font-medium">
+                            <i class="fas fa-crown w-5 mr-3 text-orange-500"></i>Admin Dashboard
                         </a>
                     </div>
                     <div class="border-t border-gray-200"></div>
                     {% endif %}
 
-                    <!-- Account Section -->
                     <div class="py-2">
-                        <div class="px-4 py-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</div>
-                        <a href="{{ url_for('auth.view_user_profile') }}"
-                            class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>
-                            Profile Settings
-                        </a>
-                        <a href="#" class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
-                            Change Password
-                        </a>
-                        <a href="#" class="flex items-center px-6 py-2 text-sm text-gray-700 hover:bg-white">
-                            <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
-                            Notifications
+                        <div class="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</div>
+                        <a href="{{ url_for('auth.view_user_profile') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                            <i class="fas fa-user-circle w-5 mr-3 text-gray-400"></i>Profile Settings
                         </a>
                     </div>
 
-                    <!-- Logout -->
                     <div class="border-t border-gray-200"></div>
                     <div class="py-2">
-                        <a href="{{ url_for('auth.logout') }}"
-                            class="flex items-center px-6 py-2 text-sm text-red-600 hover:bg-red-50">
-                            <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>
-                            Logout
+                        <a href="{{ url_for('auth.logout') }}" class="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                            <i class="fas fa-sign-out-alt w-5 mr-3 text-red-400"></i>Logout
                         </a>
                     </div>
                 </div>
             </div>
             {% endif %}
-
-            </div>
-            <!-- End Fixed Bottom -->
-
         </aside>
+
 
         <!-- Main Content -->
         <main
-            class="flex-1 overflow-auto bg-slate-50 md:absolute inset-0 md:ml-16 md:rounded-tl-[1.1rem] transition-all duration-300"
+            class="flex-1 overflow-auto bg-[#eef0f3] md:absolute inset-0 md:ml-56 md:rounded-tl-[1.1rem] transition-all duration-300"
             id="mainContent">
             <div class="content-wrapper">
                 {% block content %}{% endblock %}
@@ -938,6 +1299,278 @@
 
     <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+
+    <!-- Expandable sidebar: toggle + hover tooltips when collapsed -->
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var toggle = document.getElementById('crmSidebarToggle');
+            var sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+
+            function setExpanded(expanded) {
+                root.classList.toggle('sidebar-expanded', expanded);
+                try { localStorage.setItem('sidebar-expanded', expanded ? 'true' : 'false'); } catch (e) {}
+                if (toggle) toggle.setAttribute('aria-pressed', expanded ? 'true' : 'false');
+            }
+
+            if (toggle) {
+                toggle.addEventListener('click', function () {
+                    setExpanded(!root.classList.contains('sidebar-expanded'));
+                });
+            }
+
+            // Floating tooltip for collapsed-sidebar nav links.
+            var tip = null;
+            function getTip() {
+                if (!tip) {
+                    tip = document.createElement('div');
+                    tip.id = 'sidebar-tooltip';
+                    tip.setAttribute('role', 'tooltip');
+                    document.body.appendChild(tip);
+                }
+                return tip;
+            }
+            function hideTip() {
+                if (tip) tip.classList.remove('is-visible');
+            }
+            function showTipFor(el) {
+                if (root.classList.contains('sidebar-expanded')) return;
+                var label = (el.getAttribute('aria-label') || el.textContent || '').trim();
+                if (!label) return;
+                var t = getTip();
+                t.textContent = label;
+                var rect = el.getBoundingClientRect();
+                t.style.left = (rect.right + 10) + 'px';
+                t.style.top = (rect.top + rect.height / 2) + 'px';
+                t.classList.add('is-visible');
+            }
+
+            sidebar.querySelectorAll('.crm-nav-link, .crm-sidebar-profile').forEach(function (el) {
+                el.addEventListener('mouseenter', function () { showTipFor(el); });
+                el.addEventListener('mouseleave', hideTip);
+                el.addEventListener('focus', function () { showTipFor(el); });
+                el.addEventListener('blur', hideTip);
+            });
+            window.addEventListener('scroll', hideTip, true);
+        })();
+    </script>
+
+    <!-- Global quick-search dropdown (top bar) -->
+    <script>
+        (function () {
+            var input = document.getElementById('crmGlobalSearchInput');
+            var panel = document.getElementById('crmGlobalSearchResults');
+            if (!input || !panel) return;
+
+            var debounceTimer = null;
+            var activeController = null;
+            var lastQuery = '';
+            var items = [];
+            var activeIndex = -1;
+
+            function escapeHtml(str) {
+                return String(str).replace(/[&<>"']/g, function (ch) {
+                    return ({
+                        '&': '&amp;', '<': '&lt;', '>': '&gt;',
+                        '"': '&quot;', "'": '&#39;'
+                    })[ch];
+                });
+            }
+            function highlight(text, query) {
+                if (!text) return '';
+                var safe = escapeHtml(text);
+                if (!query) return safe;
+                var escaped = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return safe.replace(new RegExp('(' + escaped + ')', 'ig'), '<mark>$1</mark>');
+            }
+
+            function openPanel() {
+                panel.hidden = false;
+                requestAnimationFrame(function () { panel.setAttribute('data-open', 'true'); });
+                input.setAttribute('aria-expanded', 'true');
+            }
+            function closePanel() {
+                panel.removeAttribute('data-open');
+                input.setAttribute('aria-expanded', 'false');
+                setTimeout(function () { if (!panel.hasAttribute('data-open')) panel.hidden = true; }, 120);
+                activeIndex = -1;
+            }
+
+            function setState(html) {
+                panel.innerHTML = '<div class="crm-search-state">' + html + '</div>';
+                items = [];
+            }
+
+            function renderGroups(query, groups, total) {
+                if (!total) {
+                    setState('No results for <strong>' + escapeHtml(query) + '</strong>.' +
+                             '<span class="crm-search-state__hint">Try a name, address, email, or phone.</span>');
+                    return;
+                }
+                var html = '';
+                groups.forEach(function (group) {
+                    html += '<div class="crm-search-group">';
+                    html += '<span class="crm-search-group-label">' + escapeHtml(group.label) + '</span>';
+                    group.items.forEach(function (item) {
+                        html += '<a class="crm-search-item" href="' + escapeHtml(item.url) + '" role="option" data-url="' + escapeHtml(item.url) + '">';
+                        html += '<span class="crm-search-item__icon"><i class="fas ' + escapeHtml(item.icon || 'fa-circle') + '"></i></span>';
+                        html += '<span class="crm-search-item__body">';
+                        html += '<span class="crm-search-item__title">' + highlight(item.title, query) + '</span>';
+                        if (item.subtitle) {
+                            html += '<span class="crm-search-item__subtitle">' + highlight(item.subtitle, query) + '</span>';
+                        }
+                        html += '</span>';
+                        html += '<span class="crm-search-type-pill">' + escapeHtml(item.type_label || item.type) + '</span>';
+                        html += '</a>';
+                    });
+                    html += '</div>';
+                });
+                panel.innerHTML = html;
+                items = Array.prototype.slice.call(panel.querySelectorAll('.crm-search-item'));
+                activeIndex = -1;
+            }
+
+            function setActive(index) {
+                if (!items.length) return;
+                if (index < 0) index = items.length - 1;
+                if (index >= items.length) index = 0;
+                items.forEach(function (el, i) { el.classList.toggle('is-active', i === index); });
+                activeIndex = index;
+                var el = items[index];
+                if (el) el.scrollIntoView({ block: 'nearest' });
+            }
+
+            function runSearch(query) {
+                if (activeController) activeController.abort();
+                activeController = new AbortController();
+                fetch('/api/search?q=' + encodeURIComponent(query), {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json' },
+                    signal: activeController.signal,
+                })
+                    .then(function (res) { return res.ok ? res.json() : Promise.reject(res); })
+                    .then(function (data) {
+                        if (input.value.trim() !== query) return; // input changed; ignore stale
+                        renderGroups(query, data.groups || [], data.total || 0);
+                        openPanel();
+                    })
+                    .catch(function (err) {
+                        if (err && err.name === 'AbortError') return;
+                        setState('Search is unavailable right now.');
+                        openPanel();
+                    });
+            }
+
+            input.addEventListener('input', function () {
+                var value = input.value.trim();
+                lastQuery = value;
+                if (debounceTimer) clearTimeout(debounceTimer);
+                if (value.length < 2) {
+                    if (value.length === 0) {
+                        closePanel();
+                    } else {
+                        setState('Keep typing to search&hellip;');
+                        openPanel();
+                    }
+                    return;
+                }
+                debounceTimer = setTimeout(function () { runSearch(value); }, 160);
+            });
+
+            input.addEventListener('focus', function () {
+                if (input.value.trim().length >= 2 && panel.innerHTML.trim()) openPanel();
+            });
+
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); if (panel.hidden) openPanel(); setActive(activeIndex + 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(activeIndex - 1); }
+                else if (e.key === 'Enter') {
+                    if (activeIndex >= 0 && items[activeIndex]) {
+                        e.preventDefault();
+                        window.location.href = items[activeIndex].dataset.url;
+                    }
+                } else if (e.key === 'Escape') {
+                    closePanel();
+                    input.blur();
+                }
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!panel.contains(e.target) && e.target !== input) closePanel();
+            });
+        })();
+    </script>
+
+    <!-- Desktop notifications popover (placeholder until real notifications exist) -->
+    <script>
+        (function () {
+            var wrap = document.getElementById('crmNotificationsWrap');
+            var btn = document.getElementById('crmNotificationsBtn');
+            var pop = document.getElementById('crmNotificationPopover');
+            if (!wrap || !btn || !pop) return;
+
+            var hideTimer = null;
+            function clearHideTimer() {
+                if (hideTimer) {
+                    clearTimeout(hideTimer);
+                    hideTimer = null;
+                }
+            }
+            function hidePopover() {
+                clearHideTimer();
+                if (!pop.classList.contains('is-open')) {
+                    btn.setAttribute('aria-expanded', 'false');
+                    return;
+                }
+                pop.classList.remove('is-open');
+                pop.setAttribute('aria-hidden', 'true');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+            function showPopover() {
+                clearHideTimer();
+                pop.setAttribute('aria-hidden', 'false');
+                btn.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        pop.classList.add('is-open');
+                    });
+                });
+            }
+            function scheduleHidePopover() {
+                clearHideTimer();
+                hideTimer = setTimeout(hidePopover, 2000);
+            }
+
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (!pop.classList.contains('is-open')) {
+                    showPopover();
+                } else {
+                    hidePopover();
+                }
+            });
+
+            /* Moving between bell and panel must not start the timer; leaving the
+               whole control (relatedTarget outside wrap) does. */
+            wrap.addEventListener('mouseout', function (e) {
+                if (!pop.classList.contains('is-open')) return;
+                var rt = e.relatedTarget;
+                if (rt && wrap.contains(rt)) return;
+                scheduleHidePopover();
+            });
+            wrap.addEventListener('mouseover', function () {
+                if (pop.classList.contains('is-open')) clearHideTimer();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!wrap.contains(e.target)) hidePopover();
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') hidePopover();
+            });
+        })();
+    </script>
     <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>
 
     {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
