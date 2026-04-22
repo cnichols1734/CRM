@@ -75,49 +75,52 @@ class TestExtractDocumentJob:
         from models import TransactionDocument
         from jobs.document_extraction import extract_document_job
 
-        doc = db.session.get(TransactionDocument, seed['doc_a'])
-        doc.source_file_path = None
-        doc.signed_file_path = None
-        doc.extraction_status = 'pending'
-        doc.extraction_error = None
-        db.session.flush()
+        with app.app_context():
+            doc = db.session.get(TransactionDocument, seed['doc_a'])
+            doc.source_file_path = None
+            doc.signed_file_path = None
+            doc.extraction_status = 'pending'
+            doc.extraction_error = None
+            db.session.flush()
 
-        with patch('jobs.document_extraction.set_job_org_context'), \
-             patch('models.db.session.remove'):
-            extract_document_job(doc_id=seed['doc_a'], org_id=seed['org_a'])
+            with patch('jobs.document_extraction.set_job_org_context'), \
+                 patch('models.db.session.remove'):
+                extract_document_job(doc_id=seed['doc_a'], org_id=seed['org_a'])
 
-        db.session.expire_all()
-        doc = db.session.get(TransactionDocument, seed['doc_a'])
-        assert doc.extraction_status == 'failed'
-        assert 'cannot download for extraction' in (doc.extraction_error or '').lower()
+            db.session.expire_all()
+            doc = db.session.get(TransactionDocument, seed['doc_a'])
+            assert doc.extraction_status == 'failed'
+            assert 'cannot download for extraction' in (doc.extraction_error or '').lower()
 
     def test_download_failure_marks_failed(self, app, db, seed):
         """If Supabase download raises, extraction is marked failed."""
         from models import TransactionDocument
         from jobs.document_extraction import extract_document_job
 
-        doc = db.session.get(TransactionDocument, seed['doc_a'])
-        doc.source_file_path = 'documents/test/fake.pdf'
-        doc.signed_file_path = None
-        doc.extraction_status = 'pending'
-        doc.extraction_error = None
-        db.session.flush()
+        with app.app_context():
+            doc = db.session.get(TransactionDocument, seed['doc_a'])
+            doc.source_file_path = 'documents/test/fake.pdf'
+            doc.signed_file_path = None
+            doc.extraction_status = 'pending'
+            doc.extraction_error = None
+            db.session.flush()
 
-        with patch('jobs.document_extraction.set_job_org_context'), \
-             patch('models.db.session.remove'), \
-             patch('services.supabase_storage.download_document',
-                   side_effect=Exception("Storage unavailable")):
-            extract_document_job(doc_id=seed['doc_a'], org_id=seed['org_a'])
+            with patch('jobs.document_extraction.set_job_org_context'), \
+                 patch('models.db.session.remove'), \
+                 patch('services.supabase_storage.download_document',
+                       side_effect=Exception("Storage unavailable")):
+                extract_document_job(doc_id=seed['doc_a'], org_id=seed['org_a'])
 
-        db.session.expire_all()
-        doc = db.session.get(TransactionDocument, seed['doc_a'])
-        assert doc.extraction_status == 'failed'
-        assert 'storage unavailable' in (doc.extraction_error or '').lower()
+            db.session.expire_all()
+            doc = db.session.get(TransactionDocument, seed['doc_a'])
+            assert doc.extraction_status == 'failed'
+            assert 'storage unavailable' in (doc.extraction_error or '').lower()
 
     def test_nonexistent_doc_does_not_raise(self, app, seed):
         """Job with a bad doc_id logs an error but does not raise."""
         from jobs.document_extraction import extract_document_job
 
-        with patch('jobs.document_extraction.set_job_org_context'), \
-             patch('models.db.session.remove'):
-            extract_document_job(doc_id=999999, org_id=seed['org_a'])
+        with app.app_context():
+            with patch('jobs.document_extraction.set_job_org_context'), \
+                 patch('models.db.session.remove'):
+                extract_document_job(doc_id=999999, org_id=seed['org_a'])

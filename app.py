@@ -176,10 +176,11 @@ def create_app():
     # Context processor to make feature flags available in templates
     @app.context_processor
     def inject_feature_flags():
-        from feature_flags import org_has_feature, can_access_reports
+        from feature_flags import org_has_feature, can_access_reports, can_access_transactions
         return dict(
             org_has_feature=org_has_feature,
-            can_access_reports=can_access_reports
+            can_access_reports=can_access_reports,
+            can_access_transactions=can_access_transactions,
         )
 
     # Initialize Flask-Mail

@@ -219,6 +219,48 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 4000);
     });
 
+    /** Position the user menu as fixed so it spans the sidebar + main area and is not clipped by sidebar overflow. */
+    function positionUserDropdown() {
+        if (!userIcon || !userDropdown) return;
+        const gap = 8;
+        const edge = 8;
+        const r = userIcon.getBoundingClientRect();
+        userDropdown.style.left = `${Math.round(r.left)}px`;
+        userDropdown.style.bottom = `${Math.round(window.innerHeight - r.top + gap)}px`;
+        userDropdown.style.top = 'auto';
+        userDropdown.style.right = 'auto';
+        requestAnimationFrame(() => {
+            const dr = userDropdown.getBoundingClientRect();
+            if (dr.right > window.innerWidth - edge) {
+                const shift = dr.right - (window.innerWidth - edge);
+                userDropdown.style.left = `${Math.round(Math.max(edge, r.left - shift))}px`;
+            }
+            if (dr.left < edge) {
+                userDropdown.style.left = `${edge}px`;
+            }
+        });
+    }
+
+    // User dropdown: attach to <body> so overflow-x on the sidebar does not clip it.
+    if (userIcon && userDropdown && userDropdown.parentNode !== document.body) {
+        document.body.appendChild(userDropdown);
+    }
+
+    if (sidebar && userDropdown && typeof ResizeObserver !== 'undefined') {
+        const dropdownRo = new ResizeObserver(() => {
+            if (!userDropdown.classList.contains('hidden')) {
+                positionUserDropdown();
+            }
+        });
+        dropdownRo.observe(sidebar);
+    }
+
+    window.addEventListener('resize', () => {
+        if (userDropdown && !userDropdown.classList.contains('hidden')) {
+            positionUserDropdown();
+        }
+    });
+
     // User dropdown functionality - click-based
     if (userIcon && userDropdown) {
         userIcon.addEventListener('click', (e) => {
@@ -253,8 +295,10 @@ document.addEventListener('DOMContentLoaded', function() {
     function openUserDropdown() {
         if (!userDropdown || !userIcon) return;
         userDropdown.classList.remove('hidden');
+        positionUserDropdown();
         userIcon.setAttribute('aria-expanded', 'true');
         requestAnimationFrame(() => {
+            positionUserDropdown();
             userDropdown.classList.add('opacity-100');
         });
     }
@@ -265,6 +309,10 @@ document.addEventListener('DOMContentLoaded', function() {
         userIcon.setAttribute('aria-expanded', 'false');
         setTimeout(() => {
             userDropdown.classList.add('hidden');
+            userDropdown.style.left = '';
+            userDropdown.style.bottom = '';
+            userDropdown.style.top = '';
+            userDropdown.style.right = '';
         }, 200);
     }
 

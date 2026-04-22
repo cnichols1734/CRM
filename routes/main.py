@@ -698,3 +698,127 @@ def dismiss_dashboard_onboarding():
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@main_bp.route('/api/search')
+@login_required
+def global_search():
+    """Global quick search across contacts and transactions.
+
+    Returns JSON grouped by record type so the top-bar search dropdown can
+    render "Contacts" and "Transactions" sections with clear labels.
+    """
+    query = (request.args.get('q') or '').strip()
+
+    # Require at least 2 characters before hitting the DB.
+    if len(query) < 2:
+        return jsonify({'query': query, 'groups': []})
+
+    like = f'%{query}%'
+    show_all = can_view_all_org_data()
+    results = {'contacts': [], 'transactions': []}
+
+    # ---- Contacts ----
+    contact_query = org_query(Contact)
+    if not show_all:
+        contact_query = contact_query.filter_by(user_id=current_user.id)
+
+    contact_filters = or_(
+        Contact.first_name.ilike(like),
+        Contact.last_name.ilike(like),
+        Contact.email.ilike(like),
+        Contact.phone.ilike(like),
+        Contact.street_address.ilike(like),
+        Contact.city.ilike(like),
+        Contact.state.ilike(like),
+        Contact.zip_code.ilike(like),
+        func.concat(Contact.first_name, ' ', Contact.last_name).ilike(like),
+    )
+    contacts = (
+        contact_query.filter(contact_filters)
+        .order_by(Contact.first_name.asc(), Contact.last_name.asc())
+        .limit(6)
+        .all()
+    )
+    for c in contacts:
+        addr_parts = [p for p in [c.street_address, c.city, c.state] if p]
+        subtitle_bits = []
+        if c.email:
+            subtitle_bits.append(c.email)
+        elif c.phone:
+            subtitle_bits.append(c.phone)
+        if addr_parts:
+            subtitle_bits.append(', '.join(addr_parts))
+        results['contacts'].append({
+            'type': 'contact',
+            'type_label': 'Contact',
+            'title': f'{c.first_name} {c.last_name}',
+            'subtitle': ' - '.join(subtitle_bits) if subtitle_bits else None,
+            'url': url_for('contacts.view_contact', contact_id=c.id),
+            'icon': 'fa-address-book',
+        })
+
+    # ---- Transactions ----
+    if can_access_transactions(current_user):
+        tx_query = org_query(Transaction)
+        if not show_all:
+            tx_query = tx_query.filter_by(created_by_id=current_user.id)
+
+        # Transactions whose participants (contact or external) match.
+        participant_tx_ids = (
+            db.session.query(TransactionParticipant.transaction_id)
+            .outerjoin(Contact, TransactionParticipant.contact_id == Contact.id)
+            .filter(
+                or_(
+                    Contact.first_name.ilike(like),
+                    Contact.last_name.ilike(like),
+                    func.concat(Contact.first_name, ' ', Contact.last_name).ilike(like),
+                    TransactionParticipant.name.ilike(like),
+                )
+            )
+            .distinct()
+        )
+        participant_ids = [row[0] for row in participant_tx_ids.all()]
+
+        address_filters = or_(
+            Transaction.street_address.ilike(like),
+            Transaction.city.ilike(like),
+            Transaction.state.ilike(like),
+            Transaction.zip_code.ilike(like),
+        )
+        if participant_ids:
+            tx_filter = or_(address_filters, Transaction.id.in_(participant_ids))
+        else:
+            tx_filter = address_filters
+
+        transactions = (
+            tx_query.filter(tx_filter)
+            .order_by(Transaction.updated_at.desc())
+            .limit(6)
+            .all()
+        )
+        for t in transactions:
+            subtitle_bits = []
+            loc = ', '.join(p for p in [t.city, t.state] if p)
+            if loc:
+                subtitle_bits.append(loc)
+            if t.status:
+                subtitle_bits.append(t.status.replace('_', ' ').title())
+            results['transactions'].append({
+                'type': 'transaction',
+                'type_label': 'Transaction',
+                'title': t.street_address or f'Transaction #{t.id}',
+                'subtitle': ' - '.join(subtitle_bits) if subtitle_bits else None,
+                'url': url_for('transactions.view_transaction', id=t.id),
+                'icon': 'fa-file-contract',
+            })
+
+    # Assemble groups in display order, skipping empties so the UI stays tidy.
+    groups = []
+    if results['contacts']:
+        groups.append({'label': 'Contacts', 'items': results['contacts']})
+    if results['transactions']:
+        groups.append({'label': 'Transactions', 'items': results['transactions']})
+
+    total = sum(len(g['items']) for g in groups)
+    return jsonify({'query': query, 'total': total, 'groups': groups})

@@ -46,55 +46,59 @@ class _RecordingQueryStub(_QueryStub):
         return self
 
 
-def test_get_subdivision_stats_returns_list_distribution(monkeypatch):
+def test_get_subdivision_stats_returns_list_distribution(app, monkeypatch):
     values = [390000, 420000, 450000, 610000, 615000, 700000, 820000]
-    monkeypatch.setattr(
-        tax_protest_service.LibertyProperty,
-        "query",
-        _QueryStub(values),
-    )
-    monkeypatch.setattr(
-        tax_protest_service,
-        "_find_liberty_sibling_codes",
-        lambda subdivision_code: [],
-    )
 
-    stats = tax_protest_service.get_subdivision_stats(
-        subdivision="LIBERTY OAKS",
-        zip_code="77327",
-        market_value=590000,
-        source="liberty",
-        subdivision_code="007206",
-    )
+    with app.app_context():
+        monkeypatch.setattr(
+            tax_protest_service.LibertyProperty,
+            "query",
+            _QueryStub(values),
+        )
+        monkeypatch.setattr(
+            tax_protest_service,
+            "_find_liberty_sibling_codes",
+            lambda subdivision_code: [],
+        )
 
-    assert stats["total_homes"] == len(values)
-    assert stats["min_value"] == min(values)
-    assert stats["max_value"] == max(values)
-    assert isinstance(stats["value_distribution"], list)
-    assert sum(bucket["count"] for bucket in stats["value_distribution"]) == len(values)
+        stats = tax_protest_service.get_subdivision_stats(
+            subdivision="LIBERTY OAKS",
+            zip_code="77327",
+            market_value=590000,
+            source="liberty",
+            subdivision_code="007206",
+        )
+
+        assert stats["total_homes"] == len(values)
+        assert stats["min_value"] == min(values)
+        assert stats["max_value"] == max(values)
+        assert isinstance(stats["value_distribution"], list)
+        assert sum(bucket["count"] for bucket in stats["value_distribution"]) == len(values)
 
 
-def test_chambers_subdivision_stats_uses_home_filters(monkeypatch):
+def test_chambers_subdivision_stats_uses_home_filters(app, monkeypatch):
     query = _RecordingQueryStub([420000, 565000, 617950])
-    monkeypatch.setattr(
-        tax_protest_service.ChambersProperty,
-        "query",
-        query,
-    )
 
-    stats = tax_protest_service.get_subdivision_stats(
-        subdivision="SELLERS STATION",
-        zip_code="77523",
-        market_value=565340,
-        source="chambers",
-    )
+    with app.app_context():
+        monkeypatch.setattr(
+            tax_protest_service.ChambersProperty,
+            "query",
+            query,
+        )
 
-    filter_sql = " ".join(str(expr) for expr in query.filters)
-    assert "improvement_hs_val" in filter_sql
-    assert "improvement_nhs_val" in filter_sql
-    assert "prop_street_number" in filter_sql
-    assert "prop_street" in filter_sql
-    assert stats["total_homes"] == 3
+        stats = tax_protest_service.get_subdivision_stats(
+            subdivision="SELLERS STATION",
+            zip_code="77523",
+            market_value=565340,
+            source="chambers",
+        )
+
+        filter_sql = " ".join(str(expr) for expr in query.filters)
+        assert "improvement_hs_val" in filter_sql
+        assert "improvement_nhs_val" in filter_sql
+        assert "prop_street_number" in filter_sql
+        assert "prop_street" in filter_sql
+        assert stats["total_homes"] == 3
 
 
 def test_build_chambers_subdivision_match_terms_broadens_truncated_name():
