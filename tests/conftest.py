@@ -38,6 +38,9 @@ from models import (
 def app():
     """Create the Flask application for testing."""
     os.environ['DATABASE_URL'] = _TEST_DB
+    if os.path.exists('/tmp/test_integration.db'):
+        os.remove('/tmp/test_integration.db')
+
     application = create_app()
     application.config.update(
         TESTING=True,
@@ -49,7 +52,10 @@ def app():
 
     with application.app_context():
         _db.create_all()
-        yield application
+
+    yield application
+
+    with application.app_context():
         _db.session.remove()
         _db.drop_all()
 
@@ -273,30 +279,30 @@ def client(app):
 @pytest.fixture()
 def owner_a_client(app, seed):
     """Test client pre-logged in as owner of Org A (pro)."""
-    with app.test_client() as c:
-        login(c, 'owner_a')
-        yield c
+    c = app.test_client()
+    login(c, 'owner_a')
+    yield c
 
 
 @pytest.fixture()
 def admin_a_client(app, seed):
     """Test client pre-logged in as admin of Org A (pro)."""
-    with app.test_client() as c:
-        login(c, 'admin_a')
-        yield c
+    c = app.test_client()
+    login(c, 'admin_a')
+    yield c
 
 
 @pytest.fixture()
 def agent_a_client(app, seed):
     """Test client pre-logged in as agent of Org A (pro)."""
-    with app.test_client() as c:
-        login(c, 'agent_a')
-        yield c
+    c = app.test_client()
+    login(c, 'agent_a')
+    yield c
 
 
 @pytest.fixture()
 def owner_b_client(app, seed):
     """Test client pre-logged in as owner of Org B (free)."""
-    with app.test_client() as c:
-        login(c, 'owner_b')
-        yield c
+    c = app.test_client()
+    login(c, 'owner_b')
+    yield c
