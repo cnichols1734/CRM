@@ -69,14 +69,17 @@ function loadRentCastData() {
             // Show data display and refresh button
             document.getElementById('intel-data-display').classList.remove('hidden');
             if (!document.getElementById('refresh-btn')) {
-                // Add refresh button if it doesn't exist
-                const headerDiv = document.querySelector('#content-intelligence .premium-card > .flex');
-                const refreshBtn = document.createElement('button');
-                refreshBtn.id = 'refresh-btn';
-                refreshBtn.className = 'text-sm px-4 py-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors font-medium';
-                refreshBtn.innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Refresh';
-                refreshBtn.onclick = refreshRentCastData;
-                headerDiv.appendChild(refreshBtn);
+                // Add refresh button if it doesn't exist (target the crm-surface-header inside the intelligence panel)
+                const headerDiv = document.querySelector('#content-intelligence .crm-surface .crm-surface-header');
+                if (headerDiv) {
+                    const refreshBtn = document.createElement('button');
+                    refreshBtn.id = 'refresh-btn';
+                    refreshBtn.type = 'button';
+                    refreshBtn.className = 'crm-btn crm-btn-secondary';
+                    refreshBtn.innerHTML = '<i class="fas fa-sync-alt text-xs text-slate-400"></i> Refresh';
+                    refreshBtn.onclick = refreshRentCastData;
+                    headerDiv.appendChild(refreshBtn);
+                }
             }
         } else {
             document.getElementById('intel-error-message').textContent = data.error || 'An error occurred.';

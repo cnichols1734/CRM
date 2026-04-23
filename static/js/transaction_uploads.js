@@ -100,17 +100,17 @@ const dropZone = document.getElementById('dropZone');
 if (dropZone) {
     dropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-teal-400', 'bg-teal-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     dropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     dropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -254,17 +254,17 @@ const esignDropZone = document.getElementById('esignDropZone');
 if (esignDropZone) {
     esignDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-purple-400', 'bg-purple-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     esignDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     esignDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -416,17 +416,17 @@ const completedDropZone = document.getElementById('completedDropZone');
 if (completedDropZone) {
     completedDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-teal-400', 'bg-teal-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     completedDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     completedDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -570,17 +570,17 @@ const staticDropZone = document.getElementById('staticDropZone');
 if (staticDropZone) {
     staticDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-teal-400', 'bg-teal-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     staticDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     staticDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -721,17 +721,17 @@ const signatureDropZone = document.getElementById('signatureDropZone');
 if (signatureDropZone) {
     signatureDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-purple-400', 'bg-purple-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     signatureDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     signatureDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-purple-400', 'bg-purple-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
@@ -888,17 +888,17 @@ const fulfillDropZone = document.getElementById('fulfillDropZone');
 if (fulfillDropZone) {
     fulfillDropZone.addEventListener('dragover', function(e) {
         e.preventDefault();
-        this.classList.add('border-teal-400', 'bg-teal-50/30');
+        this.classList.add('border-orange-400', 'bg-orange-50/30');
     });
 
     fulfillDropZone.addEventListener('dragleave', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
     });
 
     fulfillDropZone.addEventListener('drop', function(e) {
         e.preventDefault();
-        this.classList.remove('border-teal-400', 'bg-teal-50/30');
+        this.classList.remove('border-orange-400', 'bg-orange-50/30');
 
         const files = e.dataTransfer.files;
         if (files.length > 0) {
