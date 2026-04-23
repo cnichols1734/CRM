@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import section_header, badge, avatar %}
+{% from "components/ui.html" import section_header, avatar %}
 
 {% block title %}{{ transaction.street_address }} - Origen TechnolOG{% endblock %}
 
@@ -20,20 +20,19 @@
     'closed': 'check-circle',
     'cancelled': 'times-circle'
 } %}
-{% set status_tones = {
-    'preparing_to_list': 'warning',
-    'showing': 'info',
-    'active': 'success',
-    'under_contract': 'info',
-    'closed': 'accent',
-    'cancelled': 'neutral'
+{% set status_dot_class = {
+    'preparing_to_list': 'bg-amber-500',
+    'showing': 'bg-sky-500',
+    'active': 'bg-emerald-500',
+    'under_contract': 'bg-orange-500',
+    'closed': 'bg-slate-400',
+    'cancelled': 'bg-red-500'
 } %}
-{% set type_tones = {
-    'seller': 'accent',
-    'buyer': 'info',
-    'landlord': 'info',
-    'tenant': 'success',
-    'referral': 'neutral'
+{% set doc_dot_class = {
+    'signed': 'bg-emerald-500',
+    'sent': 'bg-sky-500',
+    'filled': 'bg-orange-500',
+    'pending': 'bg-slate-300'
 } %}
 {% set ref = request.args.get('ref') %}
 {% set contact_id_arg = request.args.get('contact_id') %}
@@ -128,12 +127,13 @@
 
         {# ===== Type and status row ===== #}
         <div class="mb-5 flex flex-wrap items-center gap-3">
-            {{ badge(transaction.transaction_type.display_name, type_tones.get(transaction.transaction_type.name, 'neutral')) }}
+            <span class="text-sm font-medium text-slate-700">{{ transaction.transaction_type.display_name }}</span>
+            <span class="text-slate-300">&middot;</span>
 
             <div class="relative" id="statusDropdown">
                 <button onclick="toggleStatusDropdown(event)" type="button"
                         class="crm-btn crm-btn-secondary">
-                    <i class="fas fa-{{ status_icons.get(transaction.status, 'circle') }} text-xs text-slate-400"></i>
+                    <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(transaction.status, 'bg-slate-300') }}"></span>
                     <span>{{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}</span>
                     <i class="fas fa-chevron-down text-[10px] text-slate-400"></i>
                 </button>
@@ -141,13 +141,13 @@
                      class="absolute left-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
                     {% for status_key, label in status_labels.items() %}
                     <button onclick="updateStatus('{{ status_key }}')" type="button"
-                            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 {% if transaction.status == status_key %}font-semibold text-orange-700{% else %}text-slate-700{% endif %}">
+                            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 {% if transaction.status == status_key %}font-semibold text-slate-900{% else %}text-slate-700{% endif %}">
                         <span class="flex items-center gap-2">
-                            <i class="fas fa-{{ status_icons.get(status_key, 'circle') }} text-[11px] text-slate-400"></i>
+                            <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(status_key, 'bg-slate-300') }}"></span>
                             {{ label }}
                         </span>
                         {% if transaction.status == status_key %}
-                        <i class="fas fa-check text-xs text-orange-500"></i>
+                        <i class="fas fa-check text-xs text-slate-500"></i>
                         {% endif %}
                     </button>
                     {% endfor %}
@@ -271,8 +271,9 @@
                             {% endif %}
                             <div>
                                 <div class="text-xs font-medium text-slate-500">Current status</div>
-                                <div class="mt-0.5 text-sm text-slate-900">
-                                    {{ badge(status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title), status_tones.get(transaction.status, 'neutral')) }}
+                                <div class="mt-0.5 inline-flex items-center gap-2 text-sm font-medium text-slate-900">
+                                    <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(transaction.status, 'bg-slate-300') }}"></span>
+                                    {{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
                                 </div>
                             </div>
                             <div>
@@ -308,9 +309,15 @@
                         <div class="flex items-center gap-3">
                             {{ section_header('Property questionnaire') }}
                             {% if transaction.intake_data %}
-                            {{ badge('Completed', 'success') }}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                Completed
+                            </span>
                             {% else %}
-                            {{ badge('Not started', 'warning') }}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                Not started
+                            </span>
                             {% endif %}
                         </div>
                     </div>
@@ -396,9 +403,15 @@
                                 </div>
                                 <div class="flex flex-shrink-0 items-center gap-2">
                                     {% if doc.status == 'signed' and doc.signed_file_path %}
-                                    {{ badge(('Uploaded' if doc.document_source == 'completed' else ('Wet Signed' if doc.signing_method == 'physical' else 'E-Signed')), 'success') }}
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                        {{ 'Uploaded' if doc.document_source == 'completed' else ('Wet signed' if doc.signing_method == 'physical' else 'E-signed') }}
+                                    </span>
                                     {% elif doc.status == 'signed' %}
-                                    {{ badge('Signed', 'success') }}
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                        Signed
+                                    </span>
                                     {% elif awaiting_upload %}
                                     <button onclick='showFulfillPlaceholderModal({{ doc.id }}, {{ doc.template_name|tojson }})' type="button"
                                             class="crm-btn crm-btn-secondary px-2.5 py-1 text-xs">
@@ -406,11 +419,20 @@
                                         Upload
                                     </button>
                                     {% elif doc.status == 'sent' %}
-                                    {{ badge('Sent', 'info') }}
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                                        Sent
+                                    </span>
                                     {% elif doc.status == 'filled' %}
-                                    {{ badge('Filled', 'accent') }}
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+                                        Filled
+                                    </span>
                                     {% else %}
-                                    {{ badge(doc.status|title, 'neutral') }}
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                                        <span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span>
+                                        {{ doc.status|title }}
+                                    </span>
                                     {% endif %}
 
                                     {# Doc actions menu #}
@@ -821,7 +843,7 @@
                                     <div class="flex items-center gap-2">
                                         <span class="truncate text-sm font-medium text-slate-900">{{ participant.display_name }}</span>
                                         {% if participant.is_primary %}
-                                        {{ badge('Primary', 'accent') }}
+                                        <span class="text-[10px] font-semibold uppercase tracking-wide text-orange-600">Primary</span>
                                         {% endif %}
                                     </div>
                                     <div class="text-xs text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
@@ -911,11 +933,20 @@
                         <div class="flex items-center gap-3">
                             {{ section_header('Listing info') }}
                             {% if listing_extraction_status == 'pending' or listing_extraction_status == 'processing' %}
-                            {{ badge('Extracting', 'info') }}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                                Extracting
+                            </span>
                             {% elif listing_info %}
-                            {{ badge('Loaded', 'success') }}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                Loaded
+                            </span>
                             {% elif listing_extraction_status == 'failed' %}
-                            {{ badge('Failed', 'warning') }}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                Failed
+                            </span>
                             {% endif %}
                         </div>
                     </div>
