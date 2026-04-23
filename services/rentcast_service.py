@@ -18,6 +18,7 @@ Usage:
         error = result['error']
 """
 
+import time
 import requests
 import logging
 from urllib.parse import quote
@@ -160,4 +161,120 @@ def fetch_property_data(street_address: str, city: str, state: str, zip_code: st
         return {
             'success': False,
             'error': 'An unexpected error occurred. Please try again.'
+        }
+
+
+def fetch_market_stats(zip_code: str) -> dict:
+    """Fetch aggregate sale + rental market statistics for a ZIP code.
+
+    Calls GET https://api.rentcast.io/v1/markets?zipCode=<zip>&dataType=All.
+
+    Returns a dict with:
+        - success (bool)
+        - data (dict): the raw RentCast payload (only when success)
+        - status_code (int|None): HTTP status from RentCast (None on transport error)
+        - latency_ms (int): wall time of the call
+        - error (str|None): human-readable error when success is False
+
+    The caller is responsible for persisting the audit trail row in
+    ``rentcast_api_log`` -- this function just performs the HTTP call.
+    """
+    api_key = Config.RENTCAST_API_KEY
+    endpoint = '/markets'
+
+    if not api_key:
+        logger.error("RENTCAST_API_KEY not configured")
+        return {
+            'success': False,
+            'data': None,
+            'status_code': None,
+            'latency_ms': 0,
+            'error': 'RentCast API key not configured.',
+        }
+
+    if not zip_code or not str(zip_code).strip():
+        return {
+            'success': False,
+            'data': None,
+            'status_code': None,
+            'latency_ms': 0,
+            'error': 'ZIP code is required.',
+        }
+
+    url = f"{RENTCAST_BASE_URL}{endpoint}"
+    headers = {'Accept': 'application/json', 'X-Api-Key': api_key}
+    params = {'zipCode': str(zip_code).strip(), 'dataType': 'All'}
+
+    started = time.perf_counter()
+    status_code = None
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        status_code = response.status_code
+        latency_ms = int((time.perf_counter() - started) * 1000)
+
+        # Audit-friendly single-line log entry. Caller also writes the DB row.
+        logger.info(
+            "rentcast_markets_call zip=%s status=%s latency_ms=%s",
+            zip_code, status_code, latency_ms,
+        )
+
+        if status_code == 200:
+            data = response.json()
+            if isinstance(data, list):
+                data = data[0] if data else None
+            if not data:
+                return {
+                    'success': False, 'data': None, 'status_code': status_code,
+                    'latency_ms': latency_ms,
+                    'error': f'No market data found for ZIP {zip_code}.',
+                }
+            return {
+                'success': True, 'data': data, 'status_code': status_code,
+                'latency_ms': latency_ms, 'error': None,
+            }
+
+        if status_code == 401:
+            return {
+                'success': False, 'data': None, 'status_code': status_code,
+                'latency_ms': latency_ms, 'error': 'RentCast authentication failed.',
+            }
+        if status_code == 404:
+            return {
+                'success': False, 'data': None, 'status_code': status_code,
+                'latency_ms': latency_ms,
+                'error': f'No market data found for ZIP {zip_code}.',
+            }
+        if status_code == 429:
+            return {
+                'success': False, 'data': None, 'status_code': status_code,
+                'latency_ms': latency_ms,
+                'error': 'RentCast rate limit / monthly quota exceeded.',
+            }
+        return {
+            'success': False, 'data': None, 'status_code': status_code,
+            'latency_ms': latency_ms,
+            'error': f'RentCast error (status {status_code}).',
+        }
+
+    except requests.exceptions.Timeout:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.error("RentCast /markets timeout zip=%s latency_ms=%s", zip_code, latency_ms)
+        return {
+            'success': False, 'data': None, 'status_code': None,
+            'latency_ms': latency_ms, 'error': 'RentCast request timed out.',
+        }
+    except requests.exceptions.ConnectionError:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.error("RentCast /markets connection error zip=%s", zip_code)
+        return {
+            'success': False, 'data': None, 'status_code': None,
+            'latency_ms': latency_ms,
+            'error': 'Could not connect to RentCast.',
+        }
+    except Exception as e:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.exception("Unexpected RentCast /markets error zip=%s: %s", zip_code, e)
+        return {
+            'success': False, 'data': None, 'status_code': status_code,
+            'latency_ms': latency_ms, 'error': f'Unexpected error: {e}',
         }

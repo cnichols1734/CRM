@@ -1696,3 +1696,61 @@ class FortBendProperty(db.Model):
 
     def __repr__(self):
         return f'<FortBendProperty {self.site_addr_1 or self.property_number}>'
+
+
+# =============================================================================
+# MARKET INSIGHTS (RentCast-backed, multi-tenant-agnostic lookup data)
+# =============================================================================
+
+class ServiceArea(db.Model):
+    """A named geographic area composed of one or more ZIP codes.
+
+    Not tenant-scoped: this is global lookup data shared across all orgs.
+    """
+    __tablename__ = 'service_areas'
+
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(100), unique=True, nullable=False, index=True)
+    display_name = db.Column(db.String(200), nullable=False)
+    zip_codes = db.Column(db.JSON, nullable=False)  # list[str]
+    sort_order = db.Column(db.Integer, nullable=False, default=0, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<ServiceArea {self.slug}>'
+
+
+class MarketDataCache(db.Model):
+    """Per-ZIP cache of the RentCast /markets payload.
+
+    Refresh is gated by an atomic claim (see services/market_insights_service.py)
+    so concurrent dashboard loads never duplicate the API call.
+    """
+    __tablename__ = 'market_data_cache'
+
+    zip_code = db.Column(db.String(10), primary_key=True)
+    payload = db.Column(db.JSON, nullable=True)
+    refreshed_at = db.Column(db.DateTime, nullable=True, index=True)
+    refresh_started_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    def __repr__(self):
+        return f'<MarketDataCache {self.zip_code} refreshed={self.refreshed_at}>'
+
+
+class RentcastApiLog(db.Model):
+    """Audit row written for every outbound RentCast call so the monthly
+    quota burn is queryable rather than buried in stdout logs."""
+    __tablename__ = 'rentcast_api_log'
+
+    id = db.Column(db.Integer, primary_key=True)
+    zip_code = db.Column(db.String(10), nullable=True, index=True)
+    endpoint = db.Column(db.String(100), nullable=False)
+    status_code = db.Column(db.Integer, nullable=True)
+    latency_ms = db.Column(db.Integer, nullable=True)
+    error = db.Column(db.Text, nullable=True)
+    called_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    def __repr__(self):
+        return f'<RentcastApiLog {self.endpoint} zip={self.zip_code} status={self.status_code}>'
