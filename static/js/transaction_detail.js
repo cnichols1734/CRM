@@ -10,13 +10,15 @@ const transactionId = TX_CONFIG.transactionId;
 // =============================================================================
 
 function switchTab(tabName) {
-    // Update tab buttons
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('tab-' + tabName).classList.add('active');
+    // Update tab buttons (crm-segment items use is-active modifier)
+    document.querySelectorAll('.crm-segment__item').forEach(btn => btn.classList.remove('is-active'));
+    const tabBtn = document.getElementById('tab-' + tabName);
+    if (tabBtn) tabBtn.classList.add('is-active');
 
-    // Update tab content
+    // Update tab content panels (still use .tab-content / .active toggled by inline CSS)
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-    document.getElementById('content-' + tabName).classList.add('active');
+    const content = document.getElementById('content-' + tabName);
+    if (content) content.classList.add('active');
 }
 
 // =============================================================================
@@ -45,15 +47,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function toggleStatusDropdown(event) {
     event.stopPropagation();
     const menu = document.getElementById('statusDropdownMenu');
-    menu.classList.toggle('show');
+    if (menu) menu.classList.toggle('hidden');
 }
 
 // Close dropdown when clicking outside
 document.addEventListener('click', function(event) {
     const dropdown = document.getElementById('statusDropdown');
     const menu = document.getElementById('statusDropdownMenu');
-    if (dropdown && !dropdown.contains(event.target)) {
-        menu.classList.remove('show');
+    if (dropdown && menu && !dropdown.contains(event.target)) {
+        menu.classList.add('hidden');
     }
 });
 
