@@ -1,331 +1,177 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import section_header, badge %}
 
 {% block title %}Edit Transaction - Origen TechnolOG{% endblock %}
 
 {% block content %}
-<style>
-    :root {
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --focus: rgba(249, 115, 22, 0.1);
-    }
+{% set us_states = [
+    ('AL', 'Alabama'), ('AK', 'Alaska'), ('AZ', 'Arizona'), ('AR', 'Arkansas'),
+    ('CA', 'California'), ('CO', 'Colorado'), ('CT', 'Connecticut'), ('DE', 'Delaware'),
+    ('FL', 'Florida'), ('GA', 'Georgia'), ('HI', 'Hawaii'), ('ID', 'Idaho'),
+    ('IL', 'Illinois'), ('IN', 'Indiana'), ('IA', 'Iowa'), ('KS', 'Kansas'),
+    ('KY', 'Kentucky'), ('LA', 'Louisiana'), ('ME', 'Maine'), ('MD', 'Maryland'),
+    ('MA', 'Massachusetts'), ('MI', 'Michigan'), ('MN', 'Minnesota'), ('MS', 'Mississippi'),
+    ('MO', 'Missouri'), ('MT', 'Montana'), ('NE', 'Nebraska'), ('NV', 'Nevada'),
+    ('NH', 'New Hampshire'), ('NJ', 'New Jersey'), ('NM', 'New Mexico'), ('NY', 'New York'),
+    ('NC', 'North Carolina'), ('ND', 'North Dakota'), ('OH', 'Ohio'), ('OK', 'Oklahoma'),
+    ('OR', 'Oregon'), ('PA', 'Pennsylvania'), ('RI', 'Rhode Island'), ('SC', 'South Carolina'),
+    ('SD', 'South Dakota'), ('TN', 'Tennessee'), ('TX', 'Texas'), ('UT', 'Utah'),
+    ('VT', 'Vermont'), ('VA', 'Virginia'), ('WA', 'Washington'), ('WV', 'West Virginia'),
+    ('WI', 'Wisconsin'), ('WY', 'Wyoming')
+] %}
+{% set status_labels = {
+    'preparing_to_list': 'Preparing to List',
+    'showing': 'Showing',
+    'active': 'Active',
+    'under_contract': 'Under Contract',
+    'closed': 'Closed',
+    'cancelled': 'Cancelled / Withdrawn'
+} %}
+{% set status_options = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled'] %}
 
-    .premium-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .section-title {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #334155;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin: 0;
-    }
-
-    .section-icon {
-        width: 1.8rem;
-        height: 1.8rem;
-        border-radius: 0.45rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        color: #64748b;
-        flex-shrink: 0;
-        font-size: 0.75rem;
-    }
-
-    .form-label {
-        display: block;
-        margin-bottom: 0.45rem;
-        color: #334155;
-        font-size: 0.8125rem;
-        font-weight: 600;
-    }
-
-    .form-label-required::after {
-        content: " *";
-        color: #ef4444;
-    }
-
-    .form-input,
-    .form-select {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        background: #ffffff;
-        color: var(--text);
-        font-size: 0.875rem;
-        padding: 0.625rem 0.85rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .form-select {
-        cursor: pointer;
-    }
-
-    .form-input:focus,
-    .form-select:focus {
-        border-color: #f97316;
-        box-shadow: 0 0 0 3px var(--focus);
-        outline: none;
-    }
-
-    .form-input:disabled {
-        background: #f8fafc;
-        color: #64748b;
-        cursor: not-allowed;
-    }
-
-    .form-helper {
-        font-size: 0.75rem;
-        color: #64748b;
-        margin-top: 0.35rem;
-    }
-
-    .btn-primary {
-        background: #f97316;
-        color: #fff;
-        font-weight: 600;
-        border-radius: 0.5rem;
-        border: 1px solid #f97316;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .btn-primary:hover {
-        background: #ea580c;
-        border-color: #ea580c;
-    }
-
-    .btn-secondary {
-        background: #f8fafc;
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-weight: 500;
-        border-radius: 0.5rem;
-        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    }
-
-    .btn-secondary:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #475569;
-    }
-</style>
-
-<div class="min-h-screen bg-slate-50">
-    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+<div class="crm-page">
+    <div class="crm-page__inner max-w-4xl">
         <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
-           class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-4">
+           class="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
             <i class="fas fa-arrow-left text-xs"></i>
-            Back to Transaction
+            Back to transaction
         </a>
 
         <div class="mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Edit Transaction</h1>
-            <p class="text-slate-500 mt-1">{{ transaction.street_address }}</p>
+            <h1 class="crm-page-title">Edit transaction</h1>
+            <p class="mt-1 text-sm text-slate-500">{{ transaction.street_address }}</p>
         </div>
 
         <form action="{{ url_for('transactions.update_transaction', id=transaction.id) }}" method="POST" class="space-y-6">
-            <div class="premium-card p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="section-icon"><i class="fas fa-home"></i></span>
-                    <div>
-                        <h2 class="section-title">Property Details</h2>
-                        <p class="text-xs text-slate-500 mt-1">Update address and location information.</p>
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    {{ section_header('Property details') }}
+                </div>
+                <div class="crm-surface-body">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="md:col-span-2">
+                            <label class="mb-2 block text-sm font-medium text-slate-700">
+                                Street address <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text"
+                                   name="street_address"
+                                   value="{{ transaction.street_address }}"
+                                   class="crm-input"
+                                   required
+                                   placeholder="123 Main Street">
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">City</label>
+                            <input type="text"
+                                   name="city"
+                                   value="{{ transaction.city or '' }}"
+                                   class="crm-input"
+                                   placeholder="Houston">
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">State</label>
+                            <select name="state" class="crm-select">
+                                {% for code, name in us_states %}
+                                <option value="{{ code }}" {% if transaction.state == code %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">ZIP code</label>
+                            <input type="text"
+                                   name="zip_code"
+                                   value="{{ transaction.zip_code or '' }}"
+                                   class="crm-input"
+                                   placeholder="77002"
+                                   maxlength="10">
+                        </div>
+
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">County</label>
+                            <input type="text"
+                                   name="county"
+                                   value="{{ transaction.county or '' }}"
+                                   class="crm-input"
+                                   placeholder="Harris">
+                        </div>
                     </div>
                 </div>
+            </section>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label class="form-label form-label-required">Street Address</label>
-                        <input type="text"
-                               name="street_address"
-                               value="{{ transaction.street_address }}"
-                               class="form-input"
-                               required
-                               placeholder="123 Main Street">
-                    </div>
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    {{ section_header('Transaction details') }}
+                </div>
+                <div class="crm-surface-body">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Transaction type</label>
+                            <div class="flex items-center gap-2">
+                                {{ badge(transaction.transaction_type.display_name, 'accent') }}
+                                <span class="text-xs text-slate-500">Cannot be changed after creation</span>
+                            </div>
+                        </div>
 
-                    <div>
-                        <label class="form-label">City</label>
-                        <input type="text"
-                               name="city"
-                               value="{{ transaction.city or '' }}"
-                               class="form-input"
-                               placeholder="Houston">
-                    </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Status</label>
+                            <select name="status" class="crm-select">
+                                {% for status in status_options %}
+                                <option value="{{ status }}" {% if transaction.status == status %}selected{% endif %}>
+                                    {{ status_labels[status] }}
+                                </option>
+                                {% endfor %}
+                                {% if transaction.status and transaction.status not in status_options %}
+                                <option value="{{ transaction.status }}" selected>
+                                    {{ transaction.status|replace('_', ' ')|title }} (Legacy)
+                                </option>
+                                {% endif %}
+                            </select>
+                        </div>
 
-                    <div>
-                        <label class="form-label">State</label>
-                        <select name="state" class="form-select">
-                            <option value="TX" {% if transaction.state == 'TX' %}selected{% endif %}>Texas</option>
-                            <option value="AL" {% if transaction.state == 'AL' %}selected{% endif %}>Alabama</option>
-                            <option value="AK" {% if transaction.state == 'AK' %}selected{% endif %}>Alaska</option>
-                            <option value="AZ" {% if transaction.state == 'AZ' %}selected{% endif %}>Arizona</option>
-                            <option value="AR" {% if transaction.state == 'AR' %}selected{% endif %}>Arkansas</option>
-                            <option value="CA" {% if transaction.state == 'CA' %}selected{% endif %}>California</option>
-                            <option value="CO" {% if transaction.state == 'CO' %}selected{% endif %}>Colorado</option>
-                            <option value="CT" {% if transaction.state == 'CT' %}selected{% endif %}>Connecticut</option>
-                            <option value="DE" {% if transaction.state == 'DE' %}selected{% endif %}>Delaware</option>
-                            <option value="FL" {% if transaction.state == 'FL' %}selected{% endif %}>Florida</option>
-                            <option value="GA" {% if transaction.state == 'GA' %}selected{% endif %}>Georgia</option>
-                            <option value="HI" {% if transaction.state == 'HI' %}selected{% endif %}>Hawaii</option>
-                            <option value="ID" {% if transaction.state == 'ID' %}selected{% endif %}>Idaho</option>
-                            <option value="IL" {% if transaction.state == 'IL' %}selected{% endif %}>Illinois</option>
-                            <option value="IN" {% if transaction.state == 'IN' %}selected{% endif %}>Indiana</option>
-                            <option value="IA" {% if transaction.state == 'IA' %}selected{% endif %}>Iowa</option>
-                            <option value="KS" {% if transaction.state == 'KS' %}selected{% endif %}>Kansas</option>
-                            <option value="KY" {% if transaction.state == 'KY' %}selected{% endif %}>Kentucky</option>
-                            <option value="LA" {% if transaction.state == 'LA' %}selected{% endif %}>Louisiana</option>
-                            <option value="ME" {% if transaction.state == 'ME' %}selected{% endif %}>Maine</option>
-                            <option value="MD" {% if transaction.state == 'MD' %}selected{% endif %}>Maryland</option>
-                            <option value="MA" {% if transaction.state == 'MA' %}selected{% endif %}>Massachusetts</option>
-                            <option value="MI" {% if transaction.state == 'MI' %}selected{% endif %}>Michigan</option>
-                            <option value="MN" {% if transaction.state == 'MN' %}selected{% endif %}>Minnesota</option>
-                            <option value="MS" {% if transaction.state == 'MS' %}selected{% endif %}>Mississippi</option>
-                            <option value="MO" {% if transaction.state == 'MO' %}selected{% endif %}>Missouri</option>
-                            <option value="MT" {% if transaction.state == 'MT' %}selected{% endif %}>Montana</option>
-                            <option value="NE" {% if transaction.state == 'NE' %}selected{% endif %}>Nebraska</option>
-                            <option value="NV" {% if transaction.state == 'NV' %}selected{% endif %}>Nevada</option>
-                            <option value="NH" {% if transaction.state == 'NH' %}selected{% endif %}>New Hampshire</option>
-                            <option value="NJ" {% if transaction.state == 'NJ' %}selected{% endif %}>New Jersey</option>
-                            <option value="NM" {% if transaction.state == 'NM' %}selected{% endif %}>New Mexico</option>
-                            <option value="NY" {% if transaction.state == 'NY' %}selected{% endif %}>New York</option>
-                            <option value="NC" {% if transaction.state == 'NC' %}selected{% endif %}>North Carolina</option>
-                            <option value="ND" {% if transaction.state == 'ND' %}selected{% endif %}>North Dakota</option>
-                            <option value="OH" {% if transaction.state == 'OH' %}selected{% endif %}>Ohio</option>
-                            <option value="OK" {% if transaction.state == 'OK' %}selected{% endif %}>Oklahoma</option>
-                            <option value="OR" {% if transaction.state == 'OR' %}selected{% endif %}>Oregon</option>
-                            <option value="PA" {% if transaction.state == 'PA' %}selected{% endif %}>Pennsylvania</option>
-                            <option value="RI" {% if transaction.state == 'RI' %}selected{% endif %}>Rhode Island</option>
-                            <option value="SC" {% if transaction.state == 'SC' %}selected{% endif %}>South Carolina</option>
-                            <option value="SD" {% if transaction.state == 'SD' %}selected{% endif %}>South Dakota</option>
-                            <option value="TN" {% if transaction.state == 'TN' %}selected{% endif %}>Tennessee</option>
-                            <option value="UT" {% if transaction.state == 'UT' %}selected{% endif %}>Utah</option>
-                            <option value="VT" {% if transaction.state == 'VT' %}selected{% endif %}>Vermont</option>
-                            <option value="VA" {% if transaction.state == 'VA' %}selected{% endif %}>Virginia</option>
-                            <option value="WA" {% if transaction.state == 'WA' %}selected{% endif %}>Washington</option>
-                            <option value="WV" {% if transaction.state == 'WV' %}selected{% endif %}>West Virginia</option>
-                            <option value="WI" {% if transaction.state == 'WI' %}selected{% endif %}>Wisconsin</option>
-                            <option value="WY" {% if transaction.state == 'WY' %}selected{% endif %}>Wyoming</option>
-                        </select>
-                    </div>
+                        {% if transaction.transaction_type.name == 'seller' %}
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Ownership status</label>
+                            <select name="ownership_status" class="crm-select">
+                                <option value="">Select...</option>
+                                <option value="conventional" {% if transaction.ownership_status == 'conventional' %}selected{% endif %}>Conventional</option>
+                                <option value="builder" {% if transaction.ownership_status == 'builder' %}selected{% endif %}>Builder</option>
+                                <option value="reo" {% if transaction.ownership_status == 'reo' %}selected{% endif %}>REO (Bank Owned)</option>
+                                <option value="short_sale" {% if transaction.ownership_status == 'short_sale' %}selected{% endif %}>Short Sale</option>
+                            </select>
+                        </div>
+                        {% endif %}
 
-                    <div>
-                        <label class="form-label">ZIP Code</label>
-                        <input type="text"
-                               name="zip_code"
-                               value="{{ transaction.zip_code or '' }}"
-                               class="form-input"
-                               placeholder="77002"
-                               maxlength="10">
-                    </div>
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Expected close date</label>
+                            <input type="date"
+                                   name="expected_close_date"
+                                   value="{{ transaction.expected_close_date.strftime('%Y-%m-%d') if transaction.expected_close_date else '' }}"
+                                   class="crm-input">
+                        </div>
 
-                    <div>
-                        <label class="form-label">County</label>
-                        <input type="text"
-                               name="county"
-                               value="{{ transaction.county or '' }}"
-                               class="form-input"
-                               placeholder="Harris">
+                        <div>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Actual close date</label>
+                            <input type="date"
+                                   name="actual_close_date"
+                                   value="{{ transaction.actual_close_date.strftime('%Y-%m-%d') if transaction.actual_close_date else '' }}"
+                                   class="crm-input">
+                            <p class="mt-1 text-xs text-slate-500">Set when the transaction officially closes.</p>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="premium-card p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="section-icon"><i class="fas fa-file-contract"></i></span>
-                    <div>
-                        <h2 class="section-title">Transaction Details</h2>
-                        <p class="text-xs text-slate-500 mt-1">Review and update transaction metadata and dates.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="form-label">Transaction Type</label>
-                        <input type="text"
-                               value="{{ transaction.transaction_type.display_name }}"
-                               class="form-input"
-                               disabled>
-                        <p class="form-helper">Transaction type cannot be changed after creation.</p>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Status</label>
-                        {% set status_labels = {
-                            'preparing_to_list': 'Preparing to List',
-                            'showing': 'Showing',
-                            'active': 'Active',
-                            'under_contract': 'Under Contract',
-                            'closed': 'Closed',
-                            'cancelled': 'Cancelled/Withdrawn'
-                        } %}
-                        {% set status_options = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled'] %}
-                        <select name="status" class="form-select">
-                            {% for status in status_options %}
-                            <option value="{{ status }}" {% if transaction.status == status %}selected{% endif %}>
-                                {{ status_labels[status] }}
-                            </option>
-                            {% endfor %}
-                            {% if transaction.status and transaction.status not in status_options %}
-                            <option value="{{ transaction.status }}" selected>
-                                {{ transaction.status|replace('_', ' ')|title }} (Legacy)
-                            </option>
-                            {% endif %}
-                        </select>
-                    </div>
-
-                    {% if transaction.transaction_type.name == 'seller' %}
-                    <div>
-                        <label class="form-label">Ownership Status</label>
-                        <select name="ownership_status" class="form-select">
-                            <option value="">Select...</option>
-                            <option value="conventional" {% if transaction.ownership_status == 'conventional' %}selected{% endif %}>Conventional</option>
-                            <option value="builder" {% if transaction.ownership_status == 'builder' %}selected{% endif %}>Builder</option>
-                            <option value="reo" {% if transaction.ownership_status == 'reo' %}selected{% endif %}>REO (Bank Owned)</option>
-                            <option value="short_sale" {% if transaction.ownership_status == 'short_sale' %}selected{% endif %}>Short Sale</option>
-                        </select>
-                    </div>
-                    {% endif %}
-
-                    <div>
-                        <label class="form-label">Expected Close Date</label>
-                        <input type="date"
-                               name="expected_close_date"
-                               value="{{ transaction.expected_close_date.strftime('%Y-%m-%d') if transaction.expected_close_date else '' }}"
-                               class="form-input">
-                    </div>
-
-                    <div>
-                        <label class="form-label">Actual Close Date</label>
-                        <input type="date"
-                               name="actual_close_date"
-                               value="{{ transaction.actual_close_date.strftime('%Y-%m-%d') if transaction.actual_close_date else '' }}"
-                               class="form-input">
-                        <p class="form-helper">Set when the transaction officially closes.</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row gap-3 justify-end">
+            <div class="flex flex-col justify-end gap-3 sm:flex-row">
                 <a href="{{ url_for('transactions.view_transaction', id=transaction.id) }}"
-                   class="btn-secondary px-6 py-2.5 text-sm text-center">
+                   class="crm-btn crm-btn-secondary justify-center">
                     Cancel
                 </a>
-                <button type="submit"
-                        class="btn-primary px-6 py-2.5 text-sm inline-flex items-center justify-center gap-2">
+                <button type="submit" class="crm-btn crm-btn-primary justify-center">
                     <i class="fas fa-save text-xs"></i>
-                    Save Changes
+                    Save changes
                 </button>
             </div>
         </form>

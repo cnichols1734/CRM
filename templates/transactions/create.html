@@ -1,425 +1,163 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import section_header %}
 
 {% block title %}New Transaction - Origen TechnolOG{% endblock %}
 
 {% block content %}
 <style>
-    :root {
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --focus: rgba(249, 115, 22, 0.1);
-    }
-
-    .premium-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        box-shadow: var(--shadow-sm);
-        position: relative;
-    }
-
-    #contactSection {
-        z-index: 20;
-    }
-
-    .step-pill {
-        width: 1.8rem;
-        height: 1.8rem;
-        border-radius: 0.45rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #f8fafc;
-        border: 1px solid #cbd5e1;
-        color: #475569;
-        font-size: 0.75rem;
-        font-weight: 700;
-        flex-shrink: 0;
-    }
-
-    .section-title {
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #334155;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        margin: 0;
-    }
-
-    .form-label {
-        display: block;
-        margin-bottom: 0.45rem;
-        color: #334155;
-        font-size: 0.8125rem;
-        font-weight: 600;
-    }
-
-    .form-input,
-    .form-select {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        background: #ffffff;
-        color: var(--text);
-        font-size: 0.875rem;
-        padding: 0.625rem 0.85rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .form-input::placeholder {
-        color: #94a3b8;
-    }
-
-    .form-input:focus,
-    .form-select:focus {
-        border-color: #f97316;
-        box-shadow: 0 0 0 3px var(--focus);
-        outline: none;
-    }
-
-    .search-results {
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 0.625rem;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
-        overflow: hidden;
-        z-index: 1000;
-    }
-
-    .search-result-item {
-        padding: 0.75rem 0.9rem;
-        border-bottom: 1px solid #f1f5f9;
-        cursor: pointer;
-        transition: background-color 0.15s ease;
-    }
-
-    .search-result-item:last-child {
-        border-bottom: none;
-    }
-
-    .search-result-item:hover {
-        background: #fafafa;
-    }
-
-    .contact-chip {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 0.9rem;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.625rem;
-    }
-
-    .contact-avatar {
-        width: 2.25rem;
-        height: 2.25rem;
-        border-radius: 9999px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid #cbd5e1;
-        background: #f8fafc;
-        color: #475569;
-        font-size: 0.75rem;
-        font-weight: 700;
-    }
-
-    .type-card,
-    .ownership-card {
-        border: 1px solid var(--border);
-        border-radius: 0.625rem;
-        background: #fff;
-        transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .type-card:hover,
-    .ownership-card:hover {
-        border-color: #cbd5e1;
-        background: #fafafa;
-    }
-
-    .type-card.selected,
-    .ownership-card.selected {
+    .tx-create-card.selected {
         border-color: #f97316;
         background: #fff7ed;
-        box-shadow: 0 0 0 3px var(--focus);
-    }
-
-    .type-icon {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 0.5rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 0.6rem;
-        font-size: 0.875rem;
-        color: #fff;
-    }
-
-    .type-seller .type-icon { background: #f97316; }
-    .type-buyer .type-icon { background: #8b5cf6; }
-    .type-landlord .type-icon { background: #06b6d4; }
-    .type-tenant .type-icon { background: #10b981; }
-    .type-default .type-icon { background: #6366f1; }
-
-    .ownership-icon {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 0.5rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 0.6rem;
-        background: #f1f5f9;
-        color: #64748b;
-        font-size: 0.875rem;
-    }
-
-    .btn-primary {
-        background: #f97316;
-        color: #fff;
-        font-weight: 600;
-        border-radius: 0.5rem;
-        border: 1px solid #f97316;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .btn-primary:hover {
-        background: #ea580c;
-        border-color: #ea580c;
-    }
-
-    .btn-secondary {
-        background: #f8fafc;
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-weight: 500;
-        border-radius: 0.5rem;
-        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    }
-
-    .btn-secondary:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #475569;
-    }
-
-    .icon-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 0.4rem;
-        border: 1px solid transparent;
-        color: #94a3b8;
-        transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-    }
-
-    .icon-btn:hover {
-        color: #dc2626;
-        border-color: #fecaca;
-        background: #fef2f2;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
     }
 </style>
-
-<div class="min-h-screen bg-slate-50">
-    <div class="p-4 md:p-6 max-w-4xl mx-auto">
+<div class="crm-page">
+    <div class="crm-page__inner max-w-4xl">
         <a href="{{ url_for('transactions.list_transactions') }}"
-           class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-4">
+           class="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
             <i class="fas fa-arrow-left text-xs"></i>
-            Back to Transactions
+            Back to transactions
         </a>
 
         <div class="mb-6">
-            <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Create New Transaction</h1>
-            <p class="text-slate-500 mt-1">Set up a new real estate transaction.</p>
+            <h1 class="crm-page-title">Create new transaction</h1>
+            <p class="crm-page-description">Set up a new real estate transaction.</p>
         </div>
 
         <form method="POST" action="{{ url_for('transactions.create_transaction') }}" class="space-y-6">
-            <div id="contactSection" class="premium-card p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="step-pill">1</span>
-                    <div>
-                        <h2 class="section-title">Select Client(s)</h2>
-                        <p class="text-xs text-slate-500 mt-1">Search and add at least one contact to this transaction.</p>
-                    </div>
+            <section id="contactSection" class="crm-surface relative z-20">
+                <div class="crm-surface-header">
+                    {{ section_header('Select clients') }}
                 </div>
-
-                <div class="mb-4 relative">
-                    <label class="form-label">Search Contacts</label>
-                    <div class="relative">
-                        <input type="text"
-                               id="contactSearch"
-                               placeholder="Type to search contacts..."
-                               class="form-input"
-                               style="padding-left: 2.3rem;"
-                               autocomplete="off">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    </div>
-                    <div id="contactSearchResults" class="search-results mt-2 hidden max-h-56 overflow-y-auto absolute left-0 right-0"></div>
-                </div>
-
-                <div id="selectedContacts" class="space-y-2">
-                    <p class="text-sm text-slate-500 flex items-center gap-2" id="noContactsMessage">
-                        <i class="fas fa-info-circle text-slate-400"></i>
-                        No contacts selected yet.
-                    </p>
-                </div>
-            </div>
-
-            <div class="premium-card p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="step-pill">2</span>
-                    <div>
-                        <h2 class="section-title">Transaction Type</h2>
-                        <p class="text-xs text-slate-500 mt-1">Choose the workflow this transaction should follow.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {% for tt in transaction_types %}
-                    <label class="cursor-pointer">
-                        <input type="radio"
-                               name="transaction_type_id"
-                               value="{{ tt.id }}"
-                               data-type-name="{{ tt.name }}"
-                               class="hidden"
-                               required>
-                        <div class="type-card p-4 text-center
-                                    {% if tt.name == 'seller' %}type-seller
-                                    {% elif tt.name == 'buyer' %}type-buyer
-                                    {% elif tt.name == 'landlord' %}type-landlord
-                                    {% elif tt.name == 'tenant' %}type-tenant
-                                    {% else %}type-default{% endif %}">
-                            <span class="type-icon">
-                                {% if tt.name == 'seller' %}
-                                <i class="fas fa-home"></i>
-                                {% elif tt.name == 'buyer' %}
-                                <i class="fas fa-key"></i>
-                                {% elif tt.name == 'landlord' %}
-                                <i class="fas fa-building"></i>
-                                {% elif tt.name == 'tenant' %}
-                                <i class="fas fa-file-signature"></i>
-                                {% else %}
-                                <i class="fas fa-handshake"></i>
-                                {% endif %}
-                            </span>
-                            <div class="font-semibold text-slate-800 text-sm">{{ tt.display_name }}</div>
-                        </div>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="premium-card p-5 md:p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="step-pill">3</span>
-                    <div>
-                        <h2 class="section-title">Property Address</h2>
-                        <p class="text-xs text-slate-500 mt-1">Enter the property details for this transaction.</p>
-                    </div>
-                </div>
-
-                <div class="space-y-4">
-                    <div>
-                        <label class="form-label">Street Address <span class="text-red-500">*</span></label>
-                        <input type="text"
-                               name="street_address"
-                               required
-                               class="form-input"
-                               placeholder="123 Main St">
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <div class="sm:col-span-2">
-                            <label class="form-label">City</label>
+                <div class="crm-surface-body">
+                    <div class="relative mb-4">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Search contacts</label>
+                        <div class="relative">
                             <input type="text"
-                                   name="city"
-                                   class="form-input"
-                                   placeholder="Austin">
+                                   id="contactSearch"
+                                   placeholder="Type to search contacts..."
+                                   class="crm-input pl-9"
+                                   autocomplete="off">
+                            <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
                         </div>
+                        <div id="contactSearchResults"
+                             class="absolute left-0 right-0 z-40 mt-2 hidden max-h-56 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"></div>
+                    </div>
+
+                    <div id="selectedContacts" class="space-y-2">
+                        <p id="noContactsMessage" class="flex items-center gap-2 text-sm text-slate-500">
+                            <i class="fas fa-info-circle text-slate-400"></i>
+                            No contacts selected yet.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    {{ section_header('Transaction type') }}
+                </div>
+                <div class="crm-surface-body">
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {% for tt in transaction_types %}
+                        <label class="cursor-pointer">
+                            <input type="radio"
+                                   name="transaction_type_id"
+                                   value="{{ tt.id }}"
+                                   data-type-name="{{ tt.name }}"
+                                   class="sr-only"
+                                   required>
+                            <div class="type-card tx-create-card flex flex-col items-center gap-2 rounded-md border border-slate-200 bg-white p-4 text-center transition-colors hover:border-slate-300 hover:bg-slate-50">
+                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-sm text-slate-600">
+                                    {% if tt.name == 'seller' %}
+                                    <i class="fas fa-home"></i>
+                                    {% elif tt.name == 'buyer' %}
+                                    <i class="fas fa-key"></i>
+                                    {% elif tt.name == 'landlord' %}
+                                    <i class="fas fa-building"></i>
+                                    {% elif tt.name == 'tenant' %}
+                                    <i class="fas fa-file-signature"></i>
+                                    {% else %}
+                                    <i class="fas fa-handshake"></i>
+                                    {% endif %}
+                                </span>
+                                <div class="text-sm font-semibold text-slate-900">{{ tt.display_name }}</div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </section>
+
+            <section class="crm-surface">
+                <div class="crm-surface-header">
+                    {{ section_header('Property address') }}
+                </div>
+                <div class="crm-surface-body">
+                    <div class="space-y-4">
                         <div>
-                            <label class="form-label">State</label>
-                            <input type="text"
-                                   name="state"
-                                   value="TX"
-                                   class="form-input">
+                            <label class="mb-2 block text-sm font-medium text-slate-700">
+                                Street address <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" name="street_address" required class="crm-input" placeholder="123 Main St">
                         </div>
+
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
+                            <div class="sm:col-span-2">
+                                <label class="mb-2 block text-sm font-medium text-slate-700">City</label>
+                                <input type="text" name="city" class="crm-input" placeholder="Austin">
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-slate-700">State</label>
+                                <input type="text" name="state" value="TX" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="mb-2 block text-sm font-medium text-slate-700">ZIP</label>
+                                <input type="text" name="zip_code" class="crm-input" placeholder="78701">
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="form-label">ZIP</label>
-                            <input type="text"
-                                   name="zip_code"
-                                   class="form-input"
-                                   placeholder="78701">
+                            <label class="mb-2 block text-sm font-medium text-slate-700">County</label>
+                            <input type="text" name="county" class="crm-input" placeholder="Travis">
                         </div>
                     </div>
+                </div>
+            </section>
 
-                    <div>
-                        <label class="form-label">County</label>
-                        <input type="text"
-                               name="county"
-                               class="form-input"
-                               placeholder="Travis">
+            <section id="ownershipSection" class="crm-surface hidden">
+                <div class="crm-surface-header">
+                    {{ section_header('Ownership status') }}
+                </div>
+                <div class="crm-surface-body">
+                    <div class="grid grid-cols-2 gap-3">
+                        {% for opt in [
+                            {'value': 'conventional', 'label': 'Conventional / Resale', 'icon': 'fa-home'},
+                            {'value': 'builder', 'label': 'Builder / New construction', 'icon': 'fa-hard-hat'},
+                            {'value': 'reo', 'label': 'REO / Foreclosure', 'icon': 'fa-bank'},
+                            {'value': 'short_sale', 'label': 'Short sale', 'icon': 'fa-hand-holding-usd'}
+                        ] %}
+                        <label class="cursor-pointer">
+                            <input type="radio" name="ownership_status" value="{{ opt.value }}" class="sr-only">
+                            <div class="ownership-card tx-create-card flex flex-col items-center gap-2 rounded-md border border-slate-200 bg-white p-4 text-center transition-colors hover:border-slate-300 hover:bg-slate-50">
+                                <span class="inline-flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-sm text-slate-600">
+                                    <i class="fas {{ opt.icon }}"></i>
+                                </span>
+                                <div class="text-sm font-semibold text-slate-900">{{ opt.label }}</div>
+                            </div>
+                        </label>
+                        {% endfor %}
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div id="ownershipSection" class="premium-card p-5 md:p-6 hidden">
-                <div class="flex items-center gap-3 mb-5">
-                    <span class="step-pill">4</span>
-                    <div>
-                        <h2 class="section-title">Ownership Status</h2>
-                        <p class="text-xs text-slate-500 mt-1">Optional for seller transactions.</p>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="cursor-pointer">
-                        <input type="radio" name="ownership_status" value="conventional" class="hidden">
-                        <div class="ownership-card p-4 text-center">
-                            <span class="ownership-icon"><i class="fas fa-home"></i></span>
-                            <div class="font-semibold text-slate-800 text-sm">Conventional / Resale</div>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="ownership_status" value="builder" class="hidden">
-                        <div class="ownership-card p-4 text-center">
-                            <span class="ownership-icon"><i class="fas fa-hard-hat"></i></span>
-                            <div class="font-semibold text-slate-800 text-sm">Builder / New Construction</div>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="ownership_status" value="reo" class="hidden">
-                        <div class="ownership-card p-4 text-center">
-                            <span class="ownership-icon"><i class="fas fa-bank"></i></span>
-                            <div class="font-semibold text-slate-800 text-sm">REO / Foreclosure</div>
-                        </div>
-                    </label>
-                    <label class="cursor-pointer">
-                        <input type="radio" name="ownership_status" value="short_sale" class="hidden">
-                        <div class="ownership-card p-4 text-center">
-                            <span class="ownership-icon"><i class="fas fa-hand-holding-usd"></i></span>
-                            <div class="font-semibold text-slate-800 text-sm">Short Sale</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <div class="flex flex-col sm:flex-row justify-end gap-3">
-                <a href="{{ url_for('transactions.list_transactions') }}"
-                   class="btn-secondary px-6 py-2.5 text-sm text-center">
+            <div class="flex flex-col justify-end gap-3 sm:flex-row">
+                <a href="{{ url_for('transactions.list_transactions') }}" class="crm-btn crm-btn-secondary justify-center">
                     Cancel
                 </a>
-                <button type="submit"
-                        class="btn-primary px-6 py-2.5 text-sm inline-flex items-center justify-center gap-2">
+                <button type="submit" class="crm-btn crm-btn-primary justify-center">
                     <i class="fas fa-plus text-xs"></i>
-                    Create Transaction
+                    Create transaction
                 </button>
             </div>
         </form>
@@ -463,17 +201,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(res => res.json())
                 .then(contacts => {
                     if (contacts.length === 0) {
-                        searchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">No contacts found</div>';
+                        searchResults.innerHTML = '<div class="p-4 text-center text-sm text-slate-500">No contacts found</div>';
                     } else {
                         const filtered = contacts.filter(c => !selectedContactIds.has(c.id));
                         if (filtered.length === 0) {
-                            searchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">All matching contacts already selected</div>';
+                            searchResults.innerHTML = '<div class="p-4 text-center text-sm text-slate-500">All matching contacts already selected</div>';
                         } else {
                             searchResults.innerHTML = filtered.map(c => {
                                 const payload = encodeURIComponent(JSON.stringify(c));
                                 return `
-                                    <div class="search-result-item" data-contact="${payload}">
-                                        <div class="font-medium text-slate-800">${c.name}</div>
+                                    <div class="search-result-item cursor-pointer border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-slate-50" data-contact="${payload}">
+                                        <div class="font-medium text-slate-900">${c.name}</div>
                                         <div class="text-sm text-slate-500">${c.email || 'No email'}</div>
                                     </div>
                                 `;
@@ -507,20 +245,20 @@ document.addEventListener('DOMContentLoaded', function() {
         selectedContactIds.add(contact.id);
         noContactsMessage.classList.add('hidden');
 
-        const contactMeta = [contact.email, contact.phone].filter(Boolean).join(' · ');
+        const contactMeta = [contact.email, contact.phone].filter(Boolean).join(' \u00b7 ');
         const contactEl = document.createElement('div');
-        contactEl.className = 'contact-chip';
+        contactEl.className = 'flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white px-4 py-3';
         contactEl.dataset.contactId = contact.id;
         contactEl.innerHTML = `
             <input type="hidden" name="contact_ids" value="${contact.id}">
-            <div class="flex items-center gap-3 min-w-0">
-                <span class="contact-avatar">${getInitials(contact.name)}</span>
+            <div class="flex min-w-0 items-center gap-3">
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">${getInitials(contact.name)}</span>
                 <div class="min-w-0">
-                    <div class="font-medium text-slate-800 truncate">${contact.name || ''}</div>
-                    <div class="text-sm text-slate-500 truncate">${contactMeta || 'No email or phone'}</div>
+                    <div class="truncate text-sm font-medium text-slate-900">${contact.name || ''}</div>
+                    <div class="truncate text-xs text-slate-500">${contactMeta || 'No email or phone'}</div>
                 </div>
             </div>
-            <button type="button" class="icon-btn remove-contact" aria-label="Remove contact">
+            <button type="button" class="remove-contact inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600" aria-label="Remove contact">
                 <i class="fas fa-times text-xs"></i>
             </button>
         `;
