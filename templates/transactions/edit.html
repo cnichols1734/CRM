@@ -45,7 +45,7 @@
         <form action="{{ url_for('transactions.update_transaction', id=transaction.id) }}" method="POST" class="space-y-6">
             <section class="crm-surface">
                 <div class="crm-surface-header">
-                    {{ section_header('Property details', 'Update address and location information.') }}
+                    {{ section_header('Property details') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -103,7 +103,7 @@
 
             <section class="crm-surface">
                 <div class="crm-surface-header">
-                    {{ section_header('Transaction details', 'Review and update transaction metadata and dates.') }}
+                    {{ section_header('Transaction details') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2">

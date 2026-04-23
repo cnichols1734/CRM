@@ -27,7 +27,7 @@
         <form method="POST" action="{{ url_for('transactions.create_transaction') }}" class="space-y-6">
             <section id="contactSection" class="crm-surface relative z-20">
                 <div class="crm-surface-header">
-                    {{ section_header('Select clients', 'Search and add at least one contact to this transaction.') }}
+                    {{ section_header('Select clients') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="relative mb-4">
@@ -55,7 +55,7 @@
 
             <section class="crm-surface">
                 <div class="crm-surface-header">
-                    {{ section_header('Transaction type', 'Choose the workflow this transaction should follow.') }}
+                    {{ section_header('Transaction type') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -91,7 +91,7 @@
 
             <section class="crm-surface">
                 <div class="crm-surface-header">
-                    {{ section_header('Property address', 'Enter the property details for this transaction.') }}
+                    {{ section_header('Property address') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="space-y-4">
@@ -127,7 +127,7 @@
 
             <section id="ownershipSection" class="crm-surface hidden">
                 <div class="crm-surface-header">
-                    {{ section_header('Ownership status', 'Optional for seller transactions.') }}
+                    {{ section_header('Ownership status') }}
                 </div>
                 <div class="crm-surface-body">
                     <div class="grid grid-cols-2 gap-3">
