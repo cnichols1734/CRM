@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import avatar, badge, empty_state, section_header %}
 
 {% block content %}
 <style>
@@ -11,725 +12,607 @@
     .email-body-content em, .email-body-content i { font-style: italic; }
     .email-body-content a { color: #2563eb; text-decoration: underline; }
     .email-body-content blockquote { border-left: 3px solid #e2e8f0; padding-left: 1rem; margin: 0.5rem 0; color: #64748b; }
-
-    /* Input styling */
-    .premium-input {
-        display: block;
-        width: 100%;
-        padding: 0.625rem 0.875rem;
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem;
-        background-color: #fff;
-        font-size: 0.9375rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    .premium-input:hover { border-color: #cbd5e1; }
-    .premium-input:focus { outline: none; border-color: #f97316; box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.08); }
-    .premium-input::placeholder { color: #94a3b8; }
-    textarea.premium-input { min-height: 80px; resize: vertical; }
-
-    /* Detail grid styling */
-    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
-    .detail-cell { padding: 0.625rem 0; border-bottom: 1px solid #f1f5f9; }
-    .detail-cell:nth-last-child(-n+2) { border-bottom: none; }
-    .detail-cell:nth-child(odd) { padding-right: 1.5rem; }
-    .detail-cell:nth-child(even) { padding-left: 1.5rem; border-left: 1px solid #f1f5f9; }
-    .detail-label { color: #64748b; font-size: 0.75rem; font-weight: 500; margin-bottom: 0.125rem; }
-    .detail-value { color: #1e293b; font-size: 0.875rem; font-weight: 500; }
-    @media (max-width: 640px) {
-        .detail-grid { grid-template-columns: 1fr; }
-        .detail-cell:nth-child(even) { padding-left: 0; border-left: none; }
-        .detail-cell:nth-child(odd) { padding-right: 0; }
-        .detail-cell:nth-last-child(1) { border-bottom: none; }
-        .detail-cell:nth-last-child(2) { border-bottom: 1px solid #f1f5f9; }
-    }
-
-    /* Section divider */
-    .section-title {
-        font-size: 0.6875rem;
-        font-weight: 600;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        padding-bottom: 0.75rem;
-        margin-bottom: 0;
-    }
-
-    /* Quick action buttons in header */
-    .quick-action-btn {
-        display: inline-flex; align-items: center; gap: 0.375rem;
-        padding: 0.375rem 0.75rem; border-radius: 0.375rem;
-        font-size: 0.8125rem; font-weight: 500; color: #475569;
-        background: #f8fafc; border: 1px solid #e2e8f0;
-        transition: all 0.15s ease;
-    }
-    .quick-action-btn:hover { background: #f1f5f9; border-color: #cbd5e1; color: #1e293b; }
-    .quick-action-btn i { font-size: 0.75rem; color: #94a3b8; }
-    .quick-action-btn:hover i { color: #64748b; }
 </style>
 
-<!-- Page wrapper -->
-<div class="min-h-screen bg-slate-50">
-    <!-- Sticky nav bar -->
-    <div class="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="h-12 flex items-center justify-between">
-                <a href="{{ url_for('main.contacts') }}"
-                    class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors">
-                    <i class="fas fa-arrow-left text-xs"></i>
-                    <span>Contacts</span>
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1440px]">
+        <div class="mb-4 flex items-center justify-between gap-3">
+            <a href="{{ url_for('main.contacts') }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Contacts
+            </a>
+            <div class="flex items-center gap-2">
+                {% if prev_contact %}
+                <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}"
+                   class="hidden md:inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                    <i class="fas fa-arrow-left text-xs text-slate-400"></i>
+                    <span class="truncate max-w-[140px]">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
                 </a>
-                <div class="flex items-center gap-2">
-                    <!-- Previous/Next Navigation -->
-                    {% if prev_contact %}
-                    <a href="{{ url_for('contacts.view_contact', contact_id=prev_contact.id) }}"
-                        class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
-                        <i class="fas fa-arrow-left text-xs text-slate-400"></i>
-                        <span class="truncate max-w-[120px]">{{ prev_contact.first_name }} {{ prev_contact.last_name }}</span>
-                    </a>
-                    {% endif %}
-                    {% if next_contact %}
-                    <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}"
-                        class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-md transition-colors">
-                        <span class="truncate max-w-[120px]">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
-                        <i class="fas fa-arrow-right text-xs text-slate-400"></i>
-                    </a>
-                    {% endif %}
+                {% endif %}
+                {% if next_contact %}
+                <a href="{{ url_for('contacts.view_contact', contact_id=next_contact.id) }}"
+                   class="hidden md:inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                    <span class="truncate max-w-[140px]">{{ next_contact.first_name }} {{ next_contact.last_name }}</span>
+                    <i class="fas fa-arrow-right text-xs text-slate-400"></i>
+                </a>
+                {% endif %}
 
-                    {% if prev_contact or next_contact %}
-                    <div class="w-px h-5 bg-slate-200 hidden md:block"></div>
-                    {% endif %}
+                {% if prev_contact or next_contact %}
+                <div class="hidden md:block h-5 w-px bg-slate-200"></div>
+                {% endif %}
 
-                    <!-- Edit/Save/Cancel Buttons -->
-                    <button id="editButton" onclick="toggleEditMode()"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors">
-                        <i class="fas fa-pencil-alt text-xs"></i>
-                        Edit
-                    </button>
-                    <button id="saveButton" onclick="saveContact()"
-                        class="hidden inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-md text-sm font-medium hover:bg-emerald-600 transition-colors">
-                        <i class="fas fa-check text-xs"></i>
-                        Save
-                    </button>
-                    <button id="cancelButton" onclick="cancelEdit()"
-                        class="hidden inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-md transition-colors">
-                        Cancel
-                    </button>
-                </div>
+                <button id="editButton" onclick="toggleEditMode()" type="button"
+                        class="crm-btn crm-btn-primary">
+                    <i class="fas fa-pencil-alt text-xs"></i>
+                    Edit
+                </button>
+                <button id="saveButton" onclick="saveContact()" type="button"
+                        class="crm-btn crm-btn-primary hidden">
+                    <i class="fas fa-check text-xs"></i>
+                    Save
+                </button>
+                <button id="cancelButton" onclick="cancelEdit()" type="button"
+                        class="crm-btn crm-btn-secondary hidden">
+                    Cancel
+                </button>
             </div>
         </div>
-    </div>
 
-    <div class="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div class="flex flex-col lg:flex-row gap-6">
-            <!-- Main Content -->
-            <div class="flex-1 min-w-0">
-                <!-- Contact Header Card -->
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-5">
-                    <div class="flex items-start gap-4">
-                        {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                        {% set avatar_colors = {
-                            'A': 'bg-blue-500', 'B': 'bg-rose-500', 'C': 'bg-green-500',
-                            'D': 'bg-amber-500', 'E': 'bg-purple-500', 'F': 'bg-pink-500',
-                            'G': 'bg-indigo-500', 'H': 'bg-teal-500', 'I': 'bg-orange-500',
-                            'J': 'bg-cyan-500', 'K': 'bg-lime-600', 'L': 'bg-emerald-500',
-                            'M': 'bg-violet-500', 'N': 'bg-fuchsia-500', 'O': 'bg-sky-500',
-                            'P': 'bg-red-500', 'Q': 'bg-yellow-500', 'R': 'bg-slate-500',
-                            'S': 'bg-stone-500', 'T': 'bg-zinc-500', 'U': 'bg-blue-600',
-                            'V': 'bg-rose-600', 'W': 'bg-emerald-600', 'X': 'bg-amber-600',
-                            'Y': 'bg-sky-600', 'Z': 'bg-slate-600'
-                        } %}
-                        <div class="w-14 h-14 rounded-full flex items-center justify-center text-lg font-semibold text-white flex-shrink-0 {{ avatar_colors[initials[0]] or 'bg-slate-500' }}">
-                            {{ contact.first_name[0] }}{{ contact.last_name[0] }}
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div id="viewContactName" class="text-xl font-bold text-slate-900">
-                                {{ contact.first_name }} {{ contact.last_name }}
-                            </div>
-                            <div id="editContactName" class="hidden flex gap-2 mb-2">
-                                <input type="text" name="first_name" value="{{ contact.first_name }}"
-                                    class="premium-input text-lg font-semibold max-w-[200px]"
-                                    placeholder="First Name">
-                                <input type="text" name="last_name" value="{{ contact.last_name }}"
-                                    class="premium-input text-lg font-semibold max-w-[200px]"
-                                    placeholder="Last Name">
-                            </div>
-                            <!-- Contact info line -->
-                            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-slate-500">
-                                {% if contact.email %}
-                                <a href="mailto:{{ contact.email }}" class="hover:text-slate-700 transition-colors">
-                                    <i class="fas fa-envelope text-xs mr-1 text-slate-400"></i>{{ contact.email }}
-                                </a>
+        <div class="flex flex-col gap-6 lg:flex-row">
+            <div class="flex-1 min-w-0 space-y-5">
+                <section class="crm-surface">
+                    <div class="crm-surface-body">
+                        <div class="flex items-start gap-4">
+                            {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
+                            {{ avatar(initials, 'lg') }}
+                            <div class="flex-1 min-w-0">
+                                <div id="viewContactName" class="text-xl font-semibold tracking-tight text-slate-900">
+                                    {{ contact.first_name }} {{ contact.last_name }}
+                                </div>
+                                <div id="editContactName" class="hidden flex gap-2 mb-2">
+                                    <input type="text" name="first_name" value="{{ contact.first_name }}"
+                                           class="crm-input max-w-[200px] text-lg font-semibold"
+                                           placeholder="First name">
+                                    <input type="text" name="last_name" value="{{ contact.last_name }}"
+                                           class="crm-input max-w-[200px] text-lg font-semibold"
+                                           placeholder="Last name">
+                                </div>
+                                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
+                                    {% if contact.email %}
+                                    <a href="mailto:{{ contact.email }}" class="hover:text-slate-900">
+                                        <i class="fas fa-envelope mr-1 text-xs text-slate-400"></i>{{ contact.email }}
+                                    </a>
+                                    {% endif %}
+                                    {% if contact.email and contact.phone %}
+                                    <span class="text-slate-300">&middot;</span>
+                                    {% endif %}
+                                    {% if contact.phone %}
+                                    <a href="tel:{{ contact.phone }}" class="hover:text-slate-900">
+                                        <i class="fas fa-phone mr-1 text-xs text-slate-400"></i>{{ contact.phone }}
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% if current_user.role == 'admin' %}
+                                <div class="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                                    <span class="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[9px] font-semibold text-slate-600">
+                                        {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
+                                    </span>
+                                    <span>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</span>
+                                </div>
                                 {% endif %}
-                                {% if contact.email and contact.phone %}
-                                <span class="text-slate-300">&middot;</span>
-                                {% endif %}
-                                {% if contact.phone %}
-                                <a href="tel:{{ contact.phone }}" class="hover:text-slate-700 transition-colors">
-                                    <i class="fas fa-phone text-xs mr-1 text-slate-400"></i>{{ contact.phone }}
-                                </a>
-                                {% endif %}
-                            </div>
-                            {% if current_user.role == 'admin' %}
-                            <div class="flex items-center gap-1.5 mt-1.5 text-xs text-slate-400">
-                                <div class="w-4 h-4 rounded-full bg-slate-200 flex items-center justify-center text-[9px] font-medium text-slate-500">
-                                    {{ contact.owner.first_name[0] }}{{ contact.owner.last_name[0] }}
-                                </div>
-                                <span>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</span>
-                            </div>
-                            {% endif %}
-                            {% if contact.groups %}
-                            <div class="flex flex-wrap gap-1.5 mt-2.5">
-                                {% for group in contact.groups %}
-                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-100">
-                                    {{ group.name }}
-                                </span>
-                                {% endfor %}
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <!-- Quick Actions Row -->
-                    <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-                        {% if contact.phone %}
-                        <a href="tel:{{ contact.phone }}" class="quick-action-btn">
-                            <i class="fas fa-phone"></i><span>Call</span>
-                        </a>
-                        {% endif %}
-                        {% if contact.email %}
-                        <button type="button" onclick="openEmailToContact()" class="quick-action-btn">
-                            <i class="fas fa-envelope"></i><span>Email</span>
-                        </button>
-                        {% endif %}
-                        {% if contact.phone %}
-                        <a href="sms:{{ contact.phone }}" class="quick-action-btn">
-                            <i class="fas fa-comment"></i><span>Text</span>
-                        </a>
-                        {% endif %}
-                        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}" class="quick-action-btn">
-                            <i class="fas fa-plus"></i><span>New Task</span>
-                        </a>
-                        <button onclick="showVoiceMemoModal()" class="quick-action-btn">
-                            <i class="fas fa-microphone"></i><span>Voice Memo</span>
-                        </button>
-                        <button onclick="showLogActivityModal()" class="quick-action-btn">
-                            <i class="fas fa-clipboard-list"></i><span>Log Activity</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Contact Information Card -->
-                <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <!-- Edit Form (Hidden by default) -->
-                    <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST"
-                        id="editContactForm" class="hidden">
-                        <div class="divide-y divide-slate-100">
-                            <!-- Basic Information Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Basic Information</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Email</label>
-                                        <input type="email" name="email" value="{{ contact.email }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Phone</label>
-                                        <input type="tel" name="phone" value="{{ contact.phone }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Potential Commission ($)</label>
-                                        <input type="number" name="potential_commission" value="{{ contact.potential_commission }}" step="0.01" min="0" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Created</label>
-                                        <p class="px-3 py-2 text-slate-500 bg-slate-50 rounded-md text-sm">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Contact Dates Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Last Contact Dates</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Email</label>
-                                        <input type="date" name="last_email_date" value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Text</label>
-                                        <input type="date" name="last_text_date" value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Phone Call</label>
-                                        <input type="date" name="last_phone_call_date" value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Last Contact</label>
-                                        <p class="px-3 py-2 text-slate-500 bg-slate-50 rounded-md text-sm">{{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Address Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Address</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Street Address</label>
-                                        <input type="text" name="street_address" value="{{ contact.street_address }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">City</label>
-                                        <input type="text" name="city" value="{{ contact.city }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">State</label>
-                                        <input type="text" name="state" value="{{ contact.state }}" class="premium-input">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">ZIP Code</label>
-                                        <input type="text" name="zip_code" value="{{ contact.zip_code }}" class="premium-input">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Groups Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Groups</h3>
-                                {% set contact_group_ids = contact.groups | map(attribute='id') | list %}
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="editGroupsGrid">
-                                    {% for group in all_groups %}
-                                    {% set is_member = group.id in contact_group_ids %}
-                                    <label class="group-edit-label relative flex items-center px-3 py-2.5 rounded-lg text-sm cursor-pointer transition-all duration-150"
-                                           data-originally-selected="{{ 'true' if is_member else 'false' }}">
-                                        <input type="checkbox" name="group_ids" value="{{ group.id }}"
-                                            {% if is_member %}checked{% endif %}
-                                            class="h-3.5 w-3.5 mr-2.5 rounded border-slate-300 text-orange-500 accent-orange-500 focus:ring-orange-400">
-                                        <span class="font-medium">{{ group.name }}</span>
-                                    </label>
+                                {% if contact.groups %}
+                                <div class="mt-3 flex flex-wrap gap-1.5">
+                                    {% for group in contact.groups %}
+                                    {{ badge(group.name, 'accent') }}
                                     {% endfor %}
                                 </div>
-                                <script>
-                                    // Dynamic group label styling based on checkbox state + original state
-                                    document.addEventListener('DOMContentLoaded', function() {
-                                        function updateGroupLabels() {
-                                            document.querySelectorAll('.group-edit-label').forEach(function(label) {
-                                                var cb = label.querySelector('input[type="checkbox"]');
-                                                var wasSelected = label.dataset.originallySelected === 'true';
-                                                var isChecked = cb.checked;
-
-                                                // Reset inline styles and classes
-                                                label.style.border = '';
-                                                label.style.background = '';
-                                                label.classList.remove(
-                                                    'bg-orange-50', 'text-orange-700',
-                                                    'bg-white', 'text-slate-600', 'text-orange-400'
-                                                );
-
-                                                if (isChecked) {
-                                                    // Currently selected: solid orange
-                                                    label.style.border = '1px solid #fb923c';
-                                                    label.classList.add('bg-orange-50', 'text-orange-700');
-                                                } else if (wasSelected && !isChecked) {
-                                                    // Was selected, now deselected: dashed orange border
-                                                    label.style.border = '2px dashed #fdba74';
-                                                    label.style.background = '#fff7ed';
-                                                    label.classList.add('text-orange-400');
-                                                } else {
-                                                    // Not selected, never was: default
-                                                    label.style.border = '1px solid #e2e8f0';
-                                                    label.classList.add('bg-white', 'text-slate-600');
-                                                }
-                                            });
-                                        }
-                                        // Run on load and on every checkbox change
-                                        updateGroupLabels();
-                                        document.querySelectorAll('.group-edit-label input[type="checkbox"]').forEach(function(cb) {
-                                            cb.addEventListener('change', updateGroupLabels);
-                                        });
-                                    });
-                                </script>
+                                {% endif %}
                             </div>
+                        </div>
+                        <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+                            {% if contact.phone %}
+                            <a href="tel:{{ contact.phone }}" class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-phone text-xs text-slate-400"></i>
+                                Call
+                            </a>
+                            {% endif %}
+                            {% if contact.email %}
+                            <button type="button" onclick="openEmailToContact()" class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-envelope text-xs text-slate-400"></i>
+                                Email
+                            </button>
+                            {% endif %}
+                            {% if contact.phone %}
+                            <a href="sms:{{ contact.phone }}" class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-comment text-xs text-slate-400"></i>
+                                Text
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}"
+                               class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-plus text-xs text-slate-400"></i>
+                                New task
+                            </a>
+                            <button type="button" onclick="showVoiceMemoModal()" class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-microphone text-xs text-slate-400"></i>
+                                Voice memo
+                            </button>
+                            <button type="button" onclick="showLogActivityModal()" class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-clipboard-list text-xs text-slate-400"></i>
+                                Log activity
+                            </button>
+                        </div>
+                    </div>
+                </section>
 
-                            <!-- Client Details Section in Edit Form -->
-                            <div class="p-5">
-                                <h3 class="section-title">Client Details</h3>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">What does this person want right now?</label>
-                                        <textarea name="current_objective" rows="3" class="premium-input resize-y">{{ contact.current_objective or '' }}</textarea>
-                                        <p class="mt-1.5 text-xs text-slate-400">Ex: They want to buy a home, sell a home, they're looking for acreage.</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">What is their timeline?</label>
-                                        <textarea name="move_timeline" rows="2" class="premium-input resize-y">{{ contact.move_timeline or '' }}</textarea>
-                                        <p class="mt-1.5 text-xs text-slate-400">Ex: They want to move now, within the next 6 months, or within a year?</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Why do they want to move?</label>
-                                        <textarea name="motivation" rows="2" class="premium-input resize-y">{{ contact.motivation or '' }}</textarea>
-                                        <p class="mt-1.5 text-xs text-slate-400">Ex: Having a baby, want a larger home, moving for work, etc.</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Have they shared any financial details?</label>
-                                        <textarea name="financial_status" rows="3" class="premium-input resize-y">{{ contact.financial_status or '' }}</textarea>
-                                        <p class="mt-1.5 text-xs text-slate-400">Ex: Budget is $x, preapproved status, down payment amount, home equity.</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-slate-600 mb-1.5">Any other details to share?</label>
-                                        <textarea name="additional_notes" rows="2" class="premium-input resize-y">{{ contact.additional_notes or '' }}</textarea>
-                                    </div>
+                <section class="crm-surface overflow-hidden">
+                    <form action="{{ url_for('contacts.edit_contact', contact_id=contact.id) }}" method="POST"
+                          id="editContactForm" class="hidden">
+                        <div class="border-t border-slate-200 px-5 py-5 first:border-t-0">
+                            <div class="crm-section-kicker mb-3">Basic information</div>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Email</span>
+                                    <input type="email" name="email" value="{{ contact.email }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Phone</span>
+                                    <input type="tel" name="phone" value="{{ contact.phone }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Potential commission ($)</span>
+                                    <input type="number" name="potential_commission" value="{{ contact.potential_commission }}" step="0.01" min="0" class="crm-input">
+                                </label>
+                                <div>
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Created</span>
+                                    <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">{{ contact.created_at.strftime('%B %d, %Y') }}</p>
                                 </div>
                             </div>
+                        </div>
 
-                            <!-- Notes Section in Edit Form -->
-                            <div class="p-5">
-                                <h3 class="section-title">Notes</h3>
-                                <textarea name="notes" rows="4" class="premium-input resize-y">{{ contact.notes }}</textarea>
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Last contact dates</div>
+                            <div class="grid gap-4 md:grid-cols-4">
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Last email</span>
+                                    <input type="date" name="last_email_date" value="{{ contact.last_email_date.strftime('%Y-%m-%d') if contact.last_email_date }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Last text</span>
+                                    <input type="date" name="last_text_date" value="{{ contact.last_text_date.strftime('%Y-%m-%d') if contact.last_text_date }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Last phone call</span>
+                                    <input type="date" name="last_phone_call_date" value="{{ contact.last_phone_call_date.strftime('%Y-%m-%d') if contact.last_phone_call_date }}" class="crm-input">
+                                </label>
+                                <div>
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Last contact</span>
+                                    <p class="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">{{ contact.last_contact_date.strftime('%B %d, %Y') if contact.last_contact_date else 'Never' }}</p>
+                                </div>
                             </div>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Address</div>
+                            <div class="grid gap-4 md:grid-cols-2">
+                                <label class="block md:col-span-2">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Street address</span>
+                                    <input type="text" name="street_address" value="{{ contact.street_address }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">City</span>
+                                    <input type="text" name="city" value="{{ contact.city }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">State</span>
+                                    <input type="text" name="state" value="{{ contact.state }}" class="crm-input">
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">ZIP code</span>
+                                    <input type="text" name="zip_code" value="{{ contact.zip_code }}" class="crm-input">
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Groups</div>
+                            {% set contact_group_ids = contact.groups | map(attribute='id') | list %}
+                            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3" id="editGroupsGrid">
+                                {% for group in all_groups %}
+                                {% set is_member = group.id in contact_group_ids %}
+                                <label class="group-edit-label relative flex cursor-pointer items-center rounded-md px-3 py-2 text-sm transition-colors"
+                                       data-originally-selected="{{ 'true' if is_member else 'false' }}">
+                                    <input type="checkbox" name="group_ids" value="{{ group.id }}"
+                                           {% if is_member %}checked{% endif %}
+                                           class="mr-2.5 h-3.5 w-3.5 rounded border-slate-300 text-orange-500 accent-orange-500 focus:ring-orange-400">
+                                    <span class="font-medium">{{ group.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    function updateGroupLabels() {
+                                        document.querySelectorAll('.group-edit-label').forEach(function(label) {
+                                            var cb = label.querySelector('input[type="checkbox"]');
+                                            var wasSelected = label.dataset.originallySelected === 'true';
+                                            var isChecked = cb.checked;
+
+                                            label.style.border = '';
+                                            label.style.background = '';
+                                            label.classList.remove(
+                                                'bg-orange-50', 'text-orange-700',
+                                                'bg-white', 'text-slate-600', 'text-orange-400'
+                                            );
+
+                                            if (isChecked) {
+                                                label.style.border = '1px solid #fb923c';
+                                                label.classList.add('bg-orange-50', 'text-orange-700');
+                                            } else if (wasSelected && !isChecked) {
+                                                label.style.border = '1px dashed #fdba74';
+                                                label.style.background = '#fff7ed';
+                                                label.classList.add('text-orange-400');
+                                            } else {
+                                                label.style.border = '1px solid #e2e8f0';
+                                                label.classList.add('bg-white', 'text-slate-600');
+                                            }
+                                        });
+                                    }
+                                    updateGroupLabels();
+                                    document.querySelectorAll('.group-edit-label input[type="checkbox"]').forEach(function(cb) {
+                                        cb.addEventListener('change', updateGroupLabels);
+                                    });
+                                });
+                            </script>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Client details</div>
+                            <div class="space-y-4">
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">What does this person want right now?</span>
+                                    <textarea name="current_objective" rows="3" class="crm-input resize-y">{{ contact.current_objective or '' }}</textarea>
+                                    <span class="mt-1.5 block text-xs text-slate-500">Ex: they want to buy a home, sell a home, looking for acreage.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">What is their timeline?</span>
+                                    <textarea name="move_timeline" rows="2" class="crm-input resize-y">{{ contact.move_timeline or '' }}</textarea>
+                                    <span class="mt-1.5 block text-xs text-slate-500">Ex: now, within the next 6 months, within a year.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Why do they want to move?</span>
+                                    <textarea name="motivation" rows="2" class="crm-input resize-y">{{ contact.motivation or '' }}</textarea>
+                                    <span class="mt-1.5 block text-xs text-slate-500">Ex: having a baby, want a larger home, moving for work.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Have they shared any financial details?</span>
+                                    <textarea name="financial_status" rows="3" class="crm-input resize-y">{{ contact.financial_status or '' }}</textarea>
+                                    <span class="mt-1.5 block text-xs text-slate-500">Ex: budget, preapproval status, down payment amount, home equity.</span>
+                                </label>
+                                <label class="block">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Any other details to share?</span>
+                                    <textarea name="additional_notes" rows="2" class="crm-input resize-y">{{ contact.additional_notes or '' }}</textarea>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Notes</div>
+                            <textarea name="notes" rows="4" class="crm-input resize-y">{{ contact.notes }}</textarea>
                         </div>
                     </form>
 
-                    <!-- View Mode (Default) -->
                     <div id="viewContactInfo">
-                        <div class="divide-y divide-slate-100">
-                            <!-- Basic Information Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Details</h3>
-                                <div class="detail-grid">
-                                    <div class="detail-cell">
-                                        <div class="detail-label">Email</div>
-                                        <div class="detail-value">{% if contact.email %}<a href="mailto:{{ contact.email }}" class="hover:text-orange-600 transition-colors">{{ contact.email }}</a>{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">Phone</div>
-                                        <div class="detail-value">{% if contact.phone %}<a href="tel:{{ contact.phone }}" class="hover:text-orange-600 transition-colors">{{ contact.phone }}</a>{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">Commission</div>
-                                        <div class="detail-value">{% if contact.potential_commission is not none %}${{ "{:,.2f}".format(contact.potential_commission|float) }}{% else %}<span class="text-slate-300">&mdash;</span>{% endif %}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">Created</div>
-                                        <div class="detail-value text-slate-500">{{ contact.created_at.strftime('%b %d, %Y') }}</div>
-                                    </div>
+                        <div class="border-t border-slate-200 px-5 py-5 first:border-t-0">
+                            <div class="crm-section-kicker mb-3">Details</div>
+                            <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Email</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{% if contact.email %}<a href="mailto:{{ contact.email }}" class="hover:text-orange-600">{{ contact.email }}</a>{% else %}<span class="text-slate-400">&mdash;</span>{% endif %}</dd>
                                 </div>
-                            </div>
-
-                            <!-- Contact Dates Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Last Contact Dates</h3>
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-2">
-                                    <div>
-                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Email</div>
-                                        <div id="lastEmailDate" class="text-sm font-medium text-slate-700">{{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date else 'Never' }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Text</div>
-                                        <div id="lastTextDate" class="text-sm font-medium text-slate-700">{{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date else 'Never' }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Phone Call</div>
-                                        <div id="lastPhoneCallDate" class="text-sm font-medium text-slate-700">{{ contact.last_phone_call_date.strftime('%m/%d/%Y') if contact.last_phone_call_date else 'Never' }}</div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs text-slate-400 font-medium mb-0.5">Last Contact</div>
-                                        <div id="lastContactDate" class="text-sm font-medium text-slate-700">{{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}</div>
-                                    </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Phone</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{% if contact.phone %}<a href="tel:{{ contact.phone }}" class="hover:text-orange-600">{{ contact.phone }}</a>{% else %}<span class="text-slate-400">&mdash;</span>{% endif %}</dd>
                                 </div>
-                            </div>
-
-                            <!-- Address Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Address</h3>
-                                <div class="detail-grid">
-                                    <div class="detail-cell">
-                                        <div class="detail-label">Street</div>
-                                        <div class="detail-value">{{ contact.street_address or '\u2014' }}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">City</div>
-                                        <div class="detail-value">{{ contact.city or '\u2014' }}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">State</div>
-                                        <div class="detail-value">{{ contact.state or '\u2014' }}</div>
-                                    </div>
-                                    <div class="detail-cell">
-                                        <div class="detail-label">ZIP</div>
-                                        <div class="detail-value">{{ contact.zip_code or '\u2014' }}</div>
-                                    </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Commission</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{% if contact.potential_commission is not none %}${{ "{:,.2f}".format(contact.potential_commission|float) }}{% else %}<span class="text-slate-400">&mdash;</span>{% endif %}</dd>
                                 </div>
-                            </div>
-
-                            <!-- Groups Section -->
-                            <div class="p-5">
-                                <h3 class="section-title">Groups</h3>
-                                <div class="flex flex-wrap gap-1.5">
-                                    {% for group in contact.groups %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-50 text-orange-600 border border-orange-100">
-                                        {{ group.name }}
-                                    </span>
-                                    {% else %}
-                                    <span class="text-sm text-slate-300">&mdash;</span>
-                                    {% endfor %}
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Created</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-700">{{ contact.created_at.strftime('%b %d, %Y') }}</dd>
                                 </div>
-                            </div>
+                            </dl>
+                        </div>
 
-                            <!-- Client Details Section in View Mode -->
-                            <div class="p-5">
-                                <h3 class="section-title">Client Details</h3>
-                                <div class="space-y-3">
-                                    <div>
-                                        <div class="text-xs font-medium text-slate-400 mb-1">What does this person want right now?</div>
-                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.current_objective or '\u2014' }}</p>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-medium text-slate-400 mb-1">Timeline</div>
-                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.move_timeline or '\u2014' }}</p>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-medium text-slate-400 mb-1">Motivation</div>
-                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.motivation or '\u2014' }}</p>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-medium text-slate-400 mb-1">Financial Details</div>
-                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.financial_status or '\u2014' }}</p>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs font-medium text-slate-400 mb-1">Other Details</div>
-                                        <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.additional_notes or '\u2014' }}</p>
-                                    </div>
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Last contact dates</div>
+                            <dl class="grid grid-cols-2 gap-x-6 gap-y-3 md:grid-cols-4">
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Email</dt>
+                                    <dd id="lastEmailDate" class="mt-0.5 text-sm font-medium text-slate-900">{{ contact.last_email_date.strftime('%m/%d/%Y') if contact.last_email_date else 'Never' }}</dd>
                                 </div>
-                            </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Text</dt>
+                                    <dd id="lastTextDate" class="mt-0.5 text-sm font-medium text-slate-900">{{ contact.last_text_date.strftime('%m/%d/%Y') if contact.last_text_date else 'Never' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Phone call</dt>
+                                    <dd id="lastPhoneCallDate" class="mt-0.5 text-sm font-medium text-slate-900">{{ contact.last_phone_call_date.strftime('%m/%d/%Y') if contact.last_phone_call_date else 'Never' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Last contact</dt>
+                                    <dd id="lastContactDate" class="mt-0.5 text-sm font-medium text-slate-900">{{ contact.last_contact_date.strftime('%m/%d/%Y') if contact.last_contact_date else 'Never' }}</dd>
+                                </div>
+                            </dl>
+                        </div>
 
-                            <!-- Notes Section in View Mode -->
-                            <div class="p-5">
-                                <h3 class="section-title">Notes</h3>
-                                <p class="text-sm text-slate-700 whitespace-pre-line">{{ contact.notes or '\u2014' }}</p>
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Address</div>
+                            <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Street</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{{ contact.street_address or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">City</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{{ contact.city or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">State</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{{ contact.state or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">ZIP</dt>
+                                    <dd class="mt-0.5 text-sm text-slate-900">{{ contact.zip_code or '\u2014' }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Groups</div>
+                            <div class="flex flex-wrap gap-1.5">
+                                {% for group in contact.groups %}
+                                {{ badge(group.name, 'accent') }}
+                                {% else %}
+                                <span class="text-sm text-slate-400">&mdash;</span>
+                                {% endfor %}
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Delete Contact -->
-                <div class="mt-4 flex justify-end">
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Client details</div>
+                            <dl class="space-y-3">
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">What does this person want right now?</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line text-sm text-slate-900">{{ contact.current_objective or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Timeline</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line text-sm text-slate-900">{{ contact.move_timeline or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Motivation</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line text-sm text-slate-900">{{ contact.motivation or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Financial details</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line text-sm text-slate-900">{{ contact.financial_status or '\u2014' }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="text-xs font-medium text-slate-500">Other details</dt>
+                                    <dd class="mt-0.5 whitespace-pre-line text-sm text-slate-900">{{ contact.additional_notes or '\u2014' }}</dd>
+                                </div>
+                            </dl>
+                        </div>
+
+                        <div class="border-t border-slate-200 px-5 py-5">
+                            <div class="crm-section-kicker mb-3">Notes</div>
+                            <p class="whitespace-pre-line text-sm text-slate-900">{{ contact.notes or '\u2014' }}</p>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="flex justify-end">
                     <form action="{{ url_for('contacts.delete_contact', contact_id=contact.id) }}" method="POST"
-                        id="deleteContactForm">
-                        <button onclick="deleteContact()"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">
-                            <i class="fas fa-trash-alt"></i>
-                            Delete Contact
+                          id="deleteContactForm">
+                        <button type="button" onclick="deleteContact()"
+                                class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600">
+                            <i class="fas fa-trash-alt text-xs"></i>
+                            Delete contact
                         </button>
                     </form>
                 </div>
             </div>
 
-            <!-- Side Container - Related Tasks & Transactions -->
-            <div class="lg:w-[400px] xl:w-[440px] flex-shrink-0 space-y-4">
+            <div class="flex-shrink-0 space-y-4 lg:w-[400px] xl:w-[440px]">
 
                 {% if show_transactions %}
-                <!-- Related Transactions Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Transactions</h2>
-                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus text-[10px] mr-1"></i> New
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Transactions') }}
+                        <a href="{{ url_for('transactions.new_transaction', contact_id=contact.id) }}"
+                           class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-plus text-xs"></i>
+                            New
                         </a>
                     </div>
 
-                    <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    <div class="max-h-80 divide-y divide-slate-200 overflow-y-auto">
                         {% for tx in related_transactions %}
+                        {% set status_tone = 'success' if tx.status == 'active' else ('warning' if tx.status == 'pending' else ('info' if tx.status == 'closed' else 'neutral')) %}
                         <a href="{{ url_for('transactions.view_transaction', id=tx.id, ref='contact', contact_id=contact.id) }}"
-                            class="block p-3 hover:bg-slate-50 transition-colors group">
+                           class="group block px-4 py-3 transition-colors hover:bg-slate-50">
                             <div class="flex items-center gap-3">
-                                <!-- Simple colored icon -->
-                                <i class="fas fa-home flex-shrink-0
-                                    {% if tx.transaction_type.name == 'seller' %}text-orange-500
-                                    {% elif tx.transaction_type.name == 'buyer' %}text-purple-500
-                                    {% elif tx.transaction_type.name == 'landlord' %}text-cyan-500
-                                    {% elif tx.transaction_type.name == 'tenant' %}text-green-500
-                                    {% else %}text-indigo-500{% endif %}"></i>
-
-                                <!-- Transaction Content -->
-                                <div class="flex-1 min-w-0">
-                                    <span class="text-sm font-medium text-slate-800 group-hover:text-orange-600 truncate block transition-colors">
+                                <i class="fas fa-home flex-shrink-0 text-slate-400"></i>
+                                <div class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-medium text-slate-900 group-hover:text-orange-600">
                                         {{ tx.street_address }}
                                     </span>
-                                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                        <span class="{% if tx.transaction_type.name == 'seller' %}text-orange-600{% elif tx.transaction_type.name == 'buyer' %}text-purple-600{% elif tx.transaction_type.name == 'landlord' %}text-cyan-600{% elif tx.transaction_type.name == 'tenant' %}text-green-600{% else %}text-indigo-600{% endif %}">{{ tx.transaction_type.display_name }}</span>
-                                        <span class="text-slate-300">·</span>
-                                        <span class="{% if tx.status == 'active' %}text-green-600{% elif tx.status == 'pending' %}text-amber-600{% elif tx.status == 'closed' %}text-indigo-600{% else %}text-slate-500{% endif %}">{{ tx.status|replace('_', ' ')|title }}</span>
+                                    <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                        {{ badge(tx.transaction_type.display_name) }}
+                                        {{ badge(tx.status|replace('_', ' ')|title, status_tone) }}
+                                        <span class="text-xs text-slate-500">{{ tx.created_at.strftime('%b %d, %Y') }}</span>
                                     </div>
-                                    <div class="text-xs text-slate-400 mt-0.5">{{ tx.created_at.strftime('%b %d, %Y') }}</div>
                                 </div>
-
-                                <!-- Arrow -->
-                                <i class="fas fa-chevron-right text-slate-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"></i>
+                                <i class="fas fa-chevron-right flex-shrink-0 text-xs text-slate-300 opacity-0 transition-opacity group-hover:opacity-100"></i>
                             </div>
                         </a>
                         {% else %}
                         <div class="px-4 py-6 text-center">
-                            <p class="text-slate-400 text-sm">No transactions</p>
+                            <p class="text-sm text-slate-400">No transactions</p>
                         </div>
                         {% endfor %}
                     </div>
-                </div>
+                </section>
                 {% endif %}
 
-                <!-- Related Tasks Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Tasks</h2>
-                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus text-[10px] mr-1"></i> New
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Tasks') }}
+                        <a href="{{ url_for('tasks.create_task', contact_id=contact.id, return_to='contact') }}"
+                           class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-plus text-xs"></i>
+                            New
                         </a>
                     </div>
 
-                    <!-- Task Filter Tabs -->
-                    <div class="border-b border-slate-100 px-2">
-                        <div class="flex">
-                            <button onclick="switchTaskView('pending')" id="pendingTasksTab"
-                                class="flex-1 py-3 px-4 text-sm font-medium text-orange-600 border-b-2 border-orange-500 transition-all duration-200">
-                                Active Tasks
+                    <div class="border-b border-slate-200 px-4 pt-3">
+                        <div class="crm-segment">
+                            <button type="button" onclick="switchTaskView('pending')" id="pendingTasksTab"
+                                    class="crm-segment__item is-active">
+                                Active
                             </button>
-                            <button onclick="switchTaskView('completed')" id="completedTasksTab"
-                                class="flex-1 py-3 px-4 text-sm font-medium text-slate-500 hover:text-slate-700 border-b-2 border-transparent transition-all duration-200">
+                            <button type="button" onclick="switchTaskView('completed')" id="completedTasksTab"
+                                    class="crm-segment__item">
                                 Completed
                             </button>
                         </div>
                     </div>
 
-                    <!-- Task Lists -->
-                    <div id="pendingTasks" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                        {% for task in contact.tasks|selectattr('status', 'equalto',
-                        'pending')|sort(attribute='due_date') %}
-                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150">
+                    <div id="pendingTasks" class="max-h-80 divide-y divide-slate-200 overflow-y-auto">
+                        {% for task in contact.tasks|selectattr('status', 'equalto', 'pending')|sort(attribute='due_date') %}
+                        {% set task_date = task.due_date.date() %}
+                        {% set current_date = now.date() %}
+                        {% set days_until_due = (task_date - current_date).days %}
+                        {% set due_tone = 'warning' if days_until_due <= 0 else ('accent' if days_until_due <= 2 else 'neutral') %}
+                        <div class="px-4 py-3 transition-colors hover:bg-slate-50">
                             <div class="flex items-center gap-3">
-                                <!-- Priority dot -->
-                                <div class="w-2 h-2 rounded-full flex-shrink-0 {% if task.priority == 'high' %}bg-red-500{% elif task.priority == 'medium' %}bg-amber-500{% else %}bg-green-500{% endif %}"></div>
-
-                                <!-- Task Content -->
-                                <div class="flex-1 min-w-0">
+                                <span class="h-2 w-2 flex-shrink-0 rounded-full {% if task.priority == 'high' %}bg-red-500{% elif task.priority == 'medium' %}bg-amber-500{% else %}bg-emerald-500{% endif %}"></span>
+                                <div class="min-w-0 flex-1">
                                     <a href="#" data-task-id="{{ task.id }}"
-                                        class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate block transition-colors">
+                                       class="task-link block truncate text-sm font-medium text-slate-900 hover:text-orange-600">
                                         {{ task.subject }}
                                     </a>
-                                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                        <span>{{ task.task_type.name }}</span>
-                                        <span class="text-slate-300">·</span>
-                                        {% set task_date = task.due_date.date() %}
-                                        {% set current_date = now.date() %}
-                                        {% set days_until_due = (task_date - current_date).days %}
-                                        <span class="{% if days_until_due < 0 %}text-red-500{% elif days_until_due == 0 %}text-orange-500{% elif days_until_due <= 2 %}text-amber-600{% else %}text-slate-500{% endif %}">
-                                            {% if days_until_due < 0 %}{{ days_until_due|abs }}d overdue{% elif days_until_due == 0 %}Due today{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }}d{% endif %}
-                                        </span>
+                                    <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                                        {{ badge(task.task_type.name) }}
+                                        {% if days_until_due < 0 %}
+                                        {{ badge((days_until_due|abs) ~ 'd overdue', due_tone) }}
+                                        {% elif days_until_due == 0 %}
+                                        {{ badge('Due today', due_tone) }}
+                                        {% elif days_until_due == 1 %}
+                                        {{ badge('Due tomorrow', due_tone) }}
+                                        {% else %}
+                                        {{ badge('Due in ' ~ days_until_due ~ 'd', due_tone) }}
+                                        {% endif %}
                                     </div>
                                 </div>
-
-                                <!-- Quick Complete -->
-                                <button onclick="quickUpdateStatus({{ task.id }}, true)"
-                                    class="w-6 h-6 rounded text-slate-300 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all flex-shrink-0">
+                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, true)"
+                                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-emerald-50 hover:text-emerald-600">
                                     <i class="fas fa-check text-xs"></i>
                                 </button>
                             </div>
                         </div>
                         {% else %}
                         <div class="px-4 py-6 text-center">
-                            <p class="text-slate-400 text-sm">No active tasks</p>
+                            <p class="text-sm text-slate-400">No active tasks</p>
                         </div>
                         {% endfor %}
                     </div>
 
-                    <div id="completedTasks" class="hidden divide-y divide-slate-100 max-h-80 overflow-y-auto">
-                        {% for task in contact.tasks|selectattr('status', 'equalto',
-                        'completed')|sort(attribute='completed_at', reverse=true) %}
-                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150">
+                    <div id="completedTasks" class="hidden max-h-80 divide-y divide-slate-200 overflow-y-auto">
+                        {% for task in contact.tasks|selectattr('status', 'equalto', 'completed')|sort(attribute='completed_at', reverse=true) %}
+                        <div class="px-4 py-3 transition-colors hover:bg-slate-50">
                             <div class="flex items-center gap-3">
-                                <!-- Completed check -->
-                                <i class="fas fa-check-circle text-green-500 text-sm flex-shrink-0"></i>
-
-                                <!-- Task Content -->
-                                <div class="flex-1 min-w-0">
+                                <i class="fas fa-check-circle flex-shrink-0 text-sm text-emerald-500"></i>
+                                <div class="min-w-0 flex-1">
                                     <a href="#" data-task-id="{{ task.id }}"
-                                        class="task-link text-sm text-slate-500 hover:text-slate-700 truncate block line-through decoration-slate-300 transition-colors">
+                                       class="task-link block truncate text-sm text-slate-500 line-through decoration-slate-300 hover:text-slate-700">
                                         {{ task.subject }}
                                     </a>
-                                    <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                                    <div class="mt-1 flex items-center gap-2 text-xs text-slate-500">
                                         <span>{{ task.task_type.name }}</span>
-                                        <span class="text-slate-300">·</span>
+                                        <span class="text-slate-300">&middot;</span>
                                         <span>{% if task.completed_at %}{{ task.completed_at.strftime('%m/%d/%y') }}{% else %}Recently{% endif %}</span>
                                     </div>
                                 </div>
-
-                                <!-- Undo -->
-                                <button onclick="quickUpdateStatus({{ task.id }}, false)"
-                                    class="w-6 h-6 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 flex items-center justify-center transition-all flex-shrink-0">
+                                <button type="button" onclick="quickUpdateStatus({{ task.id }}, false)"
+                                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-amber-50 hover:text-amber-600">
                                     <i class="fas fa-undo text-xs"></i>
                                 </button>
                             </div>
                         </div>
                         {% else %}
                         <div class="px-4 py-6 text-center">
-                            <p class="text-slate-400 text-sm">No completed tasks</p>
+                            <p class="text-sm text-slate-400">No completed tasks</p>
                         </div>
                         {% endfor %}
                     </div>
-                </div>
+                </section>
 
-                <!-- Related Files Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Files</h2>
-                        <button onclick="document.getElementById('fileUploadInput').click()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus text-[10px] mr-1"></i> Upload
-                        </button>
-                        <input type="file" id="fileUploadInput" class="hidden"
-                            accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls"
-                            onchange="uploadContactFile(this)">
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Files') }}
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="document.getElementById('fileUploadInput').click()"
+                                    class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-plus text-xs"></i>
+                                Upload
+                            </button>
+                            <input type="file" id="fileUploadInput" class="hidden"
+                                   accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls"
+                                   onchange="uploadContactFile(this)">
+                        </div>
                     </div>
 
-                    <!-- Drop Zone (hidden by default, shown on drag) -->
                     <div id="fileDropZone"
-                        class="hidden p-8 border-2 border-dashed border-emerald-300 bg-emerald-50 m-4 rounded-xl text-center transition-all duration-200">
-                        <i class="fas fa-cloud-upload-alt text-4xl text-emerald-400 mb-3"></i>
-                        <p class="text-emerald-600 font-medium">Drop files here to upload</p>
-                        <p class="text-emerald-500 text-sm mt-1">Max 10 MB per file</p>
+                         class="hidden m-4 rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                        <i class="fas fa-cloud-upload-alt mb-2 text-2xl text-slate-400"></i>
+                        <p class="text-sm font-medium text-slate-700">Drop files here to upload</p>
+                        <p class="mt-0.5 text-xs text-slate-500">Max 10 MB per file</p>
                     </div>
 
-                    <!-- File List -->
-                    <div id="contactFilesList" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    <div id="contactFilesList" class="max-h-80 divide-y divide-slate-200 overflow-y-auto">
                         {% for file in contact_files %}
-                        <div class="p-3 hover:bg-slate-50 transition-colors duration-150 group file-item"
-                            data-file-id="{{ file.id }}">
+                        <div class="file-item group px-4 py-3 transition-colors hover:bg-slate-50"
+                             data-file-id="{{ file.id }}">
                             <div class="flex items-center gap-3">
-                                <!-- File Icon - simple colored icon -->
                                 {% if file.is_image %}
-                                <i class="fas fa-file-image text-pink-500 flex-shrink-0"></i>
+                                <i class="fas fa-file-image flex-shrink-0 text-slate-400"></i>
                                 {% elif file.file_extension == 'pdf' %}
-                                <i class="fas fa-file-pdf text-red-500 flex-shrink-0"></i>
+                                <i class="fas fa-file-pdf flex-shrink-0 text-slate-400"></i>
                                 {% elif file.file_extension in ['doc', 'docx'] %}
-                                <i class="fas fa-file-word text-blue-500 flex-shrink-0"></i>
+                                <i class="fas fa-file-word flex-shrink-0 text-slate-400"></i>
                                 {% elif file.file_extension in ['xls', 'xlsx', 'csv'] %}
-                                <i class="fas fa-file-excel text-green-500 flex-shrink-0"></i>
+                                <i class="fas fa-file-excel flex-shrink-0 text-slate-400"></i>
                                 {% else %}
-                                <i class="fas fa-file text-slate-400 flex-shrink-0"></i>
+                                <i class="fas fa-file flex-shrink-0 text-slate-400"></i>
                                 {% endif %}
 
-                                <!-- File Info -->
-                                <div class="flex-1 min-w-0">
-                                    <p class="text-sm font-medium text-slate-800 truncate">{{ file.original_filename }}</p>
-                                    <p class="text-xs text-slate-500">{{ file.human_file_size }} · {{ file.created_at.strftime('%b %d, %Y') }}</p>
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-slate-900">{{ file.original_filename }}</p>
+                                    <p class="text-xs text-slate-500">{{ file.human_file_size }} &middot; {{ file.created_at.strftime('%b %d, %Y') }}</p>
                                 </div>
 
-                                <!-- Actions -->
-                                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onclick="downloadContactFile({{ file.id }})"
-                                        class="p-1.5 text-slate-400 hover:text-emerald-600 rounded transition-colors" title="Download">
+                                <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <button type="button" onclick="downloadContactFile({{ file.id }})"
+                                            class="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                                            title="Download">
                                         <i class="fas fa-download text-xs"></i>
                                     </button>
-                                    <button onclick="deleteContactFile({{ file.id }}, '{{ file.original_filename }}')"
-                                        class="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                                    <button type="button" onclick="deleteContactFile({{ file.id }}, '{{ file.original_filename }}')"
+                                            class="rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                                            title="Delete">
                                         <i class="fas fa-trash-alt text-xs"></i>
                                     </button>
                                 </div>
@@ -737,180 +620,155 @@
                         </div>
                         {% else %}
                         <div id="noFilesMessage" class="px-4 py-6 text-center">
-                            <p class="text-slate-400 text-sm">No files</p>
+                            <p class="text-sm text-slate-400">No files</p>
                         </div>
                         {% endfor %}
                     </div>
 
-                    <!-- Upload Progress (hidden by default) -->
-                    <div id="uploadProgress" class="hidden p-4 border-t border-slate-100">
+                    <div id="uploadProgress" class="hidden border-t border-slate-200 p-4">
                         <div class="flex items-center gap-3">
-                            <div
-                                class="animate-spin rounded-full h-5 w-5 border-2 border-emerald-500 border-t-transparent">
-                            </div>
-                            <span class="text-sm text-slate-600">Uploading...</span>
+                            <div class="h-4 w-4 animate-spin rounded-full border-2 border-orange-500 border-t-transparent"></div>
+                            <span class="text-sm text-slate-700">Uploading...</span>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- AI Smart Actions Card -->
                 {% if org_has_feature('AI_TASK_SUGGESTIONS') %}
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden" id="smartActionsCard">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-gradient-to-r from-amber-50 to-orange-50 flex items-center justify-between">
+                <section class="crm-surface" id="smartActionsCard">
+                    <div class="crm-surface-header">
                         <div class="flex items-center gap-2">
-                            <div class="w-6 h-6 rounded-md bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm">
-                                <i class="fas fa-lightbulb text-white text-[10px]"></i>
-                            </div>
-                            <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Smart Actions</h2>
+                            <i class="fas fa-lightbulb text-sm text-amber-500"></i>
+                            {{ section_header('Suggested actions') }}
                         </div>
-                        <button onclick="generateSmartActions()" id="smartActionsBtn"
-                            class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-orange-600 hover:text-orange-700 bg-white hover:bg-orange-50 border border-orange-200 rounded-md transition-all shadow-sm">
-                            <i class="fas fa-wand-magic-sparkles text-[10px]"></i>
-                            <span id="smartActionsBtnText">Get Ideas</span>
+                        <button type="button" onclick="generateSmartActions()" id="smartActionsBtn"
+                                class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-arrows-rotate text-xs"></i>
+                            <span id="smartActionsBtnText">Get ideas</span>
                         </button>
                     </div>
 
                     <div id="smartActionsContainer">
-                        <!-- Empty state -->
-                        <div id="smartActionsEmpty" class="px-4 py-8 text-center">
-                            <div class="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-robot text-amber-400 text-lg"></i>
-                            </div>
-                            <p class="text-sm font-medium text-slate-600 mb-1">AI-Powered Task Ideas</p>
-                            <p class="text-xs text-slate-400 max-w-[240px] mx-auto">Get 3 personalized task suggestions based on this contact's full history</p>
+                        <div id="smartActionsEmpty" class="px-5 py-8 text-center">
+                            <p class="text-sm font-medium text-slate-700">Suggested task ideas</p>
+                            <p class="mx-auto mt-1 max-w-[260px] text-xs text-slate-500">Generate 3 task suggestions based on this contact's full history.</p>
                         </div>
 
-                        <!-- Loading state (hidden) -->
-                        <div id="smartActionsLoading" class="hidden px-4 py-6">
+                        <div id="smartActionsLoading" class="hidden px-5 py-6">
                             <div class="flex flex-col items-center gap-3">
-                                <div class="relative w-10 h-10">
-                                    <div class="absolute inset-0 rounded-full border-2 border-orange-100"></div>
-                                    <div class="absolute inset-0 rounded-full border-2 border-orange-500 border-t-transparent animate-spin"></div>
-                                    <div class="absolute inset-2 rounded-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center">
-                                        <i class="fas fa-brain text-orange-400 text-[10px]"></i>
-                                    </div>
-                                </div>
+                                <div class="h-6 w-6 animate-spin rounded-full border-2 border-orange-200 border-t-orange-500"></div>
                                 <div class="text-center">
-                                    <p class="text-sm font-medium text-slate-600">Analyzing contact data...</p>
-                                    <p class="text-xs text-slate-400 mt-0.5">Tasks, emails, interactions & more</p>
+                                    <p class="text-sm font-medium text-slate-700">Analyzing contact data...</p>
+                                    <p class="mt-0.5 text-xs text-slate-500">Tasks, emails, interactions, and more</p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Error state (hidden) -->
-                        <div id="smartActionsError" class="hidden px-4 py-6 text-center">
-                            <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
-                                <i class="fas fa-exclamation-triangle text-red-400"></i>
-                            </div>
-                            <p class="text-sm text-slate-600 mb-1" id="smartActionsErrorMsg">Something went wrong</p>
-                            <button onclick="generateSmartActions()"
-                                class="text-xs text-orange-600 hover:text-orange-700 font-medium">
-                                <i class="fas fa-redo mr-1"></i>Try Again
+                        <div id="smartActionsError" class="hidden px-5 py-6 text-center">
+                            <i class="fas fa-exclamation-triangle text-base text-red-400"></i>
+                            <p class="mt-2 text-sm text-slate-700" id="smartActionsErrorMsg">Something went wrong</p>
+                            <button type="button" onclick="generateSmartActions()"
+                                    class="mt-2 text-xs font-medium text-orange-600 hover:text-orange-700">
+                                <i class="fas fa-redo mr-1"></i>Try again
                             </button>
                         </div>
 
-                        <!-- Suggestions list (hidden) -->
-                        <div id="smartActionsList" class="hidden divide-y divide-slate-100">
-                            <!-- Suggestions will be rendered here by JS -->
+                        <div id="smartActionsList" class="hidden divide-y divide-slate-200">
                         </div>
 
-                        <!-- Regenerate footer (hidden) -->
-                        <div id="smartActionsFooter" class="hidden px-4 py-2.5 border-t border-slate-100 bg-slate-50/50">
-                            <button onclick="generateSmartActions()"
-                                class="w-full text-center text-xs text-slate-500 hover:text-orange-600 font-medium transition-colors py-0.5">
-                                <i class="fas fa-refresh mr-1"></i>Regenerate Ideas
+                        <div id="smartActionsFooter" class="hidden border-t border-slate-200 px-4 py-2.5">
+                            <button type="button" onclick="generateSmartActions()"
+                                    class="w-full text-center text-xs font-medium text-slate-500 transition-colors hover:text-orange-600">
+                                <i class="fas fa-refresh mr-1"></i>Regenerate ideas
                             </button>
                         </div>
                     </div>
-                </div>
+                </section>
                 {% endif %}
 
-                <!-- Unified Activity Timeline Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Activity Timeline</h2>
-                        <button onclick="showLogActivityModal()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus text-[10px] mr-1"></i> Log
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Activity') }}
+                        <button type="button" onclick="showLogActivityModal()" class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-plus text-xs"></i>
+                            Log
                         </button>
                     </div>
 
-                    <!-- Filter Buttons -->
-                    <div id="activityTimelineFilters" class="px-4 py-2 border-b border-slate-100 bg-white">
+                    <div id="activityTimelineFilters" class="border-b border-slate-200 px-4 py-3">
                         <div class="flex flex-wrap gap-1.5">
-                            <button data-filter="all" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-800 text-white">
+                            <button type="button" data-filter="all"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-800 px-2.5 py-1 text-xs font-medium text-white transition-colors">
                                 All <span class="filter-count ml-1 opacity-70">0</span>
                             </button>
-                            <button data-filter="interaction" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                            <button type="button" data-filter="interaction"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200">
                                 Calls <span class="filter-count ml-1 opacity-50">0</span>
                             </button>
-                            <button data-filter="email" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                            <button type="button" data-filter="email"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200">
                                 Emails <span class="filter-count ml-1 opacity-50">0</span>
                             </button>
-                            <button data-filter="task" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                            <button type="button" data-filter="task"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200">
                                 Tasks <span class="filter-count ml-1 opacity-50">0</span>
                             </button>
-                            <button data-filter="file" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                            <button type="button" data-filter="file"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200">
                                 Files <span class="filter-count ml-1 opacity-50">0</span>
                             </button>
-                            <button data-filter="voice_memo" class="timeline-filter-btn inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                            <button type="button" data-filter="voice_memo"
+                                    class="timeline-filter-btn inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-200">
                                 Memos <span class="filter-count ml-1 opacity-50">0</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- Timeline Container -->
                     <div id="activityTimelineContainer" class="max-h-[500px] overflow-y-auto">
-                        <!-- Activities will be rendered here by JavaScript -->
                     </div>
 
-                    <!-- Pagination Footer -->
-                    <div class="px-4 py-3 border-t border-slate-100 bg-slate-50/50">
+                    <div class="border-t border-slate-200 px-4 py-3">
                         <div class="flex items-center justify-between">
                             <span id="timelinePaginationInfo" class="text-xs text-slate-500">Loading...</span>
-                            <button id="timelineLoadMoreBtn" class="hidden text-xs text-orange-600 hover:text-orange-700 font-medium">
-                                <i class="fas fa-chevron-down mr-1"></i>Load More
+                            <button type="button" id="timelineLoadMoreBtn"
+                                    class="hidden text-xs font-medium text-orange-600 hover:text-orange-700">
+                                <i class="fas fa-chevron-down mr-1"></i>Load more
                             </button>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Voice Memos Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Voice Memos</h2>
-                        <button onclick="showVoiceMemoModal()" class="inline-flex items-center px-2 py-0.5 text-xs font-medium text-orange-600 hover:text-orange-700 transition-colors">
-                            <i class="fas fa-plus text-[10px] mr-1"></i> Record
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Voice memos') }}
+                        <button type="button" onclick="showVoiceMemoModal()" class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-microphone text-xs"></i>
+                            Record
                         </button>
                     </div>
 
-                    <!-- Voice Memos List -->
-                    <div id="voiceMemosList" class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+                    <div id="voiceMemosList" class="max-h-80 divide-y divide-slate-200 overflow-y-auto">
                         <div class="px-4 py-6 text-center" id="voiceMemosEmpty">
-                            <p class="text-slate-400 text-sm">No voice memos</p>
+                            <p class="text-sm text-slate-400">No voice memos</p>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Email History Card -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Email History</h2>
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        {{ section_header('Email') }}
                         {% if email_threads %}
-                        <span class="text-xs text-slate-400">{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }}</span>
+                        <span class="text-xs text-slate-500">{{ email_threads|length }} thread{{ 's' if email_threads|length != 1 else '' }}</span>
                         {% endif %}
                     </div>
 
                     <div class="max-h-[600px] overflow-y-auto">
                         {% if not gmail_connected %}
-                        <!-- Gmail Not Connected State -->
-                        <div class="p-6 text-center">
-                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-envelope text-slate-400 text-lg"></i>
-                            </div>
-                            <p class="text-slate-700 font-medium mb-1">See email history</p>
-                            <p class="text-slate-500 text-sm mb-4">Connect Gmail to sync conversations</p>
-                            <a href="{{ url_for('gmail.connect') }}" class="inline-flex items-center px-3 py-1.5 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors text-sm font-medium">
-                                <svg class="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                        <div class="px-5 py-6 text-center">
+                            <p class="text-sm font-medium text-slate-700">See email history</p>
+                            <p class="mt-1 text-xs text-slate-500">Connect Gmail to sync conversations.</p>
+                            <a href="{{ url_for('gmail.connect') }}"
+                               class="crm-btn crm-btn-secondary mt-3 inline-flex">
+                                <svg class="h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
                                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                     <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -921,69 +779,60 @@
                         </div>
 
                         {% elif email_threads|length == 0 %}
-                        <!-- No Emails State -->
-                        <div class="p-6 text-center">
-                            <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                                <i class="fas fa-inbox text-slate-400 text-lg"></i>
-                            </div>
-                            <p class="text-slate-600 font-medium">No emails yet</p>
-                            <p class="text-slate-400 text-sm mt-1">Emails will appear here automatically</p>
+                        <div class="px-5 py-6 text-center">
+                            <p class="text-sm font-medium text-slate-700">No emails yet</p>
+                            <p class="mt-1 text-xs text-slate-500">Emails will appear here automatically.</p>
                         </div>
 
                         {% else %}
-                        <!-- Email Threads List -->
-                        <div class="divide-y divide-slate-100">
+                        <div class="divide-y divide-slate-200">
                             {% for thread in email_threads %}
                             <div class="email-thread-item" data-thread-id="{{ thread.thread_id }}">
-                                <!-- Thread Row (Collapsed) -->
-                                <button onclick="toggleEmailThread('{{ thread.thread_id }}')" class="w-full p-4 hover:bg-slate-50 transition-colors text-left group">
+                                <button type="button" onclick="toggleEmailThread('{{ thread.thread_id }}')"
+                                        class="group w-full px-4 py-3 text-left transition-colors hover:bg-slate-50">
                                     <div class="flex items-start justify-between gap-3">
-                                        <div class="flex-1 min-w-0">
-                                            <p class="font-semibold text-slate-800 truncate group-hover:text-blue-600 transition-colors">{{ thread.subject or '(No subject)' }}</p>
-                                            <p class="text-sm text-slate-500 mt-1">
-                                                {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }} · 
+                                        <div class="min-w-0 flex-1">
+                                            <p class="truncate text-sm font-medium text-slate-900 group-hover:text-orange-600">{{ thread.subject or '(No subject)' }}</p>
+                                            <p class="mt-1 text-xs text-slate-500">
+                                                {{ thread.message_count }} message{{ 's' if thread.message_count != 1 else '' }} &middot;
                                                 <span class="thread-date" data-date="{{ thread.latest_at }}">{{ thread.latest_at }}</span>
                                             </p>
                                         </div>
-                                        <i class="fas fa-chevron-down text-slate-300 text-sm mt-1 transition-transform duration-200 thread-chevron-{{ thread.thread_id }}"></i>
+                                        <i class="fas fa-chevron-down mt-1 text-xs text-slate-400 transition-transform duration-200 thread-chevron-{{ thread.thread_id }}"></i>
                                     </div>
                                 </button>
 
-                                <!-- Expanded Thread Messages -->
-                                <div id="thread-messages-{{ thread.thread_id }}" class="hidden border-t border-slate-100 bg-slate-50/50">
-                                    <div class="p-4 space-y-3">
+                                <div id="thread-messages-{{ thread.thread_id }}" class="hidden border-t border-slate-200 bg-slate-50">
+                                    <div class="space-y-3 p-4">
                                         {% for msg in thread.messages %}
-                                        <!-- Individual Message Card -->
-                                        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-                                            <!-- Message Header -->
-                                            <div class="px-4 py-3 border-b border-slate-100">
+                                        <div class="overflow-hidden rounded-md border border-slate-200 bg-white">
+                                            <div class="border-b border-slate-200 px-4 py-3">
                                                 <div class="flex items-center justify-between">
-                                                    <span class="font-semibold text-slate-800">
+                                                    <span class="text-sm font-semibold text-slate-900">
                                                         {% if msg.direction == 'outbound' %}You{% else %}{{ msg.from_name or msg.from_email.split('@')[0] }}{% endif %}
                                                     </span>
-                                                    <span class="text-xs text-slate-400 msg-date" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
+                                                    <span class="msg-date text-xs text-slate-500" data-date="{{ msg.sent_at }}">{{ msg.sent_at }}</span>
                                                 </div>
-                                                <div class="flex items-center gap-2 mt-1">
+                                                <div class="mt-1.5 flex items-center gap-1.5">
                                                     {% if msg.direction == 'outbound' %}
-                                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded uppercase font-bold tracking-wide">Sent</span>
+                                                    {{ badge('Sent', 'info') }}
                                                     {% else %}
-                                                    <span class="text-xs bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase font-bold tracking-wide">Received</span>
+                                                    {{ badge('Received') }}
                                                     {% endif %}
                                                     {% if msg.has_attachments %}
-                                                    <span class="text-xs text-slate-400 flex items-center gap-1">
+                                                    <span class="inline-flex items-center gap-1 text-xs text-slate-500">
                                                         <i class="fas fa-paperclip"></i> Attachments
                                                     </span>
                                                     {% endif %}
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Message Body -->
+
                                             <div class="px-4 py-3">
-                                                <div class="prose prose-sm prose-slate max-w-none email-body-content text-sm text-slate-600">
+                                                <div class="prose prose-sm prose-slate email-body-content max-w-none text-sm text-slate-700">
                                                     {% if msg.body_html %}
                                                     {{ msg.body_html|safe }}
                                                     {% elif msg.body_text %}
-                                                    <pre class="whitespace-pre-wrap font-sans text-slate-600 text-sm">{{ msg.body_text }}</pre>
+                                                    <pre class="whitespace-pre-wrap font-sans text-sm text-slate-700">{{ msg.body_text }}</pre>
                                                     {% else %}
                                                     <p>{{ msg.snippet }}</p>
                                                     {% endif %}
@@ -998,108 +847,92 @@
                         </div>
                         {% endif %}
                     </div>
-                </div>
+                </section>
             </div>
         </div>
     </div>
 </div>
 
 <!-- Log Activity Modal -->
-<div id="logActivityModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
+<div id="logActivityModal" class="hidden fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-md rounded-xl shadow-xl">
-            <!-- Modal header -->
-            <div
-                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+        <div class="relative w-full max-w-md overflow-hidden rounded-md border border-slate-200 bg-white shadow-panel">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100">
                         <i class="fas fa-clipboard-list text-slate-500"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-900">Log Activity</h3>
-                        <p class="text-sm text-slate-500">Record an interaction with {{ contact.first_name }}</p>
+                        <h3 class="text-base font-semibold text-slate-900">Log activity</h3>
+                        <p class="text-xs text-slate-500">Record an interaction with {{ contact.first_name }}</p>
                     </div>
                 </div>
-                <button onclick="closeLogActivityModal()"
-                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-slate-400"></i>
+                <button type="button" onclick="closeLogActivityModal()"
+                        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <!-- Modal content -->
-            <form id="logActivityForm" class="p-6 space-y-5">
-                <!-- Activity Type -->
+            <form id="logActivityForm" class="space-y-5 p-5">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-2">
-                        Activity Type <span class="text-red-500">*</span>
+                    <label class="mb-2 block text-xs font-medium text-slate-600">
+                        Activity type <span class="text-red-500">*</span>
                     </label>
                     <div class="grid grid-cols-5 gap-2">
                         <button type="button" onclick="selectActivityType('call')" data-type="call"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-phone text-lg text-slate-500 mb-1"></i>
-                            <span class="text-xs text-slate-600">Call</span>
+                                class="activity-type-btn flex flex-col items-center justify-center rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                            <i class="fas fa-phone mb-1 text-base text-slate-500"></i>
+                            <span class="text-xs text-slate-700">Call</span>
                         </button>
                         <button type="button" onclick="selectActivityType('email')" data-type="email"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-envelope text-lg text-slate-500 mb-1"></i>
-                            <span class="text-xs text-slate-600">Email</span>
+                                class="activity-type-btn flex flex-col items-center justify-center rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                            <i class="fas fa-envelope mb-1 text-base text-slate-500"></i>
+                            <span class="text-xs text-slate-700">Email</span>
                         </button>
                         <button type="button" onclick="selectActivityType('text')" data-type="text"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-comment text-lg text-slate-500 mb-1"></i>
-                            <span class="text-xs text-slate-600">Text</span>
+                                class="activity-type-btn flex flex-col items-center justify-center rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                            <i class="fas fa-comment mb-1 text-base text-slate-500"></i>
+                            <span class="text-xs text-slate-700">Text</span>
                         </button>
                         <button type="button" onclick="selectActivityType('meeting')" data-type="meeting"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-users text-lg text-slate-500 mb-1"></i>
-                            <span class="text-xs text-slate-600">Meeting</span>
+                                class="activity-type-btn flex flex-col items-center justify-center rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                            <i class="fas fa-users mb-1 text-base text-slate-500"></i>
+                            <span class="text-xs text-slate-700">Meeting</span>
                         </button>
                         <button type="button" onclick="selectActivityType('other')" data-type="other"
-                            class="activity-type-btn flex flex-col items-center justify-center p-3 rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-colors">
-                            <i class="fas fa-ellipsis-h text-lg text-slate-500 mb-1"></i>
-                            <span class="text-xs text-slate-600">Other</span>
+                                class="activity-type-btn flex flex-col items-center justify-center rounded-md border border-slate-200 p-3 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                            <i class="fas fa-ellipsis-h mb-1 text-base text-slate-500"></i>
+                            <span class="text-xs text-slate-700">Other</span>
                         </button>
                     </div>
                     <input type="hidden" name="activity_type" id="activityType" required>
                 </div>
 
-                <!-- Activity Date -->
-                <div>
-                    <label for="activityDate" class="block text-sm font-medium text-slate-700 mb-2">
-                        Date <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" name="activity_date" id="activityDate" required
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors">
-                </div>
+                <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Date <span class="text-red-500">*</span></span>
+                    <input type="date" name="activity_date" id="activityDate" required class="crm-input">
+                </label>
 
-                <!-- Notes -->
-                <div>
-                    <label for="activityNotes" class="block text-sm font-medium text-slate-700 mb-2">
-                        Notes <span class="text-slate-400">(optional)</span>
-                    </label>
+                <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Notes <span class="text-slate-400">(optional)</span></span>
                     <textarea name="notes" id="activityNotes" rows="3" placeholder="What did you discuss?"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors resize-none"></textarea>
-                </div>
+                              class="crm-input resize-none"></textarea>
+                </label>
 
-                <!-- Follow-up Date -->
-                <div>
-                    <label for="followUpDate" class="block text-sm font-medium text-slate-700 mb-2">
-                        Follow-up Date <span class="text-slate-400">(optional)</span>
-                    </label>
-                    <input type="date" name="follow_up_date" id="followUpDate"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-200 transition-colors">
-                </div>
+                <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-600">Follow-up date <span class="text-slate-400">(optional)</span></span>
+                    <input type="date" name="follow_up_date" id="followUpDate" class="crm-input">
+                </label>
             </form>
 
-            <!-- Modal footer -->
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-                <button onclick="closeLogActivityModal()"
-                    class="px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-slate-600">
+            <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" onclick="closeLogActivityModal()" class="crm-btn crm-btn-secondary">
                     Cancel
                 </button>
-                <button onclick="submitLogActivity()" id="logActivitySubmitBtn"
-                    class="px-5 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors text-sm font-medium">
-                    <i class="fas fa-check mr-2"></i>Log Activity
+                <button type="button" onclick="submitLogActivity()" id="logActivitySubmitBtn"
+                        class="crm-btn crm-btn-primary">
+                    <i class="fas fa-check text-xs"></i>
+                    Log activity
                 </button>
             </div>
         </div>
@@ -1107,71 +940,62 @@
 </div>
 
 <!-- Voice Memo Recording Modal -->
-<div id="voiceMemoModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
+<div id="voiceMemoModal" class="hidden fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-md rounded-xl shadow-xl">
-            <!-- Modal header -->
-            <div
-                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+        <div class="relative w-full max-w-md overflow-hidden rounded-md border border-slate-200 bg-white shadow-panel">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100">
                         <i class="fas fa-microphone text-slate-500"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-900">Voice Memo</h3>
-                        <p class="text-sm text-slate-500">Record a memo for {{ contact.first_name }}</p>
+                        <h3 class="text-base font-semibold text-slate-900">Voice memo</h3>
+                        <p class="text-xs text-slate-500">Record a memo for {{ contact.first_name }}</p>
                     </div>
                 </div>
-                <button onclick="closeVoiceMemoModal()"
-                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-slate-400"></i>
+                <button type="button" onclick="closeVoiceMemoModal()"
+                        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <!-- Modal content -->
             <div class="p-6 text-center">
-                <!-- Recording Status -->
-                <div id="voiceMemoStatus" class="mb-6">
-                    <p id="voiceMemoStatusText" class="text-slate-600">Tap the button to start recording</p>
+                <div id="voiceMemoStatus" class="mb-5">
+                    <p id="voiceMemoStatusText" class="text-sm text-slate-600">Tap the button to start recording</p>
                 </div>
 
-                <!-- Timer Display -->
-                <div id="voiceMemoTimer" class="text-4xl font-mono text-slate-800 mb-6">
+                <div id="voiceMemoTimer" class="mb-5 font-mono text-4xl text-slate-900">
                     0:00
                 </div>
 
-                <!-- Record Button -->
-                <div class="mb-6">
-                    <button id="voiceMemoRecordBtn" onclick="toggleRecording()"
-                        class="w-20 h-20 rounded-full bg-rose-500 text-white flex items-center justify-center mx-auto shadow-sm hover:bg-rose-600 transition-colors">
+                <div class="mb-5">
+                    <button type="button" id="voiceMemoRecordBtn" onclick="toggleRecording()"
+                            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-rose-500 text-white transition-colors hover:bg-rose-600">
                         <i class="fas fa-microphone text-3xl" id="voiceMemoIcon"></i>
                     </button>
                 </div>
 
-                <!-- Audio Preview (hidden until recording complete) -->
-                <div id="voiceMemoPreview" class="hidden mb-4">
+                <div id="voiceMemoPreview" class="mb-4 hidden">
                     <audio id="voiceMemoAudio" controls class="w-full"></audio>
                 </div>
 
-                <!-- Error Message -->
-                <div id="voiceMemoError" class="hidden text-red-500 text-sm mb-4">
+                <div id="voiceMemoError" class="mb-3 hidden text-sm text-red-500">
                     <i class="fas fa-exclamation-circle mr-1"></i>
                     <span id="voiceMemoErrorText"></span>
                 </div>
 
-                <!-- Info Text -->
-                <p class="text-xs text-slate-400 mb-4">Maximum recording time: 3 minutes</p>
+                <p class="text-xs text-slate-500">Maximum recording time: 3 minutes</p>
             </div>
 
-            <!-- Modal footer -->
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-                <button onclick="closeVoiceMemoModal()" id="voiceMemoCancelBtn"
-                    class="px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium text-slate-600">
+            <div class="flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" onclick="closeVoiceMemoModal()" id="voiceMemoCancelBtn"
+                        class="crm-btn crm-btn-secondary">
                     Cancel
                 </button>
-                <button onclick="saveVoiceMemo()" id="voiceMemoSaveBtn" disabled
-                    class="px-5 py-2.5 bg-slate-800 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-900 transition-colors text-sm font-medium">
-                    <i class="fas fa-save mr-2"></i>Save Memo
+                <button type="button" onclick="saveVoiceMemo()" id="voiceMemoSaveBtn" disabled
+                        class="crm-btn crm-btn-primary disabled:cursor-not-allowed disabled:opacity-50">
+                    <i class="fas fa-save text-xs"></i>
+                    Save memo
                 </button>
             </div>
         </div>
@@ -1179,64 +1003,57 @@
 </div>
 
 <!-- Voice Memo Detail Modal -->
-<div id="voiceMemoDetailModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
+<div id="voiceMemoDetailModal" class="hidden fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
     <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white w-full max-w-lg rounded-xl shadow-xl">
-            <!-- Modal header -->
-            <div
-                class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white rounded-t-xl">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-md border border-slate-200 bg-white shadow-panel">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100">
                         <i class="fas fa-file-audio text-slate-500"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-900">Voice Memo</h3>
-                        <p class="text-sm text-slate-500" id="memoDetailDate">-</p>
+                        <h3 class="text-base font-semibold text-slate-900">Voice memo</h3>
+                        <p class="text-xs text-slate-500" id="memoDetailDate">-</p>
                     </div>
                 </div>
-                <button onclick="closeVoiceMemoDetailModal()"
-                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-slate-400"></i>
+                <button type="button" onclick="closeVoiceMemoDetailModal()"
+                        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <!-- Modal content -->
-            <div class="p-6">
-                <!-- Audio Player -->
-                <div class="mb-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-medium text-slate-700">Recording</span>
-                        <span class="text-sm text-slate-500" id="memoDetailDuration">0:00</span>
+            <div class="space-y-5 p-5">
+                <div>
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-600">Recording</span>
+                        <span class="text-xs text-slate-500" id="memoDetailDuration">0:00</span>
                     </div>
                     <audio id="memoDetailAudio" controls class="w-full"></audio>
                 </div>
 
-                <!-- Transcript Section -->
                 <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-medium text-slate-700">
-                            <i class="fas fa-file-alt mr-1.5 text-slate-400"></i>Transcript
+                    <div class="mb-2 flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-600">
+                            <i class="fas fa-file-alt mr-1 text-slate-400"></i>Transcript
                         </span>
                         <span id="memoDetailTranscriptStatus"
-                            class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 hidden">
-                            AI Generated
+                              class="hidden rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">
+                            AI generated
                         </span>
                     </div>
                     <div id="memoDetailTranscript"
-                        class="bg-slate-50 rounded-lg p-4 min-h-[100px] max-h-[300px] overflow-y-auto">
-                        <p class="text-slate-600 text-sm leading-relaxed" id="memoTranscriptText">-</p>
+                         class="max-h-[300px] min-h-[100px] overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm leading-relaxed text-slate-700" id="memoTranscriptText">-</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Modal footer -->
-            <div class="flex justify-between gap-3 px-6 py-4 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-                <button onclick="deleteVoiceMemoFromDetail()"
-                    class="px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium">
-                    <i class="fas fa-trash-alt mr-1.5"></i>Delete
+            <div class="flex justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
+                <button type="button" onclick="deleteVoiceMemoFromDetail()"
+                        class="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-red-600 transition-colors hover:bg-red-50">
+                    <i class="fas fa-trash-alt text-xs"></i>Delete
                 </button>
-                <button onclick="closeVoiceMemoDetailModal()"
-                    class="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-sm font-medium text-slate-600">
+                <button type="button" onclick="closeVoiceMemoDetailModal()" class="crm-btn crm-btn-secondary">
                     Close
                 </button>
             </div>
@@ -1246,172 +1063,149 @@
 
 <!-- Task Modal -->
 <div id="taskModal" data-is-admin="{{ 'true' if current_user.role == 'admin' else 'false' }}"
-    data-show-all="{{ 'true' if show_all else 'false' }}"
-    class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] overflow-y-auto">
+     data-show-all="{{ 'true' if show_all else 'false' }}"
+     class="hidden fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
     <div class="flex min-h-full items-center justify-center p-0 md:p-4">
-        <div class="relative bg-white w-full md:rounded-xl shadow-xl md:max-w-4xl min-h-screen md:min-h-0">
-            <!-- Modal header -->
-            <div
-                class="sticky top-0 z-10 flex items-center justify-between px-4 py-4 md:px-6 md:py-4 border-b border-slate-200 bg-white md:rounded-t-xl">
-                <div class="flex items-center space-x-4">
+        <div class="relative min-h-screen w-full overflow-hidden bg-white md:min-h-0 md:max-w-4xl md:rounded-md md:border md:border-slate-200 md:shadow-panel">
+            <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white px-4 py-4 md:px-5">
+                <div class="flex items-center gap-3">
                     <div id="modalTaskPriorityIndicator"
-                        class="w-10 h-10 rounded-lg flex items-center justify-center text-base">
+                         class="flex h-10 w-10 items-center justify-center rounded-md text-base">
                         <i class="fas fa-flag"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold text-slate-900" id="modalTaskSubject"></h3>
+                        <h3 class="text-base font-semibold text-slate-900" id="modalTaskSubject"></h3>
                         {% if current_user.role == 'admin' and show_all %}
-                        <div class="flex items-center text-slate-500 text-sm mt-0.5 mb-1">
+                        <div class="mt-0.5 mb-1 flex items-center text-xs text-slate-500">
                             <div id="modalTaskOwnerInitials"
-                                class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs mr-2 font-medium">
+                                 class="mr-2 flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[10px] font-semibold">
                             </div>
                             <span id="modalTaskOwner"></span>
                         </div>
                         {% endif %}
-                        <p class="text-sm text-slate-500" id="modalTaskHeaderDueDate"></p>
+                        <p class="text-xs text-slate-500" id="modalTaskHeaderDueDate"></p>
                     </div>
                 </div>
-                <button onclick="closeTaskModal()"
-                    class="w-8 h-8 rounded-md hover:bg-slate-100 flex items-center justify-center transition-colors">
-                    <i class="fas fa-times text-slate-400"></i>
+                <button type="button" onclick="closeTaskModal()"
+                        class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times"></i>
                 </button>
             </div>
 
-            <!-- Modal content -->
-            <div class="px-4 py-4 md:px-6 space-y-4" id="modalTaskContent">
-                <!-- Status and Priority -->
+            <div class="space-y-3 px-4 py-4 md:px-5" id="modalTaskContent">
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
-                        <div class="flex items-center space-x-3">
-                            <div
-                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                    <div class="flex-1 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                                 <i class="fas fa-tasks text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-slate-500">Status</p>
+                                <p class="text-xs text-slate-500">Status</p>
                                 <p id="modalTaskStatus" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
-                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
-                        <div class="flex items-center space-x-3">
-                            <div
-                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                    <div class="flex-1 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                                 <i class="fas fa-flag text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-slate-500">Priority</p>
+                                <p class="text-xs text-slate-500">Priority</p>
                                 <p id="modalTaskPriority" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Due Date and Scheduled Time -->
                 <div class="flex flex-wrap gap-3">
-                    <div class="bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
-                        <div class="flex items-center space-x-3">
-                            <div
-                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                    <div class="flex-1 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                                 <i class="fas fa-calendar text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-slate-500">Due Date</p>
+                                <p class="text-xs text-slate-500">Due date</p>
                                 <p id="modalTaskDueDate" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
                     <div id="modalTaskScheduledContainer"
-                        class="hidden bg-slate-50 rounded-lg p-3 flex-1 border border-slate-100">
-                        <div class="flex items-center space-x-3">
-                            <div
-                                class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                         class="hidden flex-1 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                                 <i class="fas fa-clock text-slate-400"></i>
                             </div>
                             <div>
-                                <p class="text-sm text-slate-500">Scheduled Time</p>
+                                <p class="text-xs text-slate-500">Scheduled time</p>
                                 <p id="modalTaskScheduledTime" class="text-sm font-semibold text-slate-900"></p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Task Type and Subtype -->
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div class="flex items-center space-x-3">
-                        <div
-                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                             <i class="fas fa-tag text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-slate-500">Task Type</p>
-                            <div class="flex items-center space-x-2 mt-1">
+                            <p class="text-xs text-slate-500">Task type</p>
+                            <div class="mt-1 flex items-center gap-2">
                                 <span id="modalTaskType"
-                                    class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-200 text-slate-800"></span>
+                                      class="inline-flex items-center rounded-md bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-800"></span>
                                 <span id="modalTaskSubtype"
-                                    class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-600"></span>
+                                      class="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Contact -->
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div class="flex items-center space-x-3">
-                        <div
-                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                             <i class="fas fa-user text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-slate-500">Contact</p>
+                            <p class="text-xs text-slate-500">Contact</p>
                             <a id="modalTaskContact" href="#"
-                                class="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors duration-150"></a>
+                               class="text-sm font-semibold text-orange-600 transition-colors hover:text-orange-700"></a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Property Address -->
-                <div id="modalTaskPropertyContainer" class="hidden bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div class="flex items-center space-x-3">
-                        <div
-                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                <div id="modalTaskPropertyContainer" class="hidden rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                             <i class="fas fa-building text-slate-400"></i>
                         </div>
                         <div>
-                            <p class="text-sm text-slate-500">Property Address</p>
+                            <p class="text-xs text-slate-500">Property address</p>
                             <p id="modalTaskProperty" class="text-sm font-semibold text-slate-900"></p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Description -->
-                <div class="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                    <div class="flex items-start space-x-3">
-                        <div
-                            class="w-8 h-8 rounded-md flex items-center justify-center bg-white border border-slate-200">
+                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <div class="flex items-start gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white">
                             <i class="fas fa-align-left text-slate-400"></i>
                         </div>
                         <div class="flex-1">
-                            <p class="text-sm text-slate-500">Description</p>
-                            <p id="modalTaskDescription" class="mt-1 text-sm text-slate-900 whitespace-pre-line"></p>
+                            <p class="text-xs text-slate-500">Description</p>
+                            <p id="modalTaskDescription" class="mt-1 whitespace-pre-line text-sm text-slate-900"></p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Modal footer -->
-            <div
-                class="sticky bottom-0 border-t border-slate-200 bg-white p-4 md:rounded-b-xl">
-                <div class="flex flex-col md:flex-row md:justify-between gap-3">
-                    <div class="flex flex-col md:flex-row gap-2 md:items-center md:space-x-4">
-                        <button onclick="toggleTaskStatus()"
-                            class="flex-1 md:flex-none text-center px-5 py-2.5 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 transition-colors text-sm font-medium">
-                            <span id="modalTaskStatusButton"></span>
-                        </button>
-                    </div>
-                    <a id="modalTaskFullView" href="#"
-                        class="flex-1 md:flex-none text-center px-5 py-2.5 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium">
-                        Open Full View
+            <div class="sticky bottom-0 border-t border-slate-200 bg-white px-4 py-3 md:px-5">
+                <div class="flex flex-col gap-2 md:flex-row md:justify-between">
+                    <button type="button" onclick="toggleTaskStatus()" class="crm-btn crm-btn-secondary justify-center">
+                        <span id="modalTaskStatusButton"></span>
+                    </button>
+                    <a id="modalTaskFullView" href="#" class="crm-btn crm-btn-primary justify-center">
+                        Open full view
                     </a>
                 </div>
             </div>
@@ -2210,17 +2004,13 @@
         const completedList = document.getElementById('completedTasks');
 
         if (view === 'pending') {
-            pendingTab.classList.add('text-orange-600', 'border-b-2', 'border-orange-500');
-            pendingTab.classList.remove('text-slate-500');
-            completedTab.classList.remove('text-orange-600', 'border-b-2', 'border-orange-500');
-            completedTab.classList.add('text-slate-500');
+            pendingTab.classList.add('is-active');
+            completedTab.classList.remove('is-active');
             pendingList.classList.remove('hidden');
             completedList.classList.add('hidden');
         } else {
-            completedTab.classList.add('text-orange-600', 'border-b-2', 'border-orange-500');
-            completedTab.classList.remove('text-slate-500');
-            pendingTab.classList.remove('text-orange-600', 'border-b-2', 'border-orange-500');
-            pendingTab.classList.add('text-slate-500');
+            completedTab.classList.add('is-active');
+            pendingTab.classList.remove('is-active');
             completedList.classList.remove('hidden');
             pendingList.classList.add('hidden');
         }
@@ -2460,34 +2250,34 @@
         }
 
         // Get icon class based on file type
-        let iconClass = 'fa-file text-slate-400';
+        let iconClass = 'fa-file';
         const ext = file.original_filename.split('.').pop().toLowerCase();
 
         if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
-            iconClass = 'fa-file-image text-pink-500';
+            iconClass = 'fa-file-image';
         } else if (ext === 'pdf') {
-            iconClass = 'fa-file-pdf text-red-500';
+            iconClass = 'fa-file-pdf';
         } else if (['doc', 'docx'].includes(ext)) {
-            iconClass = 'fa-file-word text-blue-500';
+            iconClass = 'fa-file-word';
         } else if (['xls', 'xlsx', 'csv'].includes(ext)) {
-            iconClass = 'fa-file-excel text-green-500';
+            iconClass = 'fa-file-excel';
         }
 
         const fileHtml = `
-        <div class="p-3 hover:bg-slate-50 transition-colors group file-item" data-file-id="${file.id}">
+        <div class="file-item group px-4 py-3 transition-colors hover:bg-slate-50" data-file-id="${file.id}">
             <div class="flex items-center gap-3">
-                <i class="fas ${iconClass} flex-shrink-0"></i>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-slate-800 truncate">${file.original_filename}</p>
+                <i class="fas ${iconClass} flex-shrink-0 text-slate-400"></i>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-slate-900">${file.original_filename}</p>
                     <p class="text-xs text-slate-500">${file.file_size} · ${file.created_at}</p>
                 </div>
-                <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="downloadContactFile(${file.id})"
-                            class="p-1.5 text-slate-400 hover:text-emerald-600 rounded transition-colors" title="Download">
+                <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button type="button" onclick="downloadContactFile(${file.id})"
+                            class="rounded p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700" title="Download">
                         <i class="fas fa-download text-xs"></i>
                     </button>
-                    <button onclick="deleteContactFile(${file.id}, '${file.original_filename.replace(/'/g, "\\'")}')"
-                            class="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors" title="Delete">
+                    <button type="button" onclick="deleteContactFile(${file.id}, '${file.original_filename.replace(/'/g, "\\'")}')"
+                            class="rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600" title="Delete">
                         <i class="fas fa-trash-alt text-xs"></i>
                     </button>
                 </div>
@@ -2538,12 +2328,8 @@
                     const filesList = document.getElementById('contactFilesList');
                     if (filesList.querySelectorAll('.file-item').length === 0) {
                         filesList.innerHTML = `
-                    <div id="noFilesMessage" class="p-8 text-center">
-                        <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                            <i class="fas fa-folder-open text-slate-400 text-xl"></i>
-                        </div>
-                        <p class="text-slate-500 text-sm">No files uploaded</p>
-                        <p class="text-slate-400 text-xs mt-1">Click upload or drag files here</p>
+                    <div id="noFilesMessage" class="px-4 py-6 text-center">
+                        <p class="text-sm text-slate-400">No files</p>
                     </div>
                 `;
                     }
@@ -2586,7 +2372,7 @@
 
     // Drag and drop support
     const fileDropZone = document.getElementById('fileDropZone');
-    const filesCard = fileDropZone ? fileDropZone.closest('.bg-white') : null;
+    const filesCard = fileDropZone ? fileDropZone.closest('.crm-surface') : null;
 
     if (filesCard) {
         filesCard.addEventListener('dragover', (e) => {
@@ -2826,33 +2612,31 @@
                              `In ${s.due_in_days} days`;
 
             const card = document.createElement('div');
-            card.className = 'p-3.5 hover:bg-slate-50/50 transition-colors suggestion-item';
+            card.className = 'suggestion-item px-4 py-3 transition-colors hover:bg-slate-50';
             card.dataset.index = index;
             card.innerHTML = `
                 <div class="flex items-start gap-3">
-                    <div class="w-8 h-8 rounded-lg ${p.bg} flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <div class="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md ${p.bg}">
                         <i class="fas ${typeIcon} ${p.text} text-xs"></i>
                     </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2 mb-1">
-                            <h4 class="text-sm font-semibold text-slate-800 leading-tight flex-1">${escapeHtml(s.subject)}</h4>
-                        </div>
-                        <p class="text-xs text-slate-500 leading-relaxed mb-2">${escapeHtml(s.reason)}</p>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${p.bg} ${p.text} border ${p.border}">
+                    <div class="min-w-0 flex-1">
+                        <h4 class="text-sm font-semibold leading-tight text-slate-900">${escapeHtml(s.subject)}</h4>
+                        <p class="mt-1 text-xs leading-relaxed text-slate-600">${escapeHtml(s.reason)}</p>
+                        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                            <span class="inline-flex items-center gap-1 rounded-md border ${p.border} ${p.bg} px-1.5 py-0.5 text-[10px] font-semibold ${p.text}">
                                 <i class="fas ${p.icon} text-[8px]"></i> ${p.label}
                             </span>
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
+                            <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
                                 <i class="far fa-clock text-[8px]"></i> ${dueLabel}
                             </span>
-                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-500">
-                                ${escapeHtml(s.task_type)} · ${escapeHtml(s.task_subtype)}
+                            <span class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                                ${escapeHtml(s.task_type)} &middot; ${escapeHtml(s.task_subtype)}
                             </span>
                         </div>
                     </div>
-                    <button onclick="addSuggestedTask(${index})"
-                        class="add-task-btn flex-shrink-0 inline-flex items-center gap-1 px-2 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 rounded-md shadow-sm transition-all hover:shadow mt-0.5"
-                        title="Create this task">
+                    <button type="button" onclick="addSuggestedTask(${index})"
+                            class="add-task-btn mt-0.5 inline-flex flex-shrink-0 items-center gap-1 rounded-md bg-orange-500 px-2 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-orange-600"
+                            title="Create this task">
                         <i class="fas fa-plus text-[9px]"></i>
                         <span>Add</span>
                     </button>
@@ -2925,36 +2709,36 @@
             emptyMsg.remove();
         }
 
-        const priorityColors = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-green-500' };
+        const priorityColors = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-emerald-500' };
         const dotClass = priorityColors[task.priority] || 'bg-amber-500';
 
         const d = task.days_until_due;
         let dueText, dueClass;
-        if (d < 0) { dueText = Math.abs(d) + 'd overdue'; dueClass = 'text-red-500'; }
-        else if (d === 0) { dueText = 'Due today'; dueClass = 'text-orange-500'; }
+        if (d < 0) { dueText = Math.abs(d) + 'd overdue'; dueClass = 'text-red-600'; }
+        else if (d === 0) { dueText = 'Due today'; dueClass = 'text-orange-600'; }
         else if (d === 1) { dueText = 'Due tomorrow'; dueClass = 'text-amber-600'; }
         else if (d <= 2) { dueText = 'Due in ' + d + 'd'; dueClass = 'text-amber-600'; }
         else { dueText = 'Due in ' + d + 'd'; dueClass = 'text-slate-500'; }
 
         const row = document.createElement('div');
-        row.className = 'p-3 hover:bg-slate-50 transition-colors duration-150';
+        row.className = 'px-4 py-3 transition-colors hover:bg-slate-50';
         row.style.animation = 'fadeIn 0.3s ease-out';
         row.innerHTML = `
             <div class="flex items-center gap-3">
-                <div class="w-2 h-2 rounded-full flex-shrink-0 ${dotClass}"></div>
-                <div class="flex-1 min-w-0">
+                <span class="h-2 w-2 flex-shrink-0 rounded-full ${dotClass}"></span>
+                <div class="min-w-0 flex-1">
                     <a href="#" data-task-id="${task.id}"
-                        class="task-link text-sm font-medium text-slate-800 hover:text-orange-600 truncate block transition-colors">
+                       class="task-link block truncate text-sm font-medium text-slate-900 hover:text-orange-600">
                         ${escapeHtml(task.subject)}
                     </a>
-                    <div class="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                        <span>${escapeHtml(task.task_type_name)}</span>
+                    <div class="mt-1 flex items-center gap-2 text-xs">
+                        <span class="text-slate-500">${escapeHtml(task.task_type_name)}</span>
                         <span class="text-slate-300">&middot;</span>
                         <span class="${dueClass}">${dueText}</span>
                     </div>
                 </div>
-                <button onclick="quickUpdateStatus(${task.id}, true)"
-                    class="w-6 h-6 rounded text-slate-300 hover:text-green-500 hover:bg-green-50 flex items-center justify-center transition-all flex-shrink-0">
+                <button type="button" onclick="quickUpdateStatus(${task.id}, true)"
+                        class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded text-slate-300 transition-colors hover:bg-emerald-50 hover:text-emerald-600">
                     <i class="fas fa-check text-xs"></i>
                 </button>
             </div>
