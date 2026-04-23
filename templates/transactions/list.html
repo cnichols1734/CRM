@@ -1,350 +1,92 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
 
 {% block title %}Transactions - Origen TechnolOG{% endblock %}
 
 {% block content %}
-<style>
-    :root {
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --focus: rgba(249, 115, 22, 0.1);
-    }
+{% set status_labels = {
+    'preparing_to_list': 'Preparing to List',
+    'showing': 'Showing',
+    'active': 'Active',
+    'under_contract': 'Under Contract',
+    'closed': 'Closed',
+    'cancelled': 'Cancelled / Withdrawn'
+} %}
+{% set status_tones = {
+    'preparing_to_list': 'warning',
+    'showing': 'info',
+    'active': 'success',
+    'under_contract': 'accent',
+    'closed': 'neutral',
+    'cancelled': 'neutral'
+} %}
+{% set type_tones = {
+    'seller': 'accent',
+    'buyer': 'info',
+    'landlord': 'info',
+    'tenant': 'success',
+    'referral': 'neutral'
+} %}
 
-    .premium-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 0.75rem;
-        box-shadow: var(--shadow-sm);
-    }
-
-    .btn-primary {
-        background: #f97316;
-        color: #fff;
-        font-weight: 600;
-        border-radius: 0.5rem;
-        border: 1px solid #f97316;
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-
-    .btn-primary:hover {
-        background: #ea580c;
-        border-color: #ea580c;
-    }
-
-    .btn-secondary {
-        background: #f8fafc;
-        border: 1px solid var(--border);
-        color: var(--muted);
-        font-weight: 500;
-        border-radius: 0.5rem;
-        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    }
-
-    .btn-secondary:hover {
-        background: #f1f5f9;
-        border-color: #cbd5e1;
-        color: #475569;
-    }
-
-    .segmented-control {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.25rem;
-        border: 1px solid var(--border);
-        background: #f8fafc;
-        border-radius: 0.5rem;
-    }
-
-    .segmented-btn {
-        padding: 0.4rem 0.9rem;
-        border-radius: 0.375rem;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #64748b;
-        border: none;
-        background: transparent;
-        transition: background-color 0.15s ease, color 0.15s ease;
-    }
-
-    .segmented-btn:hover {
-        color: #334155;
-        background: #f1f5f9;
-    }
-
-    .segmented-btn.active {
-        background: #f97316;
-        color: white;
-    }
-
-    .search-input,
-    .filter-select {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 0.5rem;
-        background: #fff;
-        color: #1e293b;
-        font-size: 0.875rem;
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    .search-input {
-        padding: 0.62rem 2.5rem 0.62rem 2.4rem;
-    }
-
-    .filter-select {
-        padding: 0.62rem 0.85rem;
-    }
-
-    .search-input:focus,
-    .filter-select:focus {
-        outline: none;
-        border-color: #f97316;
-        box-shadow: 0 0 0 3px var(--focus);
-    }
-
-    .tx-table {
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .tx-table thead th {
-        background: #f8fafc;
-        color: #475569;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-    }
-
-    .tx-table tbody tr {
-        cursor: pointer;
-        transition: background-color 0.15s ease;
-    }
-
-    .tx-table tbody tr:hover {
-        background: #fafafa;
-    }
-
-    .status-badge,
-    .type-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.3rem 0.58rem;
-        border-radius: 0.375rem;
-        font-size: 0.6875rem;
-        font-weight: 600;
-        line-height: 1;
-        white-space: nowrap;
-    }
-
-    .status-preparing_to_list { background: #fef3c7; color: #92400e; }
-    .status-showing { background: #f3e8ff; color: #7c3aed; }
-    .status-active { background: #dcfce7; color: #166534; }
-    .status-under_contract { background: #dbeafe; color: #1e40af; }
-    .status-closed { background: #e0e7ff; color: #3730a3; }
-    .status-cancelled { background: #fee2e2; color: #991b1b; }
-
-    .type-seller { background: #f97316; color: white; }
-    .type-buyer { background: #8b5cf6; color: white; }
-    .type-landlord { background: #06b6d4; color: white; }
-    .type-tenant { background: #10b981; color: white; }
-    .type-referral { background: #6366f1; color: white; }
-
-    .filter-chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        padding: 0.3rem 0.65rem;
-        border-radius: 0.375rem;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
-        color: #334155;
-        font-size: 0.8125rem;
-    }
-
-    .avatar-pill {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 9999px;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: #64748b;
-        font-size: 0.75rem;
-    }
-
-    .empty-state-icon {
-        width: 3.5rem;
-        height: 3.5rem;
-        border-radius: 0.75rem;
-        border: 1px solid #e2e8f0;
-        background: #f8fafc;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: #94a3b8;
-        font-size: 1.25rem;
-    }
-
-    .stage-age-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.28rem 0.6rem;
-        border-radius: 0.375rem;
-        font-size: 0.75rem;
-        font-weight: 700;
-        line-height: 1;
-    }
-
-    .stage-age-fresh {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .stage-age-watch {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .stage-age-stale {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .doc-progress-track {
-        height: 0.32rem;
-        width: 100%;
-        border-radius: 9999px;
-        background: #e2e8f0;
-        overflow: hidden;
-    }
-
-    .doc-progress-fill {
-        height: 100%;
-        background: #10b981;
-    }
-
-    .doc-chip {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.22rem 0.5rem;
-        border-radius: 0.35rem;
-        font-size: 0.6875rem;
-        font-weight: 600;
-        line-height: 1;
-    }
-
-    .doc-chip-blue {
-        background: #dbeafe;
-        color: #1d4ed8;
-    }
-
-    .doc-chip-amber {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .doc-chip-slate {
-        background: #f1f5f9;
-        color: #475569;
-    }
-
-    .doc-chip-green {
-        background: #dcfce7;
-        color: #166534;
-    }
-
-    .created-date {
-        white-space: nowrap;
-        font-size: 0.8125rem;
-    }
-
-    @media (max-width: 640px) {
-        .filter-chip-wrap {
-            gap: 0.5rem;
-        }
-    }
-
-</style>
-
-<div class="min-h-screen bg-slate-50">
-    <div class="p-4 md:p-6 max-w-[1680px] mx-auto">
-        <div class="flex flex-col gap-4 mb-5 md:flex-row md:items-center md:justify-between">
-            <div>
-                <h1 class="text-2xl font-bold text-slate-800">Transactions</h1>
-                <p class="text-sm text-slate-500 mt-1">
-                    {{ transactions|length }} transaction{% if transactions|length != 1 %}s{% endif %}
-                </p>
-            </div>
-            <a href="{{ url_for('transactions.new_transaction') }}"
-               class="btn-primary inline-flex items-center justify-center gap-2 px-4 py-2 text-sm">
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1680px]">
+        {% call page_header('Transactions', (transactions|length ~ ' transaction' ~ ('s' if transactions|length != 1 else ''))) %}
+            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-primary">
                 <i class="fas fa-plus text-xs"></i>
-                New Transaction
+                New transaction
             </a>
-        </div>
+        {% endcall %}
 
         {% if current_user.role == 'admin' %}
         <div class="mb-4">
-            <div class="segmented-control">
-                <button
-                    class="segmented-btn {% if show_all %}active{% endif %}"
-                    onclick="window.location.href='{{ url_for('transactions.list_transactions', view='all') }}';">
-                    All transactions
-                </button>
-                <button
-                    class="segmented-btn {% if not show_all %}active{% endif %}"
-                    onclick="window.location.href='{{ url_for('transactions.list_transactions', view='my') }}';">
+            <div class="crm-segment">
+                <a href="{{ url_for('transactions.list_transactions', view='my') }}"
+                   class="crm-segment__item {% if not show_all %}is-active{% endif %}">
                     My transactions
-                </button>
+                </a>
+                <a href="{{ url_for('transactions.list_transactions', view='all') }}"
+                   class="crm-segment__item {% if show_all %}is-active{% endif %}">
+                    All transactions
+                </a>
             </div>
         </div>
         {% endif %}
 
-        <div class="premium-card p-4 md:p-5 mb-4">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div class="w-full lg:flex-1 lg:min-w-[620px] lg:pr-4">
-                    <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Search</label>
-                    <form method="GET" id="searchForm" class="relative">
-                        {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
-                        {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
-                        {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
-                        <input type="text"
-                               id="searchInput"
-                               name="q"
-                               placeholder="Search address or contact name..."
-                               class="search-input"
-                               value="{{ search_query }}"
-                               autocomplete="off">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                        {% if search_query %}
-                        <button type="button"
-                                onclick="clearSearch()"
-                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
-                            <i class="fas fa-times text-sm"></i>
-                        </button>
-                        {% endif %}
-                    </form>
-                </div>
+        <section class="crm-surface mb-4">
+            <div class="crm-surface-body">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div class="w-full lg:flex-1 lg:min-w-[420px]">
+                        <label class="mb-2 block text-sm font-medium text-slate-700">Search</label>
+                        <form method="GET" id="searchForm" class="relative">
+                            {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
+                            {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+                            {% if type_filter %}<input type="hidden" name="type" value="{{ type_filter }}">{% endif %}
+                            <input type="text"
+                                   id="searchInput"
+                                   name="q"
+                                   placeholder="Search address or contact name..."
+                                   class="crm-input pl-9 pr-9"
+                                   value="{{ search_query }}"
+                                   autocomplete="off">
+                            <i class="fas fa-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400"></i>
+                            {% if search_query %}
+                            <button type="button"
+                                    onclick="clearSearch()"
+                                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                            {% endif %}
+                        </form>
+                    </div>
 
-                <div class="w-full lg:w-auto lg:min-w-[430px]">
-                    <form method="GET" id="filterForm" class="flex flex-col sm:flex-row gap-3">
+                    <form method="GET" id="filterForm" class="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
                         {% if show_all %}<input type="hidden" name="view" value="all">{% endif %}
                         {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}
 
                         <div class="sm:min-w-[170px]">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Type</label>
-                            <select name="type"
-                                    onchange="this.form.submit()"
-                                    class="filter-select">
-                                <option value="">All Types</option>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Type</label>
+                            <select name="type" onchange="this.form.submit()" class="crm-select">
+                                <option value="">All types</option>
                                 {% for tt in transaction_types %}
                                 <option value="{{ tt.id }}" {% if type_filter == tt.id|string %}selected{% endif %}>
                                     {{ tt.display_name }}
@@ -354,250 +96,195 @@
                         </div>
 
                         <div class="sm:min-w-[190px]">
-                            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Status</label>
-                            <select name="status"
-                                    onchange="this.form.submit()"
-                                    class="filter-select">
-                                <option value="">All Statuses</option>
-                                <option value="preparing_to_list" {% if status_filter == 'preparing_to_list' %}selected{% endif %}>Preparing to List</option>
-                                <option value="showing" {% if status_filter == 'showing' %}selected{% endif %}>Showing</option>
-                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
-                                <option value="under_contract" {% if status_filter == 'under_contract' %}selected{% endif %}>Under Contract</option>
-                                <option value="closed" {% if status_filter == 'closed' %}selected{% endif %}>Closed</option>
-                                <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled/Withdrawn</option>
+                            <label class="mb-2 block text-sm font-medium text-slate-700">Status</label>
+                            <select name="status" onchange="this.form.submit()" class="crm-select">
+                                <option value="">All statuses</option>
+                                {% for status_key, status_label in status_labels.items() %}
+                                <option value="{{ status_key }}" {% if status_filter == status_key %}selected{% endif %}>
+                                    {{ status_label }}
+                                </option>
+                                {% endfor %}
                             </select>
                         </div>
                     </form>
                 </div>
-            </div>
 
-            {% if search_query or status_filter or type_filter %}
-            <div class="filter-chip-wrap mt-4 flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Active filters</span>
-                {% if search_query %}
-                <span class="filter-chip">
-                    <i class="fas fa-search text-slate-400 text-xs"></i>
-                    "{{ search_query }}"
-                    <a href="{{ url_for('transactions.list_transactions', status=status_filter, type=type_filter, view='all' if show_all else none) }}"
-                       class="text-slate-400 hover:text-slate-600">
+                {% if search_query or status_filter or type_filter %}
+                <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-4">
+                    <span class="text-xs font-medium uppercase tracking-wide text-slate-500">Active filters</span>
+                    {% if search_query %}
+                    {{ badge('Search: ' ~ search_query, 'accent') }}
+                    {% endif %}
+                    {% if type_filter %}
+                    {% for tt in transaction_types %}
+                    {% if tt.id|string == type_filter %}
+                    {{ badge(tt.display_name) }}
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                    {% if status_filter %}
+                    {{ badge(status_labels.get(status_filter, status_filter|replace('_', ' ')|title)) }}
+                    {% endif %}
+                    <a href="{{ url_for('transactions.list_transactions', view='all' if show_all else none) }}"
+                       class="crm-btn crm-btn-subtle">
                         <i class="fas fa-times text-xs"></i>
+                        Clear all
                     </a>
-                </span>
+                </div>
                 {% endif %}
-                {% if type_filter %}
-                {% for tt in transaction_types %}
-                {% if tt.id|string == type_filter %}
-                <span class="filter-chip">
-                    <i class="fas fa-tag text-slate-400 text-xs"></i>
-                    {{ tt.display_name }}
-                    <a href="{{ url_for('transactions.list_transactions', status=status_filter, q=search_query, view='all' if show_all else none) }}"
-                       class="text-slate-400 hover:text-slate-600">
-                        <i class="fas fa-times text-xs"></i>
-                    </a>
-                </span>
-                {% endif %}
-                {% endfor %}
-                {% endif %}
-                {% if status_filter %}
-                {% set filter_status_labels = {
-                    'preparing_to_list': 'Preparing to List',
-                    'showing': 'Showing',
-                    'active': 'Active',
-                    'under_contract': 'Under Contract',
-                    'closed': 'Closed',
-                    'cancelled': 'Cancelled/Withdrawn'
-                } %}
-                <span class="filter-chip">
-                    <i class="fas fa-circle text-slate-400 text-[10px]"></i>
-                    {{ filter_status_labels.get(status_filter, status_filter|replace('_', ' ')|title) }}
-                    <a href="{{ url_for('transactions.list_transactions', type=type_filter, q=search_query, view='all' if show_all else none) }}"
-                       class="text-slate-400 hover:text-slate-600">
-                        <i class="fas fa-times text-xs"></i>
-                    </a>
-                </span>
-                {% endif %}
-                <a href="{{ url_for('transactions.list_transactions', view='all' if show_all else none) }}"
-                   class="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs">
-                    <i class="fas fa-times-circle text-xs"></i>
-                    Clear all
-                </a>
             </div>
-            {% endif %}
-        </div>
+        </section>
 
         {% if transactions %}
-        <div class="premium-card overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="tx-table w-full min-w-[1230px]">
-                    <thead>
-                        <tr class="border-b border-slate-200">
-                            <th class="px-5 py-3 text-left w-[260px]">Property</th>
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[300px]">Contact</th>
-                            {% if current_user.role == 'admin' and show_all %}
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[200px]">Owner</th>
-                            {% endif %}
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[190px]">Type</th>
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[170px]">Status</th>
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[130px]">Stage Age</th>
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[280px]">Document Progress</th>
-                            <th class="px-4 py-3 text-left border-l border-slate-200 w-[130px]">Created</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        {% for tx in transactions %}
-                        {% set stage_info = stage_age.get(tx.id, {'days': 0, 'started_at': tx.created_at}) %}
-                        {% set progress = document_progress.get(tx.id, {
-                            'signed': 0,
-                            'total': 0,
-                            'pending_placeholders': 0,
-                            'pending_signatures': 0
-                        }) %}
-                        {% set signed_docs = progress.get('signed', 0) %}
-                        {% set total_docs = progress.get('total', 0) %}
-                        {% set pending_placeholders = progress.get('pending_placeholders', 0) %}
-                        {% set pending_signatures = progress.get('pending_signatures', 0) %}
-                        {% if total_docs > 0 %}
-                            {% set completion_pct = ((signed_docs / total_docs) * 100)|round(0, 'floor')|int %}
-                        {% else %}
-                            {% set completion_pct = 0 %}
+        <div class="crm-table-wrap">
+            <table class="crm-table min-w-[1230px]">
+                <thead>
+                    <tr>
+                        <th>Property</th>
+                        <th>Contact</th>
+                        {% if current_user.role == 'admin' and show_all %}
+                        <th>Owner</th>
                         {% endif %}
-                        <tr class="clickable-row" data-href="{{ url_for('transactions.view_transaction', id=tx.id) }}">
-                            <td class="px-5 py-4">
-                                <div class="font-semibold text-slate-800">{{ tx.street_address }}</div>
-                                <div class="text-sm text-slate-500 mt-0.5">
-                                    {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
-                                </div>
-                            </td>
-                            <td class="px-4 py-4 border-l border-slate-100">
-                                {% if transaction_contacts.get(tx.id) %}
-                                    {% set contact = transaction_contacts[tx.id] %}
-                                    <div class="flex items-center gap-3 min-w-0">
-                                        <span class="avatar-pill">
-                                            <i class="fas fa-user"></i>
-                                        </span>
-                                        <div class="min-w-0">
-                                            <div class="font-medium text-slate-800 truncate">{{ contact.name }}</div>
-                                            {% if contact.email %}
-                                            <div class="text-xs text-slate-500 truncate">{{ contact.email }}</div>
-                                            {% endif %}
-                                        </div>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Stage age</th>
+                        <th>Document progress</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    {% set stage_info = stage_age.get(tx.id, {'days': 0, 'started_at': tx.created_at}) %}
+                    {% set progress = document_progress.get(tx.id, {
+                        'signed': 0,
+                        'total': 0,
+                        'pending_placeholders': 0,
+                        'pending_signatures': 0
+                    }) %}
+                    {% set signed_docs = progress.get('signed', 0) %}
+                    {% set total_docs = progress.get('total', 0) %}
+                    {% set pending_placeholders = progress.get('pending_placeholders', 0) %}
+                    {% set pending_signatures = progress.get('pending_signatures', 0) %}
+                    {% if total_docs > 0 %}
+                        {% set completion_pct = ((signed_docs / total_docs) * 100)|round(0, 'floor')|int %}
+                    {% else %}
+                        {% set completion_pct = 0 %}
+                    {% endif %}
+                    {% set stage_days = stage_info.get('days', 0) %}
+                    <tr class="clickable-row" data-href="{{ url_for('transactions.view_transaction', id=tx.id) }}">
+                        <td>
+                            <div class="font-semibold text-slate-900">{{ tx.street_address }}</div>
+                            <div class="mt-0.5 text-xs text-slate-500">
+                                {% if tx.city %}{{ tx.city }}, {% endif %}{{ tx.state }} {{ tx.zip_code }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if transaction_contacts.get(tx.id) %}
+                                {% set contact = transaction_contacts[tx.id] %}
+                                <div class="flex min-w-0 items-center gap-3">
+                                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs text-slate-500">
+                                        <i class="fas fa-user"></i>
+                                    </span>
+                                    <div class="min-w-0">
+                                        <div class="truncate font-medium text-slate-900">{{ contact.name }}</div>
+                                        {% if contact.email %}
+                                        <div class="truncate text-xs text-slate-500">{{ contact.email }}</div>
+                                        {% endif %}
                                     </div>
-                                {% else %}
-                                    <span class="text-slate-400 text-sm">No contact</span>
-                                {% endif %}
-                            </td>
-                            {% if current_user.role == 'admin' and show_all %}
-                            <td class="px-4 py-4 border-l border-slate-100">
-                                <div class="flex items-center gap-2">
-                                    <span class="avatar-pill rounded-md w-7 h-7 text-[11px] font-semibold">
-                                        {{ tx.created_by.first_name[0] }}{{ tx.created_by.last_name[0] }}
-                                    </span>
-                                    <span class="text-slate-600 text-sm">
-                                        {{ tx.created_by.first_name }} {{ tx.created_by.last_name }}
-                                    </span>
                                 </div>
-                            </td>
+                            {% else %}
+                                <span class="text-sm text-slate-400">No contact</span>
                             {% endif %}
-                            <td class="px-4 py-4 border-l border-slate-100 align-top">
-                                <span class="type-badge type-{{ tx.transaction_type.name }}">
-                                    {{ tx.transaction_type.display_name }}
+                        </td>
+                        {% if current_user.role == 'admin' and show_all %}
+                        <td>
+                            <div class="flex items-center gap-2">
+                                <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-[11px] font-semibold text-slate-600">
+                                    {{ tx.created_by.first_name[0] }}{{ tx.created_by.last_name[0] }}
                                 </span>
-                            </td>
-                            <td class="px-4 py-4 border-l border-slate-100 align-top">
-                                {% set list_status_labels = {
-                                    'preparing_to_list': 'Preparing to List',
-                                    'showing': 'Showing',
-                                    'active': 'Active',
-                                    'under_contract': 'Under Contract',
-                                    'closed': 'Closed',
-                                    'cancelled': 'Cancelled/Withdrawn'
-                                } %}
-                                <span class="status-badge status-{{ tx.status }}">
-                                    {{ list_status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
+                                <span class="text-sm text-slate-600">
+                                    {{ tx.created_by.first_name }} {{ tx.created_by.last_name }}
                                 </span>
-                            </td>
-                            <td class="px-4 py-4 border-l border-slate-100">
-                                {% set stage_days = stage_info.get('days', 0) %}
-                                <span class="stage-age-pill
-                                    {% if stage_days >= 21 %}stage-age-stale
-                                    {% elif stage_days >= 10 %}stage-age-watch
-                                    {% else %}stage-age-fresh{% endif %}">
-                                    {{ stage_days }}d
-                                </span>
-                                {% if stage_info.get('started_at') %}
-                                <div class="text-[11px] text-slate-500 mt-1">
-                                    since {{ stage_info.get('started_at').strftime('%b %d') }}
+                            </div>
+                        </td>
+                        {% endif %}
+                        <td class="align-top">
+                            {{ badge(tx.transaction_type.display_name, type_tones.get(tx.transaction_type.name, 'neutral')) }}
+                        </td>
+                        <td class="align-top">
+                            {% if tx.status == 'cancelled' %}
+                            <span class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                                {{ status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
+                            </span>
+                            {% else %}
+                            {{ badge(status_labels.get(tx.status, tx.status|replace('_', ' ')|title), status_tones.get(tx.status, 'neutral')) }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if stage_days >= 21 %}
+                            <span class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{{ stage_days }}d</span>
+                            {% elif stage_days >= 10 %}
+                            {{ badge(stage_days ~ 'd', 'warning') }}
+                            {% else %}
+                            {{ badge(stage_days ~ 'd', 'success') }}
+                            {% endif %}
+                            {% if stage_info.get('started_at') %}
+                            <div class="mt-1 text-[11px] text-slate-500">
+                                since {{ stage_info.get('started_at').strftime('%b %d') }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="min-w-[190px]">
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="font-medium text-slate-700">{{ signed_docs }}/{{ total_docs }} signed</span>
+                                    <span class="text-slate-500">{{ completion_pct }}%</span>
                                 </div>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-4 border-l border-slate-100">
-                                <div class="min-w-[190px]">
-                                    <div class="flex items-center justify-between text-xs">
-                                        <span class="font-semibold text-slate-700">{{ signed_docs }}/{{ total_docs }} signed</span>
-                                        <span class="text-slate-500">{{ completion_pct }}%</span>
-                                    </div>
-                                    <div class="doc-progress-track mt-1.5">
-                                        <div class="doc-progress-fill" style="width: {{ completion_pct }}%;"></div>
-                                    </div>
-                                    <div class="flex flex-wrap gap-1.5 mt-2">
-                                        {% if pending_signatures > 0 %}
-                                        <span class="doc-chip doc-chip-blue">
-                                            {{ pending_signatures }} pending signature{% if pending_signatures != 1 %}s{% endif %}
-                                        </span>
-                                        {% endif %}
-                                        {% if pending_placeholders > 0 %}
-                                        <span class="doc-chip doc-chip-amber">
-                                            {{ pending_placeholders }} placeholder{% if pending_placeholders != 1 %}s{% endif %}
-                                        </span>
-                                        {% endif %}
-                                        {% if total_docs == 0 %}
-                                        <span class="doc-chip doc-chip-slate">No docs</span>
-                                        {% elif pending_signatures == 0 and pending_placeholders == 0 and signed_docs == total_docs %}
-                                        <span class="doc-chip doc-chip-green">Complete</span>
-                                        {% elif pending_signatures == 0 and pending_placeholders == 0 %}
-                                        <span class="doc-chip doc-chip-slate">In progress</span>
-                                        {% endif %}
-                                    </div>
+                                <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                                    <div class="h-full bg-emerald-500" style="width: {{ completion_pct }}%;"></div>
                                 </div>
-                            </td>
-                            <td class="px-4 py-4 text-slate-500 border-l border-slate-100 align-top">
-                                <span class="created-date">
-                                {{ tx.created_at.strftime('%b %d, %Y') }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                    {% if pending_signatures > 0 %}
+                                    {{ badge(pending_signatures ~ ' pending signature' ~ ('s' if pending_signatures != 1 else ''), 'info') }}
+                                    {% endif %}
+                                    {% if pending_placeholders > 0 %}
+                                    {{ badge(pending_placeholders ~ ' placeholder' ~ ('s' if pending_placeholders != 1 else ''), 'warning') }}
+                                    {% endif %}
+                                    {% if total_docs == 0 %}
+                                    {{ badge('No docs') }}
+                                    {% elif pending_signatures == 0 and pending_placeholders == 0 and signed_docs == total_docs %}
+                                    {{ badge('Complete', 'success') }}
+                                    {% elif pending_signatures == 0 and pending_placeholders == 0 %}
+                                    {{ badge('In progress') }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="align-top text-sm text-slate-500">
+                            <span class="whitespace-nowrap">{{ tx.created_at.strftime('%b %d, %Y') }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
         {% else %}
-        <div class="premium-card p-10 text-center">
-            <div class="empty-state-icon mx-auto mb-4">
-                <i class="fas fa-folder-open"></i>
-            </div>
-            <h3 class="text-xl font-semibold text-slate-800 mb-2">No transactions yet</h3>
-            <p class="text-slate-500 mb-6 max-w-md mx-auto">
-                Get started by creating your first transaction to manage your real estate deals.
-            </p>
-            <a href="{{ url_for('transactions.new_transaction') }}"
-               class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+        {% call empty_state('No transactions yet', 'Get started by creating your first transaction to manage your real estate deals.', 'fa-folder-open') %}
+            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-primary">
                 <i class="fas fa-plus text-xs"></i>
-                New Transaction
+                New transaction
             </a>
-        </div>
+        {% endcall %}
         {% endif %}
     </div>
 </div>
 
 <script>
-    // Search functionality
     const searchInput = document.getElementById('searchInput');
     const searchForm = document.getElementById('searchForm');
     let searchTimeout;
 
     if (searchInput) {
-        // Debounced search on typing
         searchInput.addEventListener('input', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
@@ -607,7 +294,6 @@
             }, 500);
         });
 
-        // Submit on Enter
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 clearTimeout(searchTimeout);
@@ -619,13 +305,12 @@
     function clearSearch() {
         const urlParams = new URLSearchParams(window.location.search);
         urlParams.delete('q');
-        const newUrl = urlParams.toString() 
+        const newUrl = urlParams.toString()
             ? `${window.location.pathname}?${urlParams.toString()}`
             : window.location.pathname;
         window.location.href = newUrl;
     }
 
-    // Make table rows clickable
     document.querySelectorAll('.clickable-row').forEach(row => {
         row.addEventListener('click', function() {
             window.location.href = this.dataset.href;
