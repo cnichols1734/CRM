@@ -324,22 +324,22 @@
                             'referral_fee': 'Referral Fee',
                             'has_survey': 'Has Survey'
                         } %}
-                        <div class="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <dl class="mb-4 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                             {% for key, value in transaction.intake_data.items() %}
-                            <div class="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm">
-                                <span class="text-slate-600">{{ intake_labels.get(key, key|replace('_', ' ')|title) }}</span>
-                                <span class="font-medium text-slate-900">
+                            <div class="flex items-center justify-between border-b border-slate-100 py-1.5 last:border-b-0">
+                                <dt class="text-slate-500">{{ intake_labels.get(key, key|replace('_', ' ')|title) }}</dt>
+                                <dd class="font-medium text-slate-900">
                                     {% if value == true or value == 'yes' %}
-                                    <span class="text-emerald-600"><i class="fas fa-check-circle text-xs mr-0.5"></i>Yes</span>
+                                    <span class="inline-flex items-center gap-1 text-emerald-700"><i class="fas fa-check text-[10px]"></i>Yes</span>
                                     {% elif value == false or value == 'no' %}
-                                    <span class="text-slate-400"><i class="fas fa-times-circle text-xs mr-0.5"></i>No</span>
+                                    <span class="inline-flex items-center gap-1 text-slate-400"><i class="fas fa-times text-[10px]"></i>No</span>
                                     {% else %}
                                     {{ value|replace('_', ' ')|title if value else '—' }}
                                     {% endif %}
-                                </span>
+                                </dd>
                             </div>
                             {% endfor %}
-                        </div>
+                        </dl>
                         {% endif %}
                         <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}"
                            class="crm-btn crm-btn-secondary w-full justify-center">
@@ -726,58 +726,58 @@
                             </div>
 
                             {# Data display #}
-                            <div id="intel-data-display" class="{% if not rentcast_data %}hidden{% endif %} space-y-3">
+                            <div id="intel-data-display" class="{% if not rentcast_data %}hidden{% endif %} divide-y divide-slate-100">
                                 {# Sale history #}
-                                <div id="section-sale-history" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-sale-history" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-dollar-sign text-emerald-500 text-sm"></i>
+                                        <i class="fas fa-dollar-sign text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Sale history</span>
                                     </div>
                                     <div id="sale-history-content"></div>
                                 </div>
 
                                 {# Property details #}
-                                <div id="section-property-details" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-property-details" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-home text-sky-500 text-sm"></i>
+                                        <i class="fas fa-home text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Property details</span>
                                     </div>
                                     <div id="property-details-content"></div>
                                 </div>
 
                                 {# Tax assessments #}
-                                <div id="section-tax-assessments" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-tax-assessments" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-chart-bar text-amber-500 text-sm"></i>
+                                        <i class="fas fa-chart-bar text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Tax assessments</span>
                                     </div>
                                     <div id="tax-assessments-content"></div>
                                 </div>
 
                                 {# Property taxes #}
-                                <div id="section-property-taxes" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-property-taxes" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-receipt text-rose-500 text-sm"></i>
+                                        <i class="fas fa-receipt text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Annual property taxes</span>
                                     </div>
                                     <div id="property-taxes-content"></div>
                                 </div>
 
                                 {# Owner info #}
-                                <div id="section-owner-info" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-owner-info" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-user text-orange-500 text-sm"></i>
+                                        <i class="fas fa-user text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Current owner</span>
                                     </div>
                                     <div id="owner-info-content"></div>
                                 </div>
 
                                 {# Property features (collapsible) #}
-                                <div id="section-features" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-features" class="py-4 first:pt-0 last:pb-0">
                                     <div class="flex cursor-pointer select-none items-center gap-2" onclick="toggleFeatures()">
-                                        <i class="fas fa-cog text-slate-500 text-sm"></i>
+                                        <i class="fas fa-cog text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Property features</span>
-                                        <i class="fas fa-chevron-down text-slate-400 text-xs ml-auto transition-transform" id="features-chevron"></i>
+                                        <i class="fas fa-chevron-down text-xs text-slate-400 ml-auto transition-transform" id="features-chevron"></i>
                                     </div>
                                     <div class="collapsible-content" id="features-content-wrapper">
                                         <div id="features-content" class="pt-2"></div>
@@ -785,9 +785,9 @@
                                 </div>
 
                                 {# Location details #}
-                                <div id="section-location" class="rounded-md border border-slate-200 bg-white p-4">
+                                <div id="section-location" class="py-4 first:pt-0 last:pb-0">
                                     <div class="mb-2 flex items-center gap-2">
-                                        <i class="fas fa-map-marker-alt text-sky-500 text-sm"></i>
+                                        <i class="fas fa-map-marker-alt text-xs text-slate-400"></i>
                                         <span class="text-sm font-semibold text-slate-900">Location details</span>
                                     </div>
                                     <div id="location-content"></div>
