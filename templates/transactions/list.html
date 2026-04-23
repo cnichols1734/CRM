@@ -5,27 +5,20 @@
 
 {% block content %}
 {% set status_labels = {
-    'preparing_to_list': 'Preparing to List',
+    'preparing_to_list': 'Preparing to list',
     'showing': 'Showing',
     'active': 'Active',
-    'under_contract': 'Under Contract',
+    'under_contract': 'Under contract',
     'closed': 'Closed',
-    'cancelled': 'Cancelled / Withdrawn'
+    'cancelled': 'Cancelled / withdrawn'
 } %}
-{% set status_tones = {
-    'preparing_to_list': 'warning',
-    'showing': 'info',
-    'active': 'success',
-    'under_contract': 'accent',
-    'closed': 'neutral',
-    'cancelled': 'neutral'
-} %}
-{% set type_tones = {
-    'seller': 'accent',
-    'buyer': 'info',
-    'landlord': 'info',
-    'tenant': 'success',
-    'referral': 'neutral'
+{% set status_dot_class = {
+    'preparing_to_list': 'bg-amber-500',
+    'showing': 'bg-sky-500',
+    'active': 'bg-emerald-500',
+    'under_contract': 'bg-orange-500',
+    'closed': 'bg-slate-400',
+    'cancelled': 'bg-red-500'
 } %}
 
 <div class="crm-page">
@@ -208,54 +201,48 @@
                             </div>
                         </td>
                         {% endif %}
-                        <td class="align-top">
-                            {{ badge(tx.transaction_type.display_name, type_tones.get(tx.transaction_type.name, 'neutral')) }}
+                        <td class="align-top text-sm font-medium text-slate-700">
+                            {{ tx.transaction_type.display_name }}
                         </td>
                         <td class="align-top">
-                            {% if tx.status == 'cancelled' %}
-                            <span class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            <span class="inline-flex items-center gap-2 text-sm font-medium {% if tx.status == 'cancelled' %}text-red-600{% else %}text-slate-700{% endif %}">
+                                <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(tx.status, 'bg-slate-300') }}"></span>
                                 {{ status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
                             </span>
-                            {% else %}
-                            {{ badge(status_labels.get(tx.status, tx.status|replace('_', ' ')|title), status_tones.get(tx.status, 'neutral')) }}
-                            {% endif %}
                         </td>
                         <td>
-                            {% if stage_days >= 21 %}
-                            <span class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">{{ stage_days }}d</span>
-                            {% elif stage_days >= 10 %}
-                            {{ badge(stage_days ~ 'd', 'warning') }}
-                            {% else %}
-                            {{ badge(stage_days ~ 'd', 'success') }}
-                            {% endif %}
+                            <div class="text-sm font-medium {% if stage_days >= 21 %}text-red-600{% elif stage_days >= 10 %}text-amber-700{% else %}text-slate-700{% endif %}">
+                                {{ stage_days }}d
+                            </div>
                             {% if stage_info.get('started_at') %}
-                            <div class="mt-1 text-[11px] text-slate-500">
+                            <div class="mt-0.5 text-[11px] text-slate-500">
                                 since {{ stage_info.get('started_at').strftime('%b %d') }}
                             </div>
                             {% endif %}
                         </td>
                         <td>
                             <div class="min-w-[190px]">
-                                <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-baseline justify-between text-xs">
                                     <span class="font-medium text-slate-700">{{ signed_docs }}/{{ total_docs }} signed</span>
                                     <span class="text-slate-500">{{ completion_pct }}%</span>
                                 </div>
-                                <div class="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                                    <div class="h-full bg-emerald-500" style="width: {{ completion_pct }}%;"></div>
+                                <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-slate-100">
+                                    <div class="h-full {% if completion_pct == 100 %}bg-emerald-500{% else %}bg-slate-400{% endif %}" style="width: {{ completion_pct }}%;"></div>
                                 </div>
-                                <div class="mt-2 flex flex-wrap gap-1.5">
-                                    {% if pending_signatures > 0 %}
-                                    {{ badge(pending_signatures ~ ' pending signature' ~ ('s' if pending_signatures != 1 else ''), 'info') }}
-                                    {% endif %}
-                                    {% if pending_placeholders > 0 %}
-                                    {{ badge(pending_placeholders ~ ' placeholder' ~ ('s' if pending_placeholders != 1 else ''), 'warning') }}
-                                    {% endif %}
+                                <div class="mt-1.5 text-[11px] text-slate-500">
                                     {% if total_docs == 0 %}
-                                    {{ badge('No docs') }}
+                                    No documents
                                     {% elif pending_signatures == 0 and pending_placeholders == 0 and signed_docs == total_docs %}
-                                    {{ badge('Complete', 'success') }}
-                                    {% elif pending_signatures == 0 and pending_placeholders == 0 %}
-                                    {{ badge('In progress') }}
+                                    <span class="text-emerald-700">Complete</span>
+                                    {% else %}
+                                    {% set bits = [] %}
+                                    {% if pending_signatures > 0 %}{% set _ = bits.append(pending_signatures ~ ' pending signature' ~ ('s' if pending_signatures != 1 else '')) %}{% endif %}
+                                    {% if pending_placeholders > 0 %}{% set _ = bits.append(pending_placeholders ~ ' placeholder' ~ ('s' if pending_placeholders != 1 else '')) %}{% endif %}
+                                    {% if bits %}
+                                    {{ bits|join(' &middot; ')|safe }}
+                                    {% else %}
+                                    In progress
+                                    {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
