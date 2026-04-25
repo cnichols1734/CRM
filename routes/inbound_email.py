@@ -39,7 +39,7 @@ from services.inbox_provisioning import (
     ensure_inbox_for, get_inbox_domain, parse_recipient, rotate_inbox_address,
 )
 from services.sendgrid_outbound import (
-    parse_undo_token, send_over_limit_notice,
+    parse_undo_token, parse_vcard_token, send_over_limit_notice,
 )
 
 logger = logging.getLogger(__name__)
@@ -325,6 +325,31 @@ def download_vcard():
         return redirect(url_for('inbound_email.inbox_home'))
 
     vcf = _inbox_vcard(address)
+    return send_file(
+        BytesIO(vcf.encode('utf-8')),
+        mimetype='text/vcard',
+        as_attachment=True,
+        download_name='origen-inbox.vcf',
+    )
+
+
+@inbound_bp.route('/inbox/vcard/<token>')
+def public_vcard(token):
+    """Public signed vCard link used by welcome emails.
+
+    The token is tied to the user's current inbox address, so old links stop
+    working after the user rotates their Magic Inbox address.
+    """
+    payload = parse_vcard_token(token)
+    if not payload:
+        abort(404)
+
+    user = User.query.get(payload['user_id'])
+    if (not user or not user.inbox_address or
+            user.inbox_address != payload['inbox_address']):
+        abort(404)
+
+    vcf = _inbox_vcard(user.inbox_address)
     return send_file(
         BytesIO(vcf.encode('utf-8')),
         mimetype='text/vcard',

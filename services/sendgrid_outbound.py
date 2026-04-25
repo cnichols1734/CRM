@@ -93,6 +93,14 @@ def _serializer() -> URLSafeTimedSerializer:
     )
 
 
+def _vcard_serializer() -> URLSafeTimedSerializer:
+    """Signed serializer for public Magic Inbox vCard download links."""
+    return URLSafeTimedSerializer(
+        current_app.config['SECRET_KEY'],
+        salt='magic-inbox-vcard-v1',
+    )
+
+
 # ---------------------------------------------------------------------------
 # Undo token
 # ---------------------------------------------------------------------------
@@ -138,6 +146,34 @@ def verify_undo_token(token: str) -> int | None:
     """
     payload = parse_undo_token(token)
     return payload['inbound_id'] if payload else None
+
+
+def make_vcard_token(user) -> str | None:
+    """Return a signed token for saving this user's current inbox contact."""
+    if not user or not getattr(user, 'id', None) or not user.inbox_address:
+        return None
+    return _vcard_serializer().dumps({
+        'user_id': int(user.id),
+        'inbox_address': user.inbox_address,
+    })
+
+
+def parse_vcard_token(token: str) -> dict | None:
+    """Return signed vCard payload if valid, else None."""
+    try:
+        payload = _vcard_serializer().loads(token)
+    except BadSignature:
+        logger.info('Magic Inbox vCard token failed signature check.')
+        return None
+    if not isinstance(payload, dict):
+        return None
+    try:
+        return {
+            'user_id': int(payload['user_id']),
+            'inbox_address': str(payload['inbox_address']),
+        }
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +270,13 @@ def _safe_url(endpoint: str, **values) -> str:
             return url_for(endpoint, **values)
         except Exception:
             return '#'
+
+
+def _public_vcard_url(user) -> str:
+    token = make_vcard_token(user)
+    if not token:
+        return _safe_url('inbound_email.download_vcard')
+    return _safe_url('inbound_email.public_vcard', token=token)
 
 
 # ---------------------------------------------------------------------------
@@ -466,7 +509,7 @@ def send_account_welcome(user) -> bool:
     dashboard_url = _safe_url('main.dashboard')
     contacts_url = _safe_url('main.contacts')
     inbox_url = _safe_url('inbound_email.inbox_home')
-    vcard_url = _safe_url('inbound_email.download_vcard')
+    vcard_url = _public_vcard_url(user)
 
     subject = 'Welcome to Origen'
     template_data = _account_welcome_template_data(
@@ -516,7 +559,7 @@ def send_inbox_welcome(user) -> bool:
         return False
 
     inbox_url = _safe_url('inbound_email.inbox_home')
-    vcard_url = _safe_url('inbound_email.download_vcard')
+    vcard_url = _public_vcard_url(user)
 
     subject = 'Stop typing contacts by hand'
     template_data = _welcome_template_data(

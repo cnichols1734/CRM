@@ -272,7 +272,7 @@ class TestSendGridTemplateData:
             assert template_id == 'd-8ca289d2b7fa4778a8c4b3d10992aab5'
             assert data['first_name'] == user.first_name
             assert data['inbox_address'] == user.inbox_address
-            assert data['vcard_url'].endswith('/inbox/vcard')
+            assert '/inbox/vcard/' in data['vcard_url']
             assert data['dashboard_url'].endswith('/dashboard')
             assert data['contacts_url'].endswith('/contacts')
             assert data['inbox_url'].endswith('/inbox')
@@ -293,7 +293,7 @@ class TestSendGridTemplateData:
             assert template_id == 'd-d89070c074554464a728867471e173e1'
             assert data['inbox_address'] == user.inbox_address
             assert data['inbound_domain'] == get_inbox_domain()
-            assert data['vcard_url'].endswith('/inbox/vcard')
+            assert '/inbox/vcard/' in data['vcard_url']
             assert data['inbox_url'].endswith('/inbox')
             send_html.assert_not_called()
 
@@ -693,6 +693,51 @@ class TestOrchestrator:
                 db.session.delete(target)
                 db.session.commit()
 
+    def test_resolves_group_from_email_body_instruction(self, app, seed):
+        from services.contact_extraction import process_inbound
+
+        with app.app_context():
+            user = _ensure_inbox(seed, 'owner_a')
+            target = ContactGroup(
+                name='Open House Leads',
+                organization_id=user.organization_id,
+                category='custom',
+                sort_order=100,
+            )
+            db.session.add(target)
+            db.session.commit()
+
+            try:
+                msg = self._new_message(user)
+                ai_payload = {
+                    'contacts': [{
+                        'first_name': 'Group', 'last_name': 'Lead',
+                        'email': 'group.lead@example.com', 'phone': None,
+                        'street_address': None, 'city': None,
+                        'state': None, 'zip_code': None,
+                        'notes': None, 'group_name': 'open house leads',
+                        'confidence': 'high',
+                    }],
+                    '_meta': {'model': 'gpt-5.4-nano',
+                              'tokens_in': 10, 'tokens_out': 5},
+                }
+                with patch(
+                    'services.contact_extraction.generate_contact_extraction',
+                    return_value=ai_payload,
+                ):
+                    result = process_inbound(
+                        user, msg,
+                        self._bundle(
+                            text='Please add this contact to Open House Leads.'
+                        ))
+
+                assert len(result['created_contacts']) == 1
+                c = result['created_contacts'][0]
+                assert target in c.groups
+            finally:
+                db.session.delete(target)
+                db.session.commit()
+
     def test_rejects_empty_payload(self, app, seed):
         from services.contact_extraction import process_inbound
 
@@ -780,6 +825,23 @@ class TestInboxRoute:
         assert rv.mimetype == 'text/vcard'
         body = rv.data.decode('utf-8')
         assert 'BEGIN:VCARD' in body
+        assert 'Origen Inbox' in body
+
+    def test_public_vcard_download_from_signed_email_link(
+            self, app, seed, client):
+        from services.sendgrid_outbound import make_vcard_token
+
+        with app.app_context():
+            user = _ensure_inbox(seed, 'owner_a')
+            address = user.inbox_address
+            token = make_vcard_token(user)
+
+        rv = client.get(f'/inbox/vcard/{token}')
+        assert rv.status_code == 200
+        assert rv.mimetype == 'text/vcard'
+        body = rv.data.decode('utf-8')
+        assert 'BEGIN:VCARD' in body
+        assert address in body
         assert 'Origen Inbox' in body
 
     def test_dismiss_onboarding_persists(self, app, seed, owner_a_client):

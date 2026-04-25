@@ -424,7 +424,7 @@ CONTACT_EXTRACTION_SCHEMA = {
                 "required": [
                     "first_name", "last_name", "email", "phone",
                     "street_address", "city", "state", "zip_code",
-                    "notes", "confidence",
+                    "notes", "group_name", "confidence",
                 ],
                 "properties": {
                     "first_name": {"type": ["string", "null"]},
@@ -440,6 +440,15 @@ CONTACT_EXTRACTION_SCHEMA = {
                         "description": (
                             "Brief context: company, title, where the contact "
                             "came from. Keep under 280 chars."
+                        ),
+                    },
+                    "group_name": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Only set when the sender explicitly says which "
+                            "CRM group/tag/list these contacts should go into, "
+                            "for example 'add to Buyers', 'group: Sphere', or "
+                            "'put these in Past Clients'. Otherwise null."
                         ),
                     },
                     "confidence": {
@@ -464,6 +473,11 @@ CONTACT_EXTRACTION_SYSTEM_PROMPT = (
     "Set confidence='high' only when you have at least a full name plus one of "
     "email or phone. Use 'medium' for partial business-card style data, 'low' "
     "for ambiguous mentions. "
+    "If the sender clearly asks to put the contact(s) in a group, tag, bucket, "
+    "or list, copy that requested group name into group_name for each affected "
+    "contact. Examples: 'add these to Buyers', 'group: Sphere', 'tag as Open "
+    "House Leads'. Do not infer a group from the person's job title, company, "
+    "or email content unless the sender explicitly asks for it. "
     "Skip generic mailing-list footers, automated 'do-not-reply' senders, and "
     "the recipient themselves."
 )

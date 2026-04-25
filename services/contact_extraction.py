@@ -124,17 +124,23 @@ def _existing_contact_for(user_id: int, *, email: str | None, phone: str | None,
     return None
 
 
-def _resolve_group_for_alias(org_id: int, alias: str | None) -> ContactGroup | None:
-    """Map a plus-alias (`investors` from `you-token+investors@…`) onto an
-    existing ContactGroup in the user's org, if one matches by name (case
-    insensitive). Anything fancier (auto-create groups, etc.) is v2.
-    """
-    if not alias:
+def _group_lookup_key(value: str | None) -> str:
+    return ''.join(ch for ch in (value or '').lower() if ch.isalnum())
+
+
+def _resolve_group_by_name(org_id: int,
+                           requested_name: str | None) -> ContactGroup | None:
+    """Resolve body/alias group hints to an existing group in the org."""
+    key = _group_lookup_key(requested_name)
+    if not key:
         return None
-    return (ContactGroup.query
-            .filter(ContactGroup.organization_id == org_id)
-            .filter(func.lower(ContactGroup.name) == alias.lower())
-            .first())
+    groups = (ContactGroup.query
+              .filter(ContactGroup.organization_id == org_id)
+              .all())
+    for group in groups:
+        if _group_lookup_key(group.name) == key:
+            return group
+    return None
 
 
 def _build_notes(raw_notes: str | None,
@@ -254,6 +260,7 @@ def process_inbound(user: User, message: InboundMessage,
             'state': (entry.get('state') or '').strip() or None,
             'zip_code': (entry.get('zip_code') or '').strip() or None,
             'notes': entry.get('notes'),
+            'group_name': (entry.get('group_name') or '').strip() or None,
         })
 
     # --- Free-tier limit check (per user_id is the contact owner) ------
@@ -267,7 +274,6 @@ def process_inbound(user: User, message: InboundMessage,
                 'reason': limit_reason}
 
     # --- Dedupe + create -----------------------------------------------
-    group = _resolve_group_for_alias(org.id, bundle.plus_alias)
     created: list[Contact] = []
     skipped_dupes = 0
 
@@ -295,6 +301,10 @@ def process_inbound(user: User, message: InboundMessage,
             notes=_build_notes(c['notes'],
                                sender_email=message.sender_email,
                                source_kind=bundle.source_kind),
+        )
+        group = _resolve_group_by_name(
+            org.id,
+            c.get('group_name') or bundle.plus_alias,
         )
         if group is not None:
             contact.groups.append(group)

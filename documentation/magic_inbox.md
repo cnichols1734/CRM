@@ -197,6 +197,11 @@ Known-good local smoke result on 2026-04-25:
 - `plus_alias` is optional. `+buyers` will drop the new contact into the
   user's `Buyers` ContactGroup (case-insensitive name match within their
   org). Unmatched aliases are recorded but otherwise ignored.
+- The sender can also type a group instruction in the email body, such as
+  `Group: Buyers` or `add these to Sphere`. The AI extracts the requested
+  group name, and the app attaches contacts only when that group already
+  exists in the user's org. Unmatched names are ignored so typos do not
+  create new groups.
 
 ---
 
