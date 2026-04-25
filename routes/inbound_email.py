@@ -275,7 +275,7 @@ def inbox_home():
                         .all())
         activity.append({'message': m, 'contacts': contacts})
 
-    qr_svg = _qr_svg_markup(f'mailto:{current_user.inbox_address}'
+    qr_svg = _qr_svg_markup(_inbox_vcard(current_user.inbox_address)
                             if current_user.inbox_address else '')
 
     return render_template(
@@ -290,7 +290,7 @@ def inbox_home():
 
 
 def _qr_svg_markup(payload: str) -> Markup:
-    """Render an inline SVG QR pointing at ``payload`` (typically ``mailto:``).
+    """Render an inline SVG QR pointing at ``payload``.
 
     Falls back to an empty string if ``segno`` is unavailable so the page
     still renders without the QR.
@@ -324,7 +324,18 @@ def download_vcard():
               'info')
         return redirect(url_for('inbound_email.inbox_home'))
 
-    vcf = (
+    vcf = _inbox_vcard(address)
+    return send_file(
+        BytesIO(vcf.encode('utf-8')),
+        mimetype='text/vcard',
+        as_attachment=True,
+        download_name='origen-inbox.vcf',
+    )
+
+
+def _inbox_vcard(address: str) -> str:
+    """Build the contact card used by both QR and vCard download."""
+    return (
         'BEGIN:VCARD\r\n'
         'VERSION:3.0\r\n'
         'PRODID:-//OrigenTechnolOG//Magic Inbox//EN\r\n'
@@ -335,12 +346,6 @@ def download_vcard():
         'NOTE:Forward emails or share photos to this contact and they '
         'land in your CRM automatically.\r\n'
         'END:VCARD\r\n'
-    )
-    return send_file(
-        BytesIO(vcf.encode('utf-8')),
-        mimetype='text/vcard',
-        as_attachment=True,
-        download_name='origen-inbox.vcf',
     )
 
 

@@ -694,6 +694,28 @@ class TestInboxRoute:
         assert address in body
         assert 'Magic Inbox' in body
 
+    def test_qr_payload_is_contact_vcard(self, app, seed, owner_a_client):
+        with app.app_context():
+            _ensure_inbox(seed, 'owner_a')
+            user = _user(seed, 'owner_a')
+            address = user.inbox_address
+
+        captured = {}
+
+        def _capture_qr(payload):
+            captured['payload'] = payload
+            return ''
+
+        with patch('routes.inbound_email._qr_svg_markup',
+                   side_effect=_capture_qr):
+            rv = owner_a_client.get('/inbox')
+
+        assert rv.status_code == 200
+        assert captured['payload'].startswith('BEGIN:VCARD')
+        assert 'FN:Origen Inbox' in captured['payload']
+        assert f'EMAIL;TYPE=INTERNET;TYPE=PREF:{address}' in captured['payload']
+        assert not captured['payload'].startswith('mailto:')
+
     def test_vcard_download(self, app, seed, owner_a_client):
         with app.app_context():
             _ensure_inbox(seed, 'owner_a')
