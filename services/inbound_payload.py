@@ -10,9 +10,11 @@ which makes a single AI call regardless of source kind.
 from __future__ import annotations
 
 import base64
+import email
 import io
 import logging
 import re
+from email import policy
 from dataclasses import dataclass, field
 from typing import Iterable
 
@@ -113,8 +115,18 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
     if body_text:
         text_chunks.append('BODY:\n' + body_text)
 
+    raw_body_chunks, raw_attachments = _extract_raw_email_parts(
+        form.get('email') or ''
+    )
+    for chunk in raw_body_chunks:
+        text_chunks.append(chunk)
+    has_body_text = bool(body_text or raw_body_chunks)
+
     # --- Attachments -----------------------------------------------------
-    for filename, mime, raw_bytes in _iter_attachments(form, files):
+    for filename, mime, raw_bytes in [
+        *_iter_attachments(form, files),
+        *raw_attachments,
+    ]:
         mime = (mime or '').lower()
         kind = _classify(mime, filename)
         attachment_summary.append({
@@ -179,7 +191,7 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
     return NormalizedInbound(
         cleaned_text=cleaned_text,
         image_blocks=image_blocks,
-        source_kind=_summarize_kind(attachment_kinds, has_text=bool(body_text),
+        source_kind=_summarize_kind(attachment_kinds, has_text=has_body_text,
                                     has_image=bool(image_blocks)),
         plus_alias=plus_alias,
         truncated_text=truncated,
@@ -219,6 +231,69 @@ def _iter_attachments(form, files) -> Iterable[tuple[str, str, bytes]]:
             getattr(f, 'mimetype', None) or getattr(f, 'content_type', None) or '',
             data,
         )
+
+
+def _extract_raw_email_parts(raw_email: str) -> tuple[list[str],
+                                                     list[tuple[str, str, bytes]]]:
+    """Extract body text + attachments from SendGrid's raw ``email`` field.
+
+    SendGrid Inbound Parse can send either parsed ``attachmentN`` files or the
+    full original MIME message in the ``email`` form field. Large Gmail/iOS
+    photo shares often arrive as raw MIME only, so we parse it here and feed
+    the same cost-limited normalizer path.
+    """
+    raw_email = raw_email or ''
+    if not raw_email:
+        return [], []
+
+    try:
+        msg = email.message_from_string(raw_email, policy=policy.default)
+    except Exception:
+        logger.exception('Failed parsing raw inbound email MIME.')
+        return [], []
+
+    body_chunks: list[str] = []
+    attachments: list[tuple[str, str, bytes]] = []
+    parts = list(msg.walk()) if msg.is_multipart() else [msg]
+
+    for part in parts:
+        if part.is_multipart():
+            continue
+
+        mime = (part.get_content_type() or '').lower()
+        disposition = (part.get_content_disposition() or '').lower()
+        filename = part.get_filename() or ''
+
+        try:
+            payload = part.get_payload(decode=True)
+        except Exception:
+            payload = None
+
+        if payload is None:
+            try:
+                content = part.get_content()
+                payload = (content.encode('utf-8')
+                           if isinstance(content, str) else b'')
+            except Exception:
+                payload = b''
+
+        if not payload:
+            continue
+
+        is_body = disposition != 'attachment' and mime in {
+            'text/plain', 'text/html',
+        }
+        if is_body:
+            text = (_strip_html(_decode_text(payload[:MAX_TEXT_BYTES]))
+                    if mime == 'text/html'
+                    else _decode_text(payload[:MAX_TEXT_BYTES]))
+            if text:
+                body_chunks.append(f'RAW EMAIL BODY:\n{text}')
+            continue
+
+        attachments.append((filename, mime, payload))
+
+    return body_chunks, attachments
 
 
 def _classify(mime: str, filename: str) -> str:

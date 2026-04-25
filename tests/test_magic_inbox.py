@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+from email.message import EmailMessage
 from unittest.mock import patch
 
 import pytest
@@ -410,6 +411,31 @@ class TestNormalizer:
         files = {'attachment1': _FakeFile(
             'card.png', 'image/png', buf.getvalue())}
         bundle = normalize_sendgrid_payload({}, files)
+        assert len(bundle.image_blocks) == 1
+        assert bundle.source_kind == 'image'
+
+    def test_raw_email_field_image_classified(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            pytest.skip('Pillow not installed')
+
+        img = Image.new('RGB', (64, 64), color=(80, 120, 220))
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+
+        msg = EmailMessage()
+        msg['Subject'] = 'Contact screenshot'
+        msg.set_content('See attached contact card.')
+        msg.add_attachment(
+            buf.getvalue(),
+            maintype='image',
+            subtype='png',
+            filename='contact-card.png',
+        )
+
+        bundle = normalize_sendgrid_payload({'email': msg.as_string()}, {})
+        assert 'See attached contact card' in bundle.cleaned_text
         assert len(bundle.image_blocks) == 1
         assert bundle.source_kind == 'image'
 
