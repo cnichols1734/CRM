@@ -512,12 +512,12 @@ class TestOrchestrator:
             plus_alias=plus_alias,
         )
 
-    def _new_message(self, user, plus_alias=None):
+    def _new_message(self, user, plus_alias=None, sender_email=None):
         m = InboundMessage(
             organization_id=user.organization_id,
             user_id=user.id,
             recipient_address=user.inbox_address,
-            sender_email=user.email,
+            sender_email=sender_email or user.email,
             subject='Test',
             plus_alias=plus_alias,
             source_kind='text',
@@ -561,6 +561,40 @@ class TestOrchestrator:
             # Cost should be a positive Decimal.
             assert msg.ai_cost_cents is not None
             assert float(msg.ai_cost_cents) > 0
+
+    def test_receipt_sent_to_owner_when_forwarded_by_someone_else(
+            self, app, seed):
+        from services.contact_extraction import process_inbound
+
+        with app.app_context():
+            user = _ensure_inbox(seed, 'owner_a')
+            msg = self._new_message(
+                user, sender_email='outside.sender@example.com')
+            ai_payload = {
+                'contacts': [{
+                    'first_name': 'Forwarded', 'last_name': 'Lead',
+                    'email': 'forwarded.lead@example.com',
+                    'phone': '555-321-5555',
+                    'street_address': None, 'city': None,
+                    'state': None, 'zip_code': None,
+                    'notes': 'Forwarded by someone else',
+                    'confidence': 'high',
+                }],
+                '_meta': {'model': 'gpt-5.4-nano',
+                          'tokens_in': 100, 'tokens_out': 30},
+            }
+            with patch('services.contact_extraction.generate_contact_extraction',
+                       return_value=ai_payload), \
+                    patch('services.contact_extraction.send_inbox_receipt',
+                          return_value=True) as send_receipt:
+                result = process_inbound(user, msg, self._bundle())
+
+            assert result['status'] == 'processed'
+            send_receipt.assert_called_once()
+            receipt_user = send_receipt.call_args.args[0]
+            assert receipt_user.email == user.email
+            assert send_receipt.call_args.kwargs['sender_email'] == (
+                'outside.sender@example.com')
 
     def test_dedupes_against_existing_email(self, app, seed):
         from services.contact_extraction import process_inbound

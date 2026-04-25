@@ -376,17 +376,8 @@ def _send_in_app_notification(user: User, contacts: list[Contact]) -> None:
 def _send_receipt_email(user: User, message: InboundMessage,
                         contacts: list[Contact],
                         skipped_count: int = 0) -> None:
-    """Reply-allowlist: only email back to the user themselves to prevent
-    backscatter when someone else forwards into the user's inbox.
-    """
+    """Send the receipt to the Magic Inbox owner, never the outside sender."""
     try:
-        sender = (message.sender_email or '').lower().strip()
-        if sender and sender != (user.email or '').lower().strip():
-            logger.info(
-                'Magic Inbox: suppressing receipt to %s (forwarded by %s)',
-                user.email, sender,
-            )
-            return
         token = make_undo_token(message.id)
         send_inbox_receipt(
             user, contacts,
