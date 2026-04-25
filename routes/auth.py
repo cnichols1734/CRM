@@ -164,12 +164,12 @@ def register():
             )
 
         try:
-            from services.sendgrid_outbound import send_inbox_welcome
+            from services.sendgrid_outbound import send_account_welcome
             if user.inbox_address:
-                send_inbox_welcome(user)
+                send_account_welcome(user)
         except Exception:
             current_app.logger.exception(
-                'Failed to send magic inbox welcome email user_id=%s',
+                'Failed to send account welcome email user_id=%s',
                 user.id,
             )
 
@@ -365,12 +365,12 @@ def complete_invite(token):
         )
 
     try:
-        from services.sendgrid_outbound import send_inbox_welcome
+        from services.sendgrid_outbound import send_account_welcome
         if user.inbox_address:
-            send_inbox_welcome(user)
+            send_account_welcome(user)
     except Exception:
         current_app.logger.exception(
-            'Failed to send magic inbox welcome email user_id=%s', user.id,
+            'Failed to send account welcome email user_id=%s', user.id,
         )
 
     login_user(user)

@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_REPLY_FROM = 'info@origentechnolog.com'
 DEFAULT_REPLY_NAME = 'Origen Inbox'
 UNDO_TOKEN_MAX_AGE = 24 * 3600  # 24h, per the plan
+DEFAULT_ACCOUNT_WELCOME_TEMPLATE_ID = 'd-8ca289d2b7fa4778a8c4b3d10992aab5'
 DEFAULT_WELCOME_TEMPLATE_ID = 'd-d89070c074554464a728867471e173e1'
 DEFAULT_RECEIPT_TEMPLATE_ID = 'd-f3ef49fcfb80406ab22ec2d0bf87c0e7'
 
@@ -53,6 +54,11 @@ def _reply_from() -> str:
 def _welcome_template_id() -> str:
     return (_env_value('SENDGRID_INBOX_WELCOME_TEMPLATE_ID')
             or DEFAULT_WELCOME_TEMPLATE_ID)
+
+
+def _account_welcome_template_id() -> str:
+    return (_env_value('SENDGRID_ACCOUNT_WELCOME_TEMPLATE_ID')
+            or DEFAULT_ACCOUNT_WELCOME_TEMPLATE_ID)
 
 
 def _receipt_template_id() -> str:
@@ -444,8 +450,66 @@ def _format_email_time(value: datetime | None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 2) Welcome — sent at signup and from the backfill announcement
+# 2) Welcome emails
 # ---------------------------------------------------------------------------
+
+def send_account_welcome(user) -> bool:
+    """Send the general new-account welcome email.
+
+    This is used for brand-new registrations and completed invites. The older
+    Magic Inbox feature email stays available through ``send_inbox_welcome``
+    for backfills and release announcements to existing users.
+    """
+    if not user or not user.email or not user.inbox_address:
+        return False
+
+    dashboard_url = _safe_url('main.dashboard')
+    contacts_url = _safe_url('main.contacts')
+    inbox_url = _safe_url('inbound_email.inbox_home')
+    vcard_url = _safe_url('inbound_email.download_vcard')
+
+    subject = 'Welcome to Origen'
+    template_data = _account_welcome_template_data(
+        first_name=(getattr(user, 'first_name', None) or 'there').strip(),
+        inbox_address=user.inbox_address,
+        vcard_url=vcard_url,
+        dashboard_url=dashboard_url,
+        contacts_url=contacts_url,
+        inbox_url=inbox_url,
+    )
+    if _send_template(
+        user.email,
+        _account_welcome_template_id(),
+        template_data,
+        subject=subject,
+    ):
+        return True
+
+    html = _wrap_html(
+        title='Welcome to Origen',
+        body=f"""
+            <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a">
+                Welcome to Origen.
+            </h1>
+            <p style="margin:0 0 16px;color:#475569;font-size:15px">
+                Your CRM is ready. Start by saving your Magic Inbox and sending
+                in a few contacts you are working right now.
+            </p>
+            <p style="margin:0 0 24px">
+                <code style="display:inline-block;background:#f1f5f9;padding:10px 14px;
+                       border-radius:8px;font-size:13px;color:#0f172a;
+                       border:1px solid #e2e8f0;font-family:'SF Mono',Menlo,monospace">
+                    {_html(user.inbox_address)}
+                </code>
+            </p>
+            <p style="margin:24px 0 0">
+                <a class="btn-primary" href="{vcard_url}">Save Magic Inbox</a>
+                <a class="btn-secondary" href="{dashboard_url}">Open Origen</a>
+            </p>
+        """,
+    )
+    return _send_html(user.email, subject, html)
+
 
 def send_inbox_welcome(user) -> bool:
     if not user or not user.email or not user.inbox_address:
@@ -520,6 +584,20 @@ def send_inbox_welcome(user) -> bool:
         """,
     )
     return _send_html(user.email, subject, html)
+
+
+def _account_welcome_template_data(*, first_name: str, inbox_address: str,
+                                   vcard_url: str, dashboard_url: str,
+                                   contacts_url: str, inbox_url: str) -> dict:
+    return {
+        'first_name': first_name or 'there',
+        'inbox_address': inbox_address,
+        'vcard_url': vcard_url,
+        'dashboard_url': dashboard_url,
+        'contacts_url': contacts_url,
+        'inbox_url': inbox_url,
+        'year': str(datetime.utcnow().year),
+    }
 
 
 def _welcome_template_data(*, inbox_address: str, vcard_url: str,
