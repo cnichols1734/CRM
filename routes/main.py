@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant, contact_groups as contact_groups_table
+from models import db, Contact, ContactGroup, Task, User, Transaction, TransactionParticipant, contact_groups as contact_groups_table
 from feature_flags import can_access_transactions, feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from datetime import datetime, timedelta, timezone, date
@@ -530,9 +530,6 @@ def dashboard():
         if task.scheduled_time:
             task.scheduled_time = task.scheduled_time.replace(tzinfo=timezone.utc).astimezone(user_tz)
 
-    # Get latest company update for dashboard teaser (within this org)
-    latest_update = org_query(CompanyUpdate).order_by(CompanyUpdate.created_at.desc()).first()
-
     # Transaction Pipeline Data (only for users with access)
     show_transactions = can_access_transactions(current_user)
     transactions_by_status = {}
@@ -643,6 +640,39 @@ def dashboard():
             else:
                 ytd_closed_value += commission
 
+    # Create an in-app notification if the user has overdue tasks and hasn't
+    # been notified today.  Runs only on dashboard load (lightweight query).
+    try:
+        from models import Notification
+        from services.notification_service import create_notification
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        already_notified = Notification.query.filter(
+            Notification.user_id == current_user.id,
+            Notification.category == 'task_reminder',
+            Notification.created_at >= today_start,
+        ).first() is not None
+
+        if not already_notified:
+            overdue_count = Task.query.filter(
+                Task.organization_id == current_user.organization_id,
+                Task.assigned_to_id == current_user.id,
+                Task.status == 'pending',
+                Task.due_date < datetime.utcnow(),
+            ).count()
+            if overdue_count:
+                create_notification(
+                    user_id=current_user.id,
+                    organization_id=current_user.organization_id,
+                    category='task_reminder',
+                    title='Overdue Tasks',
+                    body=f'You have {overdue_count} overdue task{"s" if overdue_count != 1 else ""}.',
+                    icon='fa-exclamation-circle',
+                    action_url='/tasks?status=overdue',
+                    respect_preference=True,
+                )
+    except Exception:
+        pass
+
     return render_template('dashboard.html',
                          show_all=show_all,
                          total_commission=total_commission,
@@ -652,7 +682,6 @@ def dashboard():
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,
                          task_window_days=task_window_days,
-                         latest_update=latest_update,
                          now=now,
                          show_transactions=show_transactions,
                          transactions_by_status=transactions_by_status,

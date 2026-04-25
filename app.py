@@ -48,6 +48,7 @@ from routes.gmail_integration import gmail_bp
 from routes.reports import reports_bp
 from routes.tax_protest import tax_protest_bp
 from routes.market_insights import market_insights_bp
+from routes.notifications import notifications_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -212,6 +213,7 @@ def create_app():
     app.register_blueprint(reports_bp)
     app.register_blueprint(tax_protest_bp)
     app.register_blueprint(market_insights_bp)
+    app.register_blueprint(notifications_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

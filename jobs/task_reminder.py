@@ -42,16 +42,18 @@ APP_BASE_URL = os.environ.get('APP_BASE_URL', 'https://www.origentechnolog.com')
 
 def send_task_reminders():
     """
-    Send batched task reminder emails for all organizations.
+    Send batched task reminder emails and in-app notifications for all organizations.
     
     For each organization:
     1. Query all pending tasks needing reminders
     2. Group tasks by user
     3. Send ONE digest email per user with all their tasks
-    4. Mark tasks as reminded (only if email succeeds)
+    4. Create in-app notifications (respects user preferences)
+    5. Mark tasks as reminded (only if email succeeds)
     """
     from models import db, Organization, Task, User
     from services.email_service import get_email_service
+    from services.notification_service import create_notification, is_channel_enabled
     from jobs.base import set_job_org_context
     
     now_utc = datetime.utcnow()
@@ -165,46 +167,71 @@ def send_task_reminders():
                     continue
                 
                 try:
-                    # Send the batched reminder email
-                    success = email_service.send_task_reminder_digest(user, tasks_by_type, base_url=APP_BASE_URL)
-                    
-                    if success:
-                        logger.info(
-                            f"Sent reminder to {user.email}: "
-                            f"{len(tasks_by_type['overdue'])} overdue, "
-                            f"{len(tasks_by_type['today'])} today, "
-                            f"{len(tasks_by_type['tomorrow'])} tomorrow, "
-                            f"{len(tasks_by_type['upcoming'])} upcoming"
+                    # ── Email channel (respects user preference) ──
+                    email_ok = False
+                    if is_channel_enabled(user_id, 'task_reminder', 'email'):
+                        email_ok = email_service.send_task_reminder_digest(
+                            user, tasks_by_type, base_url=APP_BASE_URL
                         )
-                        
-                        # Mark all tasks as reminded (only after successful send)
+                        if email_ok:
+                            logger.info(
+                                f"Sent reminder to {user.email}: "
+                                f"{len(tasks_by_type['overdue'])} overdue, "
+                                f"{len(tasks_by_type['today'])} today, "
+                                f"{len(tasks_by_type['tomorrow'])} tomorrow, "
+                                f"{len(tasks_by_type['upcoming'])} upcoming"
+                            )
+                            total_emails_sent += 1
+                        else:
+                            logger.error(f"Failed to send reminder to {user.email}")
+
+                    # ── In-app notification (respects user preference) ──
+                    parts = []
+                    if tasks_by_type['overdue']:
+                        parts.append(f"{len(tasks_by_type['overdue'])} overdue")
+                    if tasks_by_type['today']:
+                        parts.append(f"{len(tasks_by_type['today'])} due today")
+                    if tasks_by_type['tomorrow']:
+                        parts.append(f"{len(tasks_by_type['tomorrow'])} due tomorrow")
+                    if tasks_by_type['upcoming']:
+                        parts.append(f"{len(tasks_by_type['upcoming'])} upcoming")
+
+                    if parts:
+                        try:
+                            create_notification(
+                                user_id=user_id,
+                                organization_id=org_id,
+                                category='task_reminder',
+                                title='Task Reminder',
+                                body=', '.join(parts) + '.',
+                                icon='fa-tasks',
+                                action_url=f'{APP_BASE_URL}/tasks',
+                                respect_preference=True,
+                            )
+                        except Exception as notif_err:
+                            logger.warning(f"Could not create in-app notification for user {user_id}: {notif_err}")
+
+                    # Mark tasks as reminded when email sent or notification created
+                    if email_ok or is_channel_enabled(user_id, 'task_reminder', 'in_app'):
                         for task in tasks_by_type['overdue']:
                             task.overdue_reminder_sent = True
                             task.last_reminder_sent_at = now_utc
                             total_tasks_processed += 1
-                        
                         for task in tasks_by_type['today']:
                             task.today_reminder_sent = True
                             task.last_reminder_sent_at = now_utc
                             total_tasks_processed += 1
-                        
                         for task in tasks_by_type['tomorrow']:
                             task.one_day_reminder_sent = True
                             task.last_reminder_sent_at = now_utc
                             total_tasks_processed += 1
-                        
                         for task in tasks_by_type['upcoming']:
                             task.two_day_reminder_sent = True
                             task.last_reminder_sent_at = now_utc
                             total_tasks_processed += 1
-                        
-                        total_emails_sent += 1
-                    else:
-                        logger.error(f"Failed to send reminder to {user.email}")
-                        
+
                 except Exception as e:
                     logger.exception(f"Error sending reminder to user {user_id}: {e}")
-                    # Continue with other users even if one fails
                     continue
             
             # Commit changes for this org and clean up session
