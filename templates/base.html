@@ -1155,6 +1155,11 @@
                     <i class="fas fa-address-book w-6 mr-3"></i>
                     Contacts
                 </a>
+                <a href="{{ url_for('inbound_email.inbox_home') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-paper-plane w-6 mr-3"></i>
+                    Magic Inbox
+                </a>
                 {% if current_user.role == 'admin' and org_has_feature('TRANSACTIONS') %}
                 <a href="{{ url_for('transactions.list_transactions') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('transactions.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
@@ -1277,6 +1282,12 @@
                    class="crm-nav-link {% if request.endpoint == 'main.contacts' or (request.endpoint and request.endpoint.startswith('contacts.')) %}is-active{% endif %}">
                     <i class="fas fa-address-book"></i>
                     <span>Contacts</span>
+                </a>
+
+                <a href="{{ url_for('inbound_email.inbox_home') }}"
+                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}is-active{% endif %}">
+                    <i class="fas fa-paper-plane"></i>
+                    <span>Magic Inbox</span>
                 </a>
 
                 {% if can_access_transactions(current_user) %}

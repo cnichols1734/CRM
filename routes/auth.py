@@ -3,6 +3,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
 from services.email_service import get_email_service
+from services.inbox_provisioning import provision_inbox_address
 from services.tenant_service import (
     create_default_groups_for_org,
     create_default_task_types_for_org,
@@ -151,6 +152,26 @@ def register():
                 'warning'
             )
             return redirect(url_for('auth.login'))
+
+        # Provision the user's magic inbox before sending the welcome email so
+        # the address can be included. Never fail the signup over this.
+        try:
+            provision_inbox_address(user)
+        except Exception:
+            current_app.logger.exception(
+                'Failed to provision magic inbox during signup user_id=%s',
+                user.id,
+            )
+
+        try:
+            from services.sendgrid_outbound import send_inbox_welcome
+            if user.inbox_address:
+                send_inbox_welcome(user)
+        except Exception:
+            current_app.logger.exception(
+                'Failed to send magic inbox welcome email user_id=%s',
+                user.id,
+            )
 
         login_user(user)
         flash('Welcome to Origen. Your account is ready to use.', 'success')
@@ -334,7 +355,24 @@ def complete_invite(token):
     
     db.session.add(user)
     db.session.commit()
-    
+
+    try:
+        provision_inbox_address(user)
+    except Exception:
+        current_app.logger.exception(
+            'Failed to provision magic inbox after invite completion user_id=%s',
+            user.id,
+        )
+
+    try:
+        from services.sendgrid_outbound import send_inbox_welcome
+        if user.inbox_address:
+            send_inbox_welcome(user)
+    except Exception:
+        current_app.logger.exception(
+            'Failed to send magic inbox welcome email user_id=%s', user.id,
+        )
+
     login_user(user)
     flash(f'Welcome to {invite.organization.name}!', 'success')
     return redirect(url_for('main.dashboard'))

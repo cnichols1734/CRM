@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>{{subject}}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  body, table, td, p, a, li { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  img { -ms-interpolation-mode: bicubic; border:0; height:auto; line-height:100%; outline:none; text-decoration:none; }
+  body { margin:0 !important; padding:0 !important; width:100% !important; font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f0f4f8; }
+  @media only screen and (max-width: 600px) {
+    .container { width: 100% !important; }
+    .pad-lg { padding: 28px 22px !important; }
+    .hero-pad { padding: 36px 26px 30px !important; }
+    .hero-title { font-size: 30px !important; }
+    .stack-cell { display:block !important; width:100% !important; padding: 0 0 10px 0 !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background:#f0f4f8;">
+
+<div style="display:none; max-height:0; overflow:hidden;">
+  {{count_label}} added to your CRM. Undo any contact within 24 hours if needed.
+</div>
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f0f4f8;">
+<tr><td align="center" style="padding:40px 16px;">
+
+<table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="max-width:600px; background:#ffffff; border-radius:18px; overflow:hidden; box-shadow:0 4px 32px rgba(16,42,67,0.08);">
+
+  <!-- Header -->
+  <tr><td style="padding:22px 32px; background:#ffffff; border-bottom:1px solid #eef2f7;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td style="font-family:'DM Sans',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.2px;">
+          <span style="color:#102a43;">Origen Technol</span><span style="color:#f97316;">OG</span>
+        </td>
+        <td align="right" style="font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; color:#94a3b8; letter-spacing:1.2px; text-transform:uppercase;">
+          Magic Inbox &middot; Receipt
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Hero — quieter than the welcome -->
+  <tr><td class="hero-pad" style="background:linear-gradient(160deg,#0b1b2b 0%,#102a43 55%,#1a3a5c 100%); padding:44px 48px 40px;">
+    <p style="margin:0 0 14px 0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:#86efac; letter-spacing:2.4px; text-transform:uppercase;">
+      ✓ &nbsp;Saved to your CRM
+    </p>
+    <h1 class="hero-title" style="margin:0 0 12px 0; font-family:'Fraunces','DM Sans',serif; font-size:36px; line-height:1.1; font-weight:500; color:#ffffff; letter-spacing:-0.4px;">
+      {{count_label}} <em style="font-style:italic; color:#f97316; font-weight:500;">added.</em>
+    </h1>
+    <p style="margin:0; font-family:'DM Sans',sans-serif; font-size:15px; line-height:1.6; color:#a8c3df; max-width:460px;">
+      We pulled the details out of what you forwarded and saved {{saved_pronoun}} to your contacts.
+      Sent {{sent_at}} from <span style="color:#cbd5e1;">{{sender_email}}</span>.
+    </p>
+  </td></tr>
+
+  <!-- Contact list -->
+  <tr><td class="pad-lg" style="padding:36px 48px 8px; background:#ffffff;">
+    <p style="margin:0 0 14px 0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:#627d98; letter-spacing:1.6px; text-transform:uppercase;">
+      What we saved
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f8fafc; border:1px solid #e8eff5; border-radius:12px;">
+      {{#each contacts}}
+        <tr><td style="padding:16px 18px; border-bottom:1px solid #e8eff5;">
+          <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+              <td valign="middle" width="42" style="padding-right:14px;">
+                <table role="presentation" cellpadding="0" cellspacing="0">
+                  <tr><td style="width:42px; height:42px; background:linear-gradient(135deg,#fb923c 0%,#ea580c 100%); border-radius:50%; text-align:center; vertical-align:middle; font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:#ffffff; letter-spacing:0.4px;">
+                    {{initials}}
+                  </td></tr>
+                </table>
+              </td>
+              <td valign="middle">
+                <p style="margin:0 0 3px 0; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; color:#102a43; line-height:1.3;">
+                  {{name}}
+                </p>
+                {{#if title}}
+                  <p style="margin:0 0 4px 0; font-family:'DM Sans',sans-serif; font-size:13px; color:#627d98; line-height:1.4;">
+                    {{title}}{{#if company}} &middot; {{company}}{{/if}}
+                  </p>
+                {{else}}{{#if company}}
+                  <p style="margin:0 0 4px 0; font-family:'DM Sans',sans-serif; font-size:13px; color:#627d98; line-height:1.4;">{{company}}</p>
+                {{/if}}{{/if}}
+                <p style="margin:0; font-family:'DM Sans',sans-serif; font-size:12.5px; color:#829ab1; line-height:1.5;">
+                  {{#if email}}{{email}}{{/if}}{{#if email}}{{#if phone}} &nbsp;·&nbsp; {{/if}}{{/if}}{{#if phone}}{{phone}}{{/if}}
+                </p>
+              </td>
+              <td align="right" valign="top" width="64">
+                {{#if is_duplicate_merged}}
+                  <span style="display:inline-block; background:#e0f2fe; color:#075985; font-family:'DM Sans',sans-serif; font-size:9.5px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; padding:4px 8px; border-radius:6px;">Updated</span>
+                {{else}}
+                  <span style="display:inline-block; background:#dcfce7; color:#166534; font-family:'DM Sans',sans-serif; font-size:9.5px; font-weight:700; letter-spacing:0.6px; text-transform:uppercase; padding:4px 8px; border-radius:6px;">New</span>
+                {{/if}}
+              </td>
+            </tr>
+            {{#if group_name}}
+              <tr><td colspan="3" style="padding:10px 0 0 56px;">
+                <span style="display:inline-block; font-family:'DM Sans',sans-serif; font-size:11.5px; color:#7c2d12; background:#fff7ed; border:1px solid #fed7aa; padding:3px 8px; border-radius:6px;">
+                  Filed under {{group_name}}
+                </span>
+              </td></tr>
+            {{/if}}
+            <tr><td colspan="3" style="padding:12px 0 0 56px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding-right:8px;">
+                    <a href="{{view_url}}" style="display:inline-block; font-family:'DM Sans',sans-serif; background:#fff7ed; color:#c2410c; font-size:12px; font-weight:700; text-decoration:none; padding:7px 11px; border-radius:7px; border:1px solid #fed7aa;">
+                      View
+                    </a>
+                  </td>
+                  {{#if undo_url}}
+                    <td>
+                      <a href="{{undo_url}}" style="display:inline-block; font-family:'DM Sans',sans-serif; background:#ffffff; color:#475569; font-size:12px; font-weight:700; text-decoration:none; padding:7px 11px; border-radius:7px; border:1px solid #cbd5e1;">
+                        Undo
+                      </a>
+                    </td>
+                  {{/if}}
+                </tr>
+              </table>
+            </td></tr>
+          </table>
+        </td></tr>
+      {{/each}}
+    </table>
+  </td></tr>
+
+  <!-- CTAs -->
+  <tr><td class="pad-lg" style="padding:24px 48px 8px; background:#ffffff;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td class="stack-cell" valign="top" style="padding-right:8px;">
+          <a href="{{contacts_url}}" style="display:block; text-align:center; font-family:'DM Sans',sans-serif; background:linear-gradient(135deg,#f97316 0%,#ea580c 100%); color:#ffffff; font-size:15px; font-weight:600; text-decoration:none; padding:15px 16px; border-radius:10px; box-shadow:0 8px 22px rgba(249,115,22,0.32);">
+            Open Contacts &nbsp;→
+          </a>
+        </td>
+        <td class="stack-cell" valign="top" style="padding-left:8px;">
+          <a href="{{inbox_url}}" style="display:block; text-align:center; font-family:'DM Sans',sans-serif; background:#ffffff; color:#102a43; font-size:15px; font-weight:600; text-decoration:none; padding:13px 16px; border-radius:10px; border:1.5px solid #e2e8f0;">
+            Open Magic Inbox
+          </a>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Skipped / dupes notice (optional) -->
+  {{#if has_skipped}}
+    <tr><td class="pad-lg" style="padding:28px 48px 0; background:#ffffff;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f1f5f9; border-radius:10px;">
+        <tr><td style="padding:14px 18px;">
+          <p style="margin:0; font-family:'DM Sans',sans-serif; font-size:13px; color:#475569; line-height:1.6;">
+            <strong style="color:#102a43;">Heads up:</strong> we skipped {{skipped_label}} that already existed in your contacts. Nothing was overwritten.
+          </p>
+        </td></tr>
+      </table>
+    </td></tr>
+  {{/if}}
+
+  <!-- Source line -->
+  <tr><td class="pad-lg" style="padding:32px 48px 40px; background:#ffffff;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr>
+        <td style="border-top:1px dashed #cbd5e1; padding-top:20px;">
+          <p style="margin:0 0 6px 0; font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:#94a3b8; letter-spacing:1.4px; text-transform:uppercase;">
+            Source
+          </p>
+          <p style="margin:0; font-family:'DM Sans',sans-serif; font-size:13px; color:#627d98; line-height:1.6;">
+            <strong style="color:#334e68;">{{source_kind}}</strong>{{#if source_subject}} &middot; &ldquo;{{source_subject}}&rdquo;{{/if}}<br>
+            <span style="color:#94a3b8;">From {{sender_email}} &rarr;</span> <span style="font-family:'SF Mono',Menlo,monospace; font-size:12px; color:#475569;">{{inbox_address}}</span>
+          </p>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="background:#f8fafc; border-top:1px solid #e8eff5; padding:24px 40px; text-align:center;">
+    <p style="margin:0 0 8px 0; font-family:'DM Sans',sans-serif; font-size:12px; color:#627d98; line-height:1.6;">
+      Each <strong style="color:#334e68;">Undo</strong> link works for 24 hours. After that, edit or remove the contact from your CRM.
+    </p>
+    <p style="margin:0 0 12px 0; font-family:'DM Sans',sans-serif; font-size:12px; color:#cbd5e1; letter-spacing:8px;">• • •</p>
+    <p style="margin:0; font-family:'DM Sans',sans-serif; font-size:11px; color:#9fb3c8;">
+      © {{year}} Origen TechnolOG &middot; {{inbound_domain}}
+    </p>
+  </td></tr>
+
+</table>
+
+</td></tr>
+</table>
+
+</body>
+</html>
+
+  <!-- test data -->
+{
+    "subject": "Saved 2 contacts to your CRM",
+    "headline": "Saved 2 contacts to your CRM.",
+    "count": 2,
+    "count_label": "2 new contacts",
+    "saved_pronoun": "them",
+    "sent_at": "Apr 25 at 12:04 PM",
+    "sender_email": "chrisnichols17@gmail.com",
+    "contacts": [
+      {
+        "name": "Janet Hill",
+        "initials": "JH",
+        "email": "janet.hill@example.com",
+        "phone": "(281) 555-0133",
+        "view_url": "https://app.origentechnolog.com/contact/4",
+        "undo_url": "https://app.origentechnolog.com/inbox/undo/SIGNED_TOKEN_FOR_CONTACT_4",
+        "is_duplicate_merged": false,
+        "group_name": "Open House Leads"
+      },
+      {
+        "name": "Daniel Reyes",
+        "initials": "DR",
+        "email": "dreyes@example.com",
+        "phone": "(713) 555-0109",
+        "view_url": "https://app.origentechnolog.com/contact/5",
+        "undo_url": "https://app.origentechnolog.com/inbox/undo/SIGNED_TOKEN_FOR_CONTACT_5",
+        "is_duplicate_merged": false
+      }
+    ],
+    "contacts_url": "https://app.origentechnolog.com/contacts",
+    "inbox_url": "https://app.origentechnolog.com/inbox",
+    "source_kind": "CSV",
+    "source_subject": "Leads from this weekend",
+    "has_skipped": true,
+    "skipped_count": 1,
+    "skipped_label": "1 entry",
+    "inbox_address": "chris.nichols-abc12345@inbox.origentechnolog.com",
+    "inbound_domain": "inbox.origentechnolog.com",
+    "year": "2026"
+  }

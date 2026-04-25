@@ -48,6 +48,97 @@
         </div>
         {% endif %}
 
+        {% if current_user.inbox_address and not current_user.has_seen_inbox_onboarding %}
+        <section class="crm-surface mb-6" data-controller="inbox-onboarding">
+            <div class="crm-surface-body">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div class="flex items-start gap-4 min-w-0">
+                        <div class="crm-icon-block shrink-0">
+                            <i class="fas fa-paper-plane text-sm text-orange-600"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="crm-section-kicker">New: Magic Inbox</div>
+                            <h2 class="mt-1 text-base font-semibold text-slate-900">
+                                Forward emails or photos &mdash; we save the contact for you.
+                            </h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                Send a business card, screenshot, vCard, or any email to this private address. The contact lands in your CRM automatically.
+                            </p>
+                            <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center"
+                                 data-controller="copy">
+                                <input type="text" readonly
+                                       value="{{ current_user.inbox_address }}"
+                                       data-copy-target="source"
+                                       class="crm-input flex-1 font-mono text-xs sm:text-sm tracking-tight"
+                                       aria-label="Your magic inbox address">
+                                <button type="button"
+                                        data-action="copy#copy"
+                                        data-copy-target="button"
+                                        data-copy-default-text="Copy"
+                                        data-copy-success-text="Copied"
+                                        class="crm-btn crm-btn-secondary whitespace-nowrap">
+                                    <i class="fas fa-copy text-xs"></i>
+                                    <span data-copy-target="label">Copy</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <a href="{{ url_for('inbound_email.inbox_home') }}"
+                           class="crm-btn crm-btn-primary">
+                            <i class="fas fa-arrow-right text-xs"></i>
+                            Set it up
+                        </a>
+                        <form method="POST"
+                              action="{{ url_for('inbound_email.dismiss_onboarding') }}"
+                              class="inline">
+                            <input type="hidden" name="csrf_token"
+                                   value="{{ csrf_token() if csrf_token is defined else '' }}">
+                            <button type="submit" class="crm-btn crm-btn-subtle">
+                                Dismiss
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <script>
+        (function () {
+            // Reuse the same lightweight copy wiring the /inbox page uses.
+            document.querySelectorAll('[data-controller="copy"]').forEach(function (root) {
+                if (root.dataset.copyBound) return;
+                root.dataset.copyBound = '1';
+                var source = root.querySelector('[data-copy-target="source"]');
+                var label = root.querySelector('[data-copy-target="label"]');
+                var btn = root.querySelector('[data-copy-target="button"]');
+                if (!source) return;
+                root.querySelectorAll('[data-action~="copy#copy"]').forEach(function (el) {
+                    el.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var text = source.value || source.textContent || '';
+                        if (!text) return;
+                        var done = function () {
+                            var defaultText = (btn && btn.dataset.copyDefaultText) || 'Copy';
+                            var successText = (btn && btn.dataset.copySuccessText) || 'Copied';
+                            if (label) {
+                                label.textContent = successText;
+                                setTimeout(function () { label.textContent = defaultText; }, 1500);
+                            }
+                        };
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(text).then(done).catch(function () {
+                                source.select(); document.execCommand('copy'); done();
+                            });
+                        } else {
+                            source.select(); document.execCommand('copy'); done();
+                        }
+                    });
+                });
+            });
+        })();
+        </script>
+        {% endif %}
+
         <section class="crm-surface crm-mi mb-6"
                  data-controller="market-insights"
                  data-market-insights-default-slug-value="mont-belvieu"

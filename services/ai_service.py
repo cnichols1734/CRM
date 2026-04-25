@@ -19,6 +19,7 @@ Usage:
 """
 
 import json
+import os
 import openai
 import logging
 from config import Config
@@ -391,6 +392,221 @@ def generate_vision_response(
     except Exception as legacy_error:
         logger.error(f"FATAL: All vision models failed. Error: {str(legacy_error)}")
         raise
+
+
+# =============================================================================
+# MAGIC INBOX CONTACT EXTRACTION (vCard / CSV / business card photo / signature)
+# =============================================================================
+
+# Single primary model for everything sent to the magic inbox: vCards, CSVs,
+# images, plain text. Vision-capable + cheap, with one safety-net fallback.
+# Override at runtime via INBOX_EXTRACTION_MODEL if the canonical model name
+# changes (the plan allows for the live name to be e.g. ``gpt-5-nano-2026-…``).
+INBOX_PRIMARY_MODEL = os.getenv('INBOX_EXTRACTION_MODEL', 'gpt-5.4-nano')
+INBOX_FALLBACK_MODEL = os.getenv('INBOX_EXTRACTION_FALLBACK_MODEL', 'gpt-5-mini')
+
+# Strict JSON schema we hold the model to. The orchestrator validates against
+# this shape before creating any contacts.
+CONTACT_EXTRACTION_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["contacts"],
+    "properties": {
+        "contacts": {
+            "type": "array",
+            "description": (
+                "Every distinct person referenced in the message. Empty if "
+                "no real person can be confidently identified."
+            ),
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "first_name", "last_name", "email", "phone",
+                    "street_address", "city", "state", "zip_code",
+                    "notes", "confidence",
+                ],
+                "properties": {
+                    "first_name": {"type": ["string", "null"]},
+                    "last_name": {"type": ["string", "null"]},
+                    "email": {"type": ["string", "null"]},
+                    "phone": {"type": ["string", "null"]},
+                    "street_address": {"type": ["string", "null"]},
+                    "city": {"type": ["string", "null"]},
+                    "state": {"type": ["string", "null"]},
+                    "zip_code": {"type": ["string", "null"]},
+                    "notes": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Brief context: company, title, where the contact "
+                            "came from. Keep under 280 chars."
+                        ),
+                    },
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                    },
+                },
+            },
+        }
+    },
+}
+
+CONTACT_EXTRACTION_SYSTEM_PROMPT = (
+    "You extract real-estate-CRM contacts from messy inbound material: vCards, "
+    "CSV rows, business-card photos, screenshots of LinkedIn profiles, email "
+    "signatures, and forwarded messages. "
+    "Return ONLY people the message clearly identifies as real human contacts. "
+    "Do NOT invent fields. If a value is missing, return null. "
+    "Use null (not empty string) for unknown fields. "
+    "Normalize phone numbers to digits only (no formatting); the caller will "
+    "format. Lowercase email addresses. Title-case names. "
+    "Set confidence='high' only when you have at least a full name plus one of "
+    "email or phone. Use 'medium' for partial business-card style data, 'low' "
+    "for ambiguous mentions. "
+    "Skip generic mailing-list footers, automated 'do-not-reply' senders, and "
+    "the recipient themselves."
+)
+
+
+def _build_inbox_user_content(text: str, image_blocks):
+    """Build the user message content array for the extraction call."""
+    user_content = [{
+        "type": "text",
+        "text": (
+            "Extract every real contact from the material below.\n\n"
+            "------ MESSAGE ------\n"
+            f"{text or '(no text body)'}\n"
+            "------ END MESSAGE ------"
+        ),
+    }]
+    for img_b64 in image_blocks or []:
+        user_content.append({
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{img_b64}",
+                "detail": "auto",
+            },
+        })
+    return user_content
+
+
+def _call_inbox_extraction(client, model, text, image_blocks):
+    """One Chat Completions call with strict json_schema.
+
+    Returns ``(parsed_dict, usage)`` where ``usage`` exposes token counts so
+    the orchestrator can record observability data.
+    """
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": CONTACT_EXTRACTION_SYSTEM_PROMPT},
+            {"role": "user",
+             "content": _build_inbox_user_content(text, image_blocks)},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "contact_extraction",
+                "schema": CONTACT_EXTRACTION_SCHEMA,
+                "strict": True,
+            },
+        },
+    )
+    raw = response.choices[0].message.content or '{}'
+    parsed = json.loads(raw)
+    return parsed, response.usage
+
+
+def generate_contact_extraction(
+    text: str,
+    image_blocks: list | None = None,
+    api_key: str = None,
+) -> dict:
+    """Extract structured contacts from a normalized inbound payload.
+
+    Single AI path — one model handles vCards, CSVs, photos, signatures.
+    Reliability comes from the strict json_schema, not from branching by
+    source kind.
+
+    Args:
+        text: Cleaned text body plus any text-attachment passthrough
+              (vcf/csv/txt). Already capped + HTML-stripped by the caller.
+        image_blocks: Optional list of base64-encoded JPEG images
+              (already downscaled and capped by the caller).
+        api_key: Optional API key override.
+
+    Returns:
+        Dict shaped like ``{"contacts": [...], "_meta": {...}}``. ``_meta``
+        carries the model used and token usage so the orchestrator can write
+        cost and audit info onto the InboundMessage row.
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        raise ValueError("OpenAI API key is not configured")
+
+    client = openai.OpenAI(api_key=key)
+
+    img_count = len(image_blocks or [])
+    text_len = len(text or '')
+
+    # ---- Primary: gpt-5.4-nano ------------------------------------------
+    try:
+        logger.info(
+            'Inbox extraction [1/2]: model=%s text_chars=%d images=%d',
+            INBOX_PRIMARY_MODEL, text_len, img_count,
+        )
+        parsed, usage = _call_inbox_extraction(
+            client, INBOX_PRIMARY_MODEL, text, image_blocks,
+        )
+        parsed['_meta'] = _usage_meta(INBOX_PRIMARY_MODEL, usage)
+        logger.info(
+            'Inbox extraction SUCCESS: model=%s contacts=%d',
+            INBOX_PRIMARY_MODEL, len(parsed.get('contacts') or []),
+        )
+        return parsed
+
+    except (openai.NotFoundError, openai.AuthenticationError,
+            openai.PermissionDeniedError, openai.RateLimitError,
+            json.JSONDecodeError) as e:
+        logger.warning(
+            'Inbox extraction primary failed (%s) — falling back. err=%s',
+            type(e).__name__, str(e),
+        )
+    except openai.APIError as e:
+        if not _should_fallback(e):
+            logger.error(
+                'Inbox extraction primary failed unrecoverably status=%s err=%s',
+                getattr(e, 'status_code', None), str(e),
+            )
+            raise
+        logger.warning(
+            'Inbox extraction primary APIError status=%s — falling back.',
+            getattr(e, 'status_code', None),
+        )
+
+    # ---- Fallback: gpt-5-mini -------------------------------------------
+    logger.info('Inbox extraction [2/2]: model=%s', INBOX_FALLBACK_MODEL)
+    parsed, usage = _call_inbox_extraction(
+        client, INBOX_FALLBACK_MODEL, text, image_blocks,
+    )
+    parsed['_meta'] = _usage_meta(INBOX_FALLBACK_MODEL, usage)
+    logger.info(
+        'Inbox extraction SUCCESS (fallback): model=%s contacts=%d',
+        INBOX_FALLBACK_MODEL, len(parsed.get('contacts') or []),
+    )
+    return parsed
+
+
+def _usage_meta(model: str, usage) -> dict:
+    """Pull token counts off an OpenAI usage object in a defensive way."""
+    tokens_in = getattr(usage, 'prompt_tokens', None) if usage else None
+    tokens_out = getattr(usage, 'completion_tokens', None) if usage else None
+    return {
+        'model': model,
+        'tokens_in': tokens_in,
+        'tokens_out': tokens_out,
+    }
 
 
 # =============================================================================

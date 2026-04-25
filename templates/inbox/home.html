@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, empty_state %}
+
+{% block title %}Magic Inbox{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+  <div class="crm-page__inner max-w-6xl">
+
+    {% call page_header(
+        'Magic Inbox',
+        'Forward any email, vCard, CSV, or business card photo to your private address. New contacts land in your CRM automatically.',
+        'Inbox') %}
+      <a href="{{ url_for('main.contacts') }}"
+         class="crm-btn crm-btn-secondary">
+        <i class="fas fa-address-book text-xs"></i>
+        Open Contacts
+      </a>
+    {% endcall %}
+
+    {# ───────── Address card ───────── #}
+    <section class="crm-surface mb-6">
+      <div class="grid grid-cols-1 gap-0 md:grid-cols-[1fr_auto]">
+
+        <div class="px-5 py-5 md:px-6 md:py-6">
+          <div class="crm-section-kicker">Your private address</div>
+          <h2 class="mt-1 crm-section-title">Send anything here</h2>
+          <p class="mt-1 crm-section-description">
+            Treat this like a contact in your phone. Forward emails, share
+            business card photos, AirDrop a vCard — we extract the contact
+            and save it to your CRM.
+          </p>
+
+          <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch"
+               data-controller="copy">
+            <div class="relative flex-1">
+              <input
+                type="text"
+                readonly
+                value="{{ inbox_address }}"
+                data-copy-target="source"
+                class="crm-input w-full pr-12 font-mono text-sm tracking-tight text-slate-900"
+                aria-label="Your magic inbox address">
+              <button
+                type="button"
+                data-action="copy#copy"
+                class="absolute inset-y-0 right-0 inline-flex items-center px-3 text-slate-400 hover:text-slate-700"
+                aria-label="Copy address">
+                <i class="fas fa-copy text-sm"></i>
+              </button>
+            </div>
+            <button
+              type="button"
+              data-action="copy#copy"
+              class="crm-btn crm-btn-primary whitespace-nowrap"
+              data-copy-target="button"
+              data-copy-default-text="Copy"
+              data-copy-success-text="Copied">
+              <i class="fas fa-copy text-xs"></i>
+              <span data-copy-target="label">Copy</span>
+            </button>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <a href="mailto:{{ inbox_address }}"
+               class="crm-btn crm-btn-secondary justify-start">
+              <i class="fas fa-envelope text-xs text-slate-500"></i>
+              Send a test email
+            </a>
+            <a href="{{ url_for('inbound_email.download_vcard') }}"
+               class="crm-btn crm-btn-secondary justify-start">
+              <i class="fas fa-mobile-alt text-xs text-slate-500"></i>
+              Save to phone contacts
+            </a>
+            <form method="POST"
+                  action="{{ url_for('inbound_email.rotate') }}"
+                  onsubmit="return confirm('Rotate your address? The old one will stop working immediately.');">
+              <input type="hidden" name="csrf_token"
+                     value="{{ csrf_token() if csrf_token is defined else '' }}">
+              <button type="submit"
+                      class="crm-btn crm-btn-subtle w-full justify-start">
+                <i class="fas fa-sync-alt text-xs text-slate-500"></i>
+                Rotate address
+              </button>
+            </form>
+          </div>
+
+          <p class="mt-3 text-xs text-slate-500">
+            Tip: add <span class="font-mono text-slate-700">+leads</span>,
+            <span class="font-mono text-slate-700">+sphere</span>, or any tag
+            before the <span class="font-mono">@</span> to drop new contacts
+            into a matching group.
+          </p>
+        </div>
+
+        <div class="hidden border-t border-slate-200 md:block md:border-l md:border-t-0">
+          <div class="flex h-full flex-col items-center justify-center px-6 py-6">
+            <div class="rounded-md border border-slate-200 bg-white p-3">
+              {{ qr_svg }}
+            </div>
+            <p class="mt-2 text-xs text-slate-500">Scan with your phone</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    {# ───────── How it works ───────── #}
+    <section class="crm-surface mb-6">
+      <div class="crm-surface-header">
+        <div>
+          <div class="crm-section-kicker">How it works</div>
+          <h2 class="mt-1 crm-section-title">Three ways to use it</h2>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 divide-y divide-slate-100 md:grid-cols-3 md:divide-x md:divide-y-0">
+        <div class="px-5 py-5">
+          <div class="crm-icon-block">
+            <i class="fas fa-share-square text-sm"></i>
+          </div>
+          <h3 class="mt-3 text-sm font-semibold text-slate-900">
+            Forward an email
+          </h3>
+          <p class="mt-1 text-sm text-slate-600">
+            Got a lead in your inbox? Forward the message to your address.
+            We'll pull the name, phone, email, and notes from the signature
+            and the body.
+          </p>
+        </div>
+
+        <div class="px-5 py-5">
+          <div class="crm-icon-block">
+            <i class="fas fa-camera text-sm"></i>
+          </div>
+          <h3 class="mt-3 text-sm font-semibold text-slate-900">
+            Snap a business card
+          </h3>
+          <p class="mt-1 text-sm text-slate-600">
+            From your phone's photo app, share the picture to "Origen Inbox".
+            Up to five cards per email — we read each one and create the
+            contact.
+          </p>
+        </div>
+
+        <div class="px-5 py-5">
+          <div class="crm-icon-block">
+            <i class="fas fa-file-import text-sm"></i>
+          </div>
+          <h3 class="mt-3 text-sm font-semibold text-slate-900">
+            Send a vCard or CSV
+          </h3>
+          <p class="mt-1 text-sm text-slate-600">
+            Attach a <span class="font-mono">.vcf</span> from your phone or a
+            <span class="font-mono">.csv</span> export from another tool.
+            We'll dedupe against your existing contacts before saving.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    {# ───────── Recent activity ───────── #}
+    <section class="crm-surface">
+      <div class="crm-surface-header">
+        <div>
+          <div class="crm-section-kicker">Recent activity</div>
+          <h2 class="mt-1 crm-section-title">Last 20 messages</h2>
+        </div>
+        {% if total_inbound %}
+        <span class="crm-badge">{{ total_inbound }} total</span>
+        {% endif %}
+      </div>
+
+      {% if not activity %}
+        {% call empty_state(
+            'Nothing here yet',
+            'Send your first email or photo to your address above. New contacts will appear here as they are created.',
+            'fa-paper-plane') %}
+          <a href="mailto:{{ inbox_address }}" class="crm-btn crm-btn-primary">
+            <i class="fas fa-envelope text-xs"></i>
+            Send a test email
+          </a>
+        {% endcall %}
+      {% else %}
+      <ul class="divide-y divide-slate-100">
+        {% for item in activity %}
+        {% set m = item.message %}
+        <li class="px-5 py-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="font-medium text-slate-900 truncate">
+                  {{ m.subject or '(no subject)' }}
+                </span>
+                {% if m.plus_alias %}
+                <span class="crm-badge crm-badge-accent">+{{ m.plus_alias }}</span>
+                {% endif %}
+                {% if m.status == 'processed' %}
+                <span class="crm-badge crm-badge-success">
+                  <i class="fas fa-check text-[10px] mr-1"></i>Saved
+                </span>
+                {% elif m.status == 'over_limit' %}
+                <span class="crm-badge crm-badge-warning">Over limit</span>
+                {% elif m.status == 'failed' %}
+                <span class="crm-badge crm-badge-warning">Failed</span>
+                {% elif m.status == 'rejected' %}
+                <span class="crm-badge">No new contacts</span>
+                {% elif m.status == 'received' %}
+                <span class="crm-badge">Processing</span>
+                {% endif %}
+                <span class="crm-badge">{{ m.source_kind|capitalize }}</span>
+              </div>
+              <p class="mt-1 text-xs text-slate-500">
+                {% if m.sender_email %}from {{ m.sender_email }} ·{% endif %}
+                {{ m.created_at.strftime('%b %d, %Y · %I:%M %p') }}
+                {% if m.error_message %}
+                · <span class="text-amber-700">{{ m.error_message }}</span>
+                {% endif %}
+              </p>
+
+              {% if item.contacts %}
+              <div class="mt-2 flex flex-wrap items-center gap-2">
+                {% for c in item.contacts %}
+                <a href="{{ url_for('contacts.view_contact', contact_id=c.id) }}"
+                   class="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 hover:bg-slate-100">
+                  <i class="fas fa-user text-[10px] text-slate-400"></i>
+                  {{ (c.first_name or '') ~ ' ' ~ (c.last_name or '') }}
+                </a>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+
+            {% if item.contacts and item.contacts|length == 1 %}
+            <div class="flex items-center gap-2 sm:pt-1">
+              <a href="{{ url_for('contacts.view_contact', contact_id=item.contacts[0].id) }}"
+                 class="crm-btn crm-btn-secondary">
+                <i class="fas fa-arrow-right text-xs"></i>
+                View
+              </a>
+            </div>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  // Minimal copy-to-clipboard wiring (no Stimulus dependency required).
+  // Buttons can use either the wrapping data-controller="copy" pattern or
+  // be standalone within the same parent.
+  document.querySelectorAll('[data-controller="copy"]').forEach(function (root) {
+    var source = root.querySelector('[data-copy-target="source"]');
+    var label = root.querySelector('[data-copy-target="label"]');
+    var btn = root.querySelector('[data-copy-target="button"]');
+    if (!source) return;
+
+    root.querySelectorAll('[data-action~="copy#copy"]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        var text = source.value || source.textContent || '';
+        if (!text) return;
+        var done = function () {
+          var defaultText = (btn && btn.dataset.copyDefaultText) || 'Copy';
+          var successText = (btn && btn.dataset.copySuccessText) || 'Copied';
+          if (label) {
+            label.textContent = successText;
+            setTimeout(function () { label.textContent = defaultText; }, 1500);
+          }
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function () {
+            source.select(); document.execCommand('copy'); done();
+          });
+        } else {
+          source.select(); document.execCommand('copy'); done();
+        }
+      });
+    });
+  });
+})();
+</script>
+{% endblock %}

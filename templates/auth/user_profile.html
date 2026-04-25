@@ -472,6 +472,101 @@
                 </a>
                 {% endif %}
 
+                <!-- Magic Inbox Card -->
+                {% if not is_admin_edit and user.inbox_address %}
+                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2"
+                     data-controller="copy">
+                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
+                                <i class="fas fa-paper-plane text-white text-sm"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h2 class="text-base font-semibold text-slate-800">Magic Inbox</h2>
+                                <p class="text-xs text-slate-500 mt-0.5">Forward emails or photos here to auto-create contacts</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 space-y-3">
+                        <label class="form-label">Your private address</label>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                            <input type="text" readonly
+                                   value="{{ user.inbox_address }}"
+                                   data-copy-target="source"
+                                   class="premium-input flex-1 font-mono text-sm"
+                                   aria-label="Your magic inbox address">
+                            <button type="button"
+                                    data-action="copy#copy"
+                                    data-copy-target="button"
+                                    data-copy-default-text="Copy"
+                                    data-copy-success-text="Copied"
+                                    class="crm-btn crm-btn-secondary whitespace-nowrap">
+                                <i class="fas fa-copy text-xs"></i>
+                                <span data-copy-target="label">Copy</span>
+                            </button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-2">
+                            <a href="{{ url_for('inbound_email.inbox_home') }}"
+                               class="crm-btn crm-btn-primary">
+                                <i class="fas fa-arrow-right text-xs"></i>
+                                Open Magic Inbox
+                            </a>
+                            <a href="{{ url_for('inbound_email.download_vcard') }}"
+                               class="crm-btn crm-btn-secondary">
+                                <i class="fas fa-mobile-alt text-xs"></i>
+                                Save to phone
+                            </a>
+                            <form method="POST"
+                                  action="{{ url_for('inbound_email.rotate') }}"
+                                  class="inline"
+                                  onsubmit="return confirm('Rotate your address? The old one stops working immediately.');">
+                                <input type="hidden" name="csrf_token"
+                                       value="{{ csrf_token() if csrf_token is defined else '' }}">
+                                <button type="submit" class="crm-btn crm-btn-subtle">
+                                    <i class="fas fa-sync-alt text-xs"></i>
+                                    Rotate
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <script>
+                (function () {
+                    document.querySelectorAll('[data-controller="copy"]').forEach(function (root) {
+                        if (root.dataset.copyBound) return;
+                        root.dataset.copyBound = '1';
+                        var source = root.querySelector('[data-copy-target="source"]');
+                        var label = root.querySelector('[data-copy-target="label"]');
+                        var btn = root.querySelector('[data-copy-target="button"]');
+                        if (!source) return;
+                        root.querySelectorAll('[data-action~="copy#copy"]').forEach(function (el) {
+                            el.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                var text = source.value || source.textContent || '';
+                                if (!text) return;
+                                var done = function () {
+                                    var defaultText = (btn && btn.dataset.copyDefaultText) || 'Copy';
+                                    var successText = (btn && btn.dataset.copySuccessText) || 'Copied';
+                                    if (label) {
+                                        label.textContent = successText;
+                                        setTimeout(function () { label.textContent = defaultText; }, 1500);
+                                    }
+                                };
+                                if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    navigator.clipboard.writeText(text).then(done).catch(function () {
+                                        source.select(); document.execCommand('copy'); done();
+                                    });
+                                } else {
+                                    source.select(); document.execCommand('copy'); done();
+                                }
+                            });
+                        });
+                    });
+                })();
+                </script>
+                {% endif %}
+
                 <!-- Quick Stats Card -->
                 <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
                     <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">

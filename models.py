@@ -241,7 +241,13 @@ class User(UserMixin, db.Model):
     # Onboarding flags
     has_seen_contacts_onboarding = db.Column(db.Boolean, default=False)
     has_seen_dashboard_onboarding = db.Column(db.Boolean, default=False)
-    
+    has_seen_inbox_onboarding = db.Column(db.Boolean, default=False)
+
+    # Magic Inbox — per-user forwarding address. The token suffix is the auth.
+    # Address format: <slug>-<token>@inbox.origentechnolog.com
+    inbox_address = db.Column(db.String(200), unique=True, index=True, nullable=True)
+    inbox_token = db.Column(db.String(16), unique=True, nullable=True)
+
     # Organization relationship
     organization = db.relationship('Organization', backref=db.backref('users', lazy='dynamic'),
                                    foreign_keys=[organization_id])
@@ -1731,6 +1737,7 @@ class Notification(db.Model):
     CATEGORIES = {
         'task_reminder': 'Task Reminders',
         'company_update': 'Company Updates',
+        'magic_inbox': 'Magic Inbox',
     }
 
     def mark_read(self):
@@ -1786,6 +1793,66 @@ class UserNotificationPreference(db.Model):
         return (f'<UserNotificationPreference user={self.user_id} '
                 f'cat={self.category} app={self.in_app_enabled} '
                 f'email={self.email_enabled}>')
+
+
+# =============================================================================
+# MAGIC INBOX (per-user forwarding address → AI-extracted contacts)
+# =============================================================================
+
+class InboundMessage(db.Model):
+    """An inbound email to a user's magic inbox.
+
+    One row per inbound message, kept for analytics, debugging, undo, and
+    rate-limiting. The raw payload is offloaded to Supabase Storage so this
+    table stays small.
+    """
+    __tablename__ = 'inbound_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id',
+                        ondelete='CASCADE'), nullable=False, index=True)
+
+    recipient_address = db.Column(db.String(200), nullable=False, index=True)
+    sender_email = db.Column(db.String(200), nullable=True, index=True)
+    subject = db.Column(db.String(500), nullable=True)
+    plus_alias = db.Column(db.String(100), nullable=True)
+
+    # Where the raw MIME payload lives in Supabase Storage. Kept ~30 days
+    # for debugging and abuse review (pruned by a periodic job).
+    raw_storage_path = db.Column(db.String(500), nullable=True)
+
+    # vcard | csv | image | text | mixed — set from attachment MIME types so
+    # we can see which formats users actually forward, even though the AI
+    # path is identical for all of them.
+    source_kind = db.Column(db.String(20), nullable=False, default='text', index=True)
+
+    # AI observability so we can see real per-user cost.
+    ai_model = db.Column(db.String(60), nullable=True)
+    ai_tokens_in = db.Column(db.Integer, nullable=True)
+    ai_tokens_out = db.Column(db.Integer, nullable=True)
+    ai_cost_cents = db.Column(db.Numeric(10, 4), nullable=True)
+
+    # received | processed | failed | rejected | over_limit
+    status = db.Column(db.String(20), nullable=False, default='received', index=True)
+    error_message = db.Column(db.Text, nullable=True)
+
+    # JSON list of Contact ids created from this message — drives the undo flow.
+    created_contact_ids = db.Column(db.JSON, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    processed_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref=db.backref('inbound_messages',
+                           lazy='dynamic', order_by='InboundMessage.created_at.desc()'))
+
+    SOURCE_KINDS = {'vcard', 'csv', 'image', 'text', 'mixed'}
+    STATUSES = {'received', 'processed', 'failed', 'rejected', 'over_limit'}
+
+    def __repr__(self):
+        return (f'<InboundMessage {self.id} status={self.status} '
+                f'kind={self.source_kind} user={self.user_id}>')
 
 
 # =============================================================================
