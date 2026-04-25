@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+from email.message import EmailMessage
 from unittest.mock import patch
 
 import pytest
@@ -390,6 +391,24 @@ class TestNormalizer:
         assert 'TRUNCATED' in bundle.cleaned_text
         assert bundle.source_kind == 'csv'
 
+    def test_raw_email_field_csv_attachment(self):
+        csv_bytes = b'name,email,phone\nJames Aikens,james@example.com,6038121777\n'
+        msg = EmailMessage()
+        msg['Subject'] = 'CSV contacts'
+        msg.set_content('Import these contacts.')
+        msg.add_attachment(
+            csv_bytes,
+            maintype='text',
+            subtype='csv',
+            filename='contacts.csv',
+        )
+
+        bundle = normalize_sendgrid_payload({'email': msg.as_string()}, {})
+        assert 'ATTACHMENT CSV (contacts.csv)' in bundle.cleaned_text
+        assert 'James Aikens' in bundle.cleaned_text
+        assert 'james@example.com' in bundle.cleaned_text
+        assert bundle.source_kind == 'csv'
+
     def test_unknown_attachment_type_skipped(self):
         files = {'attachment1': _FakeFile(
             'mystery.bin', 'application/octet-stream', b'\x00\x01\x02')}
@@ -410,6 +429,31 @@ class TestNormalizer:
         files = {'attachment1': _FakeFile(
             'card.png', 'image/png', buf.getvalue())}
         bundle = normalize_sendgrid_payload({}, files)
+        assert len(bundle.image_blocks) == 1
+        assert bundle.source_kind == 'image'
+
+    def test_raw_email_field_image_classified(self):
+        try:
+            from PIL import Image
+        except ImportError:
+            pytest.skip('Pillow not installed')
+
+        img = Image.new('RGB', (64, 64), color=(80, 120, 220))
+        buf = io.BytesIO()
+        img.save(buf, format='PNG')
+
+        msg = EmailMessage()
+        msg['Subject'] = 'Contact screenshot'
+        msg.set_content('See attached contact card.')
+        msg.add_attachment(
+            buf.getvalue(),
+            maintype='image',
+            subtype='png',
+            filename='contact-card.png',
+        )
+
+        bundle = normalize_sendgrid_payload({'email': msg.as_string()}, {})
+        assert 'See attached contact card' in bundle.cleaned_text
         assert len(bundle.image_blocks) == 1
         assert bundle.source_kind == 'image'
 
