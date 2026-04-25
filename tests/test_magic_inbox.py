@@ -391,6 +391,24 @@ class TestNormalizer:
         assert 'TRUNCATED' in bundle.cleaned_text
         assert bundle.source_kind == 'csv'
 
+    def test_raw_email_field_csv_attachment(self):
+        csv_bytes = b'name,email,phone\nJames Aikens,james@example.com,6038121777\n'
+        msg = EmailMessage()
+        msg['Subject'] = 'CSV contacts'
+        msg.set_content('Import these contacts.')
+        msg.add_attachment(
+            csv_bytes,
+            maintype='text',
+            subtype='csv',
+            filename='contacts.csv',
+        )
+
+        bundle = normalize_sendgrid_payload({'email': msg.as_string()}, {})
+        assert 'ATTACHMENT CSV (contacts.csv)' in bundle.cleaned_text
+        assert 'James Aikens' in bundle.cleaned_text
+        assert 'james@example.com' in bundle.cleaned_text
+        assert bundle.source_kind == 'csv'
+
     def test_unknown_attachment_type_skipped(self):
         files = {'attachment1': _FakeFile(
             'mystery.bin', 'application/octet-stream', b'\x00\x01\x02')}
