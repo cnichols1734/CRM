@@ -22,6 +22,7 @@ from unittest.mock import patch
 
 import pytest
 from sqlalchemy import inspect
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from models import (
     Contact,
@@ -850,6 +851,14 @@ class TestWebhook:
             assert inbound is not None
             assert inbound.status == 'failed'
             assert 'boom' in (inbound.error_message or '')
+
+    def test_oversized_payload_returns_200(self, client):
+        with patch('routes.inbound_email._resolve_recipient',
+                   side_effect=RequestEntityTooLarge()):
+            rv = self._post(
+                client, f'big-file-aaaa2345@{get_inbox_domain()}')
+
+        assert rv.status_code == 200
 
 
 # ---------------------------------------------------------------------------
