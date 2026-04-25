@@ -30,6 +30,7 @@ from flask import (
 from flask_login import current_user, login_required
 from markupsafe import Markup
 from sqlalchemy import text
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from models import Contact, InboundMessage, User, db
 from services.contact_extraction import process_inbound
@@ -53,6 +54,12 @@ inbound_bp = Blueprint('inbound_email', __name__)
 PER_USER_DAILY_LIMIT = 200
 PER_ORG_DAILY_LIMIT = 1000
 RAW_RETENTION_BUCKET = os.getenv('INBOUND_RAW_BUCKET', 'inbound-email-raw')
+INBOUND_MAX_CONTENT_LENGTH = int(
+    os.getenv('INBOUND_MAX_CONTENT_MB', '25')
+) * 1024 * 1024
+INBOUND_MAX_FORM_MEMORY_SIZE = int(
+    os.getenv('INBOUND_MAX_FORM_MEMORY_MB', '8')
+) * 1024 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +71,8 @@ def sendgrid_inbound_parse():
     """SendGrid Inbound Parse handler. Always returns 200."""
     org_context_set = False
     try:
+        _raise_inbound_parse_limits()
+
         if not _verify_signature(request):
             logger.warning('Magic Inbox: webhook signature invalid — dropping.')
             return ('ok', 200)
@@ -148,6 +157,16 @@ def sendgrid_inbound_parse():
         process_inbound(user, message, bundle)
         return ('ok', 200)
 
+    except RequestEntityTooLarge:
+        logger.warning(
+            'Magic Inbox: inbound payload exceeded parser limit '
+            '(content_length=%s max_content_length=%s '
+            'max_form_memory_size=%s).',
+            request.content_length,
+            INBOUND_MAX_CONTENT_LENGTH,
+            INBOUND_MAX_FORM_MEMORY_SIZE,
+        )
+        return ('ok', 200)
     except Exception:
         logger.exception('Magic Inbox: unhandled error in inbound webhook.')
         try:
@@ -352,6 +371,12 @@ def rotate():
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _raise_inbound_parse_limits() -> None:
+    """Allow realistic SendGrid Parse payloads without lifting app-wide caps."""
+    request.max_content_length = INBOUND_MAX_CONTENT_LENGTH
+    request.max_form_memory_size = INBOUND_MAX_FORM_MEMORY_SIZE
+
+
 def _set_webhook_org_context(org_id: int) -> bool:
     """Set RLS org context for the whole DB connection during this webhook.
 
@@ -411,20 +436,24 @@ def _verify_signature(req) -> bool:
         SENDGRID_INBOUND_PUBLIC_KEY       →  signed event webhook check
         (neither set)                     →  accept with a warning
     """
-    secret = os.getenv('SENDGRID_INBOUND_WEBHOOK_SECRET')
+    secret = (os.getenv('SENDGRID_INBOUND_WEBHOOK_SECRET') or '').strip()
     if secret:
-        provided = (req.args.get('secret')
-                    or req.headers.get('X-Inbound-Secret')
-                    or '')
-        if not _consteq(provided.strip(), secret.strip()):
+        provided_query = req.args.get('secret') or ''
+        provided_header = req.headers.get('X-Inbound-Secret') or ''
+        provided = (provided_query or provided_header).strip()
+        if not _consteq(provided, secret):
+            source = ('query' if provided_query else
+                      'header' if provided_header else
+                      'missing')
             logger.warning(
-                'Magic Inbox: shared-secret check failed (provided_len=%d).',
-                len(provided or ''),
+                'Magic Inbox: shared-secret check failed '
+                '(source=%s provided_len=%d expected_len=%d).',
+                source, len(provided), len(secret),
             )
             return False
         return True
 
-    pub_key = os.getenv('SENDGRID_INBOUND_PUBLIC_KEY')
+    pub_key = (os.getenv('SENDGRID_INBOUND_PUBLIC_KEY') or '').strip()
     if pub_key:
         sig = (req.headers.get('X-Twilio-Email-Event-Webhook-Signature')
                or req.headers.get('X-Sendgrid-Signature'))

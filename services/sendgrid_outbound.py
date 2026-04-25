@@ -38,23 +38,45 @@ DEFAULT_WELCOME_TEMPLATE_ID = 'd-d89070c074554464a728867471e173e1'
 DEFAULT_RECEIPT_TEMPLATE_ID = 'd-f3ef49fcfb80406ab22ec2d0bf87c0e7'
 
 
+def _env_value(name: str) -> str | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
 def _reply_from() -> str:
-    return os.getenv('INBOUND_REPLY_FROM') or DEFAULT_REPLY_FROM
+    return _env_value('INBOUND_REPLY_FROM') or DEFAULT_REPLY_FROM
 
 
 def _welcome_template_id() -> str:
-    return (os.getenv('SENDGRID_INBOX_WELCOME_TEMPLATE_ID')
+    return (_env_value('SENDGRID_INBOX_WELCOME_TEMPLATE_ID')
             or DEFAULT_WELCOME_TEMPLATE_ID)
 
 
 def _receipt_template_id() -> str:
-    return (os.getenv('SENDGRID_INBOX_RECEIPT_TEMPLATE_ID')
+    return (_env_value('SENDGRID_INBOX_RECEIPT_TEMPLATE_ID')
             or DEFAULT_RECEIPT_TEMPLATE_ID)
 
 
 def _sendgrid_api_key() -> str | None:
-    return (os.getenv('SENDGRID_API_KEY')
+    return (_env_value('SENDGRID_API_KEY')
             or current_app.config.get('SENDGRID_API_KEY'))
+
+
+def _sendgrid_error_body(exc: Exception):
+    body = getattr(exc, 'body', None)
+    if body is None:
+        body = getattr(exc, 'response_body', None)
+    if isinstance(body, bytes):
+        return body.decode('utf-8', 'replace')
+    return body
+
+
+def _sendgrid_error_status(exc: Exception):
+    return (getattr(exc, 'status_code', None)
+            or getattr(exc, 'code', None))
 
 
 def _serializer() -> URLSafeTimedSerializer:
@@ -141,8 +163,14 @@ def _send_html(to_email: str, subject: str, html: str,
                 response.status_code, getattr(response, 'body', None),
             )
         return ok
-    except Exception:
-        logger.exception('Magic Inbox SendGrid send failed to=%s', to_email)
+    except Exception as exc:
+        logger.exception(
+            'Magic Inbox SendGrid send failed to=%s from=%s status=%s body=%r',
+            to_email,
+            _reply_from(),
+            _sendgrid_error_status(exc),
+            _sendgrid_error_body(exc),
+        )
         return False
 
 
@@ -176,10 +204,15 @@ def _send_template(to_email: str, template_id: str, data: dict,
                 template_id, response.status_code, getattr(response, 'body', None),
             )
         return ok
-    except Exception:
+    except Exception as exc:
         logger.exception(
-            'Magic Inbox SendGrid template send failed template_id=%s to=%s',
-            template_id, to_email,
+            'Magic Inbox SendGrid template send failed template_id=%s '
+            'to=%s from=%s status=%s body=%r',
+            template_id,
+            to_email,
+            _reply_from(),
+            _sendgrid_error_status(exc),
+            _sendgrid_error_body(exc),
         )
         return False
 
