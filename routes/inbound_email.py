@@ -62,6 +62,7 @@ RAW_RETENTION_BUCKET = os.getenv('INBOUND_RAW_BUCKET', 'inbound-email-raw')
 @inbound_bp.route('/webhooks/sendgrid/inbound-parse', methods=['POST'])
 def sendgrid_inbound_parse():
     """SendGrid Inbound Parse handler. Always returns 200."""
+    org_context_set = False
     try:
         if not _verify_signature(request):
             logger.warning('Magic Inbox: webhook signature invalid — dropping.')
@@ -78,15 +79,10 @@ def sendgrid_inbound_parse():
             logger.info('Magic Inbox: no user for token %r — dropping.', token)
             return ('ok', 200)
 
-        # Set RLS context for the rest of the request so downstream queries
-        # can rely on it (Postgres-only; no-op on SQLite).
-        try:
-            db.session.execute(
-                text('SET LOCAL app.current_org_id = :org_id'),
-                {'org_id': user.organization_id},
-            )
-        except Exception:
-            pass
+        # Keep RLS context across the webhook's internal commits. SET LOCAL
+        # resets on commit, but this endpoint intentionally commits several
+        # times so SendGrid retries never duplicate contacts.
+        org_context_set = _set_webhook_org_context(user.organization_id)
 
         # Spam scoring — drop anything SendGrid flagged hard.
         try:
@@ -159,6 +155,9 @@ def sendgrid_inbound_parse():
         except Exception:
             pass
         return ('ok', 200)
+    finally:
+        if org_context_set:
+            _reset_webhook_org_context()
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +351,41 @@ def rotate():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _set_webhook_org_context(org_id: int) -> bool:
+    """Set RLS org context for the whole DB connection during this webhook.
+
+    The normal request hook uses SET LOCAL, which is transaction-scoped. The
+    inbound webhook commits multiple times by design, so it needs a
+    connection-scoped setting that we explicitly reset in a finally block.
+    """
+    try:
+        db.session.execute(
+            text("SELECT set_config('app.current_org_id', :org_id, false)"),
+            {'org_id': str(org_id)},
+        )
+        db.session.commit()
+        return True
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.exception('Magic Inbox: failed setting webhook RLS context.')
+        return False
+
+
+def _reset_webhook_org_context() -> None:
+    try:
+        db.session.execute(text('RESET app.current_org_id'))
+        db.session.commit()
+    except Exception:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        logger.exception('Magic Inbox: failed resetting webhook RLS context.')
+
 
 def _verify_signature(req) -> bool:
     """Authorize an inbound webhook hit.
