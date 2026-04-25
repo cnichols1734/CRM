@@ -493,7 +493,7 @@
             color: #0f172a;
         }
 
-        /* Notifications: wider control + popover (fills space from removed menu chevron) */
+        /* ── Notifications ── */
         .crm-notifications-wrap {
             position: relative;
             display: inline-flex;
@@ -503,30 +503,48 @@
             width: 3.25rem;
             min-width: 3.25rem;
             height: 2.25rem;
+            position: relative;
         }
-        .crm-utility-icon-btn--bell i {
-            font-size: 1.05rem;
+        .crm-utility-icon-btn--bell i { font-size: 1.05rem; }
+
+        /* Badge */
+        .crm-notif-badge {
+            position: absolute;
+            top: 0.1rem;
+            right: 0.35rem;
+            min-width: 1.05rem;
+            height: 1.05rem;
+            padding: 0 0.3rem;
+            border-radius: 9999px;
+            background: #f97316;
+            color: #fff;
+            font-size: 0.6rem;
+            font-weight: 700;
+            line-height: 1.05rem;
+            text-align: center;
+            pointer-events: none;
+            box-shadow: 0 0 0 2px #0f172a;
         }
+
+        /* Popover shell */
         .crm-notification-popover {
             position: absolute;
             top: calc(100% + 0.35rem);
             right: 0;
-            min-width: 13rem;
-            padding: 0.85rem 1rem;
+            width: 23rem;
             background: #ffffff;
             border: 1px solid #e2e8f0;
-            border-radius: 0.5rem;
-            box-shadow: 0 10px 28px -8px rgba(15, 23, 42, 0.18), 0 4px 12px -4px rgba(15, 23, 42, 0.1);
+            border-radius: 0.625rem;
+            box-shadow: 0 12px 36px -8px rgba(15,23,42,.22),
+                        0 4px 14px -4px rgba(15,23,42,.08);
             z-index: 70;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: #64748b;
-            line-height: 1.35;
-            text-align: center;
             opacity: 0;
             transform: translateY(-4px);
             pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         .crm-notification-popover.is-open {
             opacity: 1;
@@ -534,10 +552,177 @@
             pointer-events: auto;
         }
         @media (prefers-reduced-motion: reduce) {
-            .crm-notification-popover {
-                transition-duration: 0.01ms;
-            }
+            .crm-notification-popover { transition-duration: 0.01ms; }
         }
+
+        /* Header */
+        .crm-notif-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.7rem 0.9rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .crm-notif-header__title {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: -0.01em;
+        }
+        .crm-notif-header__action {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: #f97316;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.15rem 0.4rem;
+            border-radius: 0.25rem;
+            transition: background 0.1s ease;
+        }
+        .crm-notif-header__action:hover {
+            background: #fff7ed;
+        }
+        .crm-notif-header__actions {
+            display: flex;
+            align-items: center;
+            gap: 0.15rem;
+        }
+        .crm-notif-header__action--danger { color: #64748b; }
+        .crm-notif-header__action--danger:hover {
+            color: #dc2626;
+            background: #fef2f2;
+        }
+
+        /* List */
+        .crm-notif-list {
+            max-height: 22rem;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        .crm-notif-list::-webkit-scrollbar { width: 4px; }
+        .crm-notif-list::-webkit-scrollbar-thumb {
+            background: #cbd5e1; border-radius: 4px;
+        }
+
+        /* ── Item: READ state (light / receded) ── */
+        .crm-notif-item {
+            display: flex;
+            gap: 0.65rem;
+            padding: 0.7rem 0.9rem;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            transition: background 0.1s ease;
+        }
+        .crm-notif-item:last-child { border-bottom: none; }
+        .crm-notif-item:hover { background: #f8fafc; }
+
+        /* Read items are visually subdued */
+        .crm-notif-item.is-read { opacity: 0.55; }
+        .crm-notif-item.is-read:hover { opacity: 0.75; background: #f8fafc; }
+
+        /* ── Item: UNREAD state (highlighted) ── */
+        .crm-notif-item.is-unread {
+            background: #fff7ed;
+            border-left: 3px solid #f97316;
+            padding-left: calc(0.9rem - 3px);
+        }
+        .crm-notif-item.is-unread:hover { background: #ffedd5; }
+
+        /* Icon */
+        .crm-notif-item__icon {
+            flex-shrink: 0;
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.5rem;
+            background: #f1f5f9;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+        .crm-notif-item.is-unread .crm-notif-item__icon {
+            background: #fdba74;
+            color: #7c2d12;
+        }
+
+        /* Body text */
+        .crm-notif-item__body { min-width: 0; flex: 1; }
+        .crm-notif-item__title {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #1e293b;
+            line-height: 1.35;
+        }
+        .crm-notif-item.is-read .crm-notif-item__title { font-weight: 500; }
+        .crm-notif-item__text {
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.3;
+            margin-top: 0.15rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .crm-notif-item__time {
+            font-size: 0.625rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .crm-notif-item.is-unread .crm-notif-item__time::before {
+            content: '';
+            width: 0.375rem;
+            height: 0.375rem;
+            border-radius: 50%;
+            background: #f97316;
+            flex-shrink: 0;
+        }
+
+        /* Empty state */
+        .crm-notif-empty {
+            padding: 2.5rem 1rem;
+            text-align: center;
+        }
+        .crm-notif-empty__icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.625rem;
+            background: #f1f5f9;
+            color: #94a3b8;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .crm-notif-empty__text {
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        /* Footer */
+        .crm-notif-footer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.35rem;
+            padding: 0.55rem;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            color: #64748b;
+            text-decoration: none;
+            transition: background 0.1s ease, color 0.1s ease;
+        }
+        .crm-notif-footer:hover { background: #f8fafc; color: #334155; }
 
         .crm-utility-btn .assistant-star {
             color: #f97316;
@@ -745,9 +930,29 @@
                 <button type="button" id="crmNotificationsBtn" class="crm-utility-icon-btn crm-utility-icon-btn--bell"
                         aria-label="Notifications" aria-expanded="false" aria-controls="crmNotificationPopover">
                     <i class="fas fa-bell" aria-hidden="true"></i>
+                    <span id="crmNotifBadge" class="crm-notif-badge" hidden></span>
                 </button>
                 <div id="crmNotificationPopover" class="crm-notification-popover" role="status" aria-hidden="true">
-                    No notifications
+                    <div class="crm-notif-header">
+                        <span class="crm-notif-header__title">Notifications</span>
+                        <div class="crm-notif-header__actions">
+                            <button type="button" id="crmNotifMarkAll" class="crm-notif-header__action" hidden>
+                                Mark all read
+                            </button>
+                            <button type="button" id="crmNotifClearAll" class="crm-notif-header__action crm-notif-header__action--danger" hidden>
+                                Clear all
+                            </button>
+                        </div>
+                    </div>
+                    <div id="crmNotifList" class="crm-notif-list">
+                        <div class="crm-notif-empty">
+                            <div class="crm-notif-empty__icon"><i class="fas fa-bell-slash"></i></div>
+                            <div class="crm-notif-empty__text">No notifications</div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('notifications.settings_page') }}" class="crm-notif-footer">
+                        <i class="fas fa-cog text-[10px]"></i> Notification Settings
+                    </a>
                 </div>
             </div>
         </div>
@@ -903,7 +1108,7 @@
                     <i class="fas fa-key w-5 mr-3 text-gray-400"></i>
                     Change Password
                 </a>
-                <a href="#" class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
+                <a href="{{ url_for('notifications.settings_page') }}" class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-bell w-5 mr-3 text-gray-400"></i>
                     Notifications
                 </a>
@@ -1502,73 +1707,156 @@
         })();
     </script>
 
-    <!-- Desktop notifications popover (placeholder until real notifications exist) -->
+    <!-- Notification bell -->
     <script>
         (function () {
-            var wrap = document.getElementById('crmNotificationsWrap');
-            var btn = document.getElementById('crmNotificationsBtn');
-            var pop = document.getElementById('crmNotificationPopover');
+            var wrap     = document.getElementById('crmNotificationsWrap');
+            var btn      = document.getElementById('crmNotificationsBtn');
+            var pop      = document.getElementById('crmNotificationPopover');
+            var badge    = document.getElementById('crmNotifBadge');
+            var list     = document.getElementById('crmNotifList');
+            var markAll  = document.getElementById('crmNotifMarkAll');
+            var clearAll = document.getElementById('crmNotifClearAll');
             if (!wrap || !btn || !pop) return;
 
+            /* ── popover open / close ── */
             var hideTimer = null;
-            function clearHideTimer() {
-                if (hideTimer) {
-                    clearTimeout(hideTimer);
-                    hideTimer = null;
-                }
-            }
-            function hidePopover() {
-                clearHideTimer();
-                if (!pop.classList.contains('is-open')) {
-                    btn.setAttribute('aria-expanded', 'false');
-                    return;
-                }
+            function clearHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+            function hide() {
+                clearHide();
                 pop.classList.remove('is-open');
                 pop.setAttribute('aria-hidden', 'true');
                 btn.setAttribute('aria-expanded', 'false');
             }
-            function showPopover() {
-                clearHideTimer();
+            function show() {
+                clearHide();
                 pop.setAttribute('aria-hidden', 'false');
                 btn.setAttribute('aria-expanded', 'true');
                 requestAnimationFrame(function () {
-                    requestAnimationFrame(function () {
-                        pop.classList.add('is-open');
+                    requestAnimationFrame(function () { pop.classList.add('is-open'); });
+                });
+                load();
+            }
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                pop.classList.contains('is-open') ? hide() : show();
+            });
+            wrap.addEventListener('mouseout', function (e) {
+                if (!pop.classList.contains('is-open')) return;
+                if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+                clearHide(); hideTimer = setTimeout(hide, 2500);
+            });
+            wrap.addEventListener('mouseover', function () {
+                if (pop.classList.contains('is-open')) clearHide();
+            });
+            document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) hide(); });
+            document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+
+            /* ── helpers ── */
+            function setBadge(n) {
+                if (n > 0) { badge.textContent = n > 99 ? '99+' : n; badge.hidden = false; }
+                else { badge.hidden = true; }
+            }
+            function ago(iso) {
+                var s = (Date.now() - new Date(iso).getTime()) / 1000;
+                if (s < 60)    return 'just now';
+                if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+                if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+                var d = Math.floor(s / 86400);
+                return d === 1 ? 'yesterday' : d + 'd ago';
+            }
+            function esc(t) {
+                var d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+            }
+
+            /* ── render ── */
+            function render(data) {
+                setBadge(data.unread_count);
+                var hasAny = data.notifications.length > 0;
+                if (markAll)  markAll.hidden  = data.unread_count === 0;
+                if (clearAll) clearAll.hidden = !hasAny;
+
+                if (!hasAny) {
+                    list.innerHTML =
+                        '<div class="crm-notif-empty">' +
+                        '  <div class="crm-notif-empty__icon"><i class="fas fa-bell-slash"></i></div>' +
+                        '  <div class="crm-notif-empty__text">All caught up</div>' +
+                        '</div>';
+                    return;
+                }
+
+                var html = '';
+                data.notifications.forEach(function (n) {
+                    var read = n.is_read;
+                    var cls  = 'crm-notif-item ' + (read ? 'is-read' : 'is-unread');
+                    html +=
+                        '<div class="' + cls + '" data-notif-id="' + n.id + '"' +
+                        (n.action_url ? ' data-href="' + esc(n.action_url) + '"' : '') + '>' +
+                        '  <div class="crm-notif-item__icon"><i class="fas ' + esc(n.icon || 'fa-bell') + '"></i></div>' +
+                        '  <div class="crm-notif-item__body">' +
+                        '    <div class="crm-notif-item__title">' + esc(n.title) + '</div>' +
+                        (n.body ? '    <div class="crm-notif-item__text">' + esc(n.body) + '</div>' : '') +
+                        '    <div class="crm-notif-item__time">' + ago(n.created_at) + '</div>' +
+                        '  </div>' +
+                        '</div>';
+                });
+                list.innerHTML = html;
+
+                list.querySelectorAll('.crm-notif-item').forEach(function (el) {
+                    el.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        var id   = el.getAttribute('data-notif-id');
+                        var href = el.getAttribute('data-href');
+
+                        // Mark read first, then navigate
+                        if (el.classList.contains('is-unread')) {
+                            fetch('/api/notifications/' + id + '/read', { method: 'POST' })
+                                .then(function (r) { return r.json(); })
+                                .then(function (d) {
+                                    setBadge(d.unread_count);
+                                    el.classList.remove('is-unread');
+                                    el.classList.add('is-read');
+                                    if (href) window.location.href = href;
+                                });
+                        } else if (href) {
+                            window.location.href = href;
+                        }
                     });
                 });
             }
-            function scheduleHidePopover() {
-                clearHideTimer();
-                hideTimer = setTimeout(hidePopover, 2000);
+
+            function load() {
+                fetch('/api/notifications?include_read=1&limit=20')
+                    .then(function (r) { return r.json(); })
+                    .then(render)
+                    .catch(function () {});
             }
 
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                if (!pop.classList.contains('is-open')) {
-                    showPopover();
-                } else {
-                    hidePopover();
-                }
-            });
+            /* ── header actions ── */
+            if (markAll) {
+                markAll.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    fetch('/api/notifications/read-all', { method: 'POST' })
+                        .then(function () { load(); });
+                });
+            }
+            if (clearAll) {
+                clearAll.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    fetch('/api/notifications/clear-all', { method: 'POST' })
+                        .then(function () { load(); });
+                });
+            }
 
-            /* Moving between bell and panel must not start the timer; leaving the
-               whole control (relatedTarget outside wrap) does. */
-            wrap.addEventListener('mouseout', function (e) {
-                if (!pop.classList.contains('is-open')) return;
-                var rt = e.relatedTarget;
-                if (rt && wrap.contains(rt)) return;
-                scheduleHidePopover();
-            });
-            wrap.addEventListener('mouseover', function () {
-                if (pop.classList.contains('is-open')) clearHideTimer();
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!wrap.contains(e.target)) hidePopover();
-            });
-            document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') hidePopover();
-            });
+            /* ── badge polling ── */
+            function poll() {
+                fetch('/api/notifications/unread-count')
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) { setBadge(d.unread_count); })
+                    .catch(function () {});
+            }
+            poll();
+            setInterval(poll, 60000);
         })();
     </script>
     <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>

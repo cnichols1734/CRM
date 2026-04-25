@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {% call page_header('Notification Settings', 'Choose how and when you want to be notified.', 'Settings') %}
+            <a href="{{ url_for('auth.view_user_profile') }}" class="crm-btn crm-btn-secondary">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Back to Profile
+            </a>
+        {% endcall %}
+
+        <form method="POST" action="{{ url_for('notifications.save_settings') }}">
+            <div class="crm-surface">
+                <div class="crm-surface-header">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100">
+                            <i class="fas fa-sliders-h text-sm text-slate-600"></i>
+                        </div>
+                        <div>
+                            <h2 class="crm-section-title">Delivery Channels</h2>
+                            <p class="crm-section-description">Toggle notifications per category and channel.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="divide-y divide-slate-100">
+                    <div class="grid grid-cols-[1fr_80px_80px] items-center gap-4 px-5 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        <span>Category</span>
+                        <span class="text-center">In-App</span>
+                        <span class="text-center">Email</span>
+                    </div>
+
+                    {% for cat_key, cat_label in categories.items() %}
+                    {% set p = prefs[cat_key] %}
+                    <div class="grid grid-cols-[1fr_80px_80px] items-center gap-4 px-5 py-4">
+                        <div>
+                            <p class="text-sm font-medium text-slate-800">{{ cat_label }}</p>
+                            {% if cat_key == 'task_reminder' %}
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Get notified when tasks are due soon or overdue.
+                            </p>
+                            {% elif cat_key == 'company_update' %}
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Get notified when your team posts a company update.
+                            </p>
+                            {% endif %}
+                        </div>
+
+                        <!-- In-App toggle -->
+                        <div class="flex justify-center">
+                            <label class="crm-toggle">
+                                <input type="checkbox" name="{{ cat_key }}_in_app"
+                                       {% if p.in_app %}checked{% endif %}>
+                                <span class="crm-toggle__track">
+                                    <span class="crm-toggle__thumb"></span>
+                                </span>
+                            </label>
+                        </div>
+
+                        <!-- Email toggle -->
+                        <div class="flex justify-center">
+                            <label class="crm-toggle">
+                                <input type="checkbox" name="{{ cat_key }}_email"
+                                       {% if p.email %}checked{% endif %}>
+                                <span class="crm-toggle__track">
+                                    <span class="crm-toggle__thumb"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="flex items-center justify-between border-t border-slate-100 px-5 py-4">
+                    <p class="text-xs text-slate-400">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Changes take effect immediately for new notifications.
+                    </p>
+                    <button type="submit" class="crm-btn crm-btn-primary">
+                        <i class="fas fa-check text-xs"></i>
+                        Save Preferences
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.crm-toggle {
+    position: relative;
+    display: inline-flex;
+    cursor: pointer;
+}
+.crm-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.crm-toggle__track {
+    display: inline-flex;
+    align-items: center;
+    width: 2.5rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background-color: #cbd5e1;
+    transition: background-color 0.15s ease;
+}
+.crm-toggle input:checked + .crm-toggle__track {
+    background-color: #f97316;
+}
+.crm-toggle__thumb {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 9999px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    margin-left: 0.1875rem;
+    transition: transform 0.15s ease;
+}
+.crm-toggle input:checked + .crm-toggle__track .crm-toggle__thumb {
+    transform: translateX(1rem);
+}
+</style>
+{% endblock %}

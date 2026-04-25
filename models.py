@@ -1699,6 +1699,96 @@ class FortBendProperty(db.Model):
 
 
 # =============================================================================
+# IN-APP NOTIFICATIONS
+# =============================================================================
+
+class Notification(db.Model):
+    """In-app notification delivered to a specific user's bell icon."""
+    __tablename__ = 'notifications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id',
+                        ondelete='CASCADE'), nullable=False, index=True)
+
+    # Category lets the preference system gate delivery per-type
+    category = db.Column(db.String(50), nullable=False, index=True)
+
+    title = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text)
+    icon = db.Column(db.String(60), default='fa-bell')
+    action_url = db.Column(db.String(500))
+
+    is_read = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    read_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    user = db.relationship('User', backref=db.backref('notifications',
+                           lazy='dynamic', order_by='Notification.created_at.desc()'))
+
+    # Rows older than 90 days are safe to prune via a periodic job.
+    CATEGORIES = {
+        'task_reminder': 'Task Reminders',
+        'company_update': 'Company Updates',
+    }
+
+    def mark_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = datetime.utcnow()
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'category': self.category,
+            'title': self.title,
+            'body': self.body,
+            'icon': self.icon,
+            'action_url': self.action_url,
+            'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() + 'Z' if self.created_at else None,
+            'read_at': self.read_at.isoformat() + 'Z' if self.read_at else None,
+        }
+
+    def __repr__(self):
+        return f'<Notification {self.id} cat={self.category} user={self.user_id}>'
+
+
+class UserNotificationPreference(db.Model):
+    """Per-user opt-in/out for each notification category + channel."""
+    __tablename__ = 'user_notification_preferences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id',
+                        ondelete='CASCADE'), nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+
+    category = db.Column(db.String(50), nullable=False)
+
+    # Channels — start with two; add push/sms later
+    in_app_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    email_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow,
+                           onupdate=datetime.utcnow, nullable=False)
+
+    user = db.relationship('User', backref=db.backref('notification_preferences',
+                           lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'category',
+                            name='uq_user_notification_pref'),
+    )
+
+    def __repr__(self):
+        return (f'<UserNotificationPreference user={self.user_id} '
+                f'cat={self.category} app={self.in_app_enabled} '
+                f'email={self.email_enabled}>')
+
+
+# =============================================================================
 # MARKET INSIGHTS (RentCast-backed, multi-tenant-agnostic lookup data)
 # =============================================================================
 

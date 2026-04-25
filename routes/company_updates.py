@@ -251,7 +251,33 @@ def create_update():
         
         db.session.add(update)
         db.session.commit()
-        
+
+        # Notify every other user in the org
+        try:
+            from models import User
+            from services.notification_service import create_notifications_bulk
+            org_users = User.query.filter(
+                User.organization_id == current_user.organization_id,
+                User.id != current_user.id,
+            ).all()
+            if org_users:
+                preview = (title[:80] + '...') if len(title) > 80 else title
+                create_notifications_bulk([
+                    {
+                        'user_id': u.id,
+                        'organization_id': current_user.organization_id,
+                        'category': 'company_update',
+                        'title': 'New Company Update',
+                        'body': preview,
+                        'icon': 'fa-bullhorn',
+                        'action_url': url_for('company_updates.view_update',
+                                              update_id=update.id),
+                    }
+                    for u in org_users
+                ])
+        except Exception as e:
+            current_app.logger.warning(f"Could not create update notifications: {e}")
+
         flash('Update published successfully!', 'success')
         return redirect(url_for('company_updates.view_update', update_id=update.id))
     
