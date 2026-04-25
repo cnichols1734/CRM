@@ -31,9 +31,6 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': False,
         'MARKETING': False,
         'TAX_PROTEST': False,
-        
-        # Fun features
-        'SHOW_DASHBOARD_JOKE': False,
     },
     'pro': {
         'CONTACTS': True,
@@ -49,7 +46,6 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKETING': False,  # Still disabled for all
         'TAX_PROTEST': False,
-        'SHOW_DASHBOARD_JOKE': True,
     },
     'enterprise': {
         'CONTACTS': True,
@@ -65,13 +61,11 @@ TIER_FEATURES = {
         'DOCUMENT_GENERATION': True,
         'MARKETING': True,
         'TAX_PROTEST': True,
-        'SHOW_DASHBOARD_JOKE': True,
     }
 }
 
 # Legacy global flags for backwards compatibility during migration
 FEATURE_FLAGS = {
-    'SHOW_DASHBOARD_JOKE': False,
     'TRANSACTIONS_ENABLED': True,
     'REPORTS_ADMIN_ONLY': True,  # When True, only admins/owners can access Reports
 }

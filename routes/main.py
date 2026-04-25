@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from flask_login import login_required, current_user
 from models import db, Contact, ContactGroup, Task, User, CompanyUpdate, Transaction, TransactionParticipant, contact_groups as contact_groups_table
-from feature_flags import is_enabled, can_access_transactions, org_has_feature, feature_required
+from feature_flags import can_access_transactions, feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from datetime import datetime, timedelta, timezone, date
 import pytz
@@ -654,7 +654,6 @@ def dashboard():
                          task_window_days=task_window_days,
                          latest_update=latest_update,
                          now=now,
-                         show_dashboard_joke=is_enabled('SHOW_DASHBOARD_JOKE'),
                          show_transactions=show_transactions,
                          transactions_by_status=transactions_by_status,
                          pipeline_value=pipeline_value,

@@ -1,10 +1,22 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-  static targets = ["taskWindowButton", "pipelineValue", "onboarding"];
+  static targets = ["taskWindowButton", "pipelineValue", "onboarding", "groupChart"];
+  static values = {
+    groupStats: Array
+  };
 
   connect() {
     this.animatePipelineValue();
+    this.renderGroupChart();
+    this.initializeTodos();
+  }
+
+  disconnect() {
+    if (this.groupChart) {
+      this.groupChart.destroy();
+      this.groupChart = null;
+    }
   }
 
   async setTaskWindow(event) {
@@ -25,6 +37,30 @@ export default class extends Controller {
     } catch (error) {
       console.error(error);
       window.alert("Unable to update the task window right now.");
+    }
+  }
+
+  async updateTaskStatus(event) {
+    const taskId = event.currentTarget.dataset.taskId;
+    if (!taskId) return;
+
+    const completed = event.currentTarget.checked;
+
+    try {
+      const response = await fetch(`/tasks/${taskId}/quick-update`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: `status=${completed ? "completed" : "pending"}`
+      });
+
+      if (!response.ok) throw new Error("Unable to update task");
+      window.location.reload();
+    } catch (error) {
+      console.error(error);
+      event.currentTarget.checked = !completed;
+      window.alert("Unable to update the task right now.");
     }
   }
 
@@ -69,5 +105,56 @@ export default class extends Controller {
     };
 
     window.requestAnimationFrame(tick);
+  }
+
+  initializeTodos() {
+    if (!window.TodoManager || !document.getElementById("dashboardActiveTodoList")) return;
+
+    this.dashboardTodos = new window.TodoManager({
+      templateId: "todoItemTemplate",
+      activeListId: "dashboardActiveTodoList",
+      inputId: "dashboardNewTodoInput",
+      addBtnId: "dashboardAddTodoBtn"
+    });
+  }
+
+  renderGroupChart() {
+    if (!this.hasGroupChartTarget || !window.ApexCharts || !this.groupStatsValue.length) return;
+
+    this.groupChart = new window.ApexCharts(this.groupChartTarget, {
+      series: this.groupStatsValue.map((item) => item.count),
+      chart: {
+        width: "100%",
+        height: 220,
+        type: "donut"
+      },
+      labels: this.groupStatsValue.map((item) => item.name),
+      colors: ["#f97316", "#0f172a", "#475569", "#94a3b8", "#cbd5e1", "#e2e8f0"],
+      dataLabels: {
+        enabled: false
+      },
+      legend: {
+        show: false
+      },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: "78%"
+          }
+        }
+      },
+      stroke: {
+        width: 0
+      },
+      tooltip: {
+        y: {
+          formatter(value) {
+            return `${value} contacts`;
+          }
+        }
+      }
+    });
+
+    this.groupChart.render();
   }
 }

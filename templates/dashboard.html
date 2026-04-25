@@ -3,82 +3,17 @@
 
 {% block head_scripts %}
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
 <script defer src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/countup.js@2.8.0/dist/countUp.umd.min.js"></script>
-<script src="{{ url_for('static', filename='js/market_insights.js') }}" defer></script>
-<style>
-    /* Market Insights component styles. Mirrored in frontend/styles/app.css
-       so the next Vite build picks them up; inlined here so the section
-       works without requiring a frontend rebuild right now. */
-    .crm-mi__kpi {
-        position: relative; display: flex; flex-direction: column; gap: 0.75rem;
-        background: #fff; border: 1px solid #e2e8f0; border-radius: 0.375rem;
-        padding: 1rem; transition: box-shadow 200ms ease;
-    }
-    .crm-mi__kpi:hover { box-shadow: 0 1px 2px rgba(15,23,42,0.08); }
-    .crm-mi__kpi-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
-    .crm-mi__kpi-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-        letter-spacing: 0.08em; color: #64748b; }
-    .crm-mi__kpi-value {
-        margin-top: 0.25rem; font-size: 1.875rem; line-height: 2.25rem;
-        font-weight: 600; letter-spacing: -0.01em; color: #020617;
-        font-variant-numeric: tabular-nums;
-    }
-    .crm-mi__kpi-spark { margin: 0 -0.25rem -0.5rem; height: 2.5rem; }
-    .crm-mi__delta {
-        display: inline-flex; align-items: center; gap: 0.25rem;
-        padding: 0.125rem 0.5rem; border-radius: 9999px;
-        font-size: 0.75rem; font-weight: 600;
-    }
-    .crm-mi__delta--up { background: #ecfdf5; color: #047857; }
-    .crm-mi__delta--down { background: #fff1f2; color: #be123c; }
-    .crm-mi__delta--flat { background: #f1f5f9; color: #475569; }
-    .crm-mi__chart { height: 20rem; width: 100%; }
-
-    /* Collapse/expand affordances. The whole header is clickable; the
-       chevron rotates 180deg when the panel is open. */
-    .crm-mi__toggle {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 2rem; height: 2rem; border-radius: 0.375rem;
-        border: 1px solid #e2e8f0; background: #fff; color: #475569;
-        transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-        cursor: pointer; flex-shrink: 0;
-    }
-    .crm-mi__toggle:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
-    .crm-mi__toggle:focus-visible {
-        outline: 2px solid #f97316; outline-offset: 2px;
-    }
-    .crm-mi__toggle i { transition: transform 200ms ease; }
-    .crm-mi.is-open .crm-mi__toggle i { transform: rotate(180deg); }
-
-    .crm-mi__header-row {
-        display: flex; align-items: flex-start; justify-content: space-between;
-        gap: 0.75rem; width: 100%;
-    }
-    .crm-mi__collapsed-hint {
-        font-size: 0.75rem; color: #94a3b8; font-style: italic;
-    }
-    .crm-mi.is-open .crm-mi__collapsed-hint { display: none; }
-
-    /* Smooth reveal: small fade + slide on the body container. */
-    .crm-mi__panel { display: none; }
-    .crm-mi.is-open .crm-mi__panel {
-        display: block;
-        animation: crmMiReveal 220ms ease-out;
-    }
-    @keyframes crmMiReveal {
-        from { opacity: 0; transform: translateY(-4px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-</style>
 {% endblock %}
 
 {% block content %}
 {% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count if show_transactions else 0 %}
 {% set is_first_run = total_contacts == 0 and total_deals == 0 and upcoming_tasks|length == 0 %}
 
-<div class="crm-page" data-controller="dashboard-page">
+<div class="crm-page"
+     data-controller="dashboard-page"
+     data-dashboard-page-group-stats-value='{{ group_stats|tojson|safe }}'>
     <div class="crm-page__inner">
         {% call page_header('Dashboard', '', 'Workspace') %}
             <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">
@@ -537,8 +472,10 @@
                             <div class="flex items-start gap-3">
                                 <input type="checkbox"
                                        class="mt-1 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                                       data-action="change->dashboard-page#updateTaskStatus"
+                                       data-task-id="{{ task.id }}"
                                        {% if task.status == 'completed' %}checked{% endif %}
-                                       onchange="updateTaskStatus({{ task.id }}, this.checked)">
+                                >
                                 <div class="min-w-0">
                                     <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
                                        class="crm-table-link block truncate">
@@ -614,7 +551,7 @@
                 </div>
                 <div class="crm-surface-body">
                     {% if group_stats %}
-                    <div id="groupChart" class="mx-auto min-h-[220px]"></div>
+                    <div id="groupChart" class="mx-auto min-h-[220px]" data-dashboard-page-target="groupChart"></div>
                     <div class="mt-4 space-y-2 border-t border-slate-200 pt-4">
                         {% for group in group_stats %}
                         <div class="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
@@ -725,75 +662,6 @@
         </div>
     </li>
 </template>
-
-{% if group_stats %}
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-{% endif %}
-<script>
-function updateTaskStatus(taskId, completed) {
-    fetch(`/tasks/${taskId}/quick-update`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `status=${completed ? 'completed' : 'pending'}`
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
-        window.location.reload();
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error updating task status');
-    });
-}
-
-{% if group_stats %}
-document.addEventListener('DOMContentLoaded', function() {
-    const chartRoot = document.querySelector('#groupChart');
-    if (!chartRoot) return;
-
-    const groupData = {{ group_stats|tojson|safe }};
-    if (!groupData.length) return;
-
-    const chart = new ApexCharts(chartRoot, {
-        series: groupData.map(item => item.count),
-        chart: {
-            width: '100%',
-            height: 220,
-            type: 'donut'
-        },
-        labels: groupData.map(item => item.name),
-        colors: ['#f97316', '#0f172a', '#475569', '#94a3b8', '#cbd5e1', '#e2e8f0'],
-        dataLabels: {
-            enabled: false
-        },
-        legend: {
-            show: false
-        },
-        plotOptions: {
-            pie: {
-                donut: {
-                    size: '78%'
-                }
-            }
-        },
-        stroke: {
-            width: 0
-        },
-        tooltip: {
-            y: {
-                formatter: function(value) {
-                    return value + ' contacts';
-                }
-            }
-        }
-    });
-
-    chart.render();
-});
-{% endif %}
-</script>
 
 {% if not current_user.has_seen_dashboard_onboarding %}
 {% include 'modals/dashboard_onboarding.html' %}

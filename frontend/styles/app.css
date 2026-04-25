@@ -318,4 +318,48 @@
   .crm-mi__chart {
     @apply h-80 w-full;
   }
+
+  .crm-mi__toggle {
+    @apply inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500;
+  }
+
+  .crm-mi__toggle i {
+    @apply transition-transform duration-200;
+  }
+
+  .crm-mi.is-open .crm-mi__toggle i {
+    @apply rotate-180;
+  }
+
+  .crm-mi__header-row {
+    @apply flex w-full items-start justify-between gap-3;
+  }
+
+  .crm-mi__collapsed-hint {
+    @apply text-xs italic text-slate-400;
+  }
+
+  .crm-mi.is-open .crm-mi__collapsed-hint {
+    @apply hidden;
+  }
+
+  .crm-mi__panel {
+    @apply hidden;
+  }
+
+  .crm-mi.is-open .crm-mi__panel {
+    display: block;
+    animation: crmMiReveal 220ms ease-out;
+  }
+}
+
+@keyframes crmMiReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

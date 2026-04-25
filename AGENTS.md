@@ -51,6 +51,15 @@ pytest tests/test_document_definitions.py
 pytest tests/test_sendgrid.py
 ```
 
+## Git Start-Of-Work Rule
+
+Before starting code changes, check the current branch and sync against GitHub `main`.
+
+1. Run `git status --short --branch` to see the branch and any existing work.
+2. Run `git fetch origin main` to update the remote `main` ref.
+3. If the working tree is clean and the task should start from `main`, switch to `main`, pull the latest `origin/main`, then create a feature/fix branch from that updated `main`.
+4. If the working tree is dirty, do not pull, rebase, reset, checkout, or stash without the user's approval. Report the dirty files and ask whether to preserve, stash, commit, or move the work.
+
 ## Frontend Design Rules
 
 This repo already has an established product UI. Do not import generic SaaS aesthetics or marketing-page habits into the app.
