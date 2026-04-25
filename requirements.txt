@@ -41,6 +41,9 @@ bleach==6.1.0
 Pillow==12.1.0
 openpyxl==3.1.5
 
+# QR codes (Magic Inbox: scan-from-phone for the inbox address)
+segno==1.6.1
+
 # PDF rendering (for document extraction - renders pages to images)
 PyMuPDF==1.25.4
 
