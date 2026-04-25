@@ -1,6 +1,6 @@
 /**
  * TodoManager - Shared todo list management class
- * Used by both dashboard.js and user_todo.js to eliminate code duplication
+ * Used by the dashboard Stimulus controller and user_todo.js to eliminate code duplication
  */
 class TodoManager {
     /**
@@ -489,6 +489,10 @@ class TodoManager {
     refresh() {
         this.loadTodos();
     }
+}
+
+if (typeof window !== 'undefined') {
+    window.TodoManager = TodoManager;
 }
 
 // Export for module usage (if needed in future)

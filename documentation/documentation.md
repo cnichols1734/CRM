@@ -682,18 +682,12 @@ The CRM implements a feature flag system for runtime feature toggling without co
 from feature_flags import is_enabled
 
 # Check if a feature is enabled
-if is_enabled('SHOW_DASHBOARD_JOKE'):
-    # Show dashboard joke functionality
+if is_enabled('REPORTS_ADMIN_ONLY'):
+    # Restrict Reports access to admins and owners
     pass
 ```
 
 ### Current Feature Flags
-
-**`SHOW_DASHBOARD_JOKE`**
-- **Status:** False (disabled)
-- **Purpose:** Controls display of joke of the day on dashboard
-- **Implementation:** Fetches jokes from external APIs when enabled
-- **Impact:** Adds humor element to dashboard but requires external API calls
 
 **`TRANSACTIONS_ENABLED`**
 - **Status:** True (enabled)
@@ -1340,12 +1334,12 @@ The application uses Jinja2 templates for rendering HTML:
 *   **Add/Edit/Delete:** Full CRUD operations with optimistic updates
 *   **Persistence:** Local storage for offline capability
 
-### Dashboard (`static/js/dashboard.js`)
+### Dashboard (`frontend/controllers/dashboard_page_controller.js`)
 
-*   **Metrics Display:** Dynamic loading of dashboard statistics
-*   **Company Updates:** Latest update preview and navigation
-*   **Task Previews:** Upcoming and overdue task summaries
-*   **Real-time Updates:** Periodic refresh of dynamic content
+*   **Task Window:** Saves dashboard task range preferences
+*   **Quick Task Updates:** Completes client tasks from the dashboard
+*   **Pipeline Readout:** Animates pipeline value display
+*   **Dashboard Widgets:** Initializes the personal todo list and contact-group chart
 
 ### Admin Group Management (`static/js/manage_groups.js`)
 
