@@ -469,6 +469,54 @@ def dashboard():
     group_stats_raw = group_stats_query.group_by(ContactGroup.id, ContactGroup.name).all()
     group_stats = [{'name': name, 'count': count} for name, count in group_stats_raw if count > 0]
 
+    top_opportunity_rows = []
+    top_contact_values = [float(contact.potential_commission or 0) for contact in top_contacts]
+    max_top_contact_value = max(top_contact_values) if top_contact_values else 0
+    for contact in top_contacts[:3]:
+        value = float(contact.potential_commission or 0)
+        full_name = f"{contact.first_name} {contact.last_name}".strip()
+        top_opportunity_rows.append({
+            'label': full_name or 'Unnamed contact',
+            'value': f"${value:,.0f}",
+            'percent': int((value / max_top_contact_value) * 100) if max_top_contact_value else 0,
+        })
+
+    sorted_group_stats = sorted(group_stats, key=lambda item: item['count'], reverse=True)
+    max_group_count = max((group['count'] for group in sorted_group_stats), default=0)
+    contact_mix_rows = [
+        {
+            'label': group['name'],
+            'value': str(group['count']),
+            'percent': int((group['count'] / max_group_count) * 100) if max_group_count else 0,
+        }
+        for group in sorted_group_stats[:3]
+    ]
+
+    commission_tiers = base_contact_query.with_entities(
+        func.coalesce(func.sum(case((Contact.potential_commission < 5000, 1), else_=0)), 0).label('under_5k'),
+        func.coalesce(func.sum(case((Contact.potential_commission.between(5000, 14999.99), 1), else_=0)), 0).label('mid_5k_15k'),
+        func.coalesce(func.sum(case((Contact.potential_commission >= 15000, 1), else_=0)), 0).label('over_15k'),
+    ).first()
+    tier_rows_raw = [
+        {'label': '< $5k', 'value': int(commission_tiers.under_5k or 0)},
+        {'label': '$5k-$15k', 'value': int(commission_tiers.mid_5k_15k or 0)},
+        {'label': '$15k+', 'value': int(commission_tiers.over_15k or 0)},
+    ]
+    max_tier_count = max((row['value'] for row in tier_rows_raw), default=0)
+    commission_tier_rows = [
+        {
+            'label': row['label'],
+            'value': str(row['value']),
+            'percent': int((row['value'] / max_tier_count) * 100) if max_tier_count else 0,
+        }
+        for row in tier_rows_raw
+    ]
+    kpi_breakdowns = {
+        'top_opportunities': top_opportunity_rows,
+        'contact_mix': contact_mix_rows,
+        'commission_tiers': commission_tier_rows,
+    }
+
     # Get user's timezone (default to 'America/Chicago' if not set)
     user_tz = pytz.timezone('America/Chicago')
     
@@ -730,6 +778,7 @@ def dashboard():
                          total_commission=total_commission,
                          total_contacts=total_contacts,
                          avg_commission=avg_commission,
+                         kpi_breakdowns=kpi_breakdowns,
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,

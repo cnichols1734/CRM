@@ -1,6 +1,29 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import page_header, section_header, avatar, badge, empty_state %}
 
+{% macro kpi_breakdown(rows, tone='blue', empty='No data yet') -%}
+{% set fill_class = 'bg-orange-500' if tone == 'orange' else ('bg-slate-500' if tone == 'slate' else 'bg-sky-500') %}
+{% if rows %}
+<div class="min-w-[8.5rem] max-w-[10rem] flex-1 space-y-2">
+    {% for row in rows %}
+    <div>
+        <div class="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
+            <span class="max-w-[6.5rem] truncate text-slate-500" title="{{ row.label }}">{{ row.label }}</span>
+            <span class="shrink-0 font-semibold text-slate-700">{{ row.value }}</span>
+        </div>
+        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+            <div class="h-full rounded-full {{ fill_class }}" style="width: {{ row.percent }}%"></div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="min-w-[8.5rem] rounded-md border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+    {{ empty }}
+</div>
+{% endif %}
+{%- endmacro %}
+
 {% block head_scripts %}
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
 <script defer src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
@@ -359,12 +382,10 @@
                     <div>
                         <div class="crm-kpi__label">Potential commission</div>
                         <div class="crm-kpi__value">${{ "{:,.0f}".format(total_commission) }}</div>
-                        <div class="crm-kpi__meta">Across {{ total_contacts }} tracked contacts.</div>
+                        <div class="crm-kpi__meta">Top contacts by estimated value.</div>
                     </div>
                 </div>
-                <svg class="crm-sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0,24 L15,22 L28,20 L42,16 L55,18 L70,11 L85,7 L100,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                {{ kpi_breakdown(kpi_breakdowns.top_opportunities, 'blue', 'No commission values') }}
             </div>
             <div class="crm-kpi">
                 <div class="crm-kpi__main">
@@ -374,12 +395,10 @@
                     <div>
                         <div class="crm-kpi__label">Tracked contacts</div>
                         <div class="crm-kpi__value">{{ total_contacts }}</div>
-                        <div class="crm-kpi__meta">{% if show_all %}Organization-wide view{% else %}Your working book{% endif %}</div>
+                        <div class="crm-kpi__meta">Largest active contact groups.</div>
                     </div>
                 </div>
-                <svg class="crm-sparkline crm-sparkline--orange" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0,22 L15,20 L28,17 L42,19 L55,14 L70,13 L85,9 L100,6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                {{ kpi_breakdown(kpi_breakdowns.contact_mix, 'orange', 'No groups yet') }}
             </div>
             <div class="crm-kpi">
                 <div class="crm-kpi__main">
@@ -389,12 +408,10 @@
                     <div>
                         <div class="crm-kpi__label">Average commission</div>
                         <div class="crm-kpi__value">${{ "{:,.0f}".format(avg_commission) }}</div>
-                        <div class="crm-kpi__meta">Per contact with tracked value.</div>
+                        <div class="crm-kpi__meta">Contact count by value range.</div>
                     </div>
                 </div>
-                <svg class="crm-sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
-                    <path d="M0,20 L15,18 L28,19 L42,14 L55,13 L70,10 L85,7 L100,5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
+                {{ kpi_breakdown(kpi_breakdowns.commission_tiers, 'slate', 'No values yet') }}
             </div>
         </div>
         {% endif %}
