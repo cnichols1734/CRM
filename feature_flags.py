@@ -64,6 +64,13 @@ TIER_FEATURES = {
     }
 }
 
+# Global overrides win over platform admin access, org overrides, and tier defaults.
+# Use this as a temporary kill switch for features that should not be available
+# to any user while leaving their normal tier configuration intact for later.
+GLOBAL_FEATURE_OVERRIDES = {
+    'AI_DAILY_TODO': False,
+}
+
 # Legacy global flags for backwards compatibility during migration
 FEATURE_FLAGS = {
     'TRANSACTIONS_ENABLED': True,
@@ -95,6 +102,9 @@ def org_has_feature(feature_name: str, org=None) -> bool:
     
     if not org:
         return False
+
+    if feature_name in GLOBAL_FEATURE_OVERRIDES:
+        return GLOBAL_FEATURE_OVERRIDES[feature_name]
     
     # Platform admin org (Origen) gets everything
     if org.is_platform_admin:
@@ -123,15 +133,21 @@ def get_org_features(org=None) -> dict:
     
     if org is None:
         if not current_user.is_authenticated:
-            return TIER_FEATURES['free'].copy()
+            features = TIER_FEATURES['free'].copy()
+            features.update(GLOBAL_FEATURE_OVERRIDES)
+            return features
         org = current_user.organization
     
     if not org:
-        return TIER_FEATURES['free'].copy()
+        features = TIER_FEATURES['free'].copy()
+        features.update(GLOBAL_FEATURE_OVERRIDES)
+        return features
     
     # Platform admin org gets everything enabled
     if org.is_platform_admin:
-        return {k: True for k in TIER_FEATURES['enterprise'].keys()}
+        features = {k: True for k in TIER_FEATURES['enterprise'].keys()}
+        features.update(GLOBAL_FEATURE_OVERRIDES)
+        return features
     
     # Start with tier defaults
     tier = org.subscription_tier or 'free'
@@ -141,6 +157,8 @@ def get_org_features(org=None) -> dict:
     if org.feature_flags:
         for feature_name, enabled in org.feature_flags.items():
             features[feature_name] = enabled
+
+    features.update(GLOBAL_FEATURE_OVERRIDES)
     
     return features
 
