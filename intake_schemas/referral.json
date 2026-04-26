@@ -1,0 +1,78 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "referral",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Referral Questionnaire",
+  "description": "Answer a few referral questions to create the referral document checklist. Agents prepare and send forms in their e-sign system, then upload the signed copies here.",
+  "sections": [
+    {
+      "id": "referral_details",
+      "title": "Referral Details",
+      "questions": [
+        {
+          "id": "referral_side",
+          "type": "select",
+          "label": "What type of client is being referred?",
+          "options": [
+            {"value": "buyer", "label": "Buyer"},
+            {"value": "seller", "label": "Seller"},
+            {"value": "landlord", "label": "Landlord"},
+            {"value": "tenant", "label": "Tenant"},
+            {"value": "other", "label": "Other / not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "receiving_broker_known",
+          "type": "boolean",
+          "label": "Is the receiving broker or agent known?",
+          "required": true
+        },
+        {
+          "id": "relocation_partner",
+          "type": "boolean",
+          "label": "Is this tied to a relocation company or third-party referral network?",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "referral-agreement",
+      "name": "Broker-to-Broker Referral Agreement",
+      "always": true,
+      "reason": "Core referral transaction document"
+    },
+    {
+      "slug": "client-referral-authorization",
+      "name": "Client Referral Authorization / Introduction",
+      "always": true,
+      "reason": "Documents client permission and referral handoff"
+    },
+    {
+      "slug": "receiving-broker-confirmation",
+      "name": "Receiving Broker / Agent Confirmation",
+      "always": true,
+      "reason": "Confirms the receiving party and referral terms"
+    },
+    {
+      "slug": "commission-disbursement-instructions",
+      "name": "Commission Disbursement / Payment Instructions",
+      "always": true,
+      "reason": "Needed to collect referral compensation"
+    },
+    {
+      "slug": "closing-lease-confirmation",
+      "name": "Closing / Lease Confirmation",
+      "always": true,
+      "reason": "Supports referral fee tracking once the referred transaction closes"
+    },
+    {
+      "slug": "relocation-referral-agreement",
+      "name": "Relocation / Third-Party Referral Agreement",
+      "condition": {"field": "relocation_partner", "equals": true},
+      "reason": "Referral involves a relocation company or third-party network"
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "seller",
+  "ownership_status": "reo",
+  "document_workflow": "placeholder_upload_only",
+  "title": "REO / Foreclosure Questionnaire",
+  "description": "Answer these questions to create the REO seller document checklist. Agents prepare and send forms in their e-sign system, then upload signed copies here.",
+  "sections": [
+    {
+      "id": "reo_details",
+      "title": "REO Details",
+      "questions": [
+        {
+          "id": "built_before_1978",
+          "type": "select",
+          "label": "Was the property built before 1978?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "help_text": "REO sellers may be exempt from some seller disclosures, but lead-based paint disclosure may still apply.",
+          "required": true
+        },
+        {
+          "id": "has_hoa",
+          "type": "select",
+          "label": "Is the property subject to an owner's association?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "special_districts",
+          "type": "select",
+          "label": "Is the property located in a special taxing or assessment district?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "flood_hazard",
+          "type": "select",
+          "label": "Is the property in a flood hazard area?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "bank_addendum_required",
+          "type": "select",
+          "label": "Will the seller or asset manager require a bank addendum?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "has_survey",
+          "type": "select",
+          "label": "Is a survey available?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "listing-agreement",
+      "name": "REO Listing Agreement / Asset Manager Listing Package",
+      "always": true,
+      "reason": "Required for REO seller transactions"
+    },
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required brokerage disclosure"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for all seller transactions"
+    },
+    {
+      "slug": "seller-net-proceeds",
+      "name": "Seller's Estimated Net Proceeds",
+      "always": true,
+      "reason": "Recommended for seller transactions"
+    },
+    {
+      "slug": "seller-disclosure-exemption",
+      "name": "Seller's Disclosure Exemption / REO Disclosure Notice",
+      "always": true,
+      "reason": "REO sellers commonly use disclosure exemption or bank disclosure forms"
+    },
+    {
+      "slug": "reo-bank-addendum",
+      "name": "REO / Bank Addendum",
+      "condition": {"field": "bank_addendum_required", "in": ["yes", "not_sure"]},
+      "reason": "Bank or asset manager addendum may be required"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Addendum for Seller's Disclosure of Information on Lead-Based Paint",
+      "condition": {"field": "built_before_1978", "in": ["yes", "not_sure"]},
+      "reason": "Property may have been built before 1978"
+    },
+    {
+      "slug": "hoa-addendum",
+      "name": "Addendum for Property Subject to Mandatory Membership in Owners' Association",
+      "condition": {"field": "has_hoa", "in": ["yes", "not_sure"]},
+      "reason": "Property may be subject to owner's association"
+    },
+    {
+      "slug": "special-tax-district-notice",
+      "name": "Notice to Purchaser of Real Property Located in a Special Taxing or Assessment District",
+      "condition": {"field": "special_districts", "in": ["yes", "not_sure"]},
+      "reason": "Property may be in a special taxing or assessment district"
+    },
+    {
+      "slug": "flood-hazard",
+      "name": "Information About Special Flood Hazard Areas",
+      "condition": {"field": "flood_hazard", "in": ["yes", "not_sure"]},
+      "reason": "Property may be in a flood hazard area"
+    },
+    {
+      "slug": "t47-affidavit",
+      "name": "T-47.1 Residential Real Property Affidavit",
+      "condition": {"field": "has_survey", "equals": "yes"},
+      "reason": "Survey is available"
+    }
+  ]
+}

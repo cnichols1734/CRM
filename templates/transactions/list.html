@@ -5,12 +5,47 @@
 
 {% block content %}
 {% set status_labels = {
-    'preparing_to_list': 'Preparing to list',
-    'showing': 'Showing',
-    'active': 'Active',
-    'under_contract': 'Under contract',
+    'preparing_to_list': 'Preparing / New',
+    'showing': 'Search',
+    'active': 'Active / Listed / Referred',
+    'under_contract': 'Under contract / In progress',
     'closed': 'Closed',
     'cancelled': 'Cancelled / withdrawn'
+} %}
+{% set status_label_sets = {
+    'seller': {
+        'preparing_to_list': 'Preparing to list',
+        'active': 'Active',
+        'under_contract': 'Under contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled / withdrawn'
+    },
+    'buyer': {
+        'showing': 'Home search',
+        'under_contract': 'Under contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled / withdrawn'
+    },
+    'landlord': {
+        'preparing_to_list': 'Preparing to lease',
+        'active': 'Listed for lease',
+        'under_contract': 'Lease pending',
+        'closed': 'Leased',
+        'cancelled': 'Cancelled / withdrawn'
+    },
+    'tenant': {
+        'showing': 'Rental search',
+        'under_contract': 'Application submitted',
+        'closed': 'Lease signed',
+        'cancelled': 'Cancelled / withdrawn'
+    },
+    'referral': {
+        'preparing_to_list': 'New referral',
+        'active': 'Referred out',
+        'under_contract': 'In progress',
+        'closed': 'Closed / paid',
+        'cancelled': 'Cancelled'
+    }
 } %}
 {% set status_dot_class = {
     'preparing_to_list': 'bg-amber-500',
@@ -205,9 +240,11 @@
                             {{ tx.transaction_type.display_name }}
                         </td>
                         <td class="align-top">
+                            {% set tx_type_name = tx.transaction_type.name if tx.transaction_type else 'seller' %}
+                            {% set tx_status_labels = status_label_sets.get(tx_type_name, status_label_sets['seller']) %}
                             <span class="inline-flex items-center gap-2 text-sm font-medium {% if tx.status == 'cancelled' %}text-red-600{% else %}text-slate-700{% endif %}">
                                 <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(tx.status, 'bg-slate-300') }}"></span>
-                                {{ status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
+                                {{ tx_status_labels.get(tx.status, tx.status|replace('_', ' ')|title) }}
                             </span>
                         </td>
                         <td>

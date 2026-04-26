@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "tenant",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Tenant Questionnaire",
+  "description": "Answer a few rental questions to create the tenant-side document checklist. Agents prepare and send forms in their e-sign system, then upload the signed copies here.",
+  "sections": [
+    {
+      "id": "tenant_details",
+      "title": "Tenant Details",
+      "questions": [
+        {
+          "id": "has_pets",
+          "type": "boolean",
+          "label": "Will the tenant have pets?",
+          "required": true
+        },
+        {
+          "id": "built_before_1978",
+          "type": "select",
+          "label": "Was the property built before 1978?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "help_text": "Lead-based paint disclosures are commonly required for residential properties built before 1978.",
+          "required": true
+        },
+        {
+          "id": "has_association",
+          "type": "select",
+          "label": "Is the property subject to an HOA, POA, condo association, or mandatory membership association?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required brokerage disclosure"
+    },
+    {
+      "slug": "buyer-tenant-representation-agreement",
+      "name": "Residential Buyer/Tenant Representation Agreement",
+      "always": true,
+      "reason": "Core tenant representation document"
+    },
+    {
+      "slug": "residential-lease-application",
+      "name": "Residential Lease Application",
+      "always": true,
+      "reason": "Common tenant application document"
+    },
+    {
+      "slug": "tenant-selection-criteria",
+      "name": "Tenant Selection Criteria",
+      "always": true,
+      "reason": "Common rental application disclosure"
+    },
+    {
+      "slug": "application-fee-receipt",
+      "name": "Application Fee / Deposit Receipt",
+      "always": true,
+      "reason": "Tracks tenant funds submitted during application"
+    },
+    {
+      "slug": "income-id-verification",
+      "name": "Income / ID Verification",
+      "always": true,
+      "reason": "Common tenant application support document"
+    },
+    {
+      "slug": "residential-lease",
+      "name": "Residential Lease",
+      "always": true,
+      "reason": "Core tenant lease transaction document"
+    },
+    {
+      "slug": "lease-inventory-condition-form",
+      "name": "Residential Lease Inventory and Condition Form",
+      "always": true,
+      "reason": "Documents property condition at move-in"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for transactions involving payments"
+    },
+    {
+      "slug": "pet-agreement",
+      "name": "Pet Agreement",
+      "condition": {"field": "has_pets", "equals": true},
+      "reason": "Tenant will have pets"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Lead-Based Paint Disclosure",
+      "condition": {"field": "built_before_1978", "in": ["yes", "not_sure"]},
+      "reason": "Property may have been built before 1978"
+    },
+    {
+      "slug": "association-rules-addendum",
+      "name": "HOA / POA / Condo Association Rules Addendum",
+      "condition": {"field": "has_association", "in": ["yes", "not_sure"]},
+      "reason": "Property may be subject to association rules"
+    }
+  ]
+}

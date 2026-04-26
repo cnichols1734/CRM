@@ -19,15 +19,51 @@
     ('VT', 'Vermont'), ('VA', 'Virginia'), ('WA', 'Washington'), ('WV', 'West Virginia'),
     ('WI', 'Wisconsin'), ('WY', 'Wyoming')
 ] %}
-{% set status_labels = {
-    'preparing_to_list': 'Preparing to List',
-    'showing': 'Showing',
-    'active': 'Active',
-    'under_contract': 'Under Contract',
-    'closed': 'Closed',
-    'cancelled': 'Cancelled / Withdrawn'
+{% set tx_type_name = transaction.transaction_type.name if transaction.transaction_type else 'seller' %}
+{% set status_label_sets = {
+    'seller': {
+        'preparing_to_list': 'Preparing to List',
+        'active': 'Active',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled / Withdrawn'
+    },
+    'buyer': {
+        'showing': 'Home Search',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled / Withdrawn'
+    },
+    'landlord': {
+        'preparing_to_list': 'Preparing to Lease',
+        'active': 'Listed for Lease',
+        'under_contract': 'Lease Pending',
+        'closed': 'Leased',
+        'cancelled': 'Cancelled / Withdrawn'
+    },
+    'tenant': {
+        'showing': 'Rental Search',
+        'under_contract': 'Application Submitted',
+        'closed': 'Lease Signed',
+        'cancelled': 'Cancelled / Withdrawn'
+    },
+    'referral': {
+        'preparing_to_list': 'New Referral',
+        'active': 'Referred Out',
+        'under_contract': 'In Progress',
+        'closed': 'Closed / Paid',
+        'cancelled': 'Cancelled'
+    }
 } %}
-{% set status_options = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled'] %}
+{% set status_option_sets = {
+    'seller': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+    'buyer': ['showing', 'under_contract', 'closed', 'cancelled'],
+    'landlord': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+    'tenant': ['showing', 'under_contract', 'closed', 'cancelled'],
+    'referral': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled']
+} %}
+{% set status_labels = status_label_sets.get(tx_type_name, status_label_sets['seller']) %}
+{% set status_options = status_option_sets.get(tx_type_name, status_option_sets['seller']) %}
 
 <div class="crm-page">
     <div class="crm-page__inner max-w-4xl">

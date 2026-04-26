@@ -566,27 +566,76 @@ def dashboard():
         else:
             participants_by_tx = {}
         
-        # Define Kanban columns - 'preparing' combines preparing_to_list and showing
+        # Define neutral Kanban columns that work across seller, buyer, lease, and referral flows.
         status_config = {
-            'preparing': {'label': 'Preparing', 'order': 1, 'statuses': ['preparing_to_list', 'showing']},
-            'active': {'label': 'Active', 'order': 2, 'statuses': ['active']},
-            'under_contract': {'label': 'Under Contract', 'order': 3, 'statuses': ['under_contract']},
-            'closed': {'label': 'Closed YTD', 'order': 4, 'statuses': ['closed']},
+            'early': {
+                'label': 'Early Stage',
+                'description': 'New, preparing, or search-stage transactions',
+                'order': 1,
+                'statuses': ['preparing_to_list', 'showing'],
+                'tone': 'neutral',
+            },
+            'active': {
+                'label': 'Active / Listed',
+                'description': 'Listed, marketed, or referred-out work',
+                'order': 2,
+                'statuses': ['active'],
+                'tone': 'info',
+            },
+            'pending': {
+                'label': 'Pending',
+                'description': 'Under contract, application, lease, or referral in progress',
+                'order': 3,
+                'statuses': ['under_contract'],
+                'tone': 'warning',
+            },
+            'closed': {
+                'label': 'Closed YTD',
+                'description': 'Closed, leased, or paid this year',
+                'order': 4,
+                'statuses': ['closed'],
+                'tone': 'success',
+            },
         }
         
-        # Status display labels for cards
-        status_labels = {
-            'preparing_to_list': 'Preparing to List',
-            'showing': 'Showing',
-            'active': 'Active',
-            'under_contract': 'Under Contract',
-            'closed': 'Closed'
+        # Status display labels for cards, tailored by transaction type.
+        status_label_sets = {
+            'seller': {
+                'preparing_to_list': 'Preparing to List',
+                'active': 'Active',
+                'under_contract': 'Under Contract',
+                'closed': 'Closed',
+            },
+            'buyer': {
+                'showing': 'Home Search',
+                'under_contract': 'Under Contract',
+                'closed': 'Closed',
+            },
+            'landlord': {
+                'preparing_to_list': 'Preparing to Lease',
+                'active': 'Listed for Lease',
+                'under_contract': 'Lease Pending',
+                'closed': 'Leased',
+            },
+            'tenant': {
+                'showing': 'Rental Search',
+                'under_contract': 'Application Submitted',
+                'closed': 'Lease Signed',
+            },
+            'referral': {
+                'preparing_to_list': 'New Referral',
+                'active': 'Referred Out',
+                'under_contract': 'In Progress',
+                'closed': 'Closed/Paid',
+            },
         }
         
         # Group transactions by Kanban column
         for column_key in status_config.keys():
             transactions_by_status[column_key] = {
                 'label': status_config[column_key]['label'],
+                'description': status_config[column_key]['description'],
+                'tone': status_config[column_key]['tone'],
                 'transactions': [],
                 'count': 0
             }
@@ -613,6 +662,9 @@ def dashboard():
             elif primary_client:
                 client_name = primary_client.display_name
             
+            tx_type_name = tx.transaction_type.name if tx.transaction_type else 'seller'
+            status_labels = status_label_sets.get(tx_type_name, status_label_sets['seller'])
+
             # Build transaction data for template
             tx_data = {
                 'id': tx.id,

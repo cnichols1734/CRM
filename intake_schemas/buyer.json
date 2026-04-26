@@ -1,0 +1,340 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "buyer",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Buyer Questionnaire",
+  "description": "Answer these questions to create the buyer-side document checklist. Agents prepare and send forms in their e-sign system, then upload the signed copies here.",
+  "sections": [
+    {
+      "id": "buyer_representation",
+      "title": "Buyer Representation",
+      "questions": [
+        {
+          "id": "buyer_stage",
+          "type": "select",
+          "label": "Where is this buyer in the transaction?",
+          "options": [
+            {"value": "representation_only", "label": "Representation or showings only"},
+            {"value": "preparing_offer", "label": "Preparing an offer"},
+            {"value": "under_contract", "label": "Under contract"}
+          ],
+          "help_text": "Buyer representation documents are always included. Contract and closing placeholders are added once the buyer is preparing an offer or under contract.",
+          "required": true
+        },
+        {
+          "id": "purchase_type",
+          "type": "select",
+          "label": "What type of property is the buyer pursuing?",
+          "options": [
+            {"value": "resale_one_to_four", "label": "Resale one-to-four family"},
+            {"value": "condominium", "label": "Condominium"},
+            {"value": "new_construction_complete", "label": "New construction - completed"},
+            {"value": "new_construction_incomplete", "label": "New construction - incomplete"},
+            {"value": "farm_and_ranch", "label": "Farm and ranch"},
+            {"value": "not_sure", "label": "Not sure yet"}
+          ],
+          "required": true
+        },
+        {
+          "id": "financing",
+          "type": "select",
+          "label": "How will the buyer finance the purchase?",
+          "options": [
+            {"value": "cash", "label": "Cash"},
+            {"value": "third_party", "label": "Third-party financing"},
+            {"value": "assumption_seller_financing_other", "label": "Assumption, seller financing, or other"},
+            {"value": "not_sure", "label": "Not sure yet"}
+          ],
+          "required": true
+        },
+        {
+          "id": "built_before_1978",
+          "type": "select",
+          "label": "Was the property built before 1978?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "help_text": "Lead-based paint disclosures are commonly required for residential properties built before 1978.",
+          "required": true
+        },
+        {
+          "id": "has_association",
+          "type": "select",
+          "label": "Is the property subject to an HOA, POA, condo association, or mandatory membership association?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "special_district",
+          "type": "select",
+          "label": "Is the property in a special taxing or assessment district?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "help_text": "Examples include MUD, PID, improvement district, or similar district notices.",
+          "required": true
+        },
+        {
+          "id": "buyer_sale_contingency",
+          "type": "boolean",
+          "label": "Does the buyer need to sell another property to purchase this one?",
+          "required": true
+        },
+        {
+          "id": "temporary_lease",
+          "type": "select",
+          "label": "Is a temporary residential lease or special possession timing expected?",
+          "options": [
+            {"value": "none", "label": "No"},
+            {"value": "buyer_temporary_lease", "label": "Buyer temporary lease"},
+            {"value": "seller_temporary_lease", "label": "Seller temporary lease"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "referral_fee",
+          "type": "boolean",
+          "label": "Will a referral fee be paid for this buyer?",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required for buyer representation"
+    },
+    {
+      "slug": "buyer-tenant-representation-agreement",
+      "name": "Residential Buyer/Tenant Representation Agreement",
+      "always": true,
+      "reason": "Required written buyer representation agreement"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for all buyer transactions"
+    },
+    {
+      "slug": "one-to-four-family-contract",
+      "name": "One to Four Family Residential Contract",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "resale_one_to_four"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract on a resale one-to-four family property"
+    },
+    {
+      "slug": "condominium-contract",
+      "name": "Residential Condominium Contract",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "condominium"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract on a condominium"
+    },
+    {
+      "slug": "new-home-completed-construction-contract",
+      "name": "New Home Contract - Completed Construction",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "new_construction_complete"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract on completed new construction"
+    },
+    {
+      "slug": "new-home-incomplete-construction-contract",
+      "name": "New Home Contract - Incomplete Construction",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "new_construction_incomplete"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract on incomplete new construction"
+    },
+    {
+      "slug": "farm-and-ranch-contract",
+      "name": "Farm and Ranch Contract",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "farm_and_ranch"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract on farm and ranch property"
+    },
+    {
+      "slug": "purchase-contract",
+      "name": "Purchase Contract",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "purchase_type", "equals": "not_sure"}
+        ]
+      },
+      "reason": "Buyer is preparing an offer or under contract and the contract type is not yet known"
+    },
+    {
+      "slug": "sellers-disclosure",
+      "name": "Seller's Disclosure Notice",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Commonly needed once a buyer is preparing an offer or under contract"
+    },
+    {
+      "slug": "pre-approval-or-proof-of-funds",
+      "name": "Pre-Approval Letter or Proof of Funds",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Commonly included with buyer offers"
+    },
+    {
+      "slug": "earnest-option-receipt",
+      "name": "Earnest Money / Option Fee Receipt",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Tracks buyer funds after contract execution"
+    },
+    {
+      "slug": "inspection-report",
+      "name": "Inspection Report",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Common buyer due diligence document"
+    },
+    {
+      "slug": "repair-amendment",
+      "name": "Amendment to Contract / Repair Amendment",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Commonly used after inspections or negotiation"
+    },
+    {
+      "slug": "survey",
+      "name": "Survey",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Common contract and title document"
+    },
+    {
+      "slug": "title-commitment",
+      "name": "Title Commitment",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Commonly received during closing process"
+    },
+    {
+      "slug": "closing-disclosure",
+      "name": "Closing Disclosure / Final Settlement Statement",
+      "condition": {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+      "reason": "Needed before closing"
+    },
+    {
+      "slug": "third-party-financing-addendum",
+      "name": "Third Party Financing Addendum",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "financing", "in": ["third_party", "not_sure"]}
+        ]
+      },
+      "reason": "Buyer financing is third-party or not yet known"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Addendum for Seller's Disclosure of Information on Lead-Based Paint",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "built_before_1978", "in": ["yes", "not_sure"]}
+        ]
+      },
+      "reason": "Property may have been built before 1978"
+    },
+    {
+      "slug": "hoa-addendum",
+      "name": "Addendum for Property Subject to Mandatory Membership in Owners' Association",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "has_association", "in": ["yes", "not_sure"]}
+        ]
+      },
+      "reason": "Property may be subject to an HOA, POA, condo, or mandatory membership association"
+    },
+    {
+      "slug": "subdivision-resale-certificate",
+      "name": "Subdivision Information / Resale Certificate",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "has_association", "in": ["yes", "not_sure"]}
+        ]
+      },
+      "reason": "Association resale or subdivision information may be needed"
+    },
+    {
+      "slug": "special-tax-district-notice",
+      "name": "Notice to Purchaser of Real Property Located in a Special Taxing or Assessment District",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "special_district", "in": ["yes", "not_sure"]}
+        ]
+      },
+      "reason": "Property may be located in a special taxing or assessment district"
+    },
+    {
+      "slug": "sale-of-other-property-addendum",
+      "name": "Addendum for Sale of Other Property by Buyer",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "buyer_sale_contingency", "equals": true}
+        ]
+      },
+      "reason": "Buyer needs to sell another property"
+    },
+    {
+      "slug": "buyers-temporary-residential-lease",
+      "name": "Buyer's Temporary Residential Lease",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "temporary_lease", "in": ["buyer_temporary_lease", "not_sure"]}
+        ]
+      },
+      "reason": "Buyer may need temporary occupancy before closing"
+    },
+    {
+      "slug": "sellers-temporary-residential-lease",
+      "name": "Seller's Temporary Residential Lease",
+      "condition": {
+        "all": [
+          {"field": "buyer_stage", "in": ["preparing_offer", "under_contract"]},
+          {"field": "temporary_lease", "in": ["seller_temporary_lease", "not_sure"]}
+        ]
+      },
+      "reason": "Seller may need temporary occupancy after closing"
+    },
+    {
+      "slug": "referral-agreement",
+      "name": "Referral Agreement",
+      "condition": {"field": "referral_fee", "equals": true},
+      "reason": "Referral fee will be paid"
+    }
+  ]
+}

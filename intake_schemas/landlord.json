@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "landlord",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Landlord Questionnaire",
+  "description": "Answer a few leasing questions to create the landlord-side document checklist. Agents prepare and send forms in their e-sign system, then upload the signed copies here.",
+  "sections": [
+    {
+      "id": "lease_details",
+      "title": "Lease Details",
+      "questions": [
+        {
+          "id": "built_before_1978",
+          "type": "select",
+          "label": "Was the property built before 1978?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "help_text": "Lead-based paint disclosures are commonly required for residential properties built before 1978.",
+          "required": true
+        },
+        {
+          "id": "pets_allowed",
+          "type": "boolean",
+          "label": "Will pets be allowed?",
+          "required": true
+        },
+        {
+          "id": "has_association",
+          "type": "select",
+          "label": "Is the property subject to an HOA, POA, condo association, or mandatory membership association?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "floodplain_notice",
+          "type": "select",
+          "label": "Is a landlord floodplain or flood notice expected?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required brokerage disclosure"
+    },
+    {
+      "slug": "residential-lease-listing-agreement",
+      "name": "Residential Lease Listing Agreement / Property Management Agreement",
+      "always": true,
+      "reason": "Core landlord representation document"
+    },
+    {
+      "slug": "residential-lease",
+      "name": "Residential Lease",
+      "always": true,
+      "reason": "Core landlord lease transaction document"
+    },
+    {
+      "slug": "residential-lease-application",
+      "name": "Residential Lease Application",
+      "always": true,
+      "reason": "Commonly used to screen prospective tenants"
+    },
+    {
+      "slug": "tenant-selection-criteria",
+      "name": "Tenant Selection Criteria",
+      "always": true,
+      "reason": "Common landlord leasing disclosure"
+    },
+    {
+      "slug": "security-deposit-receipt",
+      "name": "Security Deposit / Application Fee Receipt",
+      "always": true,
+      "reason": "Tracks tenant funds received during leasing"
+    },
+    {
+      "slug": "lease-inventory-condition-form",
+      "name": "Residential Lease Inventory and Condition Form",
+      "always": true,
+      "reason": "Documents property condition at move-in"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for transactions involving payments"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Lead-Based Paint Disclosure",
+      "condition": {"field": "built_before_1978", "in": ["yes", "not_sure"]},
+      "reason": "Property may have been built before 1978"
+    },
+    {
+      "slug": "pet-agreement",
+      "name": "Pet Agreement",
+      "condition": {"field": "pets_allowed", "equals": true},
+      "reason": "Pets will be allowed"
+    },
+    {
+      "slug": "association-rules-addendum",
+      "name": "HOA / POA / Condo Association Rules Addendum",
+      "condition": {"field": "has_association", "in": ["yes", "not_sure"]},
+      "reason": "Property may be subject to association rules"
+    },
+    {
+      "slug": "landlord-floodplain-flood-notice",
+      "name": "Landlord's Floodplain and Flood Notice",
+      "condition": {"field": "floodplain_notice", "in": ["yes", "not_sure"]},
+      "reason": "Floodplain or flood notice may be needed"
+    }
+  ]
+}

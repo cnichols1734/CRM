@@ -4,17 +4,86 @@
 {% block title %}{{ transaction.street_address }} - Origen TechnolOG{% endblock %}
 
 {% block content %}
-{% set status_labels = {
-    'preparing_to_list': 'Preparing to List',
-    'showing': 'Showing',
-    'active': 'Active',
-    'under_contract': 'Under Contract',
-    'closed': 'Closed',
-    'cancelled': 'Cancelled/Withdrawn'
+{% set tx_type_name = transaction.transaction_type.name if transaction.transaction_type else 'seller' %}
+{% set status_label_sets = {
+    'seller': {
+        'preparing_to_list': 'Preparing to List',
+        'active': 'Active',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled/Withdrawn'
+    },
+    'buyer': {
+        'showing': 'Home Search',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed',
+        'cancelled': 'Cancelled/Withdrawn'
+    },
+    'landlord': {
+        'preparing_to_list': 'Preparing to Lease',
+        'active': 'Listed for Lease',
+        'under_contract': 'Lease Pending',
+        'closed': 'Leased',
+        'cancelled': 'Cancelled/Withdrawn'
+    },
+    'tenant': {
+        'showing': 'Rental Search',
+        'under_contract': 'Application Submitted',
+        'closed': 'Lease Signed',
+        'cancelled': 'Cancelled/Withdrawn'
+    },
+    'referral': {
+        'preparing_to_list': 'New Referral',
+        'active': 'Referred Out',
+        'under_contract': 'In Progress',
+        'closed': 'Closed/Paid',
+        'cancelled': 'Cancelled'
+    }
 } %}
+{% set status_option_sets = {
+    'seller': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+    'buyer': ['showing', 'under_contract', 'closed', 'cancelled'],
+    'landlord': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+    'tenant': ['showing', 'under_contract', 'closed', 'cancelled'],
+    'referral': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled']
+} %}
+{% set tracker_label_sets = {
+    'seller': {
+        'preparing_to_list': 'Preparing',
+        'active': 'Active',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed'
+    },
+    'buyer': {
+        'showing': 'Home Search',
+        'under_contract': 'Under Contract',
+        'closed': 'Closed'
+    },
+    'landlord': {
+        'preparing_to_list': 'Preparing',
+        'active': 'Listed',
+        'under_contract': 'Lease Pending',
+        'closed': 'Leased'
+    },
+    'tenant': {
+        'showing': 'Rental Search',
+        'under_contract': 'Application',
+        'closed': 'Lease Signed'
+    },
+    'referral': {
+        'preparing_to_list': 'New',
+        'active': 'Referred',
+        'under_contract': 'In Progress',
+        'closed': 'Closed/Paid'
+    }
+} %}
+{% set status_labels = status_label_sets.get(tx_type_name, status_label_sets['seller']) %}
+{% set status_options = status_option_sets.get(tx_type_name, status_option_sets['seller']) %}
+{% set tracker_labels = tracker_label_sets.get(tx_type_name, tracker_label_sets['seller']) %}
+{% set tracker_statuses = status_options|reject('equalto', 'cancelled')|list %}
 {% set status_icons = {
     'preparing_to_list': 'clipboard-list',
-    'showing': 'eye',
+    'showing': 'search',
     'active': 'broadcast-tower',
     'under_contract': 'file-signature',
     'closed': 'check-circle',
@@ -139,36 +208,34 @@
                 </button>
                 <div id="statusDropdownMenu"
                      class="absolute left-0 top-full z-40 mt-1 hidden w-56 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                    {% for status_key, label in status_labels.items() %}
+                    {% for status_key in status_options %}
                     <button onclick="updateStatus('{{ status_key }}')" type="button"
                             class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 {% if transaction.status == status_key %}font-semibold text-slate-900{% else %}text-slate-700{% endif %}">
                         <span class="flex items-center gap-2">
                             <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(status_key, 'bg-slate-300') }}"></span>
-                            {{ label }}
+                            {{ status_labels[status_key] }}
                         </span>
                         {% if transaction.status == status_key %}
                         <i class="fas fa-check text-xs text-slate-500"></i>
                         {% endif %}
                     </button>
                     {% endfor %}
+                    {% if transaction.status and transaction.status not in status_options %}
+                    <button onclick="updateStatus('{{ transaction.status }}')" type="button"
+                            class="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold text-slate-900 transition-colors hover:bg-slate-50">
+                        <span class="flex items-center gap-2">
+                            <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(transaction.status, 'bg-slate-300') }}"></span>
+                            {{ transaction.status|replace('_', ' ')|title }} (Legacy)
+                        </span>
+                        <i class="fas fa-check text-xs text-slate-500"></i>
+                    </button>
+                    {% endif %}
                 </div>
             </div>
         </div>
 
         {# ===== Status tracker / Cancelled banner ===== #}
         {% if transaction.status != 'cancelled' %}
-        {% if transaction.transaction_type.name == 'buyer' %}
-            {% set tracker_statuses = ['showing', 'under_contract', 'closed'] %}
-        {% else %}
-            {% set tracker_statuses = ['preparing_to_list', 'active', 'under_contract', 'closed'] %}
-        {% endif %}
-        {% set tracker_labels = {
-            'preparing_to_list': 'Preparing',
-            'showing': 'Showing',
-            'active': 'Active',
-            'under_contract': 'Under Contract',
-            'closed': 'Closed'
-        } %}
         {% set current_index = tracker_statuses.index(transaction.status) if transaction.status in tracker_statuses else 0 %}
         {% set is_final_step = current_index == (tracker_statuses|length - 1) %}
         <section class="crm-surface mb-6">
@@ -1350,6 +1417,7 @@
     </div>
 </div>
 
+{% if document_workflow_mode != 'placeholder_upload_only' %}
 {# ----- Unified add document modal ----- #}
 <div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
     <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddDocumentModal()"></div>
@@ -1838,6 +1906,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 {# ----- Fulfill placeholder modal ----- #}
 <div id="fulfillPlaceholderModal" class="fixed inset-0 z-50 hidden">
