@@ -196,20 +196,61 @@ def post_upload_processing(doc):
     Enqueue background AI extraction for fulfilled placeholder documents.
 
     Non-fatal: if Redis/RQ is unavailable the upload still succeeds and
-    extraction_status stays 'pending' for later retry.
+    extraction runs in a local background thread as a dev fallback.
     """
     import logging
+    import os
     from services.document_extractor import EXTRACTION_SCHEMAS
 
-    if doc.template_slug not in EXTRACTION_SCHEMAS:
+    doc_id = doc.id
+    org_id = doc.organization_id
+    template_slug = doc.template_slug
+
+    if template_slug not in EXTRACTION_SCHEMAS:
         return
 
     logger = logging.getLogger(__name__)
+    inline_enabled = os.getenv('DOCUMENT_EXTRACTION_INLINE', '').lower() in ('1', 'true', 'yes')
+
+    def run_in_background_thread():
+        """Fallback for local/dev when Redis is not available."""
+        import threading
+        from flask import current_app
+
+        app = current_app._get_current_object()
+
+        def runner():
+            with app.app_context():
+                from jobs.document_extraction import extract_document_job
+                extract_document_job(doc_id=doc_id, org_id=org_id)
+
+        thread = threading.Thread(
+            target=runner,
+            name=f"document-extraction-{doc_id}",
+            daemon=True,
+        )
+        thread.start()
 
     try:
+        from config import Config
+        if inline_enabled:
+            from jobs.document_extraction import extract_document_job
+            logger.info(f"Running inline document extraction for doc {doc_id}")
+            extract_document_job(doc_id=doc_id, org_id=org_id, _inline=True)
+            return
+
+        if Config.SQLALCHEMY_DATABASE_URI.startswith('sqlite'):
+            logger.info(f"Starting background document extraction thread for doc {doc_id}")
+            run_in_background_thread()
+            return
+
+        if Config.FLASK_ENV != 'production' and not os.getenv('REDIS_URL'):
+            logger.info(f"Starting dev background document extraction thread for doc {doc_id}")
+            run_in_background_thread()
+            return
+
         from redis import Redis
         from rq import Queue
-        from config import Config
 
         conn = Redis.from_url(
             Config.REDIS_URL,
@@ -219,14 +260,22 @@ def post_upload_processing(doc):
         q = Queue('doc_extraction', connection=conn)
         q.enqueue(
             'jobs.document_extraction.extract_document_job',
-            doc_id=doc.id,
-            org_id=doc.organization_id,
+            doc_id=doc_id,
+            org_id=org_id,
             job_timeout=300,
         )
     except Exception as e:
-        logger.error(
-            f"Failed to enqueue extraction for doc {doc.id}: {e}. "
-            "extraction_status remains 'pending' for manual retry.",
+        logger.warning(
+            f"Failed to enqueue extraction for doc {doc_id}: {e}. "
+            "Falling back to local background thread.",
             exc_info=True,
         )
+        try:
+            run_in_background_thread()
+        except Exception:
+            logger.error(
+                f"Failed to start background extraction for doc {doc_id}. "
+                "extraction_status may remain pending for manual retry.",
+                exc_info=True,
+            )
 

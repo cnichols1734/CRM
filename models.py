@@ -764,6 +764,19 @@ class Transaction(db.Model):
                                    cascade='all, delete-orphan', lazy='dynamic')
     documents = db.relationship('TransactionDocument', backref='transaction',
                                cascade='all, delete-orphan', lazy='dynamic')
+    seller_listing_profile = db.relationship('SellerListingProfile', backref='transaction',
+                                             cascade='all, delete-orphan', uselist=False)
+    seller_showings = db.relationship('SellerShowing', backref='transaction',
+                                      cascade='all, delete-orphan', lazy='dynamic')
+    seller_offers = db.relationship('SellerOffer', backref='transaction',
+                                    cascade='all, delete-orphan', lazy='dynamic',
+                                    foreign_keys='SellerOffer.transaction_id')
+    seller_accepted_contracts = db.relationship('SellerAcceptedContract', backref='transaction',
+                                                cascade='all, delete-orphan', lazy='dynamic')
+    seller_contract_milestones = db.relationship('SellerContractMilestone', backref='transaction',
+                                                cascade='all, delete-orphan', lazy='dynamic')
+    seller_price_changes = db.relationship('SellerListingPriceChange', backref='transaction',
+                                           cascade='all, delete-orphan', lazy='dynamic')
     
     @property
     def full_address(self):
@@ -931,6 +944,554 @@ class TransactionDocument(db.Model):
 
     def __repr__(self):
         return f'<TransactionDocument {self.template_name} ({self.status})>'
+
+
+class SellerListingProfile(db.Model):
+    """
+    Seller-specific listing controls for a transaction.
+    Holds showing access rules, highest-and-best state, and listing operations data.
+    """
+    __tablename__ = 'seller_listing_profiles'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    # Showing/access setup
+    appointment_required = db.Column(db.Boolean, default=True)
+    showing_approval_policy = db.Column(db.String(50), default='manual')  # manual, auto_approve, blocked
+    access_type = db.Column(db.String(50))  # lockbox, combo, supra, appointment_only, tenant_occupied, other
+    lockbox_type = db.Column(db.String(50))
+    gate_code = db.Column(db.String(100))
+    alarm_notes = db.Column(db.Text)
+    pet_notes = db.Column(db.Text)
+    occupancy_status = db.Column(db.String(50))  # vacant, owner_occupied, tenant_occupied
+    preferred_showing_windows = db.Column(db.JSON, default={})
+    restricted_showing_times = db.Column(db.JSON, default={})
+    public_showing_instructions = db.Column(db.Text)
+    private_showing_notes = db.Column(db.Text)
+    showing_service_url = db.Column(db.String(500))
+    mls_number = db.Column(db.String(100))
+
+    # Listing operations
+    current_list_price = db.Column(db.Numeric(12, 2))
+    original_list_price = db.Column(db.Numeric(12, 2))
+    go_live_date = db.Column(db.Date)
+
+    # Highest-and-best workflow
+    highest_best_enabled = db.Column(db.Boolean, default=False)
+    highest_best_deadline_at = db.Column(db.DateTime)
+    highest_best_message = db.Column(db.Text)
+    highest_best_sent_at = db.Column(db.DateTime)
+    highest_best_sent_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    extra_data = db.Column(db.JSON, default={})
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_listing_profiles')
+    highest_best_sent_by = db.relationship('User', foreign_keys=[highest_best_sent_by_id])
+
+    def __repr__(self):
+        return f'<SellerListingProfile tx={self.transaction_id}>'
+
+
+class SellerShowing(db.Model):
+    """
+    A showing request or appointment tied to a seller transaction.
+    Also stores feedback and can be linked to resulting offers.
+    """
+    __tablename__ = 'seller_showings'
+
+    STATUS_PENDING_APPROVAL = 'pending_approval'
+    STATUS_APPROVED = 'approved'
+    STATUS_SCHEDULED = 'scheduled'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_DECLINED = 'declined'
+    STATUS_NO_SHOW = 'no_show'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    showing_agent_name = db.Column(db.String(200), nullable=False)
+    showing_agent_email = db.Column(db.String(200))
+    showing_agent_phone = db.Column(db.String(50))
+    showing_agent_brokerage = db.Column(db.String(200))
+    buyer_name = db.Column(db.String(200))
+    source = db.Column(db.String(100))  # manual, showing_service, mls, phone, email
+    showing_agent_contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
+    showing_agent_participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id'), nullable=True)
+
+    requested_start_at = db.Column(db.DateTime)
+    scheduled_start_at = db.Column(db.DateTime, nullable=False)
+    scheduled_end_at = db.Column(db.DateTime)
+    status = db.Column(db.String(50), default=STATUS_SCHEDULED, nullable=False)
+    approved_at = db.Column(db.DateTime)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    cancellation_reason = db.Column(db.Text)
+    showing_service_confirmation = db.Column(db.String(100))
+
+    access_instructions_snapshot = db.Column(db.Text)
+    private_notes = db.Column(db.Text)
+
+    feedback_received_at = db.Column(db.DateTime)
+    feedback_interest_level = db.Column(db.String(50))  # high, medium, low, none
+    feedback_price_opinion = db.Column(db.String(50))  # high, fair, low, unknown
+    feedback_condition_comments = db.Column(db.Text)
+    feedback_objections = db.Column(db.Text)
+    feedback_likelihood = db.Column(db.String(50))
+    feedback_follow_up_requested = db.Column(db.Boolean, default=False)
+    feedback_notes = db.Column(db.Text)
+
+    extra_data = db.Column(db.JSON, default={})
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_showings')
+    approved_by = db.relationship('User', foreign_keys=[approved_by_id])
+    showing_agent_contact = db.relationship('Contact', foreign_keys=[showing_agent_contact_id])
+    showing_agent_participant = db.relationship('TransactionParticipant', foreign_keys=[showing_agent_participant_id])
+
+    def __repr__(self):
+        return f'<SellerShowing {self.showing_agent_name} at {self.scheduled_start_at}>'
+
+
+class SellerOffer(db.Model):
+    """
+    A seller-side offer thread. Versions hold uploaded/entered offer documents,
+    while this row stores normalized terms used for urgency and comparisons.
+    """
+    __tablename__ = 'seller_offers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    source_showing_id = db.Column(db.Integer, db.ForeignKey('seller_showings.id', ondelete='SET NULL'), nullable=True)
+
+    buyer_names = db.Column(db.String(500))
+    buyer_agent_name = db.Column(db.String(200))
+    buyer_agent_email = db.Column(db.String(200))
+    buyer_agent_phone = db.Column(db.String(50))
+    buyer_agent_brokerage = db.Column(db.String(200))
+    received_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    creation_source = db.Column(db.String(50), default='uploaded_document')  # uploaded_document, manual_entry, verbal, text_email, imported
+    status = db.Column(db.String(50), default='new', nullable=False)
+
+    response_deadline_at = db.Column(db.DateTime)
+    response_deadline_source = db.Column(db.String(50))  # extracted, manual, extended
+    expired_at = db.Column(db.DateTime)
+    expiration_warning_sent_at = db.Column(db.DateTime)
+
+    included_in_highest_best = db.Column(db.Boolean, default=False)
+    highest_best_requested_at = db.Column(db.DateTime)
+    highest_best_response_received_at = db.Column(db.DateTime)
+    highest_best_response_status = db.Column(db.String(50))  # updated_before_cutoff, no_update, late_update, withdrawn
+
+    backup_position = db.Column(db.Integer)
+    backup_addendum_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    backup_notice_received_at = db.Column(db.DateTime)
+    backup_promoted_at = db.Column(db.DateTime)
+
+    # Optional references to versions; intentionally not FK-constrained to avoid circular migration complexity.
+    current_version_id = db.Column(db.Integer, index=True)
+    accepted_version_id = db.Column(db.Integer, index=True)
+    replacement_offer_id = db.Column(db.Integer, db.ForeignKey('seller_offers.id', ondelete='SET NULL'), nullable=True)
+
+    offer_price = db.Column(db.Numeric(12, 2))
+    financing_type = db.Column(db.String(100))
+    cash_down_payment = db.Column(db.Numeric(12, 2))
+    earnest_money = db.Column(db.Numeric(12, 2))
+    additional_earnest_money = db.Column(db.Numeric(12, 2))
+    option_fee = db.Column(db.Numeric(12, 2))
+    option_period_days = db.Column(db.Integer)
+    seller_concessions_amount = db.Column(db.Numeric(12, 2))
+    proposed_close_date = db.Column(db.Date)
+    possession_type = db.Column(db.String(100))
+    leaseback_days = db.Column(db.Integer)
+    appraisal_contingency = db.Column(db.Boolean)
+    financing_contingency = db.Column(db.Boolean)
+    sale_of_other_property_contingency = db.Column(db.Boolean)
+    inspection_or_repair_terms_summary = db.Column(db.Text)
+    title_policy_payer = db.Column(db.String(50))
+    survey_payer = db.Column(db.String(50))
+    hoa_resale_certificate_payer = db.Column(db.String(50))
+    net_to_seller_estimate = db.Column(db.Numeric(12, 2))
+
+    last_activity_at = db.Column(db.DateTime)
+    last_activity_label = db.Column(db.String(200))
+    next_action = db.Column(db.String(200))
+    next_deadline_at = db.Column(db.DateTime)
+    terms_summary = db.Column(db.JSON, default={})
+    extra_data = db.Column(db.JSON, default={})
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_offers')
+    source_showing = db.relationship('SellerShowing', backref=db.backref('offers', lazy='dynamic'))
+    backup_addendum_document = db.relationship('TransactionDocument', foreign_keys=[backup_addendum_document_id])
+    replacement_offer = db.relationship('SellerOffer', remote_side=[id], foreign_keys=[replacement_offer_id])
+    versions = db.relationship('SellerOfferVersion', backref='offer',
+                               cascade='all, delete-orphan', lazy='dynamic',
+                               foreign_keys='SellerOfferVersion.offer_id')
+    offer_documents = db.relationship('SellerOfferDocument', backref='offer',
+                                      cascade='all, delete-orphan', lazy='dynamic')
+    activities = db.relationship('SellerOfferActivity', backref='offer',
+                                 cascade='all, delete-orphan', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<SellerOffer {self.id} tx={self.transaction_id} status={self.status}>'
+
+
+class SellerOfferVersion(db.Model):
+    """One document/manual version inside a seller offer thread."""
+    __tablename__ = 'seller_offer_versions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    offer_id = db.Column(db.Integer, db.ForeignKey('seller_offers.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    transaction_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+
+    version_number = db.Column(db.Integer, default=1, nullable=False)
+    direction = db.Column(db.String(50), nullable=False)  # buyer_offer, seller_counter, buyer_counter, final_acceptance, backup_acceptance
+    status = db.Column(db.String(50), default='draft')  # draft, submitted, reviewed, accepted, declined, withdrawn
+    submitted_at = db.Column(db.DateTime)
+    sent_at = db.Column(db.DateTime)
+
+    terms_data = db.Column(db.JSON, default={})
+    extraction_reviewed_at = db.Column(db.DateTime)
+    extraction_reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_offer_versions')
+    extraction_reviewed_by = db.relationship('User', foreign_keys=[extraction_reviewed_by_id])
+    document = db.relationship('TransactionDocument', foreign_keys=[transaction_document_id])
+
+    def __repr__(self):
+        return f'<SellerOfferVersion offer={self.offer_id} v{self.version_number}>'
+
+
+class SellerOfferDocument(db.Model):
+    """A PDF that belongs to an offer package, including supporting addenda."""
+    __tablename__ = 'seller_offer_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    offer_id = db.Column(db.Integer, db.ForeignKey('seller_offers.id', ondelete='CASCADE'), nullable=False, index=True)
+    transaction_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'), nullable=False, index=True)
+    offer_version_id = db.Column(db.Integer, db.ForeignKey('seller_offer_versions.id', ondelete='SET NULL'), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    document_type = db.Column(db.String(100), nullable=False)
+    display_name = db.Column(db.String(200), nullable=False)
+    is_primary_terms_document = db.Column(db.Boolean, default=False)
+    extraction_summary = db.Column(db.JSON, default={})
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    document = db.relationship('TransactionDocument', foreign_keys=[transaction_document_id])
+    offer_version = db.relationship('SellerOfferVersion', foreign_keys=[offer_version_id])
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<SellerOfferDocument offer={self.offer_id} type={self.document_type}>'
+
+
+class SellerOfferActivity(db.Model):
+    """Chronological activity log for a seller offer thread."""
+    __tablename__ = 'seller_offer_activities'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    offer_id = db.Column(db.Integer, db.ForeignKey('seller_offers.id', ondelete='CASCADE'), nullable=False, index=True)
+    version_id = db.Column(db.Integer, db.ForeignKey('seller_offer_versions.id', ondelete='SET NULL'), nullable=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    event_type = db.Column(db.String(50), nullable=False)
+    label = db.Column(db.String(200), nullable=False)
+    event_data = db.Column(db.JSON, default={})
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    actor = db.relationship('User', foreign_keys=[actor_id])
+    version = db.relationship('SellerOfferVersion', foreign_keys=[version_id])
+    document = db.relationship('TransactionDocument', foreign_keys=[document_id])
+
+    def __repr__(self):
+        return f'<SellerOfferActivity {self.event_type} offer={self.offer_id}>'
+
+
+class SellerAcceptedContract(db.Model):
+    """Accepted primary or backup contract tied to a seller offer."""
+    __tablename__ = 'seller_accepted_contracts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    offer_id = db.Column(db.Integer, db.ForeignKey('seller_offers.id', ondelete='SET NULL'), nullable=True)
+    accepted_version_id = db.Column(db.Integer, db.ForeignKey('seller_offer_versions.id', ondelete='SET NULL'), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    status = db.Column(db.String(50), default='active', nullable=False)  # active, terminated, closed
+    position = db.Column(db.String(20), default='primary', nullable=False)  # primary, backup
+    backup_position = db.Column(db.Integer)
+    backup_addendum_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    backup_notice_sent_at = db.Column(db.DateTime)
+    backup_notice_received_at = db.Column(db.DateTime)
+    backup_promoted_at = db.Column(db.DateTime)
+
+    accepted_price = db.Column(db.Numeric(12, 2))
+    effective_date = db.Column(db.Date)
+    effective_at = db.Column(db.DateTime)
+    closing_date = db.Column(db.Date)
+    option_period_days = db.Column(db.Integer)
+    financing_approval_deadline = db.Column(db.Date)
+    title_company = db.Column(db.String(200))
+    escrow_officer = db.Column(db.String(200))
+    survey_choice = db.Column(db.String(100))
+    hoa_applicable = db.Column(db.Boolean)
+    seller_disclosure_required = db.Column(db.Boolean)
+    seller_disclosure_delivered_at = db.Column(db.DateTime)
+    lead_based_paint_required = db.Column(db.Boolean)
+
+    frozen_terms = db.Column(db.JSON, default={})
+    addenda_data = db.Column(db.JSON, default={})
+    extra_data = db.Column(db.JSON, default={})
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    offer = db.relationship('SellerOffer', foreign_keys=[offer_id], backref=db.backref('accepted_contracts', lazy='dynamic'))
+    accepted_version = db.relationship('SellerOfferVersion', foreign_keys=[accepted_version_id])
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_accepted_contracts')
+    backup_addendum_document = db.relationship('TransactionDocument', foreign_keys=[backup_addendum_document_id])
+    milestones = db.relationship('SellerContractMilestone', backref='accepted_contract',
+                                 cascade='all, delete-orphan', lazy='dynamic')
+    amendments = db.relationship('SellerContractAmendment', backref='accepted_contract',
+                                 cascade='all, delete-orphan', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<SellerAcceptedContract {self.position} tx={self.transaction_id} status={self.status}>'
+
+
+class SellerContractMilestone(db.Model):
+    """Deadline or task in the under-contract seller workflow."""
+    __tablename__ = 'seller_contract_milestones'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    accepted_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    milestone_key = db.Column(db.String(100), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    due_at = db.Column(db.DateTime)
+    status = db.Column(db.String(50), default='not_started')  # not_started, waiting, due_soon, overdue, completed, not_applicable
+    completed_at = db.Column(db.DateTime)
+    responsible_party = db.Column(db.String(100))
+    source = db.Column(db.String(50), default='calculated')  # calculated, manual, ai_extracted
+    notes = db.Column(db.Text)
+    source_data = db.Column(db.JSON, default={})
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<SellerContractMilestone {self.milestone_key} tx={self.transaction_id}>'
+
+
+class SellerContractAmendment(db.Model):
+    """An amendment negotiation thread under an accepted contract."""
+    __tablename__ = 'seller_contract_amendments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    accepted_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    current_version_id = db.Column(db.Integer, index=True)
+    accepted_version_id = db.Column(db.Integer, index=True)
+
+    amendment_type = db.Column(db.String(100), default='other')
+    status = db.Column(db.String(50), default='received')  # received, reviewing, countered, accepted, rejected, withdrawn
+    response_deadline_at = db.Column(db.DateTime)
+    summary = db.Column(db.Text)
+    extra_data = db.Column(db.JSON, default={})
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_contract_amendments')
+    versions = db.relationship('SellerContractAmendmentVersion', backref='amendment',
+                               cascade='all, delete-orphan', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<SellerContractAmendment {self.amendment_type} tx={self.transaction_id}>'
+
+
+class SellerContractAmendmentVersion(db.Model):
+    """One uploaded or manual amendment/counter-amendment version."""
+    __tablename__ = 'seller_contract_amendment_versions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    amendment_id = db.Column(db.Integer, db.ForeignKey('seller_contract_amendments.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    transaction_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+
+    version_number = db.Column(db.Integer, default=1, nullable=False)
+    direction = db.Column(db.String(50), nullable=False)  # buyer_amendment, seller_counter_amendment, buyer_counter_amendment, accepted_amendment
+    status = db.Column(db.String(50), default='draft')
+    submitted_at = db.Column(db.DateTime)
+    terms_data = db.Column(db.JSON, default={})
+    reviewed_at = db.Column(db.DateTime)
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_contract_amendment_versions')
+    reviewed_by = db.relationship('User', foreign_keys=[reviewed_by_id])
+    document = db.relationship('TransactionDocument', foreign_keys=[transaction_document_id])
+
+    def __repr__(self):
+        return f'<SellerContractAmendmentVersion amendment={self.amendment_id} v{self.version_number}>'
+
+
+class SellerContractTermination(db.Model):
+    """A terminated accepted contract and its seller workflow outcome."""
+    __tablename__ = 'seller_contract_terminations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    accepted_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    termination_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    promoted_backup_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='SET NULL'), nullable=True)
+
+    termination_reason = db.Column(db.String(100), nullable=False)
+    terminated_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    earnest_money_disposition = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    returned_to_active = db.Column(db.Boolean, default=False)
+    backup_promoted = db.Column(db.Boolean, default=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    accepted_contract = db.relationship('SellerAcceptedContract', foreign_keys=[accepted_contract_id],
+                                        backref=db.backref('terminations', lazy='dynamic'))
+    promoted_backup_contract = db.relationship('SellerAcceptedContract', foreign_keys=[promoted_backup_contract_id])
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_contract_terminations')
+    termination_document = db.relationship('TransactionDocument', foreign_keys=[termination_document_id])
+
+    def __repr__(self):
+        return f'<SellerContractTermination contract={self.accepted_contract_id} reason={self.termination_reason}>'
+
+
+class SellerClosingSummary(db.Model):
+    """Final closeout details for a seller transaction."""
+    __tablename__ = 'seller_closing_summaries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    accepted_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    final_net_sheet_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+
+    actual_closing_date = db.Column(db.Date)
+    funded_recorded_at = db.Column(db.DateTime)
+    final_sales_price = db.Column(db.Numeric(12, 2))
+    final_seller_concessions = db.Column(db.Numeric(12, 2))
+    final_listing_commission = db.Column(db.Numeric(12, 2))
+    final_coop_compensation = db.Column(db.Numeric(12, 2))
+    final_referral_fee = db.Column(db.Numeric(12, 2))
+    final_net_proceeds = db.Column(db.Numeric(12, 2))
+    deed_recording_reference = db.Column(db.String(200))
+    final_walkthrough_complete = db.Column(db.Boolean, default=False)
+    key_access_handoff_complete = db.Column(db.Boolean, default=False)
+    possession_status = db.Column(db.String(100))
+    notes = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    accepted_contract = db.relationship('SellerAcceptedContract', backref=db.backref('closing_summary', uselist=False))
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_closing_summaries')
+    final_net_sheet_document = db.relationship('TransactionDocument', foreign_keys=[final_net_sheet_document_id])
+
+    def __repr__(self):
+        return f'<SellerClosingSummary tx={self.transaction_id} closing={self.actual_closing_date}>'
+
+
+class SellerCommissionTerms(db.Model):
+    """Listing commission and representation terms for seller transactions."""
+    __tablename__ = 'seller_commission_terms'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, unique=True, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    listing_commission_percent = db.Column(db.Numeric(6, 3))
+    listing_commission_flat = db.Column(db.Numeric(12, 2))
+    coop_compensation_percent = db.Column(db.Numeric(6, 3))
+    coop_compensation_flat = db.Column(db.Numeric(12, 2))
+    bonus_amount = db.Column(db.Numeric(12, 2))
+    referral_fee_percent = db.Column(db.Numeric(6, 3))
+    referral_fee_flat = db.Column(db.Numeric(12, 2))
+    admin_transaction_fee = db.Column(db.Numeric(12, 2))
+    representation_mode = db.Column(db.String(50), default='unknown')  # separate_buyer_agent, intermediary_same_agent, intermediary_different_associates, unknown
+    source = db.Column(db.String(50), default='manual')  # listing_agreement_extraction, manual, amendment
+    notes = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    transaction = db.relationship('Transaction', backref=db.backref('seller_commission_terms', uselist=False))
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_commission_terms')
+
+    def __repr__(self):
+        return f'<SellerCommissionTerms tx={self.transaction_id}>'
+
+
+class SellerListingPriceChange(db.Model):
+    """History of seller listing price changes."""
+    __tablename__ = 'seller_listing_price_changes'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    old_price = db.Column(db.Numeric(12, 2))
+    new_price = db.Column(db.Numeric(12, 2), nullable=False)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    reason = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_listing_price_changes')
+
+    def __repr__(self):
+        return f'<SellerListingPriceChange tx={self.transaction_id} {self.old_price}->{self.new_price}>'
 
 
 class DocumentSignature(db.Model):

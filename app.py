@@ -304,15 +304,22 @@ def create_app():
     @app.after_request
     def record_session_creation(response):
         """Record when session was created for invalidation checks."""
-        if current_user.is_authenticated and '_session_created_at' not in session:
-            session['_session_created_at'] = datetime.utcnow().timestamp()
+        try:
+            if current_user.is_authenticated and '_session_created_at' not in session:
+                session['_session_created_at'] = datetime.utcnow().timestamp()
+        except Exception:
+            pass
 
         started_at = getattr(g, '_request_started_at', None)
         if started_at is not None:
             duration_ms = round((time.perf_counter() - started_at) * 1000, 1)
             endpoint = request.endpoint or 'unknown'
-            user_id = current_user.id if current_user.is_authenticated else None
-            org_id = current_user.organization_id if current_user.is_authenticated else None
+            try:
+                user_id = current_user.id if current_user.is_authenticated else None
+                org_id = current_user.organization_id if current_user.is_authenticated else None
+            except Exception:
+                user_id = None
+                org_id = None
             should_log = (
                 endpoint.startswith('tax_protest.')
                 or duration_ms >= SLOW_REQUEST_WARNING_MS

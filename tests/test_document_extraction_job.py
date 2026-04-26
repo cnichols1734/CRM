@@ -40,7 +40,15 @@ class TestPostUploadEnqueue:
         assert result['success'] is True
 
     def test_fulfill_enqueues_when_redis_available(self, owner_a_client, seed):
-        """When Redis is available, enqueue is called with correct args."""
+        """When Redis is available, enqueue is called with correct args.
+
+        post_upload_processing only takes the Redis/RQ path when:
+          * SQLALCHEMY_DATABASE_URI is not sqlite (else dev fallback fires)
+          * FLASK_ENV is production OR REDIS_URL is set
+        CI runs against SQLite, so we patch Config to force the Redis branch.
+        """
+        from config import Config
+
         pdf_bytes = b'%PDF-1.4 fake content'
         data = {
             'file': (io.BytesIO(pdf_bytes), 'listing.pdf'),
@@ -48,7 +56,10 @@ class TestPostUploadEnqueue:
 
         mock_queue_instance = MagicMock()
 
-        with patch('rq.Queue', return_value=mock_queue_instance), \
+        with patch.object(Config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://test/db'), \
+             patch.object(Config, 'FLASK_ENV', 'production'), \
+             patch.object(Config, 'REDIS_URL', 'redis://test:6379/0'), \
+             patch('rq.Queue', return_value=mock_queue_instance), \
              patch('redis.Redis.from_url', return_value=MagicMock()), \
              patch('services.supabase_storage.get_supabase_client') as mock_sb:
             mock_client = MagicMock()

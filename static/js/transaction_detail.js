@@ -190,6 +190,10 @@ document.addEventListener('keydown', function(e) {
         closeUploadScanModal();
         closeUploadStaticModal();
         closeUploadForSignatureModal();
+        closeSellerNewShowingModal();
+        closeSellerShowingModal();
+        closeSellerNewOfferModal();
+        closeSellerOfferModal();
     }
 });
 
@@ -437,6 +441,565 @@ function showToast(message, type = 'info') {
 
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+// =============================================================================
+// SELLER WORKSPACE
+// =============================================================================
+
+function sellerWorkspaceTab(tabName) {
+    document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => btn.classList.remove('is-active'));
+    document.querySelectorAll('.seller-tab-panel').forEach(panel => panel.classList.add('hidden'));
+
+    const tab = document.getElementById(`seller-tab-${tabName}`);
+    const panel = document.getElementById(`seller-panel-${tabName}`);
+    if (tab) tab.classList.add('is-active');
+    if (panel) panel.classList.remove('hidden');
+}
+
+function sellerFormData(form) {
+    const data = {};
+    const terms = {};
+    new FormData(form).forEach((value, key) => {
+        const termMatch = key.match(/^terms_data\[(.+)\]$/);
+        if (termMatch) {
+            if (value !== '') terms[termMatch[1]] = value;
+        } else if (value !== '') {
+            data[key] = value;
+        }
+    });
+    if (Object.keys(terms).length) data.terms_data = terms;
+    return data;
+}
+
+function sellerPost(url, payload, successMessage) {
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) {
+            throw new Error(data.error || 'Request failed');
+        }
+        if (successMessage) showToast(successMessage, 'success');
+        setTimeout(() => location.reload(), 500);
+        return data;
+    })
+    .catch(err => {
+        showToast(err.message || 'Something went wrong', 'error');
+    });
+}
+
+const sellerListingProfileForm = document.getElementById('sellerListingProfileForm');
+if (sellerListingProfileForm) {
+    sellerListingProfileForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        sellerPost(
+            `/transactions/${transactionId}/seller/listing-profile`,
+            sellerFormData(this),
+            'Showing access saved.'
+        );
+    });
+}
+
+const highestBestForm = document.getElementById('highestBestForm');
+if (highestBestForm) {
+    highestBestForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const payload = sellerFormData(this);
+        payload.highest_best_enabled = true;
+        sellerPost(
+            `/transactions/${transactionId}/seller/highest-best`,
+            payload,
+            'Highest and best started.'
+        );
+    });
+}
+
+const sellerShowingForm = document.getElementById('sellerShowingForm');
+if (sellerShowingForm) {
+    sellerShowingForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        sellerPost(
+            `/transactions/${transactionId}/showings`,
+            sellerFormData(this),
+            'Showing saved.'
+        );
+    });
+}
+
+document.querySelectorAll('.seller-showing-update-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const showingId = this.dataset.showingId;
+        if (!showingId) {
+            showToast('Unable to find showing.', 'error');
+            return;
+        }
+        sellerPost(
+            `/transactions/${transactionId}/showings/${showingId}`,
+            sellerFormData(this),
+            'Showing details saved.'
+        );
+    });
+});
+
+document.querySelectorAll('.seller-showing-feedback-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const showingId = this.dataset.showingId;
+        if (!showingId) {
+            showToast('Unable to find showing.', 'error');
+            return;
+        }
+        sellerPost(
+            `/transactions/${transactionId}/showings/${showingId}/feedback`,
+            sellerFormData(this),
+            'Showing feedback saved.'
+        );
+    });
+});
+
+function showSellerNewShowingModal() {
+    const modal = document.getElementById('sellerNewShowingModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    const firstInput = modal.querySelector('input[name="showing_agent_name"]');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+}
+
+function closeSellerNewShowingModal() {
+    const modal = document.getElementById('sellerNewShowingModal');
+    if (modal) modal.classList.add('hidden');
+    if (!document.querySelector('[data-seller-showing-modal]:not(.hidden)')) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function openSellerShowingModal(showingId) {
+    const modal = document.getElementById(`sellerShowingModal-${showingId}`);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeSellerShowingModal(showingId) {
+    if (showingId) {
+        const modal = document.getElementById(`sellerShowingModal-${showingId}`);
+        if (modal) modal.classList.add('hidden');
+    } else {
+        document.querySelectorAll('[data-seller-showing-modal]').forEach(modal => modal.classList.add('hidden'));
+    }
+    const newShowingModal = document.getElementById('sellerNewShowingModal');
+    if (!newShowingModal || newShowingModal.classList.contains('hidden')) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function selectSellerShowingForFeedback(showingId) {
+    sellerWorkspaceTab('showings');
+    openSellerShowingModal(showingId);
+    const modal = document.getElementById(`sellerShowingModal-${showingId}`);
+    const notes = modal ? modal.querySelector('textarea[name="feedback_notes"]') : null;
+    if (notes) {
+        setTimeout(() => notes.focus(), 250);
+    }
+}
+
+function showSellerNewOfferModal() {
+    const modal = document.getElementById('sellerNewOfferModal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+    const firstInput = modal.querySelector('input[name="buyer_names"]');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+}
+
+function closeSellerNewOfferModal() {
+    const modal = document.getElementById('sellerNewOfferModal');
+    if (modal) modal.classList.add('hidden');
+    if (!document.querySelector('[data-seller-offer-modal]:not(.hidden)')) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+function openSellerOfferModal(offerId) {
+    const modal = document.getElementById(`sellerOfferModal-${offerId}`);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeSellerOfferModal(offerId) {
+    if (offerId) {
+        const modal = document.getElementById(`sellerOfferModal-${offerId}`);
+        if (modal) modal.classList.add('hidden');
+    } else {
+        document.querySelectorAll('[data-seller-offer-modal]').forEach(modal => modal.classList.add('hidden'));
+    }
+    const newOfferModal = document.getElementById('sellerNewOfferModal');
+    if (!newOfferModal || newOfferModal.classList.contains('hidden')) {
+        document.body.classList.remove('overflow-hidden');
+    }
+}
+
+const sellerOfferForm = document.getElementById('sellerOfferForm');
+if (sellerOfferForm) {
+    sellerOfferForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        sellerPost(
+            `/transactions/${transactionId}/offers`,
+            sellerFormData(this),
+            'Offer logged.'
+        );
+    });
+}
+
+document.querySelectorAll('.seller-offer-update-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const offerId = this.dataset.offerId;
+        if (!offerId) return;
+        sellerPost(
+            `/transactions/${transactionId}/offers/${offerId}`,
+            sellerFormData(this),
+            'Offer details saved.'
+        );
+    });
+});
+
+const OFFER_DOCUMENT_TYPE_OPTIONS = [
+    ['buyer_offer', 'Offer contract'],
+    ['buyer_counter', 'Buyer counter'],
+    ['seller_counter', 'Seller counter'],
+    ['final_acceptance', 'Executed contract'],
+    ['sellers_disclosure', "Seller's Disclosure"],
+    ['hoa_addendum', 'HOA Addendum'],
+    ['pre_approval', 'Mortgage pre-approval'],
+    ['third_party_financing', 'Third party financing'],
+    ['backup_acceptance', 'Backup addendum']
+];
+
+function inferOfferDocumentType(filename) {
+    const words = (filename || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/);
+    const tokens = new Set(words);
+    const has = (...items) => items.every(item => tokens.has(item));
+
+    if (has('third', 'financing')) return 'third_party_financing';
+    if (tokens.has('preapproval') || has('pre', 'approval') || tokens.has('prequal') || has('pre', 'qual') || tokens.has('prequalification')) {
+        return 'pre_approval';
+    }
+    if (tokens.has('hoa') || has('owners', 'association') || has('property', 'subject', 'mandatory') || has('mandatory', 'membership')) {
+        return 'hoa_addendum';
+    }
+    if (has('seller', 'disclosure') || has('sellers', 'disclosure') || tokens.has('sd')) return 'sellers_disclosure';
+    if (tokens.has('backup')) return 'backup_acceptance';
+    if (tokens.has('executed') || tokens.has('signed') || tokens.has('acceptance')) return 'final_acceptance';
+    if (tokens.has('counter')) return tokens.has('seller') ? 'seller_counter' : 'buyer_counter';
+    return 'buyer_offer';
+}
+
+function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    }[char]));
+}
+
+function renderSellerOfferFileList(form) {
+    const input = form.querySelector('.seller-offer-file-input');
+    const list = form.querySelector('.seller-offer-file-list');
+    if (!input || !list) return;
+
+    const files = Array.from(input.files || []);
+    if (!files.length) {
+        list.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = files.map((file, index) => {
+        const inferredType = inferOfferDocumentType(file.name);
+        const options = OFFER_DOCUMENT_TYPE_OPTIONS.map(([value, label]) => (
+            `<option value="${value}" ${value === inferredType ? 'selected' : ''}>${label}</option>`
+        )).join('');
+        const fileSize = file.size ? `${Math.max(file.size / 1024 / 1024, 0.01).toFixed(2)} MB` : '';
+        return `
+            <div class="rounded-md border border-slate-200 bg-white p-3" data-offer-upload-row="${index}">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-medium text-slate-900">${escapeHtml(file.name)}</div>
+                        <div class="mt-0.5 text-xs text-slate-500">${fileSize} · Suggested from filename</div>
+                    </div>
+                    <select class="crm-select seller-offer-document-type-select w-full sm:w-56">
+                        ${options}
+                    </select>
+                </div>
+                <div class="seller-offer-upload-status mt-2 hidden text-xs text-slate-500"></div>
+            </div>
+        `;
+    }).join('');
+    list.classList.remove('hidden');
+}
+
+document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
+    const input = form.querySelector('.seller-offer-file-input');
+    if (input) {
+        input.addEventListener('change', () => renderSellerOfferFileList(form));
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const submit = this.querySelector('button[type="submit"]');
+        const originalText = submit ? submit.textContent : '';
+        const input = this.querySelector('.seller-offer-file-input');
+        const files = Array.from((input && input.files) || []);
+        if (!files.length) {
+            showToast('Select at least one PDF.', 'error');
+            return;
+        }
+        const rows = Array.from(this.querySelectorAll('[data-offer-upload-row]'));
+        const formData = new FormData();
+        new FormData(this).forEach((value, key) => {
+            if (key !== 'files' && key !== 'file' && key !== 'document_type') {
+                formData.append(key, value);
+            }
+        });
+        files.forEach((file, index) => {
+            const row = rows[index];
+            const select = row ? row.querySelector('.seller-offer-document-type-select') : null;
+            const status = row ? row.querySelector('.seller-offer-upload-status') : null;
+            formData.append('files', file);
+            formData.append('document_type', select ? select.value : inferOfferDocumentType(file.name));
+            if (status) {
+                status.textContent = 'Uploading...';
+                status.classList.remove('hidden', 'text-red-600');
+                status.classList.add('text-sky-600');
+            }
+        });
+        if (submit) {
+            submit.disabled = true;
+            submit.textContent = 'Uploading...';
+        }
+
+        fetch(`/transactions/${transactionId}/offers/upload`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'Upload failed');
+            rows.forEach(row => {
+                const status = row.querySelector('.seller-offer-upload-status');
+                if (status) {
+                    status.textContent = 'Uploaded. Extraction queued.';
+                    status.classList.remove('hidden', 'text-red-600', 'text-sky-600');
+                    status.classList.add('text-emerald-600');
+                }
+            });
+            showToast(data.message || 'Offer document uploaded.', 'success');
+            setTimeout(() => location.reload(), 800);
+        })
+        .catch(err => {
+            showToast(err.message || 'Offer upload failed', 'error');
+            rows.forEach(row => {
+                const status = row.querySelector('.seller-offer-upload-status');
+                if (status) {
+                    status.textContent = err.message || 'Upload failed';
+                    status.classList.remove('hidden', 'text-sky-600');
+                    status.classList.add('text-red-600');
+                }
+            });
+            if (submit) {
+                submit.disabled = false;
+                submit.textContent = originalText;
+            }
+        });
+    });
+});
+
+function acceptSellerOffer(offerId, position) {
+    const label = position === 'backup' ? 'accept this offer as backup' : 'accept this offer as primary';
+    if (!confirm(`Are you sure you want to ${label}?`)) return;
+
+    const payload = { position };
+    if (position === 'backup') {
+        const backupPosition = prompt('Backup position number?', '1');
+        if (backupPosition) payload.backup_position = backupPosition;
+    }
+
+    sellerPost(
+        `/transactions/${transactionId}/offers/${offerId}/accept`,
+        payload,
+        position === 'backup' ? 'Backup contract created.' : 'Primary contract accepted.'
+    );
+}
+
+function expireSellerOffer(offerId) {
+    sellerPost(
+        `/transactions/${transactionId}/offers/${offerId}/expire`,
+        {},
+        'Offer deadline checked.'
+    );
+}
+
+function openContractActionModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeContractActionModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function showTerminateContractForm() {
+    closeContractActionModal('closeContractForm');
+    openContractActionModal('terminateContractForm');
+}
+
+function closeTerminateContractModal() {
+    closeContractActionModal('terminateContractForm');
+}
+
+function showCloseContractForm() {
+    closeContractActionModal('terminateContractForm');
+    openContractActionModal('closeContractForm');
+}
+
+function closeCloseContractModal() {
+    closeContractActionModal('closeContractForm');
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    ['terminateContractForm', 'closeContractForm'].forEach(id => {
+        const modal = document.getElementById(id);
+        if (modal && !modal.classList.contains('hidden')) {
+            closeContractActionModal(id);
+        }
+    });
+});
+
+const sellerTerminateForm = document.getElementById('sellerTerminateForm');
+if (sellerTerminateForm) {
+    sellerTerminateForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!confirm('Confirm this contract termination?')) return;
+        sellerPost(
+            `/transactions/${transactionId}/seller/contracts/${this.dataset.contractId}/terminate`,
+            sellerFormData(this),
+            'Contract termination recorded.'
+        );
+    });
+}
+
+const sellerCloseForm = document.getElementById('sellerCloseForm');
+if (sellerCloseForm) {
+    sellerCloseForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!confirm('Mark this transaction closed?')) return;
+        sellerPost(
+            `/transactions/${transactionId}/seller/contracts/${this.dataset.contractId}/close`,
+            sellerFormData(this),
+            'Transaction marked closed.'
+        );
+    });
+}
+
+document.querySelectorAll('.seller-milestone').forEach(row => {
+    const toggleBtn = row.querySelector('.seller-milestone-toggle');
+    const form = row.querySelector('.seller-milestone-form');
+    const chevron = row.querySelector('.seller-milestone-chevron');
+    const cancelBtn = row.querySelector('.seller-milestone-cancel');
+    if (!toggleBtn || !form) return;
+
+    const closeRow = () => {
+        form.classList.add('hidden');
+        if (chevron) chevron.classList.remove('rotate-180');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+    };
+    const openRow = () => {
+        form.classList.remove('hidden');
+        if (chevron) chevron.classList.add('rotate-180');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+    };
+
+    toggleBtn.setAttribute('aria-expanded', 'false');
+    toggleBtn.addEventListener('click', () => {
+        if (form.classList.contains('hidden')) {
+            openRow();
+        } else {
+            closeRow();
+        }
+    });
+    if (cancelBtn) cancelBtn.addEventListener('click', closeRow);
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const contractId = this.dataset.contractId;
+        const milestoneId = this.dataset.milestoneId;
+        if (!contractId || !milestoneId) {
+            showToast('Unable to find milestone.', 'error');
+            return;
+        }
+        sellerPost(
+            `/transactions/${transactionId}/seller/contracts/${contractId}/milestones/${milestoneId}`,
+            sellerFormData(this),
+            'Milestone updated.'
+        );
+    });
+});
+
+const sellerManualMilestoneForm = document.getElementById('sellerManualMilestoneForm');
+if (sellerManualMilestoneForm) {
+    const manualToggleBtn = document.querySelector('[data-toggle="seller-manual-milestone"]');
+    const manualCancelBtn = sellerManualMilestoneForm.querySelector('[data-toggle-cancel="seller-manual-milestone"]');
+    const showManual = () => sellerManualMilestoneForm.classList.remove('hidden');
+    const hideManual = () => {
+        sellerManualMilestoneForm.classList.add('hidden');
+        sellerManualMilestoneForm.reset();
+    };
+    if (manualToggleBtn) {
+        manualToggleBtn.addEventListener('click', () => {
+            if (sellerManualMilestoneForm.classList.contains('hidden')) {
+                showManual();
+                const firstInput = sellerManualMilestoneForm.querySelector('input[name="title"]');
+                if (firstInput) firstInput.focus();
+            } else {
+                hideManual();
+            }
+        });
+    }
+    if (manualCancelBtn) manualCancelBtn.addEventListener('click', hideManual);
+
+    sellerManualMilestoneForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const contractId = this.dataset.contractId;
+        if (!contractId) {
+            showToast('Unable to find contract.', 'error');
+            return;
+        }
+        sellerPost(
+            `/transactions/${transactionId}/seller/contracts/${contractId}/milestones`,
+            sellerFormData(this),
+            'Milestone added.'
+        );
+    });
 }
 
 // =============================================================================
