@@ -9,7 +9,7 @@ TIER_DEFAULTS = {
         'max_users': 1,
         'max_contacts': 10000,
         'can_invite_users': False,
-        'daily_ai_chat_messages': 10,  # Free tier: 10 messages/day to B.O.B.
+        'daily_ai_chat_messages': 25,  # Free tier: 25 messages/day to B.O.B.
     },
     'pro': {
         'max_users': 25,  # Default, can be overridden per-org
