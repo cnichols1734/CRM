@@ -28,7 +28,7 @@ def extract_document_job(doc_id: int, org_id: int, _inline=False):
 
     try:
         set_job_org_context(org_id)
-        doc = TransactionDocument.query.get(doc_id)
+        doc = db.session.get(TransactionDocument, doc_id)
         if not doc:
             logger.error(f"Document {doc_id} not found for extraction")
             return
@@ -47,7 +47,7 @@ def extract_document_job(doc_id: int, org_id: int, _inline=False):
         logger.error(f"Document extraction job failed for doc {doc_id}: {e}", exc_info=True)
         try:
             set_job_org_context(org_id)
-            doc = TransactionDocument.query.get(doc_id)
+            doc = db.session.get(TransactionDocument, doc_id)
             if doc:
                 doc.extraction_status = 'failed'
                 doc.extraction_error = str(e)[:500]
