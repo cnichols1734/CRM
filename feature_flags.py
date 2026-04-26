@@ -29,6 +29,7 @@ TIER_FEATURES = {
         'AI_TASK_SUGGESTIONS': False,
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
+        'MARKET_INSIGHTS': True,
         'MARKETING': False,
         'TAX_PROTEST': False,
     },
@@ -44,6 +45,7 @@ TIER_FEATURES = {
         'AI_TASK_SUGGESTIONS': True,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
+        'MARKET_INSIGHTS': True,
         'MARKETING': False,  # Still disabled for all
         'TAX_PROTEST': False,
     },
@@ -59,6 +61,7 @@ TIER_FEATURES = {
         'AI_TASK_SUGGESTIONS': True,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
+        'MARKET_INSIGHTS': True,
         'MARKETING': True,
         'TAX_PROTEST': True,
     }
@@ -69,6 +72,7 @@ TIER_FEATURES = {
 # to any user while leaving their normal tier configuration intact for later.
 GLOBAL_FEATURE_OVERRIDES = {
     'AI_DAILY_TODO': False,
+    'MARKET_INSIGHTS': False,
 }
 
 # Legacy global flags for backwards compatibility during migration
