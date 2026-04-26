@@ -139,6 +139,7 @@
         </script>
         {% endif %}
 
+        {% if org_has_feature('MARKET_INSIGHTS') %}
         <section class="crm-surface crm-mi mb-6"
                  data-controller="market-insights"
                  data-market-insights-default-slug-value="mont-belvieu"
@@ -283,6 +284,7 @@
                 </div>
             </div>
         </section>
+        {% endif %}
 
         {% if is_first_run %}
         <div class="crm-surface mb-6" {% if not current_user.has_seen_dashboard_onboarding %}data-dashboard-page-target="onboarding"{% endif %}>

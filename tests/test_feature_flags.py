@@ -57,9 +57,15 @@ class TestProTierAccess:
         assert b'dailyTodoModal' not in resp.data
         assert b'js/ai_chat.js' in resp.data
 
+    def test_market_insights_panel_globally_disabled(self, owner_a_client, seed):
+        resp = owner_a_client.get('/dashboard')
+        assert resp.status_code == 200
+        assert b'Market Insights' not in resp.data
+        assert b'market-insights-panel' not in resp.data
 
-class TestDailyTodoGlobalOverride:
-    """Daily todo is disabled for every org while the global override is active."""
+
+class TestGlobalFeatureOverrides:
+    """Feature overrides can disable features for every org."""
 
     def test_global_override_beats_platform_admin_and_org_override(self):
         org = Organization(
@@ -69,6 +75,7 @@ class TestDailyTodoGlobalOverride:
         )
 
         assert org_has_feature('AI_DAILY_TODO', org) is False
+        assert org_has_feature('MARKET_INSIGHTS', org) is False
         assert org_has_feature('AI_CHAT', org) is True
 
     def test_feature_context_keeps_daily_todo_disabled(self):
@@ -79,6 +86,7 @@ class TestDailyTodoGlobalOverride:
 
         features = get_org_features(org)
         assert features['AI_DAILY_TODO'] is False
+        assert features['MARKET_INSIGHTS'] is False
         assert features['AI_CHAT'] is True
 
 
