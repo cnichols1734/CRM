@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-{% set total_deals = transactions_by_status.preparing.count + transactions_by_status.active.count + transactions_by_status.under_contract.count + transactions_by_status.closed.count if show_transactions else 0 %}
+{% set total_deals = transactions_by_status.values()|map(attribute='count')|sum if show_transactions else 0 %}
 {% set is_first_run = total_contacts == 0 and total_deals == 0 and upcoming_tasks|length == 0 %}
 
 <div class="crm-page"
@@ -418,97 +418,32 @@
             <div class="crm-surface-body">
                 {% if total_deals > 0 %}
                 <div class="crm-board">
+                    {% for column in transactions_by_status.values() %}
                     <div class="crm-board-column">
                         <div class="crm-board-column__header">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-semibold text-slate-900">Preparing</span>
+                            <div class="min-w-0">
+                                <span class="text-sm font-semibold text-slate-900">{{ column.label }}</span>
+                                <p class="mt-0.5 truncate text-[11px] text-slate-500" title="{{ column.description }}">{{ column.description }}</p>
                             </div>
-                            {{ badge(transactions_by_status.preparing.count|string) }}
+                            {{ badge(column.count|string, column.tone) }}
                         </div>
                         <div class="crm-board-column__body">
-                            {% for tx in transactions_by_status.preparing.transactions %}
+                            {% for tx in column.transactions %}
                             <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
                                 <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
                                 <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
-                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>{{ tx.status_label }}</span>
+                                <div class="mt-2 truncate text-[11px] font-medium uppercase tracking-wide text-slate-400">{{ tx.type }}</div>
+                                <div class="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                                    <span class="truncate">{{ tx.status_label }}</span>
                                     <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
                                 </div>
                             </a>
                             {% else %}
-                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
+                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No transactions</div>
                             {% endfor %}
                         </div>
                     </div>
-
-                    <div class="crm-board-column">
-                        <div class="crm-board-column__header">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-semibold text-slate-900">Active</span>
-                            </div>
-                            {{ badge(transactions_by_status.active.count|string, 'info') }}
-                        </div>
-                        <div class="crm-board-column__body">
-                            {% for tx in transactions_by_status.active.transactions %}
-                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
-                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
-                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
-                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>{% if tx.expected_close_date %}{{ tx.expected_close_date.strftime('%b %d') }}{% else %}No close date{% endif %}</span>
-                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
-                                </div>
-                            </a>
-                            {% else %}
-                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="crm-board-column">
-                        <div class="crm-board-column__header">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-semibold text-slate-900">Under Contract</span>
-                            </div>
-                            {{ badge(transactions_by_status.under_contract.count|string, 'warning') }}
-                        </div>
-                        <div class="crm-board-column__body">
-                            {% for tx in transactions_by_status.under_contract.transactions %}
-                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
-                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
-                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
-                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>{% if tx.expected_close_date %}{{ tx.expected_close_date.strftime('%b %d') }}{% else %}No close date{% endif %}</span>
-                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
-                                </div>
-                            </a>
-                            {% else %}
-                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
-                            {% endfor %}
-                        </div>
-                    </div>
-
-                    <div class="crm-board-column">
-                        <div class="crm-board-column__header">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-semibold text-slate-900">Closed YTD</span>
-                            </div>
-                            {{ badge(transactions_by_status.closed.count|string, 'success') }}
-                        </div>
-                        <div class="crm-board-column__body">
-                            {% for tx in transactions_by_status.closed.transactions %}
-                            <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
-                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
-                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
-                                <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
-                                    <span>{% if tx.actual_close_date %}Closed {{ tx.actual_close_date.strftime('%b %d') }}{% else %}Closed{% endif %}</span>
-                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
-                                </div>
-                            </a>
-                            {% else %}
-                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No deals</div>
-                            {% endfor %}
-                        </div>
-                    </div>
+                    {% endfor %}
                 </div>
                 {% else %}
                 {% call empty_state('No transactions yet', 'Add a transaction to get started.', 'fa-file-contract') %}

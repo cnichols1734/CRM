@@ -96,7 +96,15 @@ def update_status(id):
     data = request.get_json()
     new_status = data.get('status')
     
-    valid_statuses = ['preparing_to_list', 'showing', 'active', 'under_contract', 'closed', 'cancelled']
+    status_options_by_type = {
+        'seller': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+        'buyer': ['showing', 'under_contract', 'closed', 'cancelled'],
+        'landlord': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+        'tenant': ['showing', 'under_contract', 'closed', 'cancelled'],
+        'referral': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+    }
+    tx_type_name = transaction.transaction_type.name if transaction.transaction_type else 'seller'
+    valid_statuses = status_options_by_type.get(tx_type_name, status_options_by_type['seller'])
     if new_status not in valid_statuses:
         return jsonify({'success': False, 'error': 'Invalid status'}), 400
     

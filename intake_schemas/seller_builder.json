@@ -1,0 +1,154 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "seller",
+  "ownership_status": "builder",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Builder / New Construction Questionnaire",
+  "description": "Answer these questions to create the new-construction seller document checklist. Agents prepare and send forms in their e-sign system, then upload signed copies here.",
+  "sections": [
+    {
+      "id": "construction_details",
+      "title": "Construction Details",
+      "questions": [
+        {
+          "id": "construction_status",
+          "type": "select",
+          "label": "What is the construction status?",
+          "options": [
+            {"value": "completed", "label": "Completed construction"},
+            {"value": "incomplete", "label": "Incomplete / to be built"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "builder_contract",
+          "type": "select",
+          "label": "Will the builder use their own contract package?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No / TREC new home contract"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        },
+        {
+          "id": "has_hoa",
+          "type": "boolean",
+          "label": "Is the property subject to an owner's association?",
+          "help_text": "This includes HOAs, POAs, condo associations, and mandatory membership associations.",
+          "required": true
+        },
+        {
+          "id": "special_districts",
+          "type": "boolean",
+          "label": "Is the property located in a special taxing or assessment district?",
+          "help_text": "Examples include MUD, PID, improvement district, or similar notices.",
+          "required": true
+        },
+        {
+          "id": "flood_hazard",
+          "type": "boolean",
+          "label": "Is the property in a flood hazard area?",
+          "required": true
+        },
+        {
+          "id": "referral_fee",
+          "type": "boolean",
+          "label": "Will another party get a referral fee from you for this transaction?",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "listing-agreement",
+      "name": "New Construction Listing Agreement",
+      "always": true,
+      "reason": "Required for builder seller transactions"
+    },
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required brokerage disclosure"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for all seller transactions"
+    },
+    {
+      "slug": "seller-net-proceeds",
+      "name": "Seller's Estimated Net Proceeds",
+      "always": true,
+      "reason": "Recommended for seller transactions"
+    },
+    {
+      "slug": "builder-disclosure-package",
+      "name": "Builder Disclosure / Builder Contract Package",
+      "always": true,
+      "reason": "Builder sales commonly use a builder-specific disclosure or contract packet"
+    },
+    {
+      "slug": "new-home-completed-construction-contract",
+      "name": "New Home Contract - Completed Construction",
+      "condition": {
+        "all": [
+          {"field": "construction_status", "in": ["completed", "not_sure"]},
+          {"field": "builder_contract", "in": ["no", "not_sure"]}
+        ]
+      },
+      "reason": "Completed new construction using TREC new home contract"
+    },
+    {
+      "slug": "new-home-incomplete-construction-contract",
+      "name": "New Home Contract - Incomplete Construction",
+      "condition": {
+        "all": [
+          {"field": "construction_status", "in": ["incomplete", "not_sure"]},
+          {"field": "builder_contract", "in": ["no", "not_sure"]}
+        ]
+      },
+      "reason": "Incomplete or to-be-built new construction using TREC new home contract"
+    },
+    {
+      "slug": "plans-specifications-addendum",
+      "name": "Plans, Specifications, and Finish-Out Schedule",
+      "condition": {"field": "construction_status", "in": ["incomplete", "not_sure"]},
+      "reason": "Incomplete construction commonly requires plans and specifications"
+    },
+    {
+      "slug": "builder-warranty-documents",
+      "name": "Builder Warranty Documents",
+      "always": true,
+      "reason": "Common new construction closing document"
+    },
+    {
+      "slug": "hoa-addendum",
+      "name": "Addendum for Property Subject to Mandatory Membership in Owners' Association",
+      "condition": {"field": "has_hoa", "equals": true},
+      "reason": "Property subject to owner's association"
+    },
+    {
+      "slug": "special-tax-district-notice",
+      "name": "Notice to Purchaser of Real Property Located in a Special Taxing or Assessment District",
+      "condition": {"field": "special_districts", "equals": true},
+      "reason": "Property in special taxing or assessment district"
+    },
+    {
+      "slug": "flood-hazard",
+      "name": "Information About Special Flood Hazard Areas",
+      "condition": {"field": "flood_hazard", "equals": true},
+      "reason": "Property in flood hazard area"
+    },
+    {
+      "slug": "referral-agreement",
+      "name": "Referral Agreement",
+      "condition": {"field": "referral_fee", "equals": true},
+      "reason": "Referral fee will be paid"
+    }
+  ]
+}

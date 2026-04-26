@@ -1,0 +1,174 @@
+{
+  "schema_version": "1.0",
+  "transaction_type": "seller",
+  "ownership_status": "short_sale",
+  "document_workflow": "placeholder_upload_only",
+  "title": "Short Sale Questionnaire",
+  "description": "Answer these questions to create the short-sale seller document checklist. Agents prepare and send forms in their e-sign system, then upload signed copies here.",
+  "sections": [
+    {
+      "id": "short_sale_details",
+      "title": "Short Sale Details",
+      "questions": [
+        {
+          "id": "built_before_1978",
+          "type": "boolean",
+          "label": "Was the property built before 1978?",
+          "help_text": "Lead-based paint disclosure is required for properties built before 1978.",
+          "required": true
+        },
+        {
+          "id": "has_hoa",
+          "type": "boolean",
+          "label": "Is the property subject to an owner's association?",
+          "required": true
+        },
+        {
+          "id": "special_districts",
+          "type": "boolean",
+          "label": "Is the property located in a special taxing or assessment district?",
+          "required": true
+        },
+        {
+          "id": "flood_hazard",
+          "type": "boolean",
+          "label": "Is the property in a flood hazard area?",
+          "required": true
+        },
+        {
+          "id": "has_septic",
+          "type": "boolean",
+          "label": "Does this property have a septic system or on-site sewer facility?",
+          "required": true
+        },
+        {
+          "id": "multiple_lienholders",
+          "type": "boolean",
+          "label": "Are there multiple lienholders or servicers that must approve the sale?",
+          "required": true
+        },
+        {
+          "id": "referral_fee",
+          "type": "boolean",
+          "label": "Will another party get a referral fee from you for this transaction?",
+          "required": true
+        },
+        {
+          "id": "has_survey",
+          "type": "select",
+          "label": "Does your seller have a copy of their survey?",
+          "options": [
+            {"value": "yes", "label": "Yes"},
+            {"value": "no", "label": "No"},
+            {"value": "not_sure", "label": "Not sure"}
+          ],
+          "required": true
+        }
+      ]
+    }
+  ],
+  "document_rules": [
+    {
+      "slug": "listing-agreement",
+      "name": "Residential Real Estate Listing Agreement",
+      "always": true,
+      "reason": "Required for short sale seller transactions"
+    },
+    {
+      "slug": "iabs",
+      "name": "Information About Brokerage Services",
+      "always": true,
+      "reason": "Required brokerage disclosure"
+    },
+    {
+      "slug": "sellers-disclosure",
+      "name": "Seller's Disclosure Notice",
+      "always": true,
+      "reason": "Commonly needed for short sale seller transactions"
+    },
+    {
+      "slug": "wire-fraud-warning",
+      "name": "Wire Fraud Warning",
+      "always": true,
+      "reason": "Recommended for all seller transactions"
+    },
+    {
+      "slug": "seller-net-proceeds",
+      "name": "Seller's Estimated Net Proceeds",
+      "always": true,
+      "reason": "Required to estimate short sale deficiency and payoff needs"
+    },
+    {
+      "slug": "short-sale-addendum",
+      "name": "Short Sale Addendum",
+      "always": true,
+      "reason": "Required when sale is subject to lienholder approval"
+    },
+    {
+      "slug": "short-sale-lender-authorization",
+      "name": "Short Sale Lender Authorization",
+      "always": true,
+      "reason": "Allows lender or servicer communication"
+    },
+    {
+      "slug": "short-sale-hardship-package",
+      "name": "Seller Hardship / Financial Package",
+      "always": true,
+      "reason": "Common lender requirement for short sale approval"
+    },
+    {
+      "slug": "payoff-or-lienholder-statement",
+      "name": "Payoff / Lienholder Statement",
+      "always": true,
+      "reason": "Needed to support lienholder approval"
+    },
+    {
+      "slug": "multiple-lienholder-approval",
+      "name": "Multiple Lienholder Approval Package",
+      "condition": {"field": "multiple_lienholders", "equals": true},
+      "reason": "Multiple lienholders or servicers must approve the sale"
+    },
+    {
+      "slug": "lead-paint",
+      "name": "Addendum for Seller's Disclosure of Information on Lead-Based Paint",
+      "condition": {"field": "built_before_1978", "equals": true},
+      "reason": "Property built before 1978"
+    },
+    {
+      "slug": "hoa-addendum",
+      "name": "Addendum for Property Subject to Mandatory Membership in Owners' Association",
+      "condition": {"field": "has_hoa", "equals": true},
+      "reason": "Property subject to owner's association"
+    },
+    {
+      "slug": "special-tax-district-notice",
+      "name": "Notice to Purchaser of Real Property Located in a Special Taxing or Assessment District",
+      "condition": {"field": "special_districts", "equals": true},
+      "reason": "Property in special taxing or assessment district"
+    },
+    {
+      "slug": "flood-hazard",
+      "name": "Information About Special Flood Hazard Areas",
+      "condition": {"field": "flood_hazard", "equals": true},
+      "reason": "Property in flood hazard area"
+    },
+    {
+      "slug": "sewer-facility",
+      "name": "Information About On-Site Sewer Facility",
+      "condition": {"field": "has_septic", "equals": true},
+      "reason": "Property has septic system or on-site sewage facility"
+    },
+    {
+      "slug": "referral-agreement",
+      "name": "Referral Agreement",
+      "condition": {"field": "referral_fee", "equals": true},
+      "reason": "Referral fee will be paid"
+    },
+    {
+      "slug": "t47-affidavit",
+      "name": "T-47.1 Residential Real Property Affidavit",
+      "condition": {"field": "has_survey", "in": ["yes", "not_sure"]},
+      "reason": "Seller has survey or is unsure"
+    }
+  ]
+}

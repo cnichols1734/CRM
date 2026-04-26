@@ -22,19 +22,46 @@ def get_intake_schema(transaction_type: str, ownership_status: str = None) -> di
     Returns:
         The schema dict or None if not found
     """
-    # Build the schema filename
+    # Prefer the most specific schema, then fall back to the transaction type.
     if ownership_status:
-        filename = f"{transaction_type}_{ownership_status}.json"
-    else:
-        filename = f"{transaction_type}.json"
-    
-    schema_path = SCHEMAS_DIR / filename
-    
-    if not schema_path.exists():
-        return None
-    
-    with open(schema_path, 'r') as f:
-        return json.load(f)
+        schema_path = SCHEMAS_DIR / f"{transaction_type}_{ownership_status}.json"
+        if schema_path.exists():
+            with open(schema_path, 'r') as f:
+                return json.load(f)
+
+    schema_path = SCHEMAS_DIR / f"{transaction_type}.json"
+    if schema_path.exists():
+        with open(schema_path, 'r') as f:
+            return json.load(f)
+
+    return None
+
+
+def _condition_matches(condition: dict, intake_data: dict) -> bool:
+    """Evaluate a document rule condition against intake answers."""
+    if not condition:
+        return False
+
+    if 'all' in condition:
+        return all(_condition_matches(item, intake_data) for item in condition['all'])
+
+    if 'any' in condition:
+        return any(_condition_matches(item, intake_data) for item in condition['any'])
+
+    field = condition.get('field')
+    if not field:
+        return False
+
+    field_value = intake_data.get(field)
+
+    if 'equals' in condition:
+        return field_value == condition['equals']
+    if 'in' in condition:
+        return field_value in condition['in']
+    if 'not_equals' in condition:
+        return field_value != condition['not_equals']
+
+    return False
 
 
 def evaluate_document_rules(schema: dict, intake_data: dict) -> list:
@@ -57,15 +84,7 @@ def evaluate_document_rules(schema: dict, intake_data: dict) -> list:
         if rule.get('always'):
             include = True
         elif 'condition' in rule:
-            condition = rule['condition']
-            field_value = intake_data.get(condition['field'])
-            
-            if 'equals' in condition:
-                include = field_value == condition['equals']
-            elif 'in' in condition:
-                include = field_value in condition['in']
-            elif 'not_equals' in condition:
-                include = field_value != condition['not_equals']
+            include = _condition_matches(rule['condition'], intake_data)
         
         if include:
             required_docs.append({

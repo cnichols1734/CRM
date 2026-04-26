@@ -289,9 +289,10 @@ def create_transaction():
         # Get the transaction type to determine participant role and default status
         tx_type = TransactionType.query.get(int(transaction_type_id))
         
-        # Determine default status based on transaction type
-        # Buyer transactions start with 'showing', sellers start with 'preparing_to_list'
-        default_status = 'showing' if tx_type and tx_type.name == 'buyer' else 'preparing_to_list'
+        # Determine default status based on transaction type.
+        # Buyer/tenant work starts with search; listing/referral work starts in prep.
+        search_first_types = {'buyer', 'tenant'}
+        default_status = 'showing' if tx_type and tx_type.name in search_first_types else 'preparing_to_list'
         
         # Create the transaction
         transaction = Transaction(
@@ -600,6 +601,19 @@ def update_transaction(id):
         transaction.ownership_status = new_ownership
 
         new_status = request.form.get('status', transaction.status)
+        status_options_by_type = {
+            'seller': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+            'buyer': ['showing', 'under_contract', 'closed', 'cancelled'],
+            'landlord': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+            'tenant': ['showing', 'under_contract', 'closed', 'cancelled'],
+            'referral': ['preparing_to_list', 'active', 'under_contract', 'closed', 'cancelled'],
+        }
+        tx_type_name = transaction.transaction_type.name if transaction.transaction_type else 'seller'
+        valid_statuses = status_options_by_type.get(tx_type_name, status_options_by_type['seller'])
+        if new_status not in valid_statuses:
+            db.session.rollback()
+            flash('Invalid status for this transaction type.', 'error')
+            return redirect(url_for('transactions.edit_transaction', id=transaction.id))
         if new_status != transaction.status:
             changed_fields.append('status')
         transaction.status = new_status

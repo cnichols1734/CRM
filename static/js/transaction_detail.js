@@ -326,48 +326,53 @@ function removeParticipant(participantId) {
 // DOCUMENT MANAGEMENT
 // =============================================================================
 
-document.getElementById('docTemplateSelect').addEventListener('change', function() {
-    const customField = document.getElementById('customDocNameField');
-    if (this.value === 'custom') {
-        customField.classList.remove('hidden');
-        customField.querySelector('input').required = true;
-    } else {
-        customField.classList.add('hidden');
-        customField.querySelector('input').required = false;
-    }
-});
-
-document.getElementById('addDocumentForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-
-    const select = document.getElementById('docTemplateSelect');
-    const selectedOption = select.options[select.selectedIndex];
-    let templateName = selectedOption.dataset.name;
-
-    if (formData.get('template_slug') === 'custom') {
-        templateName = formData.get('custom_name');
-    }
-
-    formData.append('template_name', templateName);
-
-    fetch(`/transactions/${transactionId}/documents`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            if (data.placeholder_updated) {
-                // Show special message for placeholder conversion
-                showToast(data.message || 'Placeholder updated with generated document.', 'success');
-            }
-            location.reload();
+const docTemplateSelect = document.getElementById('docTemplateSelect');
+if (docTemplateSelect) {
+    docTemplateSelect.addEventListener('change', function() {
+        const customField = document.getElementById('customDocNameField');
+        if (this.value === 'custom') {
+            customField.classList.remove('hidden');
+            customField.querySelector('input').required = true;
         } else {
-            showToast('Error adding document: ' + data.error, 'error');
+            customField.classList.add('hidden');
+            customField.querySelector('input').required = false;
         }
     });
-});
+}
+
+const addDocumentForm = document.getElementById('addDocumentForm');
+if (addDocumentForm && docTemplateSelect) {
+    addDocumentForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+
+        const selectedOption = docTemplateSelect.options[docTemplateSelect.selectedIndex];
+        let templateName = selectedOption.dataset.name;
+
+        if (formData.get('template_slug') === 'custom') {
+            templateName = formData.get('custom_name');
+        }
+
+        formData.append('template_name', templateName);
+
+        fetch(`/transactions/${transactionId}/documents`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (data.placeholder_updated) {
+                    // Show special message for placeholder conversion
+                    showToast(data.message || 'Placeholder updated with generated document.', 'success');
+                }
+                location.reload();
+            } else {
+                showToast('Error adding document: ' + data.error, 'error');
+            }
+        });
+    });
+}
 
 function removeDocument(docId) {
     if (!confirm('Remove this document?')) return;
