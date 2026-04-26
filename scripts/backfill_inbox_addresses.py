@@ -21,6 +21,11 @@ Usage:
     python3 scripts/backfill_inbox_addresses.py --commit --send-welcome \
         --include-existing --base-url https://www.origentechnolog.com
 
+    # Send a one-user test without touching anyone else.
+    python3 scripts/backfill_inbox_addresses.py --commit --send-welcome \
+        --include-existing --email chrisnichols17@gmail.com \
+        --base-url https://www.origentechnolog.com
+
 Safety:
 - The provisioning loop commits per user, so a single bad row does not
   poison the rest of the run.
@@ -52,9 +57,11 @@ logging.basicConfig(
 )
 
 
-def _eligible_users(include_existing: bool):
+def _eligible_users(include_existing: bool, email: str | None = None):
     """Return users that should get an inbox address (and optionally email)."""
     q = User.query.filter(User.organization_id.isnot(None))
+    if email:
+        q = q.filter(db.func.lower(User.email) == email.lower())
     if not include_existing:
         q = q.filter((User.inbox_address.is_(None))
                      | (User.inbox_token.is_(None)))
@@ -100,6 +107,9 @@ def main() -> int:
                              'Useful for re-sending the announcement.')
     parser.add_argument('--limit', type=int, default=0,
                         help='Stop after N users (0 = no limit).')
+    parser.add_argument('--email',
+                        help='Only process one exact user email address. '
+                             'Useful for production smoke tests.')
     parser.add_argument('--base-url', default=_default_base_url(),
                         help='Public app URL used for email links, e.g. '
                              'https://www.origentechnolog.com. Required when '
@@ -115,15 +125,15 @@ def main() -> int:
         parser.error('--send-welcome requires --base-url or an app URL env var')
 
     with app.app_context():
-        users = _eligible_users(args.include_existing)
+        users = _eligible_users(args.include_existing, email=args.email)
         if args.limit:
             users = users[: args.limit]
 
         logger.info(
             'Found %d users to process (commit=%s, send_welcome=%s, '
-            'include_existing=%s, base_url=%s).',
+            'include_existing=%s, email=%s, base_url=%s).',
             len(users), args.commit, args.send_welcome,
-            args.include_existing, args.base_url or 'none',
+            args.include_existing, args.email or 'all', args.base_url or 'none',
         )
 
         provisioned = 0

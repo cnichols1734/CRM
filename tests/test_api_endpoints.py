@@ -60,9 +60,9 @@ class TestActionPlanAPI:
 class TestDailyTodoAPI:
     """Daily todo API endpoints."""
 
-    def test_get_latest_todo(self, owner_a_client, seed):
+    def test_get_latest_todo_globally_disabled(self, owner_a_client, seed):
         resp = owner_a_client.get('/api/daily-todo/latest')
-        assert resp.status_code in (200, 404)
+        assert resp.status_code in (302, 403)
 
     def test_daily_todo_unauthenticated(self, client, seed):
         client.get('/logout')
