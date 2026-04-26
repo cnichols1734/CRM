@@ -12,12 +12,15 @@ from jobs.base import set_job_org_context
 logger = logging.getLogger(__name__)
 
 
-def extract_document_job(doc_id: int, org_id: int):
+def extract_document_job(doc_id: int, org_id: int, _inline=False):
     """
     Fetch PDF from Supabase and extract structured field data via AI.
 
     Only doc_id and org_id are passed through the queue -- the PDF bytes
     are fetched directly from storage so nothing large transits Redis.
+
+    When _inline=True the job runs inside a web request and skips
+    db.session.remove() so the caller's session stays intact.
     """
     from models import db, TransactionDocument
     from services.supabase_storage import download_document
@@ -52,4 +55,5 @@ def extract_document_job(doc_id: int, org_id: int):
         except Exception:
             logger.error(f"Failed to mark doc {doc_id} as failed", exc_info=True)
     finally:
-        db.session.remove()
+        if not _inline:
+            db.session.remove()

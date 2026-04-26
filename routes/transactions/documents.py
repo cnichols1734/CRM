@@ -391,6 +391,12 @@ def save_document_form(id, doc_id):
         # Log audit event
         audit_service.log_document_filled(doc, changed_fields)
 
+        try:
+            from services.seller_workflow import sync_offer_version_from_document
+            sync_offer_version_from_document(doc.id)
+        except Exception:
+            pass
+
         db.session.commit()
 
         if request.is_json:
@@ -986,19 +992,23 @@ def fulfill_placeholder_document(id, doc_id):
 
         db.session.commit()
 
-        post_upload_processing(doc)
-
-        return jsonify({
+        response_payload = {
             'success': True,
             'message': 'Document uploaded successfully',
             'document': {
                 'id': doc.id,
                 'name': doc.template_name,
+                'template_slug': doc.template_slug,
                 'status': doc.status,
                 'source': doc.document_source,
-                'signed_file_path': doc.signed_file_path
+                'signed_file_path': doc.signed_file_path,
+                'extraction_status': doc.extraction_status
             }
-        })
+        }
+
+        post_upload_processing(doc)
+
+        return jsonify(response_payload)
 
     except Exception as e:
         db.session.rollback()

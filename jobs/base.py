@@ -41,10 +41,15 @@ def set_job_org_context(org_id: int):
         contacts = Contact.query.all()  # Scoped to org_id
     """
     from models import db
-    db.session.execute(
-        text("SET LOCAL app.current_org_id = :org_id"),
-        {'org_id': org_id}
-    )
+    try:
+        db.session.execute(
+            text("SET LOCAL app.current_org_id = :org_id"),
+            {'org_id': org_id}
+        )
+    except Exception:
+        # SQLite/local development does not support PostgreSQL RLS settings.
+        # App-level organization filters still protect local job execution.
+        db.session.rollback()
 
 
 # Example usage in a task queue (e.g., Celery, RQ)

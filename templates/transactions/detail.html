@@ -148,7 +148,7 @@
 <div class="crm-page">
     {# ===== Sticky top nav bar ===== #}
     <div class="sticky top-0 z-50 border-b border-slate-200 bg-white">
-        <div class="mx-auto max-w-[1280px] px-4 sm:px-6">
+        <div class="mx-auto max-w-[1600px] px-4 sm:px-6">
             <div class="flex h-12 items-center justify-between">
                 {% if ref == 'contact' and contact_id_arg %}
                 <a href="{{ url_for('contacts.view_contact', contact_id=contact_id_arg) }}"
@@ -184,7 +184,7 @@
         </div>
     </div>
 
-    <div class="crm-page__inner max-w-[1280px]">
+    <div class="crm-page__inner max-w-[1600px]">
         {# ===== Header block ===== #}
         <div class="mb-4">
             <h1 class="crm-page-title">{{ transaction.street_address }}</h1>
@@ -297,6 +297,1209 @@
             {# ===== Left column ===== #}
             <div class="min-w-0 flex-1 space-y-5">
 
+                {% if transaction.transaction_type.name == 'seller' %}
+                {# ----- Property details card (seller: above workspace) ----- #}
+                <section id="transaction-documents-card" class="crm-surface scroll-mt-28">
+                    <div class="crm-surface-header">
+                        {{ section_header('Property details') }}
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Full address</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.full_address }}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Transaction type</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.transaction_type.display_name }}</div>
+                            </div>
+                            {% if transaction.ownership_status %}
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Ownership status</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.ownership_status|replace('_', ' ')|title }}</div>
+                            </div>
+                            {% endif %}
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Current status</div>
+                                <div class="mt-0.5 inline-flex items-center gap-2 text-sm font-medium text-slate-900">
+                                    <span class="h-1.5 w-1.5 flex-shrink-0 rounded-full {{ status_dot_class.get(transaction.status, 'bg-slate-300') }}"></span>
+                                    {{ status_labels.get(transaction.status, transaction.status|replace('_', ' ')|title) }}
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Created</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.created_at.strftime('%B %d, %Y') }}</div>
+                            </div>
+                            {% if transaction.updated_at and transaction.updated_at != transaction.created_at %}
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Last updated</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.updated_at.strftime('%B %d, %Y') }}</div>
+                            </div>
+                            {% endif %}
+                            {% if transaction.expected_close_date %}
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Expected close date</div>
+                                <div class="mt-0.5 text-sm text-slate-900">{{ transaction.expected_close_date.strftime('%B %d, %Y') }}</div>
+                            </div>
+                            {% endif %}
+                            {% if transaction.actual_close_date %}
+                            <div>
+                                <div class="text-xs font-medium text-slate-500">Actual close date</div>
+                                <div class="mt-0.5 text-sm font-semibold text-emerald-700">{{ transaction.actual_close_date.strftime('%B %d, %Y') }}</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+
+                {# ----- Seller command workspace ----- #}
+                <section class="crm-surface" id="seller-workspace">
+                    <div class="crm-surface-header">
+                        <div>
+                            {{ section_header('Seller workspace') }}
+                            {% if seller_listing_profile and seller_listing_profile.highest_best_enabled %}
+                            <p class="mt-1 text-xs font-medium text-orange-700">
+                                Highest and best active
+                                {% if seller_listing_profile.highest_best_deadline_at %}
+                                until {{ seller_listing_profile.highest_best_deadline_at.strftime('%b %d at %I:%M %p') }}
+                                {% endif %}
+                            </p>
+                            {% elif urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
+                            {% set urgent_state = offer_urgency(urgent_seller_offer) %}
+                            <p class="mt-1 text-xs font-medium {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% else %}text-orange-700{% endif %}">
+                                {{ urgent_state.label }}: {{ urgent_seller_offer.buyer_names or urgent_seller_offer.buyer_agent_name or 'Offer' }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="crm-segment mb-5" data-seller-tabs>
+                            <button type="button" id="seller-tab-overview" class="crm-segment__item is-active" onclick="sellerWorkspaceTab('overview')">
+                                Overview
+                            </button>
+                            <button type="button" id="seller-tab-showings" class="crm-segment__item" onclick="sellerWorkspaceTab('showings')">
+                                Showings{% if feedback_needed_showings %} <span class="text-orange-600">({{ feedback_needed_showings|length }})</span>{% endif %}
+                            </button>
+                            <button type="button" id="seller-tab-offers" class="crm-segment__item" onclick="sellerWorkspaceTab('offers')">
+                                Offers{% if active_seller_offers %} <span class="text-orange-600">({{ active_seller_offers|length }})</span>{% endif %}
+                            </button>
+                            <button type="button" id="seller-tab-contract" class="crm-segment__item" onclick="sellerWorkspaceTab('contract')">
+                                Contract{% if backup_seller_contracts %} <span class="text-slate-400">+ backup</span>{% endif %}
+                            </button>
+                        </div>
+
+                        <div id="seller-panel-overview" class="seller-tab-panel space-y-4">
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Next showing</div>
+                                    {% if upcoming_seller_showings %}
+                                    {% set next_showing = upcoming_seller_showings[0] %}
+                                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ next_showing.scheduled_start_at.strftime('%b %d, %I:%M %p') }}</div>
+                                    <div class="mt-1 truncate text-xs text-slate-500">{{ next_showing.showing_agent_name }}{% if next_showing.showing_agent_brokerage %} · {{ next_showing.showing_agent_brokerage }}{% endif %}</div>
+                                    {% else %}
+                                    <div class="mt-2 text-sm text-slate-500">No upcoming showings</div>
+                                    {% endif %}
+                                </div>
+                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Offer pressure</div>
+                                    {% if urgent_seller_offer %}
+                                    {% set urgent_state = offer_urgency(urgent_seller_offer) %}
+                                    <div class="mt-2 text-sm font-semibold {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% elif urgent_state.state == 'warning' %}text-orange-700{% else %}text-slate-900{% endif %}">
+                                        {{ urgent_state.label }}
+                                    </div>
+                                    <div class="mt-1 truncate text-xs text-slate-500">{{ urgent_seller_offer.buyer_names or urgent_seller_offer.buyer_agent_name or 'Active offer' }}</div>
+                                    {% else %}
+                                    <div class="mt-2 text-sm text-slate-500">No active offers</div>
+                                    {% endif %}
+                                </div>
+                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Contract state</div>
+                                    {% if primary_seller_contract %}
+                                    <div class="mt-2 text-sm font-semibold text-emerald-700">Under contract</div>
+                                    <div class="mt-1 text-xs text-slate-500">{{ backup_seller_contracts|length }} backup contract{% if backup_seller_contracts|length != 1 %}s{% endif %}</div>
+                                    {% else %}
+                                    <div class="mt-2 text-sm text-slate-500">Active listing workflow</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div id="seller-panel-showings" class="seller-tab-panel hidden space-y-4">
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-slate-900">Showings</h3>
+                                        <p class="text-xs text-slate-500">{{ seller_showings|length }} showing{% if seller_showings|length != 1 %}s{% endif %}{% if feedback_needed_showings %} &middot; <span class="text-orange-700">{{ feedback_needed_showings|length }} awaiting feedback</span>{% endif %}</p>
+                                    </div>
+                                    <button type="button" class="crm-btn crm-btn-primary" onclick="showSellerNewShowingModal()">
+                                        <i class="fas fa-plus text-xs"></i>
+                                        Add showing
+                                    </button>
+                                </div>
+                                {% if seller_showings %}
+                                <div class="crm-table-wrap rounded-none border-0">
+                                    <table class="crm-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Agent</th>
+                                                <th>Time</th>
+                                                <th>Buyer</th>
+                                                <th>Feedback</th>
+                                                <th>Status</th>
+                                                <th class="text-right">Work</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for showing in seller_showings %}
+                                            <tr class="group cursor-pointer hover:bg-slate-50" onclick="openSellerShowingModal({{ showing.id }})">
+                                                <td>
+                                                    <div class="font-medium text-slate-900">{{ showing.showing_agent_name }}</div>
+                                                    <div class="text-xs text-slate-500">{{ showing.showing_agent_brokerage or 'No brokerage' }}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="font-medium text-slate-900">{{ showing.scheduled_start_at.strftime('%b %d, %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</div>
+                                                    <div class="text-xs text-slate-500">{% if showing.scheduled_end_at %}Ends {{ showing.scheduled_end_at.strftime('%I:%M %p') }}{% else %}End time TBD{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="text-slate-700">{{ showing.buyer_name or 'Buyer not listed' }}</div>
+                                                    <div class="text-xs text-slate-500">{% if showing.showing_agent_phone %}{{ showing.showing_agent_phone }}{% elif showing.showing_agent_email %}{{ showing.showing_agent_email }}{% else %}No contact info{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    {% if showing.feedback_received_at %}
+                                                    <div class="font-medium text-emerald-700">{{ showing.feedback_interest_level|title if showing.feedback_interest_level else 'Received' }}</div>
+                                                    <div class="text-xs text-slate-500">{{ showing.feedback_likelihood|replace('_', ' ')|title if showing.feedback_likelihood else 'Feedback saved' }}</div>
+                                                    {% elif showing.status == 'completed' %}
+                                                    <div class="font-medium text-amber-700">Needed</div>
+                                                    <div class="text-xs text-slate-500">Completed, no feedback</div>
+                                                    {% else %}
+                                                    <div class="text-slate-500">Pending</div>
+                                                    <div class="text-xs text-slate-500">After showing</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+                                                        {{ showing.status|replace('_', ' ')|title }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <button type="button" class="crm-btn crm-btn-secondary px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openSellerShowingModal({{ showing.id }})">Open</button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="px-4 py-10 text-center">
+                                    <div class="mx-auto mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                                        <i class="fas fa-calendar-plus"></i>
+                                    </div>
+                                    <p class="text-sm text-slate-500">No showings logged yet</p>
+                                    <button type="button" class="crm-btn crm-btn-primary mt-4" onclick="showSellerNewShowingModal()">Add showing</button>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div id="sellerNewShowingModal" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerNewShowingModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(720px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">New showing</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Add showing details</h3>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewShowingModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerShowingForm" class="min-h-0 overflow-y-auto px-5 py-4">
+                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Agent name</span>
+                                                <input name="showing_agent_name" class="crm-input mt-1" placeholder="e.g. Sarah Chen" required>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                <input name="showing_agent_brokerage" class="crm-input mt-1" placeholder="Optional">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Agent email</span>
+                                                <input name="showing_agent_email" type="email" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Agent phone</span>
+                                                <input name="showing_agent_phone" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Buyer name</span>
+                                                <input name="buyer_name" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Status</span>
+                                                <select name="status" class="crm-select mt-1">
+                                                    <option value="scheduled">Scheduled</option>
+                                                    <option value="approved">Approved</option>
+                                                    <option value="pending_approval">Pending Approval</option>
+                                                    <option value="completed">Completed</option>
+                                                </select>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Start</span>
+                                                <input type="datetime-local" name="scheduled_start_at" class="crm-input mt-1" required>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">End</span>
+                                                <input type="datetime-local" name="scheduled_end_at" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block sm:col-span-2">
+                                                <span class="text-xs font-medium text-slate-600">Access instructions snapshot</span>
+                                                <textarea name="access_instructions_snapshot" class="crm-input mt-1 min-h-16" placeholder="What the showing agent needs to know"></textarea>
+                                            </label>
+                                            <label class="block sm:col-span-2">
+                                                <span class="text-xs font-medium text-slate-600">Private notes</span>
+                                                <textarea name="private_notes" class="crm-input mt-1 min-h-16" placeholder="Internal notes, not shared"></textarea>
+                                            </label>
+                                        </div>
+                                        <div class="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewShowingModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-primary" type="submit">Save showing</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {% for showing in seller_showings %}
+                            <div id="sellerShowingModal-{{ showing.id }}" data-seller-showing-modal class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerShowingModal({{ showing.id }})" aria-label="Close"></button>
+                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-y-6 md:left-1/2 md:right-auto md:w-[min(980px,90vw)] md:-translate-x-1/2">
+                                    <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Showing record</p>
+                                            <h3 class="mt-1 truncate text-xl font-semibold text-slate-950">{{ showing.showing_agent_name }}</h3>
+                                            <p class="mt-1 text-xs text-slate-500">{{ showing.scheduled_start_at.strftime('%b %d, %Y at %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</p>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerShowingModal({{ showing.id }})">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4 md:p-5">
+                                        <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                                            <div class="space-y-4">
+                                                <form class="seller-showing-update-form rounded-md border border-slate-200 bg-white p-4" data-showing-id="{{ showing.id }}">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <h4 class="text-sm font-semibold text-slate-900">Showing details</h4>
+                                                            <p class="mt-1 text-xs text-slate-500">Keep appointment details and access notes current.</p>
+                                                        </div>
+                                                        <button class="crm-btn crm-btn-primary" type="submit">Save details</button>
+                                                    </div>
+                                                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Agent name</span>
+                                                            <input name="showing_agent_name" class="crm-input mt-1" value="{{ showing.showing_agent_name or '' }}" required>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Status</span>
+                                                            <select name="status" class="crm-select mt-1">
+                                                                {% for value, label in [('pending_approval', 'Pending Approval'), ('approved', 'Approved'), ('scheduled', 'Scheduled'), ('completed', 'Completed'), ('cancelled', 'Cancelled'), ('declined', 'Declined'), ('no_show', 'No Show')] %}
+                                                                <option value="{{ value }}" {% if showing.status == value %}selected{% endif %}>{{ label }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                            <input name="showing_agent_brokerage" class="crm-input mt-1" value="{{ showing.showing_agent_brokerage or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Buyer name</span>
+                                                            <input name="buyer_name" class="crm-input mt-1" value="{{ showing.buyer_name or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Agent email</span>
+                                                            <input name="showing_agent_email" type="email" class="crm-input mt-1" value="{{ showing.showing_agent_email or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Agent phone</span>
+                                                            <input name="showing_agent_phone" class="crm-input mt-1" value="{{ showing.showing_agent_phone or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Start</span>
+                                                            <input type="datetime-local" name="scheduled_start_at" class="crm-input mt-1" value="{% if showing.scheduled_start_at %}{{ showing.scheduled_start_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}" required>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">End</span>
+                                                            <input type="datetime-local" name="scheduled_end_at" class="crm-input mt-1" value="{% if showing.scheduled_end_at %}{{ showing.scheduled_end_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                        </label>
+                                                        <label class="block md:col-span-2">
+                                                            <span class="text-xs font-medium text-slate-600">Access instructions snapshot</span>
+                                                            <textarea name="access_instructions_snapshot" class="crm-input mt-1 min-h-16">{{ showing.access_instructions_snapshot or '' }}</textarea>
+                                                        </label>
+                                                        <label class="block md:col-span-2">
+                                                            <span class="text-xs font-medium text-slate-600">Private notes</span>
+                                                            <textarea name="private_notes" class="crm-input mt-1 min-h-16">{{ showing.private_notes or '' }}</textarea>
+                                                        </label>
+                                                    </div>
+                                                </form>
+
+                                                <form class="seller-showing-feedback-form rounded-md border border-slate-200 bg-white p-4" data-showing-id="{{ showing.id }}">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <h4 class="text-sm font-semibold text-slate-900">Feedback</h4>
+                                                            <p class="mt-1 text-xs text-slate-500">Capture what happened after the showing.</p>
+                                                        </div>
+                                                        <button class="crm-btn crm-btn-primary" type="submit">Save feedback</button>
+                                                    </div>
+                                                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Interest</span>
+                                                            <select name="feedback_interest_level" class="crm-select mt-1">
+                                                                <option value="">&mdash;</option>
+                                                                <option value="high" {% if showing.feedback_interest_level == 'high' %}selected{% endif %}>High</option>
+                                                                <option value="medium" {% if showing.feedback_interest_level == 'medium' %}selected{% endif %}>Medium</option>
+                                                                <option value="low" {% if showing.feedback_interest_level == 'low' %}selected{% endif %}>Low</option>
+                                                                <option value="none" {% if showing.feedback_interest_level == 'none' %}selected{% endif %}>None</option>
+                                                            </select>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Price reaction</span>
+                                                            <select name="feedback_price_opinion" class="crm-select mt-1">
+                                                                <option value="">&mdash;</option>
+                                                                <option value="high" {% if showing.feedback_price_opinion == 'high' %}selected{% endif %}>Feels high</option>
+                                                                <option value="fair" {% if showing.feedback_price_opinion == 'fair' %}selected{% endif %}>Feels fair</option>
+                                                                <option value="low" {% if showing.feedback_price_opinion == 'low' %}selected{% endif %}>Feels low</option>
+                                                                <option value="unknown" {% if showing.feedback_price_opinion == 'unknown' %}selected{% endif %}>Not discussed</option>
+                                                            </select>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Likelihood</span>
+                                                            <select name="feedback_likelihood" class="crm-select mt-1">
+                                                                <option value="">&mdash;</option>
+                                                                <option value="likely_offer" {% if showing.feedback_likelihood == 'likely_offer' %}selected{% endif %}>Likely offer</option>
+                                                                <option value="maybe" {% if showing.feedback_likelihood == 'maybe' %}selected{% endif %}>Maybe</option>
+                                                                <option value="unlikely" {% if showing.feedback_likelihood == 'unlikely' %}selected{% endif %}>Unlikely</option>
+                                                                <option value="unknown" {% if showing.feedback_likelihood == 'unknown' %}selected{% endif %}>Unknown</option>
+                                                            </select>
+                                                        </label>
+                                                        <label class="block md:col-span-3">
+                                                            <span class="text-xs font-medium text-slate-600">Notes</span>
+                                                            <textarea name="feedback_notes" class="crm-input mt-1 min-h-[72px]" placeholder="Overall impression, buyer reactions, questions asked">{{ showing.feedback_notes or '' }}</textarea>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Condition comments</span>
+                                                            <textarea name="feedback_condition_comments" class="crm-input mt-1 min-h-[56px]">{{ showing.feedback_condition_comments or '' }}</textarea>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Objections</span>
+                                                            <textarea name="feedback_objections" class="crm-input mt-1 min-h-[56px]">{{ showing.feedback_objections or '' }}</textarea>
+                                                        </label>
+                                                        <label class="flex items-center gap-2 self-end text-sm text-slate-600">
+                                                            <input type="checkbox" name="feedback_follow_up_requested" value="true" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500" {% if showing.feedback_follow_up_requested %}checked{% endif %}>
+                                                            Follow-up requested
+                                                        </label>
+                                                    </div>
+                                                </form>
+                                            </div>
+
+                                            <aside class="space-y-4">
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <h4 class="text-sm font-semibold text-slate-900">Snapshot</h4>
+                                                    <dl class="mt-3 grid grid-cols-1 gap-3 text-sm">
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Appointment</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{{ showing.scheduled_start_at.strftime('%b %d, %Y at %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Buyer</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{{ showing.buyer_name or 'Not listed' }}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Feedback</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if showing.feedback_received_at %}Received {{ showing.feedback_received_at.strftime('%b %d, %I:%M %p') }}{% else %}Not logged{% endif %}</dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+                                                {% if showing.feedback_notes %}
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <h4 class="text-sm font-semibold text-slate-900">Latest feedback note</h4>
+                                                    <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ showing.feedback_notes }}</p>
+                                                </div>
+                                                {% endif %}
+                                            </aside>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div id="seller-panel-offers" class="seller-tab-panel hidden space-y-4">
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-slate-900">Offers</h3>
+                                        <p class="text-xs text-slate-500">Quick glance only. Open an offer to work documents, details, and decisions.</p>
+                                    </div>
+                                    <button type="button" class="crm-btn crm-btn-primary" onclick="showSellerNewOfferModal()">
+                                        <i class="fas fa-plus text-xs"></i>
+                                        Log offer
+                                    </button>
+                                </div>
+                                {% if seller_offers %}
+                                <div class="crm-table-wrap rounded-none border-0">
+                                    <table class="crm-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Buyer</th>
+                                                <th>Offer</th>
+                                                <th>Deadline</th>
+                                                <th>Docs</th>
+                                                <th>Status</th>
+                                                <th class="text-right">Work</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for offer in seller_offers %}
+                                            {% set urgency = offer_urgency(offer) %}
+                                            {% set extraction_state = seller_offer_extraction_status.get(offer.id) if seller_offer_extraction_status else None %}
+                                            {% set offer_versions = seller_offer_versions_by_offer.get(offer.id, []) %}
+                                            {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
+                                            {% set legacy_documents = offer_versions|selectattr('document')|list %}
+                                            {% set offer_document_count = package_documents|length if package_documents else legacy_documents|length %}
+                                            <tr class="group cursor-pointer hover:bg-slate-50" onclick="openSellerOfferModal({{ offer.id }})">
+                                                <td>
+                                                    <div class="font-medium text-slate-900">{{ offer.buyer_names or 'Unnamed buyer' }}</div>
+                                                    <div class="text-xs text-slate-500">{{ offer.buyer_agent_name or 'No agent yet' }}{% if offer.buyer_agent_brokerage %} · {{ offer.buyer_agent_brokerage }}{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="font-semibold text-slate-900">{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}Price TBD{% endif %}</div>
+                                                    <div class="text-xs text-slate-500">{{ offer.financing_type or 'Financing TBD' }}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="{% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% else %}text-slate-600{% endif %}">
+                                                        {{ urgency.label }}
+                                                    </div>
+                                                    <div class="text-xs text-slate-500">{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% else %}No response deadline{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="text-slate-700">{{ offer_document_count }} document{% if offer_document_count != 1 %}s{% endif %}</div>
+                                                    {% if extraction_state and extraction_state != 'complete' %}
+                                                    <div class="text-xs {% if extraction_state == 'failed' %}text-red-600{% else %}text-sky-600{% endif %}">
+                                                        <i class="fas {% if extraction_state == 'failed' %}fa-exclamation-circle{% else %}fa-spinner fa-spin{% endif %} mr-0.5 text-[10px]"></i>
+                                                        {{ extraction_state|replace('_', ' ') }}
+                                                    </div>
+                                                    {% else %}
+                                                    <div class="text-xs text-slate-500">{{ offer_versions|length }} version{% if offer_versions|length != 1 %}s{% endif %}</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+                                                        {{ offer.status|replace('_', ' ')|title }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <button type="button" class="crm-btn crm-btn-secondary px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openSellerOfferModal({{ offer.id }})">
+                                                        Open
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="px-4 py-10 text-center">
+                                    <div class="mx-auto mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                                        <i class="fas fa-handshake"></i>
+                                    </div>
+                                    <p class="text-sm text-slate-500">No offers yet</p>
+                                    <p class="mt-1 text-xs text-slate-400">Log terms first or start from a PDF.</p>
+                                    <button type="button" class="crm-btn crm-btn-primary mt-4" onclick="showSellerNewOfferModal()">Log offer</button>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div id="sellerNewOfferModal" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(720px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">New offer</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Log details or start from a PDF</h3>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewOfferModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerOfferForm" class="min-h-0 overflow-y-auto px-5 py-4">
+                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Buyer name(s)</span>
+                                                <input name="buyer_names" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Buyer agent</span>
+                                                <input name="buyer_agent_name" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                <input name="buyer_agent_brokerage" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Response deadline</span>
+                                                <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Offer price</span>
+                                                <input name="terms_data[offer_price]" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Financing</span>
+                                                <input name="terms_data[financing_type]" class="crm-input mt-1" placeholder="Conventional, FHA, cash">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Earnest money</span>
+                                                <input name="terms_data[earnest_money]" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Option days</span>
+                                                <input name="terms_data[option_period_days]" class="crm-input mt-1" placeholder="Days">
+                                            </label>
+                                        </div>
+                                        <div class="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewOfferModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-primary" type="submit">Save offer</button>
+                                        </div>
+                                    </form>
+                                    <form class="seller-offer-upload-form border-t border-slate-200 bg-slate-50 px-5 py-4" enctype="multipart/form-data">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <h4 class="text-sm font-semibold text-slate-900">Start from PDFs instead</h4>
+                                                <p class="mt-1 text-xs text-slate-500">Upload the contract and any supporting documents in one package.</p>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Offer package PDFs</span>
+                                                <input type="file" name="files" accept="application/pdf" class="crm-input mt-1 seller-offer-file-input" multiple required>
+                                            </label>
+                                            <button class="crm-btn crm-btn-primary justify-center" type="submit">Upload &amp; extract</button>
+                                        </div>
+                                        <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {% for offer in seller_offers %}
+                            {% set urgency = offer_urgency(offer) %}
+                            {% set offer_versions = seller_offer_versions_by_offer.get(offer.id, []) %}
+                            {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
+                            {% set activities = seller_offer_activities_by_offer.get(offer.id, []) %}
+                            <div id="sellerOfferModal-{{ offer.id }}" data-seller-offer-modal class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerOfferModal({{ offer.id }})" aria-label="Close"></button>
+                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-y-6 md:left-1/2 md:right-auto md:w-[min(1040px,90vw)] md:-translate-x-1/2">
+                                    <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Offer command center</p>
+                                            <h3 class="mt-1 truncate text-xl font-semibold text-slate-950">{{ offer.buyer_names or offer.buyer_agent_name or 'Unnamed offer' }}</h3>
+                                            <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                                <span>{{ offer.status|replace('_', ' ')|title }}</span>
+                                                <span class="text-slate-300">&middot;</span>
+                                                <span class="{% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% endif %}">
+                                                    {{ urgency.label }}{% if offer.response_deadline_at %}: {{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            {% if offer.status in ['new', 'reviewing', 'needs_review', 'countered'] %}
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="acceptSellerOffer({{ offer.id }}, 'backup')">Accept backup</button>
+                                            <button type="button" class="crm-btn crm-btn-primary" onclick="acceptSellerOffer({{ offer.id }}, 'primary')">Accept primary</button>
+                                            {% endif %}
+                                            <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerOfferModal({{ offer.id }})">
+                                                <i class="fas fa-times text-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4 md:p-5">
+                                        <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                                            <div class="space-y-4">
+                                                <form class="seller-offer-update-form rounded-md border border-slate-200 bg-white p-4" data-offer-id="{{ offer.id }}">
+                                                    <div class="flex items-center justify-between gap-3">
+                                                        <div>
+                                                            <h4 class="text-sm font-semibold text-slate-900">Offer details</h4>
+                                                            <p class="mt-1 text-xs text-slate-500">Keep verbal terms and AI-extracted terms aligned.</p>
+                                                        </div>
+                                                        <button class="crm-btn crm-btn-primary" type="submit">Save details</button>
+                                                    </div>
+                                                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Buyer name(s)</span>
+                                                            <input name="buyer_names" class="crm-input mt-1" value="{{ offer.buyer_names or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Status</span>
+                                                            <select name="status" class="crm-select mt-1">
+                                                                {% for value, label in [('new', 'New'), ('reviewing', 'Reviewing'), ('needs_review', 'Needs Review'), ('countered', 'Countered'), ('accepted_primary', 'Accepted Primary'), ('accepted_backup', 'Accepted Backup'), ('declined', 'Declined'), ('withdrawn', 'Withdrawn'), ('expired', 'Expired')] %}
+                                                                <option value="{{ value }}" {% if offer.status == value %}selected{% endif %}>{{ label }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Buyer agent</span>
+                                                            <input name="buyer_agent_name" class="crm-input mt-1" value="{{ offer.buyer_agent_name or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                            <input name="buyer_agent_brokerage" class="crm-input mt-1" value="{{ offer.buyer_agent_brokerage or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Agent email</span>
+                                                            <input name="buyer_agent_email" type="email" class="crm-input mt-1" value="{{ offer.buyer_agent_email or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Agent phone</span>
+                                                            <input name="buyer_agent_phone" class="crm-input mt-1" value="{{ offer.buyer_agent_phone or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Response deadline</span>
+                                                            <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1" value="{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Offer price</span>
+                                                            <input name="terms_data[offer_price]" class="crm-input mt-1" value="{{ offer.offer_price or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Financing</span>
+                                                            <input name="terms_data[financing_type]" class="crm-input mt-1" value="{{ offer.financing_type or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Proposed close date</span>
+                                                            <input type="date" name="terms_data[proposed_close_date]" class="crm-input mt-1" value="{% if offer.proposed_close_date %}{{ offer.proposed_close_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Earnest money</span>
+                                                            <input name="terms_data[earnest_money]" class="crm-input mt-1" value="{{ offer.earnest_money or '' }}">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Option days</span>
+                                                            <input name="terms_data[option_period_days]" class="crm-input mt-1" value="{{ offer.option_period_days or '' }}">
+                                                        </label>
+                                                        <label class="block md:col-span-2">
+                                                            <span class="text-xs font-medium text-slate-600">Seller concessions</span>
+                                                            <input name="terms_data[seller_concessions_amount]" class="crm-input mt-1" value="{{ offer.seller_concessions_amount or '' }}">
+                                                        </label>
+                                                    </div>
+                                                </form>
+
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                                        <div>
+                                                            <h4 class="text-sm font-semibold text-slate-900">Offer documents</h4>
+                                                            <p class="mt-1 text-xs text-slate-500">Upload PDFs here to attach them to this offer and run AI extraction. New offer contracts become the next version and update the current offer terms.</p>
+                                                        </div>
+                                                    </div>
+                                                    <form class="seller-offer-upload-form mt-4 rounded-md border border-slate-200 bg-slate-50 p-3" enctype="multipart/form-data">
+                                                        <input type="hidden" name="offer_id" value="{{ offer.id }}">
+                                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                                                            <label class="block">
+                                                                <span class="text-xs font-medium text-slate-600">PDF documents</span>
+                                                                <input type="file" name="files" accept="application/pdf" class="crm-input mt-1 seller-offer-file-input" multiple required>
+                                                            </label>
+                                                            <button class="crm-btn crm-btn-primary justify-center" type="submit">Upload &amp; extract</button>
+                                                        </div>
+                                                        <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
+                                                    </form>
+                                                    <div class="mt-4 overflow-hidden rounded-md border border-slate-200">
+                                                        {% if package_documents %}
+                                                        {% for offer_document in package_documents %}
+                                                        {% set doc = offer_document.document %}
+                                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                                            <div class="min-w-0">
+                                                                <div class="flex flex-wrap items-center gap-2">
+                                                                    <span class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</span>
+                                                                    {% if offer_document.is_primary_terms_document and offer_document.offer_version %}
+                                                                    <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Version {{ offer_document.offer_version.version_number }}</span>
+                                                                    {% if offer.current_version_id == offer_document.offer_version_id %}
+                                                                    <span class="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700">Current terms</span>
+                                                                    {% endif %}
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="mt-1 truncate text-xs text-slate-500">
+                                                                    {% if doc %}
+                                                                    {{ doc.signed_original_filename or doc.template_name }}
+                                                                    {% else %}
+                                                                    Document record pending
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ offer_document.document_type|replace('_', ' ')|title }}</span>
+                                                                    {% if doc and doc.extraction_status %}
+                                                                    <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{{ doc.extraction_status|replace('_', ' ')|title }}</span>
+                                                                    {% endif %}
+                                                                    {% if offer_document.offer_version and offer_document.offer_version.submitted_at %}
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">Submitted {{ offer_document.offer_version.submitted_at.strftime('%b %d, %Y') }}</span>
+                                                                    {% elif doc and doc.signed_at %}
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">Uploaded {{ doc.signed_at.strftime('%b %d, %Y') }}</span>
+                                                                    {% elif offer_document.created_at %}
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">Added {{ offer_document.created_at.strftime('%b %d, %Y') }}</span>
+                                                                    {% endif %}
+                                                                    {% if offer_document.extraction_summary %}
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">{{ offer_document.extraction_summary|length }} fields extracted</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                            {% if doc and doc.signed_file_path %}
+                                                            <div class="flex w-full justify-end gap-2 sm:w-auto">
+                                                                <button type="button" class="crm-btn crm-btn-secondary min-w-20 justify-center px-3 py-1.5 text-xs" onclick="viewStoredDocument({{ doc.id }})">View</button>
+                                                                <button type="button" class="crm-btn crm-btn-secondary min-w-24 justify-center px-3 py-1.5 text-xs" onclick="downloadDocument({{ doc.id }})">Download</button>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endfor %}
+                                                        {% elif offer_versions %}
+                                                        {% for version in offer_versions %}
+                                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                                            <div class="min-w-0">
+                                                                <div class="flex flex-wrap items-center gap-2">
+                                                                    <span class="text-sm font-semibold text-slate-900">Version {{ version.version_number }} &middot; {{ version.direction|replace('_', ' ')|title }}</span>
+                                                                    {% if offer.current_version_id == version.id %}
+                                                                    <span class="rounded-md bg-orange-50 px-1.5 py-0.5 text-[11px] font-medium text-orange-700">Current terms</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="mt-1 truncate text-xs text-slate-500">
+                                                                    {% if version.document %}
+                                                                    {{ version.document.signed_original_filename or version.document.template_name }}
+                                                                    {% else %}
+                                                                    Manual/verbal version
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% if version.document and version.document.extraction_status %}
+                                                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                                                    <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{{ version.document.extraction_status|replace('_', ' ')|title }}</span>
+                                                                    {% if version.submitted_at %}
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">Submitted {{ version.submitted_at.strftime('%b %d, %Y') }}</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                {% elif version.submitted_at %}
+                                                                <div class="mt-2">
+                                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">Submitted {{ version.submitted_at.strftime('%b %d, %Y') }}</span>
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                            {% if version.document and version.document.signed_file_path %}
+                                                            <div class="flex w-full justify-end gap-2 sm:w-auto">
+                                                                <button type="button" class="crm-btn crm-btn-secondary min-w-20 justify-center px-3 py-1.5 text-xs" onclick="viewStoredDocument({{ version.document.id }})">View</button>
+                                                                <button type="button" class="crm-btn crm-btn-secondary min-w-24 justify-center px-3 py-1.5 text-xs" onclick="downloadDocument({{ version.document.id }})">Download</button>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endfor %}
+                                                        {% else %}
+                                                        <div class="bg-white p-4 text-sm text-slate-500">
+                                                            No versions yet. Save details or upload a PDF to start the offer record.
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <aside class="space-y-4">
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <h4 class="text-sm font-semibold text-slate-900">Decision actions</h4>
+                                                    <div class="mt-3 grid grid-cols-1 gap-2">
+                                                        <button type="button" class="crm-btn crm-btn-primary justify-center" onclick="acceptSellerOffer({{ offer.id }}, 'primary')">Accept as primary</button>
+                                                        <button type="button" class="crm-btn crm-btn-secondary justify-center" onclick="acceptSellerOffer({{ offer.id }}, 'backup')">Accept as backup</button>
+                                                        <button type="button" class="crm-btn crm-btn-secondary justify-center" onclick="expireSellerOffer({{ offer.id }})">Check expiration</button>
+                                                    </div>
+                                                </div>
+
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <h4 class="text-sm font-semibold text-slate-900">Snapshot</h4>
+                                                    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Price</dt>
+                                                            <dd class="mt-0.5 font-semibold text-slate-900">{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Financing</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{{ offer.financing_type or 'TBD' }}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Close date</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if offer.proposed_close_date %}{{ offer.proposed_close_date.strftime('%b %d, %Y') }}{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Option</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if offer.option_period_days %}{{ offer.option_period_days }} days{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                    </dl>
+                                                </div>
+
+                                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                                    <h4 class="text-sm font-semibold text-slate-900">Activity</h4>
+                                                    {% if activities %}
+                                                    <div class="mt-3 space-y-3">
+                                                        {% for activity in activities %}
+                                                        <div>
+                                                            <div class="text-sm font-medium text-slate-800">{{ activity.label }}</div>
+                                                            <div class="mt-0.5 text-xs text-slate-500">{{ activity.created_at.strftime('%b %d, %I:%M %p') }}</div>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% else %}
+                                                    <p class="mt-3 text-sm text-slate-500">No activity yet.</p>
+                                                    {% endif %}
+                                                </div>
+                                            </aside>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div id="seller-panel-contract" class="seller-tab-panel hidden space-y-4">
+                            {% if primary_seller_contract %}
+                            <div class="rounded-md border border-emerald-200 bg-emerald-50 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-emerald-900">Primary contract active</h3>
+                                        <p class="mt-1 text-xs text-emerald-700">
+                                            {% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% endif %}
+                                            {% if primary_seller_contract.closing_date %} · Closing {{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="showTerminateContractForm()">Terminate</button>
+                                        <button type="button" class="crm-btn crm-btn-primary" onclick="showCloseContractForm()">Mark closed</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% set primary_contract_docs = seller_contract_documents_by_contract.get(primary_seller_contract.id, []) if seller_contract_documents_by_contract else [] %}
+                            {% set contract_supporting = primary_seller_contract.extra_data.get('supporting_documents', {}) if primary_seller_contract.extra_data else {} %}
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
+                                <div class="rounded-md border border-slate-200">
+                                    <div class="border-b border-slate-200 px-4 py-3">
+                                        <h3 class="text-sm font-semibold text-slate-900">Contract package</h3>
+                                        <p class="mt-1 text-xs text-slate-500">Documents inherited from the accepted offer.</p>
+                                    </div>
+                                    <div class="overflow-hidden rounded-md border border-slate-200">
+                                        {% for offer_document in primary_contract_docs %}
+                                        {% set doc = offer_document.document %}
+                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</div>
+                                                <div class="mt-1 truncate text-xs text-slate-500">
+                                                    {% if doc %}
+                                                    {{ doc.signed_original_filename or doc.template_name }}
+                                                    {% else %}
+                                                    Document reference captured at acceptance
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ offer_document.document_type|replace('_', ' ')|title }}</span>
+                                                    {% if doc and doc.extraction_status %}
+                                                    <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{{ doc.extraction_status|replace('_', ' ')|title }}</span>
+                                                    {% endif %}
+                                                    {% if offer_document.extraction_summary %}
+                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">{{ offer_document.extraction_summary|length }} fields extracted</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% if doc and doc.signed_file_path %}
+                                            <div class="flex w-full justify-end gap-2 sm:w-auto">
+                                                <button type="button" class="crm-btn crm-btn-secondary min-w-20 justify-center px-3 py-1.5 text-xs" onclick="viewStoredDocument({{ doc.id }})">View</button>
+                                                <button type="button" class="crm-btn crm-btn-secondary min-w-24 justify-center px-3 py-1.5 text-xs" onclick="downloadDocument({{ doc.id }})">Download</button>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <div class="bg-white px-4 py-6 text-sm text-slate-500">No offer package documents were captured for this contract.</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="rounded-md border border-slate-200 p-4">
+                                    <h3 class="text-sm font-semibold text-slate-900">Accepted contract details</h3>
+                                    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                        <div>
+                                            <dt class="text-xs font-medium text-slate-500">Price</dt>
+                                            <dd class="mt-0.5 font-semibold text-slate-900">{% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% else %}TBD{% endif %}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs font-medium text-slate-500">Close date</dt>
+                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% else %}TBD{% endif %}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs font-medium text-slate-500">Financing deadline</dt>
+                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%b %d, %Y') }}{% else %}TBD{% endif %}</dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-xs font-medium text-slate-500">Option</dt>
+                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.option_period_days %}{{ primary_seller_contract.option_period_days }} days{% else %}TBD{% endif %}</dd>
+                                        </div>
+                                    </dl>
+                                    {% if contract_supporting %}
+                                    <div class="mt-4 border-t border-slate-200 pt-3">
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Supporting data</div>
+                                        <div class="mt-2 flex flex-wrap gap-1.5">
+                                            {% for doc_type, extracted in contract_supporting.items() %}
+                                            <span class="inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{{ doc_type|replace('_', ' ')|title }} · {{ extracted|length }} fields</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if backup_seller_contracts %}
+                            <div class="rounded-md border border-sky-200 bg-sky-50 p-4">
+                                <h3 class="text-sm font-semibold text-sky-900">Backup contracts</h3>
+                                <div class="mt-2 space-y-2">
+                                    {% for contract in backup_seller_contracts %}
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-sky-800">Backup position {{ contract.backup_position or loop.index }}</span>
+                                        <span class="text-sky-700">{% if contract.accepted_price %}${{ "{:,.0f}".format(contract.accepted_price) }}{% else %}Accepted backup{% endif %}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% set milestone_status_styles = {
+                                'completed': {'dot': 'bg-emerald-500', 'badge': 'border-emerald-200 bg-emerald-50 text-emerald-700', 'label': 'Completed'},
+                                'overdue': {'dot': 'bg-red-500', 'badge': 'border-red-200 bg-red-50 text-red-700', 'label': 'Overdue'},
+                                'due_soon': {'dot': 'bg-amber-500', 'badge': 'border-amber-200 bg-amber-50 text-amber-700', 'label': 'Due soon'},
+                                'waiting': {'dot': 'bg-sky-500', 'badge': 'border-sky-200 bg-sky-50 text-sky-700', 'label': 'Waiting'},
+                                'not_started': {'dot': 'bg-slate-300', 'badge': 'border-slate-200 bg-slate-100 text-slate-600', 'label': 'Not started'},
+                                'not_applicable': {'dot': 'bg-slate-200', 'badge': 'border-slate-200 bg-slate-50 text-slate-500', 'label': 'N/A'}
+                            } %}
+                            {% set milestone_status_options = [('not_started', 'Not started'), ('waiting', 'Waiting'), ('due_soon', 'Due soon'), ('overdue', 'Overdue'), ('completed', 'Completed'), ('not_applicable', 'Not applicable')] %}
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div class="min-w-0">
+                                        <h3 class="text-sm font-semibold text-slate-900">Milestones</h3>
+                                        <p class="mt-0.5 text-xs text-slate-500">Auto-built from contract terms. Click a row to edit, or add your own.</p>
+                                    </div>
+                                    <button type="button" class="crm-btn crm-btn-secondary shrink-0" data-toggle="seller-manual-milestone">
+                                        <i class="fas fa-plus text-xs"></i>
+                                        <span>Add milestone</span>
+                                    </button>
+                                </div>
+                                <form id="sellerManualMilestoneForm" class="hidden border-b border-slate-200 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}">
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                            <input name="title" class="crm-input mt-1" placeholder="e.g. HOA resale certificate ordered" required>
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Due</span>
+                                            <input type="datetime-local" name="due_at" class="crm-input mt-1">
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Status</span>
+                                            <select name="status" class="crm-select mt-1">
+                                                {% for value, label in milestone_status_options %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <label class="mt-3 block">
+                                        <span class="text-xs font-medium text-slate-600">Notes</span>
+                                        <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Optional"></textarea>
+                                    </label>
+                                    <div class="mt-3 flex items-center justify-end gap-2">
+                                        <button type="button" class="crm-btn crm-btn-secondary" data-toggle-cancel="seller-manual-milestone">Cancel</button>
+                                        <button type="submit" class="crm-btn crm-btn-primary">Add milestone</button>
+                                    </div>
+                                </form>
+                                <div class="divide-y divide-slate-100">
+                                    {% for milestone in seller_contract_milestones %}
+                                    {% set status_key = milestone.status if milestone.status in milestone_status_styles else 'not_started' %}
+                                    {% set status_style = milestone_status_styles[status_key] %}
+                                    <div class="seller-milestone" data-milestone-id="{{ milestone.id }}">
+                                        <button type="button" class="seller-milestone-toggle group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                                            <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full {{ status_style.dot }}"></span>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <span class="text-sm font-medium text-slate-900">{{ milestone.title }}</span>
+                                                    <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium {{ status_style.badge }}">{{ status_style.label }}</span>
+                                                    {% if milestone.source and milestone.source != 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Auto</span>
+                                                    {% elif milestone.source == 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Manual</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                                                    {% if milestone.due_at %}
+                                                    <span class="inline-flex items-center gap-1">
+                                                        <i class="far fa-calendar text-[10px] text-slate-400"></i>
+                                                        {{ milestone.due_at.strftime('%a, %b %d') }}
+                                                        <span class="text-slate-400">{{ milestone.due_at.strftime('%I:%M %p').lstrip('0') }}</span>
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-slate-400">No date set</span>
+                                                    {% endif %}
+                                                    {% if milestone.completed_at %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span>Completed {{ milestone.completed_at.strftime('%b %d') }}</span>
+                                                    {% endif %}
+                                                    {% if milestone.notes %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span class="truncate text-slate-500" title="{{ milestone.notes }}">{{ milestone.notes }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform seller-milestone-chevron"></i>
+                                        </button>
+                                        <form class="seller-milestone-form hidden border-t border-slate-100 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}" data-milestone-id="{{ milestone.id }}">
+                                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                                    <input name="title" class="crm-input mt-1" value="{{ milestone.title }}" required>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Due</span>
+                                                    <input type="datetime-local" name="due_at" class="crm-input mt-1" value="{% if milestone.due_at %}{{ milestone.due_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Status</span>
+                                                    <select name="status" class="crm-select mt-1">
+                                                        {% for value, label in milestone_status_options %}
+                                                        <option value="{{ value }}" {% if status_key == value %}selected{% endif %}>{{ label }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </label>
+                                            </div>
+                                            <label class="mt-3 block">
+                                                <span class="text-xs font-medium text-slate-600">Notes</span>
+                                                <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Internal notes, vendor follow-up, document reference">{{ milestone.notes or '' }}</textarea>
+                                            </label>
+                                            <div class="mt-3 flex items-center justify-end gap-2">
+                                                <button type="button" class="crm-btn crm-btn-secondary seller-milestone-cancel">Cancel</button>
+                                                <button type="submit" class="crm-btn crm-btn-primary">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                    <div class="px-4 py-10 text-center">
+                                        <div class="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <i class="far fa-calendar-check"></i>
+                                        </div>
+                                        <p class="mt-2 text-sm font-medium text-slate-700">No milestones yet</p>
+                                        <p class="mt-1 text-xs text-slate-500">Milestones populate automatically when an offer is accepted, or you can add one manually.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div id="terminateContractForm" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeTerminateContractModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(560px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-red-600">Contract action</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Terminate contract</h3>
+                                            <p class="mt-1 text-xs text-slate-500">Record the reason and any backup contract you want to promote.</p>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeTerminateContractModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerTerminateForm" class="min-h-0 overflow-y-auto px-5 py-4 space-y-4" data-contract-id="{{ primary_seller_contract.id }}">
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Reason</span>
+                                            <select name="termination_reason" class="crm-select mt-1">
+                                                <option value="option_period">Option period</option>
+                                                <option value="financing">Financing</option>
+                                                <option value="appraisal">Appraisal</option>
+                                                <option value="inspection_repairs">Inspection repairs</option>
+                                                <option value="mutual_release">Mutual release</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </label>
+                                        {% if backup_seller_contracts %}
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Backup promotion</span>
+                                                <select name="promote_backup_contract_id" class="crm-select mt-1">
+                                                    <option value="">Return to active instead</option>
+                                                    {% for contract in backup_seller_contracts %}
+                                                    <option value="{{ contract.id }}">Promote backup {{ contract.backup_position or loop.index }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Notice received</span>
+                                                <input type="datetime-local" name="backup_notice_received_at" class="crm-input mt-1">
+                                            </label>
+                                        </div>
+                                        {% endif %}
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Notes</span>
+                                            <textarea name="notes" class="crm-input mt-1 min-h-20" placeholder="Termination notes"></textarea>
+                                        </label>
+                                        <div class="flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeTerminateContractModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-danger" type="submit">Confirm termination</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div id="closeContractForm" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeCloseContractModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(640px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Contract action</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Close transaction</h3>
+                                            <p class="mt-1 text-xs text-slate-500">Capture the final closing details and mark this transaction closed.</p>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeCloseContractModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerCloseForm" class="min-h-0 overflow-y-auto px-5 py-4" data-contract-id="{{ primary_seller_contract.id }}">
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Closing date</span>
+                                                <input type="date" name="actual_closing_date" class="crm-input mt-1" required>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Final sales price</span>
+                                                <input name="final_sales_price" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Listing commission</span>
+                                                <input name="final_listing_commission" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Net proceeds</span>
+                                                <input name="final_net_proceeds" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                        </div>
+                                        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="final_walkthrough_complete" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500"> Final walkthrough complete</label>
+                                            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="key_access_handoff_complete" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500"> Key/access handoff complete</label>
+                                        </div>
+                                        <div class="mt-5 flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeCloseContractModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-primary" type="submit">Mark as closed</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="rounded-md border border-slate-200 p-8 text-center">
+                                <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                                    <i class="fas fa-file-signature"></i>
+                                </div>
+                                <h3 class="text-sm font-semibold text-slate-900">No primary contract yet</h3>
+                                <p class="mt-1 text-sm text-slate-500">Accept an offer as primary to start the Texas under-contract timeline.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
                 {% if transaction.transaction_type.name == 'buyer' %}
                 {# Buyer-only: tab switcher #}
                 <div class="crm-segment">
@@ -315,7 +1518,8 @@
                 <div id="content-details" class="tab-content active space-y-5">
                 {% endif %}
 
-                {# ----- Property details card ----- #}
+                {# ----- Property details card (non-seller types) ----- #}
+                {% if transaction.transaction_type.name != 'seller' %}
                 <section id="transaction-documents-card" class="crm-surface scroll-mt-28">
                     <div class="crm-surface-header">
                         {{ section_header('Property details') }}
@@ -368,6 +1572,7 @@
                         </div>
                     </div>
                 </section>
+                {% endif %}
 
                 {# ----- Property questionnaire card ----- #}
                 {% if has_intake_schema %}
@@ -424,11 +1629,11 @@
                 </section>
                 {% endif %}
 
-                {# ----- Documents card ----- #}
+                {# ----- Listing documents card ----- #}
                 <section class="crm-surface">
                     <div class="crm-surface-header">
                         <div>
-                            {{ section_header('Documents') }}
+                            {{ section_header('Listing Documents') }}
                             {% if document_workflow_mode == 'placeholder_upload_only' and documents %}
                             {% set uploaded_count = documents|selectattr('status', 'equalto', 'signed')|list|length %}
                             <p class="mt-1 text-xs text-slate-500">{{ uploaded_count }}/{{ documents|length }} uploaded</p>
@@ -999,6 +2204,7 @@
                     <div class="crm-surface-header">
                         <div class="flex items-center gap-3">
                             {{ section_header('Listing info') }}
+                            <span id="listing-info-status">
                             {% if listing_extraction_status == 'pending' or listing_extraction_status == 'processing' %}
                             <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
                                 <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
@@ -1015,6 +2221,7 @@
                                 Failed
                             </span>
                             {% endif %}
+                            </span>
                         </div>
                     </div>
                     <div class="crm-surface-body">
@@ -1177,6 +2384,67 @@
                     };
                 })();
                 </script>
+
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        <div>
+                            {{ section_header('Showing access') }}
+                            <p class="mt-1 text-xs text-slate-500">Showing approvals and public access notes.</p>
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <form id="sellerListingProfileForm" class="space-y-3">
+                            <label class="block">
+                                <span class="text-xs font-medium text-slate-600">Approval policy</span>
+                                <select name="showing_approval_policy" class="crm-select mt-1">
+                                    {% set approval_policy = seller_listing_profile.showing_approval_policy if seller_listing_profile else 'manual' %}
+                                    <option value="manual" {% if approval_policy == 'manual' %}selected{% endif %}>Manual approval</option>
+                                    <option value="auto_approve" {% if approval_policy == 'auto_approve' %}selected{% endif %}>Auto approve</option>
+                                    <option value="blocked" {% if approval_policy == 'blocked' %}selected{% endif %}>Blocked</option>
+                                </select>
+                            </label>
+                            <label class="block">
+                                <span class="text-xs font-medium text-slate-600">Access type</span>
+                                <input name="access_type" class="crm-input mt-1" value="{{ seller_listing_profile.access_type if seller_listing_profile else '' }}" placeholder="Lockbox, Supra, appointment only">
+                            </label>
+                            <label class="block">
+                                <span class="text-xs font-medium text-slate-600">Public showing instructions</span>
+                                <textarea name="public_showing_instructions" class="crm-input mt-1 min-h-20" placeholder="Access notes shared with showing agents">{{ seller_listing_profile.public_showing_instructions if seller_listing_profile else '' }}</textarea>
+                            </label>
+                            <button class="crm-btn crm-btn-secondary w-full justify-center" type="submit">Save access setup</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        <div class="flex w-full items-start justify-between gap-3">
+                            <div>
+                                {{ section_header('Highest and best') }}
+                                <p class="mt-1 text-xs text-slate-500">Set a listing-wide cutoff for revised offers.</p>
+                            </div>
+                            {% if seller_listing_profile and seller_listing_profile.highest_best_enabled %}
+                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700">
+                                <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+                                Active
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <form id="highestBestForm" class="space-y-3">
+                            <label class="block">
+                                <span class="text-xs font-medium text-slate-600">Deadline</span>
+                                <input type="datetime-local" name="highest_best_deadline_at" class="crm-input mt-1">
+                            </label>
+                            <label class="block">
+                                <span class="text-xs font-medium text-slate-600">Message</span>
+                                <textarea name="highest_best_message" class="crm-input mt-1 min-h-16" placeholder="Please submit highest and best by...">{{ seller_listing_profile.highest_best_message if seller_listing_profile else '' }}</textarea>
+                            </label>
+                            <button class="crm-btn crm-btn-primary w-full justify-center" type="submit">Start highest and best</button>
+                        </form>
+                    </div>
+                </section>
                 {% else %}
                 {# ----- Recent activity card (non-seller) ----- #}
                 <section class="crm-surface">

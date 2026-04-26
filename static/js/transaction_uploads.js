@@ -36,6 +36,186 @@ function formatFileSize(bytes) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function listingInfoValue(value) {
+    return value ? escapeHtml(value) : '&mdash;';
+}
+
+function setListingInfoStatus(status) {
+    const statusEl = document.getElementById('listing-info-status');
+    if (!statusEl) return;
+
+    if (status === 'complete') {
+        statusEl.innerHTML = `
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                Loaded
+            </span>
+        `;
+    } else if (status === 'failed') {
+        statusEl.innerHTML = `
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
+                <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                Failed
+            </span>
+        `;
+    } else {
+        statusEl.innerHTML = `
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
+                <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                Extracting
+            </span>
+        `;
+    }
+}
+
+function renderListingInfoLoading() {
+    const content = document.getElementById('listing-info-content');
+    if (!content) return;
+
+    setListingInfoStatus('processing');
+    content.innerHTML = `
+        <div class="mb-4 py-6 text-center" id="extraction-loading">
+            <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-md bg-sky-50 text-sky-600">
+                <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <p class="text-sm font-medium text-slate-700">Extracting listing data...</p>
+            <p class="mt-1 text-xs text-slate-400">You can keep working while this finishes.</p>
+        </div>
+    `;
+}
+
+function renderListingInfoFailed(message) {
+    const content = document.getElementById('listing-info-content');
+    if (!content) return;
+
+    setListingInfoStatus('failed');
+    content.innerHTML = `
+        <div class="mb-4 py-6 text-center">
+            <div class="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-500">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <p class="text-sm text-slate-500">${escapeHtml(message || 'Data extraction failed. Try re-uploading the document.')}</p>
+        </div>
+    `;
+}
+
+function renderListingInfo(info) {
+    const content = document.getElementById('listing-info-content');
+    if (!content || !info) return;
+
+    setListingInfoStatus('complete');
+
+    const commissionRows = info.commission_type === '5b'
+        ? `
+            <div class="info-row">
+                <span class="info-label">Broker's Fee (Origen Realty)</span>
+                <span class="info-value">${listingInfoValue(info.broker_fee)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Buyer Side Commission</span>
+                <span class="info-value text-slate-400 italic">N/A &mdash; Listing Broker Only (Section 5B)</span>
+            </div>
+        `
+        : `
+            <div class="info-row">
+                <span class="info-label">Total Commission</span>
+                <span class="info-value">${listingInfoValue(info.total_commission)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Buyer Side Commission</span>
+                <span class="info-value">${listingInfoValue(info.buyer_commission)}</span>
+            </div>
+        `;
+
+    const specialProvisions = info.special_provisions
+        ? `
+            <div class="mt-3 border-t border-slate-100 pt-3">
+                <span class="info-label mb-1 block">Special Provisions</span>
+                <p class="text-sm leading-relaxed text-slate-700">${escapeHtml(info.special_provisions)}</p>
+            </div>
+        `
+        : '';
+
+    content.innerHTML = `
+        <div class="space-y-0">
+            <div class="info-row">
+                <span class="info-label">List Price</span>
+                <span class="info-value text-emerald-700 font-semibold">${listingInfoValue(info.list_price)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Listing Start Date</span>
+                <span class="info-value">${listingInfoValue(info.listing_start_date)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Listing Expiration Date</span>
+                <span class="info-value">${listingInfoValue(info.listing_end_date)}</span>
+            </div>
+            ${commissionRows}
+            <div class="info-row">
+                <span class="info-label">Protection Period</span>
+                <span class="info-value">${info.protection_period_days ? `${escapeHtml(info.protection_period_days)} days` : '&mdash;'}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Accepted Financing</span>
+                <span class="info-value">${listingInfoValue(info.financing_types)}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">HOA Required</span>
+                <span class="info-value">${listingInfoValue(info.has_hoa)}</span>
+            </div>
+            ${specialProvisions}
+        </div>
+    `;
+}
+
+function startListingInfoPolling() {
+    const listingCard = document.getElementById('listing-info-card');
+    if (!listingCard) return;
+
+    renderListingInfoLoading();
+
+    let attempts = 0;
+    const maxAttempts = 60;
+
+    function poll() {
+        attempts += 1;
+        fetch(`/transactions/${TX_CONFIG.transactionId}/extraction-status`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.extraction_status === 'complete' && data.listing_info) {
+                    renderListingInfo(data.listing_info);
+                    showToast('Listing details loaded.', 'success');
+                    return;
+                }
+
+                if (data.extraction_status === 'failed') {
+                    renderListingInfoFailed(data.extraction_error);
+                    return;
+                }
+
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 2500);
+                }
+            })
+            .catch(() => {
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 3000);
+                }
+            });
+    }
+
+    setTimeout(poll, 1500);
+}
+
 // =============================================================================
 // UPLOAD SCANNED DOCUMENT MODAL
 // =============================================================================
@@ -944,8 +1124,15 @@ if (fulfillForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Document uploaded successfully!', 'success');
+                    const uploadedDocId = currentFulfillDocId;
+                    const uploadedDoc = data.document || {};
+                    const isListingAgreement = uploadedDoc.template_slug === 'listing-agreement';
                     closeFulfillPlaceholderModal();
-                    reloadPreservingScroll(`transaction-document-${currentFulfillDocId}`);
+                    if (isListingAgreement && document.getElementById('listing-info-card')) {
+                        startListingInfoPolling();
+                    } else {
+                        reloadPreservingScroll(`transaction-document-${uploadedDocId}`);
+                    }
                 } else {
                     showFulfillError(data.error || 'Upload failed');
                     document.getElementById('fulfillProgress').classList.add('hidden');

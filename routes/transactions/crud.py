@@ -8,11 +8,15 @@ from flask import request, render_template, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from models import (
     db, Transaction, TransactionType, TransactionParticipant,
-    TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile
+    TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile,
+    SellerListingProfile, SellerShowing, SellerOffer, SellerOfferActivity, SellerAcceptedContract,
+    SellerContractMilestone, SellerCommissionTerms, SellerListingPriceChange,
+    SellerOfferDocument, SellerOfferVersion
 )
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, case, and_
 from services import audit_service
+from services.seller_workflow import offer_urgency
 from . import transactions_bp
 from .decorators import transactions_required
 
@@ -419,9 +423,143 @@ def view_transaction(id):
     
     # Get lockbox combo from extra_data (always available for seller transactions)
     lockbox_combo = None
+    seller_listing_profile = None
+    seller_showings = []
+    upcoming_seller_showings = []
+    feedback_needed_showings = []
+    seller_offers = []
+    active_seller_offers = []
+    seller_offer_versions_by_offer = {}
+    seller_offer_documents_by_offer = {}
+    seller_offer_activities_by_offer = {}
+    seller_offer_extraction_status = {}
+    urgent_seller_offer = None
+    primary_seller_contract = None
+    backup_seller_contracts = []
+    seller_contract_documents_by_contract = {}
+    seller_contract_milestones = []
+    seller_commission_terms = None
+    seller_price_changes = []
     if transaction.transaction_type.name == 'seller':
         extra_data = transaction.extra_data or {}
         lockbox_combo = extra_data.get('lockbox_combo')
+        seller_listing_profile = SellerListingProfile.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id
+        ).first()
+        seller_showings = SellerShowing.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id
+        ).order_by(SellerShowing.scheduled_start_at.asc()).all()
+        now = dt.utcnow()
+        upcoming_seller_showings = [
+            showing for showing in seller_showings
+            if showing.scheduled_start_at and showing.scheduled_start_at >= now
+        ][:5]
+        feedback_needed_showings = [
+            showing for showing in seller_showings
+            if (
+                showing.scheduled_start_at
+                and showing.scheduled_start_at < now
+                and not showing.feedback_received_at
+                and showing.status in ('scheduled', 'approved', 'completed')
+            )
+        ]
+        seller_offers = SellerOffer.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id
+        ).order_by(SellerOffer.received_at.desc()).all()
+        seller_offers.sort(key=lambda offer: (
+            offer_urgency(offer)['rank'],
+            offer.response_deadline_at or dt.max
+        ))
+        active_seller_offers = [
+            offer for offer in seller_offers
+            if offer.status in ('new', 'reviewing', 'needs_review', 'countered')
+        ]
+        offer_ids = [offer.id for offer in seller_offers]
+        if offer_ids:
+            seller_offer_versions_by_offer = {offer_id: [] for offer_id in offer_ids}
+            seller_offer_documents_by_offer = {offer_id: [] for offer_id in offer_ids}
+            seller_offer_activities_by_offer = {offer_id: [] for offer_id in offer_ids}
+            offer_versions = SellerOfferVersion.query.filter(
+                SellerOfferVersion.offer_id.in_(offer_ids),
+                SellerOfferVersion.organization_id == current_user.organization_id
+            ).order_by(
+                SellerOfferVersion.offer_id.asc(),
+                SellerOfferVersion.version_number.desc()
+            ).all()
+            for version in offer_versions:
+                seller_offer_versions_by_offer.setdefault(version.offer_id, []).append(version)
+
+            offer_documents = SellerOfferDocument.query.filter(
+                SellerOfferDocument.offer_id.in_(offer_ids),
+                SellerOfferDocument.organization_id == current_user.organization_id
+            ).order_by(
+                SellerOfferDocument.offer_id.asc(),
+                SellerOfferDocument.created_at.desc()
+            ).all()
+            for offer_document in offer_documents:
+                seller_offer_documents_by_offer.setdefault(offer_document.offer_id, []).append(offer_document)
+
+            offer_activities = SellerOfferActivity.query.filter(
+                SellerOfferActivity.offer_id.in_(offer_ids),
+                SellerOfferActivity.organization_id == current_user.organization_id
+            ).order_by(SellerOfferActivity.created_at.desc()).all()
+            for activity in offer_activities:
+                bucket = seller_offer_activities_by_offer.setdefault(activity.offer_id, [])
+                if len(bucket) < 8:
+                    bucket.append(activity)
+
+        version_ids = [offer.current_version_id for offer in seller_offers if offer.current_version_id]
+        if version_ids:
+            current_versions = SellerOfferVersion.query.filter(
+                SellerOfferVersion.id.in_(version_ids),
+                SellerOfferVersion.organization_id == current_user.organization_id
+            ).all()
+            for version in current_versions:
+                if version.document:
+                    seller_offer_extraction_status[version.offer_id] = version.document.extraction_status
+        urgent_seller_offer = active_seller_offers[0] if active_seller_offers else None
+        primary_seller_contract = SellerAcceptedContract.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+            position='primary',
+            status='active'
+        ).first()
+        backup_seller_contracts = SellerAcceptedContract.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+            position='backup',
+            status='active'
+        ).order_by(SellerAcceptedContract.backup_position.asc()).all()
+        seller_contracts = ([primary_seller_contract] if primary_seller_contract else []) + backup_seller_contracts
+        contract_offer_ids = [contract.offer_id for contract in seller_contracts if contract.offer_id]
+        if contract_offer_ids:
+            docs_by_offer = {}
+            contract_offer_documents = SellerOfferDocument.query.filter(
+                SellerOfferDocument.offer_id.in_(contract_offer_ids),
+                SellerOfferDocument.organization_id == current_user.organization_id
+            ).order_by(SellerOfferDocument.created_at.asc()).all()
+            for offer_document in contract_offer_documents:
+                docs_by_offer.setdefault(offer_document.offer_id, []).append(offer_document)
+            seller_contract_documents_by_contract = {
+                contract.id: docs_by_offer.get(contract.offer_id, [])
+                for contract in seller_contracts
+            }
+        if primary_seller_contract:
+            seller_contract_milestones = SellerContractMilestone.query.filter_by(
+                accepted_contract_id=primary_seller_contract.id,
+                organization_id=current_user.organization_id
+            ).order_by(SellerContractMilestone.due_at.asc()).all()
+        seller_commission_terms = SellerCommissionTerms.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id
+        ).first()
+        seller_price_changes = SellerListingPriceChange.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id
+        ).order_by(SellerListingPriceChange.changed_at.desc()).limit(5).all()
     
     # Get RentCast data for buyer transactions
     rentcast_data = None
@@ -448,10 +586,29 @@ def view_transaction(id):
         listing_info=listing_info,
         listing_extraction_status=listing_extraction_status,
         lockbox_combo=lockbox_combo,
+        seller_listing_profile=seller_listing_profile,
+        seller_showings=seller_showings,
+        upcoming_seller_showings=upcoming_seller_showings,
+        feedback_needed_showings=feedback_needed_showings,
+        seller_offers=seller_offers,
+        active_seller_offers=active_seller_offers,
+        seller_offer_versions_by_offer=seller_offer_versions_by_offer,
+        seller_offer_documents_by_offer=seller_offer_documents_by_offer,
+        seller_offer_activities_by_offer=seller_offer_activities_by_offer,
+        seller_offer_extraction_status=seller_offer_extraction_status,
+        urgent_seller_offer=urgent_seller_offer,
+        primary_seller_contract=primary_seller_contract,
+        backup_seller_contracts=backup_seller_contracts,
+        seller_contract_documents_by_contract=seller_contract_documents_by_contract,
+        seller_contract_milestones=seller_contract_milestones,
+        seller_commission_terms=seller_commission_terms,
+        seller_price_changes=seller_price_changes,
+        offer_urgency=offer_urgency,
         rentcast_data=rentcast_data,
         rentcast_fetched_at=rentcast_fetched_at,
         has_intake_schema=has_intake_schema,
-        document_workflow_mode=document_workflow_mode
+        document_workflow_mode=document_workflow_mode,
+        now=dt.utcnow()
     )
 
 
