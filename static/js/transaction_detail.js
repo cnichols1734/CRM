@@ -533,6 +533,16 @@ const sellerOfferForm = document.getElementById('sellerOfferForm');
 if (sellerOfferForm) {
     sellerOfferForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        const newOfferModal = document.getElementById('sellerNewOfferModal');
+        const uploadForm = newOfferModal ? newOfferModal.querySelector('.seller-offer-upload-form') : null;
+        const uploadInput = uploadForm ? uploadForm.querySelector('.seller-offer-file-input') : null;
+        const selectedFiles = Array.from((uploadInput && uploadInput.files) || []);
+        if (selectedFiles.length && uploadForm) {
+            showToast('Uploading selected PDFs for extraction...', 'success');
+            uploadForm.requestSubmit();
+            return;
+        }
+
         sellerPost(
             `/transactions/${transactionId}/offers`,
             sellerFormData(this),
@@ -670,6 +680,14 @@ document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
         }
         const rows = Array.from(this.querySelectorAll('[data-offer-upload-row]'));
         const formData = new FormData();
+        const isNewOfferUpload = Boolean(this.closest('#sellerNewOfferModal'));
+        if (isNewOfferUpload && sellerOfferForm) {
+            new FormData(sellerOfferForm).forEach((value, key) => {
+                if (value !== '') {
+                    formData.append(key, value);
+                }
+            });
+        }
         new FormData(this).forEach((value, key) => {
             if (key !== 'files' && key !== 'file' && key !== 'document_type') {
                 formData.append(key, value);

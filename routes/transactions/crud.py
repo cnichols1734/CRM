@@ -21,6 +21,25 @@ from . import transactions_bp
 from .decorators import transactions_required
 
 
+def _merge_extraction_status(current_status, candidate_status):
+    """Return the highest-priority extraction state for seller offer surfaces."""
+    priority = {
+        'failed': 4,
+        'processing': 3,
+        'pending': 2,
+        'complete': 1,
+    }
+    if not candidate_status:
+        return current_status
+    if not current_status:
+        return candidate_status
+    return (
+        candidate_status
+        if priority.get(candidate_status, 0) > priority.get(current_status, 0)
+        else current_status
+    )
+
+
 # =============================================================================
 # TRANSACTION LIST
 # =============================================================================
@@ -483,6 +502,12 @@ def view_transaction(id):
             ).all()
             for offer_document in offer_documents:
                 seller_offer_documents_by_offer.setdefault(offer_document.offer_id, []).append(offer_document)
+                document = offer_document.document
+                if document and document.extraction_status:
+                    seller_offer_extraction_status[offer_document.offer_id] = _merge_extraction_status(
+                        seller_offer_extraction_status.get(offer_document.offer_id),
+                        document.extraction_status,
+                    )
 
             offer_activities = SellerOfferActivity.query.filter(
                 SellerOfferActivity.offer_id.in_(offer_ids),
@@ -501,7 +526,10 @@ def view_transaction(id):
             ).all()
             for version in current_versions:
                 if version.document:
-                    seller_offer_extraction_status[version.offer_id] = version.document.extraction_status
+                    seller_offer_extraction_status[version.offer_id] = _merge_extraction_status(
+                        seller_offer_extraction_status.get(version.offer_id),
+                        version.document.extraction_status,
+                    )
         urgent_seller_offer = active_seller_offers[0] if active_seller_offers else None
         primary_seller_contract = SellerAcceptedContract.query.filter_by(
             transaction_id=transaction.id,

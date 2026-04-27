@@ -418,6 +418,8 @@ def upload_seller_offer_document(id):
             })
 
         offer.last_activity_at = datetime.utcnow()
+        if uploaded and offer.status == 'new':
+            offer.status = 'needs_review'
         db.session.commit()
 
         for item in uploaded:
