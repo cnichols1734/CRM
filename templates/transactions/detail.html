@@ -377,9 +377,6 @@
                             <button type="button" id="seller-tab-overview" class="crm-segment__item is-active" onclick="sellerWorkspaceTab('overview')">
                                 Overview
                             </button>
-                            <button type="button" id="seller-tab-showings" class="crm-segment__item" onclick="sellerWorkspaceTab('showings')">
-                                Showings{% if feedback_needed_showings %} <span class="text-orange-600">({{ feedback_needed_showings|length }})</span>{% endif %}
-                            </button>
                             <button type="button" id="seller-tab-offers" class="crm-segment__item" onclick="sellerWorkspaceTab('offers')">
                                 Offers{% if active_seller_offers %} <span class="text-orange-600">({{ active_seller_offers|length }})</span>{% endif %}
                             </button>
@@ -389,17 +386,7 @@
                         </div>
 
                         <div id="seller-panel-overview" class="seller-tab-panel space-y-4">
-                            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Next showing</div>
-                                    {% if upcoming_seller_showings %}
-                                    {% set next_showing = upcoming_seller_showings[0] %}
-                                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ next_showing.scheduled_start_at.strftime('%b %d, %I:%M %p') }}</div>
-                                    <div class="mt-1 truncate text-xs text-slate-500">{{ next_showing.showing_agent_name }}{% if next_showing.showing_agent_brokerage %} · {{ next_showing.showing_agent_brokerage }}{% endif %}</div>
-                                    {% else %}
-                                    <div class="mt-2 text-sm text-slate-500">No upcoming showings</div>
-                                    {% endif %}
-                                </div>
+                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
                                     <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Offer pressure</div>
                                     {% if urgent_seller_offer %}
@@ -423,314 +410,6 @@
                                 </div>
                             </div>
 
-                        </div>
-
-                        <div id="seller-panel-showings" class="seller-tab-panel hidden space-y-4">
-                            <div class="rounded-md border border-slate-200">
-                                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
-                                    <div>
-                                        <h3 class="text-sm font-semibold text-slate-900">Showings</h3>
-                                        <p class="text-xs text-slate-500">{{ seller_showings|length }} showing{% if seller_showings|length != 1 %}s{% endif %}{% if feedback_needed_showings %} &middot; <span class="text-orange-700">{{ feedback_needed_showings|length }} awaiting feedback</span>{% endif %}</p>
-                                    </div>
-                                    <button type="button" class="crm-btn crm-btn-primary" onclick="showSellerNewShowingModal()">
-                                        <i class="fas fa-plus text-xs"></i>
-                                        Add showing
-                                    </button>
-                                </div>
-                                {% if seller_showings %}
-                                <div class="crm-table-wrap rounded-none border-0">
-                                    <table class="crm-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Agent</th>
-                                                <th>Time</th>
-                                                <th>Buyer</th>
-                                                <th>Feedback</th>
-                                                <th>Status</th>
-                                                <th class="text-right">Work</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for showing in seller_showings %}
-                                            <tr class="group cursor-pointer hover:bg-slate-50" onclick="openSellerShowingModal({{ showing.id }})">
-                                                <td>
-                                                    <div class="font-medium text-slate-900">{{ showing.showing_agent_name }}</div>
-                                                    <div class="text-xs text-slate-500">{{ showing.showing_agent_brokerage or 'No brokerage' }}</div>
-                                                </td>
-                                                <td>
-                                                    <div class="font-medium text-slate-900">{{ showing.scheduled_start_at.strftime('%b %d, %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</div>
-                                                    <div class="text-xs text-slate-500">{% if showing.scheduled_end_at %}Ends {{ showing.scheduled_end_at.strftime('%I:%M %p') }}{% else %}End time TBD{% endif %}</div>
-                                                </td>
-                                                <td>
-                                                    <div class="text-slate-700">{{ showing.buyer_name or 'Buyer not listed' }}</div>
-                                                    <div class="text-xs text-slate-500">{% if showing.showing_agent_phone %}{{ showing.showing_agent_phone }}{% elif showing.showing_agent_email %}{{ showing.showing_agent_email }}{% else %}No contact info{% endif %}</div>
-                                                </td>
-                                                <td>
-                                                    {% if showing.feedback_received_at %}
-                                                    <div class="font-medium text-emerald-700">{{ showing.feedback_interest_level|title if showing.feedback_interest_level else 'Received' }}</div>
-                                                    <div class="text-xs text-slate-500">{{ showing.feedback_likelihood|replace('_', ' ')|title if showing.feedback_likelihood else 'Feedback saved' }}</div>
-                                                    {% elif showing.status == 'completed' %}
-                                                    <div class="font-medium text-amber-700">Needed</div>
-                                                    <div class="text-xs text-slate-500">Completed, no feedback</div>
-                                                    {% else %}
-                                                    <div class="text-slate-500">Pending</div>
-                                                    <div class="text-xs text-slate-500">After showing</div>
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
-                                                        {{ showing.status|replace('_', ' ')|title }}
-                                                    </span>
-                                                </td>
-                                                <td class="text-right">
-                                                    <button type="button" class="crm-btn crm-btn-secondary px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openSellerShowingModal({{ showing.id }})">Open</button>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                {% else %}
-                                <div class="px-4 py-10 text-center">
-                                    <div class="mx-auto mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-400">
-                                        <i class="fas fa-calendar-plus"></i>
-                                    </div>
-                                    <p class="text-sm text-slate-500">No showings logged yet</p>
-                                    <button type="button" class="crm-btn crm-btn-primary mt-4" onclick="showSellerNewShowingModal()">Add showing</button>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <div id="sellerNewShowingModal" class="fixed inset-0 z-50 hidden">
-                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerNewShowingModal()" aria-label="Close"></button>
-                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(720px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
-                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                                        <div>
-                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">New showing</p>
-                                            <h3 class="text-lg font-semibold text-slate-950">Add showing details</h3>
-                                        </div>
-                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewShowingModal()">
-                                            <i class="fas fa-times text-sm"></i>
-                                        </button>
-                                    </div>
-                                    <form id="sellerShowingForm" class="min-h-0 overflow-y-auto px-5 py-4">
-                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Agent name</span>
-                                                <input name="showing_agent_name" class="crm-input mt-1" placeholder="e.g. Sarah Chen" required>
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Brokerage</span>
-                                                <input name="showing_agent_brokerage" class="crm-input mt-1" placeholder="Optional">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Agent email</span>
-                                                <input name="showing_agent_email" type="email" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Agent phone</span>
-                                                <input name="showing_agent_phone" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Buyer name</span>
-                                                <input name="buyer_name" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Status</span>
-                                                <select name="status" class="crm-select mt-1">
-                                                    <option value="scheduled">Scheduled</option>
-                                                    <option value="approved">Approved</option>
-                                                    <option value="pending_approval">Pending Approval</option>
-                                                    <option value="completed">Completed</option>
-                                                </select>
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Start</span>
-                                                <input type="datetime-local" name="scheduled_start_at" class="crm-input mt-1" required>
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">End</span>
-                                                <input type="datetime-local" name="scheduled_end_at" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block sm:col-span-2">
-                                                <span class="text-xs font-medium text-slate-600">Access instructions snapshot</span>
-                                                <textarea name="access_instructions_snapshot" class="crm-input mt-1 min-h-16" placeholder="What the showing agent needs to know"></textarea>
-                                            </label>
-                                            <label class="block sm:col-span-2">
-                                                <span class="text-xs font-medium text-slate-600">Private notes</span>
-                                                <textarea name="private_notes" class="crm-input mt-1 min-h-16" placeholder="Internal notes, not shared"></textarea>
-                                            </label>
-                                        </div>
-                                        <div class="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
-                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewShowingModal()">Cancel</button>
-                                            <button class="crm-btn crm-btn-primary" type="submit">Save showing</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-
-                            {% for showing in seller_showings %}
-                            <div id="sellerShowingModal-{{ showing.id }}" data-seller-showing-modal class="fixed inset-0 z-50 hidden">
-                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerShowingModal({{ showing.id }})" aria-label="Close"></button>
-                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-y-6 md:left-1/2 md:right-auto md:w-[min(980px,90vw)] md:-translate-x-1/2">
-                                    <div class="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                                        <div class="min-w-0">
-                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Showing record</p>
-                                            <h3 class="mt-1 truncate text-xl font-semibold text-slate-950">{{ showing.showing_agent_name }}</h3>
-                                            <p class="mt-1 text-xs text-slate-500">{{ showing.scheduled_start_at.strftime('%b %d, %Y at %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</p>
-                                        </div>
-                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerShowingModal({{ showing.id }})">
-                                            <i class="fas fa-times text-sm"></i>
-                                        </button>
-                                    </div>
-                                    <div class="min-h-0 flex-1 overflow-y-auto bg-slate-50/60 p-4 md:p-5">
-                                        <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-                                            <div class="space-y-4">
-                                                <form class="seller-showing-update-form rounded-md border border-slate-200 bg-white p-4" data-showing-id="{{ showing.id }}">
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <h4 class="text-sm font-semibold text-slate-900">Showing details</h4>
-                                                            <p class="mt-1 text-xs text-slate-500">Keep appointment details and access notes current.</p>
-                                                        </div>
-                                                        <button class="crm-btn crm-btn-primary" type="submit">Save details</button>
-                                                    </div>
-                                                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Agent name</span>
-                                                            <input name="showing_agent_name" class="crm-input mt-1" value="{{ showing.showing_agent_name or '' }}" required>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Status</span>
-                                                            <select name="status" class="crm-select mt-1">
-                                                                {% for value, label in [('pending_approval', 'Pending Approval'), ('approved', 'Approved'), ('scheduled', 'Scheduled'), ('completed', 'Completed'), ('cancelled', 'Cancelled'), ('declined', 'Declined'), ('no_show', 'No Show')] %}
-                                                                <option value="{{ value }}" {% if showing.status == value %}selected{% endif %}>{{ label }}</option>
-                                                                {% endfor %}
-                                                            </select>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Brokerage</span>
-                                                            <input name="showing_agent_brokerage" class="crm-input mt-1" value="{{ showing.showing_agent_brokerage or '' }}">
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Buyer name</span>
-                                                            <input name="buyer_name" class="crm-input mt-1" value="{{ showing.buyer_name or '' }}">
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Agent email</span>
-                                                            <input name="showing_agent_email" type="email" class="crm-input mt-1" value="{{ showing.showing_agent_email or '' }}">
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Agent phone</span>
-                                                            <input name="showing_agent_phone" class="crm-input mt-1" value="{{ showing.showing_agent_phone or '' }}">
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Start</span>
-                                                            <input type="datetime-local" name="scheduled_start_at" class="crm-input mt-1" value="{% if showing.scheduled_start_at %}{{ showing.scheduled_start_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}" required>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">End</span>
-                                                            <input type="datetime-local" name="scheduled_end_at" class="crm-input mt-1" value="{% if showing.scheduled_end_at %}{{ showing.scheduled_end_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
-                                                        </label>
-                                                        <label class="block md:col-span-2">
-                                                            <span class="text-xs font-medium text-slate-600">Access instructions snapshot</span>
-                                                            <textarea name="access_instructions_snapshot" class="crm-input mt-1 min-h-16">{{ showing.access_instructions_snapshot or '' }}</textarea>
-                                                        </label>
-                                                        <label class="block md:col-span-2">
-                                                            <span class="text-xs font-medium text-slate-600">Private notes</span>
-                                                            <textarea name="private_notes" class="crm-input mt-1 min-h-16">{{ showing.private_notes or '' }}</textarea>
-                                                        </label>
-                                                    </div>
-                                                </form>
-
-                                                <form class="seller-showing-feedback-form rounded-md border border-slate-200 bg-white p-4" data-showing-id="{{ showing.id }}">
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <h4 class="text-sm font-semibold text-slate-900">Feedback</h4>
-                                                            <p class="mt-1 text-xs text-slate-500">Capture what happened after the showing.</p>
-                                                        </div>
-                                                        <button class="crm-btn crm-btn-primary" type="submit">Save feedback</button>
-                                                    </div>
-                                                    <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Interest</span>
-                                                            <select name="feedback_interest_level" class="crm-select mt-1">
-                                                                <option value="">&mdash;</option>
-                                                                <option value="high" {% if showing.feedback_interest_level == 'high' %}selected{% endif %}>High</option>
-                                                                <option value="medium" {% if showing.feedback_interest_level == 'medium' %}selected{% endif %}>Medium</option>
-                                                                <option value="low" {% if showing.feedback_interest_level == 'low' %}selected{% endif %}>Low</option>
-                                                                <option value="none" {% if showing.feedback_interest_level == 'none' %}selected{% endif %}>None</option>
-                                                            </select>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Price reaction</span>
-                                                            <select name="feedback_price_opinion" class="crm-select mt-1">
-                                                                <option value="">&mdash;</option>
-                                                                <option value="high" {% if showing.feedback_price_opinion == 'high' %}selected{% endif %}>Feels high</option>
-                                                                <option value="fair" {% if showing.feedback_price_opinion == 'fair' %}selected{% endif %}>Feels fair</option>
-                                                                <option value="low" {% if showing.feedback_price_opinion == 'low' %}selected{% endif %}>Feels low</option>
-                                                                <option value="unknown" {% if showing.feedback_price_opinion == 'unknown' %}selected{% endif %}>Not discussed</option>
-                                                            </select>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Likelihood</span>
-                                                            <select name="feedback_likelihood" class="crm-select mt-1">
-                                                                <option value="">&mdash;</option>
-                                                                <option value="likely_offer" {% if showing.feedback_likelihood == 'likely_offer' %}selected{% endif %}>Likely offer</option>
-                                                                <option value="maybe" {% if showing.feedback_likelihood == 'maybe' %}selected{% endif %}>Maybe</option>
-                                                                <option value="unlikely" {% if showing.feedback_likelihood == 'unlikely' %}selected{% endif %}>Unlikely</option>
-                                                                <option value="unknown" {% if showing.feedback_likelihood == 'unknown' %}selected{% endif %}>Unknown</option>
-                                                            </select>
-                                                        </label>
-                                                        <label class="block md:col-span-3">
-                                                            <span class="text-xs font-medium text-slate-600">Notes</span>
-                                                            <textarea name="feedback_notes" class="crm-input mt-1 min-h-[72px]" placeholder="Overall impression, buyer reactions, questions asked">{{ showing.feedback_notes or '' }}</textarea>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Condition comments</span>
-                                                            <textarea name="feedback_condition_comments" class="crm-input mt-1 min-h-[56px]">{{ showing.feedback_condition_comments or '' }}</textarea>
-                                                        </label>
-                                                        <label class="block">
-                                                            <span class="text-xs font-medium text-slate-600">Objections</span>
-                                                            <textarea name="feedback_objections" class="crm-input mt-1 min-h-[56px]">{{ showing.feedback_objections or '' }}</textarea>
-                                                        </label>
-                                                        <label class="flex items-center gap-2 self-end text-sm text-slate-600">
-                                                            <input type="checkbox" name="feedback_follow_up_requested" value="true" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500" {% if showing.feedback_follow_up_requested %}checked{% endif %}>
-                                                            Follow-up requested
-                                                        </label>
-                                                    </div>
-                                                </form>
-                                            </div>
-
-                                            <aside class="space-y-4">
-                                                <div class="rounded-md border border-slate-200 bg-white p-4">
-                                                    <h4 class="text-sm font-semibold text-slate-900">Snapshot</h4>
-                                                    <dl class="mt-3 grid grid-cols-1 gap-3 text-sm">
-                                                        <div>
-                                                            <dt class="text-xs font-medium text-slate-500">Appointment</dt>
-                                                            <dd class="mt-0.5 text-slate-900">{{ showing.scheduled_start_at.strftime('%b %d, %Y at %I:%M %p') if showing.scheduled_start_at else 'No time set' }}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt class="text-xs font-medium text-slate-500">Buyer</dt>
-                                                            <dd class="mt-0.5 text-slate-900">{{ showing.buyer_name or 'Not listed' }}</dd>
-                                                        </div>
-                                                        <div>
-                                                            <dt class="text-xs font-medium text-slate-500">Feedback</dt>
-                                                            <dd class="mt-0.5 text-slate-900">{% if showing.feedback_received_at %}Received {{ showing.feedback_received_at.strftime('%b %d, %I:%M %p') }}{% else %}Not logged{% endif %}</dd>
-                                                        </div>
-                                                    </dl>
-                                                </div>
-                                                {% if showing.feedback_notes %}
-                                                <div class="rounded-md border border-slate-200 bg-white p-4">
-                                                    <h4 class="text-sm font-semibold text-slate-900">Latest feedback note</h4>
-                                                    <p class="mt-2 text-sm leading-relaxed text-slate-600">{{ showing.feedback_notes }}</p>
-                                                </div>
-                                                {% endif %}
-                                            </aside>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            {% endfor %}
                         </div>
 
                         <div id="seller-panel-offers" class="seller-tab-panel hidden space-y-4">
@@ -820,73 +499,98 @@
                             </div>
 
                             <div id="sellerNewOfferModal" class="fixed inset-0 z-50 hidden">
-                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
-                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(720px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
-                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
-                                        <div>
-                                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">New offer</p>
-                                            <h3 class="text-lg font-semibold text-slate-950">Log details or start from a PDF</h3>
+                                <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
+                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200/70 md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:w-[min(760px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+                                        <div class="min-w-0">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">New offer</p>
+                                            <h3 class="mt-1 text-lg font-semibold leading-snug text-slate-950">Log details or start from a PDF</h3>
                                         </div>
-                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewOfferModal()">
+                                        <button type="button" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewOfferModal()" aria-label="Close">
                                             <i class="fas fa-times text-sm"></i>
                                         </button>
                                     </div>
-                                    <form id="sellerOfferForm" class="min-h-0 overflow-y-auto px-5 py-4">
-                                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Buyer name(s)</span>
-                                                <input name="buyer_names" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Buyer agent</span>
-                                                <input name="buyer_agent_name" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Brokerage</span>
-                                                <input name="buyer_agent_brokerage" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Response deadline</span>
-                                                <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Offer price</span>
-                                                <input name="terms_data[offer_price]" class="crm-input mt-1" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Financing</span>
-                                                <input name="terms_data[financing_type]" class="crm-input mt-1" placeholder="Conventional, FHA, cash">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Earnest money</span>
-                                                <input name="terms_data[earnest_money]" class="crm-input mt-1" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Option days</span>
-                                                <input name="terms_data[option_period_days]" class="crm-input mt-1" placeholder="Days">
-                                            </label>
-                                        </div>
-                                        <div class="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
-                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewOfferModal()">Cancel</button>
-                                            <button class="crm-btn crm-btn-primary" type="submit">Save offer</button>
-                                        </div>
-                                    </form>
-                                    <form class="seller-offer-upload-form border-t border-slate-200 bg-slate-50 px-5 py-4" enctype="multipart/form-data">
-                                        <div class="flex flex-wrap items-start justify-between gap-3">
-                                            <div>
-                                                <h4 class="text-sm font-semibold text-slate-900">Start from PDFs instead</h4>
-                                                <p class="mt-1 text-xs text-slate-500">Upload the contract and any supporting documents in one package.</p>
+                                    <div class="min-h-0 flex-1 overflow-y-auto">
+                                        <form id="sellerOfferForm" class="px-6 pb-6 pt-5">
+                                            <div class="mb-4 flex items-center gap-2">
+                                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">1</span>
+                                                <h4 class="text-sm font-semibold text-slate-900">Offer details</h4>
+                                                <span class="text-xs text-slate-400">All fields optional</span>
+                                            </div>
+                                            <div class="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Buyer name(s)</span>
+                                                    <input name="buyer_names" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Buyer agent</span>
+                                                    <input name="buyer_agent_name" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                    <input name="buyer_agent_brokerage" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Response deadline</span>
+                                                    <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Offer price</span>
+                                                    <input name="terms_data[offer_price]" class="crm-input mt-1" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Financing</span>
+                                                    <input name="terms_data[financing_type]" class="crm-input mt-1" placeholder="Conventional, FHA, cash">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Earnest money</span>
+                                                    <input name="terms_data[earnest_money]" class="crm-input mt-1" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Option days</span>
+                                                    <input name="terms_data[option_period_days]" class="crm-input mt-1" placeholder="Days">
+                                                </label>
+                                            </div>
+                                        </form>
+
+                                        <div class="px-6">
+                                            <div class="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                                <span class="h-px flex-1 bg-slate-200"></span>
+                                                <span>or upload PDFs</span>
+                                                <span class="h-px flex-1 bg-slate-200"></span>
                                             </div>
                                         </div>
-                                        <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Offer package PDFs</span>
-                                                <input type="file" name="files" accept="application/pdf" class="crm-input mt-1 seller-offer-file-input" multiple required>
+
+                                        <form class="seller-offer-upload-form px-6 pb-6 pt-5" enctype="multipart/form-data">
+                                            <div class="mb-3 flex items-start justify-between gap-3">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">2</span>
+                                                    <h4 class="text-sm font-semibold text-slate-900">Start from PDFs</h4>
+                                                </div>
+                                                <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
+                                                    <i class="fas fa-bolt text-[10px]"></i>
+                                                    Upload &amp; extract
+                                                </button>
+                                            </div>
+                                            <p class="mb-3 text-xs text-slate-500">Drop the contract and supporting documents together. We'll detect each type and extract terms.</p>
+                                            <label class="seller-offer-dropzone group flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
+                                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-rose-600 ring-1 ring-slate-200">
+                                                    <i class="fas fa-file-pdf text-base"></i>
+                                                </span>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="seller-offer-dropzone-title block text-sm font-medium text-slate-900">Choose PDFs to attach</span>
+                                                    <span class="seller-offer-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
+                                                </span>
+                                                <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
+                                                <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
                                             </label>
-                                            <button class="crm-btn crm-btn-primary justify-center" type="submit">Upload &amp; extract</button>
-                                        </div>
-                                        <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
-                                    </form>
+                                            <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
+                                        </form>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-6 py-3">
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewOfferModal()">Cancel</button>
+                                        <button class="crm-btn crm-btn-primary" type="submit" form="sellerOfferForm">Save offer</button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -992,21 +696,29 @@
                                                 </form>
 
                                                 <div class="rounded-md border border-slate-200 bg-white p-4">
-                                                    <div class="flex flex-wrap items-start justify-between gap-3">
-                                                        <div>
-                                                            <h4 class="text-sm font-semibold text-slate-900">Offer documents</h4>
-                                                            <p class="mt-1 text-xs text-slate-500">Upload PDFs here to attach them to this offer and run AI extraction. New offer contracts become the next version and update the current offer terms.</p>
-                                                        </div>
-                                                    </div>
-                                                    <form class="seller-offer-upload-form mt-4 rounded-md border border-slate-200 bg-slate-50 p-3" enctype="multipart/form-data">
+                                                    <form class="seller-offer-upload-form" enctype="multipart/form-data">
                                                         <input type="hidden" name="offer_id" value="{{ offer.id }}">
-                                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-                                                            <label class="block">
-                                                                <span class="text-xs font-medium text-slate-600">PDF documents</span>
-                                                                <input type="file" name="files" accept="application/pdf" class="crm-input mt-1 seller-offer-file-input" multiple required>
-                                                            </label>
-                                                            <button class="crm-btn crm-btn-primary justify-center" type="submit">Upload &amp; extract</button>
+                                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                                            <div class="min-w-0">
+                                                                <h4 class="text-sm font-semibold text-slate-900">Offer documents</h4>
+                                                                <p class="mt-1 text-xs text-slate-500">Attach PDFs to run extraction. New offer contracts become the next version and update current terms.</p>
+                                                            </div>
+                                                            <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
+                                                                <i class="fas fa-bolt text-[10px]"></i>
+                                                                Upload &amp; extract
+                                                            </button>
                                                         </div>
+                                                        <label class="seller-offer-dropzone group mt-3 flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
+                                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-rose-600 ring-1 ring-slate-200">
+                                                                <i class="fas fa-file-pdf text-base"></i>
+                                                            </span>
+                                                            <span class="min-w-0 flex-1">
+                                                                <span class="seller-offer-dropzone-title block text-sm font-medium text-slate-900">Choose PDFs to attach</span>
+                                                                <span class="seller-offer-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
+                                                            </span>
+                                                            <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
+                                                            <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
+                                                        </label>
                                                         <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
                                                     </form>
                                                     <div class="mt-4 overflow-hidden rounded-md border border-slate-200">
@@ -2384,37 +2096,6 @@
                     };
                 })();
                 </script>
-
-                <section class="crm-surface">
-                    <div class="crm-surface-header">
-                        <div>
-                            {{ section_header('Showing access') }}
-                            <p class="mt-1 text-xs text-slate-500">Showing approvals and public access notes.</p>
-                        </div>
-                    </div>
-                    <div class="crm-surface-body">
-                        <form id="sellerListingProfileForm" class="space-y-3">
-                            <label class="block">
-                                <span class="text-xs font-medium text-slate-600">Approval policy</span>
-                                <select name="showing_approval_policy" class="crm-select mt-1">
-                                    {% set approval_policy = seller_listing_profile.showing_approval_policy if seller_listing_profile else 'manual' %}
-                                    <option value="manual" {% if approval_policy == 'manual' %}selected{% endif %}>Manual approval</option>
-                                    <option value="auto_approve" {% if approval_policy == 'auto_approve' %}selected{% endif %}>Auto approve</option>
-                                    <option value="blocked" {% if approval_policy == 'blocked' %}selected{% endif %}>Blocked</option>
-                                </select>
-                            </label>
-                            <label class="block">
-                                <span class="text-xs font-medium text-slate-600">Access type</span>
-                                <input name="access_type" class="crm-input mt-1" value="{{ seller_listing_profile.access_type if seller_listing_profile else '' }}" placeholder="Lockbox, Supra, appointment only">
-                            </label>
-                            <label class="block">
-                                <span class="text-xs font-medium text-slate-600">Public showing instructions</span>
-                                <textarea name="public_showing_instructions" class="crm-input mt-1 min-h-20" placeholder="Access notes shared with showing agents">{{ seller_listing_profile.public_showing_instructions if seller_listing_profile else '' }}</textarea>
-                            </label>
-                            <button class="crm-btn crm-btn-secondary w-full justify-center" type="submit">Save access setup</button>
-                        </form>
-                    </div>
-                </section>
 
                 <section class="crm-surface">
                     <div class="crm-surface-header">
