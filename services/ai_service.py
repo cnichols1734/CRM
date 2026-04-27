@@ -627,7 +627,9 @@ def _usage_meta(model: str, usage) -> dict:
 # DOCUMENT EXTRACTION (structured data from document images)
 # =============================================================================
 
-EXTRACTION_MODEL = "gpt-4.1-mini"
+EXTRACTION_MODEL = os.getenv("DOCUMENT_EXTRACTION_MODEL", "gpt-5.1")
+EXTRACTION_FALLBACK_MODEL = os.getenv("DOCUMENT_EXTRACTION_FALLBACK_MODEL", "gpt-5-mini")
+EXTRACTION_LEGACY_MODEL = os.getenv("DOCUMENT_EXTRACTION_LEGACY_MODEL", "gpt-4.1-mini")
 
 
 def generate_document_extraction(
@@ -663,18 +665,36 @@ def generate_document_extraction(
             "image_url": {"url": f"data:image/png;base64,{img_b64}", "detail": "high"}
         })
 
-    logger.info(f"Document extraction: sending {len(images or [])} page images to {EXTRACTION_MODEL}")
+    models = [EXTRACTION_MODEL, EXTRACTION_FALLBACK_MODEL, EXTRACTION_LEGACY_MODEL]
+    last_error = None
+    logger.info(f"Document extraction: sending {len(images or [])} page images to {models[0]}")
 
-    response = client.chat.completions.create(
-        model=EXTRACTION_MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content}
-        ],
-        response_format={"type": "json_object"},
-        temperature=0.1
-    )
+    for index, model in enumerate(dict.fromkeys(models), start=1):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content}
+                ],
+                "response_format": {"type": "json_object"},
+            }
+            if not model.startswith("gpt-5"):
+                kwargs["temperature"] = 0.1
 
-    result = json.loads(response.choices[0].message.content)
-    logger.info(f"Document extraction: received {len(result)} fields from {EXTRACTION_MODEL}")
-    return result
+            response = client.chat.completions.create(**kwargs)
+            result = json.loads(response.choices[0].message.content)
+            logger.info(f"Document extraction: received {len(result)} fields from {model}")
+            return result
+        except Exception as error:
+            last_error = error
+            logger.warning(
+                "Document extraction model %s/%s failed for %s: %s",
+                index,
+                len(models),
+                model,
+                error,
+                exc_info=True,
+            )
+
+    raise last_error

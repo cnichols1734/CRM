@@ -592,6 +592,9 @@
                             {% set offer_versions = seller_offer_versions_by_offer.get(offer.id, []) %}
                             {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
                             {% set activities = seller_offer_activities_by_offer.get(offer.id, []) %}
+                            {% set offer_addenda = offer.terms_summary.get('addenda', {}) if offer.terms_summary else {} %}
+                            {% set raw_offer_financing_addendum = offer_addenda.get('third_party_financing_addendum', {}) if offer_addenda is mapping else {} %}
+                            {% set offer_financing_addendum = raw_offer_financing_addendum if raw_offer_financing_addendum is mapping else {} %}
                             <div id="sellerOfferModal-{{ offer.id }}" data-seller-offer-modal class="fixed inset-0 z-50 hidden">
                                 <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeSellerOfferModal({{ offer.id }})" aria-label="Close"></button>
                                 <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-y-6 md:left-1/2 md:right-auto md:w-[min(1040px,90vw)] md:-translate-x-1/2">
@@ -670,6 +673,14 @@
                                                             <input name="terms_data[financing_type]" class="crm-input mt-1" value="{{ offer.financing_type or '' }}">
                                                         </label>
                                                         <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Cash portion</span>
+                                                            <input name="terms_data[cash_down_payment]" class="crm-input mt-1" value="{{ offer.cash_down_payment or '' }}" placeholder="$">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Sum of financing</span>
+                                                            <input name="terms_data[financing_amount]" class="crm-input mt-1" value="{{ offer.financing_amount or '' }}" placeholder="$">
+                                                        </label>
+                                                        <label class="block">
                                                             <span class="text-xs font-medium text-slate-600">Proposed close date</span>
                                                             <input type="date" name="terms_data[proposed_close_date]" class="crm-input mt-1" value="{% if offer.proposed_close_date %}{{ offer.proposed_close_date.strftime('%Y-%m-%d') }}{% endif %}">
                                                         </label>
@@ -682,8 +693,24 @@
                                                             <input name="terms_data[option_period_days]" class="crm-input mt-1" value="{{ offer.option_period_days or '' }}">
                                                         </label>
                                                         <label class="block md:col-span-2">
-                                                            <span class="text-xs font-medium text-slate-600">Seller concessions</span>
+                                                            <span class="text-xs font-medium text-slate-600">Seller contributions</span>
                                                             <input name="terms_data[seller_concessions_amount]" class="crm-input mt-1" value="{{ offer.seller_concessions_amount or '' }}">
+                                                        </label>
+                                                        <label class="block md:col-span-2">
+                                                            <span class="text-xs font-medium text-slate-600">Survey furnished by</span>
+                                                            <input name="terms_data[survey_furnished_by]" class="crm-input mt-1" value="{{ offer.survey_furnished_by or '' }}" placeholder="Seller existing survey, buyer new survey...">
+                                                        </label>
+                                                        <label class="block md:col-span-2">
+                                                            <span class="text-xs font-medium text-slate-600">Residential service contract</span>
+                                                            <textarea name="terms_data[residential_service_contract]" class="crm-input mt-1 min-h-20" placeholder="Who pays, dollar cap, or no service contract">{{ offer.residential_service_contract or '' }}</textarea>
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Buyer agent commission %</span>
+                                                            <input name="terms_data[buyer_agent_commission_percent]" class="crm-input mt-1" value="{{ offer.buyer_agent_commission_percent or '' }}" placeholder="%">
+                                                        </label>
+                                                        <label class="block">
+                                                            <span class="text-xs font-medium text-slate-600">Buyer agent commission $</span>
+                                                            <input name="terms_data[buyer_agent_commission_flat]" class="crm-input mt-1" value="{{ offer.buyer_agent_commission_flat or '' }}" placeholder="$">
                                                         </label>
                                                     </div>
                                                 </form>
@@ -716,12 +743,26 @@
                                                     </form>
                                                     <div class="mt-4 overflow-hidden rounded-md border border-slate-200">
                                                         {% if package_documents %}
+                                                        {% set parent_doc_ids_with_children = [] %}
+                                                        {% for offer_document in package_documents %}
+                                                            {% set doc = offer_document.document %}
+                                                            {% if doc and doc.parent_document_id and doc.parent_document_id not in parent_doc_ids_with_children %}
+                                                                {% set _ = parent_doc_ids_with_children.append(doc.parent_document_id) %}
+                                                            {% endif %}
+                                                        {% endfor %}
                                                         {% for offer_document in package_documents %}
                                                         {% set doc = offer_document.document %}
-                                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                                        {% set is_split_child = doc and doc.parent_document_id %}
+                                                        {% set is_original_packet = doc and (doc.id in parent_doc_ids_with_children) %}
+                                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center{% if is_split_child %} pl-6 sm:pl-8 border-l-2 border-l-slate-200{% endif %}">
                                                             <div class="min-w-0">
                                                                 <div class="flex flex-wrap items-center gap-2">
                                                                     <span class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</span>
+                                                                    {% if is_original_packet %}
+                                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Original uploaded packet">Original upload</span>
+                                                                    {% elif is_split_child %}
+                                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Split from the original uploaded packet">Split document{% if doc.page_start and doc.page_end %} · pages {{ doc.page_start }}-{{ doc.page_end }}{% endif %}</span>
+                                                                    {% endif %}
                                                                     {% if offer_document.is_primary_terms_document and offer_document.offer_version %}
                                                                     <span class="rounded-md bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Version {{ offer_document.offer_version.version_number }}</span>
                                                                     {% if offer.current_version_id == offer_document.offer_version_id %}
@@ -837,6 +878,46 @@
                                                             <dt class="text-xs font-medium text-slate-500">Option</dt>
                                                             <dd class="mt-0.5 text-slate-900">{% if offer.option_period_days %}{{ offer.option_period_days }} days{% else %}TBD{% endif %}</dd>
                                                         </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Cash portion</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if offer.cash_down_payment %}${{ "{:,.0f}".format(offer.cash_down_payment) }}{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                        <div>
+                                                            <dt class="text-xs font-medium text-slate-500">Financing sum</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if offer.financing_amount %}${{ "{:,.0f}".format(offer.financing_amount) }}{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <dt class="text-xs font-medium text-slate-500">Seller contributions</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{% if offer.seller_concessions_amount %}${{ "{:,.0f}".format(offer.seller_concessions_amount) }}{% else %}TBD{% endif %}</dd>
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <dt class="text-xs font-medium text-slate-500">Financing approval</dt>
+                                                            <dd class="mt-0.5 text-slate-900">
+                                                                {% if offer_financing_addendum.get('buyer_approval_days') %}
+                                                                {{ offer_financing_addendum.get('buyer_approval_days') }} days after execution
+                                                                {% elif offer_financing_addendum.get('buyer_approval_deadline') %}
+                                                                {{ offer_financing_addendum.get('buyer_approval_deadline') }}
+                                                                {% else %}
+                                                                TBD
+                                                                {% endif %}
+                                                            </dd>
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <dt class="text-xs font-medium text-slate-500">Survey furnished by</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{{ offer.survey_furnished_by or 'TBD' }}</dd>
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <dt class="text-xs font-medium text-slate-500">Residential service contract</dt>
+                                                            <dd class="mt-0.5 text-slate-900">{{ offer.residential_service_contract or 'TBD' }}</dd>
+                                                        </div>
+                                                        <div class="col-span-2">
+                                                            <dt class="text-xs font-medium text-slate-500">Buyer agent commission</dt>
+                                                            <dd class="mt-0.5 text-slate-900">
+                                                                {% if offer.buyer_agent_commission_percent %}{{ offer.buyer_agent_commission_percent }}%{% endif %}
+                                                                {% if offer.buyer_agent_commission_flat %}{% if offer.buyer_agent_commission_percent %} · {% endif %}${{ "{:,.0f}".format(offer.buyer_agent_commission_flat) }}{% endif %}
+                                                                {% if not offer.buyer_agent_commission_percent and not offer.buyer_agent_commission_flat %}TBD{% endif %}
+                                                            </dd>
+                                                        </div>
                                                     </dl>
                                                 </div>
 
@@ -882,18 +963,36 @@
                             </div>
                             {% set primary_contract_docs = seller_contract_documents_by_contract.get(primary_seller_contract.id, []) if seller_contract_documents_by_contract else [] %}
                             {% set contract_supporting = primary_seller_contract.extra_data.get('supporting_documents', {}) if primary_seller_contract.extra_data else {} %}
-                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">
+                            {% set raw_contract_financing_addendum = primary_seller_contract.addenda_data.get('third_party_financing_addendum', {}) if primary_seller_contract.addenda_data is mapping else {} %}
+                            {% set contract_financing_addendum = raw_contract_financing_addendum if raw_contract_financing_addendum is mapping else {} %}
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
                                 <div class="rounded-md border border-slate-200">
                                     <div class="border-b border-slate-200 px-4 py-3">
                                         <h3 class="text-sm font-semibold text-slate-900">Contract package</h3>
                                         <p class="mt-1 text-xs text-slate-500">Documents inherited from the accepted offer.</p>
                                     </div>
                                     <div class="overflow-hidden rounded-md border border-slate-200">
+                                        {% set contract_parent_ids_with_children = [] %}
+                                        {% for offer_document in primary_contract_docs %}
+                                            {% set doc = offer_document.document %}
+                                            {% if doc and doc.parent_document_id and doc.parent_document_id not in contract_parent_ids_with_children %}
+                                                {% set _ = contract_parent_ids_with_children.append(doc.parent_document_id) %}
+                                            {% endif %}
+                                        {% endfor %}
                                         {% for offer_document in primary_contract_docs %}
                                         {% set doc = offer_document.document %}
-                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                                        {% set is_split_child = doc and doc.parent_document_id %}
+                                        {% set is_original_packet = doc and (doc.id in contract_parent_ids_with_children) %}
+                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center{% if is_split_child %} pl-6 sm:pl-8 border-l-2 border-l-slate-200{% endif %}">
                                             <div class="min-w-0">
-                                                <div class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</div>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</span>
+                                                    {% if is_original_packet %}
+                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Original uploaded packet">Original upload</span>
+                                                    {% elif is_split_child %}
+                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Split from the original uploaded packet">Split document{% if doc.page_start and doc.page_end %} · pages {{ doc.page_start }}-{{ doc.page_end }}{% endif %}</span>
+                                                    {% endif %}
+                                                </div>
                                                 <div class="mt-1 truncate text-xs text-slate-500">
                                                     {% if doc %}
                                                     {{ doc.signed_original_filename or doc.template_name }}
@@ -923,26 +1022,80 @@
                                         {% endfor %}
                                     </div>
                                 </div>
-                                <div class="rounded-md border border-slate-200 p-4">
-                                    <h3 class="text-sm font-semibold text-slate-900">Accepted contract details</h3>
-                                    <dl class="mt-3 grid grid-cols-2 gap-3 text-sm">
-                                        <div>
-                                            <dt class="text-xs font-medium text-slate-500">Price</dt>
-                                            <dd class="mt-0.5 font-semibold text-slate-900">{% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% else %}TBD{% endif %}</dd>
+                                <div class="rounded-md border border-slate-200 bg-white p-4">
+                                    <form id="sellerContractDetailsForm" data-contract-id="{{ primary_seller_contract.id }}">
+                                        <div class="flex items-start justify-between gap-3">
+                                            <div>
+                                                <h3 class="text-sm font-semibold text-slate-900">Accepted contract details</h3>
+                                                <p class="mt-1 text-xs text-slate-500">Review extracted terms and save the manual fields that drive milestones.</p>
+                                            </div>
+                                            <button type="submit" class="crm-btn crm-btn-primary px-3 py-1.5 text-xs">Save</button>
                                         </div>
-                                        <div>
-                                            <dt class="text-xs font-medium text-slate-500">Close date</dt>
-                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% else %}TBD{% endif %}</dd>
+                                        {% if not primary_seller_contract.effective_date %}
+                                        <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                            <div class="font-semibold">Enter the contract execution date.</div>
+                                            <p class="mt-1 text-xs text-amber-800">Milestones stay in waiting status until the agent saves this date. Financing approval uses the Third Party Financing Addendum Paragraph 2A day count when available.</p>
                                         </div>
-                                        <div>
-                                            <dt class="text-xs font-medium text-slate-500">Financing deadline</dt>
-                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%b %d, %Y') }}{% else %}TBD{% endif %}</dd>
+                                        {% endif %}
+                                        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <label class="block sm:col-span-2 rounded-md border border-orange-200 bg-orange-50 p-3">
+                                                <span class="text-xs font-semibold uppercase tracking-wide text-orange-700">Manual agent entry required</span>
+                                                <span class="mt-1 block text-sm font-medium text-slate-900">Contract execution date</span>
+                                                <input type="date" name="effective_date" class="crm-input mt-2" value="{% if primary_seller_contract.effective_date %}{{ primary_seller_contract.effective_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Sales price</span>
+                                                <input name="accepted_price" class="crm-input mt-1" value="{{ primary_seller_contract.accepted_price or '' }}" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Close date</span>
+                                                <input type="date" name="closing_date" class="crm-input mt-1" value="{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Financing type</span>
+                                                <input name="financing_type" class="crm-input mt-1" value="{{ primary_seller_contract.financing_type or '' }}">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Option days</span>
+                                                <input name="option_period_days" class="crm-input mt-1" value="{{ primary_seller_contract.option_period_days or '' }}">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Cash portion</span>
+                                                <input name="cash_down_payment" class="crm-input mt-1" value="{{ primary_seller_contract.cash_down_payment or '' }}" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Sum of financing</span>
+                                                <input name="financing_amount" class="crm-input mt-1" value="{{ primary_seller_contract.financing_amount or '' }}" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Financing deadline</span>
+                                                <input type="date" name="financing_approval_deadline" class="crm-input mt-1" value="{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%Y-%m-%d') }}{% endif %}">
+                                                {% if contract_financing_addendum.get('buyer_approval_days') %}
+                                                <span class="mt-1 block text-[11px] text-slate-500">TPF Paragraph 2A: {{ contract_financing_addendum.get('buyer_approval_days') }} days after execution.</span>
+                                                {% endif %}
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Seller contributions</span>
+                                                <input name="seller_concessions_amount" class="crm-input mt-1" value="{{ primary_seller_contract.seller_concessions_amount or '' }}" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Buyer agent commission %</span>
+                                                <input name="buyer_agent_commission_percent" class="crm-input mt-1" value="{{ primary_seller_contract.buyer_agent_commission_percent or '' }}" placeholder="%">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Buyer agent commission $</span>
+                                                <input name="buyer_agent_commission_flat" class="crm-input mt-1" value="{{ primary_seller_contract.buyer_agent_commission_flat or '' }}" placeholder="$">
+                                            </label>
+                                            <label class="block sm:col-span-2">
+                                                <span class="text-xs font-medium text-slate-600">Survey furnished by</span>
+                                                <input name="survey_furnished_by" class="crm-input mt-1" value="{{ primary_seller_contract.survey_furnished_by or '' }}">
+                                            </label>
+                                            <label class="block sm:col-span-2">
+                                                <span class="text-xs font-medium text-slate-600">Residential service contract</span>
+                                                <textarea name="residential_service_contract" class="crm-input mt-1 min-h-20">{{ primary_seller_contract.residential_service_contract or '' }}</textarea>
+                                            </label>
                                         </div>
-                                        <div>
-                                            <dt class="text-xs font-medium text-slate-500">Option</dt>
-                                            <dd class="mt-0.5 text-slate-900">{% if primary_seller_contract.option_period_days %}{{ primary_seller_contract.option_period_days }} days{% else %}TBD{% endif %}</dd>
-                                        </div>
-                                    </dl>
+                                    </form>
                                     {% if contract_supporting %}
                                     <div class="mt-4 border-t border-slate-200 pt-3">
                                         <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Supporting data</div>

@@ -7,7 +7,13 @@ from flask import abort, jsonify, request
 from flask_login import current_user, login_required
 
 from models import SellerAcceptedContract, SellerContractMilestone, Transaction, db
-from services.seller_workflow import close_contract, promote_backup_contract, terminate_contract
+from services.seller_workflow import (
+    close_contract,
+    create_contract_milestones,
+    derive_financing_approval_deadline,
+    promote_backup_contract,
+    terminate_contract,
+)
 from . import transactions_bp
 from .decorators import transactions_required
 
@@ -91,6 +97,41 @@ def _get_contract_for_update(transaction, contract_id):
     ).first_or_404()
 
 
+def _json_safe_value(value):
+    if value is None:
+        return None
+    if hasattr(value, 'isoformat'):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return str(value)
+    return value
+
+
+def _sync_contract_frozen_terms(contract):
+    from sqlalchemy.orm.attributes import flag_modified
+
+    terms = dict(contract.frozen_terms or {})
+    for field in (
+        'accepted_price',
+        'effective_date',
+        'closing_date',
+        'option_period_days',
+        'financing_approval_deadline',
+        'financing_type',
+        'cash_down_payment',
+        'financing_amount',
+        'seller_concessions_amount',
+        'survey_choice',
+        'survey_furnished_by',
+        'residential_service_contract',
+        'buyer_agent_commission_percent',
+        'buyer_agent_commission_flat',
+    ):
+        terms[field] = _json_safe_value(getattr(contract, field))
+    contract.frozen_terms = terms
+    flag_modified(contract, 'frozen_terms')
+
+
 def _apply_milestone_data(milestone, data):
     title = (data.get('title') or '').strip()
     if not title:
@@ -111,6 +152,68 @@ def _apply_milestone_data(milestone, data):
     else:
         milestone.completed_at = None
     return milestone
+
+
+@transactions_bp.route('/<int:id>/seller/contracts/<int:contract_id>/details', methods=['POST', 'PATCH'])
+@login_required
+@transactions_required
+def update_seller_contract_details(id, contract_id):
+    """Update accepted contract terms that drive seller milestones."""
+    transaction = _get_seller_transaction(id)
+    if transaction is None:
+        return jsonify({'success': False, 'error': 'Contracts are only available for seller transactions'}), 400
+
+    contract = _get_contract_for_update(transaction, contract_id)
+    data = request.get_json(silent=True) or request.form
+
+    try:
+        if 'accepted_price' in data:
+            contract.accepted_price = _decimal(data.get('accepted_price'))
+        if 'effective_date' in data:
+            contract.effective_date = _parse_date(data.get('effective_date'))
+            contract.effective_at = _parse_datetime(data.get('effective_at')) if data.get('effective_at') else None
+        if 'closing_date' in data:
+            contract.closing_date = _parse_date(data.get('closing_date'))
+        if 'option_period_days' in data:
+            contract.option_period_days = int(data.get('option_period_days')) if data.get('option_period_days') else None
+
+        for field in (
+            'financing_type',
+            'survey_choice',
+            'survey_furnished_by',
+            'residential_service_contract',
+        ):
+            if field in data:
+                setattr(contract, field, data.get(field) or None)
+
+        for field in (
+            'cash_down_payment',
+            'financing_amount',
+            'seller_concessions_amount',
+            'buyer_agent_commission_percent',
+            'buyer_agent_commission_flat',
+        ):
+            if field in data:
+                setattr(contract, field, _decimal(data.get(field)))
+
+        if 'financing_approval_deadline' in data and data.get('financing_approval_deadline'):
+            contract.financing_approval_deadline = _parse_date(data.get('financing_approval_deadline'))
+        else:
+            contract.financing_approval_deadline = derive_financing_approval_deadline(
+                contract.frozen_terms or {},
+                contract.effective_date,
+            )
+
+        _sync_contract_frozen_terms(contract)
+        create_contract_milestones(contract, replace=True)
+        db.session.commit()
+        return jsonify({'success': True, 'accepted_contract_id': contract.id})
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @transactions_bp.route('/<int:id>/seller/contracts/<int:contract_id>/milestones', methods=['POST'])
