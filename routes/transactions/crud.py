@@ -414,9 +414,12 @@ def view_transaction(id):
     # For seller transactions, extract listing info from the listing agreement document
     listing_info = None
     listing_extraction_status = None
+    listing_info_overrides = {}
     if transaction.transaction_type.name == 'seller':
+        extra_data = transaction.extra_data or {}
+        listing_info_overrides = extra_data.get('listing_info_overrides') or {}
         from services.transaction_helpers import build_listing_info
-        listing_info = build_listing_info(documents)
+        listing_info = build_listing_info(documents, listing_info_overrides)
         listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
         if listing_doc:
             listing_extraction_status = listing_doc.extraction_status
@@ -564,6 +567,7 @@ def view_transaction(id):
         contact_files=contact_files,
         listing_info=listing_info,
         listing_extraction_status=listing_extraction_status,
+        listing_info_overrides=listing_info_overrides,
         lockbox_combo=lockbox_combo,
         seller_listing_profile=seller_listing_profile,
         seller_offers=seller_offers,
@@ -615,7 +619,8 @@ def extraction_status(id):
         status = listing_doc.extraction_status
         error = listing_doc.extraction_error
 
-    listing_info = build_listing_info(documents) if transaction.transaction_type.name == 'seller' else None
+    listing_info_overrides = (transaction.extra_data or {}).get('listing_info_overrides') or {}
+    listing_info = build_listing_info(documents, listing_info_overrides) if transaction.transaction_type.name == 'seller' else None
 
     return jsonify({
         'extraction_status': status,

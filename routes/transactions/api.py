@@ -6,8 +6,9 @@ Transaction API endpoints (JSON responses).
 from datetime import datetime, timedelta
 from flask import request, jsonify
 from flask_login import login_required, current_user
-from models import db, Transaction, Contact
+from models import db, Transaction, Contact, TransactionDocument
 from services import audit_service
+from services.transaction_helpers import build_listing_info
 from config import Config
 from . import transactions_bp
 from .decorators import transactions_required
@@ -152,6 +153,58 @@ def update_lockbox_combo(id):
         
         db.session.commit()
         return jsonify({'success': True, 'lockbox_combo': lockbox_combo})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/listing-info-overrides', methods=['POST'])
+@login_required
+@transactions_required
+def update_listing_info_overrides(id):
+    """Save manual listing-info overrides for a seller transaction."""
+    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
+
+    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    if transaction.transaction_type.name != 'seller':
+        return jsonify({'success': False, 'error': 'Listing info edits only available for seller transactions'}), 400
+
+    data = request.get_json(silent=True) or {}
+    allowed_fields = {
+        'list_price',
+        'listing_start_date',
+        'listing_end_date',
+        'total_commission',
+        'listing_side_commission',
+        'buyer_commission',
+        'protection_period_days',
+        'financing_types',
+        'has_hoa',
+    }
+    cleaned = {}
+    for field in allowed_fields:
+        value = data.get(field)
+        if value is None:
+            continue
+        normalized = str(value).strip()
+        if normalized:
+            cleaned[field] = normalized
+
+    try:
+        extra_data = dict(transaction.extra_data or {})
+        if cleaned:
+            extra_data['listing_info_overrides'] = cleaned
+        else:
+            extra_data.pop('listing_info_overrides', None)
+        transaction.extra_data = extra_data
+
+        documents = TransactionDocument.query.filter_by(transaction_id=transaction.id).all()
+        listing_info = build_listing_info(documents, cleaned)
+
+        db.session.commit()
+        return jsonify({'success': True, 'listing_info': listing_info, 'overrides': cleaned})
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

@@ -1910,30 +1910,36 @@
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 {# ----- Listing info card (seller only) ----- #}
+                {% set listing_override_values = listing_info_overrides or {} %}
                 <section class="crm-surface" id="listing-info-card"
                          data-transaction-id="{{ transaction.id }}"
                          data-extraction-status="{{ listing_extraction_status or '' }}">
                     <div class="crm-surface-header">
-                        <div class="flex items-center gap-3">
-                            {{ section_header('Listing info') }}
-                            <span id="listing-info-status">
-                            {% if listing_extraction_status == 'pending' or listing_extraction_status == 'processing' %}
-                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
-                                Extracting
-                            </span>
-                            {% elif listing_info %}
-                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                                Loaded
-                            </span>
-                            {% elif listing_extraction_status == 'failed' %}
-                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
-                                Failed
-                            </span>
-                            {% endif %}
-                            </span>
+                        <div class="flex w-full items-center justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                {{ section_header('Listing info') }}
+                                <span id="listing-info-status">
+                                {% if listing_extraction_status == 'pending' or listing_extraction_status == 'processing' %}
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-sky-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-sky-500"></span>
+                                    Extracting
+                                </span>
+                                {% elif listing_info %}
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                    Loaded
+                                </span>
+                                {% elif listing_extraction_status == 'failed' %}
+                                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-red-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                                    Failed
+                                </span>
+                                {% endif %}
+                                </span>
+                            </div>
+                            <button type="button" id="listingInfoEditToggleBtn" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs">
+                                Edit
+                            </button>
                         </div>
                     </div>
                     <div class="crm-surface-body">
@@ -1973,6 +1979,10 @@
                                 <div class="info-row">
                                     <span class="info-label">Total Commission</span>
                                     <span class="info-value">{{ listing_info.total_commission or '—' }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="info-label">Listing Side Commission</span>
+                                    <span class="info-value">{{ listing_info.listing_side_commission or '—' }}</span>
                                 </div>
                                 <div class="info-row">
                                     <span class="info-label">Buyer Side Commission</span>
@@ -2015,6 +2025,57 @@
                             {% endif %}
                         </div>
 
+                        <form id="listingInfoEditForm" class="mt-4 hidden space-y-3 border-t border-slate-100 pt-4">
+                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">List Price</span>
+                                    <input name="list_price" class="crm-input mt-1" placeholder="$335,000" value="{{ listing_override_values.get('list_price', listing_info.list_price if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Listing Start Date</span>
+                                    <input name="listing_start_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_start_date', listing_info.listing_start_date if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Listing Expiration Date</span>
+                                    <input name="listing_end_date" class="crm-input mt-1" placeholder="YYYY-MM-DD" value="{{ listing_override_values.get('listing_end_date', listing_info.listing_end_date if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Protection Period (days)</span>
+                                    <input name="protection_period_days" class="crm-input mt-1" placeholder="180" value="{{ listing_override_values.get('protection_period_days', listing_info.protection_period_days if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Total Commission</span>
+                                    <input name="total_commission" class="crm-input mt-1" placeholder="6%" value="{{ listing_override_values.get('total_commission', listing_info.total_commission if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Listing Side Commission</span>
+                                    <input name="listing_side_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('listing_side_commission', listing_info.listing_side_commission if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">Buyer Side Commission</span>
+                                    <input name="buyer_commission" class="crm-input mt-1" placeholder="3%" value="{{ listing_override_values.get('buyer_commission', listing_info.buyer_commission if listing_info else '') }}">
+                                </label>
+                                <label class="block">
+                                    <span class="text-xs font-medium text-slate-600">HOA Required</span>
+                                    {% set has_hoa_override = listing_override_values.get('has_hoa', listing_info.has_hoa if listing_info else '') %}
+                                    <select name="has_hoa" class="crm-select mt-1">
+                                        <option value="">—</option>
+                                        <option value="Yes" {% if has_hoa_override == 'Yes' %}selected{% endif %}>Yes</option>
+                                        <option value="No" {% if has_hoa_override == 'No' %}selected{% endif %}>No</option>
+                                    </select>
+                                </label>
+                                <label class="block sm:col-span-2">
+                                    <span class="text-xs font-medium text-slate-600">Accepted Financing</span>
+                                    <input name="financing_types" class="crm-input mt-1" placeholder="Conventional, VA, FHA, Cash" value="{{ listing_override_values.get('financing_types', listing_info.financing_types if listing_info else '') }}">
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-end gap-2">
+                                <button type="button" id="listingInfoEditCancelBtn" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs">Cancel</button>
+                                <button type="submit" id="listingInfoEditSaveBtn" class="crm-btn crm-btn-primary px-3 py-1.5 text-xs">Save changes</button>
+                            </div>
+                            <p class="text-xs text-slate-500">These values override extracted listing details for this transaction.</p>
+                        </form>
+
                         {# Lockbox combo (always editable) #}
                         <div class="{% if listing_info %}mt-4 border-t border-slate-100 pt-4{% endif %}">
                             <div class="flex items-center justify-between gap-3">
@@ -2040,6 +2101,76 @@
 
                 <script>
                 (function() {
+                    const listingEditToggleBtn = document.getElementById('listingInfoEditToggleBtn');
+                    const listingEditCancelBtn = document.getElementById('listingInfoEditCancelBtn');
+                    const listingEditForm = document.getElementById('listingInfoEditForm');
+                    const listingEditSaveBtn = document.getElementById('listingInfoEditSaveBtn');
+                    let listingEditInitialData = null;
+
+                    function openListingInfoEditor() {
+                        if (!listingEditForm) return;
+                        listingEditForm.classList.remove('hidden');
+                        if (listingEditToggleBtn) listingEditToggleBtn.classList.add('hidden');
+                    }
+
+                    function closeListingInfoEditor(restoreOriginal = false) {
+                        if (!listingEditForm) return;
+                        if (restoreOriginal && listingEditInitialData) {
+                            Object.entries(listingEditInitialData).forEach(([name, value]) => {
+                                const field = listingEditForm.querySelector(`[name="${name}"]`);
+                                if (field) field.value = value;
+                            });
+                        }
+                        listingEditForm.classList.add('hidden');
+                        if (listingEditToggleBtn) listingEditToggleBtn.classList.remove('hidden');
+                    }
+
+                    if (listingEditForm) {
+                        listingEditInitialData = Object.fromEntries(new FormData(listingEditForm).entries());
+
+                        if (listingEditToggleBtn) {
+                            listingEditToggleBtn.addEventListener('click', openListingInfoEditor);
+                        }
+                        if (listingEditCancelBtn) {
+                            listingEditCancelBtn.addEventListener('click', () => closeListingInfoEditor(true));
+                        }
+
+                        listingEditForm.addEventListener('submit', function(event) {
+                            event.preventDefault();
+                            const originalLabel = listingEditSaveBtn ? listingEditSaveBtn.textContent : 'Save changes';
+                            if (listingEditSaveBtn) {
+                                listingEditSaveBtn.disabled = true;
+                                listingEditSaveBtn.textContent = 'Saving...';
+                            }
+
+                            const payload = {};
+                            new FormData(listingEditForm).forEach((value, key) => {
+                                payload[key] = value;
+                            });
+
+                            fetch(`/transactions/${transactionId}/listing-info-overrides`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    throw new Error(data.error || 'Unable to save listing info');
+                                }
+                                showToast('Listing info updated.', 'success');
+                                setTimeout(() => location.reload(), 350);
+                            })
+                            .catch(error => {
+                                showToast(error.message || 'Unable to save listing info', 'error');
+                                if (listingEditSaveBtn) {
+                                    listingEditSaveBtn.disabled = false;
+                                    listingEditSaveBtn.textContent = originalLabel;
+                                }
+                            });
+                        });
+                    }
+
                     const input = document.getElementById('lockboxComboInput');
                     const btn = document.getElementById('lockboxSaveBtn');
                     if (!input || !btn) return;
