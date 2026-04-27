@@ -1026,85 +1026,135 @@
                                         {% endfor %}
                                     </div>
                                 </div>
-                                <div class="rounded-md border border-slate-200 bg-white p-4">
-                                    <form id="sellerContractDetailsForm" data-contract-id="{{ primary_seller_contract.id }}">
-                                        <div class="flex items-start justify-between gap-3">
-                                            <div>
-                                                <h3 class="text-sm font-semibold text-slate-900">Accepted contract details</h3>
-                                                <p class="mt-1 text-xs text-slate-500">Review extracted terms and save the manual fields that drive milestones.</p>
+                                <div class="rounded-md border border-slate-200 bg-white">
+                                    <form id="sellerContractDetailsForm" data-contract-id="{{ primary_seller_contract.id }}" data-contract-mode="view" novalidate>
+                                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+                                            <div class="min-w-0">
+                                                <h3 class="text-sm font-semibold text-slate-900">Contract details</h3>
+                                                <p class="mt-0.5 text-xs text-slate-500">Pulled from the executed contract. Edit only to correct extracted values.</p>
                                             </div>
-                                            <button type="submit" class="crm-btn crm-btn-primary px-3 py-1.5 text-xs">Save</button>
+                                            <div class="flex shrink-0 items-center gap-2">
+                                                <button type="button" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs" data-contract-action="edit">
+                                                    <i class="fas fa-pen text-[10px] text-slate-500"></i>
+                                                    Edit
+                                                </button>
+                                                <button type="button" class="crm-btn crm-btn-secondary hidden px-3 py-1.5 text-xs" data-contract-action="cancel">Cancel</button>
+                                                <button type="submit" class="crm-btn crm-btn-primary hidden px-3 py-1.5 text-xs" data-contract-action="save">Save changes</button>
+                                            </div>
                                         </div>
-                                        {% if not primary_seller_contract.effective_date %}
-                                        <div class="mt-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                                            <div class="font-semibold">Enter the contract execution date.</div>
-                                            <p class="mt-1 text-xs text-amber-800">Milestones stay in waiting status until the agent saves this date. Financing approval uses the Third Party Financing Addendum Paragraph 2A day count when available.</p>
-                                        </div>
-                                        {% endif %}
-                                        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                            <label class="block sm:col-span-2 rounded-md border border-orange-200 bg-orange-50 p-3">
-                                                <span class="text-xs font-semibold uppercase tracking-wide text-orange-700">Manual agent entry required</span>
-                                                <span class="mt-1 block text-sm font-medium text-slate-900">Contract execution date</span>
-                                                <input type="date" name="effective_date" class="crm-input mt-2" value="{% if primary_seller_contract.effective_date %}{{ primary_seller_contract.effective_date.strftime('%Y-%m-%d') }}{% endif %}">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Sales price</span>
-                                                <input name="accepted_price" class="crm-input mt-1" value="{{ primary_seller_contract.accepted_price or '' }}" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Close date</span>
-                                                <input type="date" name="closing_date" class="crm-input mt-1" value="{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%Y-%m-%d') }}{% endif %}">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Financing type</span>
-                                                <input name="financing_type" class="crm-input mt-1" value="{{ primary_seller_contract.financing_type or '' }}">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Option days</span>
-                                                <input name="option_period_days" class="crm-input mt-1" value="{{ primary_seller_contract.option_period_days or '' }}">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Cash portion</span>
-                                                <input name="cash_down_payment" class="crm-input mt-1" value="{{ primary_seller_contract.cash_down_payment or '' }}" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Sum of financing</span>
-                                                <input name="financing_amount" class="crm-input mt-1" value="{{ primary_seller_contract.financing_amount or '' }}" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Financing deadline</span>
-                                                <input type="date" name="financing_approval_deadline" class="crm-input mt-1" value="{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%Y-%m-%d') }}{% endif %}">
-                                                {% if contract_financing_addendum.get('buyer_approval_days') %}
-                                                <span class="mt-1 block text-[11px] text-slate-500">TPF Paragraph 2A: {{ contract_financing_addendum.get('buyer_approval_days') }} days after execution.</span>
+                                        <div class="border-b border-slate-100 px-4 py-4 sm:px-5">
+                                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <label class="block min-w-0">
+                                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contract execution date</span>
+                                                    <input type="date" name="effective_date" class="crm-input mt-1.5 w-full max-w-[220px] py-2"
+                                                           value="{% if primary_seller_contract.effective_date %}{{ primary_seller_contract.effective_date.strftime('%Y-%m-%d') }}{% endif %}"
+                                                           data-contract-execution-date>
+                                                    <span class="mt-1.5 block text-[11px] text-slate-500">Manually entered by the agent. Drives milestone timing.</span>
+                                                </label>
+                                                {% if not primary_seller_contract.effective_date %}
+                                                <span class="inline-flex shrink-0 items-center gap-1.5 self-start rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                                                    <i class="fas fa-circle-exclamation text-amber-500"></i>
+                                                    Required to start milestones
+                                                </span>
                                                 {% endif %}
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Seller contributions</span>
-                                                <input name="seller_concessions_amount" class="crm-input mt-1" value="{{ primary_seller_contract.seller_concessions_amount or '' }}" placeholder="$">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Buyer agent commission %</span>
-                                                <input name="buyer_agent_commission_percent" class="crm-input mt-1" value="{{ primary_seller_contract.buyer_agent_commission_percent or '' }}" placeholder="%">
-                                            </label>
-                                            <label class="block">
-                                                <span class="text-xs font-medium text-slate-600">Buyer agent commission $</span>
-                                                <input name="buyer_agent_commission_flat" class="crm-input mt-1" value="{{ primary_seller_contract.buyer_agent_commission_flat or '' }}" placeholder="$">
-                                            </label>
-                                            <label class="block sm:col-span-2">
-                                                <span class="text-xs font-medium text-slate-600">Survey furnished by</span>
-                                                <input name="survey_furnished_by" class="crm-input mt-1" value="{{ primary_seller_contract.survey_furnished_by or '' }}">
-                                            </label>
-                                            <label class="block sm:col-span-2">
-                                                <span class="text-xs font-medium text-slate-600">Residential service contract</span>
-                                                <textarea name="residential_service_contract" class="crm-input mt-1 min-h-20">{{ primary_seller_contract.residential_service_contract or '' }}</textarea>
-                                            </label>
+                                            </div>
                                         </div>
+                                        <dl class="grid grid-cols-1 gap-x-8 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:px-5" data-contract-fields>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sales price</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="accepted_price" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.accepted_price or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Close date</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input type="date" name="closing_date" class="crm-input hidden py-2" value="{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%Y-%m-%d') }}{% endif %}" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Financing type</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_type %}{{ primary_seller_contract.financing_type }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="financing_type" class="crm-input hidden py-2" value="{{ primary_seller_contract.financing_type or '' }}" placeholder="Conventional, FHA, VA, cash…" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Option period</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.option_period_days %}{{ primary_seller_contract.option_period_days }} day{{ primary_seller_contract.option_period_days != 1 and 's' or '' }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="option_period_days" inputmode="numeric" class="crm-input hidden py-2" value="{{ primary_seller_contract.option_period_days or '' }}" placeholder="0" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Cash portion</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.cash_down_payment %}${{ "{:,.0f}".format(primary_seller_contract.cash_down_payment) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="cash_down_payment" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.cash_down_payment or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sum of financing</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_amount %}${{ "{:,.0f}".format(primary_seller_contract.financing_amount) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="financing_amount" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.financing_amount or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Financing deadline</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%b %d, %Y') }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input type="date" name="financing_approval_deadline" class="crm-input hidden py-2" value="{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%Y-%m-%d') }}{% endif %}" data-contract-input>
+                                                    {% if contract_financing_addendum.get('buyer_approval_days') %}
+                                                    <span class="mt-1 block text-[11px] text-slate-500">TPF Paragraph 2A: {{ contract_financing_addendum.get('buyer_approval_days') }} days after execution.</span>
+                                                    {% endif %}
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Seller contributions</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.seller_concessions_amount %}${{ "{:,.0f}".format(primary_seller_contract.seller_concessions_amount) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="seller_concessions_amount" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.seller_concessions_amount or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buyer agent commission %</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.buyer_agent_commission_percent %}{{ primary_seller_contract.buyer_agent_commission_percent }}%{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="buyer_agent_commission_percent" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.buyer_agent_commission_percent or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buyer agent commission $</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.buyer_agent_commission_flat %}${{ "{:,.0f}".format(primary_seller_contract.buyer_agent_commission_flat) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="buyer_agent_commission_flat" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.buyer_agent_commission_flat or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div class="sm:col-span-2" data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Survey furnished by</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.survey_furnished_by %}{{ primary_seller_contract.survey_furnished_by }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="survey_furnished_by" class="crm-input hidden py-2" value="{{ primary_seller_contract.survey_furnished_by or '' }}" placeholder="e.g. Seller, Buyer, or amended terms" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div class="sm:col-span-2" data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Residential service contract</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block whitespace-pre-line text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.residential_service_contract %}{{ primary_seller_contract.residential_service_contract }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <textarea name="residential_service_contract" class="crm-input hidden min-h-[88px] py-2" placeholder="Coverage, premium cap, and provider" data-contract-input>{{ primary_seller_contract.residential_service_contract or '' }}</textarea>
+                                                </dd>
+                                            </div>
+                                        </dl>
                                     </form>
-                                    {% if contract_supporting %}
-                                    <div class="mt-4 border-t border-slate-200 pt-3">
-                                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Supporting data</div>
+                                    {% set contract_supporting_has_data = contract_supporting and (contract_supporting.values()|select|list|length > 0) %}
+                                    {% if contract_supporting_has_data %}
+                                    <div class="border-t border-slate-100 px-4 py-3 sm:px-5">
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Supporting data</div>
                                         <div class="mt-2 flex flex-wrap gap-1.5">
-                                            {% for doc_type, extracted in contract_supporting.items() %}
+                                            {% for doc_type, extracted in contract_supporting.items() if extracted %}
                                             <span class="inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{{ doc_type|replace('_', ' ')|title }} · {{ extracted|length }} fields</span>
                                             {% endfor %}
                                         </div>
