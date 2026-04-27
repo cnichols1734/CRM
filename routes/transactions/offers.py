@@ -18,9 +18,11 @@ from services.seller_workflow import (
     apply_offer_terms,
     create_contract_milestones,
     create_offer_activity,
+    derive_financing_approval_deadline,
     expire_offer_if_needed,
     get_offer_document_type,
     infer_offer_document_type,
+    infer_offer_document_type_from_pdf,
     offer_urgency,
 )
 from services.intake_service import post_upload_processing
@@ -127,6 +129,15 @@ def _offer_extraction_status(offer):
     return status
 
 
+def _pending_offer_extraction_documents(offer):
+    pending = []
+    for offer_document in offer.offer_documents.all():
+        document = offer_document.document
+        if document and document.extraction_status in ('pending', 'processing'):
+            pending.append(offer_document.display_name or document.template_name or document.signed_original_filename)
+    return pending
+
+
 def _normalize_terms(data):
     terms = dict(data.get('terms_data') or data.get('terms') or {})
     for key in ('response_deadline_at',):
@@ -150,10 +161,16 @@ def _offer_payload(offer):
         'urgency': urgency,
         'offer_price': str(offer.offer_price) if offer.offer_price is not None else None,
         'financing_type': offer.financing_type,
+        'cash_down_payment': str(offer.cash_down_payment) if offer.cash_down_payment is not None else None,
+        'financing_amount': str(offer.financing_amount) if offer.financing_amount is not None else None,
         'proposed_close_date': offer.proposed_close_date.isoformat() if offer.proposed_close_date else None,
         'option_period_days': offer.option_period_days,
         'earnest_money': str(offer.earnest_money) if offer.earnest_money is not None else None,
         'seller_concessions_amount': str(offer.seller_concessions_amount) if offer.seller_concessions_amount is not None else None,
+        'survey_furnished_by': offer.survey_furnished_by,
+        'residential_service_contract': offer.residential_service_contract,
+        'buyer_agent_commission_percent': str(offer.buyer_agent_commission_percent) if offer.buyer_agent_commission_percent is not None else None,
+        'buyer_agent_commission_flat': str(offer.buyer_agent_commission_flat) if offer.buyer_agent_commission_flat is not None else None,
         'current_version_id': offer.current_version_id,
         'accepted_version_id': offer.accepted_version_id,
         'source_showing_id': offer.source_showing_id,
@@ -372,7 +389,8 @@ def upload_seller_offer_document(id):
                 return jsonify({'success': False, 'error': f'{file.filename}: file too large. Maximum size is 25MB.'}), 400
 
             explicit_type = document_types[index] if index < len(document_types) else None
-            document_type = infer_offer_document_type(
+            document_type = infer_offer_document_type_from_pdf(
+                file_data,
                 file.filename,
                 explicit_type or request.form.get('document_type') or request.form.get('direction'),
             )
@@ -648,6 +666,14 @@ def accept_seller_offer(id, offer_id):
         if not active_primary:
             return jsonify({'success': False, 'error': 'Accept a primary contract before accepting a backup'}), 400
 
+    pending_extractions = _pending_offer_extraction_documents(offer)
+    if pending_extractions:
+        return jsonify({
+            'success': False,
+            'error': 'AI extraction is still running for this offer. Wait for extraction to finish before accepting it as a contract.',
+            'pending_documents': pending_extractions,
+        }), 409
+
     version = None
     if offer.current_version_id:
         version = SellerOfferVersion.query.filter_by(
@@ -665,20 +691,8 @@ def accept_seller_offer(id, offer_id):
         seller_disclosure.get('buyer_received_date')
         or seller_disclosure.get('seller_signed_date')
     )
-    financing_deadline = (
-        terms.get('financing_approval_deadline')
-        or financing_addendum.get('financing_approval_deadline')
-        or financing_addendum.get('buyer_approval_deadline')
-    )
-    if not financing_deadline and financing_addendum.get('buyer_approval_days'):
-        effective_date = _parse_date(data.get('effective_date') or terms.get('effective_date'))
-        try:
-            approval_days = int(str(financing_addendum.get('buyer_approval_days')).strip())
-        except (TypeError, ValueError):
-            approval_days = None
-        if effective_date and approval_days is not None:
-            from datetime import timedelta
-            financing_deadline = effective_date + timedelta(days=approval_days)
+    manual_effective_date = _parse_date(data.get('effective_date'))
+    financing_deadline = derive_financing_approval_deadline(terms, manual_effective_date)
 
     accepted_contract = SellerAcceptedContract(
         organization_id=current_user.organization_id,
@@ -690,14 +704,22 @@ def accept_seller_offer(id, offer_id):
         backup_position=data.get('backup_position') if position == 'backup' else None,
         backup_addendum_document_id=data.get('backup_addendum_document_id') or None,
         accepted_price=offer.offer_price or terms.get('offer_price') or terms.get('sales_price'),
-        effective_date=_parse_date(data.get('effective_date') or terms.get('effective_date')),
-        effective_at=_parse_datetime(data.get('effective_at') or terms.get('effective_at')),
+        effective_date=manual_effective_date,
+        effective_at=_parse_datetime(data.get('effective_at')),
         closing_date=offer.proposed_close_date or _parse_date(terms.get('proposed_close_date') or terms.get('closing_date')),
         option_period_days=offer.option_period_days or _parse_int(terms.get('option_period_days')),
         financing_approval_deadline=_parse_date(financing_deadline),
+        financing_type=offer.financing_type or terms.get('financing_type'),
+        cash_down_payment=offer.cash_down_payment or terms.get('cash_down_payment'),
+        financing_amount=offer.financing_amount or terms.get('financing_amount') or financing_addendum.get('total_financing_amount'),
+        seller_concessions_amount=offer.seller_concessions_amount or terms.get('seller_concessions_amount'),
         title_company=terms.get('title_company'),
         escrow_officer=terms.get('escrow_officer'),
         survey_choice=terms.get('survey_choice'),
+        survey_furnished_by=offer.survey_furnished_by or terms.get('survey_furnished_by'),
+        residential_service_contract=offer.residential_service_contract or terms.get('residential_service_contract'),
+        buyer_agent_commission_percent=offer.buyer_agent_commission_percent or terms.get('buyer_agent_commission_percent'),
+        buyer_agent_commission_flat=offer.buyer_agent_commission_flat or terms.get('buyer_agent_commission_flat'),
         hoa_applicable=terms.get('hoa_applicable') if terms.get('hoa_applicable') is not None else bool(hoa_addendum),
         seller_disclosure_required=terms.get('seller_disclosure_required') if terms.get('seller_disclosure_required') is not None else bool(seller_disclosure),
         seller_disclosure_delivered_at=_parse_datetime(seller_disclosure_delivered),

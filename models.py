@@ -936,11 +936,29 @@ class TransactionDocument(db.Model):
     # AI extraction status for uploaded documents (null = not applicable)
     extraction_status = db.Column(db.String(20))  # pending, processing, complete, failed
     extraction_error = db.Column(db.Text)  # error details on failure
-    
+
+    # Lineage for AI-split combined packets. parent_document_id points at the original
+    # uploaded packet; page_start/page_end are 1-based pages inside that parent.
+    parent_document_id = db.Column(
+        db.Integer,
+        db.ForeignKey('transaction_documents.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
+    page_start = db.Column(db.Integer, nullable=True)
+    page_end = db.Column(db.Integer, nullable=True)
+    split_source = db.Column(db.String(50), nullable=True)  # e.g. 'ai_packet_split'
+
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
     sent_by = db.relationship('User', foreign_keys=[sent_by_id], backref='sent_documents')
+    split_children = db.relationship(
+        'TransactionDocument',
+        backref=db.backref('parent_document', remote_side='TransactionDocument.id'),
+        foreign_keys=[parent_document_id],
+        lazy='dynamic',
+    )
 
     def __repr__(self):
         return f'<TransactionDocument {self.template_name} ({self.status})>'
@@ -1105,6 +1123,7 @@ class SellerOffer(db.Model):
     offer_price = db.Column(db.Numeric(12, 2))
     financing_type = db.Column(db.String(100))
     cash_down_payment = db.Column(db.Numeric(12, 2))
+    financing_amount = db.Column(db.Numeric(12, 2))
     earnest_money = db.Column(db.Numeric(12, 2))
     additional_earnest_money = db.Column(db.Numeric(12, 2))
     option_fee = db.Column(db.Numeric(12, 2))
@@ -1119,7 +1138,11 @@ class SellerOffer(db.Model):
     inspection_or_repair_terms_summary = db.Column(db.Text)
     title_policy_payer = db.Column(db.String(50))
     survey_payer = db.Column(db.String(50))
+    survey_furnished_by = db.Column(db.Text)
     hoa_resale_certificate_payer = db.Column(db.String(50))
+    residential_service_contract = db.Column(db.Text)
+    buyer_agent_commission_percent = db.Column(db.Numeric(6, 3))
+    buyer_agent_commission_flat = db.Column(db.Numeric(12, 2))
     net_to_seller_estimate = db.Column(db.Numeric(12, 2))
 
     last_activity_at = db.Column(db.DateTime)
@@ -1258,9 +1281,17 @@ class SellerAcceptedContract(db.Model):
     closing_date = db.Column(db.Date)
     option_period_days = db.Column(db.Integer)
     financing_approval_deadline = db.Column(db.Date)
+    financing_type = db.Column(db.String(100))
+    cash_down_payment = db.Column(db.Numeric(12, 2))
+    financing_amount = db.Column(db.Numeric(12, 2))
+    seller_concessions_amount = db.Column(db.Numeric(12, 2))
     title_company = db.Column(db.String(200))
     escrow_officer = db.Column(db.String(200))
     survey_choice = db.Column(db.Text)
+    survey_furnished_by = db.Column(db.Text)
+    residential_service_contract = db.Column(db.Text)
+    buyer_agent_commission_percent = db.Column(db.Numeric(6, 3))
+    buyer_agent_commission_flat = db.Column(db.Numeric(12, 2))
     hoa_applicable = db.Column(db.Boolean)
     seller_disclosure_required = db.Column(db.Boolean)
     seller_disclosure_delivered_at = db.Column(db.DateTime)

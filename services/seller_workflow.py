@@ -31,6 +31,12 @@ ACTIVE_OFFER_STATUSES = {
 
 
 OFFER_DOCUMENT_TYPES = {
+    'offer_package': {
+        'label': 'Offer Package',
+        'template_slug': 'seller-offer-contract',
+        'direction': 'buyer_offer',
+        'primary_terms': True,
+    },
     'buyer_offer': {
         'label': 'Offer Contract',
         'template_slug': 'seller-offer-contract',
@@ -141,6 +147,67 @@ def infer_offer_document_type(filename='', explicit_type=None):
     return 'buyer_offer'
 
 
+def infer_offer_document_type_from_text(text='', filename='', explicit_type=None):
+    """Prefer document text over filenames/dropdown guesses when classifying uploads."""
+    normalized = re.sub(r'[^a-z0-9]+', ' ', (text or '').lower()).strip()
+    has_contract = (
+        'one to four family residential contract' in normalized
+        or ('sales price' in normalized and 'trec no 20' in normalized)
+    )
+    has_tpf = 'third party financing addendum' in normalized
+    has_hoa = (
+        'addendum for property subject to mandatory membership' in normalized
+        or 'property owners association' in normalized
+        or 'home owners association' in normalized
+    )
+    has_disclosure = (
+        'seller disclosure notice' in normalized
+        or 'seller s disclosure notice' in normalized
+    )
+    has_preapproval = (
+        'pre approval' in normalized
+        or 'preapproval' in normalized
+        or 'pre qualification' in normalized
+        or 'prequalification' in normalized
+    )
+    has_backup = 'addendum for back up contract' in normalized or 'backup contract' in normalized
+
+    if has_contract:
+        if has_tpf or has_hoa or has_disclosure:
+            return 'offer_package'
+        if explicit_type in ('buyer_offer', 'seller_counter', 'buyer_counter', 'final_acceptance'):
+            return explicit_type
+        return 'buyer_offer'
+    if has_tpf:
+        return 'third_party_financing'
+    if has_hoa:
+        return 'hoa_addendum'
+    if has_disclosure:
+        return 'sellers_disclosure'
+    if has_preapproval:
+        return 'pre_approval'
+    if has_backup:
+        return 'backup_acceptance'
+    return infer_offer_document_type(filename, explicit_type)
+
+
+def infer_offer_document_type_from_pdf(file_data, filename='', explicit_type=None):
+    """Infer upload type from PDF text, falling back to filename/dropdown metadata."""
+    try:
+        import fitz
+
+        chunks = []
+        doc = fitz.open(stream=file_data, filetype='pdf')
+        try:
+            for page in doc:
+                chunks.append(page.get_text('text') or '')
+        finally:
+            doc.close()
+        return infer_offer_document_type_from_text(' '.join(chunks), filename, explicit_type)
+    except Exception:
+        return infer_offer_document_type(filename, explicit_type)
+
+
 def _coerce_decimal(value):
     if value in (None, ''):
         return None
@@ -173,9 +240,24 @@ def _coerce_bool(value):
     return None
 
 
+def _coerce_text(value):
+    """Return a DB-safe display string for scalar text columns."""
+    if value in (None, ''):
+        return None
+    if isinstance(value, (list, tuple)):
+        parts = [_coerce_text(item) for item in value]
+        return ', '.join(part for part in parts if part)
+    if isinstance(value, dict):
+        parts = [_coerce_text(item) for item in value.values()]
+        return ', '.join(part for part in parts if part) or None
+    return str(value).strip() or None
+
+
 def _parse_date(value):
     if not value:
         return None
+    if isinstance(value, datetime):
+        return value.date()
     if hasattr(value, 'year') and hasattr(value, 'month') and hasattr(value, 'day'):
         return value
     if isinstance(value, str):
@@ -209,6 +291,40 @@ def _as_datetime(date_value, default_time=time(17, 0)):
     if isinstance(date_value, datetime):
         return date_value
     return datetime.combine(date_value, default_time)
+
+
+def _sum_financing_amount(data):
+    first = _coerce_decimal((data or {}).get('first_mortgage_amount'))
+    second = _coerce_decimal((data or {}).get('second_mortgage_amount'))
+    if first is None and second is None:
+        return None
+    return str((first or Decimal('0')) + (second or Decimal('0')))
+
+
+def derive_financing_approval_deadline(terms, effective_date=None):
+    """Calculate buyer approval deadline from explicit dates or TPF paragraph 2A days."""
+    terms = normalize_offer_terms(terms)
+    addenda = _json_object(terms.get('addenda'))
+    supporting = _json_object(terms.get('supporting_documents'))
+    financing_addendum = (
+        _json_object(addenda.get('third_party_financing_addendum'))
+        or _json_object(supporting.get('third_party_financing'))
+    )
+
+    explicit_deadline = (
+        terms.get('financing_approval_deadline')
+        or financing_addendum.get('financing_approval_deadline')
+        or financing_addendum.get('buyer_approval_deadline')
+    )
+    parsed_deadline = _parse_date(explicit_deadline)
+    if parsed_deadline:
+        return parsed_deadline
+
+    parsed_effective_date = _parse_date(effective_date)
+    approval_days = _coerce_int(financing_addendum.get('buyer_approval_days'))
+    if parsed_effective_date and approval_days is not None:
+        return parsed_effective_date + timedelta(days=approval_days)
+    return None
 
 
 def create_offer_activity(offer, event_type, label, actor_id=None, version_id=None, document_id=None, event_data=None):
@@ -278,25 +394,30 @@ def expire_offer_if_needed(offer, now=None, actor_id=None):
 
 def apply_offer_terms(offer, terms):
     """Copy reviewed/extracted terms into canonical offer comparison columns."""
-    terms = terms or {}
+    terms = normalize_offer_terms(terms)
     offer.offer_price = _coerce_decimal(terms.get('offer_price') or terms.get('sales_price'))
-    offer.financing_type = terms.get('financing_type')
+    offer.financing_type = _coerce_text(terms.get('financing_type'))
     offer.cash_down_payment = _coerce_decimal(terms.get('cash_down_payment'))
+    offer.financing_amount = _coerce_decimal(terms.get('financing_amount') or terms.get('total_financing_amount'))
     offer.earnest_money = _coerce_decimal(terms.get('earnest_money'))
     offer.additional_earnest_money = _coerce_decimal(terms.get('additional_earnest_money'))
     offer.option_fee = _coerce_decimal(terms.get('option_fee'))
     offer.option_period_days = _coerce_int(terms.get('option_period_days'))
     offer.seller_concessions_amount = _coerce_decimal(terms.get('seller_concessions_amount'))
     offer.proposed_close_date = _parse_date(terms.get('proposed_close_date') or terms.get('closing_date'))
-    offer.possession_type = terms.get('possession_type')
+    offer.possession_type = _coerce_text(terms.get('possession_type'))
     offer.leaseback_days = _coerce_int(terms.get('leaseback_days'))
     offer.appraisal_contingency = _coerce_bool(terms.get('appraisal_contingency'))
     offer.financing_contingency = _coerce_bool(terms.get('financing_contingency'))
     offer.sale_of_other_property_contingency = _coerce_bool(terms.get('sale_of_other_property_contingency'))
-    offer.inspection_or_repair_terms_summary = terms.get('inspection_or_repair_terms_summary')
-    offer.title_policy_payer = terms.get('title_policy_payer')
-    offer.survey_payer = terms.get('survey_payer')
-    offer.hoa_resale_certificate_payer = terms.get('hoa_resale_certificate_payer')
+    offer.inspection_or_repair_terms_summary = _coerce_text(terms.get('inspection_or_repair_terms_summary'))
+    offer.title_policy_payer = _coerce_text(terms.get('title_policy_payer'))
+    offer.survey_payer = _coerce_text(terms.get('survey_payer'))
+    offer.survey_furnished_by = _coerce_text(terms.get('survey_furnished_by'))
+    offer.hoa_resale_certificate_payer = _coerce_text(terms.get('hoa_resale_certificate_payer'))
+    offer.residential_service_contract = _coerce_text(terms.get('residential_service_contract'))
+    offer.buyer_agent_commission_percent = _coerce_decimal(terms.get('buyer_agent_commission_percent'))
+    offer.buyer_agent_commission_flat = _coerce_decimal(terms.get('buyer_agent_commission_flat'))
     offer.response_deadline_at = _parse_datetime(terms.get('response_deadline_at')) or offer.response_deadline_at
     existing_terms = dict(offer.terms_summary or {})
     summary_terms = dict(terms)
@@ -321,17 +442,19 @@ def _merge_existing_offer_context(offer, terms):
         addenda = dict(existing.get('addenda') or {})
         addenda.update(merged.get('addenda') or {})
         merged['addenda'] = addenda
-    return merged
+    return normalize_offer_terms(merged)
 
 
 def _normalized_supporting_payload(document_type, extracted):
     """Map supporting document extraction into offer terms namespaces."""
     extracted = dict(extracted or {})
     if document_type == 'third_party_financing':
+        financing_amount = extracted.get('total_financing_amount') or _sum_financing_amount(extracted)
         return {
             'offer_terms': {
                 'financing_type': extracted.get('financing_type'),
                 'financing_contingency': extracted.get('buyer_approval_required'),
+                'financing_amount': financing_amount,
             },
             'addenda': {
                 'third_party_financing_addendum': extracted,
@@ -436,6 +559,218 @@ def merge_offer_supporting_document(offer_document):
     return offer_document
 
 
+SPLIT_DOCUMENT_TYPE_TO_OFFER_TYPE = {
+    'buyer_offer': 'buyer_offer',
+    'residential_contract': 'buyer_offer',
+    'one_to_four_family': 'buyer_offer',
+    'farm_and_ranch': 'buyer_offer',
+    'new_home': 'buyer_offer',
+    'unimproved_property': 'buyer_offer',
+    'third_party_financing': 'third_party_financing',
+    'third_party_financing_addendum': 'third_party_financing',
+    'hoa_addendum': 'hoa_addendum',
+    'sellers_disclosure': 'sellers_disclosure',
+    'seller_disclosure': 'sellers_disclosure',
+    'pre_approval': 'pre_approval',
+    'preapproval': 'pre_approval',
+    'backup_addendum': 'backup_acceptance',
+    'backup_acceptance': 'backup_acceptance',
+    'lead_based_paint': 'sellers_disclosure',
+    'sale_of_other_property': 'buyer_offer',
+    'temporary_lease': 'buyer_offer',
+    'compensation_agreement': 'buyer_offer',
+}
+
+
+def _split_segment_to_offer_type(segment_type):
+    if not segment_type:
+        return None
+    return SPLIT_DOCUMENT_TYPE_TO_OFFER_TYPE.get(segment_type)
+
+
+def _inherited_field_data_for_segment(segment_type, parent_field_data):
+    """Pick the parent extraction subset that should appear on a split child."""
+    if not isinstance(parent_field_data, dict):
+        return {}
+    addenda = _json_object(parent_field_data.get('addenda'))
+    supporting = _json_object(parent_field_data.get('supporting_documents'))
+    offer_offer_type = _split_segment_to_offer_type(segment_type)
+
+    if offer_offer_type == 'third_party_financing':
+        payload = (
+            _json_object(addenda.get('third_party_financing_addendum'))
+            or _json_object(supporting.get('third_party_financing'))
+        )
+        if payload:
+            return dict(payload)
+    if offer_offer_type == 'hoa_addendum':
+        payload = _json_object(addenda.get('hoa_addendum')) or _json_object(supporting.get('hoa_addendum'))
+        if payload:
+            return dict(payload)
+    if offer_offer_type == 'sellers_disclosure':
+        payload = _json_object(supporting.get('sellers_disclosure'))
+        if payload:
+            return dict(payload)
+    if offer_offer_type == 'pre_approval':
+        payload = _json_object(supporting.get('pre_approval'))
+        if payload:
+            return dict(payload)
+    if offer_offer_type == 'backup_acceptance':
+        payload = (
+            _json_object(addenda.get('backup_addendum'))
+            or _json_object(supporting.get('backup_addendum'))
+        )
+        if payload:
+            return dict(payload)
+    return {}
+
+
+def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_packet_split'):
+    """Create split child documents under an offer packet parent.
+
+    Reads ``detected_documents`` from the parent's ``field_data``, slices the
+    PDF using PyMuPDF, uploads each child PDF to Supabase, and links a
+    matching ``TransactionDocument`` + ``SellerOfferDocument`` to the same
+    offer. Skips when only one segment is detected (no real packet) or when
+    children already exist for this parent.
+    """
+    if not file_data:
+        return []
+
+    doc = TransactionDocument.query.get(doc_id)
+    if not doc or not doc.field_data:
+        return []
+
+    offer_document = SellerOfferDocument.query.filter_by(transaction_document_id=doc.id).first()
+    if not offer_document or not offer_document.is_primary_terms_document:
+        return []
+
+    parent_offer_type = offer_document.document_type
+    if parent_offer_type not in ('offer_package', 'buyer_offer'):
+        return []
+
+    detected = doc.field_data.get('detected_documents') if isinstance(doc.field_data, dict) else None
+    if not isinstance(detected, list) or not detected:
+        return []
+
+    from services.pdf_splitter import (
+        get_pdf_page_count,
+        normalize_segments,
+        split_pdf_by_segments,
+    )
+
+    total_pages = get_pdf_page_count(file_data)
+    if total_pages <= 0:
+        return []
+
+    segments = normalize_segments(detected, total_pages=total_pages)
+    if len(segments) < 2:
+        return []
+
+    existing_children = TransactionDocument.query.filter_by(parent_document_id=doc.id).count()
+    if existing_children:
+        return []
+
+    from services.supabase_storage import upload_external_document
+
+    offer = offer_document.offer
+    organization_id = doc.organization_id
+    transaction_id = doc.transaction_id
+    primary_assigned = False
+    created_children = []
+
+    base_filename = doc.signed_original_filename or 'offer_packet.pdf'
+    name_root, _, ext = base_filename.rpartition('.')
+    name_root = name_root or 'offer_packet'
+    ext = (ext or 'pdf').lower()
+
+    for split_result in split_pdf_by_segments(file_data, segments):
+        seg = split_result.segment
+        offer_type = _split_segment_to_offer_type(seg.document_type)
+        if not offer_type:
+            continue
+        # Avoid creating a redundant primary contract child when the parent itself is the
+        # buyer offer (which would re-trigger primary terms handling).
+        if offer_type == 'buyer_offer':
+            if parent_offer_type == 'buyer_offer' or primary_assigned:
+                continue
+            primary_assigned = True
+
+        doc_config = get_offer_document_type(offer_type)
+        template_slug = doc_config['template_slug']
+        display_name = doc_config['label']
+
+        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{offer_type}.{ext}"
+
+        try:
+            upload_result = upload_external_document(
+                transaction_id=transaction_id,
+                file_data=split_result.pdf_bytes,
+                original_filename=child_filename,
+                content_type='application/pdf',
+            )
+        except Exception:
+            # Storage may not be configured in dev/tests; persist child without a file path.
+            upload_result = {'path': None}
+
+        inherited_field_data = _inherited_field_data_for_segment(seg.document_type, doc.field_data)
+
+        child_doc = TransactionDocument(
+            organization_id=organization_id,
+            transaction_id=transaction_id,
+            template_slug=template_slug,
+            template_name=display_name,
+            status='signed',
+            document_source='completed',
+            signed_file_path=upload_result.get('path'),
+            signed_file_size=len(split_result.pdf_bytes),
+            signed_original_filename=child_filename,
+            signed_at=datetime.utcnow(),
+            extraction_status='complete' if inherited_field_data else None,
+            field_data=inherited_field_data,
+            parent_document_id=doc.id,
+            page_start=seg.start_page,
+            page_end=seg.end_page,
+            split_source=split_source,
+        )
+        db.session.add(child_doc)
+        db.session.flush()
+
+        child_offer_document = SellerOfferDocument(
+            organization_id=organization_id,
+            transaction_id=transaction_id,
+            offer_id=offer_document.offer_id,
+            transaction_document_id=child_doc.id,
+            offer_version_id=None,
+            created_by_id=offer_document.created_by_id,
+            document_type=offer_type,
+            display_name=seg.title or display_name,
+            is_primary_terms_document=False,
+            extraction_summary=inherited_field_data,
+        )
+        db.session.add(child_offer_document)
+        db.session.flush()
+
+        if offer is not None:
+            create_offer_activity(
+                offer,
+                'document_split',
+                f'AI split {seg.title or display_name} from {offer_document.display_name}',
+                version_id=offer_document.offer_version_id,
+                document_id=child_doc.id,
+                event_data={
+                    'parent_document_id': doc.id,
+                    'page_start': seg.start_page,
+                    'page_end': seg.end_page,
+                    'document_type': offer_type,
+                    'segment_type': seg.document_type,
+                },
+            )
+        created_children.append(child_offer_document)
+
+    return created_children
+
+
 def sync_offer_version_from_document(doc_id):
     """Sync AI-extracted TransactionDocument.field_data into linked offer records."""
     doc = TransactionDocument.query.get(doc_id)
@@ -460,11 +795,11 @@ def sync_offer_version_from_document(doc_id):
         apply_offer_terms(offer, terms)
         offer.current_version_id = version.id
         if extracted.get('buyer_names') and not offer.buyer_names:
-            offer.buyer_names = extracted.get('buyer_names')
+            offer.buyer_names = _coerce_text(extracted.get('buyer_names'))
         if extracted.get('buyer_agent_name') and not offer.buyer_agent_name:
-            offer.buyer_agent_name = extracted.get('buyer_agent_name')
+            offer.buyer_agent_name = _coerce_text(extracted.get('buyer_agent_name'))
         if extracted.get('buyer_agent_brokerage') and not offer.buyer_agent_brokerage:
-            offer.buyer_agent_brokerage = extracted.get('buyer_agent_brokerage')
+            offer.buyer_agent_brokerage = _coerce_text(extracted.get('buyer_agent_brokerage'))
         offer.status = 'reviewing' if offer.status in ('draft', 'new') else offer.status
         create_offer_activity(
             offer,
@@ -500,6 +835,41 @@ def _json_object(value):
     return value if isinstance(value, dict) else {}
 
 
+def normalize_offer_terms(terms):
+    """Promote combined package/addendum extraction into canonical offer fields."""
+    normalized = dict(terms or {})
+    addenda = _json_object(normalized.get('addenda'))
+    supporting = _json_object(normalized.get('supporting_documents'))
+
+    financing_addendum = (
+        _json_object(addenda.get('third_party_financing_addendum'))
+        or _json_object(supporting.get('third_party_financing'))
+    )
+    if financing_addendum:
+        normalized.setdefault('financing_type', financing_addendum.get('financing_type'))
+        normalized.setdefault('financing_contingency', financing_addendum.get('buyer_approval_required'))
+        financing_amount = (
+            financing_addendum.get('total_financing_amount')
+            or _sum_financing_amount(financing_addendum)
+        )
+        normalized.setdefault('financing_amount', financing_amount)
+        addenda['third_party_financing_addendum'] = financing_addendum
+        supporting.setdefault('third_party_financing', financing_addendum)
+
+    hoa_addendum = _json_object(addenda.get('hoa_addendum')) or _json_object(supporting.get('hoa_addendum'))
+    if hoa_addendum:
+        normalized.setdefault('hoa_applicable', True)
+        normalized.setdefault('hoa_resale_certificate_payer', hoa_addendum.get('title_company_info_payer'))
+        addenda['hoa_addendum'] = hoa_addendum
+        supporting.setdefault('hoa_addendum', hoa_addendum)
+
+    if addenda:
+        normalized['addenda'] = addenda
+    if supporting:
+        normalized['supporting_documents'] = supporting
+    return normalized
+
+
 def build_contract_milestones(contract):
     """Build Texas seller contract milestones from accepted terms and addenda data."""
     addenda = _json_object(contract.addenda_data)
@@ -529,6 +899,10 @@ def build_contract_milestones(contract):
         _parse_date(financing_addendum.get('buyer_approval_deadline'))
         or contract.financing_approval_deadline
     )
+    if not financing_due:
+        approval_days = _coerce_int(financing_addendum.get('buyer_approval_days'))
+        if effective_dt and approval_days is not None:
+            financing_due = effective_dt + timedelta(days=approval_days)
     milestones.append(_milestone(
         contract,
         'financing_approval_due',
@@ -597,7 +971,8 @@ def create_contract_milestones(contract, replace=False):
     """Persist calculated milestones for an accepted contract."""
     if replace:
         for existing in contract.milestones.all():
-            db.session.delete(existing)
+            if existing.milestone_key != 'manual' and existing.source != 'manual':
+                db.session.delete(existing)
 
     milestones = build_contract_milestones(contract)
     for item in milestones:

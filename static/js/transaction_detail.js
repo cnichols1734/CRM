@@ -592,7 +592,8 @@ document.querySelectorAll('.seller-offer-update-form').forEach(form => {
 });
 
 const OFFER_DOCUMENT_TYPE_OPTIONS = [
-    ['buyer_offer', 'Offer contract'],
+    ['offer_package', 'Offer package (contract + addenda)'],
+    ['buyer_offer', 'Offer contract only'],
     ['buyer_counter', 'Buyer counter'],
     ['seller_counter', 'Seller counter'],
     ['final_acceptance', 'Executed contract'],
@@ -617,9 +618,10 @@ function inferOfferDocumentType(filename) {
     }
     if (has('seller', 'disclosure') || has('sellers', 'disclosure') || tokens.has('sd')) return 'sellers_disclosure';
     if (tokens.has('backup')) return 'backup_acceptance';
-    if (tokens.has('executed') || tokens.has('signed') || tokens.has('acceptance')) return 'final_acceptance';
+    if (tokens.has('executed') || tokens.has('signed') || tokens.has('acceptance')) return 'offer_package';
     if (tokens.has('counter')) return tokens.has('seller') ? 'seller_counter' : 'buyer_counter';
-    return 'buyer_offer';
+    if (tokens.has('contract') || tokens.has('offer') || tokens.has('resale')) return 'offer_package';
+    return 'offer_package';
 }
 
 function escapeHtml(value) {
@@ -737,6 +739,11 @@ function hasSellerOfferExtractionInProgress(offers) {
 }
 
 function pollSellerOfferExtractionStatus() {
+    const hadWorkingRow = Array.from(document.querySelectorAll('[data-seller-offer-extraction-status]')).some(element => {
+        const value = element.textContent.trim().toLowerCase();
+        return value.includes('pending') || value.includes('processing');
+    });
+
     fetch(`/transactions/${transactionId}/offers`)
     .then(res => res.json())
     .then(data => {
@@ -750,6 +757,10 @@ function pollSellerOfferExtractionStatus() {
             sellerOfferPollingTimer = setTimeout(pollSellerOfferExtractionStatus, 3000);
         } else {
             sellerOfferPollingTimer = null;
+            if (hadWorkingRow) {
+                setSellerWorkspaceReloadTab('offers');
+                setTimeout(() => location.reload(), 350);
+            }
         }
     })
     .catch(() => {
@@ -1005,6 +1016,23 @@ if (sellerCloseForm) {
             `/transactions/${transactionId}/seller/contracts/${this.dataset.contractId}/close`,
             sellerFormData(this),
             'Transaction marked closed.'
+        );
+    });
+}
+
+const sellerContractDetailsForm = document.getElementById('sellerContractDetailsForm');
+if (sellerContractDetailsForm) {
+    sellerContractDetailsForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const contractId = this.dataset.contractId;
+        if (!contractId) {
+            showToast('Unable to find contract.', 'error');
+            return;
+        }
+        sellerPost(
+            `/transactions/${transactionId}/seller/contracts/${contractId}/details`,
+            sellerFormData(this),
+            'Contract details saved.'
         );
     });
 }

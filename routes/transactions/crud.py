@@ -40,6 +40,52 @@ def _merge_extraction_status(current_status, candidate_status):
     )
 
 
+def _order_offer_package_documents(offer_documents):
+    """Order offer documents so AI-split children render under their parent packet."""
+    if not offer_documents:
+        return offer_documents
+
+    by_doc_id = {}
+    parents = []
+    children_by_parent = {}
+    orphans = []
+
+    for offer_document in offer_documents:
+        doc = offer_document.document
+        if not doc:
+            orphans.append(offer_document)
+            continue
+        by_doc_id[doc.id] = offer_document
+        if doc.parent_document_id:
+            children_by_parent.setdefault(doc.parent_document_id, []).append(offer_document)
+        else:
+            parents.append(offer_document)
+
+    for parent_id, child_list in children_by_parent.items():
+        child_list.sort(key=lambda od: (
+            od.document.page_start if od.document and od.document.page_start else 0,
+            od.document.page_end if od.document and od.document.page_end else 0,
+            od.created_at or od.id,
+        ))
+
+    ordered = []
+    seen_parent_ids = set()
+    for offer_document in parents:
+        ordered.append(offer_document)
+        seen_parent_ids.add(offer_document.document.id)
+        for child in children_by_parent.get(offer_document.document.id, []):
+            ordered.append(child)
+
+    for parent_id, child_list in children_by_parent.items():
+        if parent_id in seen_parent_ids:
+            continue
+        for child in child_list:
+            ordered.append(child)
+
+    ordered.extend(orphans)
+    return ordered
+
+
 # =============================================================================
 # TRANSACTION LIST
 # =============================================================================
@@ -509,6 +555,9 @@ def view_transaction(id):
                         document.extraction_status,
                     )
 
+            for offer_id, docs in list(seller_offer_documents_by_offer.items()):
+                seller_offer_documents_by_offer[offer_id] = _order_offer_package_documents(docs)
+
             offer_activities = SellerOfferActivity.query.filter(
                 SellerOfferActivity.offer_id.in_(offer_ids),
                 SellerOfferActivity.organization_id == current_user.organization_id
@@ -554,7 +603,7 @@ def view_transaction(id):
             for offer_document in contract_offer_documents:
                 docs_by_offer.setdefault(offer_document.offer_id, []).append(offer_document)
             seller_contract_documents_by_contract = {
-                contract.id: docs_by_offer.get(contract.offer_id, [])
+                contract.id: _order_offer_package_documents(docs_by_offer.get(contract.offer_id, []))
                 for contract in seller_contracts
             }
         if primary_seller_contract:

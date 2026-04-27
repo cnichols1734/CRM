@@ -10,31 +10,10 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest
-from app import create_app
 from models import (
     db, User, Organization, Transaction, TransactionType,
     TransactionDocument, Task, TaskType, TaskSubtype, Contact, ContactGroup
 )
-
-os.environ['DATABASE_URL'] = 'sqlite:////tmp/test_idor.db'
-
-
-@pytest.fixture(scope='module')
-def app():
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/test_idor.db'
-    app.config['SERVER_NAME'] = 'localhost'
-
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.session.remove()
-        db.drop_all()
-
-    if os.path.exists('/tmp/test_idor.db'):
-        os.remove('/tmp/test_idor.db')
 
 
 @pytest.fixture(scope='module')
