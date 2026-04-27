@@ -190,8 +190,6 @@ document.addEventListener('keydown', function(e) {
         closeUploadScanModal();
         closeUploadStaticModal();
         closeUploadForSignatureModal();
-        closeSellerNewShowingModal();
-        closeSellerShowingModal();
         closeSellerNewOfferModal();
         closeSellerOfferModal();
     }
@@ -492,125 +490,6 @@ function sellerPost(url, payload, successMessage) {
     });
 }
 
-const sellerListingProfileForm = document.getElementById('sellerListingProfileForm');
-if (sellerListingProfileForm) {
-    sellerListingProfileForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        sellerPost(
-            `/transactions/${transactionId}/seller/listing-profile`,
-            sellerFormData(this),
-            'Showing access saved.'
-        );
-    });
-}
-
-const highestBestForm = document.getElementById('highestBestForm');
-if (highestBestForm) {
-    highestBestForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const payload = sellerFormData(this);
-        payload.highest_best_enabled = true;
-        sellerPost(
-            `/transactions/${transactionId}/seller/highest-best`,
-            payload,
-            'Highest and best started.'
-        );
-    });
-}
-
-const sellerShowingForm = document.getElementById('sellerShowingForm');
-if (sellerShowingForm) {
-    sellerShowingForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        sellerPost(
-            `/transactions/${transactionId}/showings`,
-            sellerFormData(this),
-            'Showing saved.'
-        );
-    });
-}
-
-document.querySelectorAll('.seller-showing-update-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const showingId = this.dataset.showingId;
-        if (!showingId) {
-            showToast('Unable to find showing.', 'error');
-            return;
-        }
-        sellerPost(
-            `/transactions/${transactionId}/showings/${showingId}`,
-            sellerFormData(this),
-            'Showing details saved.'
-        );
-    });
-});
-
-document.querySelectorAll('.seller-showing-feedback-form').forEach(form => {
-    form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const showingId = this.dataset.showingId;
-        if (!showingId) {
-            showToast('Unable to find showing.', 'error');
-            return;
-        }
-        sellerPost(
-            `/transactions/${transactionId}/showings/${showingId}/feedback`,
-            sellerFormData(this),
-            'Showing feedback saved.'
-        );
-    });
-});
-
-function showSellerNewShowingModal() {
-    const modal = document.getElementById('sellerNewShowingModal');
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-    const firstInput = modal.querySelector('input[name="showing_agent_name"]');
-    if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
-    }
-}
-
-function closeSellerNewShowingModal() {
-    const modal = document.getElementById('sellerNewShowingModal');
-    if (modal) modal.classList.add('hidden');
-    if (!document.querySelector('[data-seller-showing-modal]:not(.hidden)')) {
-        document.body.classList.remove('overflow-hidden');
-    }
-}
-
-function openSellerShowingModal(showingId) {
-    const modal = document.getElementById(`sellerShowingModal-${showingId}`);
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-}
-
-function closeSellerShowingModal(showingId) {
-    if (showingId) {
-        const modal = document.getElementById(`sellerShowingModal-${showingId}`);
-        if (modal) modal.classList.add('hidden');
-    } else {
-        document.querySelectorAll('[data-seller-showing-modal]').forEach(modal => modal.classList.add('hidden'));
-    }
-    const newShowingModal = document.getElementById('sellerNewShowingModal');
-    if (!newShowingModal || newShowingModal.classList.contains('hidden')) {
-        document.body.classList.remove('overflow-hidden');
-    }
-}
-
-function selectSellerShowingForFeedback(showingId) {
-    sellerWorkspaceTab('showings');
-    openSellerShowingModal(showingId);
-    const modal = document.getElementById(`sellerShowingModal-${showingId}`);
-    const notes = modal ? modal.querySelector('textarea[name="feedback_notes"]') : null;
-    if (notes) {
-        setTimeout(() => notes.focus(), 250);
-    }
-}
-
 function showSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
     if (!modal) return;
@@ -716,12 +595,29 @@ function escapeHtml(value) {
     }[char]));
 }
 
+function updateSellerOfferDropzone(form, files) {
+    const title = form.querySelector('.seller-offer-dropzone-title');
+    const hint = form.querySelector('.seller-offer-dropzone-hint');
+    if (!title || !hint) return;
+    if (!files.length) {
+        title.textContent = 'Choose PDFs to attach';
+        hint.textContent = 'Multiple PDFs allowed. Types are inferred from filename.';
+        return;
+    }
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const totalLabel = totalSize ? ` · ${(totalSize / 1024 / 1024).toFixed(2)} MB total` : '';
+    title.textContent = `${files.length} PDF${files.length === 1 ? '' : 's'} ready`;
+    hint.textContent = `Tap to add or replace${totalLabel}`;
+}
+
 function renderSellerOfferFileList(form) {
     const input = form.querySelector('.seller-offer-file-input');
     const list = form.querySelector('.seller-offer-file-list');
     if (!input || !list) return;
 
     const files = Array.from(input.files || []);
+    updateSellerOfferDropzone(form, files);
+
     if (!files.length) {
         list.classList.add('hidden');
         list.innerHTML = '';
@@ -735,17 +631,21 @@ function renderSellerOfferFileList(form) {
         )).join('');
         const fileSize = file.size ? `${Math.max(file.size / 1024 / 1024, 0.01).toFixed(2)} MB` : '';
         return `
-            <div class="rounded-md border border-slate-200 bg-white p-3" data-offer-upload-row="${index}">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
-                        <div class="truncate text-sm font-medium text-slate-900">${escapeHtml(file.name)}</div>
-                        <div class="mt-0.5 text-xs text-slate-500">${fileSize} · Suggested from filename</div>
+            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2.5" data-offer-upload-row="${index}">
+                <span class="flex h-9 w-9 items-center justify-center rounded-md bg-rose-50 text-rose-600">
+                    <i class="fas fa-file-pdf text-sm"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="truncate text-sm font-medium text-slate-900">${escapeHtml(file.name)}</div>
+                    <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                        ${fileSize ? `<span>${fileSize}</span><span class="text-slate-300">·</span>` : ''}
+                        <span>Auto-detected type</span>
                     </div>
-                    <select class="crm-select seller-offer-document-type-select w-full sm:w-56">
-                        ${options}
-                    </select>
                 </div>
-                <div class="seller-offer-upload-status mt-2 hidden text-xs text-slate-500"></div>
+                <select class="crm-select seller-offer-document-type-select h-9 w-44 px-3 py-1.5 text-xs">
+                    ${options}
+                </select>
+                <div class="seller-offer-upload-status col-span-3 hidden border-t border-slate-100 pt-2 text-[11px] text-slate-500"></div>
             </div>
         `;
     }).join('');

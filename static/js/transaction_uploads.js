@@ -131,6 +131,10 @@ function renderListingInfo(info) {
                 <span class="info-value">${listingInfoValue(info.total_commission)}</span>
             </div>
             <div class="info-row">
+                <span class="info-label">Listing Side Commission</span>
+                <span class="info-value">${listingInfoValue(info.listing_side_commission)}</span>
+            </div>
+            <div class="info-row">
                 <span class="info-label">Buyer Side Commission</span>
                 <span class="info-value">${listingInfoValue(info.buyer_commission)}</span>
             </div>
@@ -1299,6 +1303,7 @@ if (addPlaceholderForm) {
             wrapper.appendChild(makeRow('Buyer Side Commission', 'N/A \u2014 Listing Broker Only (Section 5B)', 'text-slate-400 italic'));
         } else {
             wrapper.appendChild(makeRow('Total Commission', info.total_commission));
+            wrapper.appendChild(makeRow('Listing Side Commission', info.listing_side_commission));
             wrapper.appendChild(makeRow('Buyer Side Commission', info.buyer_commission));
         }
 

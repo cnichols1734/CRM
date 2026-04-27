@@ -9,7 +9,6 @@ This package splits the transaction routes into logical modules:
 - api.py: JSON API endpoints (search, signers, status, rentcast)
 - intake.py: Intake questionnaire
 - documents.py: Document forms and filling
-- showings.py: Seller showing workflow
 - offers.py: Seller offer workflow
 - seller_listing.py: Seller listing operations
 - seller_contracts.py: Seller accepted contract operations
@@ -31,7 +30,6 @@ from . import participants
 from . import api
 from . import intake
 from . import documents
-from . import showings
 from . import offers
 from . import seller_listing
 from . import seller_contracts
