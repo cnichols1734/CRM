@@ -1190,6 +1190,61 @@ if (sellerCloseForm) {
 
 const sellerContractDetailsForm = document.getElementById('sellerContractDetailsForm');
 if (sellerContractDetailsForm) {
+    const editBtn = sellerContractDetailsForm.querySelector('[data-contract-action="edit"]');
+    const cancelBtn = sellerContractDetailsForm.querySelector('[data-contract-action="cancel"]');
+    const saveBtn = sellerContractDetailsForm.querySelector('[data-contract-action="save"]');
+    const fieldRows = sellerContractDetailsForm.querySelectorAll('[data-contract-field]');
+    const executionDateInput = sellerContractDetailsForm.querySelector('[data-contract-execution-date]');
+
+    const captureSnapshot = () => {
+        const snapshot = new Map();
+        sellerContractDetailsForm.querySelectorAll('input, textarea, select').forEach(el => {
+            snapshot.set(el, el.value);
+        });
+        return snapshot;
+    };
+    let initialSnapshot = captureSnapshot();
+
+    const setMode = (mode) => {
+        const editing = mode === 'edit';
+        sellerContractDetailsForm.dataset.contractMode = editing ? 'edit' : 'view';
+        if (editBtn) editBtn.classList.toggle('hidden', editing);
+        if (cancelBtn) cancelBtn.classList.toggle('hidden', !editing);
+        if (saveBtn) saveBtn.classList.toggle('hidden', !editing);
+        fieldRows.forEach(row => {
+            const display = row.querySelector('[data-contract-display]');
+            const input = row.querySelector('[data-contract-input]');
+            if (display) display.classList.toggle('hidden', editing);
+            if (input) input.classList.toggle('hidden', !editing);
+        });
+        if (editing) {
+            const firstInput = sellerContractDetailsForm.querySelector('[data-contract-field] [data-contract-input]');
+            if (firstInput) {
+                try { firstInput.focus({ preventScroll: true }); } catch (err) { firstInput.focus(); }
+            }
+        }
+    };
+
+    if (editBtn) {
+        editBtn.addEventListener('click', () => {
+            initialSnapshot = captureSnapshot();
+            setMode('edit');
+        });
+    }
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            initialSnapshot.forEach((value, el) => { el.value = value; });
+            setMode('view');
+        });
+    }
+    if (executionDateInput) {
+        executionDateInput.addEventListener('change', () => {
+            if (sellerContractDetailsForm.dataset.contractMode !== 'edit') {
+                setMode('edit');
+            }
+        });
+    }
+
     sellerContractDetailsForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const contractId = this.dataset.contractId;
