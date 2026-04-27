@@ -438,34 +438,34 @@
                                             {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
                                             {% set legacy_documents = offer_versions|selectattr('document')|list %}
                                             {% set offer_document_count = package_documents|length if package_documents else legacy_documents|length %}
-                                            <tr class="group cursor-pointer hover:bg-slate-50" onclick="openSellerOfferModal({{ offer.id }})">
+                                            <tr class="group cursor-pointer hover:bg-slate-50" data-seller-offer-row="{{ offer.id }}" onclick="openSellerOfferModal({{ offer.id }})">
                                                 <td>
-                                                    <div class="font-medium text-slate-900">{{ offer.buyer_names or 'Unnamed buyer' }}</div>
-                                                    <div class="text-xs text-slate-500">{{ offer.buyer_agent_name or 'No agent yet' }}{% if offer.buyer_agent_brokerage %} · {{ offer.buyer_agent_brokerage }}{% endif %}</div>
+                                                    <div class="font-medium text-slate-900" data-seller-offer-buyer>{{ offer.buyer_names or 'Unnamed buyer' }}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-agent>{{ offer.buyer_agent_name or 'No agent yet' }}{% if offer.buyer_agent_brokerage %} · {{ offer.buyer_agent_brokerage }}{% endif %}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="font-semibold text-slate-900">{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}Price TBD{% endif %}</div>
-                                                    <div class="text-xs text-slate-500">{{ offer.financing_type or 'Financing TBD' }}</div>
+                                                    <div class="font-semibold text-slate-900" data-seller-offer-price>{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}Price TBD{% endif %}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-financing>{{ offer.financing_type or 'Financing TBD' }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="{% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% else %}text-slate-600{% endif %}">
+                                                    <div data-seller-offer-deadline-label class="{% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% else %}text-slate-600{% endif %}">
                                                         {{ urgency.label }}
                                                     </div>
-                                                    <div class="text-xs text-slate-500">{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% else %}No response deadline{% endif %}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-deadline-at>{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% else %}No response deadline{% endif %}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="text-slate-700">{{ offer_document_count }} document{% if offer_document_count != 1 %}s{% endif %}</div>
+                                                    <div class="text-slate-700" data-seller-offer-doc-count>{{ offer_document_count }} document{% if offer_document_count != 1 %}s{% endif %}</div>
                                                     {% if extraction_state and extraction_state != 'complete' %}
-                                                    <div class="text-xs {% if extraction_state == 'failed' %}text-red-600{% else %}text-sky-600{% endif %}">
+                                                    <div class="text-xs {% if extraction_state == 'failed' %}text-red-600{% else %}text-sky-600{% endif %}" data-seller-offer-extraction-status>
                                                         <i class="fas {% if extraction_state == 'failed' %}fa-exclamation-circle{% else %}fa-spinner fa-spin{% endif %} mr-0.5 text-[10px]"></i>
                                                         {{ extraction_state|replace('_', ' ') }}
                                                     </div>
                                                     {% else %}
-                                                    <div class="text-xs text-slate-500">{{ offer_versions|length }} version{% if offer_versions|length != 1 %}s{% endif %}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-extraction-status>{{ offer_versions|length }} version{% if offer_versions|length != 1 %}s{% endif %}</div>
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700" data-seller-offer-status>
                                                         {{ offer.status|replace('_', ' ')|title }}
                                                     </span>
                                                 </td>

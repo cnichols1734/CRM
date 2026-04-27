@@ -96,12 +96,14 @@ def test_supporting_document_merge_preserves_primary_terms(app, db, seed):
 
 
 def test_offer_upload_accepts_multiple_documents(owner_a_client, app, db, seed):
-    from models import SellerOfferDocument
+    from models import SellerOffer, SellerOfferDocument
 
     def fake_upload(transaction_id, file_data, original_filename, content_type):
         return {'path': f'test/{transaction_id}/{original_filename}'}
 
     data = {
+        'buyer_names': 'Upload Buyer',
+        'buyer_agent_name': 'Upload Agent',
         'files': [
             (io.BytesIO(b'%PDF-1.4 contract'), 'One to Four Family Residential Contract (Resale) - 1124.pdf'),
             (io.BytesIO(b'%PDF-1.4 prequal'), 'Draughn PreQual.pdf'),
@@ -109,7 +111,7 @@ def test_offer_upload_accepts_multiple_documents(owner_a_client, app, db, seed):
     }
 
     with patch('services.supabase_storage.upload_external_document', side_effect=fake_upload), \
-         patch('routes.transactions.offers.post_upload_processing'):
+         patch('routes.transactions.offers.post_upload_processing') as post_upload_processing:
         response = owner_a_client.post(
             f'/transactions/{seed["tx_a"]}/offers/upload',
             data=data,
@@ -121,11 +123,70 @@ def test_offer_upload_accepts_multiple_documents(owner_a_client, app, db, seed):
     assert payload['success'] is True
     assert payload['offer_id']
     assert [doc['document_type'] for doc in payload['documents']] == ['buyer_offer', 'pre_approval']
+    assert post_upload_processing.call_count == 2
+
+    offers_response = owner_a_client.get(f'/transactions/{seed["tx_a"]}/offers')
+    assert offers_response.status_code == 200
+    offer_payload = next(
+        offer for offer in offers_response.get_json()['offers']
+        if offer['id'] == payload['offer_id']
+    )
+    assert offer_payload['document_count'] == 2
+    assert offer_payload['version_count'] == 1
+    assert offer_payload['extraction_status'] == 'pending'
 
     with app.app_context():
+        offer = db.session.get(SellerOffer, payload['offer_id'])
+        assert offer.buyer_names == 'Upload Buyer'
+        assert offer.buyer_agent_name == 'Upload Agent'
+        assert offer.status == 'needs_review'
+
         offer_docs = SellerOfferDocument.query.filter_by(offer_id=payload['offer_id']).all()
         assert len(offer_docs) == 2
         assert {doc.document_type for doc in offer_docs} == {'buyer_offer', 'pre_approval'}
+
+
+def test_offer_upload_marks_existing_new_offer_needs_review(owner_a_client, app, db, seed):
+    from models import SellerOffer, SellerOfferDocument, User
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        offer = SellerOffer(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            created_by_id=owner.id,
+            buyer_names='Existing Upload Buyer',
+            status='new',
+        )
+        db.session.add(offer)
+        db.session.commit()
+        offer_id = offer.id
+
+    def fake_upload(transaction_id, file_data, original_filename, content_type):
+        return {'path': f'test/{transaction_id}/{original_filename}'}
+
+    data = {
+        'offer_id': str(offer_id),
+        'files': [
+            (io.BytesIO(b'%PDF-1.4 contract'), 'One to Four Family Residential Contract (Resale) - 1124.pdf'),
+        ],
+    }
+
+    with patch('services.supabase_storage.upload_external_document', side_effect=fake_upload), \
+         patch('routes.transactions.offers.post_upload_processing') as post_upload_processing:
+        response = owner_a_client.post(
+            f'/transactions/{seed["tx_a"]}/offers/upload',
+            data=data,
+            content_type='multipart/form-data',
+        )
+
+    assert response.status_code == 201
+    assert post_upload_processing.call_count == 1
+
+    with app.app_context():
+        offer = db.session.get(SellerOffer, offer_id)
+        assert offer.status == 'needs_review'
+        assert SellerOfferDocument.query.filter_by(offer_id=offer_id).count() == 1
 
 
 def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_client, app, db, seed):
@@ -140,6 +201,10 @@ def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_clie
 
     with app.app_context():
         owner = User.query.filter_by(username='owner_a').first()
+        survey_choice = (
+            "Seller's existing survey with affidavit or declaration; "
+            "Buyer to obtain new survey at Seller's expense if needed."
+        )
         offer = SellerOffer(
             organization_id=seed['org_a'],
             transaction_id=seed['tx_a'],
@@ -148,6 +213,7 @@ def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_clie
             status='reviewing',
             terms_summary={
                 'offer_price': '260000',
+                'survey_choice': survey_choice,
                 'supporting_documents': {
                     'third_party_financing': {
                         'financing_type': 'conventional',
@@ -233,6 +299,7 @@ def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_clie
         assert contract.lead_based_paint_required is True
         assert contract.seller_disclosure_delivered_at.date().isoformat() == '2026-04-23'
         assert contract.financing_approval_deadline.isoformat() == '2026-05-09'
+        assert contract.survey_choice == survey_choice
         assert 'third_party_financing' in contract.frozen_terms['supporting_documents']
         assert len(contract.extra_data['offer_package_documents']) == 3
         assert len(contract.extra_data['supporting_document_ids']) == 2

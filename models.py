@@ -1260,7 +1260,7 @@ class SellerAcceptedContract(db.Model):
     financing_approval_deadline = db.Column(db.Date)
     title_company = db.Column(db.String(200))
     escrow_officer = db.Column(db.String(200))
-    survey_choice = db.Column(db.String(100))
+    survey_choice = db.Column(db.Text)
     hoa_applicable = db.Column(db.Boolean)
     seller_disclosure_required = db.Column(db.Boolean)
     seller_disclosure_delivered_at = db.Column(db.DateTime)

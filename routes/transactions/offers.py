@@ -90,6 +90,43 @@ def _parse_int(value):
         return None
 
 
+def _merge_extraction_status(current_status, candidate_status):
+    priority = {
+        'failed': 4,
+        'processing': 3,
+        'pending': 2,
+        'complete': 1,
+    }
+    if not candidate_status:
+        return current_status
+    if not current_status:
+        return candidate_status
+    return (
+        candidate_status
+        if priority.get(candidate_status, 0) > priority.get(current_status, 0)
+        else current_status
+    )
+
+
+def _offer_extraction_status(offer):
+    status = None
+    for offer_document in offer.offer_documents.all():
+        document = offer_document.document
+        if document:
+            status = _merge_extraction_status(status, document.extraction_status)
+
+    if offer.current_version_id:
+        version = SellerOfferVersion.query.filter_by(
+            id=offer.current_version_id,
+            offer_id=offer.id,
+            organization_id=offer.organization_id,
+        ).first()
+        if version and version.document:
+            status = _merge_extraction_status(status, version.document.extraction_status)
+
+    return status
+
+
 def _normalize_terms(data):
     terms = dict(data.get('terms_data') or data.get('terms') or {})
     for key in ('response_deadline_at',):
@@ -100,6 +137,8 @@ def _normalize_terms(data):
 
 def _offer_payload(offer):
     urgency = offer_urgency(offer)
+    document_count = offer.offer_documents.count()
+    version_count = offer.versions.count()
     return {
         'id': offer.id,
         'status': offer.status,
@@ -119,6 +158,9 @@ def _offer_payload(offer):
         'accepted_version_id': offer.accepted_version_id,
         'source_showing_id': offer.source_showing_id,
         'last_activity_label': offer.last_activity_label,
+        'document_count': document_count,
+        'version_count': version_count,
+        'extraction_status': _offer_extraction_status(offer),
     }
 
 
@@ -418,6 +460,8 @@ def upload_seller_offer_document(id):
             })
 
         offer.last_activity_at = datetime.utcnow()
+        if uploaded and offer.status == 'new':
+            offer.status = 'needs_review'
         db.session.commit()
 
         for item in uploaded:

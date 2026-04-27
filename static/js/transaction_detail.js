@@ -4,6 +4,24 @@
  */
 
 const transactionId = TX_CONFIG.transactionId;
+const SELLER_WORKSPACE_TAB_KEY = `sellerWorkspaceTab:${transactionId}`;
+
+function setSellerWorkspaceReloadTab(tabName) {
+    if (!tabName) return;
+    sessionStorage.setItem(SELLER_WORKSPACE_TAB_KEY, tabName);
+}
+
+function getActiveSellerWorkspaceTab() {
+    const activeTab = document.querySelector('[id^="seller-tab-"].is-active');
+    return activeTab ? activeTab.id.replace('seller-tab-', '') : null;
+}
+
+function restoreSellerWorkspaceTab() {
+    const savedTab = sessionStorage.getItem(SELLER_WORKSPACE_TAB_KEY);
+    if (savedTab && document.getElementById(`seller-panel-${savedTab}`)) {
+        sellerWorkspaceTab(savedTab, { persist: false });
+    }
+}
 
 // =============================================================================
 // TAB SWITCHING (Buyer Transactions)
@@ -38,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const cleanUrl = window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
     }
+
+    restoreSellerWorkspaceTab();
+    startSellerOfferExtractionPolling();
 });
 
 // =============================================================================
@@ -445,7 +466,7 @@ function showToast(message, type = 'info') {
 // SELLER WORKSPACE
 // =============================================================================
 
-function sellerWorkspaceTab(tabName) {
+function sellerWorkspaceTab(tabName, options = {}) {
     document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => btn.classList.remove('is-active'));
     document.querySelectorAll('.seller-tab-panel').forEach(panel => panel.classList.add('hidden'));
 
@@ -453,6 +474,9 @@ function sellerWorkspaceTab(tabName) {
     const panel = document.getElementById(`seller-panel-${tabName}`);
     if (tab) tab.classList.add('is-active');
     if (panel) panel.classList.remove('hidden');
+    if (tab && panel && options.persist !== false) {
+        setSellerWorkspaceReloadTab(tabName);
+    }
 }
 
 function sellerFormData(form) {
@@ -482,6 +506,8 @@ function sellerPost(url, payload, successMessage) {
             throw new Error(data.error || 'Request failed');
         }
         if (successMessage) showToast(successMessage, 'success');
+        const activeSellerTab = getActiveSellerWorkspaceTab();
+        if (activeSellerTab) setSellerWorkspaceReloadTab(activeSellerTab);
         setTimeout(() => location.reload(), 500);
         return data;
     })
@@ -533,6 +559,17 @@ const sellerOfferForm = document.getElementById('sellerOfferForm');
 if (sellerOfferForm) {
     sellerOfferForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        setSellerWorkspaceReloadTab('offers');
+        const newOfferModal = document.getElementById('sellerNewOfferModal');
+        const uploadForm = newOfferModal ? newOfferModal.querySelector('.seller-offer-upload-form') : null;
+        const uploadInput = uploadForm ? uploadForm.querySelector('.seller-offer-file-input') : null;
+        const selectedFiles = Array.from((uploadInput && uploadInput.files) || []);
+        if (selectedFiles.length && uploadForm) {
+            showToast('Uploading selected PDFs for extraction...', 'success');
+            uploadForm.requestSubmit();
+            return;
+        }
+
         sellerPost(
             `/transactions/${transactionId}/offers`,
             sellerFormData(this),
@@ -593,6 +630,148 @@ function escapeHtml(value) {
         '"': '&quot;',
         "'": '&#039;'
     }[char]));
+}
+
+function formatSellerLabel(value) {
+    return String(value || '')
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatSellerCurrency(value) {
+    if (value === null || value === undefined || value === '') return 'Price TBD';
+    const numericValue = Number(value);
+    if (Number.isNaN(numericValue)) return String(value);
+    return numericValue.toLocaleString(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+    });
+}
+
+function formatSellerDateTime(value) {
+    if (!value) return 'No response deadline';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+    });
+}
+
+function sellerDeadlineClass(state) {
+    if (['critical', 'strong_warning', 'expired'].includes(state)) return 'font-medium text-red-700';
+    if (state === 'warning') return 'font-medium text-orange-700';
+    return 'text-slate-600';
+}
+
+function updateSellerOfferText(row, selector, value) {
+    const element = row.querySelector(selector);
+    if (element) element.textContent = value;
+}
+
+function renderSellerOfferExtractionStatus(offer) {
+    const status = offer.extraction_status;
+    if (status && status !== 'complete') {
+        const isFailed = status === 'failed';
+        const icon = isFailed ? 'fa-exclamation-circle' : 'fa-spinner fa-spin';
+        const color = isFailed ? 'text-red-600' : 'text-sky-600';
+        return {
+            html: `<i class="fas ${icon} mr-0.5 text-[10px]"></i>${escapeHtml(status.replace(/_/g, ' '))}`,
+            classes: `text-xs ${color}`,
+        };
+    }
+
+    const versionCount = Number(offer.version_count || 0);
+    return {
+        html: `${versionCount} version${versionCount === 1 ? '' : 's'}`,
+        classes: 'text-xs text-slate-500',
+    };
+}
+
+function updateSellerOfferRow(offer) {
+    const row = document.querySelector(`[data-seller-offer-row="${offer.id}"]`);
+    if (!row) return;
+
+    updateSellerOfferText(row, '[data-seller-offer-buyer]', offer.buyer_names || 'Unnamed buyer');
+    const agentLabel = [
+        offer.buyer_agent_name || 'No agent yet',
+        offer.buyer_agent_brokerage || ''
+    ].filter(Boolean).join(' · ');
+    updateSellerOfferText(row, '[data-seller-offer-agent]', agentLabel);
+    updateSellerOfferText(row, '[data-seller-offer-price]', formatSellerCurrency(offer.offer_price));
+    updateSellerOfferText(row, '[data-seller-offer-financing]', offer.financing_type || 'Financing TBD');
+
+    const urgency = offer.urgency || {};
+    const deadlineLabel = row.querySelector('[data-seller-offer-deadline-label]');
+    if (deadlineLabel) {
+        deadlineLabel.className = sellerDeadlineClass(urgency.state);
+        deadlineLabel.textContent = urgency.label || 'No deadline';
+    }
+    updateSellerOfferText(row, '[data-seller-offer-deadline-at]', formatSellerDateTime(offer.response_deadline_at));
+
+    const documentCount = Number(offer.document_count || 0);
+    updateSellerOfferText(
+        row,
+        '[data-seller-offer-doc-count]',
+        `${documentCount} document${documentCount === 1 ? '' : 's'}`
+    );
+
+    const extractionElement = row.querySelector('[data-seller-offer-extraction-status]');
+    if (extractionElement) {
+        const rendered = renderSellerOfferExtractionStatus(offer);
+        extractionElement.className = rendered.classes;
+        extractionElement.innerHTML = rendered.html;
+    }
+
+    updateSellerOfferText(row, '[data-seller-offer-status]', formatSellerLabel(offer.status));
+}
+
+let sellerOfferPollingTimer = null;
+let sellerOfferPollCount = 0;
+
+function hasSellerOfferExtractionInProgress(offers) {
+    return offers.some(offer => ['pending', 'processing'].includes(offer.extraction_status));
+}
+
+function pollSellerOfferExtractionStatus() {
+    fetch(`/transactions/${transactionId}/offers`)
+    .then(res => res.json())
+    .then(data => {
+        if (!data.success) throw new Error(data.error || 'Unable to refresh offers');
+        const offers = data.offers || [];
+        offers.forEach(updateSellerOfferRow);
+
+        sellerOfferPollCount += 1;
+        const stillWorking = hasSellerOfferExtractionInProgress(offers);
+        if (stillWorking && sellerOfferPollCount < 100) {
+            sellerOfferPollingTimer = setTimeout(pollSellerOfferExtractionStatus, 3000);
+        } else {
+            sellerOfferPollingTimer = null;
+        }
+    })
+    .catch(() => {
+        sellerOfferPollCount += 1;
+        if (sellerOfferPollCount < 5) {
+            sellerOfferPollingTimer = setTimeout(pollSellerOfferExtractionStatus, 5000);
+        } else {
+            sellerOfferPollingTimer = null;
+        }
+    });
+}
+
+function startSellerOfferExtractionPolling() {
+    if (sellerOfferPollingTimer || !document.getElementById('seller-panel-offers')) return;
+    const hasPendingRow = Array.from(document.querySelectorAll('[data-seller-offer-extraction-status]')).some(element => {
+        const value = element.textContent.trim().toLowerCase();
+        return value.includes('pending') || value.includes('processing');
+    });
+    if (!hasPendingRow) return;
+
+    sellerOfferPollCount = 0;
+    sellerOfferPollingTimer = setTimeout(pollSellerOfferExtractionStatus, 2500);
 }
 
 function updateSellerOfferDropzone(form, files) {
@@ -670,6 +849,14 @@ document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
         }
         const rows = Array.from(this.querySelectorAll('[data-offer-upload-row]'));
         const formData = new FormData();
+        const isNewOfferUpload = Boolean(this.closest('#sellerNewOfferModal'));
+        if (isNewOfferUpload && sellerOfferForm) {
+            new FormData(sellerOfferForm).forEach((value, key) => {
+                if (value !== '') {
+                    formData.append(key, value);
+                }
+            });
+        }
         new FormData(this).forEach((value, key) => {
             if (key !== 'files' && key !== 'file' && key !== 'document_type') {
                 formData.append(key, value);
@@ -708,6 +895,7 @@ document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
                 }
             });
             showToast(data.message || 'Offer document uploaded.', 'success');
+            setSellerWorkspaceReloadTab('offers');
             setTimeout(() => location.reload(), 800);
         })
         .catch(err => {
