@@ -1,6 +1,4 @@
 """Seller listing operations routes."""
-
-from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import abort, jsonify, request
@@ -46,19 +44,6 @@ def _decimal(value):
         return None
 
 
-def _parse_datetime(value):
-    if not value:
-        return None
-    if isinstance(value, datetime):
-        return value
-    for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
-        try:
-            return datetime.strptime(value, fmt)
-        except ValueError:
-            continue
-    return None
-
-
 def _profile_for(transaction):
     profile = SellerListingProfile.query.filter_by(
         transaction_id=transaction.id,
@@ -97,33 +82,6 @@ def update_seller_listing_profile(id):
     profile.private_showing_notes = data.get('private_showing_notes')
     profile.showing_service_url = data.get('showing_service_url')
     profile.mls_number = data.get('mls_number')
-
-    try:
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-
-@transactions_bp.route('/<int:id>/seller/highest-best', methods=['POST'])
-@login_required
-@transactions_required
-def update_highest_best(id):
-    """Enable or update highest-and-best deadline state."""
-    transaction = _get_seller_transaction(id)
-    if transaction is None:
-        return jsonify({'success': False, 'error': 'Highest and best is only available for seller transactions'}), 400
-
-    data = request.get_json(silent=True) or request.form
-    profile = _profile_for(transaction)
-    enabled = str(data.get('highest_best_enabled', 'true')).lower() in ('1', 'true', 'yes', 'on')
-    profile.highest_best_enabled = enabled
-    profile.highest_best_deadline_at = _parse_datetime(data.get('highest_best_deadline_at'))
-    profile.highest_best_message = data.get('highest_best_message')
-    if enabled:
-        profile.highest_best_sent_at = datetime.utcnow()
-        profile.highest_best_sent_by_id = current_user.id
 
     try:
         db.session.commit()

@@ -490,20 +490,6 @@ function sellerPost(url, payload, successMessage) {
     });
 }
 
-const highestBestForm = document.getElementById('highestBestForm');
-if (highestBestForm) {
-    highestBestForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const payload = sellerFormData(this);
-        payload.highest_best_enabled = true;
-        sellerPost(
-            `/transactions/${transactionId}/seller/highest-best`,
-            payload,
-            'Highest and best started.'
-        );
-    });
-}
-
 function showSellerNewOfferModal() {
     const modal = document.getElementById('sellerNewOfferModal');
     if (!modal) return;

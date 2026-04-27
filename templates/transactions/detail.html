@@ -357,14 +357,7 @@
                     <div class="crm-surface-header">
                         <div>
                             {{ section_header('Seller workspace') }}
-                            {% if seller_listing_profile and seller_listing_profile.highest_best_enabled %}
-                            <p class="mt-1 text-xs font-medium text-orange-700">
-                                Highest and best active
-                                {% if seller_listing_profile.highest_best_deadline_at %}
-                                until {{ seller_listing_profile.highest_best_deadline_at.strftime('%b %d at %I:%M %p') }}
-                                {% endif %}
-                            </p>
-                            {% elif urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
+                            {% if urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
                             {% set urgent_state = offer_urgency(urgent_seller_offer) %}
                             <p class="mt-1 text-xs font-medium {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% else %}text-orange-700{% endif %}">
                                 {{ urgent_state.label }}: {{ urgent_seller_offer.buyer_names or urgent_seller_offer.buyer_agent_name or 'Offer' }}
@@ -2228,35 +2221,6 @@
                 })();
                 </script>
 
-                <section class="crm-surface">
-                    <div class="crm-surface-header">
-                        <div class="flex w-full items-start justify-between gap-3">
-                            <div>
-                                {{ section_header('Highest and best') }}
-                                <p class="mt-1 text-xs text-slate-500">Set a listing-wide cutoff for revised offers.</p>
-                            </div>
-                            {% if seller_listing_profile and seller_listing_profile.highest_best_enabled %}
-                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-orange-700">
-                                <span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
-                                Active
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="crm-surface-body">
-                        <form id="highestBestForm" class="space-y-3">
-                            <label class="block">
-                                <span class="text-xs font-medium text-slate-600">Deadline</span>
-                                <input type="datetime-local" name="highest_best_deadline_at" class="crm-input mt-1">
-                            </label>
-                            <label class="block">
-                                <span class="text-xs font-medium text-slate-600">Message</span>
-                                <textarea name="highest_best_message" class="crm-input mt-1 min-h-16" placeholder="Please submit highest and best by...">{{ seller_listing_profile.highest_best_message if seller_listing_profile else '' }}</textarea>
-                            </label>
-                            <button class="crm-btn crm-btn-primary w-full justify-center" type="submit">Start highest and best</button>
-                        </form>
-                    </div>
-                </section>
                 {% else %}
                 {# ----- Recent activity card (non-seller) ----- #}
                 <section class="crm-surface">
