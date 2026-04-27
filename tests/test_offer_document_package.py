@@ -195,9 +195,97 @@ def test_offer_upload_marks_existing_new_offer_needs_review(owner_a_client, app,
         assert SellerOfferDocument.query.filter_by(offer_id=offer_id).count() == 1
 
 
-def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_client, app, db, seed):
+def test_listing_documents_exclude_offer_and_contract_documents(owner_a_client, app, db, seed):
     from models import (
         SellerAcceptedContract,
+        SellerContractDocument,
+        SellerOffer,
+        SellerOfferDocument,
+        TransactionDocument,
+        User,
+    )
+
+    with app.app_context():
+        owner = User.query.filter_by(username='owner_a').first()
+        offer = SellerOffer(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            created_by_id=owner.id,
+            buyer_names='Hidden Offer Buyer',
+            status='needs_review',
+        )
+        db.session.add(offer)
+        db.session.flush()
+
+        offer_doc = TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            template_slug='seller-offer-contract',
+            template_name='Offer Contract Hidden From Listing',
+            status='signed',
+            signed_file_path='test/offer.pdf',
+        )
+        contract_doc = TransactionDocument(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            template_slug='seller-accepted-contract',
+            template_name='Executed Contract Hidden From Listing',
+            status='signed',
+            signed_file_path='test/contract.pdf',
+        )
+        db.session.add_all([offer_doc, contract_doc])
+        db.session.flush()
+
+        db.session.add(SellerOfferDocument(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            offer_id=offer.id,
+            transaction_document_id=offer_doc.id,
+            created_by_id=owner.id,
+            document_type='buyer_offer',
+            display_name='Offer Contract Hidden From Listing',
+            is_primary_terms_document=True,
+        ))
+
+        contract = SellerAcceptedContract(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            offer_id=offer.id,
+            created_by_id=owner.id,
+            position='primary',
+            status='active',
+        )
+        db.session.add(contract)
+        db.session.flush()
+
+        db.session.add(SellerContractDocument(
+            organization_id=seed['org_a'],
+            transaction_id=seed['tx_a'],
+            accepted_contract_id=contract.id,
+            transaction_document_id=contract_doc.id,
+            created_by_id=owner.id,
+            document_type='final_acceptance',
+            display_name='Executed Contract Hidden From Listing',
+            is_primary_contract_document=True,
+        ))
+        db.session.commit()
+
+    response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    start = html.index('Listing Documents')
+    end = html.index('</section>', start)
+    listing_section = html[start:end]
+
+    assert 'Listing Agreement' in listing_section
+    assert 'Offer Contract Hidden From Listing' not in listing_section
+    assert 'Executed Contract Hidden From Listing' not in listing_section
+
+
+def test_accept_offer_keeps_supporting_data_without_contract_documents(owner_a_client, app, db, seed):
+    from models import (
+        SellerAcceptedContract,
+        SellerContractDocument,
         SellerOffer,
         SellerOfferDocument,
         SellerOfferVersion,
@@ -319,8 +407,11 @@ def test_accept_offer_freezes_package_documents_and_supporting_data(owner_a_clie
         assert contract.residential_service_contract == 'Seller to reimburse buyer up to $650.'
         assert contract.buyer_agent_commission_percent == 3
         assert 'third_party_financing' in contract.frozen_terms['supporting_documents']
-        assert len(contract.extra_data['offer_package_documents']) == 3
-        assert len(contract.extra_data['supporting_document_ids']) == 2
+        assert 'third_party_financing' in contract.extra_data['supporting_documents']
+        assert 'offer_package_documents' not in contract.extra_data
+        assert 'supporting_document_ids' not in contract.extra_data
+        assert 'primary_document_ids' not in contract.extra_data
+        assert SellerContractDocument.query.filter_by(accepted_contract_id=contract.id).count() == 0
 
 
 def test_primary_combined_package_extraction_populates_offer_terms(app, db, seed):

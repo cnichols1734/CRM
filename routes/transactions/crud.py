@@ -11,7 +11,7 @@ from models import (
     TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile,
     SellerListingProfile, SellerOffer, SellerOfferActivity, SellerAcceptedContract,
     SellerContractMilestone, SellerCommissionTerms, SellerListingPriceChange,
-    SellerOfferDocument, SellerOfferVersion
+    SellerOfferDocument, SellerOfferVersion, SellerContractDocument
 )
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, case, and_
@@ -467,6 +467,7 @@ def view_transaction(id):
     documents = TransactionDocument.query.filter_by(
         transaction_id=id
     ).order_by(TransactionDocument.created_at).all()
+    listing_documents = documents
     
     # Get files from all contacts associated with this transaction
     contact_ids = [p.contact_id for p in participants if p.contact_id]
@@ -481,6 +482,24 @@ def view_transaction(id):
     listing_extraction_status = None
     listing_info_overrides = {}
     if transaction.transaction_type.name == 'seller':
+        offer_scoped_document_ids = {
+            row[0] for row in db.session.query(SellerOfferDocument.transaction_document_id).filter(
+                SellerOfferDocument.transaction_id == transaction.id,
+                SellerOfferDocument.organization_id == current_user.organization_id,
+            ).all()
+        }
+        contract_scoped_document_ids = {
+            row[0] for row in db.session.query(SellerContractDocument.transaction_document_id).filter(
+                SellerContractDocument.transaction_id == transaction.id,
+                SellerContractDocument.organization_id == current_user.organization_id,
+            ).all()
+        }
+        non_listing_document_ids = offer_scoped_document_ids | contract_scoped_document_ids
+        listing_documents = [
+            doc for doc in documents
+            if doc.id not in non_listing_document_ids
+        ]
+
         extra_data = transaction.extra_data or {}
         listing_info_overrides = extra_data.get('listing_info_overrides') or {}
         from services.transaction_helpers import build_listing_info
@@ -593,17 +612,20 @@ def view_transaction(id):
             status='active'
         ).order_by(SellerAcceptedContract.backup_position.asc()).all()
         seller_contracts = ([primary_seller_contract] if primary_seller_contract else []) + backup_seller_contracts
-        contract_offer_ids = [contract.offer_id for contract in seller_contracts if contract.offer_id]
-        if contract_offer_ids:
-            docs_by_offer = {}
-            contract_offer_documents = SellerOfferDocument.query.filter(
-                SellerOfferDocument.offer_id.in_(contract_offer_ids),
-                SellerOfferDocument.organization_id == current_user.organization_id
-            ).order_by(SellerOfferDocument.created_at.asc()).all()
-            for offer_document in contract_offer_documents:
-                docs_by_offer.setdefault(offer_document.offer_id, []).append(offer_document)
+        contract_ids = [contract.id for contract in seller_contracts]
+        if contract_ids:
+            docs_by_contract = {}
+            contract_documents = SellerContractDocument.query.filter(
+                SellerContractDocument.accepted_contract_id.in_(contract_ids),
+                SellerContractDocument.organization_id == current_user.organization_id
+            ).order_by(
+                SellerContractDocument.accepted_contract_id.asc(),
+                SellerContractDocument.created_at.asc()
+            ).all()
+            for contract_document in contract_documents:
+                docs_by_contract.setdefault(contract_document.accepted_contract_id, []).append(contract_document)
             seller_contract_documents_by_contract = {
-                contract.id: _order_offer_package_documents(docs_by_offer.get(contract.offer_id, []))
+                contract.id: _order_offer_package_documents(docs_by_contract.get(contract.id, []))
                 for contract in seller_contracts
             }
         if primary_seller_contract:
@@ -641,6 +663,7 @@ def view_transaction(id):
         transaction=transaction,
         participants=participants,
         documents=documents,
+        listing_documents=listing_documents,
         contact_files=contact_files,
         listing_info=listing_info,
         listing_extraction_status=listing_extraction_status,

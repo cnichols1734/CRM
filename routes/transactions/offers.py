@@ -30,14 +30,6 @@ from . import transactions_bp
 from .decorators import transactions_required
 
 
-SUPPORTING_DOCUMENT_TYPES = {
-    'sellers_disclosure',
-    'hoa_addendum',
-    'pre_approval',
-    'third_party_financing',
-}
-
-
 def _as_dict(value):
     """Return JSON object values only; extracted document fields may be free-form strings."""
     return value if isinstance(value, dict) else {}
@@ -202,29 +194,11 @@ def _merged_acceptance_terms(offer, version):
     if addenda:
         terms['addenda'] = addenda
 
-    package_docs = []
-    for offer_doc in offer.offer_documents.order_by(SellerOfferDocument.created_at.asc()).all():
-        doc = offer_doc.document
-        package_docs.append({
-            'offer_document_id': offer_doc.id,
-            'document_id': offer_doc.transaction_document_id,
-            'document_type': offer_doc.document_type,
-            'display_name': offer_doc.display_name,
-            'template_slug': doc.template_slug if doc else None,
-            'filename': doc.signed_original_filename if doc else None,
-            'extraction_status': doc.extraction_status if doc else None,
-            'is_primary_terms_document': offer_doc.is_primary_terms_document,
-            'offer_version_id': offer_doc.offer_version_id,
-        })
-    if package_docs:
-        terms['offer_package_documents'] = package_docs
-
     return terms
 
 
 def _contract_extra_data_from_offer(offer, terms):
     supporting = _as_dict(terms.get('supporting_documents'))
-    package_docs = terms.get('offer_package_documents') or []
     return {
         'source_offer_id': offer.id,
         'source_offer_status': offer.status,
@@ -233,18 +207,7 @@ def _contract_extra_data_from_offer(offer, terms):
         'buyer_agent_email': offer.buyer_agent_email,
         'buyer_agent_phone': offer.buyer_agent_phone,
         'buyer_agent_brokerage': offer.buyer_agent_brokerage,
-        'offer_package_documents': package_docs,
         'supporting_documents': supporting,
-        'supporting_document_ids': [
-            doc['document_id']
-            for doc in package_docs
-            if doc.get('document_type') in SUPPORTING_DOCUMENT_TYPES and doc.get('document_id')
-        ],
-        'primary_document_ids': [
-            doc['document_id']
-            for doc in package_docs
-            if doc.get('is_primary_terms_document') and doc.get('document_id')
-        ],
     }
 
 

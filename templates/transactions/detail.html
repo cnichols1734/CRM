@@ -299,7 +299,7 @@
 
                 {% if transaction.transaction_type.name == 'seller' %}
                 {# ----- Property details card (seller: above workspace) ----- #}
-                <section id="transaction-documents-card" class="crm-surface scroll-mt-28">
+                <section id="transaction-documents-card" class="crm-surface scroll-mt-28" data-seller-listing-tab-content>
                     <div class="crm-surface-header">
                         {{ section_header('Property details') }}
                     </div>
@@ -367,8 +367,8 @@
                     </div>
                     <div class="crm-surface-body">
                         <div class="crm-segment mb-5" data-seller-tabs>
-                            <button type="button" id="seller-tab-overview" class="crm-segment__item is-active" onclick="sellerWorkspaceTab('overview')">
-                                Overview
+                            <button type="button" id="seller-tab-listing" class="crm-segment__item is-active" onclick="sellerWorkspaceTab('listing')">
+                                Listing Info
                             </button>
                             <button type="button" id="seller-tab-offers" class="crm-segment__item" onclick="sellerWorkspaceTab('offers')">
                                 Offers{% if active_seller_offers %} <span class="text-orange-600">({{ active_seller_offers|length }})</span>{% endif %}
@@ -378,31 +378,11 @@
                             </button>
                         </div>
 
-                        <div id="seller-panel-overview" class="seller-tab-panel space-y-4">
-                            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Offer pressure</div>
-                                    {% if urgent_seller_offer %}
-                                    {% set urgent_state = offer_urgency(urgent_seller_offer) %}
-                                    <div class="mt-2 text-sm font-semibold {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% elif urgent_state.state == 'warning' %}text-orange-700{% else %}text-slate-900{% endif %}">
-                                        {{ urgent_state.label }}
-                                    </div>
-                                    <div class="mt-1 truncate text-xs text-slate-500">{{ urgent_seller_offer.buyer_names or urgent_seller_offer.buyer_agent_name or 'Active offer' }}</div>
-                                    {% else %}
-                                    <div class="mt-2 text-sm text-slate-500">No active offers</div>
-                                    {% endif %}
-                                </div>
-                                <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
-                                    <div class="text-xs font-medium uppercase tracking-wide text-slate-500">Contract state</div>
-                                    {% if primary_seller_contract %}
-                                    <div class="mt-2 text-sm font-semibold text-emerald-700">Under contract</div>
-                                    <div class="mt-1 text-xs text-slate-500">{{ backup_seller_contracts|length }} backup contract{% if backup_seller_contracts|length != 1 %}s{% endif %}</div>
-                                    {% else %}
-                                    <div class="mt-2 text-sm text-slate-500">Active listing workflow</div>
-                                    {% endif %}
-                                </div>
+                        <div id="seller-panel-listing" class="seller-tab-panel space-y-4">
+                            <div class="rounded-md border border-slate-200 bg-slate-50 p-4">
+                                <h3 class="text-sm font-semibold text-slate-900">Listing workspace</h3>
+                                <p class="mt-1 text-xs text-slate-500">Property details, listing questionnaire, listing documents, and extracted listing data stay on this tab.</p>
                             </div>
-
                         </div>
 
                         <div id="seller-panel-offers" class="seller-tab-panel hidden space-y-4">
@@ -968,25 +948,49 @@
                             <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
                                 <div class="rounded-md border border-slate-200">
                                     <div class="border-b border-slate-200 px-4 py-3">
-                                        <h3 class="text-sm font-semibold text-slate-900">Contract package</h3>
-                                        <p class="mt-1 text-xs text-slate-500">Documents inherited from the accepted offer.</p>
+                                        <h3 class="text-sm font-semibold text-slate-900">Contract documents</h3>
+                                        <p class="mt-1 text-xs text-slate-500">Upload executed, signed contract documents for this contract workspace.</p>
                                     </div>
+                                    <form class="seller-contract-upload-form border-b border-slate-200 bg-slate-50/60 p-4" data-contract-id="{{ primary_seller_contract.id }}" enctype="multipart/form-data">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <h4 class="text-sm font-semibold text-slate-900">Upload executed PDFs</h4>
+                                                <p class="mt-1 text-xs text-slate-500">Attach the signed contract and related executed addenda. We'll extract contract terms from the files.</p>
+                                            </div>
+                                            <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
+                                                <i class="fas fa-bolt text-[10px]"></i>
+                                                Upload &amp; extract
+                                            </button>
+                                        </div>
+                                        <label class="seller-contract-dropzone group mt-3 flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-white px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
+                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600 ring-1 ring-slate-200">
+                                                <i class="fas fa-file-pdf text-base"></i>
+                                            </span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="seller-contract-dropzone-title block text-sm font-medium text-slate-900">Choose executed PDFs</span>
+                                                <span class="seller-contract-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
+                                            </span>
+                                            <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
+                                            <input type="file" name="files" accept="application/pdf" class="seller-contract-file-input sr-only" multiple required>
+                                        </label>
+                                        <div class="seller-contract-file-list mt-3 hidden space-y-2"></div>
+                                    </form>
                                     <div class="overflow-hidden rounded-md border border-slate-200">
                                         {% set contract_parent_ids_with_children = [] %}
-                                        {% for offer_document in primary_contract_docs %}
-                                            {% set doc = offer_document.document %}
+                                        {% for contract_document in primary_contract_docs %}
+                                            {% set doc = contract_document.document %}
                                             {% if doc and doc.parent_document_id and doc.parent_document_id not in contract_parent_ids_with_children %}
                                                 {% set _ = contract_parent_ids_with_children.append(doc.parent_document_id) %}
                                             {% endif %}
                                         {% endfor %}
-                                        {% for offer_document in primary_contract_docs %}
-                                        {% set doc = offer_document.document %}
+                                        {% for contract_document in primary_contract_docs %}
+                                        {% set doc = contract_document.document %}
                                         {% set is_split_child = doc and doc.parent_document_id %}
                                         {% set is_original_packet = doc and (doc.id in contract_parent_ids_with_children) %}
                                         <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center{% if is_split_child %} pl-6 sm:pl-8 border-l-2 border-l-slate-200{% endif %}">
                                             <div class="min-w-0">
                                                 <div class="flex flex-wrap items-center gap-2">
-                                                    <span class="text-sm font-semibold text-slate-900">{{ offer_document.display_name }}</span>
+                                                    <span class="text-sm font-semibold text-slate-900">{{ contract_document.display_name }}</span>
                                                     {% if is_original_packet %}
                                                     <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Original uploaded packet">Original upload</span>
                                                     {% elif is_split_child %}
@@ -1001,12 +1005,12 @@
                                                     {% endif %}
                                                 </div>
                                                 <div class="mt-2 flex flex-wrap gap-1.5">
-                                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ offer_document.document_type|replace('_', ' ')|title }}</span>
+                                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ contract_document.document_type|replace('_', ' ')|title }}</span>
                                                     {% if doc and doc.extraction_status %}
                                                     <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{{ doc.extraction_status|replace('_', ' ')|title }}</span>
                                                     {% endif %}
-                                                    {% if offer_document.extraction_summary %}
-                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">{{ offer_document.extraction_summary|length }} fields extracted</span>
+                                                    {% if contract_document.extraction_summary %}
+                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">{{ contract_document.extraction_summary|length }} fields extracted</span>
                                                     {% endif %}
                                                 </div>
                                             </div>
@@ -1018,7 +1022,7 @@
                                             {% endif %}
                                         </div>
                                         {% else %}
-                                        <div class="bg-white px-4 py-6 text-sm text-slate-500">No offer package documents were captured for this contract.</div>
+                                        <div class="bg-white px-4 py-6 text-sm text-slate-500">No contract documents uploaded yet.</div>
                                         {% endfor %}
                                     </div>
                                 </div>
@@ -1434,7 +1438,7 @@
 
                 {# ----- Property questionnaire card ----- #}
                 {% if has_intake_schema %}
-                <section class="crm-surface">
+                <section class="crm-surface" {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
                     <div class="crm-surface-header">
                         <div class="flex items-center gap-3">
                             {{ section_header('Property questionnaire') }}
@@ -1488,15 +1492,16 @@
                 {% endif %}
 
                 {# ----- Listing documents card ----- #}
-                <section class="crm-surface">
+                {% set visible_documents = listing_documents if transaction.transaction_type.name == 'seller' else documents %}
+                <section class="crm-surface" {% if transaction.transaction_type.name == 'seller' %}data-seller-listing-tab-content{% endif %}>
                     <div class="crm-surface-header">
                         <div>
                             {{ section_header('Listing Documents') }}
-                            {% if document_workflow_mode == 'placeholder_upload_only' and documents %}
-                            {% set uploaded_count = documents|selectattr('status', 'equalto', 'signed')|list|length %}
-                            <p class="mt-1 text-xs text-slate-500">{{ uploaded_count }}/{{ documents|length }} uploaded</p>
+                            {% if document_workflow_mode == 'placeholder_upload_only' and visible_documents %}
+                            {% set uploaded_count = visible_documents|selectattr('status', 'equalto', 'signed')|list|length %}
+                            <p class="mt-1 text-xs text-slate-500">{{ uploaded_count }}/{{ visible_documents|length }} uploaded</p>
                             {% else %}
-                            <p class="mt-1 text-xs text-slate-500">{{ documents|length if documents else 0 }} document{% if documents|length != 1 %}s{% endif %}</p>
+                            <p class="mt-1 text-xs text-slate-500">{{ visible_documents|length if visible_documents else 0 }} document{% if visible_documents|length != 1 %}s{% endif %}</p>
                             {% endif %}
                         </div>
                         {% if document_workflow_mode == 'placeholder_upload_only' %}
@@ -1514,9 +1519,9 @@
                         {% endif %}
                     </div>
                     <div class="crm-surface-body">
-                        {% if documents %}
+                        {% if visible_documents %}
                         <div class="divide-y divide-slate-100">
-                            {% for doc in documents %}
+                            {% for doc in visible_documents %}
                             {% set awaiting_upload = (document_workflow_mode == 'placeholder_upload_only' and doc.status != 'signed') or (doc.is_placeholder and doc.status == 'pending') %}
                             <div id="transaction-document-{{ doc.id }}"
                                  class="group flex items-center justify-between gap-3 py-3 scroll-mt-28">
@@ -2057,7 +2062,7 @@
                 {% if transaction.transaction_type.name == 'seller' %}
                 {# ----- Listing info card (seller only) ----- #}
                 {% set listing_override_values = listing_info_overrides or {} %}
-                <section class="crm-surface" id="listing-info-card"
+                <section class="crm-surface" id="listing-info-card" data-seller-listing-tab-content
                          data-transaction-id="{{ transaction.id }}"
                          data-extraction-status="{{ listing_extraction_status or '' }}">
                     <div class="crm-surface-header">
