@@ -13,6 +13,7 @@ from models import (
     SellerClosingSummary,
     SellerContractMilestone,
     SellerContractTermination,
+    SellerContractDocument,
     SellerOffer,
     SellerOfferActivity,
     SellerOfferDocument,
@@ -771,6 +772,127 @@ def split_offer_package_into_children(doc_id, file_data, *, split_source='ai_pac
     return created_children
 
 
+def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_packet_split'):
+    """Create split child documents under a contract packet parent."""
+    if not file_data:
+        return []
+
+    doc = TransactionDocument.query.get(doc_id)
+    if not doc or not doc.field_data:
+        return []
+
+    contract_document = SellerContractDocument.query.filter_by(transaction_document_id=doc.id).first()
+    if not contract_document or not contract_document.is_primary_contract_document:
+        return []
+
+    parent_contract_type = contract_document.document_type
+    if parent_contract_type not in ('offer_package', 'buyer_offer', 'final_acceptance'):
+        return []
+
+    detected = doc.field_data.get('detected_documents') if isinstance(doc.field_data, dict) else None
+    if not isinstance(detected, list) or not detected:
+        return []
+
+    from services.pdf_splitter import (
+        get_pdf_page_count,
+        normalize_segments,
+        split_pdf_by_segments,
+    )
+
+    total_pages = get_pdf_page_count(file_data)
+    if total_pages <= 0:
+        return []
+
+    segments = normalize_segments(detected, total_pages=total_pages)
+    if len(segments) < 2:
+        return []
+
+    existing_children = TransactionDocument.query.filter_by(parent_document_id=doc.id).count()
+    if existing_children:
+        return []
+
+    from services.supabase_storage import upload_external_document
+
+    organization_id = doc.organization_id
+    transaction_id = doc.transaction_id
+    primary_assigned = False
+    created_children = []
+
+    base_filename = doc.signed_original_filename or 'contract_packet.pdf'
+    name_root, _, ext = base_filename.rpartition('.')
+    name_root = name_root or 'contract_packet'
+    ext = (ext or 'pdf').lower()
+
+    for split_result in split_pdf_by_segments(file_data, segments):
+        seg = split_result.segment
+        document_type = _split_segment_to_offer_type(seg.document_type)
+        if document_type == 'buyer_offer':
+            document_type = 'final_acceptance'
+        if not document_type:
+            continue
+        if document_type == 'final_acceptance':
+            if primary_assigned:
+                continue
+            primary_assigned = True
+
+        doc_config = get_offer_document_type(document_type)
+        template_slug = doc_config['template_slug']
+        display_name = doc_config['label']
+        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{document_type}.{ext}"
+
+        try:
+            upload_result = upload_external_document(
+                transaction_id=transaction_id,
+                file_data=split_result.pdf_bytes,
+                original_filename=child_filename,
+                content_type='application/pdf',
+            )
+        except Exception:
+            upload_result = {'path': None}
+
+        inherited_field_data = _inherited_field_data_for_segment(seg.document_type, doc.field_data)
+        if document_type == 'final_acceptance':
+            inherited_field_data = dict(doc.field_data or {})
+
+        child_doc = TransactionDocument(
+            organization_id=organization_id,
+            transaction_id=transaction_id,
+            template_slug=template_slug,
+            template_name=display_name,
+            status='signed',
+            document_source='completed',
+            signed_file_path=upload_result.get('path'),
+            signed_file_size=len(split_result.pdf_bytes),
+            signed_original_filename=child_filename,
+            signed_at=datetime.utcnow(),
+            extraction_status='complete' if inherited_field_data else None,
+            field_data=inherited_field_data,
+            parent_document_id=doc.id,
+            page_start=seg.start_page,
+            page_end=seg.end_page,
+            split_source=split_source,
+        )
+        db.session.add(child_doc)
+        db.session.flush()
+
+        child_contract_document = SellerContractDocument(
+            organization_id=organization_id,
+            transaction_id=transaction_id,
+            accepted_contract_id=contract_document.accepted_contract_id,
+            transaction_document_id=child_doc.id,
+            created_by_id=contract_document.created_by_id,
+            document_type=document_type,
+            display_name=seg.title or display_name,
+            is_primary_contract_document=doc_config['primary_terms'],
+            extraction_summary=inherited_field_data,
+        )
+        db.session.add(child_contract_document)
+        db.session.flush()
+        created_children.append(child_contract_document)
+
+    return created_children
+
+
 def sync_offer_version_from_document(doc_id):
     """Sync AI-extracted TransactionDocument.field_data into linked offer records."""
     doc = TransactionDocument.query.get(doc_id)
@@ -814,6 +936,135 @@ def sync_offer_version_from_document(doc_id):
         offer_document.extraction_summary = extracted
 
     return version
+
+
+def apply_contract_terms(contract, terms):
+    """Copy reviewed/extracted terms into canonical accepted contract columns."""
+    terms = normalize_offer_terms(terms)
+    addenda = _json_object(terms.get('addenda'))
+    supporting = _json_object(terms.get('supporting_documents'))
+    financing_addendum = (
+        _json_object(addenda.get('third_party_financing_addendum'))
+        or _json_object(supporting.get('third_party_financing'))
+    )
+    seller_disclosure = _json_object(supporting.get('sellers_disclosure'))
+    hoa_addendum = _json_object(addenda.get('hoa_addendum')) or _json_object(supporting.get('hoa_addendum'))
+
+    contract.accepted_price = _coerce_decimal(terms.get('offer_price') or terms.get('sales_price')) or contract.accepted_price
+    contract.effective_date = _parse_date(terms.get('effective_date')) or contract.effective_date
+    contract.effective_at = _parse_datetime(terms.get('effective_at')) or contract.effective_at
+    contract.closing_date = _parse_date(terms.get('proposed_close_date') or terms.get('closing_date')) or contract.closing_date
+    contract.option_period_days = _coerce_int(terms.get('option_period_days')) if terms.get('option_period_days') is not None else contract.option_period_days
+    contract.financing_type = _coerce_text(terms.get('financing_type')) or contract.financing_type
+    contract.cash_down_payment = _coerce_decimal(terms.get('cash_down_payment')) or contract.cash_down_payment
+    contract.financing_amount = _coerce_decimal(
+        terms.get('financing_amount')
+        or terms.get('total_financing_amount')
+        or financing_addendum.get('total_financing_amount')
+    ) or contract.financing_amount
+    contract.seller_concessions_amount = _coerce_decimal(terms.get('seller_concessions_amount')) or contract.seller_concessions_amount
+    contract.title_company = _coerce_text(terms.get('title_company')) or contract.title_company
+    contract.escrow_officer = _coerce_text(terms.get('escrow_officer')) or contract.escrow_officer
+    contract.survey_choice = _coerce_text(terms.get('survey_choice')) or contract.survey_choice
+    contract.survey_furnished_by = _coerce_text(terms.get('survey_furnished_by')) or contract.survey_furnished_by
+    contract.residential_service_contract = _coerce_text(terms.get('residential_service_contract')) or contract.residential_service_contract
+    contract.buyer_agent_commission_percent = _coerce_decimal(terms.get('buyer_agent_commission_percent')) or contract.buyer_agent_commission_percent
+    contract.buyer_agent_commission_flat = _coerce_decimal(terms.get('buyer_agent_commission_flat')) or contract.buyer_agent_commission_flat
+
+    if terms.get('hoa_applicable') is not None:
+        contract.hoa_applicable = _coerce_bool(terms.get('hoa_applicable'))
+    elif hoa_addendum:
+        contract.hoa_applicable = True
+
+    if terms.get('seller_disclosure_required') is not None:
+        contract.seller_disclosure_required = _coerce_bool(terms.get('seller_disclosure_required'))
+    elif seller_disclosure:
+        contract.seller_disclosure_required = True
+
+    seller_disclosure_delivered = (
+        seller_disclosure.get('buyer_received_date')
+        or seller_disclosure.get('seller_signed_date')
+    )
+    contract.seller_disclosure_delivered_at = (
+        _parse_datetime(seller_disclosure_delivered)
+        or contract.seller_disclosure_delivered_at
+    )
+
+    if terms.get('lead_based_paint_required') is not None:
+        contract.lead_based_paint_required = _coerce_bool(terms.get('lead_based_paint_required'))
+    elif seller_disclosure.get('built_before_1978') is not None:
+        contract.lead_based_paint_required = _coerce_bool(seller_disclosure.get('built_before_1978'))
+
+    financing_deadline = derive_financing_approval_deadline(terms, contract.effective_date)
+    contract.financing_approval_deadline = financing_deadline or contract.financing_approval_deadline
+    contract.frozen_terms = terms
+    contract.addenda_data = terms.get('addenda') or {}
+
+    extra_data = dict(contract.extra_data or {})
+    if terms.get('supporting_documents'):
+        extra_data['supporting_documents'] = terms.get('supporting_documents')
+    contract.extra_data = extra_data
+    return contract
+
+
+def _merge_existing_contract_context(contract, terms):
+    merged = dict(terms or {})
+    existing = dict(contract.frozen_terms or {}) if contract else {}
+    if existing.get('supporting_documents') and 'supporting_documents' not in merged:
+        merged['supporting_documents'] = existing['supporting_documents']
+    if existing.get('addenda') or merged.get('addenda'):
+        addenda = dict(existing.get('addenda') or {})
+        addenda.update(merged.get('addenda') or {})
+        merged['addenda'] = addenda
+    return normalize_offer_terms(merged)
+
+
+def sync_contract_from_document(doc_id):
+    """Sync AI-extracted TransactionDocument.field_data into a linked accepted contract."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    doc = TransactionDocument.query.get(doc_id)
+    if not doc or not doc.field_data:
+        return None
+
+    contract_document = SellerContractDocument.query.filter_by(transaction_document_id=doc.id).first()
+    if not contract_document:
+        return None
+
+    contract = contract_document.accepted_contract
+    if not contract:
+        return None
+
+    extracted = dict(doc.field_data or {})
+    terms = dict(contract.frozen_terms or {})
+    if contract_document.is_primary_contract_document:
+        terms.update(extracted)
+    else:
+        normalized = _normalized_supporting_payload(contract_document.document_type, extracted)
+        supporting = dict(terms.get('supporting_documents') or {})
+        supporting.update(normalized.get('supporting_documents') or {})
+        if supporting:
+            terms['supporting_documents'] = supporting
+
+        if normalized.get('addenda'):
+            addenda = dict(terms.get('addenda') or {})
+            addenda.update(normalized['addenda'])
+            terms['addenda'] = addenda
+
+        for key, value in (normalized.get('offer_terms') or {}).items():
+            if value is not None:
+                terms[key] = value
+
+    terms = _merge_existing_contract_context(contract, terms)
+    apply_contract_terms(contract, terms)
+    create_contract_milestones(contract, replace=True)
+    contract_document.extraction_summary = extracted
+
+    flag_modified(contract, 'frozen_terms')
+    flag_modified(contract, 'addenda_data')
+    flag_modified(contract, 'extra_data')
+    flag_modified(contract_document, 'extraction_summary')
+    return contract_document
 
 
 def _milestone(contract, key, title, due_at=None, source='calculated', responsible_party=None, source_data=None):

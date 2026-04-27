@@ -370,18 +370,19 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
 
         try:
             _set_rls(org_id)
-            from services.seller_workflow import sync_offer_version_from_document
+            from services.seller_workflow import sync_contract_from_document, sync_offer_version_from_document
             sync_offer_version_from_document(doc_id)
+            sync_contract_from_document(doc_id)
             db.session.commit()
         except Exception as sync_error:
             db.session.rollback()
-            logger.error(f"Failed to sync extracted offer data for doc {doc_id}", exc_info=True)
+            logger.error(f"Failed to sync extracted transaction data for doc {doc_id}", exc_info=True)
             try:
                 _set_rls(org_id)
                 doc = TransactionDocument.query.get(doc_id)
                 if doc:
                     doc.extraction_status = 'failed'
-                    doc.extraction_error = f"Offer sync failed: {sync_error}"[:500]
+                    doc.extraction_error = f"Document sync failed: {sync_error}"[:500]
                     db.session.commit()
             except Exception:
                 logger.error(f"Failed to mark extraction sync failure for doc {doc_id}", exc_info=True)
@@ -390,8 +391,9 @@ def extract_document_data(doc_id: int, org_id: int, file_data: bytes):
         split_warning = None
         try:
             _set_rls(org_id)
-            from services.seller_workflow import split_offer_package_into_children
+            from services.seller_workflow import split_contract_package_into_children, split_offer_package_into_children
             children = split_offer_package_into_children(doc_id, file_data)
+            children.extend(split_contract_package_into_children(doc_id, file_data))
             if children:
                 db.session.commit()
                 logger.info(

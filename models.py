@@ -1231,6 +1231,37 @@ class SellerOfferDocument(db.Model):
         return f'<SellerOfferDocument offer={self.offer_id} type={self.document_type}>'
 
 
+class SellerContractDocument(db.Model):
+    """A PDF that belongs to an accepted seller contract workspace."""
+    __tablename__ = 'seller_contract_documents'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    accepted_contract_id = db.Column(db.Integer, db.ForeignKey('seller_accepted_contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    transaction_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+    document_type = db.Column(db.String(100), nullable=False)
+    display_name = db.Column(db.String(200), nullable=False)
+    is_primary_contract_document = db.Column(db.Boolean, default=False)
+    extraction_summary = db.Column(db.JSON, default={})
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    accepted_contract = db.relationship(
+        'SellerAcceptedContract',
+        foreign_keys=[accepted_contract_id],
+        backref=db.backref('contract_documents', lazy='dynamic'),
+    )
+    document = db.relationship('TransactionDocument', foreign_keys=[transaction_document_id])
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f'<SellerContractDocument contract={self.accepted_contract_id} type={self.document_type}>'
+
+
 class SellerOfferActivity(db.Model):
     """Chronological activity log for a seller offer thread."""
     __tablename__ = 'seller_offer_activities'

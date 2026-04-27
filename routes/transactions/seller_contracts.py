@@ -6,11 +6,21 @@ from decimal import Decimal, InvalidOperation
 from flask import abort, jsonify, request
 from flask_login import current_user, login_required
 
-from models import SellerAcceptedContract, SellerContractMilestone, Transaction, db
+from models import (
+    SellerAcceptedContract,
+    SellerContractDocument,
+    SellerContractMilestone,
+    Transaction,
+    TransactionDocument,
+    db,
+)
+from services.intake_service import post_upload_processing
 from services.seller_workflow import (
     close_contract,
     create_contract_milestones,
     derive_financing_approval_deadline,
+    get_offer_document_type,
+    infer_offer_document_type_from_pdf,
     promote_backup_contract,
     terminate_contract,
 )
@@ -97,6 +107,20 @@ def _get_contract_for_update(transaction, contract_id):
     ).first_or_404()
 
 
+def _contract_document_payload(contract_document):
+    doc = contract_document.document
+    return {
+        'contract_document_id': contract_document.id,
+        'document_id': contract_document.transaction_document_id,
+        'document_type': contract_document.document_type,
+        'display_name': contract_document.display_name,
+        'template_slug': doc.template_slug if doc else None,
+        'extraction_status': doc.extraction_status if doc else None,
+        'filename': doc.signed_original_filename if doc else None,
+        'is_primary_contract_document': contract_document.is_primary_contract_document,
+    }
+
+
 def _json_safe_value(value):
     if value is None:
         return None
@@ -130,6 +154,137 @@ def _sync_contract_frozen_terms(contract):
         terms[field] = _json_safe_value(getattr(contract, field))
     contract.frozen_terms = terms
     flag_modified(contract, 'frozen_terms')
+
+
+@transactions_bp.route('/<int:id>/seller/contracts/<int:contract_id>/documents/upload', methods=['POST'])
+@login_required
+@transactions_required
+def upload_seller_contract_document(id, contract_id):
+    """Upload executed contract PDFs to an accepted seller contract workspace."""
+    transaction = _get_seller_transaction(id)
+    if transaction is None:
+        return jsonify({'success': False, 'error': 'Contracts are only available for seller transactions'}), 400
+
+    contract = _get_contract_for_update(transaction, contract_id)
+    if contract.status != 'active':
+        return jsonify({'success': False, 'error': 'Documents can only be uploaded to an active contract'}), 400
+
+    files = request.files.getlist('files') or request.files.getlist('file')
+    files = [file for file in files if file and file.filename]
+    if not files:
+        return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+    document_types = (
+        request.form.getlist('document_type')
+        or request.form.getlist('document_types[]')
+        or request.form.getlist('direction')
+    )
+
+    try:
+        from services.supabase_storage import upload_external_document as upload_storage
+
+        uploaded = []
+        max_size = 25 * 1024 * 1024
+        for index, file in enumerate(files):
+            file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+            if file_ext != 'pdf':
+                return jsonify({'success': False, 'error': f'{file.filename}: only PDF files are allowed'}), 400
+
+            file_data = file.read()
+            if len(file_data) > max_size:
+                return jsonify({'success': False, 'error': f'{file.filename}: file too large. Maximum size is 25MB.'}), 400
+
+            explicit_type = document_types[index] if index < len(document_types) else None
+            document_type = infer_offer_document_type_from_pdf(
+                file_data,
+                file.filename,
+                explicit_type or request.form.get('document_type') or 'final_acceptance',
+            )
+            if document_type in ('buyer_offer', 'offer_package'):
+                document_type = 'final_acceptance'
+            doc_config = get_offer_document_type(document_type)
+            template_slug = doc_config['template_slug']
+            display_name = doc_config['label']
+
+            result = upload_storage(
+                transaction_id=transaction.id,
+                file_data=file_data,
+                original_filename=file.filename,
+                content_type='application/pdf',
+            )
+
+            doc = TransactionDocument(
+                organization_id=current_user.organization_id,
+                transaction_id=transaction.id,
+                template_slug=template_slug,
+                template_name=display_name,
+                status='signed',
+                document_source='completed',
+                signed_file_path=result['path'],
+                signed_file_size=len(file_data),
+                signed_original_filename=file.filename,
+                signed_at=datetime.utcnow(),
+                extraction_status='pending',
+                field_data={},
+            )
+            db.session.add(doc)
+            db.session.flush()
+
+            contract_document = SellerContractDocument(
+                organization_id=current_user.organization_id,
+                transaction_id=transaction.id,
+                accepted_contract_id=contract.id,
+                transaction_document_id=doc.id,
+                created_by_id=current_user.id,
+                document_type=document_type,
+                display_name=display_name,
+                is_primary_contract_document=doc_config['primary_terms'],
+                extraction_summary={},
+            )
+            db.session.add(contract_document)
+            db.session.flush()
+            uploaded.append(contract_document)
+
+        db.session.commit()
+
+        for contract_document in uploaded:
+            post_upload_processing(contract_document.document)
+
+        documents_payload = [_contract_document_payload(contract_document) for contract_document in uploaded]
+        first = documents_payload[0] if documents_payload else {}
+        return jsonify({
+            'success': True,
+            'message': f'{len(documents_payload)} contract document{"s" if len(documents_payload) != 1 else ""} uploaded. Extraction has started.',
+            'accepted_contract_id': contract.id,
+            'document_id': first.get('document_id'),
+            'documents': documents_payload,
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@transactions_bp.route('/<int:id>/seller/contracts/<int:contract_id>/documents', methods=['GET'])
+@login_required
+@transactions_required
+def list_seller_contract_documents(id, contract_id):
+    """Return documents attached to an accepted seller contract workspace."""
+    transaction = _get_seller_transaction(id)
+    if transaction is None:
+        return jsonify({'success': False, 'error': 'Contracts are only available for seller transactions'}), 400
+
+    contract = _get_contract_for_update(transaction, contract_id)
+    documents = SellerContractDocument.query.filter_by(
+        accepted_contract_id=contract.id,
+        transaction_id=transaction.id,
+        organization_id=current_user.organization_id,
+    ).order_by(SellerContractDocument.created_at.asc()).all()
+
+    return jsonify({
+        'success': True,
+        'accepted_contract_id': contract.id,
+        'documents': [_contract_document_payload(document) for document in documents],
+    })
 
 
 def _apply_milestone_data(milestone, data):

@@ -17,7 +17,8 @@ function getActiveSellerWorkspaceTab() {
 }
 
 function restoreSellerWorkspaceTab() {
-    const savedTab = sessionStorage.getItem(SELLER_WORKSPACE_TAB_KEY);
+    let savedTab = sessionStorage.getItem(SELLER_WORKSPACE_TAB_KEY);
+    if (savedTab === 'overview') savedTab = 'listing';
     if (savedTab && document.getElementById(`seller-panel-${savedTab}`)) {
         sellerWorkspaceTab(savedTab, { persist: false });
     }
@@ -467,8 +468,12 @@ function showToast(message, type = 'info') {
 // =============================================================================
 
 function sellerWorkspaceTab(tabName, options = {}) {
+    if (tabName === 'overview') tabName = 'listing';
     document.querySelectorAll('[id^="seller-tab-"]').forEach(btn => btn.classList.remove('is-active'));
     document.querySelectorAll('.seller-tab-panel').forEach(panel => panel.classList.add('hidden'));
+    document.querySelectorAll('[data-seller-listing-tab-content]').forEach(element => {
+        element.classList.toggle('hidden', tabName !== 'listing');
+    });
 
     const tab = document.getElementById(`seller-tab-${tabName}`);
     const panel = document.getElementById(`seller-panel-${tabName}`);
@@ -494,7 +499,7 @@ function sellerFormData(form) {
     return data;
 }
 
-function sellerPost(url, payload, successMessage) {
+function sellerPost(url, payload, successMessage, options = {}) {
     return fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -506,8 +511,8 @@ function sellerPost(url, payload, successMessage) {
             throw new Error(data.error || 'Request failed');
         }
         if (successMessage) showToast(successMessage, 'success');
-        const activeSellerTab = getActiveSellerWorkspaceTab();
-        if (activeSellerTab) setSellerWorkspaceReloadTab(activeSellerTab);
+        const reloadTab = options.reloadTab || getActiveSellerWorkspaceTab();
+        if (reloadTab) setSellerWorkspaceReloadTab(reloadTab);
         setTimeout(() => location.reload(), 500);
         return data;
     })
@@ -927,6 +932,168 @@ document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
     });
 });
 
+const CONTRACT_DOCUMENT_TYPE_OPTIONS = [
+    ['final_acceptance', 'Executed contract'],
+    ['third_party_financing', 'Third party financing'],
+    ['hoa_addendum', 'HOA Addendum'],
+    ['sellers_disclosure', "Seller's Disclosure"],
+    ['pre_approval', 'Mortgage pre-approval'],
+    ['backup_acceptance', 'Backup addendum']
+];
+
+function inferContractDocumentType(filename) {
+    const words = (filename || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/);
+    const tokens = new Set(words);
+    const has = (...items) => items.every(item => tokens.has(item));
+
+    if (has('third', 'financing')) return 'third_party_financing';
+    if (tokens.has('preapproval') || has('pre', 'approval') || tokens.has('prequal') || has('pre', 'qual') || tokens.has('prequalification')) {
+        return 'pre_approval';
+    }
+    if (tokens.has('hoa') || has('owners', 'association') || has('property', 'subject', 'mandatory') || has('mandatory', 'membership')) {
+        return 'hoa_addendum';
+    }
+    if (has('seller', 'disclosure') || has('sellers', 'disclosure') || tokens.has('sd')) return 'sellers_disclosure';
+    if (tokens.has('backup')) return 'backup_acceptance';
+    return 'final_acceptance';
+}
+
+function updateSellerContractDropzone(form, files) {
+    const title = form.querySelector('.seller-contract-dropzone-title');
+    const hint = form.querySelector('.seller-contract-dropzone-hint');
+    if (!title || !hint) return;
+    if (!files.length) {
+        title.textContent = 'Choose executed PDFs';
+        hint.textContent = 'Multiple PDFs allowed. Types are inferred from filename.';
+        return;
+    }
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+    const totalLabel = totalSize ? ` · ${(totalSize / 1024 / 1024).toFixed(2)} MB total` : '';
+    title.textContent = `${files.length} PDF${files.length === 1 ? '' : 's'} ready`;
+    hint.textContent = `Tap to add or replace${totalLabel}`;
+}
+
+function renderSellerContractFileList(form) {
+    const input = form.querySelector('.seller-contract-file-input');
+    const list = form.querySelector('.seller-contract-file-list');
+    if (!input || !list) return;
+
+    const files = Array.from(input.files || []);
+    updateSellerContractDropzone(form, files);
+
+    if (!files.length) {
+        list.classList.add('hidden');
+        list.innerHTML = '';
+        return;
+    }
+
+    list.innerHTML = files.map((file, index) => {
+        const inferredType = inferContractDocumentType(file.name);
+        const options = CONTRACT_DOCUMENT_TYPE_OPTIONS.map(([value, label]) => (
+            `<option value="${value}" ${value === inferredType ? 'selected' : ''}>${label}</option>`
+        )).join('');
+        const fileSize = file.size ? `${Math.max(file.size / 1024 / 1024, 0.01).toFixed(2)} MB` : '';
+        return `
+            <div class="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-md border border-slate-200 bg-white px-3 py-2.5" data-contract-upload-row="${index}">
+                <span class="flex h-9 w-9 items-center justify-center rounded-md bg-rose-50 text-rose-600">
+                    <i class="fas fa-file-pdf text-sm"></i>
+                </span>
+                <div class="min-w-0">
+                    <div class="truncate text-sm font-medium text-slate-900">${escapeHtml(file.name)}</div>
+                    <div class="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+                        ${fileSize ? `<span>${fileSize}</span><span class="text-slate-300">·</span>` : ''}
+                        <span>Auto-detected type</span>
+                    </div>
+                </div>
+                <select class="crm-select seller-contract-document-type-select h-9 w-44 px-3 py-1.5 text-xs">
+                    ${options}
+                </select>
+                <div class="seller-contract-upload-status col-span-3 hidden border-t border-slate-100 pt-2 text-[11px] text-slate-500"></div>
+            </div>
+        `;
+    }).join('');
+    list.classList.remove('hidden');
+}
+
+document.querySelectorAll('.seller-contract-upload-form').forEach(form => {
+    const input = form.querySelector('.seller-contract-file-input');
+    if (input) {
+        input.addEventListener('change', () => renderSellerContractFileList(form));
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const contractId = this.dataset.contractId;
+        const submit = this.querySelector('button[type="submit"]');
+        const originalText = submit ? submit.textContent : '';
+        const fileInput = this.querySelector('.seller-contract-file-input');
+        const files = Array.from((fileInput && fileInput.files) || []);
+        if (!contractId) {
+            showToast('Unable to find contract.', 'error');
+            return;
+        }
+        if (!files.length) {
+            showToast('Select at least one PDF.', 'error');
+            return;
+        }
+
+        const rows = Array.from(this.querySelectorAll('[data-contract-upload-row]'));
+        const formData = new FormData();
+        files.forEach((file, index) => {
+            const row = rows[index];
+            const select = row ? row.querySelector('.seller-contract-document-type-select') : null;
+            const status = row ? row.querySelector('.seller-contract-upload-status') : null;
+            formData.append('files', file);
+            formData.append('document_type', select ? select.value : inferContractDocumentType(file.name));
+            if (status) {
+                status.textContent = 'Uploading...';
+                status.classList.remove('hidden', 'text-red-600');
+                status.classList.add('text-sky-600');
+            }
+        });
+
+        if (submit) {
+            submit.disabled = true;
+            submit.textContent = 'Uploading...';
+        }
+
+        fetch(`/transactions/${transactionId}/seller/contracts/${contractId}/documents/upload`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) throw new Error(data.error || 'Upload failed');
+            rows.forEach(row => {
+                const status = row.querySelector('.seller-contract-upload-status');
+                if (status) {
+                    status.textContent = 'Uploaded. Extraction queued.';
+                    status.classList.remove('hidden', 'text-red-600', 'text-sky-600');
+                    status.classList.add('text-emerald-600');
+                }
+            });
+            showToast(data.message || 'Contract document uploaded.', 'success');
+            setSellerWorkspaceReloadTab('contract');
+            setTimeout(() => location.reload(), 800);
+        })
+        .catch(err => {
+            showToast(err.message || 'Contract upload failed', 'error');
+            rows.forEach(row => {
+                const status = row.querySelector('.seller-contract-upload-status');
+                if (status) {
+                    status.textContent = err.message || 'Upload failed';
+                    status.classList.remove('hidden', 'text-sky-600');
+                    status.classList.add('text-red-600');
+                }
+            });
+            if (submit) {
+                submit.disabled = false;
+                submit.textContent = originalText;
+            }
+        });
+    });
+});
+
 function acceptSellerOffer(offerId, position) {
     const label = position === 'backup' ? 'accept this offer as backup' : 'accept this offer as primary';
     if (!confirm(`Are you sure you want to ${label}?`)) return;
@@ -940,7 +1107,8 @@ function acceptSellerOffer(offerId, position) {
     sellerPost(
         `/transactions/${transactionId}/offers/${offerId}/accept`,
         payload,
-        position === 'backup' ? 'Backup contract created.' : 'Primary contract accepted.'
+        position === 'backup' ? 'Backup contract created.' : 'Primary contract accepted.',
+        { reloadTab: 'contract' }
     );
 }
 
