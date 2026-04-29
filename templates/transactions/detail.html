@@ -2063,6 +2063,73 @@
                     </div>
                 </section>
 
+                {# ----- Tasks card ----- #}
+                <section class="crm-surface">
+                    <div class="crm-surface-header">
+                        <div class="flex items-center gap-2">
+                            {{ section_header('Tasks') }}
+                            {% if transaction_tasks %}
+                            <span class="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[11px] font-semibold text-slate-600">
+                                {{ transaction_tasks|selectattr('status', 'equalto', 'pending')|list|length }}
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% set seller_contact = participants|selectattr('role', 'in', ['seller', 'co_seller'])|selectattr('contact_id')|first %}
+                        <a href="{{ url_for('tasks.create_task') }}?transaction_id={{ transaction.id }}{% if seller_contact %}&contact_id={{ seller_contact.contact_id }}{% endif %}"
+                           class="crm-btn crm-btn-secondary">
+                            <i class="fas fa-plus text-xs text-slate-400"></i>
+                            Add
+                        </a>
+                    </div>
+                    <div class="crm-surface-body">
+                        {% if transaction_tasks %}
+                        <div class="max-h-80 space-y-2 overflow-y-auto">
+                            {% for task in transaction_tasks %}
+                            {% set is_overdue = task.status == 'pending' and task.due_date and task.due_date < now %}
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}"
+                               class="group flex items-start gap-3 rounded-md border border-slate-200 px-3 py-2.5 transition-colors hover:border-slate-300 hover:bg-slate-50">
+                                {% if task.status == 'completed' %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400"></span>
+                                {% elif is_overdue %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-red-400"></span>
+                                {% else %}
+                                <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-orange-400"></span>
+                                {% endif %}
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="truncate text-sm font-medium {% if task.status == 'completed' %}text-slate-400 line-through{% elif is_overdue %}text-red-700{% else %}text-slate-900{% endif %}">
+                                            {{ task.subject }}
+                                        </span>
+                                        {% if task.is_auto_checkin %}
+                                        <span class="flex-shrink-0 text-[10px] font-semibold uppercase tracking-wide text-sky-600">Auto</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mt-0.5 flex items-center gap-2 text-xs text-slate-500">
+                                        {% if task.due_date %}
+                                        <span class="{% if is_overdue %}font-medium text-red-600{% endif %}">
+                                            {% if is_overdue %}Overdue{% else %}Due{% endif %} {{ task.due_date.strftime('%b %d') }}
+                                        </span>
+                                        {% endif %}
+                                        {% if task.assigned_to %}
+                                        <span class="text-slate-300">&middot;</span>
+                                        <span class="truncate">{{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[:1] }}.</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if task.status == 'completed' and task.outcome %}
+                                    <p class="mt-1 line-clamp-2 text-xs text-slate-400">{{ task.outcome }}</p>
+                                    {% endif %}
+                                </div>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="py-6 text-center">
+                            <p class="text-sm text-slate-500">No tasks linked to this transaction.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+
                 {# ----- Contact files card ----- #}
                 {% if contact_files %}
                 <section class="crm-surface">

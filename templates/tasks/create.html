@@ -238,7 +238,8 @@
                                     Property Address <span class="text-slate-400">(Optional)</span>
                                 </label>
                         <input type="text" name="property_address" id="property_address"
-                                       class="premium-input" placeholder="Enter property address">
+                                       class="premium-input" placeholder="Enter property address"
+                                       value="{{ prefill_address or '' }}">
                             </div>
                         </div>
                     </div>
@@ -259,10 +260,13 @@
 
                 <!-- Form Actions -->
                 <div class="p-6 bg-slate-50/50">
-                    <input type="hidden" name="return_to" value="{{ request.args.get('return_to', '') }}">
+                    <input type="hidden" name="return_to" value="{% if request.args.get('transaction_id') %}transaction{% else %}{{ request.args.get('return_to', '') }}{% endif %}">
                     <input type="hidden" name="return_contact_id" value="{{ request.args.get('contact_id', '') }}">
+                    {% if request.args.get('transaction_id') %}
+                    <input type="hidden" name="transaction_id" value="{{ request.args.get('transaction_id') }}">
+                    {% endif %}
                     <div class="flex flex-col sm:flex-row justify-end gap-3">
-                    <a href="{% if request.args.get('return_to') == 'contact' %}{{ url_for('contacts.view_contact', contact_id=request.args.get('contact_id')) }}{% else %}{{ url_for('tasks.tasks') }}{% endif %}" 
+                    <a href="{% if request.args.get('transaction_id') %}{{ url_for('transactions.view_transaction', id=request.args.get('transaction_id')) }}{% elif request.args.get('return_to') == 'contact' %}{{ url_for('contacts.view_contact', contact_id=request.args.get('contact_id')) }}{% else %}{{ url_for('tasks.tasks') }}{% endif %}" 
                            class="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-white hover:border-slate-300 transition-all">
                         Cancel
                     </a>
@@ -282,8 +286,11 @@
 function navigateBack() {
     const returnTo = '{{ request.args.get("return_to", "") }}';
     const contactId = '{{ request.args.get("contact_id", "") }}';
+    const transactionId = '{{ request.args.get("transaction_id", "") }}';
     
-    if (returnTo === 'contact' && contactId) {
+    if (transactionId) {
+        window.location.href = `/transactions/${transactionId}`;
+    } else if (returnTo === 'contact' && contactId) {
         window.location.href = `/contact/${contactId}`;
     } else {
         window.location.href = '{{ url_for('tasks.tasks') }}';
