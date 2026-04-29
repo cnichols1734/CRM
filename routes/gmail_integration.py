@@ -8,6 +8,7 @@ from flask import Blueprint, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required, current_user
 import secrets
 import logging
+from datetime import datetime
 
 from models import db, UserEmailIntegration
 from services import gmail_service
@@ -356,6 +357,8 @@ def send_email():
             'error': 'Message body is required'
         }), 400
     
+    contact = None
+
     # Validate contact if provided
     if contact_id:
         contact = org_query(Contact).filter_by(id=contact_id).first()
@@ -391,8 +394,14 @@ def send_email():
                 }), 403
             return jsonify(result), 500
         
-        # Log to contact history if contact_id provided
+        # Update contact recency and log to contact history if contact_id provided
         if contact_id:
+            # Keep contact timeline fields in sync with successful outbound sends.
+            today = datetime.utcnow().date()
+            if contact.last_email_date is None or today > contact.last_email_date:
+                contact.last_email_date = today
+            contact.update_last_contact_date()
+
             # Use the full body (with signature) from the result for logging
             logged_body = result.get('body_html', body_html)
             gmail_service.log_sent_email(
