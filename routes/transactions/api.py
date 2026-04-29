@@ -3,6 +3,7 @@
 Transaction API endpoints (JSON responses).
 """
 
+import logging
 from datetime import datetime, timedelta
 from flask import request, jsonify
 from flask_login import login_required, current_user
@@ -12,6 +13,8 @@ from services.transaction_helpers import build_listing_info
 from config import Config
 from . import transactions_bp
 from .decorators import transactions_required
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -116,6 +119,18 @@ def update_status(id):
         # Log the status change
         if old_status != new_status:
             audit_service.log_transaction_status_changed(transaction, old_status, new_status)
+        
+        # Auto-create first seller check-in task when listing goes active
+        if (new_status == 'active' and old_status != 'active'
+                and tx_type_name in ('seller', 'landlord')):
+            try:
+                from services.listing_checkin_service import (
+                    create_seller_checkin_task, should_auto_create_next,
+                )
+                if should_auto_create_next(transaction):
+                    create_seller_checkin_task(transaction, current_user)
+            except Exception as e:
+                logger.warning("Auto-checkin creation failed for transaction %s: %s", id, e)
         
         db.session.commit()
         return jsonify({'success': True, 'status': new_status})

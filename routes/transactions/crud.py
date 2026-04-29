@@ -3,12 +3,15 @@
 Transaction CRUD routes (create, read, update, delete).
 """
 
+import logging
 from datetime import datetime as dt
 from flask import request, render_template, redirect, url_for, flash, abort
+
+logger = logging.getLogger(__name__)
 from flask_login import login_required, current_user
 from models import (
     db, Transaction, TransactionType, TransactionParticipant,
-    TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile,
+    TransactionDocument, DocumentSignature, AuditEvent, Contact, ContactFile, Task,
     SellerListingProfile, SellerOffer, SellerOfferActivity, SellerAcceptedContract,
     SellerContractMilestone, SellerCommissionTerms, SellerListingPriceChange,
     SellerOfferDocument, SellerOfferVersion, SellerContractDocument
@@ -658,6 +661,12 @@ def view_transaction(id):
     has_intake_schema = intake_schema is not None
     document_workflow_mode = intake_schema.get('document_workflow', 'docuseal') if intake_schema else None
     
+    # Load tasks linked to this transaction (pending/overdue first, then completed)
+    transaction_tasks = Task.query.filter_by(
+        transaction_id=transaction.id,
+        organization_id=current_user.organization_id,
+    ).order_by(Task.status.asc(), Task.due_date.asc()).all()
+    
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
@@ -688,6 +697,7 @@ def view_transaction(id):
         rentcast_fetched_at=rentcast_fetched_at,
         has_intake_schema=has_intake_schema,
         document_workflow_mode=document_workflow_mode,
+        transaction_tasks=transaction_tasks,
         now=dt.utcnow()
     )
 
@@ -876,6 +886,18 @@ def update_transaction(id):
             if 'status' in changed_fields and old_status != new_status:
                 audit_service.log_transaction_status_changed(transaction, old_status, new_status)
                 changed_fields.remove('status')
+
+                # Auto-create first seller check-in task when listing goes active
+                if (new_status == 'active' and old_status != 'active'
+                        and tx_type_name in ('seller', 'landlord')):
+                    try:
+                        from services.listing_checkin_service import (
+                            create_seller_checkin_task, should_auto_create_next,
+                        )
+                        if should_auto_create_next(transaction):
+                            create_seller_checkin_task(transaction, current_user)
+                    except Exception as e:
+                        logger.warning("Auto-checkin creation failed for transaction %s: %s", id, e)
 
             # Log other field changes
             if changed_fields:

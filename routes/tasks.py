@@ -103,9 +103,12 @@ def create_task():
             # Convert to UTC for storage
             utc_due_date = convert_to_utc(due_date, user_tz)
 
+            transaction_id = request.form.get('transaction_id', type=int)
+
             task = Task(
                 organization_id=current_user.organization_id,
                 contact_id=contact_id,
+                transaction_id=transaction_id,
                 assigned_to_id=request.form.get('assigned_to_id', current_user.id),
                 created_by_id=current_user.id,
                 type_id=request.form.get('type_id'),
@@ -149,6 +152,8 @@ def create_task():
             if return_to == 'contact':
                 contact_id = request.form.get('return_contact_id')
                 return redirect(url_for('contacts.view_contact', contact_id=contact_id))
+            if return_to == 'transaction' and transaction_id:
+                return redirect(url_for('transactions.view_transaction', id=transaction_id))
             return redirect(url_for('tasks.tasks'))
 
         except Exception as e:
@@ -165,10 +170,20 @@ def create_task():
     # Only show users from the same organization
     users = User.query.filter_by(organization_id=current_user.organization_id).all() if current_user.role == 'admin' else [current_user]
 
+    # Pre-fill property address from linked transaction
+    prefill_address = ''
+    txn_id = request.args.get('transaction_id', type=int)
+    if txn_id:
+        from models import Transaction
+        txn = Transaction.query.filter_by(id=txn_id, organization_id=current_user.organization_id).first()
+        if txn:
+            prefill_address = txn.street_address or ''
+
     return render_template('tasks/create.html',
                          contacts=contacts,
                          task_types=task_types,
-                         users=users)
+                         users=users,
+                         prefill_address=prefill_address)
 
 @tasks_bp.route('/tasks/<int:task_id>/edit', methods=['POST'])
 @login_required
@@ -177,6 +192,7 @@ def edit_task(task_id):
 
     try:
         user_tz = get_user_timezone()
+        old_status = task.status
         
         task.subject = request.form.get('subject')
         task.status = request.form.get('status')
@@ -214,6 +230,11 @@ def edit_task(task_id):
         if request.form.get('contact_id'):
             task.contact_id = int(request.form.get('contact_id'))
 
+        if task.status == 'completed' and old_status != 'completed':
+            task.completed_at = datetime.now(timezone.utc)
+        elif task.status != 'completed':
+            task.completed_at = None
+
         db.session.commit()
         
         # Sync to Google Calendar (non-blocking)
@@ -223,6 +244,20 @@ def edit_task(task_id):
             calendar_service.update_calendar_event(task, base_url)
         except Exception as e:
             logger.warning(f"Calendar sync failed for task {task.id}: {e}")
+        
+        # Auto-create next seller check-in if this was an auto-checkin task
+        if task.status == 'completed' and old_status != 'completed' and task.is_auto_checkin and task.transaction_id:
+            try:
+                from models import Transaction
+                from services.listing_checkin_service import (
+                    create_seller_checkin_task, should_auto_create_next,
+                )
+                txn = db.session.get(Transaction, task.transaction_id)
+                if txn and should_auto_create_next(txn):
+                    create_seller_checkin_task(txn, current_user)
+                    db.session.commit()
+            except Exception as e:
+                logger.warning(f"Auto-checkin creation failed for task {task.id}: {e}")
         
         return jsonify({'status': 'success'}), 200
 
@@ -353,14 +388,26 @@ def quick_update_task(task_id):
         try:
             from services import calendar_service
             if new_status == 'completed' and not was_completed:
-                # Task was just completed - mark event as completed
                 calendar_service.mark_event_completed(task)
             elif new_status == 'pending' and was_completed:
-                # Task was uncompleted - update event to remove completed prefix
                 base_url = request.url_root.rstrip('/')
                 calendar_service.update_calendar_event(task, base_url)
         except Exception as e:
             logger.warning(f"Calendar sync failed for task {task.id}: {e}")
+        
+        # Auto-create next seller check-in if this was an auto-checkin task
+        if new_status == 'completed' and not was_completed and task.is_auto_checkin and task.transaction_id:
+            try:
+                from models import Transaction
+                from services.listing_checkin_service import (
+                    create_seller_checkin_task, should_auto_create_next,
+                )
+                txn = db.session.get(Transaction, task.transaction_id)
+                if txn and should_auto_create_next(txn):
+                    create_seller_checkin_task(txn, current_user)
+                    db.session.commit()
+            except Exception as e:
+                logger.warning(f"Auto-checkin creation failed for task {task.id}: {e}")
         
         return jsonify({'status': 'success'}), 200
         

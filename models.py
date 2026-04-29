@@ -401,6 +401,7 @@ class Task(db.Model):
                                 ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
     
     contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='SET NULL'), nullable=True, index=True)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     
@@ -436,8 +437,12 @@ class Task(db.Model):
     google_calendar_event_id = db.Column(db.String(255), nullable=True)  # Calendar event ID
     calendar_sync_error = db.Column(db.Text, nullable=True)  # Last sync error if any
     
+    # Auto-checkin flag (system-generated recurring seller check-in tasks)
+    is_auto_checkin = db.Column(db.Boolean, default=False, nullable=False)
+    
     # Relationships
     contact = db.relationship('Contact', backref=db.backref('tasks', lazy=True))
+    transaction = db.relationship('Transaction', backref=db.backref('tasks', lazy='dynamic'))
     assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_tasks')
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_tasks')
     task_type = db.relationship('TaskType')
