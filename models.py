@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask import current_app
 from itsdangerous import URLSafeTimedSerializer as Serializer
 import secrets
+import re
 
 db = SQLAlchemy()
 
@@ -362,6 +363,169 @@ class Contact(db.Model):
 
     def __repr__(self):
         return f'<Contact {self.first_name} {self.last_name}>'
+
+
+# =============================================================================
+# ORG-WIDE PARTNER DIRECTORY MODELS
+# =============================================================================
+
+def normalize_partner_text(value):
+    """Normalize partner text for duplicate checks and unique constraints."""
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    normalized = re.sub(r'[^\w\s]', '', normalized)
+    normalized = re.sub(r'\s+', ' ', normalized)
+    return normalized or None
+
+
+def normalize_partner_phone(value):
+    """Normalize phone numbers to digits for duplicate detection."""
+    if not value:
+        return None
+    digits = re.sub(r'\D', '', value)
+    return digits or None
+
+
+def normalize_partner_address(street_address, city=None, state=None, zip_code=None):
+    """Normalize address parts enough to catch obvious duplicate companies."""
+    street = normalize_partner_text(street_address)
+    if street:
+        replacements = {
+            r'\bstreet\b': 'st',
+            r'\bavenue\b': 'ave',
+            r'\broad\b': 'rd',
+            r'\bdrive\b': 'dr',
+            r'\blane\b': 'ln',
+            r'\bboulevard\b': 'blvd',
+            r'\bhighway\b': 'hwy',
+            r'\bsuite\b': 'ste',
+            r'\bapartment\b': 'apt',
+        }
+        for pattern, replacement in replacements.items():
+            street = re.sub(pattern, replacement, street)
+
+    parts = [
+        street,
+        normalize_partner_text(city),
+        normalize_partner_text(state),
+        normalize_partner_text(zip_code),
+    ]
+    return ' '.join(part for part in parts if part) or None
+
+
+class PartnerOrganization(db.Model):
+    """Org-wide company/vendor record used by transaction participants."""
+    __tablename__ = 'partner_organizations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    updated_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    name = db.Column(db.String(200), nullable=False)
+    normalized_name = db.Column(db.String(200), nullable=False)
+    partner_type = db.Column(db.String(50), nullable=False, default='other', index=True)
+
+    phone = db.Column(db.String(30))
+    normalized_phone = db.Column(db.String(30))
+    email = db.Column(db.String(200))
+    website = db.Column(db.String(300))
+    street_address = db.Column(db.String(200))
+    city = db.Column(db.String(100))
+    state = db.Column(db.String(50))
+    zip_code = db.Column(db.String(20))
+    normalized_address = db.Column(db.String(500), index=True)
+    notes = db.Column(db.Text)
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref=db.backref('created_partner_organizations', lazy='dynamic'))
+    updated_by = db.relationship('User', foreign_keys=[updated_by_id], backref=db.backref('updated_partner_organizations', lazy='dynamic'))
+    contacts = db.relationship('PartnerContact', back_populates='partner_organization', cascade='all, delete-orphan', lazy='dynamic')
+    transaction_participants = db.relationship('TransactionParticipant', back_populates='partner_organization', lazy='dynamic')
+
+    __table_args__ = (
+        db.UniqueConstraint('organization_id', 'normalized_name', name='uq_partner_org_normalized_name'),
+    )
+
+    @property
+    def type_label(self):
+        return {
+            'brokerage': 'Brokerage',
+            'title_company': 'Title Company',
+            'lender': 'Lender',
+            'attorney': 'Attorney',
+            'inspector': 'Inspector',
+            'other': 'Other Partner',
+        }.get(self.partner_type, self.partner_type.replace('_', ' ').title())
+
+    @property
+    def full_address(self):
+        parts = [self.street_address, self.city, self.state, self.zip_code]
+        return ', '.join(part for part in parts if part)
+
+    def sync_normalized_fields(self):
+        self.normalized_name = normalize_partner_text(self.name)
+        self.normalized_phone = normalize_partner_phone(self.phone)
+        self.normalized_address = normalize_partner_address(
+            self.street_address,
+            self.city,
+            self.state,
+            self.zip_code,
+        )
+
+    def __repr__(self):
+        return f'<PartnerOrganization {self.name}>'
+
+
+class PartnerContact(db.Model):
+    """Person associated with an org-wide partner company."""
+    __tablename__ = 'partner_contacts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    partner_organization_id = db.Column(db.Integer, db.ForeignKey('partner_organizations.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    updated_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    first_name = db.Column(db.String(80), nullable=False)
+    last_name = db.Column(db.String(80), nullable=False)
+    normalized_full_name = db.Column(db.String(180), nullable=False)
+    title = db.Column(db.String(120))
+    email = db.Column(db.String(200))
+    normalized_email = db.Column(db.String(200))
+    phone = db.Column(db.String(30))
+    normalized_phone = db.Column(db.String(30))
+    notes = db.Column(db.Text)
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_primary_contact = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    partner_organization = db.relationship('PartnerOrganization', back_populates='contacts')
+    created_by = db.relationship('User', foreign_keys=[created_by_id], backref=db.backref('created_partner_contacts', lazy='dynamic'))
+    updated_by = db.relationship('User', foreign_keys=[updated_by_id], backref=db.backref('updated_partner_contacts', lazy='dynamic'))
+    transaction_participants = db.relationship('TransactionParticipant', back_populates='partner_contact', lazy='dynamic')
+
+    __table_args__ = (
+        db.UniqueConstraint('partner_organization_id', 'normalized_full_name', name='uq_partner_contact_org_full_name'),
+    )
+
+    @property
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'.strip()
+
+    def sync_normalized_fields(self):
+        self.normalized_full_name = normalize_partner_text(self.full_name)
+        self.normalized_email = self.email.strip().lower() if self.email else None
+        self.normalized_phone = normalize_partner_phone(self.phone)
+
+    def __repr__(self):
+        return f'<PartnerContact {self.full_name}>'
 
 class Interaction(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -823,9 +987,11 @@ class TransactionParticipant(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
     
-    # Can link to existing contact or user (both optional for external parties)
+    # Can link to existing contact, user, or org-wide partner directory record.
     contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    partner_organization_id = db.Column(db.Integer, db.ForeignKey('partner_organizations.id', ondelete='SET NULL'), nullable=True)
+    partner_contact_id = db.Column(db.Integer, db.ForeignKey('partner_contacts.id', ondelete='SET NULL'), nullable=True)
     
     # Role in the transaction
     # Values: seller, co_seller, buyer, co_buyer, listing_agent, buyers_agent, 
@@ -846,6 +1012,8 @@ class TransactionParticipant(db.Model):
     # Relationships
     contact = db.relationship('Contact', backref=db.backref('transaction_participations', lazy='dynamic'))
     user = db.relationship('User', backref=db.backref('transaction_participations', lazy='dynamic'))
+    partner_organization = db.relationship('PartnerOrganization', back_populates='transaction_participants')
+    partner_contact = db.relationship('PartnerContact', back_populates='transaction_participants')
     
     @property
     def display_name(self):

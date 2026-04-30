@@ -7,8 +7,9 @@ import logging
 from datetime import datetime, timedelta
 from flask import request, jsonify
 from flask_login import login_required, current_user
-from models import db, Transaction, Contact, TransactionDocument
+from models import db, Transaction, Contact, TransactionDocument, PartnerContact, PartnerOrganization
 from services import audit_service
+from services.partners import PARTNER_TYPES, partner_search_payload, partner_type_for_role
 from services.transaction_helpers import build_listing_info
 from config import Config
 from . import transactions_bp
@@ -50,6 +51,85 @@ def search_contacts():
         'email': c.email,
         'phone': c.phone
     } for c in contacts])
+
+
+@transactions_bp.route('/api/partners/search')
+@login_required
+@transactions_required
+def search_partners():
+    """Search org-wide Partner Directory records for the transaction participant picker.
+
+    The `type` param is used to *rank* matching-type results first, not to
+    exclude other types.  This way a user searching for "Austin" with role
+    Lender will still find "Austin Title" even though it's categorized as a
+    title company.
+    """
+    query = request.args.get('q', '').strip()
+    role = request.args.get('role', '').strip()
+    preferred_type = request.args.get('type', '').strip() or partner_type_for_role(role)
+    if preferred_type not in PARTNER_TYPES:
+        preferred_type = None
+
+    base_filter = PartnerOrganization.query.filter_by(
+        organization_id=current_user.organization_id,
+        is_active=True,
+    )
+
+    if query:
+        search = f'%{query}%'
+        base_filter = base_filter.filter(db.or_(
+            PartnerOrganization.name.ilike(search),
+            PartnerOrganization.email.ilike(search),
+            PartnerOrganization.phone.ilike(search),
+            PartnerOrganization.city.ilike(search),
+        ))
+
+    # Sort preferred type first, then alphabetical
+    if preferred_type:
+        type_sort = db.case(
+            (PartnerOrganization.partner_type == preferred_type, 0),
+            else_=1,
+        )
+        partners = base_filter.order_by(type_sort, PartnerOrganization.name.asc()).limit(15).all()
+    else:
+        partners = base_filter.order_by(PartnerOrganization.name.asc()).limit(15).all()
+
+    results = []
+    seen = set()
+
+    for partner in partners:
+        results.append(partner_search_payload(partner))
+        seen.add((partner.id, None))
+        contacts = partner.contacts.filter_by(is_active=True).order_by(
+            PartnerContact.last_name.asc(),
+            PartnerContact.first_name.asc(),
+        ).limit(4).all()
+        for contact in contacts:
+            results.append(partner_search_payload(partner, contact))
+            seen.add((partner.id, contact.id))
+
+    if query:
+        contact_query = PartnerContact.query.join(PartnerOrganization).filter(
+            PartnerContact.organization_id == current_user.organization_id,
+            PartnerContact.is_active.is_(True),
+            PartnerOrganization.is_active.is_(True),
+        )
+        search = f'%{query}%'
+        contact_query = contact_query.filter(db.or_(
+            PartnerContact.first_name.ilike(search),
+            PartnerContact.last_name.ilike(search),
+            PartnerContact.email.ilike(search),
+            PartnerContact.phone.ilike(search),
+            PartnerOrganization.name.ilike(search),
+        ))
+
+        for contact in contact_query.order_by(PartnerContact.last_name.asc()).limit(12).all():
+            key = (contact.partner_organization_id, contact.id)
+            if key not in seen:
+                results.append(partner_search_payload(contact.partner_organization, contact))
+                seen.add(key)
+
+    return jsonify(results[:20])
 
 
 @transactions_bp.route('/api/<int:id>/signers')

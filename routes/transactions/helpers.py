@@ -95,7 +95,8 @@ def build_prefill_data(transaction, participants):
     # Add title company info if present
     title_company = next((p for p in participants if p.role == 'title_company'), None)
     if title_company:
-        data['title_company_name'] = title_company.display_name
+        data['title_company_name'] = title_company.company or title_company.display_name
+        data['title_company_contact_name'] = title_company.display_name
         data['title_company_email'] = title_company.display_email or ''
         data['title_company_phone'] = get_phone(title_company)
     
