@@ -114,13 +114,17 @@ function closeDeleteModal() {
 }
 
 function showAddParticipantModal() {
-    // Reset form and state
     document.getElementById('addParticipantForm').reset();
     document.getElementById('participantContactId').value = '';
+    document.getElementById('participantPartnerOrganizationId').value = '';
+    document.getElementById('participantPartnerContactId').value = '';
     document.getElementById('participantContactSearch').value = '';
     document.getElementById('selectedContactPreview').classList.add('hidden');
     document.getElementById('participantSearchResults').classList.add('hidden');
+    document.getElementById('participantSearchWrap').classList.add('hidden');
+    document.getElementById('participantCreateHint').classList.add('hidden');
     document.getElementById('addParticipantBtn').disabled = true;
+    _participantSource = 'partners';
     document.getElementById('addParticipantModal').classList.remove('hidden');
 }
 
@@ -221,10 +225,71 @@ document.addEventListener('keydown', function(e) {
 // PARTICIPANT MANAGEMENT
 // =============================================================================
 
-// Contact search for participant modal
+// Role → partner type, search hint, and default source mapping
+const ROLE_CONFIG = {
+    seller:                  { source: 'contacts', hint: 'Search for the seller' },
+    co_seller:               { source: 'contacts', hint: 'Search for the co-seller' },
+    buyer:                   { source: 'contacts', hint: 'Search for the buyer' },
+    co_buyer:                { source: 'contacts', hint: 'Search for the co-buyer' },
+    listing_agent:           { source: 'partners', type: 'brokerage', hint: 'Search for a listing agent or brokerage' },
+    buyers_agent:            { source: 'partners', type: 'brokerage', hint: 'Search for a buyer\'s agent or brokerage' },
+    title_company:           { source: 'partners', type: 'title_company', hint: 'Search for a title company' },
+    lender:                  { source: 'partners', type: 'lender', hint: 'Search for a lender' },
+    transaction_coordinator: { source: 'partners', type: 'other', hint: 'Search for a transaction coordinator' },
+};
+
+// Current participant source state (managed in JS, not DOM)
+let _participantSource = 'partners'; // 'partners' | 'contacts'
+
 let participantSearchTimeout;
 const participantContactSearch = document.getElementById('participantContactSearch');
 const participantSearchResults = document.getElementById('participantSearchResults');
+
+function _getParticipantRole() {
+    return document.getElementById('participantRole').value;
+}
+
+function _isPartnerSource() {
+    return _participantSource === 'partners';
+}
+
+function switchParticipantSource() {
+    _participantSource = _isPartnerSource() ? 'contacts' : 'partners';
+    _applyParticipantSourceUI();
+    clearSelectedContact();
+}
+
+function _applyParticipantSourceUI() {
+    const role = _getParticipantRole();
+    const cfg = ROLE_CONFIG[role] || {};
+    const isPartner = _isPartnerSource();
+
+    // Role-aware label and placeholder
+    const hint = cfg.hint || (isPartner ? 'Search Partner Directory' : 'Search my contacts');
+    document.getElementById('participantSearchLabel').textContent = hint;
+    participantContactSearch.placeholder =
+        isPartner ? 'Type company or person name…' : 'Type contact name…';
+
+    // Switch link — offers opposite source
+    const switchBtn = document.getElementById('participantSwitchSource');
+    switchBtn.textContent = isPartner ? 'Use my contacts instead' : 'Search Partner Directory instead';
+
+    // Create hint
+    const hintWrap = document.getElementById('participantCreateHint');
+    const hintText = document.getElementById('participantCreateHintText');
+    const createLink = document.getElementById('participantCreateLink');
+    const createLinkText = document.getElementById('participantCreateLinkText');
+    hintWrap.classList.remove('hidden');
+    if (isPartner) {
+        hintText.textContent = "Company not in the directory yet?";
+        createLink.href = '/partners/';
+        createLinkText.textContent = 'Add to Partner Directory';
+    } else {
+        hintText.textContent = "Can't find who you're looking for?";
+        createLink.href = '/contacts/create';
+        createLinkText.textContent = 'Create a new contact';
+    }
+}
 
 participantContactSearch.addEventListener('input', function() {
     clearTimeout(participantSearchTimeout);
@@ -236,15 +301,41 @@ participantContactSearch.addEventListener('input', function() {
     }
 
     participantSearchTimeout = setTimeout(() => {
-        fetch(`/transactions/api/contacts/search?q=${encodeURIComponent(query)}`)
+        const role = _getParticipantRole();
+        const isPartner = _isPartnerSource();
+        const cfg = ROLE_CONFIG[role] || {};
+        const partnerType = cfg.type || '';
+        const url = isPartner
+            ? `/transactions/api/partners/search?q=${encodeURIComponent(query)}&role=${encodeURIComponent(role)}&type=${encodeURIComponent(partnerType)}`
+            : `/transactions/api/contacts/search?q=${encodeURIComponent(query)}`;
+
+        fetch(url)
             .then(res => res.json())
-            .then(contacts => {
-                if (contacts.length === 0) {
-                    participantSearchResults.innerHTML = '<div class="p-4 text-slate-500 text-sm text-center">No contacts found</div>';
+            .then(results => {
+                if (results.length === 0) {
+                    participantSearchResults.innerHTML =
+                        `<div class="p-4 text-sm text-slate-500 text-center">No ${isPartner ? 'partners' : 'contacts'} found</div>`;
                 } else {
-                    participantSearchResults.innerHTML = contacts.map(c => {
+                    participantSearchResults.innerHTML = results.map(c => {
+                        if (isPartner) {
+                            // Show person name on top line, company below (when different)
+                            const topLine = c.name !== c.company ? c.name : c.company;
+                            const subLine = (c.name !== c.company && c.company)
+                                ? `${c.company} · ${c.type_label}`
+                                : c.type_label;
+                            return `
+                                <div class="p-3 hover:bg-orange-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0"
+                                     onclick='selectParticipantPartner(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+                                    <div class="font-medium text-slate-800">${topLine}</div>
+                                    <div class="text-sm text-slate-500">${subLine}${c.email ? ' · ' + c.email : ''}</div>
+                                    ${c.address ? `<div class="text-xs text-slate-400">${c.address}</div>` : ''}
+                                </div>
+                            `;
+                        }
                         const hasRequired = c.first_name && c.last_name && c.email;
-                        const missingBadge = !hasRequired ? '<span class="text-xs text-amber-600 ml-2"><i class="fas fa-exclamation-triangle"></i> Missing info</span>' : '';
+                        const missingBadge = !hasRequired
+                            ? '<span class="text-xs text-amber-600 ml-2"><i class="fas fa-exclamation-triangle"></i> Missing info</span>'
+                            : '';
                         return `
                             <div class="p-3 hover:bg-orange-50 cursor-pointer transition-colors border-b border-slate-100 last:border-0"
                                  onclick='selectParticipantContact(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
@@ -267,7 +358,6 @@ document.addEventListener('click', function(e) {
 });
 
 function selectParticipantContact(contact) {
-    // Validate contact has required fields
     if (!contact.first_name || !contact.last_name) {
         showToast('This contact is missing a name. Please update the contact first.', 'error');
         return;
@@ -277,13 +367,14 @@ function selectParticipantContact(contact) {
         return;
     }
 
-    // Set the contact ID
     document.getElementById('participantContactId').value = contact.id;
+    document.getElementById('participantPartnerOrganizationId').value = '';
+    document.getElementById('participantPartnerContactId').value = '';
 
-    // Show the preview
     document.getElementById('selectedContactInitials').textContent =
         (contact.first_name[0] + contact.last_name[0]).toUpperCase();
     document.getElementById('selectedContactName').textContent = contact.name;
+    document.getElementById('selectedContactCompany').textContent = '';
     document.getElementById('selectedContactEmail').textContent = contact.email || '';
     document.getElementById('selectedContactPhone').textContent = contact.phone || '';
 
@@ -291,12 +382,39 @@ function selectParticipantContact(contact) {
     document.getElementById('participantContactSearch').classList.add('hidden');
     participantSearchResults.classList.add('hidden');
 
-    // Enable submit button
+    updateAddParticipantButton();
+}
+
+function selectParticipantPartner(partner) {
+    document.getElementById('participantContactId').value = '';
+    document.getElementById('participantPartnerOrganizationId').value = partner.partner_organization_id;
+    document.getElementById('participantPartnerContactId').value = partner.partner_contact_id || '';
+
+    // Person name on top, company below when different
+    const hasPerson = partner.name && partner.company && partner.name !== partner.company;
+    const displayName = hasPerson ? partner.name : partner.company;
+    const displayCompany = hasPerson ? partner.company : '';
+
+    const initials = displayName
+        .split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join('').toUpperCase() || 'P';
+
+    document.getElementById('selectedContactInitials').textContent = initials;
+    document.getElementById('selectedContactName').textContent = displayName;
+    document.getElementById('selectedContactCompany').textContent = displayCompany;
+    document.getElementById('selectedContactEmail').textContent = partner.email || '';
+    document.getElementById('selectedContactPhone').textContent = partner.phone || '';
+
+    document.getElementById('selectedContactPreview').classList.remove('hidden');
+    document.getElementById('participantContactSearch').classList.add('hidden');
+    participantSearchResults.classList.add('hidden');
+
     updateAddParticipantButton();
 }
 
 function clearSelectedContact() {
     document.getElementById('participantContactId').value = '';
+    document.getElementById('participantPartnerOrganizationId').value = '';
+    document.getElementById('participantPartnerContactId').value = '';
     document.getElementById('selectedContactPreview').classList.add('hidden');
     document.getElementById('participantContactSearch').classList.remove('hidden');
     document.getElementById('participantContactSearch').value = '';
@@ -305,12 +423,27 @@ function clearSelectedContact() {
 
 function updateAddParticipantButton() {
     const hasContact = document.getElementById('participantContactId').value !== '';
-    const hasRole = document.getElementById('participantRole').value !== '';
-    document.getElementById('addParticipantBtn').disabled = !(hasContact && hasRole);
+    const hasPartner = document.getElementById('participantPartnerOrganizationId').value !== '';
+    const hasRole = _getParticipantRole() !== '';
+    document.getElementById('addParticipantBtn').disabled = !((hasContact || hasPartner) && hasRole);
 }
 
-// Update button state when role changes
-document.getElementById('participantRole').addEventListener('change', updateAddParticipantButton);
+// When role changes: auto-pick the best source and show the search area
+document.getElementById('participantRole').addEventListener('change', function() {
+    const role = this.value;
+    if (!role) {
+        document.getElementById('participantSearchWrap').classList.add('hidden');
+        document.getElementById('participantCreateHint').classList.add('hidden');
+        return;
+    }
+
+    const cfg = ROLE_CONFIG[role] || { source: 'partners' };
+    _participantSource = cfg.source;
+    _applyParticipantSourceUI();
+    document.getElementById('participantSearchWrap').classList.remove('hidden');
+    clearSelectedContact();
+    updateAddParticipantButton();
+});
 
 document.getElementById('addParticipantForm').addEventListener('submit', function(e) {
     e.preventDefault();

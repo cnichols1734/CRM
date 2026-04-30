@@ -2315,6 +2315,11 @@
                         <i class="fas fa-file-contract"></i>
                         <span>Transactions</span>
                     </a>
+                    <a href="{{ url_for('partner_directory.index') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('partner_directory.') %}is-active{% endif %}">
+                        <i class="fas fa-handshake"></i>
+                        <span>Partners</span>
+                    </a>
                     {% endif %}
                     <a href="{{ url_for('tasks.tasks') }}"
                        class="crm-nav-link {% if request.endpoint == 'tasks.tasks' %}is-active{% endif %}">

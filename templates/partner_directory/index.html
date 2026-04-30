@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
+
+{% block title %}Partner Directory - Origen TechnolOG{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+        {% call page_header('Partner Directory', 'Companies and people your team works with at closing.', 'Transactions') %}
+            <button type="button" onclick="openAddPartnerModal()" class="crm-btn crm-btn-primary">
+                <i class="fas fa-plus text-xs"></i>
+                Add Company
+            </button>
+        {% endcall %}
+
+        <section class="crm-surface mb-4">
+            <div class="crm-surface-body">
+                <form method="GET" action="{{ url_for('partner_directory.index') }}" class="flex flex-wrap items-end gap-3">
+                    <div class="min-w-[220px] flex-1">
+                        <input type="search" name="q" value="{{ search_query }}" placeholder="Search name, email, phone, city…" class="crm-input">
+                    </div>
+                    <select name="type" class="crm-select w-auto">
+                        <option value="">All types</option>
+                        {% for value, label in partner_types.items() %}
+                        <option value="{{ value }}" {% if selected_type == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="active" class="crm-select w-auto">
+                        <option value="active" {% if active_filter == 'active' %}selected{% endif %}>Active only</option>
+                        <option value="all" {% if active_filter == 'all' %}selected{% endif %}>All</option>
+                        <option value="inactive" {% if active_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                    </select>
+                    <button type="submit" class="crm-btn crm-btn-secondary">Filter</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="crm-surface">
+            <div class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Companies</h2>
+                    <p class="crm-section-description">{{ partners|length }} record{{ '' if partners|length == 1 else 's' }}</p>
+                </div>
+            </div>
+            {% if partners %}
+            <div class="crm-table-wrap">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th>Company</th>
+                            <th>Type</th>
+                            <th>People</th>
+                            <th>Used in</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for partner in partners %}
+                        <tr onclick="window.location.href='{{ url_for('partner_directory.detail', partner_id=partner.id) }}'">
+                            <td>
+                                <div class="font-semibold text-slate-900">{{ partner.name }}</div>
+                                <div class="mt-0.5 text-xs text-slate-500">
+                                    {% if partner.phone %}{{ partner.phone }}{% endif %}
+                                    {% if partner.phone and partner.city %} &middot; {% endif %}
+                                    {% if partner.city %}{{ partner.city }}{% if partner.state %}, {{ partner.state }}{% endif %}{% endif %}
+                                    {% if not partner.phone and not partner.city %}<span class="italic text-slate-400">No contact info</span>{% endif %}
+                                </div>
+                            </td>
+                            <td>{{ badge(partner.type_label, 'info') }}</td>
+                            <td class="text-slate-600">{{ partner.contacts.filter_by(is_active=True).count() }}</td>
+                            <td class="text-slate-500 text-sm">{{ usage_counts.get(partner.id, 0) }} deal{{ '' if usage_counts.get(partner.id, 0) == 1 else 's' }}</td>
+                            <td>
+                                {% if partner.is_active %}{{ badge('Active', 'success') }}{% else %}{{ badge('Inactive', 'warning') }}{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="crm-surface-body">
+                {% call empty_state('No partners yet', 'Add title companies, brokerages, lenders, and other companies your team works with on transactions.', 'fa-building') %}
+                    <button type="button" onclick="openAddPartnerModal()" class="crm-btn crm-btn-primary">Add Company</button>
+                {% endcall %}
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+{# ── Add Company Modal ──────────────────────────────────────────────────────── #}
+<div id="addPartnerModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddPartnerModal()"></div>
+    <div class="absolute inset-4 flex max-h-[90vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Add company</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Available to all agents in your organization.</p>
+            </div>
+            <button type="button" onclick="closeAddPartnerModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+
+        {# Duplicate warning (shown when POST returns with warnings) #}
+        {% if duplicate_warnings %}
+        <div class="border-b border-amber-200 bg-amber-50 px-6 py-4">
+            <p class="text-sm font-medium text-amber-900">Possible duplicate — review before creating</p>
+            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                {% for dup in duplicate_warnings %}
+                <a href="{{ url_for('partner_directory.detail', partner_id=dup.id) }}"
+                   class="rounded border border-amber-200 bg-white px-3 py-2 text-sm hover:bg-amber-50">
+                    <span class="font-semibold text-amber-900">{{ dup.name }}</span>
+                    <span class="block text-xs text-amber-700">{{ dup.full_address or dup.type_label }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            <form method="POST" action="{{ url_for('partner_directory.create_partner') }}" class="mt-3">
+                {% if pending_company %}
+                {% for key, value in pending_company.items() %}
+                <input type="hidden" name="{{ key }}" value="{{ value or '' }}">
+                {% endfor %}
+                {% endif %}
+                <input type="hidden" name="force_create" value="1">
+                <button type="submit" class="text-xs font-medium text-orange-600 hover:text-orange-700">
+                    None of these match — create anyway &rarr;
+                </button>
+            </form>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('partner_directory.create_partner') }}" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Company name <span class="text-red-500">*</span></label>
+                        <input name="name" required autofocus value="{{ pending_company.name if pending_company else '' }}" class="crm-input" placeholder="e.g. Austin Title Company">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Type</label>
+                        <div class="flex flex-wrap gap-2" id="partnerTypeButtons">
+                            {% for value, label in partner_types.items() %}
+                            <label class="partner-type-btn cursor-pointer select-none rounded-md border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:border-orange-400 hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 has-[:checked]:text-orange-700 has-[:checked]:font-medium">
+                                <input type="radio" name="partner_type" value="{{ value }}" {% if (pending_company and pending_company.partner_type == value) or (not pending_company and value == 'other') %}checked{% endif %} class="sr-only">
+                                {{ label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Phone</label>
+                        <input name="phone" value="{{ pending_company.phone if pending_company else '' }}" class="crm-input" placeholder="(555) 000-0000">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
+                        <input type="email" name="email" value="{{ pending_company.email if pending_company else '' }}" class="crm-input" placeholder="info@company.com">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Street address</label>
+                        <input name="street_address" value="{{ pending_company.street_address if pending_company else '' }}" class="crm-input">
+                    </div>
+                    <div>
+                        <input name="city" placeholder="City" value="{{ pending_company.city if pending_company else '' }}" class="crm-input">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input name="state" placeholder="State" value="{{ pending_company.state if pending_company else '' }}" class="crm-input">
+                        <input name="zip_code" placeholder="ZIP" value="{{ pending_company.zip_code if pending_company else '' }}" class="crm-input">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Website</label>
+                        <input name="website" value="{{ pending_company.website if pending_company else '' }}" class="crm-input" placeholder="https://…">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Notes</label>
+                        <textarea name="notes" rows="2" class="crm-input">{{ pending_company.notes if pending_company else '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button type="button" onclick="closeAddPartnerModal()" class="crm-btn crm-btn-secondary">Cancel</button>
+                <button type="submit" class="crm-btn crm-btn-primary">Save company</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function openAddPartnerModal() {
+    document.getElementById('addPartnerModal').classList.remove('hidden');
+    document.querySelector('#addPartnerModal input[name="name"]').focus();
+}
+function closeAddPartnerModal() {
+    document.getElementById('addPartnerModal').classList.add('hidden');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeAddPartnerModal();
+});
+{% if duplicate_warnings or pending_company %}
+document.addEventListener('DOMContentLoaded', function() { openAddPartnerModal(); });
+{% endif %}
+</script>
+{% endblock %}

@@ -2032,7 +2032,10 @@
                                         <span class="text-[10px] font-semibold uppercase tracking-wide text-orange-600">Primary</span>
                                         {% endif %}
                                     </div>
-                                    <div class="text-xs text-slate-500">{{ participant.role|replace('_', ' ')|title }}</div>
+                                    {% if participant.company and participant.company != participant.display_name %}
+                                    <div class="text-xs font-medium text-slate-500">{{ participant.company }}</div>
+                                    {% endif %}
+                                    <div class="text-xs text-slate-400">{{ participant.role|replace('_', ' ')|title }}</div>
                                     {% if participant.display_email %}
                                     <div class="mt-0.5 truncate text-xs text-slate-400">
                                         <i class="fas fa-envelope mr-1 text-[10px]"></i>{{ participant.display_email }}
@@ -2041,11 +2044,6 @@
                                     {% if participant.display_phone %}
                                     <div class="mt-0.5 truncate text-xs text-slate-400">
                                         <i class="fas fa-phone mr-1 text-[10px]"></i>{{ participant.display_phone }}
-                                    </div>
-                                    {% endif %}
-                                    {% if participant.company %}
-                                    <div class="mt-0.5 truncate text-xs text-slate-400">
-                                        <i class="fas fa-building mr-1 text-[10px]"></i>{{ participant.company }}
                                     </div>
                                     {% endif %}
                                 </div>
@@ -2660,13 +2658,15 @@
         </div>
         <form id="addParticipantForm" class="flex flex-1 flex-col overflow-hidden">
             <input type="hidden" name="contact_id" id="participantContactId">
+            <input type="hidden" name="partner_organization_id" id="participantPartnerOrganizationId">
+            <input type="hidden" name="partner_contact_id" id="participantPartnerContactId">
             <div class="flex-1 space-y-4 overflow-y-auto px-5 py-5">
                 <div>
                     <label class="mb-1.5 block text-xs font-medium text-slate-600">
                         Role <span class="text-red-500">*</span>
                     </label>
                     <select name="role" id="participantRole" required class="crm-select">
-                        <option value="">Select role...</option>
+                        <option value="">Select role…</option>
                         <option value="seller">Seller</option>
                         <option value="co_seller">Co-Seller</option>
                         <option value="buyer">Buyer</option>
@@ -2679,19 +2679,24 @@
                     </select>
                 </div>
 
-                <div class="relative">
-                    <label class="mb-1.5 block text-xs font-medium text-slate-600">
-                        Search contact <span class="text-red-500">*</span>
-                    </label>
+                <div id="participantSearchWrap" class="hidden">
+                    <div class="mb-1.5 flex items-center justify-between">
+                        <label class="text-xs font-medium text-slate-600">
+                            <span id="participantSearchLabel">Search</span> <span class="text-red-500">*</span>
+                        </label>
+                        <button type="button" id="participantSwitchSource"
+                                onclick="switchParticipantSource()"
+                                class="text-xs text-orange-600 hover:text-orange-700 hover:underline"></button>
+                    </div>
                     <div class="relative">
                         <input type="text" id="participantContactSearch"
-                               placeholder="Type to search contacts..."
+                               placeholder="Type to search…"
                                autocomplete="off"
                                class="crm-input pl-9">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
                     </div>
                     <div id="participantSearchResults"
-                         class="absolute left-0 right-0 z-20 mt-1 hidden max-h-48 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-lg"></div>
+                         class="mt-1 hidden max-h-60 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-md"></div>
                 </div>
 
                 <div id="selectedContactPreview" class="hidden">
@@ -2702,8 +2707,9 @@
                                      class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white"></div>
                                 <div>
                                     <div class="text-sm font-semibold text-slate-900" id="selectedContactName"></div>
-                                    <div class="text-xs text-slate-500" id="selectedContactEmail"></div>
-                                    <div class="text-xs text-slate-500" id="selectedContactPhone"></div>
+                                    <div class="text-xs text-slate-500" id="selectedContactCompany"></div>
+                                    <div class="text-xs text-slate-400" id="selectedContactEmail"></div>
+                                    <div class="text-xs text-slate-400" id="selectedContactPhone"></div>
                                 </div>
                             </div>
                             <button type="button" onclick="clearSelectedContact()"
@@ -2714,12 +2720,11 @@
                     </div>
                 </div>
 
-                <div class="border-t border-slate-100 pt-3 text-center">
-                    <p class="mb-1 text-xs text-slate-500">Can't find the contact you're looking for?</p>
-                    <a href="{{ url_for('contacts.create_contact', return_to='transaction', transaction_id=transaction.id) }}"
-                       class="inline-flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700">
+                <div id="participantCreateHint" class="hidden border-t border-slate-100 pt-3 text-center">
+                    <p class="mb-1 text-xs text-slate-500" id="participantCreateHintText"></p>
+                    <a id="participantCreateLink" href="#" class="inline-flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700">
                         <i class="fas fa-plus text-xs"></i>
-                        Create a new contact
+                        <span id="participantCreateLinkText"></span>
                     </a>
                 </div>
             </div>
