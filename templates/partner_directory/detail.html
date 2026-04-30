@@ -1,0 +1,430 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, avatar, empty_state %}
+
+{% block title %}{{ partner.name }} - Partner Directory{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner">
+
+        {# ── Page header ─────────────────────────────────────────────────────── #}
+        <div class="mb-6">
+            <a href="{{ url_for('partner_directory.index') }}" class="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700">
+                <i class="fas fa-arrow-left text-[10px]"></i> Partner Directory
+            </a>
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h1 class="text-xl font-bold text-slate-900">{{ partner.name }}</h1>
+                        {{ badge(partner.type_label, 'info') }}
+                        {% if not partner.is_active %}{{ badge('Inactive', 'warning') }}{% endif %}
+                    </div>
+                    <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-500">
+                        {% if partner.phone %}<span><i class="fas fa-phone mr-1.5 text-[11px]"></i>{{ partner.phone }}</span>{% endif %}
+                        {% if partner.email %}<span><i class="fas fa-envelope mr-1.5 text-[11px]"></i>{{ partner.email }}</span>{% endif %}
+                        {% if partner.full_address %}<span><i class="fas fa-map-marker-alt mr-1.5 text-[11px]"></i>{{ partner.full_address }}</span>{% endif %}
+                        {% if partner.website %}<span><a href="{{ partner.website }}" target="_blank" rel="noopener" class="text-orange-600 hover:underline"><i class="fas fa-external-link-alt mr-1.5 text-[11px]"></i>{{ partner.website }}</a></span>{% endif %}
+                    </div>
+                    {% if partner.notes %}
+                    <p class="mt-2 text-sm text-slate-500 max-w-prose">{{ partner.notes }}</p>
+                    {% endif %}
+                    <div class="mt-2 text-xs text-slate-400">Used in {{ usage_count }} transaction{{ '' if usage_count == 1 else 's' }}</div>
+                </div>
+                {% if can_manage_partners %}
+                <div class="flex gap-2">
+                    <button type="button" onclick="openEditCompanyModal()" class="crm-btn crm-btn-secondary text-sm">
+                        <i class="fas fa-pen text-xs"></i> Edit company
+                    </button>
+                    <form method="POST" action="{{ url_for('partner_directory.deactivate_partner', partner_id=partner.id) }}"
+                          onsubmit="return confirm('{% if partner.is_active %}Deactivate this company?{% else %}Reactivate this company?{% endif %}')">
+                        <button type="submit" class="crm-btn crm-btn-secondary text-sm {% if not partner.is_active %}text-green-700{% else %}text-slate-500{% endif %}">
+                            {% if partner.is_active %}<i class="fas fa-ban text-xs"></i> Deactivate{% else %}<i class="fas fa-check text-xs"></i> Reactivate{% endif %}
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {# ── Duplicate person warning ─────────────────────────────────────────── #}
+        {% if duplicate_warnings %}
+        <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <p class="text-sm font-semibold text-amber-900">Possible duplicate person found</p>
+                    <p class="mt-0.5 text-xs text-amber-700">Review these before creating another record under {{ partner.name }}.</p>
+                </div>
+                <form method="POST" action="{{ url_for('partner_directory.create_contact', partner_id=partner.id) }}">
+                    {% for key, value in pending_contact.items() %}
+                    <input type="hidden" name="{{ key }}" value="{{ value or '' }}">
+                    {% endfor %}
+                    {% if pending_contact.is_primary_contact %}<input type="hidden" name="is_primary_contact" value="on">{% endif %}
+                    <input type="hidden" name="force_create" value="1">
+                    <button type="submit" class="text-xs font-medium text-orange-600 hover:text-orange-700">None of these — create anyway &rarr;</button>
+                </form>
+            </div>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                {% for dup in duplicate_warnings %}
+                <div class="rounded border border-amber-200 bg-white px-3 py-2">
+                    <span class="text-sm font-semibold text-amber-900">{{ dup.full_name }}</span>
+                    <span class="block text-xs text-amber-700">{{ dup.email or dup.phone or 'Existing contact' }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {# ── People section ──────────────────────────────────────────────────── #}
+        <section class="crm-surface">
+            <div class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">People at {{ partner.name }}</h2>
+                    <p class="crm-section-description">Individual contacts agents can attach to transactions.</p>
+                </div>
+                <button type="button" onclick="openAddPersonModal()" class="crm-btn crm-btn-secondary">
+                    <i class="fas fa-plus text-xs text-slate-400"></i>
+                    Add person
+                </button>
+            </div>
+            <div class="crm-surface-body">
+                {% if contacts %}
+                <div class="divide-y divide-slate-100">
+                    {% for contact in contacts %}
+                    <div class="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0" id="person-{{ contact.id }}">
+                        <div class="flex min-w-0 items-start gap-3">
+                            {{ avatar(contact.full_name[:2]|upper, 'sm') }}
+                            <div class="min-w-0">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="text-sm font-semibold text-slate-900">{{ contact.full_name }}</span>
+                                    {% if contact.is_primary_contact %}{{ badge('Primary', 'accent') }}{% endif %}
+                                    {% if not contact.is_active %}{{ badge('Inactive', 'warning') }}{% endif %}
+                                </div>
+                                {% if contact.title %}<div class="text-xs text-slate-500">{{ contact.title }}</div>{% endif %}
+                                <div class="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-slate-400">
+                                    {% if contact.email %}<span><i class="fas fa-envelope mr-1 text-[10px]"></i>{{ contact.email }}</span>{% endif %}
+                                    {% if contact.phone %}<span><i class="fas fa-phone mr-1 text-[10px]"></i>{{ contact.phone }}</span>{% endif %}
+                                </div>
+                                {% if contact.notes %}<p class="mt-1.5 text-xs text-slate-400">{{ contact.notes }}</p>{% endif %}
+                            </div>
+                        </div>
+                        {% if can_manage_partners %}
+                        <button type="button"
+                                class="js-edit-person shrink-0 text-xs font-medium text-orange-600 hover:text-orange-700 mt-0.5"
+                                data-id="{{ contact.id }}"
+                                data-first="{{ contact.first_name }}"
+                                data-last="{{ contact.last_name }}"
+                                data-title="{{ contact.title or '' }}"
+                                data-email="{{ contact.email or '' }}"
+                                data-phone="{{ contact.phone or '' }}"
+                                data-notes="{{ contact.notes or '' }}"
+                                data-primary="{{ 'true' if contact.is_primary_contact else 'false' }}"
+                                data-active="{{ 'true' if contact.is_active else 'false' }}">
+                            Edit
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                {% call empty_state('No people added yet', 'Add the agent, escrow officer, lender, or other person your team works with here.', 'fa-user-plus') %}
+                    <button type="button" onclick="openAddPersonModal()" class="crm-btn crm-btn-secondary">Add person</button>
+                {% endcall %}
+                {% endif %}
+            </div>
+        </section>
+
+        {# ── Transaction history ──────────────────────────────────────────────── #}
+        <section class="crm-surface mt-4">
+            <div class="crm-surface-header">
+                <div>
+                    <h2 class="crm-section-title">Transaction History</h2>
+                    <p class="crm-section-description">{{ linked_transactions|length }} deal{{ '' if linked_transactions|length == 1 else 's' }} involving {{ partner.name }}.</p>
+                </div>
+            </div>
+            {% if linked_transactions %}
+            <div class="crm-table-wrap">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th>Property</th>
+                            <th>Type</th>
+                            <th>Role</th>
+                            <th>Person</th>
+                            <th>Status</th>
+                            <th>Close Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for txn in linked_transactions %}
+                        <tr onclick="window.location.href='{{ url_for('transactions.view_transaction', id=txn.id) }}'" class="cursor-pointer">
+                            <td>
+                                <span class="font-medium text-slate-900">{{ txn.address }}</span>
+                            </td>
+                            <td class="text-slate-600">{{ txn.type }}</td>
+                            <td class="text-slate-600">{{ txn.role }}</td>
+                            <td class="text-slate-600">{{ txn.person }}</td>
+                            <td>
+                                {% if txn.status == 'Closed' %}
+                                    {{ badge('Closed', 'success') }}
+                                {% elif txn.status == 'Cancelled' %}
+                                    {{ badge('Cancelled', 'warning') }}
+                                {% elif txn.status == 'Under Contract' %}
+                                    {{ badge('Under Contract', 'info') }}
+                                {% else %}
+                                    {{ badge(txn.status, 'neutral') }}
+                                {% endif %}
+                            </td>
+                            <td class="text-sm text-slate-500">
+                                {% if txn.close_date %}{{ txn.close_date.strftime('%b %d, %Y') }}{% else %}<span class="text-slate-400">—</span>{% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="crm-surface-body">
+                <div class="py-6 text-center">
+                    <p class="text-sm text-slate-500">Not attached to any transactions yet.</p>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+</div>
+
+{# ── Add Person Modal ─────────────────────────────────────────────────────── #}
+<div id="addPersonModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddPersonModal()"></div>
+    <div class="absolute inset-4 flex max-h-[90vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Add person</h3>
+                <p class="text-xs text-slate-500 mt-0.5">at {{ partner.name }}</p>
+            </div>
+            <button type="button" onclick="closeAddPersonModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('partner_directory.create_contact', partner_id=partner.id) }}" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">First name <span class="text-red-500">*</span></label>
+                        <input name="first_name" required autofocus value="{{ pending_contact.first_name if pending_contact else '' }}" class="crm-input">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Last name <span class="text-red-500">*</span></label>
+                        <input name="last_name" required value="{{ pending_contact.last_name if pending_contact else '' }}" class="crm-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Title / role</label>
+                    <input name="title" value="{{ pending_contact.title if pending_contact else '' }}" class="crm-input" placeholder="Escrow officer, agent, lender rep…">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
+                    <input type="email" name="email" value="{{ pending_contact.email if pending_contact else '' }}" class="crm-input">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Phone</label>
+                    <input name="phone" value="{{ pending_contact.phone if pending_contact else '' }}" class="crm-input">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Notes</label>
+                    <textarea name="notes" rows="2" class="crm-input">{{ pending_contact.notes if pending_contact else '' }}</textarea>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name="is_primary_contact" {% if pending_contact and pending_contact.is_primary_contact %}checked{% endif %} class="rounded border-slate-300">
+                    Primary contact for {{ partner.name }}
+                </label>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button type="button" onclick="closeAddPersonModal()" class="crm-btn crm-btn-secondary">Cancel</button>
+                <button type="submit" class="crm-btn crm-btn-primary">Save person</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Edit Person Modal ────────────────────────────────────────────────────── #}
+{% if can_manage_partners %}
+<div id="editPersonModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeEditPersonModal()"></div>
+    <div class="absolute inset-4 flex max-h-[90vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Edit person</h3>
+            <button type="button" onclick="closeEditPersonModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="editPersonForm" method="POST" action="" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">First name <span class="text-red-500">*</span></label>
+                        <input id="editPersonFirstName" name="first_name" required class="crm-input">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Last name <span class="text-red-500">*</span></label>
+                        <input id="editPersonLastName" name="last_name" required class="crm-input">
+                    </div>
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Title / role</label>
+                    <input id="editPersonTitle" name="title" class="crm-input" placeholder="Escrow officer, agent, lender rep…">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
+                    <input type="email" id="editPersonEmail" name="email" class="crm-input">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Phone</label>
+                    <input id="editPersonPhone" name="phone" class="crm-input">
+                </div>
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">Notes</label>
+                    <textarea id="editPersonNotes" name="notes" rows="2" class="crm-input"></textarea>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" id="editPersonPrimary" name="is_primary_contact" class="rounded border-slate-300">
+                    Primary contact for {{ partner.name }}
+                </label>
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" id="editPersonActive" name="is_active" class="rounded border-slate-300">
+                    Active
+                </label>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button type="button" onclick="closeEditPersonModal()" class="crm-btn crm-btn-secondary">Cancel</button>
+                <button type="submit" class="crm-btn crm-btn-primary">Save changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ── Edit Company Modal ───────────────────────────────────────────────────── #}
+<div id="editCompanyModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeEditCompanyModal()"></div>
+    <div class="absolute inset-4 flex max-h-[90vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Edit company</h3>
+            <button type="button" onclick="closeEditCompanyModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form method="POST" action="{{ url_for('partner_directory.edit_partner', partner_id=partner.id) }}" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Company name <span class="text-red-500">*</span></label>
+                        <input name="name" value="{{ partner.name }}" required class="crm-input">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Type</label>
+                        <div class="flex flex-wrap gap-2">
+                            {% for value, label in partner_types.items() %}
+                            <label class="cursor-pointer select-none rounded-md border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:border-orange-400 hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 has-[:checked]:text-orange-700 has-[:checked]:font-medium">
+                                <input type="radio" name="partner_type" value="{{ value }}" {% if partner.partner_type == value %}checked{% endif %} class="sr-only">
+                                {{ label }}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Phone</label>
+                        <input name="phone" value="{{ partner.phone or '' }}" class="crm-input">
+                    </div>
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Email</label>
+                        <input type="email" name="email" value="{{ partner.email or '' }}" class="crm-input">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Street address</label>
+                        <input name="street_address" value="{{ partner.street_address or '' }}" class="crm-input">
+                    </div>
+                    <div>
+                        <input name="city" placeholder="City" value="{{ partner.city or '' }}" class="crm-input">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input name="state" placeholder="State" value="{{ partner.state or '' }}" class="crm-input">
+                        <input name="zip_code" placeholder="ZIP" value="{{ partner.zip_code or '' }}" class="crm-input">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Website</label>
+                        <input name="website" value="{{ partner.website or '' }}" class="crm-input">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Notes</label>
+                        <textarea name="notes" rows="2" class="crm-input">{{ partner.notes or '' }}</textarea>
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="flex items-center gap-2 text-sm text-slate-600">
+                            <input type="checkbox" name="is_active" {% if partner.is_active %}checked{% endif %} class="rounded border-slate-300">
+                            Active
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+                <button type="button" onclick="closeEditCompanyModal()" class="crm-btn crm-btn-secondary">Cancel</button>
+                <button type="submit" class="crm-btn crm-btn-primary">Save company</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function openAddPersonModal() {
+    document.getElementById('addPersonModal').classList.remove('hidden');
+    setTimeout(() => document.querySelector('#addPersonModal input[name="first_name"]').focus(), 50);
+}
+function closeAddPersonModal() {
+    document.getElementById('addPersonModal').classList.add('hidden');
+}
+function openEditCompanyModal() {
+    var el = document.getElementById('editCompanyModal');
+    if (el) el.classList.remove('hidden');
+}
+function closeEditCompanyModal() {
+    var el = document.getElementById('editCompanyModal');
+    if (el) el.classList.add('hidden');
+}
+function openEditPersonModal(btn) {
+    var form = document.getElementById('editPersonForm');
+    var modal = document.getElementById('editPersonModal');
+    if (!form || !modal) return;
+    form.action = '/partners/{{ partner.id }}/contacts/' + btn.dataset.id + '/edit';
+    document.getElementById('editPersonFirstName').value = btn.dataset.first;
+    document.getElementById('editPersonLastName').value = btn.dataset.last;
+    document.getElementById('editPersonTitle').value = btn.dataset.title;
+    document.getElementById('editPersonEmail').value = btn.dataset.email;
+    document.getElementById('editPersonPhone').value = btn.dataset.phone;
+    document.getElementById('editPersonNotes').value = btn.dataset.notes;
+    document.getElementById('editPersonPrimary').checked = btn.dataset.primary === 'true';
+    document.getElementById('editPersonActive').checked = btn.dataset.active === 'true';
+    modal.classList.remove('hidden');
+}
+document.querySelectorAll('.js-edit-person').forEach(function(btn) {
+    btn.addEventListener('click', function() { openEditPersonModal(this); });
+});
+function closeEditPersonModal() {
+    var el = document.getElementById('editPersonModal');
+    if (el) el.classList.add('hidden');
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAddPersonModal();
+        closeEditPersonModal();
+        closeEditCompanyModal();
+    }
+});
+{% if duplicate_warnings or pending_contact %}
+document.addEventListener('DOMContentLoaded', function() { openAddPersonModal(); });
+{% endif %}
+</script>
+{% endblock %}

@@ -14,7 +14,8 @@ from flask import abort, flash, redirect, url_for
 TENANT_MODELS = [
     'Contact', 'ContactGroup', 'Task', 'Transaction', 'TransactionDocument',
     'TransactionParticipant', 'DocumentSignature', 'ActionPlan',
-    'DailyTodoList', 'UserTodo', 'CompanyUpdate', 'ContactFile', 'SendGridTemplate'
+    'DailyTodoList', 'UserTodo', 'CompanyUpdate', 'ContactFile', 'SendGridTemplate',
+    'PartnerOrganization', 'PartnerContact'
 ]
 
 
