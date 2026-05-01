@@ -232,7 +232,9 @@
             {% endfor %}
         </div>
 
-        <div class="crm-table-wrap hidden md:block">
+        <div class="crm-contacts-layout hidden md:grid"
+             data-contacts-page-target="layout">
+        <div class="crm-table-wrap crm-contacts-layout__table">
             <table class="crm-table">
                 <thead>
                     <tr>
@@ -281,7 +283,10 @@
                 </thead>
                 <tbody>
                     {% for contact in contacts %}
-                    <tr onclick="window.location.href='{{ url_for('contacts.view_contact', contact_id=contact.id) }}'">
+                    <tr data-action="click->contacts-page#openPreview"
+                        data-contact-id="{{ contact.id }}"
+                        data-contact-href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
+                        data-contacts-page-target="row">
                         {% if current_user.role == 'admin' and show_all %}
                         <td>
                             <div class="flex items-center gap-2">
@@ -342,6 +347,13 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+            <aside class="crm-rail"
+                   data-contacts-page-target="previewRail"
+                   aria-hidden="true"
+                   aria-label="Contact preview">
+                <div class="crm-rail__inner" data-contacts-page-target="previewBody"></div>
+            </aside>
         </div>
         {% else %}
         {% call empty_state('No contacts yet', 'Add your first contact, import a CSV, or forward an email to your Magic Inbox &mdash; we\'ll save the contact for you.', 'fa-address-book') %}

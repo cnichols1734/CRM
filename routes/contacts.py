@@ -193,6 +193,24 @@ def view_contact(contact_id):
                          email_threads=email_threads)
 
 
+@contacts_bp.route('/contact/<int:contact_id>/preview')
+@login_required
+def preview_contact(contact_id):
+    """Renders a small HTML partial for the contacts list slide-over rail.
+
+    Mirrors view_contact's access checks (org-scoped + per-user fallback for
+    non-admins), but ships only the lightweight fields the rail needs."""
+    contact = org_query(Contact).options(
+        joinedload(Contact.groups),
+        joinedload(Contact.owner),
+    ).filter_by(id=contact_id).first_or_404()
+
+    if not can_view_all_org_data() and contact.user_id != current_user.id:
+        abort(403)
+
+    return render_template('contacts/_preview.html', contact=contact)
+
+
 @contacts_bp.route('/contacts/create', methods=['GET', 'POST'])
 @login_required
 def create_contact():
