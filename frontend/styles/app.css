@@ -562,6 +562,246 @@
     border: 1px solid var(--hairline);
   }
 
+  /* ── Contacts list slide-over rail ───────────────────────────
+     Two-column grid that animates the second column from 0 to a
+     fixed rail width. The actual visible "card" sits inside the rail
+     column with its own border-radius and shadow so it reads as a
+     floating popover rather than a flush right-side panel.
+
+     Easing: cubic-bezier(.32, .72, 0, 1) is the iOS "anchor" curve --
+     smooth deceleration with a substantial mid-section so the motion
+     reads as deliberate rather than instant. */
+  .crm-contacts-layout {
+    grid-template-columns: minmax(0, 1fr) 0fr;
+    gap: 0;
+    align-items: start;
+    transition: grid-template-columns 540ms cubic-bezier(.32, .72, 0, 1);
+  }
+  .crm-contacts-layout.is-open {
+    /* Column hosts a 16px gap from the table + the card itself. */
+    grid-template-columns: minmax(0, 1fr) 412px;
+  }
+  /* Lets the table cell actually shrink instead of forcing the grid wider. */
+  .crm-contacts-layout__table { min-width: 0; }
+
+  .crm-rail {
+    overflow: hidden;
+    padding-left: 16px; /* gap between table and floating card */
+    pointer-events: none;
+  }
+  .crm-contacts-layout.is-open .crm-rail { pointer-events: auto; }
+
+  .crm-rail__inner {
+    min-height: 320px;
+    padding: 18px 20px 22px;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 18px 44px -22px rgba(15, 23, 42, 0.20),
+      0 4px 14px -8px rgba(15, 23, 42, 0.10);
+    opacity: 0;
+    transform: translateX(36px) scale(0.94);
+    transform-origin: top left;
+    transition:
+      transform 560ms cubic-bezier(.32, .72, 0, 1),
+      opacity 380ms cubic-bezier(.32, .72, 0, 1) 80ms,
+      box-shadow 280ms ease;
+    will-change: transform, opacity;
+  }
+  .crm-contacts-layout.is-open .crm-rail__inner {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  /* Dark mode: lift the shadow a hair so the card reads as floating
+     against the dark canvas without competing with the surface tone. */
+  [data-theme="dark"] .crm-rail__inner {
+    box-shadow:
+      0 24px 60px -28px rgba(0, 0, 0, 0.70),
+      0 6px 18px -10px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Inner content (panel, skeleton, error fallback) gets a fresh
+     fade-up each time it's injected. Triggers automatically on every
+     new child in the rail body, so warm swaps cross-fade without any
+     extra JS bookkeeping. */
+  .crm-rail__inner > * {
+    animation: crm-rail-content-in 320ms cubic-bezier(.32, .72, 0, 1) both;
+  }
+  .crm-rail__inner > .is-leaving {
+    animation: none;
+    opacity: 0;
+    transform: translateY(-2px);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+  @keyframes crm-rail-content-in {
+    0% { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  .crm-rail__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .crm-rail__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .crm-rail__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    width: 28px;
+    border-radius: var(--radius);
+    color: var(--ink-3);
+    border: 1px solid transparent;
+    background: transparent;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .crm-rail__close:hover {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--hairline);
+  }
+  .crm-rail__close:focus-visible {
+    outline: none;
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .crm-rail__hero {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .crm-rail__name {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+    line-height: 1.15;
+  }
+  .crm-rail__pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .crm-rail__meta {
+    color: var(--ink-3);
+    font-size: 12px;
+  }
+
+  .crm-rail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .crm-rail__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+  .crm-rail__section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .crm-rail__details {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 6px 12px;
+    margin: 0;
+    font-size: 13px;
+  }
+  .crm-rail__detail {
+    display: contents;
+  }
+  .crm-rail__detail dt {
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .crm-rail__detail dd {
+    color: var(--ink);
+    margin: 0;
+    word-break: break-word;
+  }
+  .crm-rail__detail dd a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--hairline);
+    transition: border-color 120ms ease, color 120ms ease;
+  }
+  .crm-rail__detail dd a:hover {
+    color: var(--accent-ink);
+    border-bottom-color: var(--accent-line);
+  }
+  .crm-rail__notes {
+    color: var(--ink-2);
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    margin: 0;
+  }
+  .crm-rail__muted { color: var(--ink-4); }
+
+  .crm-rail__footer {
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+
+  /* Skeleton state shown while the partial is fetching. */
+  .crm-rail__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .crm-rail__skeleton-line {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(90deg,
+      var(--paper-2) 0%,
+      var(--paper-3) 50%,
+      var(--paper-2) 100%);
+    background-size: 200% 100%;
+    animation: crm-rail-shimmer 1.4s ease-in-out infinite;
+  }
+  .crm-rail__skeleton-line.is-short { width: 40%; }
+  .crm-rail__skeleton-line.is-mid { width: 70%; }
+  @keyframes crm-rail-shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Active row highlight in the table while its preview is open. */
+  .crm-table tbody tr[data-contacts-page-target="row"] { cursor: pointer; }
+  .crm-table tbody tr.is-selected {
+    background: var(--paper-2);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .crm-table tbody tr.is-selected td:first-child { position: relative; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .crm-contacts-layout,
+    .crm-rail,
+    .crm-rail__inner,
+    .crm-rail__skeleton-line {
+      transition: none;
+      animation: none;
+    }
+    .crm-rail__inner { transform: none; }
+  }
+
   /* ── Tables ──────────────────────────────────────────────── */
   .crm-table-wrap {
     overflow-x: auto;

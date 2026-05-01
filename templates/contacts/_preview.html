@@ -1,0 +1,129 @@
+{% from "components/ui.html" import avatar, badge %}
+{#
+    Slide-over preview rail for the contacts list.
+    Loaded via fetch() and injected into .crm-rail__inner. No layout chrome.
+#}
+{% set initials = (contact.first_name[0] ~ contact.last_name[0])|upper %}
+{% set location_parts = [] %}
+{% if contact.city %}{% set _ = location_parts.append(contact.city) %}{% endif %}
+{% if contact.state %}{% set _ = location_parts.append(contact.state) %}{% endif %}
+{% if contact.zip_code %}{% set _ = location_parts.append(contact.zip_code) %}{% endif %}
+
+<div class="crm-rail__panel">
+    <header class="crm-rail__header">
+        <div class="crm-eyebrow">Contact &middot; #{{ "%04d"|format(contact.id) }}</div>
+        <button type="button"
+                class="crm-rail__close"
+                aria-label="Close preview"
+                data-action="click->contacts-page#closePreview">
+            <i class="fas fa-times text-xs"></i>
+        </button>
+    </header>
+
+    <div class="crm-rail__hero">
+        <span class="crm-avatar crm-avatar-lg crm-avatar-serif">{{ initials }}</span>
+        <div class="crm-rail__name">{{ contact.first_name }} {{ contact.last_name }}</div>
+        {% if contact.groups %}
+        <div class="crm-rail__pills">
+            {% for group in contact.groups[:3] %}
+                {{ badge(group.name, 'accent') }}
+            {% endfor %}
+            {% if contact.groups|length > 3 %}
+                {{ badge('+' ~ (contact.groups|length - 3)) }}
+            {% endif %}
+        </div>
+        {% endif %}
+        <div class="crm-rail__meta">
+            Added {{ contact.created_at.strftime('%b %d, %Y') }}
+        </div>
+    </div>
+
+    <div class="crm-rail__actions">
+        {% if contact.email %}
+        <a href="mailto:{{ contact.email }}" class="crm-btn crm-btn-secondary">
+            <i class="fas fa-envelope text-xs text-slate-400"></i>
+            Email
+        </a>
+        {% endif %}
+        {% if contact.phone %}
+        <a href="tel:{{ contact.phone }}" class="crm-btn crm-btn-secondary">
+            <i class="fas fa-phone text-xs text-slate-400"></i>
+            Call
+        </a>
+        {% endif %}
+        <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}"
+           class="crm-btn crm-btn-secondary">
+            <i class="fas fa-plus text-xs text-slate-400"></i>
+            New task
+        </a>
+    </div>
+
+    <section class="crm-rail__section">
+        <div class="crm-rail__section-header">
+            <span class="crm-eyebrow">Details</span>
+        </div>
+        <dl class="crm-rail__details">
+            <div class="crm-rail__detail">
+                <dt>Email</dt>
+                <dd>
+                    {% if contact.email %}
+                        <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>
+                    {% else %}
+                        <span class="crm-rail__muted">&mdash;</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="crm-rail__detail">
+                <dt>Phone</dt>
+                <dd>
+                    {% if contact.phone %}
+                        <a href="tel:{{ contact.phone }}">{{ contact.phone }}</a>
+                    {% else %}
+                        <span class="crm-rail__muted">&mdash;</span>
+                    {% endif %}
+                </dd>
+            </div>
+            <div class="crm-rail__detail">
+                <dt>Location</dt>
+                <dd>
+                    {% if location_parts %}
+                        {{ location_parts|join(', ') }}
+                    {% else %}
+                        <span class="crm-rail__muted">&mdash;</span>
+                    {% endif %}
+                </dd>
+            </div>
+            {% if contact.potential_commission is not none %}
+            <div class="crm-rail__detail">
+                <dt>Commission</dt>
+                <dd>${{ "{:,.0f}".format(contact.potential_commission|float) }}</dd>
+            </div>
+            {% endif %}
+            {% if current_user.role == 'admin' and contact.owner %}
+            <div class="crm-rail__detail">
+                <dt>Owner</dt>
+                <dd>{{ contact.owner.first_name }} {{ contact.owner.last_name }}</dd>
+            </div>
+            {% endif %}
+        </dl>
+    </section>
+
+    <section class="crm-rail__section">
+        <div class="crm-rail__section-header">
+            <span class="crm-eyebrow">Notes</span>
+        </div>
+        {% if contact.notes %}
+        <p class="crm-rail__notes">{{ contact.notes }}</p>
+        {% else %}
+        <p class="crm-rail__notes crm-rail__muted">No notes yet.</p>
+        {% endif %}
+    </section>
+
+    <footer class="crm-rail__footer">
+        <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}"
+           class="crm-btn crm-btn-primary w-full justify-center">
+            <i class="fas fa-arrow-up-right-from-square text-xs"></i>
+            Open full view
+        </a>
+    </footer>
+</div>

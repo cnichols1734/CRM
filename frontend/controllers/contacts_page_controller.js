@@ -14,11 +14,20 @@ export default class extends Controller {
     "statusIcon",
     "statusMessage",
     "errorDetails",
-    "errorList"
+    "errorList",
+    "layout",
+    "previewRail",
+    "previewBody",
+    "row"
   ];
 
   connect() {
     this.searchTimeout = null;
+    this.previewAbortController = null;
+    this.previewClearTimer = null;
+    this.activeRow = null;
+    this.handleKeydown = this.handleKeydown.bind(this);
+    document.addEventListener("keydown", this.handleKeydown);
     this.toggleClearButton();
   }
 
@@ -26,6 +35,183 @@ export default class extends Controller {
     if (this.searchTimeout) {
       window.clearTimeout(this.searchTimeout);
     }
+    if (this.previewAbortController) {
+      this.previewAbortController.abort();
+    }
+    if (this.previewClearTimer) {
+      window.clearTimeout(this.previewClearTimer);
+    }
+    document.removeEventListener("keydown", this.handleKeydown);
+  }
+
+  // ── Slide-over preview rail ──────────────────────────────────
+  // Click a row -> fetch /contact/<id>/preview, inject the partial
+  // into the rail, animate the layout grid open. Esc / close button
+  // both dismiss. Mobile (<md) keeps native <a> navigation since the
+  // mobile card stack is unaffected.
+  openPreview(event) {
+    if (!this.hasLayoutTarget) return;
+
+    // Don't hijack clicks on inner links/buttons (lets email/phone-style
+    // anchors inside future rows work normally).
+    const interactive = event.target.closest("a, button, input, select, textarea, [role='button']");
+    if (interactive && this.element.contains(interactive)) return;
+
+    const row = event.currentTarget;
+    const contactId = row.dataset.contactId;
+    if (!contactId) return;
+
+    // Already open on this row -> close (toggle behavior).
+    if (this.activeRow === row && this.layoutTarget.classList.contains("is-open")) {
+      this.closePreview();
+      return;
+    }
+
+    const isWarmSwap = this.layoutTarget.classList.contains("is-open");
+
+    this.markActiveRow(row);
+
+    if (isWarmSwap) {
+      // Rail is already open -- keep the card in place and cross-fade the
+      // inner content. No skeleton flash.
+      this.fetchPreview(contactId, { warmSwap: true });
+    } else {
+      // Cold open -- pop the card in, show a skeleton, then swap in real
+      // content as soon as the fetch returns.
+      this.openRail();
+      this.renderSkeleton();
+      this.fetchPreview(contactId, { warmSwap: false });
+    }
+  }
+
+  closePreview(event) {
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    if (!this.hasLayoutTarget) return;
+    if (!this.layoutTarget.classList.contains("is-open")) return;
+
+    this.layoutTarget.classList.remove("is-open");
+    if (this.hasPreviewRailTarget) {
+      this.previewRailTarget.setAttribute("aria-hidden", "true");
+    }
+    this.clearActiveRow();
+
+    if (this.previewAbortController) {
+      this.previewAbortController.abort();
+      this.previewAbortController = null;
+    }
+
+    // Clear the body after the slide-out finishes so the next cold open
+    // starts from a clean state. Matches the 540ms grid transition.
+    if (this.previewClearTimer) window.clearTimeout(this.previewClearTimer);
+    this.previewClearTimer = window.setTimeout(() => {
+      if (this.hasPreviewBodyTarget) this.previewBodyTarget.innerHTML = "";
+    }, 600);
+  }
+
+  handleKeydown(event) {
+    if (event.key === "Escape" && this.hasLayoutTarget && this.layoutTarget.classList.contains("is-open")) {
+      this.closePreview();
+    }
+  }
+
+  openRail() {
+    if (this.previewClearTimer) {
+      window.clearTimeout(this.previewClearTimer);
+      this.previewClearTimer = null;
+    }
+    this.layoutTarget.classList.add("is-open");
+    if (this.hasPreviewRailTarget) {
+      this.previewRailTarget.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  markActiveRow(row) {
+    if (this.activeRow && this.activeRow !== row) {
+      this.activeRow.classList.remove("is-selected");
+    }
+    row.classList.add("is-selected");
+    this.activeRow = row;
+  }
+
+  clearActiveRow() {
+    if (this.activeRow) {
+      this.activeRow.classList.remove("is-selected");
+      this.activeRow = null;
+    }
+  }
+
+  renderSkeleton() {
+    if (!this.hasPreviewBodyTarget) return;
+    this.previewBodyTarget.innerHTML = `
+      <div class="crm-rail__skeleton">
+        <div class="crm-rail__skeleton-line is-short"></div>
+        <div class="crm-rail__skeleton-line"></div>
+        <div class="crm-rail__skeleton-line is-mid"></div>
+        <div class="crm-rail__skeleton-line"></div>
+        <div class="crm-rail__skeleton-line is-mid"></div>
+      </div>
+    `;
+  }
+
+  async fetchPreview(contactId, { warmSwap = false } = {}) {
+    if (this.previewAbortController) this.previewAbortController.abort();
+    this.previewAbortController = new AbortController();
+    const requestedRow = this.activeRow;
+
+    try {
+      const response = await fetch(`/contact/${contactId}/preview`, {
+        signal: this.previewAbortController.signal,
+        headers: { "X-Requested-With": "XMLHttpRequest" }
+      });
+      if (!response.ok) {
+        throw new Error(`Preview request failed: ${response.status}`);
+      }
+      const html = await response.text();
+
+      // If the user moved on (different row, or closed the rail), drop this response.
+      if (this.activeRow !== requestedRow || !this.layoutTarget.classList.contains("is-open")) return;
+
+      await this.swapPreviewContent(html, { warmSwap });
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      if (this.hasPreviewBodyTarget && this.activeRow === requestedRow) {
+        const fallbackHref = requestedRow ? requestedRow.dataset.contactHref : "";
+        const fallbackHtml = `
+          <div class="crm-rail__panel">
+            <header class="crm-rail__header">
+              <div class="crm-eyebrow">Preview unavailable</div>
+              <button type="button" class="crm-rail__close" aria-label="Close preview"
+                      data-action="click->contacts-page#closePreview">
+                <i class="fas fa-times text-xs"></i>
+              </button>
+            </header>
+            <p class="crm-rail__notes">We couldn't load this contact's preview.${fallbackHref ? ` <a href="${fallbackHref}">Open the full view instead.</a>` : ""}</p>
+          </div>
+        `;
+        await this.swapPreviewContent(fallbackHtml, { warmSwap });
+      }
+    }
+  }
+
+  // Swaps the rail body content. On a warm swap (rail already open with
+  // existing content) we fade the current panel out first, then inject the
+  // new HTML which fades itself in via the .crm-rail__inner > * keyframe.
+  async swapPreviewContent(html, { warmSwap = false } = {}) {
+    if (!this.hasPreviewBodyTarget) return;
+
+    if (warmSwap) {
+      const current = this.previewBodyTarget.firstElementChild;
+      if (current) {
+        current.classList.add("is-leaving");
+        await this.wait(160);
+      }
+    }
+
+    this.previewBodyTarget.innerHTML = html;
+  }
+
+  wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
   }
 
   toggleFilters(event) {
