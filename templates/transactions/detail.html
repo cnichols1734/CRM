@@ -186,11 +186,12 @@
 
     <div class="crm-page__inner max-w-[1600px]">
         {# ===== Header block ===== #}
-        <div class="mb-4">
+        <div class="mb-5 pb-4" style="border-bottom: 1px solid var(--hairline);">
+            <div class="crm-eyebrow mb-2">Transaction · #{{ "%05d"|format(transaction.id) }}</div>
             <h1 class="crm-page-title">{{ transaction.street_address }}</h1>
-            <p class="mt-1 text-sm text-slate-500">
+            <p class="mt-2 text-sm" style="color: var(--ink-3);">
                 {% if transaction.city %}{{ transaction.city }}, {% endif %}{{ transaction.state }} {{ transaction.zip_code }}
-                {% if transaction.county %}<span class="mx-2 text-slate-300">&middot;</span>{{ transaction.county }} County{% endif %}
+                {% if transaction.county %}<span class="mx-2" style="color: var(--ink-5);">&middot;</span>{{ transaction.county }} County{% endif %}
             </p>
         </div>
 

@@ -65,9 +65,10 @@
                     <div class="crm-surface-body">
                         <div class="flex items-start gap-4">
                             {% set initials = contact.first_name[0]|upper + contact.last_name[0]|upper %}
-                            {{ avatar(initials, 'lg') }}
+                            <span class="crm-avatar crm-avatar-lg crm-avatar-serif">{{ initials }}</span>
                             <div class="flex-1 min-w-0">
-                                <div id="viewContactName" class="text-xl font-semibold tracking-tight text-slate-900">
+                                <div class="crm-eyebrow mb-1">Contact · #{{ "%04d"|format(contact.id) }}</div>
+                                <div id="viewContactName" class="crm-serif" style="font-size: 32px; line-height: 1; color: var(--ink);">
                                     {{ contact.first_name }} {{ contact.last_name }}
                                 </div>
                                 <div id="editContactName" class="hidden flex gap-2 mb-2">

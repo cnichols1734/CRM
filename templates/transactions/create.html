@@ -5,10 +5,24 @@
 
 {% block content %}
 <style>
+    /* Selection state uses Atelier accent tokens (no hardcoded orange). */
     .tx-create-card.selected {
-        border-color: #f97316;
-        background: #fff7ed;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+    .tx-create-card.selected .text-slate-900,
+    .tx-create-card.selected .text-slate-700 { color: var(--accent-ink) !important; }
+
+    /* Default border tone — uses hairline so it doesn't punch through dark mode. */
+    .tx-create-card {
+        border-color: var(--hairline) !important;
+        background: var(--paper) !important;
+    }
+    .tx-create-card:hover {
+        border-color: var(--ink-5) !important;
+        background: var(--paper-2) !important;
     }
 
     .tx-type-grid {

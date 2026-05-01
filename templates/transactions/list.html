@@ -58,8 +58,9 @@
 
 <div class="crm-page">
     <div class="crm-page__inner max-w-[1680px]">
-        {% call page_header('Transactions', (transactions|length ~ ' transaction' ~ ('s' if transactions|length != 1 else ''))) %}
-            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-primary">
+        {% set _tx_title = 'Transactions <em>· ' ~ transactions|length ~ '</em>' %}
+        {% call page_header(_tx_title, '', 'Pipeline') %}
+            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-accent">
                 <i class="fas fa-plus text-xs"></i>
                 New transaction
             </a>

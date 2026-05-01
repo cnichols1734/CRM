@@ -7,37 +7,38 @@
 <div class="crm-page">
     <div class="crm-page__inner">
 
-        {# ── Page header ─────────────────────────────────────────────────────── #}
-        <div class="mb-6">
-            <a href="{{ url_for('partner_directory.index') }}" class="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700">
-                <i class="fas fa-arrow-left text-[10px]"></i> Partner Directory
+        {# ── Editorial header ─────────────────────────────────────────────────── #}
+        <div class="mb-6 pb-5" style="border-bottom: 1px solid var(--hairline);">
+            <a href="{{ url_for('partner_directory.index') }}" class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+                <i class="fas fa-arrow-left text-xs"></i> Partner Directory
             </a>
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <h1 class="text-xl font-bold text-slate-900">{{ partner.name }}</h1>
+                <div class="min-w-0">
+                    <div class="crm-eyebrow mb-2">Partner · {{ partner.type_label }}</div>
+                    <h1 class="crm-page-title" style="font-size: 36px; line-height: 1.05;">{{ partner.name }}</h1>
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
                         {{ badge(partner.type_label, 'info') }}
                         {% if not partner.is_active %}{{ badge('Inactive', 'warning') }}{% endif %}
+                        <span class="text-xs" style="color: var(--ink-4);">Used in {{ usage_count }} transaction{{ '' if usage_count == 1 else 's' }}</span>
                     </div>
-                    <div class="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-slate-500">
-                        {% if partner.phone %}<span><i class="fas fa-phone mr-1.5 text-[11px]"></i>{{ partner.phone }}</span>{% endif %}
-                        {% if partner.email %}<span><i class="fas fa-envelope mr-1.5 text-[11px]"></i>{{ partner.email }}</span>{% endif %}
-                        {% if partner.full_address %}<span><i class="fas fa-map-marker-alt mr-1.5 text-[11px]"></i>{{ partner.full_address }}</span>{% endif %}
-                        {% if partner.website %}<span><a href="{{ partner.website }}" target="_blank" rel="noopener" class="text-orange-600 hover:underline"><i class="fas fa-external-link-alt mr-1.5 text-[11px]"></i>{{ partner.website }}</a></span>{% endif %}
+                    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm" style="color: var(--ink-3);">
+                        {% if partner.phone %}<span><i class="fas fa-phone mr-1.5 text-[11px]" style="color: var(--ink-4);"></i>{{ partner.phone }}</span>{% endif %}
+                        {% if partner.email %}<span><i class="fas fa-envelope mr-1.5 text-[11px]" style="color: var(--ink-4);"></i>{{ partner.email }}</span>{% endif %}
+                        {% if partner.full_address %}<span><i class="fas fa-map-marker-alt mr-1.5 text-[11px]" style="color: var(--ink-4);"></i>{{ partner.full_address }}</span>{% endif %}
+                        {% if partner.website %}<span><a href="{{ partner.website }}" target="_blank" rel="noopener" style="color: var(--accent-ink);"><i class="fas fa-external-link-alt mr-1.5 text-[11px]"></i>{{ partner.website }}</a></span>{% endif %}
                     </div>
                     {% if partner.notes %}
-                    <p class="mt-2 text-sm text-slate-500 max-w-prose">{{ partner.notes }}</p>
+                    <p class="mt-3 text-sm max-w-prose" style="color: var(--ink-3);">{{ partner.notes }}</p>
                     {% endif %}
-                    <div class="mt-2 text-xs text-slate-400">Used in {{ usage_count }} transaction{{ '' if usage_count == 1 else 's' }}</div>
                 </div>
                 {% if can_manage_partners %}
-                <div class="flex gap-2">
-                    <button type="button" onclick="openEditCompanyModal()" class="crm-btn crm-btn-secondary text-sm">
+                <div class="flex gap-2 shrink-0">
+                    <button type="button" onclick="openEditCompanyModal()" class="crm-btn crm-btn-secondary">
                         <i class="fas fa-pen text-xs"></i> Edit company
                     </button>
                     <form method="POST" action="{{ url_for('partner_directory.deactivate_partner', partner_id=partner.id) }}"
                           onsubmit="return confirm('{% if partner.is_active %}Deactivate this company?{% else %}Reactivate this company?{% endif %}')">
-                        <button type="submit" class="crm-btn crm-btn-secondary text-sm {% if not partner.is_active %}text-green-700{% else %}text-slate-500{% endif %}">
+                        <button type="submit" class="crm-btn {% if not partner.is_active %}crm-btn-secondary{% else %}crm-btn-subtle{% endif %}">
                             {% if partner.is_active %}<i class="fas fa-ban text-xs"></i> Deactivate{% else %}<i class="fas fa-check text-xs"></i> Reactivate{% endif %}
                         </button>
                     </form>
@@ -48,11 +49,11 @@
 
         {# ── Duplicate person warning ─────────────────────────────────────────── #}
         {% if duplicate_warnings %}
-        <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 px-5 py-4">
+        <div class="mb-4 px-5 py-4" style="border: 1px solid var(--hairline); background: var(--warn-soft); border-radius: var(--radius-lg);">
             <div class="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <p class="text-sm font-semibold text-amber-900">Possible duplicate person found</p>
-                    <p class="mt-0.5 text-xs text-amber-700">Review these before creating another record under {{ partner.name }}.</p>
+                    <p class="text-sm font-semibold" style="color: var(--warn);">Possible duplicate person found</p>
+                    <p class="mt-0.5 text-xs" style="color: var(--ink-3);">Review these before creating another record under {{ partner.name }}.</p>
                 </div>
                 <form method="POST" action="{{ url_for('partner_directory.create_contact', partner_id=partner.id) }}">
                     {% for key, value in pending_contact.items() %}
@@ -60,14 +61,14 @@
                     {% endfor %}
                     {% if pending_contact.is_primary_contact %}<input type="hidden" name="is_primary_contact" value="on">{% endif %}
                     <input type="hidden" name="force_create" value="1">
-                    <button type="submit" class="text-xs font-medium text-orange-600 hover:text-orange-700">None of these — create anyway &rarr;</button>
+                    <button type="submit" class="text-xs font-medium" style="color: var(--accent-ink);">None of these — create anyway &rarr;</button>
                 </form>
             </div>
             <div class="mt-3 grid gap-2 sm:grid-cols-2">
                 {% for dup in duplicate_warnings %}
-                <div class="rounded border border-amber-200 bg-white px-3 py-2">
-                    <span class="text-sm font-semibold text-amber-900">{{ dup.full_name }}</span>
-                    <span class="block text-xs text-amber-700">{{ dup.email or dup.phone or 'Existing contact' }}</span>
+                <div class="rounded px-3 py-2" style="border: 1px solid var(--hairline); background: var(--paper);">
+                    <span class="text-sm font-semibold" style="color: var(--ink);">{{ dup.full_name }}</span>
+                    <span class="block text-xs" style="color: var(--ink-3);">{{ dup.email or dup.phone or 'Existing contact' }}</span>
                 </div>
                 {% endfor %}
             </div>
@@ -109,7 +110,7 @@
                         </div>
                         {% if can_manage_partners %}
                         <button type="button"
-                                class="js-edit-person shrink-0 text-xs font-medium text-orange-600 hover:text-orange-700 mt-0.5"
+                                class="js-edit-person crm-btn crm-btn-sm crm-btn-secondary shrink-0"
                                 data-id="{{ contact.id }}"
                                 data-first="{{ contact.first_name }}"
                                 data-last="{{ contact.last_name }}"
@@ -327,7 +328,7 @@
                         <label class="mb-1.5 block text-xs font-medium text-slate-600">Type</label>
                         <div class="flex flex-wrap gap-2">
                             {% for value, label in partner_types.items() %}
-                            <label class="cursor-pointer select-none rounded-md border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:border-orange-400 hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 has-[:checked]:text-orange-700 has-[:checked]:font-medium">
+                            <label class="partner-type-btn">
                                 <input type="radio" name="partner_type" value="{{ value }}" {% if partner.partner_type == value %}checked{% endif %} class="sr-only">
                                 {{ label }}
                             </label>

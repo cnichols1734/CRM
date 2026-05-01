@@ -1,121 +1,310 @@
 {% extends "base.html" %}
 
-{% block title %}My Todo List{% endblock %}
+{% block title %}My To-Do's - Origen TechnolOG{% endblock %}
 
 {% block content %}
-<div class="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-gray-100">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <!-- Back button -->
-        <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-900 mb-8">
-            <i class="fas fa-arrow-left mr-2"></i>
-            Back
+<style>
+    /* ── Todo-specific styles, leveraging Atelier tokens ─────────── */
+    .todo-section-title {
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 500;
+    }
+
+    .todo-count-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 22px;
+        padding: 0 10px;
+        font-size: 11px;
+        border-radius: 999px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 500;
+        line-height: 1;
+    }
+    .todo-count-pill.is-active {
+        background: var(--accent-soft);
+        color: var(--accent-ink);
+    }
+    .todo-count-pill.is-complete {
+        background: var(--positive-soft);
+        color: var(--positive);
+    }
+
+    /* New todo input area */
+    .todo-input-row {
+        display: flex;
+        gap: 8px;
+        align-items: stretch;
+    }
+    .todo-input-wrap {
+        flex: 1;
+        position: relative;
+    }
+    .todo-input-wrap .crm-input {
+        height: 42px;
+        padding-left: 42px;
+        font-size: 13.5px;
+    }
+    .todo-input-wrap .glyph {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--paper-2);
+        border: 1px solid var(--hairline);
+        display: grid;
+        place-items: center;
+        color: var(--ink-3);
+        font-size: 10px;
+        pointer-events: none;
+    }
+    .todo-add-btn {
+        height: 42px;
+        padding: 0 18px;
+        font-size: 13px;
+    }
+
+    /* Todo item card */
+    .todo-item {
+        list-style: none;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        transition: border-color 120ms ease, background 120ms ease;
+    }
+    .todo-item:hover { border-color: var(--ink-5); }
+    .todo-item:hover .delete-todo { opacity: 1; }
+
+    .todo-item-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+    }
+
+    .drag-handle {
+        cursor: grab;
+        color: var(--ink-5);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        transition: color 120ms ease;
+    }
+    .drag-handle:hover { color: var(--ink-3); }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* Custom checkbox styled with Atelier tokens */
+    .todo-checkbox {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 1px solid var(--hairline-strong);
+        border-radius: 4px;
+        background: var(--paper);
+        cursor: pointer;
+        position: relative;
+        flex-shrink: 0;
+        transition: border-color 120ms ease, background 120ms ease;
+    }
+    .todo-checkbox:hover { border-color: var(--ink-4); }
+    .todo-checkbox:checked {
+        background: var(--ink);
+        border-color: var(--ink);
+    }
+    .todo-checkbox:checked + .check-icon {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    .check-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+        color: var(--paper);
+        font-size: 9px;
+        pointer-events: none;
+        transition: opacity 120ms ease, transform 120ms ease;
+    }
+
+    .todo-text-wrap {
+        flex: 1;
+        position: relative;
+        min-width: 0;
+    }
+    .todo-text {
+        font-size: 13.5px;
+        color: var(--ink);
+        line-height: 1.5;
+        padding: 6px 8px;
+        border-radius: 4px;
+        cursor: text;
+        word-break: break-word;
+        margin: 0;
+        transition: background 100ms ease;
+    }
+    .todo-text:hover { background: var(--paper-2); }
+
+    .todo-item.is-completed .todo-text,
+    .completed-list .todo-item .todo-text {
+        text-decoration: line-through;
+        color: var(--ink-4);
+    }
+
+    .todo-edit-container {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+    }
+    .todo-edit-input {
+        width: 100%;
+        padding: 6px 10px;
+        font-size: 13.5px;
+        border: 1px solid var(--ink-4);
+        border-radius: 4px;
+        background: var(--paper);
+        color: var(--ink);
+    }
+    .todo-edit-input:focus {
+        outline: none;
+        border-color: var(--ink);
+        box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .delete-todo {
+        opacity: 0;
+        transition: opacity 120ms ease, color 120ms ease;
+        color: var(--ink-4);
+        background: transparent;
+        padding: 6px 8px;
+        border-radius: 4px;
+    }
+    .delete-todo:hover {
+        color: var(--danger);
+        background: var(--danger-soft);
+    }
+
+    /* Empty state — overrides hardcoded Tailwind injected by todo-manager.js */
+    #activeTodoList .empty-state,
+    #completedTodoList .empty-state {
+        list-style: none;
+        text-align: center;
+        padding: 28px 16px;
+        background: var(--paper-2);
+        border: 1px dashed var(--hairline-strong);
+        border-radius: var(--radius);
+        color: var(--ink-4);
+        font-size: 12.5px;
+        font-style: italic;
+    }
+
+    /* Edit hint shown only on hover (desktop) */
+    @media (min-width: 768px) {
+        .edit-hint {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10.5px;
+            color: var(--ink-5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 120ms ease;
+        }
+        .todo-text-wrap:hover .edit-hint { opacity: 1; }
+    }
+</style>
+
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1100px]">
+        {# Back link #}
+        <button onclick="history.back()"
+                class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span>Back</span>
         </button>
-        <div class="flex items-center justify-between mb-8">
-            <div class="flex items-center space-x-3">
-                <div class="h-10 w-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg flex items-center justify-center transform -rotate-6">
-                    <i class="fas fa-check-double text-white text-xl"></i>
+
+        {# Editorial header #}
+        <div class="mb-6 pb-5" style="border-bottom: 1px solid var(--hairline);">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                    <div class="crm-eyebrow mb-2">Workspace</div>
+                    <h1 class="crm-page-title" style="font-size: 36px;">My <em>To-Do's</em></h1>
+                    <p class="mt-2 text-sm" style="color: var(--ink-3);">
+                        Personal task list — drag to reorder.
+                    </p>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">My To Do's</h1>
-            </div>
-            <div class="text-sm text-gray-500 flex items-center space-x-2 bg-white/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-gray-200/50">
-                <i class="fas fa-info-circle text-orange-500"></i>
-                <span>Drag items to reorder</span>
             </div>
         </div>
 
-        <!-- Active Todos Section -->
-        <div class="bg-white shadow-lg rounded-xl mb-8 transform transition-all duration-300 hover:shadow-xl border border-gray-100 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500"></div>
-            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <span class="h-8 w-8 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center shadow-sm">
-                        <i class="fas fa-list-check text-orange-600"></i>
-                    </span>
-                    <h2 class="text-xl font-semibold text-gray-900">Active To Do's</h2>
+        {# Active section #}
+        <section class="crm-surface mb-5">
+            <div class="crm-surface-header">
+                <div>
+                    <div class="todo-section-title">Active</div>
                 </div>
-                <span class="text-sm font-medium px-3 py-1 rounded-full bg-orange-50 text-orange-600 border border-orange-100" id="activeTodoCount">0 to do's</span>
+                <span class="todo-count-pill is-active" id="activeTodoCount">0 tasks</span>
             </div>
-            <div class="px-6 py-6">
-                <!-- New Todo Input -->
-                <div class="flex items-center space-x-3 mb-8 group">
-                    <div class="flex-1 relative">
-                        <input type="text" id="newTodoInput" 
-                               class="block w-full rounded-lg border-2 border-gray-200 bg-gray-50 pl-12 pr-4 py-3 text-gray-900 placeholder-gray-400 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-gray-300 transition-all duration-200 shadow-sm" 
-                               placeholder="Add a new to do...">
-                        <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors duration-200">
-                            <i class="fas fa-plus-circle"></i>
-                        </span>
+            <div class="crm-surface-body">
+                <div class="todo-input-row mb-5">
+                    <div class="todo-input-wrap">
+                        <span class="glyph"><i class="fas fa-plus"></i></span>
+                        <input type="text" id="newTodoInput" class="crm-input"
+                               placeholder="Add a new to-do…">
                     </div>
-                    <button id="addTodoBtn" 
-                            class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 focus:outline-none focus:ring-0 transition-all duration-200 transform hover:scale-105 hover:shadow active:scale-95">
-                        Add To Do
+                    <button id="addTodoBtn" class="crm-btn crm-btn-primary todo-add-btn">
+                        Add
                     </button>
                 </div>
-                <ul id="activeTodoList" class="space-y-4">
-                    <!-- Active todos will be inserted here -->
-                </ul>
+                <ul id="activeTodoList" class="space-y-2"></ul>
             </div>
-        </div>
+        </section>
 
-        <!-- Completed Todos Section -->
-        <div class="bg-white shadow-lg rounded-xl transform transition-all duration-300 hover:shadow-xl border border-gray-100 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 via-green-400 to-green-500"></div>
-            <div class="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <span class="h-8 w-8 rounded-full bg-gradient-to-br from-green-100 to-green-50 flex items-center justify-center shadow-sm">
-                        <i class="fas fa-check text-green-600"></i>
-                    </span>
-                    <h2 class="text-xl font-semibold text-gray-900">Completed</h2>
+        {# Completed section #}
+        <section class="crm-surface">
+            <div class="crm-surface-header">
+                <div>
+                    <div class="todo-section-title">Completed</div>
                 </div>
-                <span class="text-sm font-medium px-3 py-1 rounded-full bg-green-50 text-green-600 border border-green-100" id="completedTodoCount">0 completed</span>
+                <span class="todo-count-pill is-complete" id="completedTodoCount">0 completed</span>
             </div>
-            <div class="px-6 py-6">
-                <ul id="completedTodoList" class="space-y-4">
-                    <!-- Completed todos will be inserted here -->
-                </ul>
+            <div class="crm-surface-body">
+                <ul id="completedTodoList" class="space-y-2 completed-list"></ul>
             </div>
-        </div>
+        </section>
     </div>
 </div>
 
-<!-- Todo Item Template -->
+{# Todo item template — class names match what todo-manager.js queries for #}
 <template id="todoItemTemplate">
-    <li class="todo-item group bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 ease-in-out transform hover:-translate-y-0.5">
-        <div class="px-5 py-4 flex items-center justify-between">
-            <div class="flex items-center flex-1 min-w-0">
-                <div class="flex-shrink-0 flex items-center space-x-3">
-                    <span class="drag-handle cursor-move text-gray-400 hover:text-gray-600 transition-colors duration-200">
-                        <i class="fas fa-grip-vertical"></i>
-                    </span>
-                    <div class="relative">
-                        <input type="checkbox" class="todo-checkbox h-5 w-5 text-orange-600 focus:ring-0 focus:outline-none border-gray-300 rounded cursor-pointer transition-all duration-300 ease-in-out hover:border-orange-500">
-                        <span class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-white scale-0 transition-transform duration-200 pointer-events-none check-icon">
-                            <i class="fas fa-check text-xs"></i>
-                        </span>
-                    </div>
+    <li class="todo-item">
+        <div class="todo-item-row">
+            <span class="drag-handle" title="Drag to reorder">
+                <i class="fas fa-grip-vertical text-xs"></i>
+            </span>
+            <span class="relative inline-flex items-center justify-center">
+                <input type="checkbox" class="todo-checkbox">
+                <i class="fas fa-check check-icon"></i>
+            </span>
+            <div class="todo-text-wrap">
+                <p class="todo-text"></p>
+                <div class="todo-edit-container hidden">
+                    <input type="text" class="todo-edit-input" placeholder="Edit to-do…">
                 </div>
-                <div class="ml-4 flex-1 relative group">
-                    <!-- Normal Text View -->
-                    <p class="todo-text text-sm font-medium text-gray-900 break-words py-2 px-3 rounded-md hover:bg-gray-50 cursor-pointer transition-all duration-200">
-                        <!-- Text will be inserted here -->
-                    </p>
-                    <!-- Edit Input (hidden by default) -->
-                    <div class="todo-edit-container hidden absolute inset-0 flex items-center">
-                        <input type="text" 
-                               class="todo-edit-input block w-full rounded-md border-2 border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-900 focus:bg-white focus:border-orange-500 focus:ring-0 focus:outline-none hover:border-gray-300 transition-all duration-200 shadow-sm" 
-                               placeholder="Edit to do...">
-                    </div>
-                    <!-- Edit hint (visible on hover) -->
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-all duration-300 ease-in-out">
-                        <i class="fas fa-pencil-alt mr-1"></i>Double-click to edit
-                    </span>
-                </div>
+                <span class="edit-hint">Double-click to edit</span>
             </div>
-            <div class="ml-4 flex-shrink-0">
-                <button class="delete-todo p-2 text-gray-400 hover:text-red-500 transition-all duration-300 ease-in-out rounded-full hover:bg-red-50 group-hover:opacity-100 opacity-0">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
+            <button class="delete-todo" title="Delete">
+                <i class="fas fa-trash text-xs"></i>
+            </button>
         </div>
     </li>
 </template>
@@ -126,4 +315,4 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/user_todo.js') }}" defer></script>
-{% endblock %} 
+{% endblock %}

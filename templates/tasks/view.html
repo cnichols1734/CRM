@@ -1,327 +1,221 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import badge %}
 
 {% block title %}{{ task.subject }} - Task{% endblock %}
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    @keyframes pulse-glow {
-
-        0%,
-        100% {
-            opacity: 0.3;
-        }
-
-        50% {
-            opacity: 0.5;
-        }
-    }
-
-    @keyframes pulse-tracker {
-
-        0%,
-        100% {
-            box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        50% {
-            box-shadow: 0 0 0 8px rgba(249, 115, 22, 0.1), 0 2px 8px rgba(0, 0, 0, 0.15);
-        }
-    }
-
-    .animate-fade-in-up {
-        animation: fadeInUp 0.6s ease-out forwards;
-    }
-
-    .animate-fade-in-up-delay-1 {
-        animation: fadeInUp 0.6s ease-out 0.1s forwards;
-        opacity: 0;
-    }
-
-    .animate-fade-in-up-delay-2 {
-        animation: fadeInUp 0.6s ease-out 0.2s forwards;
-        opacity: 0;
-    }
-
-    .animate-fade-in-up-delay-3 {
-        animation: fadeInUp 0.6s ease-out 0.3s forwards;
-        opacity: 0;
-    }
-
-    /* Premium card styling */
-    .premium-card {
-        background: white;
-        border-radius: 1rem;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
-        transition: all 0.2s ease-out;
-    }
-
-    .premium-card:hover {
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 20px 40px -10px rgba(0, 0, 0, 0.05);
-    }
-
-    /* Premium input styling */
-    .premium-input {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 1rem;
-        transition: all 0.2s ease-out;
-    }
-
-    .premium-input:hover {
-        border-color: #cbd5e1;
-    }
-
-    .premium-input:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-
-    /* Premium select styling */
-    .premium-select {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 2.5rem 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 1rem;
-        transition: all 0.2s ease-out;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.75rem center;
-        background-repeat: no-repeat;
-        background-size: 1.25rem 1.25rem;
-    }
-
-    .premium-select:hover {
-        border-color: #cbd5e1;
-    }
-
-    .premium-select:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-
-    textarea.premium-input {
-        min-height: 120px;
-        resize: vertical;
-    }
-
-    /* Stacked info item - label on top, value below */
-    .info-item {
-        padding: 0.875rem;
-        background: #f8fafc;
-        border-radius: 0.75rem;
-        border: 1px solid #f1f5f9;
-    }
-
-    .info-item-label {
-        color: #64748b;
-        font-size: 0.75rem;
-        font-weight: 500;
-        margin-bottom: 0.375rem;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-
-    .info-item-value {
-        color: #1e293b;
-        font-weight: 600;
-        font-size: 0.9375rem;
-    }
-
-    /* Info box styling (from contact view) */
-    .info-box {
-        background: rgba(248, 250, 252, 0.8);
-        border-radius: 0.75rem;
-        padding: 1rem;
-        border: 1px solid #f1f5f9;
-    }
-
-    /* Status tracker (pizza tracker style) */
-    .status-tracker {
+    .info-row {
         display: flex;
         justify-content: space-between;
-        position: relative;
-        padding: 0;
+        gap: 0.75rem;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--hairline);
+        font-size: 12.5px;
+    }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: var(--ink-4); }
+    .info-value { color: var(--ink); font-weight: 500; text-align: right; }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    @media (min-width: 640px) {
+        .detail-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .detail-cell {
+        padding: 14px 16px;
+        background: var(--paper-2);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+    }
+    .detail-cell__label {
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+        font-weight: 500;
+        margin-bottom: 6px;
+    }
+    .detail-cell__value {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 500;
     }
 
+    .section-title {
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 500;
+        margin-bottom: 14px;
+    }
+
+    /* Status tracker — restrained, two-step */
+    .status-tracker {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        position: relative;
+        padding: 6px 0;
+    }
     .status-tracker::before {
-        content: '';
+        content: "";
         position: absolute;
-        top: 20px;
-        left: 0;
-        right: 0;
-        height: 4px;
-        background: #e2e8f0;
+        top: 19px;
+        left: 12%;
+        right: 12%;
+        height: 2px;
+        background: var(--hairline);
         z-index: 0;
     }
-
-    .status-tracker-progress {
+    .status-tracker__progress {
         position: absolute;
-        top: 20px;
-        left: 0;
-        height: 4px;
-        background: linear-gradient(90deg, #f97316, #ea580c);
+        top: 19px;
+        left: 12%;
+        height: 2px;
+        background: var(--ink);
         z-index: 1;
-        transition: width 0.5s ease-out;
-        border-radius: 2px;
+        transition: width 240ms ease;
+        border-radius: 1px;
     }
-
     .tracker-step {
         display: flex;
         flex-direction: column;
         align-items: center;
         position: relative;
         z-index: 2;
+    }
+    .tracker-dot {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 11px;
+        background: var(--paper);
+        border: 1.5px solid var(--ink-5);
+        color: var(--ink-4);
+        transition: all 200ms ease;
+    }
+    .tracker-dot.is-current {
+        background: var(--ink);
+        color: var(--paper);
+        border-color: var(--ink);
+    }
+    .tracker-dot.is-complete {
+        background: var(--positive);
+        color: var(--paper);
+        border-color: var(--positive);
+    }
+    .tracker-label {
+        margin-top: 8px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--ink-4);
+        letter-spacing: 0.02em;
+    }
+    .tracker-step.is-current .tracker-label { color: var(--ink); }
+    .tracker-step.is-complete .tracker-label { color: var(--positive); }
+
+    /* Toggle switch */
+    .toggle-switch {
+        position: relative;
+        width: 42px;
+        height: 24px;
+        background: var(--paper-3);
+        border: 1px solid var(--hairline-strong);
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 200ms ease, border-color 200ms ease;
+    }
+    .toggle-switch::after {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--paper);
+        top: 2px;
+        left: 2px;
+        transition: left 200ms ease;
+        box-shadow: 0 1px 3px oklch(0% 0 0 / 0.12);
+    }
+    .toggle-switch.is-active {
+        background: var(--positive);
+        border-color: var(--positive);
+    }
+    .toggle-switch.is-active::after { left: 21px; }
+
+    /* Quick action row */
+    .quick-action {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: var(--radius);
+        text-align: left;
+        width: 100%;
+        background: transparent;
+        color: var(--ink);
+        transition: background 100ms ease;
+    }
+    .quick-action:hover { background: var(--paper-2); }
+    .quick-action__glyph {
+        width: 30px;
+        height: 30px;
+        border-radius: var(--radius);
+        background: var(--paper-2);
+        border: 1px solid var(--hairline);
+        display: grid;
+        place-items: center;
+        color: var(--ink-2);
+        font-size: 12px;
+    }
+    .quick-action__label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
         flex: 1;
     }
 
-    .tracker-dot {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
+    .related-card {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 0.875rem;
-        font-weight: 600;
-        transition: all 0.3s ease-out;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        gap: 12px;
+        padding: 14px 16px;
+        border-radius: var(--radius);
+        background: transparent;
+        transition: background 100ms ease;
+        text-decoration: none;
+        color: var(--ink);
     }
-
-    .tracker-dot.completed {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
-        color: white;
-    }
-
-    .tracker-dot.current {
-        background: linear-gradient(135deg, #f97316, #ea580c);
-        color: white;
-        box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
-        animation: pulse-tracker 2s infinite;
-    }
-
-    .tracker-dot.upcoming {
-        background: #f1f5f9;
-        color: #94a3b8;
-    }
-
-    .tracker-label {
-        margin-top: 0.75rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-align: center;
-        max-width: 80px;
-    }
-
-    .tracker-label.completed {
-        color: #16a34a;
-    }
-
-    .tracker-label.current {
-        color: #ea580c;
-    }
-
-    .tracker-label.upcoming {
-        color: #94a3b8;
-    }
-
-    /* Premium button */
-    .premium-btn {
-        transition: all 0.2s ease-out;
-        border-radius: 0.75rem;
-    }
-
-    .premium-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-
-    /* Toggle switch for mark complete */
-    .toggle-switch {
-        position: relative;
-        width: 52px;
-        height: 28px;
-        background: #e2e8f0;
-        border-radius: 9999px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .toggle-switch.active {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
-    }
-
-    .toggle-switch::after {
-        content: '';
-        position: absolute;
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        background: white;
-        top: 3px;
-        left: 3px;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    }
-
-    .toggle-switch.active::after {
-        left: 27px;
-    }
+    .related-card:hover { background: var(--paper-2); }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <!-- Premium sticky header -->
-    <div class="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10 shadow-sm">
-        <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-4 flex items-center justify-between">
+<div class="crm-page">
+    {# Sticky top nav #}
+    <div class="sticky top-0 z-50 border-b" style="background: var(--paper); border-color: var(--hairline);">
+        <div class="mx-auto max-w-[1500px] px-4 sm:px-6">
+            <div class="flex h-12 items-center justify-between">
                 <button onclick="navigateBack()"
-                    class="flex items-center text-slate-600 hover:text-orange-600 transition-colors duration-200 group">
-                    <div
-                        class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center mr-2 group-hover:border-orange-300 group-hover:shadow-md transition-all duration-200">
-                        <i class="fas fa-arrow-left text-sm"></i>
-                    </div>
-                    <span class="font-medium">Back</span>
+                        class="inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    <span>Back</span>
                 </button>
-                <div class="flex items-center space-x-3">
-                    <!-- Edit/Save/Cancel Buttons -->
-                    <button id="editButton" onclick="toggleEditMode()"
-                        class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:from-orange-600 hover:to-amber-600 transition-all duration-200">
-                        <i class="fas fa-pencil-alt mr-2"></i>
+                <div class="flex items-center gap-2">
+                    <button id="editButton" onclick="toggleEditMode()" class="crm-btn crm-btn-secondary">
+                        <i class="fas fa-pencil-alt text-xs"></i>
                         Edit Task
                     </button>
-                    <button id="saveButton" onclick="saveTask()"
-                        class="hidden inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl text-sm font-medium shadow-lg shadow-green-500/25 hover:from-green-600 hover:to-emerald-600 transition-all duration-200">
-                        <i class="fas fa-check mr-2"></i>
+                    <button id="saveButton" onclick="saveTask()" class="hidden crm-btn crm-btn-accent">
+                        <i class="fas fa-check text-xs"></i>
                         Save Changes
                     </button>
-                    <button id="cancelButton" onclick="cancelEdit()"
-                        class="hidden inline-flex items-center px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition-all duration-200">
+                    <button id="cancelButton" onclick="cancelEdit()" class="hidden crm-btn crm-btn-secondary">
                         Cancel
                     </button>
                 </div>
@@ -329,211 +223,139 @@
         </div>
     </div>
 
-    <div class="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="flex flex-col lg:flex-row gap-8">
-            <!-- Main Content Column -->
-            <div class="flex-1 max-w-4xl">
-                <!-- Task Header Card -->
-                <div class="premium-card p-6 mb-6 animate-fade-in-up">
-                    <div class="flex items-start gap-5">
-                        <!-- Large Priority Icon -->
-                        <div class="hidden md:flex w-14 h-14 rounded-2xl items-center justify-center text-2xl shadow-lg flex-shrink-0
-                            {% if task.priority == 'high' %}
-                                bg-gradient-to-br from-red-500 to-red-600
-                            {% elif task.priority == 'medium' %}
-                                bg-gradient-to-br from-amber-500 to-amber-600
-                            {% else %}
-                                bg-gradient-to-br from-green-500 to-green-600
-                            {% endif %} text-white">
-                            <i class="fas fa-tasks"></i>
-                        </div>
-                        <div class="flex-1">
-                            <div id="viewTaskSubject" class="text-2xl md:text-3xl font-bold text-slate-800 mb-2">
-                                {{ task.subject }}
-                            </div>
-                            <div id="editTaskSubject" class="hidden mb-3">
-                                <input type="text" name="subject" value="{{ task.subject }}"
-                                    class="premium-input text-xl font-semibold" placeholder="Task Subject">
-                            </div>
-                            <div class="flex items-center gap-3 text-slate-500 mb-4">
-                                <div
-                                    class="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-semibold text-slate-600">
-                                    {{ task.created_by.first_name[0] }}{{ task.created_by.last_name[0] }}
-                                </div>
-                                <span class="text-sm">
-                                    Created by {{ task.created_by.first_name }} {{ task.created_by.last_name }} on {{
-                                    task.created_at.strftime('%B %d, %Y') }}
-                                </span>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-3">
-                                <!-- Status Badge -->
-                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold
-                                    {% if task.status == 'completed' %}
-                                        bg-green-100 text-green-700
-                                    {% else %}
-                                        bg-amber-100 text-amber-700
-                                    {% endif %}">
-                                    <i
-                                        class="fas {% if task.status == 'completed' %}fa-check-circle{% else %}fa-clock{% endif %} mr-1.5"></i>
-                                    {{ task.status|capitalize }}
-                                </span>
-                                <!-- Priority Badge -->
-                                <span class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold
-                                    {% if task.priority == 'high' %}
-                                        bg-red-100 text-red-700
-                                    {% elif task.priority == 'medium' %}
-                                        bg-amber-100 text-amber-700
-                                    {% else %}
-                                        bg-green-100 text-green-700
-                                    {% endif %}">
-                                    <i class="fas fa-flag mr-1.5"></i>
-                                    {{ task.priority|capitalize }} Priority
-                                </span>
-                                <!-- Task Type Badge -->
-                                <span
-                                    class="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
-                                    <i class="fas fa-tag mr-1.5"></i>
-                                    {{ task.task_type.name }}
-                                </span>
-                                {% if task.google_calendar_event_id %}
-                                <!-- Google Calendar Synced Badge -->
-                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-white border border-slate-200 text-slate-700 shadow-sm" title="Synced to Google Calendar">
-                                    <svg class="w-4 h-4" viewBox="0 0 24 24">
-                                        <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
-                                        <path fill="#fff" d="M19 20H5V9h14v11z"/>
-                                        <path fill="#EA4335" d="M12 13h5v5h-5z"/>
-                                        <path fill="#FBBC05" d="M7 13h5v5H7z"/>
-                                        <path fill="#34A853" d="M7 9h5v4H7z"/>
-                                    </svg>
-                                    <span class="hidden sm:inline">Calendar Synced</span>
-                                    <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                    </svg>
-                                </span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <!-- Quick Complete Toggle -->
-                        <div class="hidden md:flex flex-col items-center gap-2">
-                            <div class="toggle-switch {% if task.status == 'completed' %}active{% endif %}"
-                                onclick="quickToggleComplete()" id="quickCompleteToggle"
-                                title="Mark as {% if task.status == 'completed' %}Pending{% else %}Complete{% endif %}">
-                            </div>
-                            <span class="text-xs font-medium text-slate-500" id="toggleLabel">
-                                {% if task.status == 'completed' %}Completed{% else %}Mark Done{% endif %}
-                            </span>
-                        </div>
+    <div class="crm-page__inner max-w-[1500px]">
+        {# Editorial header #}
+        <div class="mb-6 pb-5" style="border-bottom: 1px solid var(--hairline);">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="min-w-0 flex-1">
+                    <div class="crm-eyebrow mb-2">Task · #{{ task.id }} · {{ task.task_type.name }}</div>
+                    <h1 id="viewTaskSubject" class="crm-page-title" style="font-size: 36px;">{{ task.subject }}</h1>
+                    <div id="editTaskSubject" class="hidden mt-2">
+                        <input type="text" name="subject" value="{{ task.subject }}"
+                               class="crm-input" placeholder="Task subject">
                     </div>
+                    <div class="mt-3 flex flex-wrap items-center gap-2">
+                        {% if task.status == 'completed' %}
+                            {{ badge('Completed', 'success') }}
+                        {% else %}
+                            {{ badge('Pending', 'warning') }}
+                        {% endif %}
+                        {% if task.priority == 'high' %}
+                            {{ badge('High Priority', 'accent') }}
+                        {% elif task.priority == 'medium' %}
+                            {{ badge('Medium Priority', 'warning') }}
+                        {% else %}
+                            {{ badge('Low Priority', 'success') }}
+                        {% endif %}
+                        {{ badge(task.task_type.name, 'info') }}
+                        {% if task.google_calendar_event_id %}
+                        <span class="crm-badge inline-flex items-center gap-1.5" title="Synced to Google Calendar">
+                            <svg class="h-3 w-3" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
+                                <path fill="#fff" d="M19 20H5V9h14v11z"/>
+                                <path fill="#EA4335" d="M12 13h5v5h-5z"/>
+                            </svg>
+                            Calendar Synced
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-3 text-sm" style="color: var(--ink-3);">
+                        Created by {{ task.created_by.first_name }} {{ task.created_by.last_name }} on {{ task.created_at.strftime('%B %d, %Y') }}
+                    </p>
                 </div>
+                <div class="hidden md:flex flex-col items-end gap-2 shrink-0">
+                    <div class="toggle-switch {% if task.status == 'completed' %}is-active{% endif %}"
+                         onclick="quickToggleComplete()" id="quickCompleteToggle"
+                         title="Mark as {% if task.status == 'completed' %}Pending{% else %}Complete{% endif %}"></div>
+                    <span class="text-xs font-medium" style="color: var(--ink-3);" id="toggleLabel">
+                        {% if task.status == 'completed' %}Completed{% else %}Mark Done{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
 
-                <!-- Task Status Tracker (Pizza Tracker) -->
-                <div class="premium-card p-6 mb-6 animate-fade-in-up-delay-1">
-                    {% set statuses = ['pending', 'completed'] %}
-                    {% set status_icons = {'pending': 'clock', 'completed': 'check-circle'} %}
-                    {% set status_labels = {'pending': 'Pending', 'completed': 'Completed'} %}
-                    {% set current_index = 1 if task.status == 'completed' else 0 %}
-                    {% set progress_percent = 100 if task.status == 'completed' else 25 %}
-
-                    <div class="status-tracker">
-                        <div class="status-tracker-progress" style="width: {{ progress_percent }}%;"></div>
-                        {% for status in statuses %}
-                        {% set step_index = loop.index0 %}
-                        {% set is_completed = step_index < current_index %} {% set is_current=step_index==current_index
-                            %} {% set is_upcoming=step_index> current_index %}
-                            <div class="tracker-step">
-                                <div
-                                    class="tracker-dot {% if is_completed or (is_current and task.status == 'completed') %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
-                                    {% if is_completed or (is_current and task.status == 'completed') %}
-                                    <i class="fas fa-check"></i>
+        <div class="flex flex-col gap-6 lg:flex-row">
+            {# Main column #}
+            <div class="flex-1 min-w-0 space-y-5">
+                {# Status tracker #}
+                <section class="crm-surface">
+                    <div class="crm-surface-body">
+                        {% set progress_percent = 100 if task.status == 'completed' else 0 %}
+                        <div class="status-tracker">
+                            <div class="status-tracker__progress" style="width: {{ progress_percent }}%;"></div>
+                            <div class="tracker-step {% if task.status != 'completed' %}is-current{% else %}is-complete{% endif %}">
+                                <div class="tracker-dot {% if task.status != 'completed' %}is-current{% else %}is-complete{% endif %}">
+                                    {% if task.status == 'completed' %}
+                                        <i class="fas fa-check"></i>
                                     {% else %}
-                                    <i class="fas fa-{{ status_icons[status] }}"></i>
+                                        <i class="fas fa-clock"></i>
                                     {% endif %}
                                 </div>
-                                <span
-                                    class="tracker-label {% if is_completed or (is_current and task.status == 'completed') %}completed{% elif is_current %}current{% else %}upcoming{% endif %}">
-                                    {{ status_labels[status] }}
-                                </span>
+                                <span class="tracker-label">Pending</span>
                             </div>
-                            {% endfor %}
+                            <div class="tracker-step {% if task.status == 'completed' %}is-complete{% endif %}">
+                                <div class="tracker-dot {% if task.status == 'completed' %}is-complete{% endif %}">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <span class="tracker-label">Completed</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Task Information Card -->
-                <div class="premium-card overflow-hidden animate-fade-in-up-delay-2">
-                    <!-- Edit Form (Hidden by default) -->
-                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST" id="editTaskForm"
-                        class="hidden">
-                        <!-- Basic Information Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                    <i class="fas fa-info-circle text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Basic Information</h2>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {# Task Information #}
+                <section class="crm-surface overflow-hidden">
+                    {# Edit form (hidden by default) #}
+                    <form action="{{ url_for('tasks.edit_task', task_id=task.id) }}" method="POST"
+                          id="editTaskForm" class="hidden">
+                        <div class="crm-surface-body">
+                            <h2 class="section-title">Basic Information</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Status</label>
-                                    <select name="status" class="premium-select">
-                                        <option value="pending" {% if task.status=='pending' %}selected{% endif %}>
-                                            Pending</option>
-                                        <option value="completed" {% if task.status=='completed' %}selected{% endif %}>
-                                            Completed</option>
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Status</label>
+                                    <select name="status" class="crm-select">
+                                        <option value="pending" {% if task.status=='pending' %}selected{% endif %}>Pending</option>
+                                        <option value="completed" {% if task.status=='completed' %}selected{% endif %}>Completed</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Priority</label>
-                                    <select name="priority" class="premium-select">
-                                        <option value="low" {% if task.priority=='low' %}selected{% endif %}>Low
-                                        </option>
-                                        <option value="medium" {% if task.priority=='medium' %}selected{% endif %}>
-                                            Medium</option>
-                                        <option value="high" {% if task.priority=='high' %}selected{% endif %}>High
-                                        </option>
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Priority</label>
+                                    <select name="priority" class="crm-select">
+                                        <option value="low" {% if task.priority=='low' %}selected{% endif %}>Low</option>
+                                        <option value="medium" {% if task.priority=='medium' %}selected{% endif %}>Medium</option>
+                                        <option value="high" {% if task.priority=='high' %}selected{% endif %}>High</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Due Date</label>
-                                    <input type="date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}"
-                                        class="premium-input">
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Due Date</label>
+                                    <input type="date" name="due_date" value="{{ task.due_date.strftime('%Y-%m-%d') }}" class="crm-input">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Scheduled Time</label>
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Scheduled Time</label>
                                     <input type="time" name="scheduled_time"
-                                        value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}"
-                                        class="premium-input">
+                                           value="{{ task.scheduled_time.strftime('%H:%M') if task.scheduled_time else '' }}" class="crm-input">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Task Type Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                                    <i class="fas fa-tag text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Task Type</h2>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Task Type</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Type</label>
-                                    <select name="type_id" onchange="updateSubtypes(this.value)" class="premium-select">
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Type</label>
+                                    <select name="type_id" onchange="updateSubtypes(this.value)" class="crm-select">
                                         {% for type in task_types %}
-                                        <option value="{{ type.id }}" {% if task.task_type.id==type.id %}selected{%
-                                            endif %}>
+                                        <option value="{{ type.id }}" {% if task.task_type.id==type.id %}selected{% endif %}>
                                             {{ type.name }}
                                         </option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Subtype</label>
-                                    <select name="subtype_id" id="subtype_id" class="premium-select">
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Subtype</label>
+                                    <select name="subtype_id" id="subtype_id" class="crm-select">
                                         {% for subtype in task_subtypes %}
-                                        <option value="{{ subtype.id }}" {% if task.task_subtype.id==subtype.id
-                                            %}selected{% endif %}>
+                                        <option value="{{ subtype.id }}" {% if task.task_subtype.id==subtype.id %}selected{% endif %}>
                                             {{ subtype.name }}
                                         </option>
                                         {% endfor %}
@@ -542,326 +364,209 @@
                             </div>
                         </div>
 
-                        <!-- Related Information Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
-                                    <i class="fas fa-link text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Related Information</h2>
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Related Information</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Related Contact</label>
-                                    <select name="contact_id" class="premium-select">
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Related Contact</label>
+                                    <select name="contact_id" class="crm-select">
                                         {% for contact in contacts %}
-                                        <option value="{{ contact.id }}" {% if task.contact.id==contact.id %}selected{%
-                                            endif %}>
+                                        <option value="{{ contact.id }}" {% if task.contact.id==contact.id %}selected{% endif %}>
                                             {{ contact.first_name }} {{ contact.last_name }}
                                         </option>
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-slate-700 mb-2">Property
-                                        Address</label>
+                                    <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Property Address</label>
                                     <input type="text" name="property_address" value="{{ task.property_address or '' }}"
-                                        class="premium-input" placeholder="Enter property address">
+                                           class="crm-input" placeholder="Enter property address">
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Description Section -->
-                        <div class="p-6">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                                    <i class="fas fa-align-left text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Description</h2>
-                            </div>
-                            <textarea name="description" class="premium-input"
-                                placeholder="Add task description...">{{ task.description or '' }}</textarea>
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Description</h2>
+                            <textarea name="description" rows="5" class="crm-input"
+                                      placeholder="Add task description...">{{ task.description or '' }}</textarea>
                         </div>
                     </form>
 
-                    <!-- View Mode -->
+                    {# View mode #}
                     <div id="viewTaskInfo">
-                        <!-- Basic Information Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                                    <i class="fas fa-info-circle text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Basic Information</h2>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="info-item">
-                                    <div class="info-item-label">Status</div>
-                                    <div class="info-item-value">
-                                        <span
-                                            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            {% if task.status == 'completed' %}bg-green-100 text-green-700{% else %}bg-amber-100 text-amber-700{% endif %}">
-                                            {{ task.status|capitalize }}
-                                        </span>
+                        <div class="crm-surface-body">
+                            <h2 class="section-title">Basic Information</h2>
+                            <div class="detail-grid">
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Status</div>
+                                    <div class="detail-cell__value">
+                                        {% if task.status == 'completed' %}
+                                            {{ badge('Completed', 'success') }}
+                                        {% else %}
+                                            {{ badge('Pending', 'warning') }}
+                                        {% endif %}
                                     </div>
                                 </div>
-                                <div class="info-item">
-                                    <div class="info-item-label">Priority</div>
-                                    <div class="info-item-value">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                            {% if task.priority == 'high' %}bg-red-100 text-red-700
-                                            {% elif task.priority == 'medium' %}bg-amber-100 text-amber-700
-                                            {% else %}bg-green-100 text-green-700{% endif %}">
-                                            {{ task.priority|capitalize }}
-                                        </span>
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Priority</div>
+                                    <div class="detail-cell__value">
+                                        {% if task.priority == 'high' %}
+                                            {{ badge('High', 'accent') }}
+                                        {% elif task.priority == 'medium' %}
+                                            {{ badge('Medium', 'warning') }}
+                                        {% else %}
+                                            {{ badge('Low', 'success') }}
+                                        {% endif %}
                                     </div>
                                 </div>
-                                <div class="info-item">
-                                    <div class="info-item-label">Due Date</div>
-                                    <div class="info-item-value">{{ task.due_date.strftime('%B %d, %Y') }}</div>
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Due Date</div>
+                                    <div class="detail-cell__value">{{ task.due_date.strftime('%B %d, %Y') }}</div>
                                 </div>
                                 {% if task.scheduled_time %}
-                                <div class="info-item">
-                                    <div class="info-item-label">Scheduled Time</div>
-                                    <div class="info-item-value">{{ task.scheduled_time.strftime('%I:%M %p') }}</div>
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Scheduled Time</div>
+                                    <div class="detail-cell__value">{{ task.scheduled_time.strftime('%I:%M %p') }}</div>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Task Type Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
-                                    <i class="fas fa-tag text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Task Type</h2>
-                            </div>
-                            <div class="info-box">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span
-                                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-200 text-slate-700">
-                                        {{ task.task_type.name }}
-                                    </span>
-                                    <i class="fas fa-chevron-right text-slate-300 text-xs"></i>
-                                    <span
-                                        class="inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium bg-slate-100 text-slate-600">
-                                        {{ task.task_subtype.name }}
-                                    </span>
-                                </div>
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Task Type</h2>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="crm-chip">{{ task.task_type.name }}</span>
+                                <i class="fas fa-chevron-right text-[10px]" style="color: var(--ink-5);"></i>
+                                <span class="crm-chip">{{ task.task_subtype.name }}</span>
                             </div>
                         </div>
 
-                        <!-- Related Information Section -->
-                        <div class="p-6 border-b border-slate-100">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
-                                    <i class="fas fa-link text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Related Information</h2>
-                            </div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="info-item">
-                                    <div class="info-item-label">Related Contact</div>
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Related Information</h2>
+                            <div class="detail-grid">
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Related Contact</div>
                                     <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                                        class="info-item-value text-orange-600 hover:text-orange-700 transition-colors">
+                                       class="detail-cell__value hover:underline" style="color: var(--accent-ink);">
                                         {{ task.contact.first_name }} {{ task.contact.last_name }}
                                     </a>
                                 </div>
                                 {% if task.property_address %}
-                                <div class="info-item">
-                                    <div class="info-item-label">Property Address</div>
-                                    <div class="info-item-value">{{ task.property_address }}</div>
+                                <div class="detail-cell">
+                                    <div class="detail-cell__label">Property Address</div>
+                                    <div class="detail-cell__value">{{ task.property_address }}</div>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Description Section -->
-                        <div class="p-6">
-                            <div class="flex items-center gap-3 mb-5">
-                                <div
-                                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                                    <i class="fas fa-align-left text-white"></i>
-                                </div>
-                                <h2 class="text-lg font-bold text-slate-800">Description</h2>
-                            </div>
-                            <div class="info-box">
-                                <p class="text-slate-700 whitespace-pre-line">{{ task.description or 'No description
-                                    provided' }}</p>
-                            </div>
+                        <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                            <h2 class="section-title">Description</h2>
+                            <p class="text-sm whitespace-pre-line" style="color: var(--ink-2); line-height: 1.6;">{{ task.description or 'No description provided' }}</p>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                <!-- Delete Task Button -->
-                <div class="mt-6 flex justify-end animate-fade-in-up-delay-3">
-                    <button onclick="deleteTask({{ task.id }})"
-                        class="premium-btn inline-flex items-center px-4 py-2 border-2 border-red-200 rounded-xl text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 transition-all">
-                        <i class="fas fa-trash-alt mr-2"></i>
+                <div class="flex justify-end">
+                    <button onclick="deleteTask({{ task.id }})" class="crm-btn crm-btn-danger">
+                        <i class="fas fa-trash-alt text-xs"></i>
                         Delete Task
                     </button>
                 </div>
             </div>
 
-            <!-- Side Panel - Related Contact -->
-            <div class="lg:w-[380px] xl:w-[420px] flex-shrink-0 space-y-6 animate-fade-in-up-delay-3">
-                <!-- Related Contact Card -->
-                <div class="premium-card overflow-hidden">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center">
-                                <i class="fas fa-user text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Related Contact</h2>
+            {# Sidebar #}
+            <aside class="lg:w-[360px] xl:w-[400px] shrink-0 space-y-5">
+                {# Related Contact #}
+                <section class="crm-surface overflow-hidden">
+                    <div class="crm-surface-header">
+                        <div>
+                            <h2 class="section-title m-0">Related Contact</h2>
                         </div>
                     </div>
-                    <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                        class="block p-5 hover:bg-slate-50 transition-colors group">
-                        <div class="flex items-center gap-4">
-                            <!-- Contact Avatar -->
-                            {% set initials = task.contact.first_name[0]|upper + task.contact.last_name[0]|upper %}
-                            {% set colors = {
-                            'A': 'bg-gradient-to-br from-blue-400 to-blue-600',
-                            'B': 'bg-gradient-to-br from-rose-400 to-rose-600',
-                            'C': 'bg-gradient-to-br from-green-400 to-green-600',
-                            'D': 'bg-gradient-to-br from-amber-400 to-amber-600',
-                            'E': 'bg-gradient-to-br from-purple-400 to-purple-600',
-                            'F': 'bg-gradient-to-br from-pink-400 to-pink-600',
-                            'G': 'bg-gradient-to-br from-indigo-400 to-indigo-600',
-                            'H': 'bg-gradient-to-br from-teal-400 to-teal-600',
-                            'I': 'bg-gradient-to-br from-orange-400 to-orange-600',
-                            'J': 'bg-gradient-to-br from-cyan-400 to-cyan-600'
-                            } %}
-                            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-semibold text-white shadow-md
-                                {{ colors.get(initials[0], 'bg-gradient-to-br from-slate-400 to-slate-600') }}">
-                                {{ initials }}
+                    <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}" class="related-card">
+                        <span class="crm-avatar crm-avatar-md crm-avatar-serif">
+                            {{ task.contact.first_name[0]|upper }}{{ task.contact.last_name[0]|upper }}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold truncate" style="color: var(--ink);">
+                                {{ task.contact.first_name }} {{ task.contact.last_name }}
                             </div>
-                            <div class="flex-1">
-                                <div class="font-semibold text-slate-800 group-hover:text-orange-600 transition-colors">
-                                    {{ task.contact.first_name }} {{ task.contact.last_name }}
-                                </div>
-                                {% if task.contact.email %}
-                                <div class="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                    <i class="fas fa-envelope text-xs"></i>
-                                    {{ task.contact.email }}
-                                </div>
-                                {% endif %}
-                                {% if task.contact.phone %}
-                                <div class="text-sm text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                    <i class="fas fa-phone text-xs"></i>
-                                    {{ task.contact.phone }}
-                                </div>
-                                {% endif %}
+                            {% if task.contact.email %}
+                            <div class="mt-0.5 text-xs flex items-center gap-1.5 truncate" style="color: var(--ink-3);">
+                                <i class="fas fa-envelope text-[10px]"></i>
+                                <span class="truncate">{{ task.contact.email }}</span>
                             </div>
-                            <i
-                                class="fas fa-chevron-right text-slate-300 group-hover:text-orange-400 transition-colors"></i>
-                        </div>
-                    </a>
-                </div>
-
-                <!-- Quick Actions Card -->
-                <div class="premium-card overflow-hidden">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                                <i class="fas fa-bolt text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Quick Actions</h2>
-                        </div>
-                    </div>
-                    <div class="p-4 space-y-2">
-                        <!-- Quick Complete Toggle (mobile visible) -->
-                        <button onclick="quickToggleComplete()" class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors text-left
-                                    {% if task.status == 'completed' %}bg-green-50{% endif %}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg flex items-center justify-center
-                                    {% if task.status == 'completed' %}bg-green-100{% else %}bg-slate-100{% endif %}">
-                                    <i
-                                        class="fas fa-check {% if task.status == 'completed' %}text-green-600{% else %}text-slate-400{% endif %}"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">
-                                    {% if task.status == 'completed' %}Mark as Pending{% else %}Mark as Complete{% endif
-                                    %}
-                                </span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
-                        </button>
-
-                        <!-- Call Contact -->
-                        {% if task.contact.phone %}
-                        <a href="tel:{{ task.contact.phone }}"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center">
-                                    <i class="fas fa-phone text-blue-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Call Contact</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
-                        </a>
-                        {% endif %}
-
-                        <!-- Email Contact -->
-                        {% if task.contact.email %}
-                        <button type="button" onclick="openEmailToTaskContact()"
-                            class="w-full flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 transition-colors">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center">
-                                    <i class="fas fa-envelope text-purple-600"></i>
-                                </div>
-                                <span class="font-medium text-slate-700">Email Contact</span>
-                            </div>
-                            <i class="fas fa-chevron-right text-slate-300"></i>
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- Task Metadata Card -->
-                <div class="premium-card overflow-hidden">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div
-                                class="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center">
-                                <i class="fas fa-info text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Task Details</h2>
-                        </div>
-                    </div>
-                    <div class="p-5">
-                        <div class="space-y-0">
-                            <div class="info-row">
-                                <span class="info-label text-xs">Task ID</span>
-                                <span class="info-value text-xs text-slate-400">#{{ task.id }}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label text-xs">Created</span>
-                                <span class="info-value text-xs">{{ task.created_at.strftime('%b %d, %Y') }}</span>
-                            </div>
-                            {% if task.updated_at %}
-                            <div class="info-row">
-                                <span class="info-label text-xs">Last Updated</span>
-                                <span class="info-value text-xs">{{ task.updated_at.strftime('%b %d, %Y') }}</span>
+                            {% endif %}
+                            {% if task.contact.phone %}
+                            <div class="mt-0.5 text-xs flex items-center gap-1.5" style="color: var(--ink-3);">
+                                <i class="fas fa-phone text-[10px]"></i>
+                                {{ task.contact.phone }}
                             </div>
                             {% endif %}
                         </div>
+                        <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
+                    </a>
+                </section>
+
+                {# Quick Actions #}
+                <section class="crm-surface overflow-hidden">
+                    <div class="crm-surface-header">
+                        <h2 class="section-title m-0">Quick Actions</h2>
                     </div>
-                </div>
-            </div>
+                    <div class="p-2 space-y-0.5">
+                        <button type="button" onclick="quickToggleComplete()" class="quick-action">
+                            <span class="quick-action__glyph"><i class="fas fa-check"></i></span>
+                            <span class="quick-action__label">
+                                {% if task.status == 'completed' %}Mark as Pending{% else %}Mark as Complete{% endif %}
+                            </span>
+                            <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
+                        </button>
+                        {% if task.contact.phone %}
+                        <a href="tel:{{ task.contact.phone }}" class="quick-action">
+                            <span class="quick-action__glyph"><i class="fas fa-phone"></i></span>
+                            <span class="quick-action__label">Call Contact</span>
+                            <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
+                        </a>
+                        {% endif %}
+                        {% if task.contact.email %}
+                        <button type="button" onclick="openEmailToTaskContact()" class="quick-action">
+                            <span class="quick-action__glyph"><i class="fas fa-envelope"></i></span>
+                            <span class="quick-action__label">Email Contact</span>
+                            <i class="fas fa-chevron-right text-xs" style="color: var(--ink-5);"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </section>
+
+                {# Task Details #}
+                <section class="crm-surface overflow-hidden">
+                    <div class="crm-surface-header">
+                        <h2 class="section-title m-0">Task Details</h2>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="info-row">
+                            <span class="info-label">Task ID</span>
+                            <span class="info-value">#{{ task.id }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Created</span>
+                            <span class="info-value">{{ task.created_at.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        {% if task.updated_at %}
+                        <div class="info-row">
+                            <span class="info-label">Last Updated</span>
+                            <span class="info-value">{{ task.updated_at.strftime('%b %d, %Y') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </section>
+            </aside>
         </div>
     </div>
 </div>
 
 <script>
-    // Smart back navigation based on referrer
     function navigateBack() {
         const urlParams = new URLSearchParams(window.location.search);
         const ref = urlParams.get('ref');
@@ -878,7 +583,6 @@
                 window.location.href = '{{ url_for('tasks.tasks') }}';
             }
         } else {
-            // Fallback to browser history, but prefer tasks list
             if (document.referrer && document.referrer.includes('/tasks')) {
                 window.location.href = '{{ url_for('tasks.tasks') }}';
             } else if (document.referrer && document.referrer.includes('/dashboard')) {
@@ -892,50 +596,30 @@
     }
 
     function toggleEditMode() {
-        const viewMode = document.getElementById('viewTaskInfo');
-        const editMode = document.getElementById('editTaskForm');
-        const viewSubject = document.getElementById('viewTaskSubject');
-        const editSubject = document.getElementById('editTaskSubject');
-        const editBtn = document.getElementById('editButton');
-        const saveBtn = document.getElementById('saveButton');
-        const cancelBtn = document.getElementById('cancelButton');
-
-        viewMode.classList.add('hidden');
-        editMode.classList.remove('hidden');
-        viewSubject.classList.add('hidden');
-        editSubject.classList.remove('hidden');
-        editBtn.classList.add('hidden');
-        saveBtn.classList.remove('hidden');
-        cancelBtn.classList.remove('hidden');
+        document.getElementById('viewTaskInfo').classList.add('hidden');
+        document.getElementById('editTaskForm').classList.remove('hidden');
+        document.getElementById('viewTaskSubject').classList.add('hidden');
+        document.getElementById('editTaskSubject').classList.remove('hidden');
+        document.getElementById('editButton').classList.add('hidden');
+        document.getElementById('saveButton').classList.remove('hidden');
+        document.getElementById('cancelButton').classList.remove('hidden');
     }
 
     function cancelEdit() {
-        const viewMode = document.getElementById('viewTaskInfo');
-        const editMode = document.getElementById('editTaskForm');
-        const viewSubject = document.getElementById('viewTaskSubject');
-        const editSubject = document.getElementById('editTaskSubject');
-        const editBtn = document.getElementById('editButton');
-        const saveBtn = document.getElementById('saveButton');
-        const cancelBtn = document.getElementById('cancelButton');
-
-        viewMode.classList.remove('hidden');
-        editMode.classList.add('hidden');
-        viewSubject.classList.remove('hidden');
-        editSubject.classList.add('hidden');
-        editBtn.classList.remove('hidden');
-        saveBtn.classList.add('hidden');
-        cancelBtn.classList.add('hidden');
+        document.getElementById('viewTaskInfo').classList.remove('hidden');
+        document.getElementById('editTaskForm').classList.add('hidden');
+        document.getElementById('viewTaskSubject').classList.remove('hidden');
+        document.getElementById('editTaskSubject').classList.add('hidden');
+        document.getElementById('editButton').classList.remove('hidden');
+        document.getElementById('saveButton').classList.add('hidden');
+        document.getElementById('cancelButton').classList.add('hidden');
     }
 
     async function saveTask() {
         const form = document.getElementById('editTaskForm');
         const formData = new FormData();
-
-        // Add the subject from the header
         const subjectInput = document.querySelector('input[name="subject"]');
         formData.append('subject', subjectInput.value);
-
-        // Add all other form fields
         const formInputs = form.querySelectorAll('input, textarea, select');
         formInputs.forEach(input => {
             if (input.type === 'checkbox') {
@@ -944,17 +628,13 @@
                 formData.append(input.name, input.value);
             }
         });
-
         try {
             const response = await fetch(`{{ url_for('tasks.edit_task', task_id=task.id) }}`, {
                 method: 'POST',
                 body: formData
             });
-
             const data = await response.json();
-
             if (response.ok) {
-                // Reload the page to show updated data
                 window.location.reload();
             } else {
                 alert(data.message || 'Error saving changes');
@@ -968,12 +648,10 @@
     function updateSubtypes(typeId) {
         const subtypeSelect = document.getElementById('subtype_id');
         subtypeSelect.innerHTML = '<option value="">Loading...</option>';
-
         if (!typeId) {
             subtypeSelect.innerHTML = '<option value="">Select type first</option>';
             return;
         }
-
         fetch(`/tasks/types/${typeId}/subtypes`)
             .then(response => response.json())
             .then(subtypes => {
@@ -989,10 +667,7 @@
 
     function deleteTask(taskId) {
         if (!confirm('Are you sure you want to delete this task?')) return;
-
-        fetch(`/tasks/${taskId}/delete`, {
-            method: 'POST',
-        })
+        fetch(`/tasks/${taskId}/delete`, { method: 'POST' })
             .then(response => {
                 if (!response.ok) throw new Error('Network response was not ok');
                 window.location.href = '{{ url_for('tasks.tasks') }}';
@@ -1003,19 +678,15 @@
             });
     }
 
-    // Quick toggle complete without entering edit mode
     async function quickToggleComplete() {
         const newStatus = '{{ task.status }}' === 'completed' ? 'pending' : 'completed';
-
         const formData = new FormData();
         formData.append('status', newStatus);
-
         try {
             const response = await fetch(`/tasks/{{ task.id }}/quick-update`, {
                 method: 'POST',
                 body: formData
             });
-
             if (response.ok) {
                 window.location.reload();
             } else {
@@ -1027,7 +698,6 @@
         }
     }
 
-    // Open email modal for task's contact
     {% if task.contact and task.contact.email %}
     function openEmailToTaskContact() {
         emailModal.open({
@@ -1035,17 +705,11 @@
             to: '{{ task.contact.email }}',
             title: 'Email {{ task.contact.first_name }} {{ task.contact.last_name }}',
             subject: 'Re: {{ task.subject|replace("'", "\\'") }}',
-            onSend: function(result) {
-                // Show success message (page doesn't need to reload for tasks)
-                // The email is logged to the contact's history
-            }
+            onSend: function(result) {}
         });
     }
     {% endif %}
-
 </script>
 
-<!-- Email Compose Modal -->
 {% include 'modals/email_modal.html' %}
-
 {% endblock %}

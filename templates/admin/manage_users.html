@@ -1,230 +1,230 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header, empty_state %}
+
+{% block title %}Manage Users - Origen TechnolOG{% endblock %}
+{% block mobile_title %}Manage Users{% endblock %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-6xl mx-auto">
-        <!-- Back button -->
-        <button onclick="history.back()" class="flex items-center text-gray-600 hover:text-gray-800 mb-6">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-            </svg>
-            Back
-        </button>
+<style>
+    .role-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        padding: 0 10px;
+        font-size: 11.5px;
+        border-radius: 5px;
+        border: 1px solid var(--hairline-strong);
+        background: var(--paper);
+        color: var(--ink);
+        font-weight: 500;
+        line-height: 1;
+        letter-spacing: -0.005em;
+        cursor: pointer;
+        transition: border-color 120ms ease, background 120ms ease;
+    }
+    .role-pill:hover { border-color: var(--ink-5); }
+    .role-pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ink-4);
+        flex-shrink: 0;
+    }
+    .role-pill.is-admin .dot { background: var(--accent); }
+    .role-pill.is-agent .dot { background: var(--positive); }
+    .role-select {
+        appearance: none;
+        background-color: transparent;
+        border: 0;
+        padding: 0 12px 0 0;
+        font-size: 11.5px;
+        font-weight: 500;
+        color: inherit;
+        cursor: pointer;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='currentColor' stroke-width='1.4'><path d='M3 5l3 3 3-3'/></svg>");
+        background-repeat: no-repeat;
+        background-position: right 0 center;
+        background-size: 10px 10px;
+    }
+    .role-select:focus { outline: none; }
+</style>
 
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
-            <h1 class="text-2xl font-bold text-gray-900">Manage Users</h1>
-            <a href="{{ url_for('auth.register') }}" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-center sm:text-left">
-                <i class="fas fa-plus mr-2"></i>Add New User
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1300px]">
+        <a href="javascript:history.back()"
+           class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span>Back</span>
+        </a>
+
+        {% set _title = 'Manage <em>Users</em>' %}
+        {% call page_header(_title, users|length ~ ' user' ~ ('s' if users|length != 1 else '') ~ ' across the platform.', 'Admin Tools') %}
+            <a href="{{ url_for('auth.register') }}" class="crm-btn crm-btn-accent">
+                <i class="fas fa-user-plus text-xs"></i>
+                Add new user
             </a>
-        </div>
+        {% endcall %}
 
-        <!-- Desktop Users Table (hidden on mobile) -->
-        <div class="hidden md:block bg-white rounded-lg shadow overflow-hidden">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            User
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Role
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Created At
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Last Login
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Contacts
-                        </th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Action Plan
-                        </th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions
-                        </th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for user in users %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <span class="text-blue-600 font-medium">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
-                                </div>
-                                <div class="ml-4">
-                                    <div class="text-sm font-medium text-gray-900">
-                                        {{ user.first_name }} {{ user.last_name }}
-                                    </div>
-                                    <div class="text-sm text-gray-500">
-                                        {{ user.email }}
-                                    </div>
-                                    <div class="text-xs text-gray-400">
-                                        @{{ user.username }}
+        {% if users %}
+        <section class="crm-surface">
+            {# ── Desktop table ─────────────────────────────── #}
+            <div class="hidden md:block crm-table-wrap" style="border: none; border-radius: 0;">
+                <table class="crm-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th>Last login</th>
+                            <th class="text-right">Contacts</th>
+                            <th>Action plan</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <span class="crm-avatar crm-avatar-sm">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
+                                    <div class="min-w-0">
+                                        <div class="crm-table-link">{{ user.first_name }} {{ user.last_name }}</div>
+                                        <div class="text-xs" style="color: var(--ink-4);">{{ user.email }}</div>
+                                        <div class="text-[10.5px] crm-mono" style="color: var(--ink-5);">@{{ user.username }}</div>
                                     </div>
                                 </div>
+                            </td>
+                            <td>
+                                <form method="POST" action="{{ url_for('auth.update_user_role', user_id=user.id) }}" class="inline-flex">
+                                    <span class="role-pill is-{{ user.role }}">
+                                        <span class="dot"></span>
+                                        <select name="role" onchange="this.form.submit()" class="role-select">
+                                            <option value="agent" {% if user.role == 'agent' %}selected{% endif %}>Agent</option>
+                                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                        </select>
+                                    </span>
+                                </form>
+                            </td>
+                            <td>{{ format_datetime(user.created_at) }}</td>
+                            <td>{{ format_datetime(user.last_login) }}</td>
+                            <td class="text-right tnum">{{ user.contacts|length }}</td>
+                            <td>
+                                {% if action_plan_status.get(user.id) %}
+                                <a href="{{ url_for('auth.view_user_action_plan', user_id=user.id) }}"
+                                   class="crm-badge crm-badge-success" style="text-decoration: none;">
+                                    <i class="fas fa-check text-[9px] mr-1"></i>
+                                    Completed
+                                </a>
+                                {% else %}
+                                <span class="crm-badge">
+                                    <i class="far fa-clock text-[10px] mr-1"></i>
+                                    Not started
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right">
+                                <div class="flex justify-end items-center gap-1.5">
+                                    <a href="{{ url_for('auth.edit_user', user_id=user.id) }}"
+                                       class="crm-btn crm-btn-secondary crm-btn-sm">
+                                        <i class="fas fa-pencil-alt"></i>
+                                        Edit
+                                    </a>
+                                    {% if user.id != current_user.id %}
+                                    <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" class="inline">
+                                        <button type="submit"
+                                                onclick="return confirm('Delete this user? This cannot be undone.')"
+                                                class="crm-btn crm-btn-danger crm-btn-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {# ── Mobile cards ──────────────────────────────── #}
+            <div class="md:hidden divide-y" style="border-color: var(--hairline);">
+                {% for user in users %}
+                <div class="px-5 py-4">
+                    <div class="flex items-center justify-between gap-3 mb-3">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="crm-avatar crm-avatar-sm">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
+                            <div class="min-w-0">
+                                <div class="text-sm font-medium truncate" style="color: var(--ink);">{{ user.first_name }} {{ user.last_name }}</div>
+                                <div class="text-xs truncate" style="color: var(--ink-4);">{{ user.email }}</div>
                             </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <form method="POST" action="{{ url_for('auth.update_user_role', user_id=user.id) }}" class="inline-flex">
-                                <select name="role" 
-                                        onchange="this.form.submit()"
-                                        class="text-sm rounded-full px-3 py-1 font-medium
-                                        {% if user.role == 'admin' %}
-                                            bg-purple-100 text-purple-800
-                                        {% else %}
-                                            bg-green-100 text-green-800
-                                        {% endif %}
-                                        border-0 cursor-pointer hover:bg-opacity-75">
+                        </div>
+                        <form method="POST" action="{{ url_for('auth.update_user_role', user_id=user.id) }}">
+                            <span class="role-pill is-{{ user.role }}">
+                                <span class="dot"></span>
+                                <select name="role" onchange="this.form.submit()" class="role-select">
                                     <option value="agent" {% if user.role == 'agent' %}selected{% endif %}>Agent</option>
                                     <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
                                 </select>
-                            </form>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ format_datetime(user.created_at) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ format_datetime(user.last_login) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ user.contacts|length }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            {% if action_plan_status.get(user.id) %}
-                            <a href="{{ url_for('auth.view_user_action_plan', user_id=user.id) }}" 
-                               class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 hover:bg-green-200 transition-colors">
-                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                </svg>
-                                Completed
-                            </a>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Not Started
                             </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div class="flex justify-end space-x-3">
-                                <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" 
-                                   class="text-blue-600 hover:text-blue-900">
-                                    Edit
+                        </form>
+                    </div>
+
+                    <dl class="grid grid-cols-2 gap-3 text-xs pt-3" style="border-top: 1px solid var(--hairline);">
+                        <div>
+                            <dt class="crm-eyebrow mb-1">Created</dt>
+                            <dd style="color: var(--ink);">{{ format_datetime(user.created_at) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="crm-eyebrow mb-1">Last login</dt>
+                            <dd style="color: var(--ink);">{{ format_datetime(user.last_login) }}</dd>
+                        </div>
+                        <div>
+                            <dt class="crm-eyebrow mb-1">Contacts</dt>
+                            <dd class="tnum" style="color: var(--ink);">{{ user.contacts|length }}</dd>
+                        </div>
+                        <div>
+                            <dt class="crm-eyebrow mb-1">Action plan</dt>
+                            <dd>
+                                {% if action_plan_status.get(user.id) %}
+                                <a href="{{ url_for('auth.view_user_action_plan', user_id=user.id) }}"
+                                   class="inline-flex items-center gap-1" style="color: var(--positive);">
+                                    <i class="fas fa-check text-[10px]"></i> Done
                                 </a>
-                                {% if user.id != current_user.id %}
-                                <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" class="inline">
-                                    <button type="submit" 
-                                            onclick="return confirm('Are you sure you want to delete this user?')"
-                                            class="text-red-600 hover:text-red-900">
-                                        Delete
-                                    </button>
-                                </form>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Mobile User Cards (hidden on desktop) -->
-        <div class="md:hidden space-y-4">
-            {% for user in users %}
-            <div class="bg-white rounded-lg shadow p-4">
-                <!-- User Header -->
-                <div class="flex items-center justify-between mb-3">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0 h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <span class="text-blue-600 font-medium text-lg">{{ user.first_name[0] }}{{ user.last_name[0] }}</span>
-                        </div>
-                        <div class="ml-3">
-                            <div class="text-base font-medium text-gray-900">
-                                {{ user.first_name }} {{ user.last_name }}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                {{ user.email }}
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Role Badge -->
-                    <form method="POST" action="{{ url_for('auth.update_user_role', user_id=user.id) }}">
-                        <select name="role" 
-                                onchange="this.form.submit()"
-                                class="text-sm rounded-full px-3 py-1 font-medium
-                                {% if user.role == 'admin' %}
-                                    bg-purple-100 text-purple-800
                                 {% else %}
-                                    bg-green-100 text-green-800
+                                <span style="color: var(--ink-4);">Not started</span>
                                 {% endif %}
-                                border-0 cursor-pointer">
-                            <option value="agent" {% if user.role == 'agent' %}selected{% endif %}>Agent</option>
-                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
-                        </select>
-                    </form>
-                </div>
+                            </dd>
+                        </div>
+                    </dl>
 
-                <!-- User Details Grid -->
-                <div class="grid grid-cols-2 gap-3 text-sm border-t border-gray-100 pt-3 mb-3">
-                    <div>
-                        <span class="text-gray-500">Created:</span>
-                        <span class="text-gray-700 ml-1">{{ format_datetime(user.created_at) }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">Last Login:</span>
-                        <span class="text-gray-700 ml-1">{{ format_datetime(user.last_login) }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">Contacts:</span>
-                        <span class="text-gray-700 ml-1 font-medium">{{ user.contacts|length }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500">Action Plan:</span>
-                        {% if action_plan_status.get(user.id) %}
-                        <a href="{{ url_for('auth.view_user_action_plan', user_id=user.id) }}" 
-                           class="inline-flex items-center ml-1 text-green-600 font-medium">
-                            <svg class="w-3.5 h-3.5 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                            </svg>
-                            Done
+                    <div class="flex items-center justify-end gap-1.5 pt-3 mt-3" style="border-top: 1px solid var(--hairline);">
+                        <a href="{{ url_for('auth.edit_user', user_id=user.id) }}"
+                           class="crm-btn crm-btn-secondary crm-btn-sm">
+                            <i class="fas fa-pencil-alt"></i> Edit
                         </a>
-                        {% else %}
-                        <span class="text-gray-400 ml-1">Not Started</span>
+                        {% if user.id != current_user.id %}
+                        <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" class="inline">
+                            <button type="submit"
+                                    onclick="return confirm('Delete this user? This cannot be undone.')"
+                                    class="crm-btn crm-btn-danger crm-btn-sm">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
                         {% endif %}
                     </div>
                 </div>
-
-                <!-- Actions -->
-                <div class="flex items-center justify-end space-x-4 border-t border-gray-100 pt-3">
-                    <a href="{{ url_for('auth.edit_user', user_id=user.id) }}" 
-                       class="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                        Edit
-                    </a>
-                    {% if user.id != current_user.id %}
-                    <form method="POST" action="{{ url_for('auth.delete_user', user_id=user.id) }}" class="inline">
-                        <button type="submit" 
-                                onclick="return confirm('Are you sure you want to delete this user?')"
-                                class="flex items-center text-red-600 hover:text-red-800 text-sm font-medium">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                            </svg>
-                            Delete
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
+        </section>
+        {% else %}
+        {% call empty_state('No users yet', 'Add your first user to get started.', 'fa-users') %}
+            <a href="{{ url_for('auth.register') }}" class="crm-btn crm-btn-accent">
+                <i class="fas fa-user-plus text-xs"></i>
+                Add new user
+            </a>
+        {% endcall %}
+        {% endif %}
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

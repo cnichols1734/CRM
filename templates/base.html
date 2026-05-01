@@ -6,6 +6,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Origen TechnolOG{% endblock %}</title>
+    <!-- Theme guard: applies stored theme before any paint to avoid FOUC. -->
+    <script>
+        (function () {
+            try {
+                var stored = localStorage.getItem('crm-theme');
+                if (!stored) {
+                    stored = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
     <!-- Include Tailwind CSS from CDN -->
@@ -48,6 +60,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap"
         rel="stylesheet">
+    <!-- Atelier type system: Geist (UI), Instrument Serif (display), JetBrains Mono (data). -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Add AI Chat Widget styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
     <!-- Local app bundle for progressive frontend rewrite -->
@@ -729,44 +744,39 @@
             font-size: 0.8rem;
         }
 
-        /* ------- KPI card with chart slot ------- */
-        .crm-kpi {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
-        }
-
+        /* ------- KPI card with chart slot (Atelier-aligned) ------- */
         .crm-kpi__main {
             display: flex;
-            gap: 0.75rem;
+            gap: 0.875rem;
             min-width: 0;
+            align-items: flex-start;
         }
 
         .crm-kpi__icon {
             flex-shrink: 0;
-            height: 2.25rem;
-            width: 2.25rem;
-            border-radius: 0.5rem;
+            height: 2rem;
+            width: 2rem;
+            border-radius: var(--radius);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.95rem;
+            font-size: 0.85rem;
+            background: var(--paper-2);
+            color: var(--ink-3);
+            border: 1px solid var(--hairline);
         }
 
-        .crm-kpi__icon--blue {
-            background: #eff6ff;
-            color: #3b82f6;
+        .crm-kpi__icon--blue,
+        .crm-kpi__icon--slate {
+            background: var(--info-soft);
+            color: var(--info);
+            border-color: transparent;
         }
 
         .crm-kpi__icon--peach {
-            background: #fff1e6;
-            color: #f97316;
-        }
-
-        .crm-kpi__icon--slate {
-            background: #eff6ff;
-            color: #3b82f6;
+            background: var(--accent-soft);
+            color: var(--accent-ink);
+            border-color: transparent;
         }
 
         .crm-sparkline {
@@ -774,11 +784,11 @@
             width: 6.5rem;
             height: 2.5rem;
             align-self: center;
-            color: #3b82f6;
+            color: var(--info);
         }
 
         .crm-sparkline--orange {
-            color: #f97316;
+            color: var(--accent);
         }
 
         .toast-message {
@@ -881,6 +891,1071 @@
             height: 20px;
         }
     </style>
+    <!-- ============================================================
+         ATELIER — system-wide skin overrides + dark mode
+         These rules re-color the legacy Tailwind/DaisyUI utility classes
+         so every page picks up the editorial palette without rewrites.
+         ============================================================ -->
+    <style>
+        /* Editorial body type */
+        body {
+            font-family: "Geist", "Inter Tight", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif !important;
+            background: var(--canvas) !important;
+            color: var(--ink);
+            font-feature-settings: "ss01", "cv11";
+        }
+
+        /* ====== ATELIER SHELL ======
+           Replace the dark-slate shell with the warm Atelier canvas.
+           Sidebar + topbar are now light, with hairline rules. */
+        body.crm-shell {
+            background: var(--canvas) !important;
+        }
+        header.crm-topbar {
+            background: var(--canvas) !important;
+            border-bottom: 1px solid var(--hairline) !important;
+            color: var(--ink) !important;
+        }
+        header.crm-topbar img.crm-header-logo,
+        header.crm-topbar .crm-header-logo img {
+            filter: none;
+        }
+
+        /* Sidebar — light canvas, hairline divider, ink-rail on active */
+        aside.crm-sidebar,
+        .crm-sidebar {
+            background: var(--canvas) !important;
+            color: var(--ink-2) !important;
+            border-right: 1px solid var(--hairline) !important;
+        }
+        .crm-sidebar-toggle {
+            color: var(--ink-3) !important;
+        }
+        .crm-sidebar-toggle:hover {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+        .crm-nav-link {
+            color: var(--ink-2) !important;
+            font-size: 0.8125rem !important;
+            font-weight: 500 !important;
+            position: relative;
+        }
+        .crm-nav-link i {
+            color: var(--ink-3) !important;
+            font-size: 0.85rem !important;
+        }
+        .crm-nav-link:hover {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+        .crm-nav-link:hover i { color: var(--ink-2) !important; }
+        .crm-nav-link.is-active {
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+            box-shadow: inset 0 0 0 1px var(--hairline);
+        }
+        .crm-nav-link.is-active::before {
+            content: "";
+            position: absolute;
+            left: -0.5rem;
+            top: 0.45rem;
+            bottom: 0.45rem;
+            width: 2px;
+            background: var(--ink);
+            border-radius: 2px;
+        }
+        .crm-nav-link.is-active i { color: var(--ink) !important; }
+
+        /* Sidebar nav sections */
+        .crm-nav-section { display: flex; flex-direction: column; gap: 1px; }
+        .crm-nav-section + .crm-nav-section { margin-top: 12px; }
+        .crm-nav-label {
+            font-size: 9.5px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--ink-4) !important;
+            font-weight: 500;
+            padding: 8px 8px 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.18s ease;
+        }
+        /* When the sidebar is collapsed, hide labels but keep section spacing.
+           A short top border becomes the visual divider in the collapsed state. */
+        html:not(.sidebar-expanded) .crm-nav-label {
+            opacity: 0;
+            height: 0;
+            padding: 0;
+            margin: 0;
+            pointer-events: none;
+        }
+        html:not(.sidebar-expanded) .crm-nav-section + .crm-nav-section {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--hairline);
+        }
+        /* Platform admin link — accent ember */
+        .crm-nav-link--accent {
+            color: var(--accent-ink) !important;
+        }
+        .crm-nav-link--accent i { color: var(--accent) !important; }
+        .crm-nav-link--accent:hover { background: var(--accent-soft) !important; color: var(--accent-ink) !important; }
+        .crm-sidebar-profile {
+            color: var(--ink) !important;
+        }
+        .crm-sidebar-profile:hover {
+            background: var(--paper-2) !important;
+        }
+        /* Force the user-chip name + "View profile" + chevron to ink colors,
+           regardless of the inline text-white / text-slate-* classes. */
+        .crm-sidebar-profile-text { color: var(--ink) !important; }
+        .crm-sidebar-profile-text > span:first-child,
+        .crm-sidebar-profile-text .text-white {
+            color: var(--ink) !important;
+            font-weight: 500 !important;
+        }
+        .crm-sidebar-profile-text > span:nth-child(2),
+        .crm-sidebar-profile-text .text-slate-400,
+        .crm-sidebar-profile-text .text-slate-300,
+        .crm-sidebar-profile-text [class*="text-slate"] {
+            color: var(--ink-3) !important;
+        }
+        .crm-sidebar-profile-chevron,
+        .crm-sidebar-profile-chevron.text-slate-400 {
+            color: var(--ink-4) !important;
+        }
+        .crm-sidebar-avatar {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border-radius: 9999px !important;
+            font-family: "Geist", "Inter Tight", -apple-system, sans-serif !important;
+            font-weight: 600 !important;
+            font-size: 0.75rem !important;
+            letter-spacing: 0.02em !important;
+            height: 1.875rem !important;
+            width: 1.875rem !important;
+            text-transform: uppercase;
+        }
+        .crm-sidebar-footer {
+            border-top: 1px solid var(--hairline) !important;
+        }
+        #sidebarNav::-webkit-scrollbar-thumb {
+            background: var(--hairline-strong) !important;
+        }
+        #sidebarNav { scrollbar-color: var(--hairline-strong) transparent !important; }
+
+        #sidebar-tooltip {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border-radius: var(--radius) !important;
+        }
+
+        /* Main working area */
+        main#mainContent {
+            background: var(--canvas);
+            color: var(--ink);
+        }
+        .content-wrapper {
+            background: var(--canvas) !important;
+        }
+
+        /* Mobile header — light too */
+        header.text-white.bg-slate-950,
+        header.bg-slate-950 {
+            background: var(--canvas) !important;
+            color: var(--ink) !important;
+            border-bottom: 1px solid var(--hairline) !important;
+        }
+        header.bg-slate-950 .text-white,
+        header.text-white .text-white { color: var(--ink) !important; }
+        #mobileMenuToggle { color: var(--ink) !important; }
+        #mobileMenuToggle:hover { background: var(--paper-2) !important; }
+
+        /* User dropdown menu */
+        .crm-user-dropdown {
+            background: var(--paper) !important;
+            border: 1px solid var(--hairline) !important;
+            color: var(--ink);
+            box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.20), 0 4px 14px -6px oklch(0% 0 0 / 0.10);
+        }
+
+        /* Generic utility overrides: re-skin Tailwind classes via tokens.
+           We use small specificity boosts (no !important spam) so one-off
+           inline overrides still win where intentional. */
+
+        /* Surfaces */
+        .bg-white { background-color: var(--paper); }
+        .bg-slate-50, .bg-gray-50 { background-color: var(--paper-2); }
+        .bg-slate-100, .bg-gray-100 { background-color: var(--paper-2); }
+        .bg-slate-200, .bg-gray-200 { background-color: var(--paper-3); }
+        .bg-orange-50 { background-color: var(--accent-soft); }
+        .bg-emerald-50, .bg-green-50 { background-color: var(--positive-soft); }
+        .bg-amber-50, .bg-yellow-50 { background-color: var(--warn-soft); }
+        .bg-sky-50, .bg-blue-50 { background-color: var(--info-soft); }
+        .bg-red-50, .bg-rose-50 { background-color: var(--danger-soft); }
+
+        /* Text — !important wins over inline DaisyUI/utility cascades.
+           Without this, dark-mode form labels render as a dim purple-blue. */
+        .text-slate-950, .text-gray-950, .text-black,
+        .text-zinc-900, .text-zinc-950, .text-neutral-900, .text-neutral-950 { color: var(--ink) !important; }
+        .text-slate-900, .text-gray-900,
+        .text-zinc-800, .text-neutral-800 { color: var(--ink) !important; }
+        .text-slate-800, .text-gray-800,
+        .text-zinc-700, .text-neutral-700 { color: var(--ink-2) !important; }
+        .text-slate-700, .text-gray-700 { color: var(--ink-2) !important; }
+        .text-slate-600, .text-gray-600,
+        .text-zinc-600, .text-neutral-600 { color: var(--ink-3) !important; }
+        .text-slate-500, .text-gray-500,
+        .text-zinc-500, .text-neutral-500 { color: var(--ink-3) !important; }
+        .text-slate-400, .text-gray-400,
+        .text-zinc-400, .text-neutral-400 { color: var(--ink-4) !important; }
+        .text-slate-300, .text-gray-300,
+        .text-zinc-300, .text-neutral-300 { color: var(--ink-5) !important; }
+        .text-white { color: var(--paper) !important; }
+        .text-orange-600, .text-orange-700 { color: var(--accent-ink) !important; }
+        .text-orange-500, .text-orange-400 { color: var(--accent) !important; }
+        .text-emerald-600, .text-emerald-700, .text-green-600, .text-green-700 { color: var(--positive) !important; }
+        .text-sky-600, .text-sky-700, .text-blue-600, .text-blue-700, .text-blue-500, .text-indigo-600 { color: var(--info) !important; }
+        .text-amber-600, .text-amber-700, .text-yellow-600 { color: var(--warn) !important; }
+        .text-red-600, .text-red-700, .text-rose-600 { color: var(--danger) !important; }
+        .text-blue-100, .text-blue-200, .text-blue-300 { color: var(--ink-3) !important; }
+
+        /* Form labels — be explicit so dark mode never goes dim-blue */
+        label, .crm-form-label {
+            color: var(--ink-2);
+        }
+        [data-theme="dark"] label,
+        [data-theme="dark"] .crm-form-label {
+            color: var(--ink-2) !important;
+        }
+
+        /* Dark-mode primary button — soften the stark white */
+        [data-theme="dark"] .crm-btn-primary,
+        [data-theme="dark"] a.bg-slate-900,
+        [data-theme="dark"] a.bg-slate-950,
+        [data-theme="dark"] button.bg-slate-900,
+        [data-theme="dark"] button.bg-slate-950 {
+            background: var(--ink-2) !important;
+            color: var(--canvas) !important;
+            border-color: var(--ink-2) !important;
+        }
+        [data-theme="dark"] .crm-btn-primary:hover {
+            background: var(--ink) !important;
+            border-color: var(--ink) !important;
+        }
+
+        /* Tailwind utility background overrides — !important so the runtime
+           Tailwind CDN doesn't trump them in dark mode. */
+        .bg-white { background-color: var(--paper) !important; }
+        .bg-slate-50, .bg-gray-50, .bg-zinc-50, .bg-neutral-50 { background-color: var(--paper-2) !important; }
+        .bg-slate-100, .bg-gray-100, .bg-zinc-100, .bg-neutral-100 { background-color: var(--paper-2) !important; }
+        .bg-slate-200, .bg-gray-200, .bg-zinc-200, .bg-neutral-200 { background-color: var(--paper-3) !important; }
+        .bg-orange-50, .bg-orange-100 { background-color: var(--accent-soft) !important; }
+        .bg-emerald-50, .bg-green-50 { background-color: var(--positive-soft) !important; }
+        .bg-amber-50, .bg-yellow-50 { background-color: var(--warn-soft) !important; }
+        .bg-sky-50, .bg-blue-50, .bg-indigo-50 { background-color: var(--info-soft) !important; }
+        .bg-red-50, .bg-rose-50 { background-color: var(--danger-soft) !important; }
+        .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950,
+        .bg-zinc-800, .bg-zinc-900, .bg-neutral-800, .bg-neutral-900 { background-color: var(--ink) !important; }
+
+        /* Modal backdrops — kill the "blue tint" by forcing a clean ink scrim.
+           Tailwind's bg-slate-900/50 in dark mode blends with the dark canvas
+           in an unflattering way. Pure ink with alpha reads correctly. */
+        .bg-black, .bg-slate-900\/50, .bg-slate-900\/40, .bg-slate-900\/60, .bg-slate-900\/70, .bg-slate-900\/75,
+        .bg-black\/50, .bg-black\/40, .bg-black\/60, .bg-black\/70, .bg-black\/75,
+        .bg-opacity-50, .bg-opacity-60, .bg-opacity-70, .bg-opacity-75 {
+            background-color: oklch(0% 0 0 / 0.55) !important;
+        }
+        .bg-black.bg-opacity-50, .bg-black.bg-opacity-40, .bg-black.bg-opacity-60 {
+            background-color: oklch(0% 0 0 / 0.55) !important;
+        }
+        /* Make sure modal panels themselves stay paper, not dim blue */
+        [class*="rounded-md"][class*="border"][class*="bg-white"],
+        [class*="rounded-lg"][class*="border"][class*="bg-white"],
+        [class*="rounded-xl"][class*="border"][class*="bg-white"] {
+            background-color: var(--paper) !important;
+        }
+
+        /* Pagination active page — softer in dark mode */
+        .crm-pager button[aria-current="page"],
+        .pagination .active, .pagination .is-active {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border-color: var(--ink) !important;
+        }
+        [data-theme="dark"] .crm-pager button[aria-current="page"],
+        [data-theme="dark"] .pagination .active,
+        [data-theme="dark"] .pagination .is-active {
+            background: var(--paper-3) !important;
+            color: var(--ink) !important;
+            border-color: var(--hairline-strong) !important;
+        }
+
+        /* Search result rows / typeahead dropdowns — neutral hover */
+        .search-result-item,
+        [class*="search-result"],
+        [class*="dropdown"] li, [class*="dropdown"] a, [class*="dropdown"] button {
+            color: var(--ink);
+        }
+        .search-result-item:hover,
+        [class*="search-result"]:hover,
+        .search-result-item.active, .search-result-item.is-active,
+        .search-result-item.highlighted, .search-result-item.is-highlighted {
+            background-color: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+
+        /* Selected/active card states (.tx-create-card.selected, .ownership-card.selected, etc.)
+           used to be hardcoded orange. Map to accent-soft. */
+        .tx-create-card.selected,
+        .ownership-card.selected,
+        .type-card.selected,
+        [class*="-card"].selected {
+            border-color: var(--accent) !important;
+            background: var(--accent-soft) !important;
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+            color: var(--accent-ink) !important;
+        }
+        .tx-create-card.selected *,
+        .ownership-card.selected * {
+            color: inherit;
+        }
+
+        /* Borders — !important so the runtime Tailwind CDN can't trump them.
+           Without this, dark-mode renders white-ish 1px borders that scream. */
+        .border, .border-slate-200, .border-slate-100,
+        .border-gray-200, .border-gray-100,
+        .border-zinc-200, .border-neutral-200, .border-stone-200 {
+            border-color: var(--hairline) !important;
+        }
+        .divide-slate-100 > * + *, .divide-slate-200 > * + *,
+        .divide-gray-100 > * + *, .divide-gray-200 > * + * {
+            border-color: var(--hairline) !important;
+        }
+        .border-slate-300, .border-slate-400, .border-gray-300, .border-gray-400,
+        .border-zinc-300, .border-neutral-300 {
+            border-color: var(--hairline-strong) !important;
+        }
+        .border-slate-700, .border-slate-800, .border-slate-900 {
+            border-color: var(--hairline-strong) !important;
+        }
+        .border-orange-500, .border-orange-600 { border-color: var(--accent) !important; }
+        .border-emerald-200, .border-green-200 { border-color: var(--hairline) !important; }
+        .border-amber-200, .border-yellow-200 { border-color: var(--hairline) !important; }
+        .border-red-200, .border-rose-200 { border-color: var(--hairline) !important; }
+        .border-blue-200, .border-sky-200, .border-indigo-200 { border-color: var(--hairline) !important; }
+
+        /* Hover states (Tailwind hover utilities) — !important to win the cascade */
+        .hover\:bg-slate-50:hover, .hover\:bg-gray-50:hover { background-color: var(--paper-2) !important; }
+        .hover\:bg-slate-100:hover, .hover\:bg-gray-100:hover { background-color: var(--paper-2) !important; }
+        .hover\:bg-slate-200:hover, .hover\:bg-gray-200:hover { background-color: var(--paper-3) !important; }
+        .hover\:bg-orange-50:hover, .hover\:bg-orange-100:hover { background-color: var(--accent-soft) !important; }
+        .hover\:bg-white:hover { background-color: var(--paper) !important; }
+        .hover\:text-slate-900:hover, .hover\:text-gray-900:hover { color: var(--ink) !important; }
+        .hover\:text-slate-700:hover, .hover\:text-gray-700:hover { color: var(--ink-2) !important; }
+        .hover\:text-orange-700:hover, .hover\:text-orange-600:hover { color: var(--accent-ink) !important; }
+        .hover\:border-slate-300:hover, .hover\:border-gray-300:hover { border-color: var(--ink-5) !important; }
+        .hover\:border-orange-400:hover { border-color: var(--accent-line) !important; }
+        .hover\:border-orange-500:hover { border-color: var(--accent) !important; }
+
+        /* Inputs/selects/textareas: pick up theme by default */
+        input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not(.crm-search):not(.crm-input):not(.crm-textarea),
+        select:not(.crm-select),
+        textarea:not(.crm-textarea) {
+            background-color: var(--paper);
+            color: var(--ink);
+            border-color: var(--hairline);
+        }
+        input::placeholder, textarea::placeholder { color: var(--ink-4); }
+
+        /* Cards using rounded-md/lg/xl with white bg (common pattern) */
+        .rounded-md.bg-white,
+        .rounded-lg.bg-white,
+        .rounded-xl.bg-white,
+        .rounded-2xl.bg-white,
+        .shadow-panel { background-color: var(--paper); }
+
+        /* DaisyUI common selectors (a few that show up) */
+        .card { background-color: var(--paper); border-color: var(--hairline); color: var(--ink); }
+        .badge-outline { border-color: var(--hairline); color: var(--ink-2); }
+        .menu li > * { color: var(--ink-2); }
+        .menu li > *:hover, .menu li > *:focus { background-color: var(--paper-2); color: var(--ink); }
+        .modal-box { background-color: var(--paper); color: var(--ink); border: 1px solid var(--hairline); }
+
+        /* NProgress accent → ember */
+        #nprogress .bar { background: var(--accent) !important; }
+        #nprogress .peg { box-shadow: 0 0 14px var(--accent), 0 0 8px var(--accent); }
+
+        /* Topbar utility controls — picked up via tokens */
+        .crm-utility-search input {
+            background: var(--paper);
+            color: var(--ink);
+            border-color: var(--hairline);
+        }
+        .crm-utility-search input::placeholder { color: var(--ink-4); }
+        .crm-utility-search input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .crm-utility-search .search-icon { color: var(--ink-4); }
+
+        .crm-utility-btn,
+        .crm-utility-icon-btn {
+            background: var(--paper);
+            color: var(--ink);
+            border-color: var(--hairline);
+        }
+        .crm-utility-btn:hover,
+        .crm-utility-icon-btn:hover {
+            background: var(--paper-2);
+            color: var(--ink);
+        }
+
+        .crm-utility-btn .assistant-star { color: var(--accent); }
+
+        .crm-search-results,
+        .crm-notification-popover {
+            background: var(--paper);
+            color: var(--ink);
+            border-color: var(--hairline);
+            box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.20), 0 4px 14px -6px oklch(0% 0 0 / 0.10);
+        }
+        .crm-search-group + .crm-search-group { border-top-color: var(--hairline); }
+        .crm-search-group-label { color: var(--ink-4); }
+        .crm-search-item { color: var(--ink); }
+        .crm-search-item:hover, .crm-search-item.is-active { background: var(--paper-2); }
+        .crm-search-item__icon { background: var(--paper-2); color: var(--ink-3); }
+        .crm-search-item__title { color: var(--ink); }
+        .crm-search-item__subtitle { color: var(--ink-3); }
+        .crm-search-item mark { background: var(--accent-soft); color: var(--accent-ink); }
+        .crm-search-type-pill { background: var(--paper-2); color: var(--ink-3); }
+
+        .crm-notif-header { border-bottom-color: var(--hairline); }
+        .crm-notif-header__title { color: var(--ink); }
+        .crm-notif-header__action { color: var(--accent-ink); }
+        .crm-notif-header__action:hover { background: var(--accent-soft); }
+        .crm-notif-header__action--danger { color: var(--ink-3); }
+        .crm-notif-header__action--danger:hover { color: var(--danger); background: var(--danger-soft); }
+        .crm-notif-list::-webkit-scrollbar-thumb { background: var(--hairline-strong); }
+        .crm-notif-item { border-bottom-color: var(--hairline); }
+        .crm-notif-item:hover { background: var(--paper-2); }
+        .crm-notif-item.is-unread { background: var(--accent-soft); border-left-color: var(--accent); }
+        .crm-notif-item.is-unread:hover { background: var(--accent-soft); }
+        .crm-notif-item__icon { background: var(--paper-2); color: var(--ink-3); }
+        .crm-notif-item.is-unread .crm-notif-item__icon { background: var(--accent-line); color: var(--accent-ink); }
+        .crm-notif-item__title { color: var(--ink); }
+        .crm-notif-item__text { color: var(--ink-3); }
+        .crm-notif-item__time { color: var(--ink-4); }
+        .crm-notif-item.is-unread .crm-notif-item__time::before { background: var(--accent); }
+        .crm-notif-empty__icon { background: var(--paper-2); color: var(--ink-4); }
+        .crm-notif-empty__text { color: var(--ink-4); }
+        .crm-notif-footer { border-top-color: var(--hairline); color: var(--ink-3); }
+        .crm-notif-footer:hover { background: var(--paper-2); color: var(--ink); }
+        .crm-notif-badge {
+            background: var(--accent);
+            color: var(--accent-on);
+            box-shadow: 0 0 0 2px var(--canvas);
+        }
+
+        /* B.O.B. assistant button — keep dark, but follow tokens */
+        .bob-assistant-btn,
+        .bob-assistant-btn-mobile {
+            background: var(--ink);
+            color: var(--paper);
+            border-color: var(--ink-2);
+        }
+        .bob-assistant-btn:hover,
+        .bob-assistant-btn-mobile:hover {
+            background: var(--ink-2);
+            border-color: var(--ink-3);
+        }
+
+        /* Dark-mode tweaks for the dark sidebar (since shell is already dark,
+           push a touch lighter so it reads as elevated paper). */
+        [data-theme="dark"] .crm-search-results,
+        [data-theme="dark"] .crm-notification-popover {
+            box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.6), 0 4px 14px -6px oklch(0% 0 0 / 0.35);
+        }
+
+        /* Theme toggle — docked in topbar utility row */
+        .crm-theme-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 2.25rem;
+            width: 2.25rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--hairline);
+            background: var(--paper);
+            color: var(--ink-2);
+            transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+            cursor: pointer;
+        }
+        .crm-theme-btn:hover {
+            background: var(--paper-2);
+            color: var(--ink);
+            border-color: var(--ink-5);
+        }
+        .crm-theme-btn .crm-theme-btn__sun { display: none; }
+        .crm-theme-btn .crm-theme-btn__moon { display: inline; }
+        [data-theme="dark"] .crm-theme-btn .crm-theme-btn__sun { display: inline; }
+        [data-theme="dark"] .crm-theme-btn .crm-theme-btn__moon { display: none; }
+
+        /* Smooth transition when toggling */
+        html.crm-theme-transition,
+        html.crm-theme-transition * {
+            transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease !important;
+        }
+
+        /* ====== KILL GRADIENTS, NEUTRALIZE LEGACY BUTTONS ======
+           The Atelier design is flat. Strip every gradient, replace orange
+           Tailwind buttons with the ink-primary look. */
+
+        [class*="bg-gradient-to"],
+        [class*="from-blue"][class*="to-"],
+        [class*="from-orange"][class*="to-"],
+        [class*="from-indigo"][class*="to-"],
+        [class*="from-emerald"][class*="to-"],
+        [class*="from-rose"][class*="to-"],
+        [class*="from-purple"][class*="to-"],
+        [class*="from-slate-900"][class*="to-"] {
+            background-image: none !important;
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+        }
+        /* Banner-style hero gradients (auth profile, action plan) → ink panel */
+        .bg-gradient-to-r.from-blue-600,
+        .bg-gradient-to-r.from-blue-500,
+        .bg-gradient-to-br.from-blue-500,
+        .bg-gradient-to-br.from-blue-600,
+        .bg-gradient-to-r.from-orange-500,
+        .bg-gradient-to-br.from-orange-500,
+        .bg-gradient-to-br.from-orange-400,
+        .from-blue-600.via-blue-500.to-indigo-600,
+        .from-blue-500.via-indigo-500.to-purple-600 {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+        }
+        .from-blue-600 .text-white, .from-blue-500 .text-white,
+        .from-blue-600 .text-blue-100, .from-blue-600 .text-blue-200 {
+            color: var(--paper) !important;
+        }
+        /* Text-clipped gradient titles → solid ink */
+        .bg-clip-text.text-transparent {
+            background-image: none !important;
+            background: transparent !important;
+            color: var(--ink) !important;
+            -webkit-text-fill-color: var(--ink) !important;
+        }
+
+        /* Force every orange-button pattern to the Atelier accent button.
+           These overrides are aggressive on purpose — too many pages use
+           raw Tailwind utility classes for buttons. */
+        a.bg-orange-500, a.bg-orange-600, a.bg-orange-700,
+        button.bg-orange-500, button.bg-orange-600, button.bg-orange-700,
+        .inline-flex.bg-orange-500, .inline-flex.bg-orange-600,
+        a[class*="bg-orange-"][class*="text-white"],
+        button[class*="bg-orange-"][class*="text-white"] {
+            background: var(--accent) !important;
+            color: var(--accent-on) !important;
+            border: 1px solid var(--accent) !important;
+            box-shadow: none !important;
+            border-radius: var(--radius) !important;
+            font-weight: 500 !important;
+            transition: background 120ms ease, border-color 120ms ease;
+        }
+        a.bg-orange-500:hover, a.bg-orange-600:hover,
+        button.bg-orange-500:hover, button.bg-orange-600:hover,
+        a.hover\:bg-orange-600:hover, button.hover\:bg-orange-600:hover,
+        a.hover\:bg-orange-700:hover, button.hover\:bg-orange-700:hover {
+            background: var(--accent-ink) !important;
+            border-color: var(--accent-ink) !important;
+        }
+
+        /* Slate-900/950 buttons → ink primary */
+        a.bg-slate-900, a.bg-slate-950,
+        button.bg-slate-900, button.bg-slate-950 {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border: 1px solid var(--ink) !important;
+            border-radius: var(--radius) !important;
+        }
+        a.bg-slate-900:hover, button.bg-slate-900:hover,
+        a.hover\:bg-slate-800:hover, button.hover\:bg-slate-800:hover {
+            background: var(--ink-2) !important;
+            border-color: var(--ink-2) !important;
+        }
+
+        /* Pill/rounded-lg/rounded-xl buttons that are inline-flex with white text →
+           treat as primary buttons with our radius */
+        a[class*="rounded-lg"][class*="bg-orange-"],
+        button[class*="rounded-lg"][class*="bg-orange-"],
+        a[class*="rounded-xl"][class*="bg-orange-"],
+        button[class*="rounded-xl"][class*="bg-orange-"] {
+            border-radius: var(--radius) !important;
+        }
+
+        /* Heavy shadows → flat */
+        .shadow-xl, .shadow-2xl, .shadow-lg {
+            box-shadow: none !important;
+        }
+        .crm-surface, .crm-kpi, .crm-mi__kpi {
+            box-shadow: none !important;
+        }
+        /* Re-enable subtle shadow on dropdowns/popovers/modals only */
+        .crm-user-dropdown, .crm-search-results, .crm-notification-popover,
+        .modal-box, [role="dialog"] {
+            box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.18), 0 4px 14px -6px oklch(0% 0 0 / 0.08) !important;
+        }
+
+        /* Killed: heavy ring focus on cards (Tailwind 'shadow-xl shadow-slate-200/50') */
+        [class*="shadow-slate"], [class*="shadow-blue"], [class*="shadow-orange"] {
+            box-shadow: none !important;
+        }
+
+        /* "premium-card" pattern with rounded-2xl + shadow → Atelier surface */
+        .premium-card,
+        [class*="rounded-2xl"][class*="bg-white"][class*="shadow"] {
+            background: var(--paper) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius-lg) !important;
+            box-shadow: none !important;
+        }
+
+        /* Fonts in titles — force editorial heading style on common patterns */
+        h1.text-2xl, h1.text-3xl, h1.text-4xl,
+        h2.text-xl, h2.text-2xl, h2.text-3xl,
+        .crm-page-title,
+        .crm-section-title {
+            font-family: var(--font-serif) !important;
+            font-weight: 400 !important;
+            letter-spacing: -0.015em !important;
+            color: var(--ink) !important;
+        }
+
+        /* Make sure Tailwind 'font-bold' / 'font-extrabold' on display titles
+           don't override the serif by reverting them to medium where serif is on. */
+        h1.text-3xl.font-bold,
+        h1.text-2xl.font-bold,
+        h1.text-4xl.font-bold,
+        h1.text-3xl.font-extrabold,
+        h1.text-4xl.font-extrabold,
+        h2.text-2xl.font-bold,
+        h2.text-3xl.font-bold,
+        h2.text-xl.font-bold,
+        h2.text-xl.font-semibold,
+        h2.text-2xl.font-semibold {
+            font-weight: 400 !important;
+        }
+        /* Card-level h3/h4 titles inside surfaces */
+        h3.text-base.font-semibold,
+        h3.text-lg.font-semibold,
+        h3.text-sm.font-semibold {
+            color: var(--ink) !important;
+        }
+
+        /* Form input/select/textarea — pick up tokens with !important
+           (DaisyUI and inline styles were winning before) */
+        input.crm-input, input.crm-select, input.crm-search,
+        select.crm-select, textarea.crm-textarea,
+        .crm-input, .crm-select, .crm-textarea, .crm-search {
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+            border-color: var(--hairline) !important;
+        }
+        .crm-input:focus, .crm-select:focus, .crm-textarea:focus, .crm-search:focus,
+        input.crm-input:focus, select.crm-select:focus, textarea.crm-textarea:focus {
+            border-color: var(--ink-4) !important;
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+            outline: none !important;
+        }
+
+        /* Tailwind orange-checked checkbox/radio — accent token */
+        input[type="checkbox"]:checked, input[type="radio"]:checked {
+            accent-color: var(--accent);
+        }
+        .text-orange-500, .text-orange-600 { color: var(--accent-ink) !important; }
+
+        /* Dashed orange/blue borders → hairline + accent line */
+        .border-dashed.border-orange-200,
+        .border-dashed.border-orange-300,
+        .border-dashed.border-blue-200,
+        .border-dashed.border-blue-300 {
+            border-color: var(--hairline-strong) !important;
+        }
+
+        /* Orange rings (focus rings) → accent token */
+        .focus\:ring-orange-200:focus, .focus\:ring-orange-500:focus,
+        .focus\:ring-orange-500\/20:focus, .focus\:ring-orange-500\/30:focus {
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+        }
+
+        /* Tailwind "rounded-2xl" cards picked up by token but radius mismatches the design */
+        .rounded-xl { border-radius: 0.75rem; }
+        .rounded-2xl { border-radius: 0.875rem; }
+        .rounded-3xl { border-radius: 1rem; }
+
+        /* Page eyebrows — common patterns */
+        .text-xs.font-semibold.uppercase.tracking-\[0\.08em\],
+        .text-xs.uppercase.tracking-wider {
+            letter-spacing: 0.14em !important;
+            color: var(--ink-3) !important;
+            font-weight: 500 !important;
+            font-size: 10.5px !important;
+        }
+
+        /* Hide that orange "Action Plan" gradient hero rendering */
+        .bg-gradient-to-r.from-slate-900 { background: transparent !important; }
+
+        /* ====== B.O.B. AI ASSISTANT — full Atelier reskin ======
+           The widget ships its own ai_chat.css that uses gradient text and an
+           orange send button. We replace ALL of it with token-driven flat styles. */
+        .bob-panel {
+            --bob-panel-bg: var(--paper) !important;
+            --bob-border: var(--hairline) !important;
+            --bob-text: var(--ink) !important;
+            --bob-muted: var(--ink-3) !important;
+            --bob-orange: var(--accent) !important;
+            --bob-orange-dark: var(--accent-ink) !important;
+            --bob-orange-light: var(--accent-line) !important;
+            --bob-coral: var(--accent) !important;
+            --bob-navy: var(--ink) !important;
+            --bob-navy-dark: var(--ink) !important;
+            --bob-gradient: var(--accent) !important;
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+            border-left-color: var(--hairline) !important;
+        }
+        .bob-overlay { background: oklch(0% 0 0 / 0.4) !important; }
+
+        /* Header — kill the gradient brand text */
+        .bob-header,
+        .bob-header * { color: var(--ink); }
+        .bob-header { background: var(--paper) !important; border-bottom-color: var(--hairline) !important; }
+        .bob-header-title {
+            background: transparent !important;
+            background-image: none !important;
+            -webkit-background-clip: initial !important;
+            background-clip: initial !important;
+            -webkit-text-fill-color: var(--ink) !important;
+            color: var(--ink) !important;
+            font-family: var(--font-serif) !important;
+            font-weight: 400 !important;
+            letter-spacing: -0.015em !important;
+            font-size: 18px !important;
+        }
+        .bob-header-subtitle {
+            color: var(--ink-3) !important;
+            letter-spacing: 0.14em !important;
+            font-weight: 500 !important;
+        }
+        .bob-header-icon {
+            background: var(--paper-2) !important;
+            background-image: none !important;
+            color: var(--ink) !important;
+            border: 1px solid var(--hairline) !important;
+            box-shadow: none !important;
+        }
+        .bob-header-icon svg,
+        .bob-header-icon svg path,
+        .bob-header-icon svg * {
+            fill: var(--ink-2) !important;
+            color: var(--ink-2) !important;
+            stroke: none !important;
+        }
+        .bob-header-btn {
+            background: transparent !important;
+            color: var(--ink-3) !important;
+            border-radius: var(--radius) !important;
+        }
+        .bob-header-btn:hover {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+        .bob-header-btn.close:hover {
+            background: var(--danger-soft) !important;
+            color: var(--danger) !important;
+        }
+
+        /* Welcome state — kill the giant orange "B.O.B." */
+        .bob-welcome { background: var(--paper) !important; }
+        .bob-logo {
+            background: var(--paper-2) !important;
+            background-image: none !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: 50% !important;
+            box-shadow: none !important;
+        }
+        .bob-logo-glow,
+        .bob-panel [class*="glow"],
+        .bob-panel [class*="pulse"] {
+            display: none !important;
+            animation: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        .bob-logo svg,
+        .bob-logo svg path,
+        .bob-logo svg * {
+            fill: var(--ink-2) !important;
+            color: var(--ink-2) !important;
+            stroke: none !important;
+        }
+        .bob-title {
+            background: transparent !important;
+            background-image: none !important;
+            -webkit-background-clip: initial !important;
+            background-clip: initial !important;
+            -webkit-text-fill-color: var(--ink) !important;
+            color: var(--ink) !important;
+            font-family: var(--font-serif) !important;
+            font-weight: 400 !important;
+            letter-spacing: -0.02em !important;
+        }
+        .bob-subtitle { color: var(--ink-3) !important; font-weight: 500 !important; letter-spacing: 0 !important; }
+        .bob-tagline {
+            background: var(--paper-2) !important;
+            color: var(--ink-3) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius) !important;
+        }
+
+        /* Messages list — flat canvas */
+        .bob-messages {
+            background: var(--paper) !important;
+            background-image: none !important;
+        }
+        .bob-message.user {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            background-image: none !important;
+        }
+        .bob-message.assistant,
+        .bob-message:not(.user) {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+            border: 1px solid var(--hairline) !important;
+            background-image: none !important;
+        }
+
+        /* Quick actions — flat hairline pills */
+        .bob-quick-actions {
+            background: var(--paper) !important;
+            border-top-color: var(--hairline) !important;
+        }
+        .bob-quick-label {
+            color: var(--ink-3) !important;
+            letter-spacing: 0.14em !important;
+        }
+        .bob-quick-option {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius) !important;
+            background-image: none !important;
+        }
+        .bob-quick-option:hover {
+            background: var(--paper-3) !important;
+            border-color: var(--ink-5) !important;
+            color: var(--ink) !important;
+            background-image: none !important;
+        }
+
+        /* Input area + send button — ink primary */
+        .bob-input-area {
+            background: var(--paper) !important;
+            border-top-color: var(--hairline) !important;
+        }
+        .bob-input-container {
+            background: var(--paper-2) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius-lg) !important;
+        }
+        .bob-input-container:focus-within {
+            border-color: var(--ink-4) !important;
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+        }
+        .bob-textarea {
+            background: transparent !important;
+            color: var(--ink) !important;
+            border: none !important;
+        }
+        .bob-textarea::placeholder { color: var(--ink-4) !important; }
+        .bob-tool-btn {
+            background: transparent !important;
+            color: var(--ink-3) !important;
+            border-radius: var(--radius) !important;
+        }
+        .bob-tool-btn:hover {
+            background: var(--paper-3) !important;
+            color: var(--ink) !important;
+        }
+        .bob-send-btn {
+            background: var(--ink) !important;
+            background-image: none !important;
+            color: var(--paper) !important;
+            border-radius: var(--radius) !important;
+            box-shadow: none !important;
+            border: 1px solid var(--ink) !important;
+        }
+        .bob-send-btn:hover {
+            background: var(--ink-2) !important;
+            border-color: var(--ink-2) !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+        .bob-send-btn:disabled {
+            background: var(--paper-3) !important;
+            color: var(--ink-4) !important;
+            border-color: var(--hairline) !important;
+        }
+
+        /* History sidebar */
+        .bob-history-sidebar {
+            background: var(--paper-2) !important;
+            border-right-color: var(--hairline) !important;
+        }
+        .bob-history-header { border-bottom-color: var(--hairline) !important; }
+        .bob-new-chat-btn,
+        .bob-new-chat-btn-small {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            background-image: none !important;
+            border-radius: var(--radius) !important;
+            box-shadow: none !important;
+        }
+        .bob-history-list,
+        .bob-history-dropdown,
+        .bob-history-dropdown-list {
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+            border-color: var(--hairline) !important;
+        }
+        .bob-history-item {
+            background: var(--paper) !important;
+            border-color: var(--hairline) !important;
+            color: var(--ink-2) !important;
+        }
+        .bob-history-item:hover, .bob-history-item.active {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+
+        /* Mentions dropdown */
+        .bob-mentions-dropdown {
+            background: var(--paper) !important;
+            border-color: var(--hairline) !important;
+            box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.18) !important;
+        }
+        .bob-mention-item:hover, .bob-mention-item.active {
+            background: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+
+        /* Typing indicator dots */
+        .bob-typing-dot { background: var(--ink-4) !important; }
+
+        /* Image / file previews */
+        .bob-image-preview, .bob-file-preview {
+            background: var(--paper-3) !important;
+            border-color: var(--hairline) !important;
+            color: var(--ink-2) !important;
+        }
+
+        /* Topbar Assistant launch button — make ink */
+        #bob-toggle-desktop, #bob-toggle-mobile {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border-color: var(--ink) !important;
+        }
+        #bob-toggle-desktop:hover, #bob-toggle-mobile:hover {
+            background: var(--ink-2) !important;
+            border-color: var(--ink-2) !important;
+        }
+        #bob-toggle-desktop .assistant-star,
+        #bob-toggle-mobile svg {
+            color: var(--paper) !important;
+            fill: var(--paper) !important;
+        }
+
+        /* ====== TRANSACTION-TYPE ICON TILES ======
+           The bg-slate-100 tiles render slightly bluish; force exact paper-2. */
+        .tx-create-card .inline-flex.bg-slate-100,
+        .tx-type-grid .inline-flex.bg-slate-100,
+        [class*="bg-blue-50"][class*="rounded"],
+        [class*="bg-blue-100"][class*="rounded-lg"],
+        [class*="bg-orange-100"][class*="rounded-lg"],
+        [class*="bg-green-100"][class*="rounded-lg"],
+        [class*="bg-purple-100"][class*="rounded-lg"] {
+            background: var(--paper-2) !important;
+            color: var(--ink-2) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius) !important;
+        }
+        /* Step-icon tiles (Get Started cards) */
+        .crm-icon-block {
+            background: var(--paper-2) !important;
+            color: var(--ink-2) !important;
+            border: 1px solid var(--hairline) !important;
+            border-radius: var(--radius) !important;
+        }
+
+        /* ====== INPUT SHELLS ======
+           Make every native input render inside the new shell, including
+           the "rounded-xl" and "rounded-lg" patterns that bypass crm-input. */
+        input[type="text"]:not(.crm-input):not(.crm-search):not([class*="border-0"]),
+        input[type="email"]:not(.crm-input),
+        input[type="tel"]:not(.crm-input),
+        input[type="url"]:not(.crm-input),
+        input[type="number"]:not(.crm-input),
+        input[type="date"]:not(.crm-input),
+        input[type="search"]:not(.crm-input),
+        input[type="password"]:not(.crm-input),
+        select:not(.crm-select),
+        textarea:not(.crm-textarea) {
+            background: var(--paper) !important;
+            color: var(--ink) !important;
+            border-color: var(--hairline) !important;
+        }
+        input::placeholder, textarea::placeholder { color: var(--ink-4) !important; }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="tel"]:focus,
+        input[type="number"]:focus, input[type="date"]:focus, input[type="search"]:focus,
+        input[type="password"]:focus, select:focus, textarea:focus {
+            border-color: var(--ink-4) !important;
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+            outline: none !important;
+        }
+
+        /* Checkboxes inside groups (the form 'Groups' grid) — clean checkbox */
+        input[type="checkbox"], input[type="radio"] {
+            accent-color: var(--accent);
+        }
+
+        /* Form group cards / radio cards used in contact form */
+        .group-option, .checkbox-option,
+        label[class*="rounded-xl"][class*="border"] {
+            background: var(--paper) !important;
+            border-color: var(--hairline) !important;
+            color: var(--ink-2) !important;
+            border-radius: var(--radius) !important;
+        }
+        label[class*="rounded-xl"][class*="border"]:hover {
+            background: var(--paper-2) !important;
+            border-color: var(--ink-5) !important;
+            color: var(--ink) !important;
+        }
+        label[class*="rounded-xl"][class*="border"]:has(input:checked) {
+            background: var(--accent-soft) !important;
+            border-color: var(--accent) !important;
+            color: var(--accent-ink) !important;
+        }
+
+        /* Section/h2 labels with icon prefix (like "Groups (Select at least one)") */
+        h2 i.fas, h2 i.far, h2 svg, h3 i.fas, h3 i.far {
+            color: var(--ink-3) !important;
+        }
+    </style>
     <!-- Restore sidebar expand/collapse state before first paint to avoid FOUC. -->
     <script>
         (function () {
@@ -926,6 +2001,11 @@
                 <span>Assistant</span>
             </button>
             {% endif %}
+            <button type="button" id="crmThemeToggle" class="crm-theme-btn"
+                    aria-label="Toggle dark mode" title="Toggle theme">
+                <i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i>
+                <i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i>
+            </button>
             <div class="crm-notifications-wrap" id="crmNotificationsWrap">
                 <button type="button" id="crmNotificationsBtn" class="crm-utility-icon-btn crm-utility-icon-btn--bell"
                         aria-label="Notifications" aria-expanded="false" aria-controls="crmNotificationPopover">
@@ -989,6 +2069,12 @@
                 </svg>
             </button>
             {% endif %}
+            <button type="button" id="crmThemeToggleMobile" class="crm-theme-btn"
+                    aria-label="Toggle dark mode" title="Toggle theme"
+                    style="height:2rem;width:2rem;">
+                <i class="fas fa-moon crm-theme-btn__moon" aria-hidden="true"></i>
+                <i class="fas fa-sun crm-theme-btn__sun" aria-hidden="true"></i>
+            </button>
             <button id="mobileUserIcon" onclick="toggleMobileUserMenu()"
                 class="w-8 h-8 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm font-semibold">
                 {{ current_user.first_name[0] }}{{ current_user.last_name[0] }}
@@ -1270,126 +2356,147 @@
             </div>
 
             <!-- Scrollable Navigation -->
-            <nav class="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1" id="sidebarNav">
+            <nav class="flex-1 min-h-0 overflow-y-auto px-3 py-3" id="sidebarNav">
                 {% if current_user.is_authenticated %}
-                <a href="{{ url_for('main.dashboard') }}"
-                   class="crm-nav-link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Dashboard</span>
-                </a>
 
-                <a href="{{ url_for('main.contacts') }}"
-                   class="crm-nav-link {% if request.endpoint == 'main.contacts' or (request.endpoint and request.endpoint.startswith('contacts.')) %}is-active{% endif %}">
-                    <i class="fas fa-address-book"></i>
-                    <span>Contacts</span>
-                </a>
-
-                <a href="{{ url_for('inbound_email.inbox_home') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}is-active{% endif %}">
-                    <i class="fas fa-paper-plane"></i>
-                    <span>Magic Inbox</span>
-                </a>
-
-                {% if can_access_transactions(current_user) %}
-                <a href="{{ url_for('transactions.list_transactions') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('transactions.') %}is-active{% endif %}">
-                    <i class="fas fa-file-contract"></i>
-                    <span>Transactions</span>
-                </a>
-                <a href="{{ url_for('partner_directory.index') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('partner_directory.') %}is-active{% endif %}">
-                    <i class="fas fa-handshake"></i>
-                    <span>Partner Directory</span>
-                </a>
-                {% endif %}
-
-                <a href="{{ url_for('tasks.tasks') }}"
-                   class="crm-nav-link {% if request.endpoint == 'tasks.tasks' %}is-active{% endif %}">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>Tasks</span>
-                </a>
-
-                <a href="{{ url_for('user_todo.user_todo') }}"
-                   class="crm-nav-link {% if request.endpoint == 'user_todo.user_todo' %}is-active{% endif %}">
-                    <i class="fas fa-circle-check"></i>
-                    <span>To-Dos</span>
-                </a>
-
-                {% if org_has_feature('MARKETING') %}
-                <a href="{{ url_for('main.marketing') }}"
-                   class="crm-nav-link {% if request.endpoint == 'main.marketing' %}is-active{% endif %}">
-                    <i class="fas fa-bullhorn"></i>
-                    <span>Marketing</span>
-                </a>
-                {% endif %}
-
-                {% if can_access_reports(current_user) %}
-                <a href="{{ url_for('reports.landing') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}is-active{% endif %}">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Reports</span>
-                </a>
-                {% endif %}
-
-                {% if org_has_feature('TAX_PROTEST') %}
-                <a href="{{ url_for('tax_protest.index') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('tax_protest.') %}is-active{% endif %}">
-                    <i class="fas fa-gavel"></i>
-                    <span>Tax Protest</span>
-                </a>
-                {% endif %}
-
-                {% if org_has_feature('AI_ACTION_PLAN') %}
-                <a href="{{ url_for('action_plan.action_plan') }}"
-                   class="crm-nav-link {% if request.endpoint == 'action_plan.action_plan' %}is-active{% endif %}">
-                    <i class="fas fa-rocket"></i>
-                    <span>OG Action Plan</span>
-                </a>
-                {% endif %}
-
-                <a href="{{ url_for('company_updates.list_updates') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('company_updates.') %}is-active{% endif %}">
-                    <i class="fas fa-newspaper"></i>
-                    <span>Updates</span>
-                </a>
-
-                <!-- Agent Resources Accordion -->
-                <div class="pt-1" id="agentResourcesAccordion">
-                    <button id="agentResourcesBtn" type="button"
-                            class="crm-nav-link w-full"
-                            aria-controls="agentResourcesPanel" aria-expanded="false">
-                        <i class="fas fa-book"></i>
-                        <span>Resources</span>
-                        <i id="agentResourcesChevron" aria-hidden="true"
-                           class="fas fa-chevron-down text-[0.65rem] transition-transform duration-200 ml-auto"></i>
-                    </button>
-                    <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
-                         class="hidden mt-1 ml-6 pl-3 border-l border-slate-700">
-                        <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
-                    </div>
+                {# ── Workspace ── #}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">Workspace</div>
+                    <a href="{{ url_for('main.dashboard') }}"
+                       class="crm-nav-link {% if request.endpoint == 'main.dashboard' %}is-active{% endif %}">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Dashboard</span>
+                    </a>
                 </div>
 
-                <!-- Support -->
-                <button onclick="openContactUsModal('app')" type="button"
-                        class="crm-nav-link w-full">
-                    <i class="fas fa-hands-helping"></i>
-                    <span>Support</span>
-                </button>
+                {# ── People ── #}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">People</div>
+                    <a href="{{ url_for('main.contacts') }}"
+                       class="crm-nav-link {% if request.endpoint == 'main.contacts' or (request.endpoint and request.endpoint.startswith('contacts.')) %}is-active{% endif %}">
+                        <i class="fas fa-address-book"></i>
+                        <span>Contacts</span>
+                    </a>
+                    <a href="{{ url_for('inbound_email.inbox_home') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}is-active{% endif %}">
+                        <i class="fas fa-paper-plane"></i>
+                        <span>Magic Inbox</span>
+                    </a>
+                </div>
 
-                {% if current_user.is_super_admin %}
-                <a href="{{ url_for('platform.dashboard') }}"
-                   class="crm-nav-link text-orange-300">
-                    <i class="fas fa-crown"></i>
-                    <span>Platform Admin</span>
-                </a>
+                {# ── Work ── #}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">Work</div>
+                    {% if can_access_transactions(current_user) %}
+                    <a href="{{ url_for('transactions.list_transactions') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('transactions.') %}is-active{% endif %}">
+                        <i class="fas fa-file-contract"></i>
+                        <span>Transactions</span>
+                    </a>
+                    <a href="{{ url_for('partner_directory.index') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('partner_directory.') %}is-active{% endif %}">
+                        <i class="fas fa-handshake"></i>
+                        <span>Partners</span>
+                    </a>
+                    {% endif %}
+                    <a href="{{ url_for('tasks.tasks') }}"
+                       class="crm-nav-link {% if request.endpoint == 'tasks.tasks' %}is-active{% endif %}">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>Tasks</span>
+                    </a>
+                    <a href="{{ url_for('user_todo.user_todo') }}"
+                       class="crm-nav-link {% if request.endpoint == 'user_todo.user_todo' %}is-active{% endif %}">
+                        <i class="fas fa-circle-check"></i>
+                        <span>To-Dos</span>
+                    </a>
+                </div>
+
+                {# ── Insights & Tools (only render if at least one item is visible) ── #}
+                {% set _has_marketing = org_has_feature('MARKETING') %}
+                {% set _has_reports   = can_access_reports(current_user) %}
+                {% set _has_tax       = org_has_feature('TAX_PROTEST') %}
+                {% set _has_action    = org_has_feature('AI_ACTION_PLAN') %}
+                {% if _has_marketing or _has_reports or _has_tax or _has_action %}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">Insights</div>
+                    {% if _has_reports %}
+                    <a href="{{ url_for('reports.landing') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}is-active{% endif %}">
+                        <i class="fas fa-chart-pie"></i>
+                        <span>Reports</span>
+                    </a>
+                    {% endif %}
+                    {% if _has_marketing %}
+                    <a href="{{ url_for('main.marketing') }}"
+                       class="crm-nav-link {% if request.endpoint == 'main.marketing' %}is-active{% endif %}">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Marketing</span>
+                    </a>
+                    {% endif %}
+                    {% if _has_tax %}
+                    <a href="{{ url_for('tax_protest.index') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('tax_protest.') %}is-active{% endif %}">
+                        <i class="fas fa-gavel"></i>
+                        <span>Tax Protest</span>
+                    </a>
+                    {% endif %}
+                    {% if _has_action %}
+                    <a href="{{ url_for('action_plan.action_plan') }}"
+                       class="crm-nav-link {% if request.endpoint == 'action_plan.action_plan' %}is-active{% endif %}">
+                        <i class="fas fa-rocket"></i>
+                        <span>Action Plan</span>
+                    </a>
+                    {% endif %}
+                </div>
                 {% endif %}
 
-                {% if current_user.org_role in ['owner', 'admin'] %}
-                <a href="{{ url_for('org.settings') }}"
-                   class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('org.') %}is-active{% endif %}">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </a>
+                {# ── Company ── #}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">Company</div>
+                    <a href="{{ url_for('company_updates.list_updates') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('company_updates.') %}is-active{% endif %}">
+                        <i class="fas fa-newspaper"></i>
+                        <span>Updates</span>
+                    </a>
+                    <div id="agentResourcesAccordion">
+                        <button id="agentResourcesBtn" type="button"
+                                class="crm-nav-link w-full"
+                                aria-controls="agentResourcesPanel" aria-expanded="false">
+                            <i class="fas fa-book"></i>
+                            <span>Resources</span>
+                            <i id="agentResourcesChevron" aria-hidden="true"
+                               class="fas fa-chevron-down text-[0.65rem] transition-transform duration-200 ml-auto"></i>
+                        </button>
+                        <div id="agentResourcesPanel" role="region" aria-labelledby="agentResourcesBtn"
+                             class="hidden mt-1 ml-6 pl-3" style="border-left: 1px solid var(--hairline);">
+                            <ul id="agentResourcesList" class="space-y-1 py-1"></ul>
+                        </div>
+                    </div>
+                    <button onclick="openContactUsModal('app')" type="button"
+                            class="crm-nav-link w-full">
+                        <i class="fas fa-hands-helping"></i>
+                        <span>Support</span>
+                    </button>
+                </div>
+
+                {% if current_user.org_role in ['owner', 'admin'] or current_user.is_super_admin %}
+                <div class="crm-nav-section">
+                    <div class="crm-nav-label">Account</div>
+                    {% if current_user.org_role in ['owner', 'admin'] %}
+                    <a href="{{ url_for('org.settings') }}"
+                       class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('org.') %}is-active{% endif %}">
+                        <i class="fas fa-cog"></i>
+                        <span>Settings</span>
+                    </a>
+                    {% endif %}
+                    {% if current_user.is_super_admin %}
+                    <a href="{{ url_for('platform.dashboard') }}"
+                       class="crm-nav-link crm-nav-link--accent">
+                        <i class="fas fa-crown"></i>
+                        <span>Platform Admin</span>
+                    </a>
+                    {% endif %}
+                </div>
                 {% endif %}
                 {% endif %}
             </nav>
@@ -1981,6 +3088,40 @@
         window.addEventListener('pageshow', function() {
             NProgress.done();
         });
+    </script>
+
+    <!-- Atelier theme toggle: dark/light, persisted across pages. -->
+    <script>
+        (function () {
+            var KEY = 'crm-theme';
+            var html = document.documentElement;
+
+            function apply(theme) {
+                html.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+            }
+
+            function toggle() {
+                html.classList.add('crm-theme-transition');
+                var next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+                apply(next);
+                try { localStorage.setItem(KEY, next); } catch (e) {}
+                window.setTimeout(function () {
+                    html.classList.remove('crm-theme-transition');
+                }, 240);
+                // Notify any listeners (e.g. chart components that need to re-render).
+                window.dispatchEvent(new CustomEvent('crm:theme', { detail: { theme: next } }));
+            }
+
+            ['crmThemeToggle', 'crmThemeToggleMobile'].forEach(function (id) {
+                var btn = document.getElementById(id);
+                if (btn) btn.addEventListener('click', toggle);
+            });
+
+            // Sync across browser tabs.
+            window.addEventListener('storage', function (e) {
+                if (e.key === KEY && e.newValue) apply(e.newValue);
+            });
+        })();
     </script>
 
 </body>

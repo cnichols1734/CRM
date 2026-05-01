@@ -4,9 +4,9 @@
         {% if eyebrow %}
         <div class="crm-page-header__eyebrow">{{ eyebrow }}</div>
         {% endif %}
-        <h1 class="crm-page-title">{{ title }}</h1>
+        <h1 class="crm-page-title">{{ title|safe }}</h1>
         {% if description %}
-        <p class="crm-page-description">{{ description }}</p>
+        <p class="crm-page-description">{{ description|safe }}</p>
         {% endif %}
     </div>
     {% if caller %}
