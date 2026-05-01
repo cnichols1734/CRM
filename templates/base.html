@@ -1148,38 +1148,116 @@
         /* Tailwind utility background overrides — !important so the runtime
            Tailwind CDN doesn't trump them in dark mode. */
         .bg-white { background-color: var(--paper) !important; }
-        .bg-slate-50, .bg-gray-50 { background-color: var(--paper-2) !important; }
-        .bg-slate-100, .bg-gray-100 { background-color: var(--paper-2) !important; }
-        .bg-slate-200, .bg-gray-200 { background-color: var(--paper-3) !important; }
-        .bg-orange-50 { background-color: var(--accent-soft) !important; }
+        .bg-slate-50, .bg-gray-50, .bg-zinc-50, .bg-neutral-50 { background-color: var(--paper-2) !important; }
+        .bg-slate-100, .bg-gray-100, .bg-zinc-100, .bg-neutral-100 { background-color: var(--paper-2) !important; }
+        .bg-slate-200, .bg-gray-200, .bg-zinc-200, .bg-neutral-200 { background-color: var(--paper-3) !important; }
+        .bg-orange-50, .bg-orange-100 { background-color: var(--accent-soft) !important; }
         .bg-emerald-50, .bg-green-50 { background-color: var(--positive-soft) !important; }
         .bg-amber-50, .bg-yellow-50 { background-color: var(--warn-soft) !important; }
-        .bg-sky-50, .bg-blue-50 { background-color: var(--info-soft) !important; }
+        .bg-sky-50, .bg-blue-50, .bg-indigo-50 { background-color: var(--info-soft) !important; }
         .bg-red-50, .bg-rose-50 { background-color: var(--danger-soft) !important; }
-        .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950 { background-color: var(--ink) !important; }
+        .bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950,
+        .bg-zinc-800, .bg-zinc-900, .bg-neutral-800, .bg-neutral-900 { background-color: var(--ink) !important; }
 
-        /* Borders */
+        /* Modal backdrops — kill the "blue tint" by forcing a clean ink scrim.
+           Tailwind's bg-slate-900/50 in dark mode blends with the dark canvas
+           in an unflattering way. Pure ink with alpha reads correctly. */
+        .bg-black, .bg-slate-900\/50, .bg-slate-900\/40, .bg-slate-900\/60, .bg-slate-900\/70, .bg-slate-900\/75,
+        .bg-black\/50, .bg-black\/40, .bg-black\/60, .bg-black\/70, .bg-black\/75,
+        .bg-opacity-50, .bg-opacity-60, .bg-opacity-70, .bg-opacity-75 {
+            background-color: oklch(0% 0 0 / 0.55) !important;
+        }
+        .bg-black.bg-opacity-50, .bg-black.bg-opacity-40, .bg-black.bg-opacity-60 {
+            background-color: oklch(0% 0 0 / 0.55) !important;
+        }
+        /* Make sure modal panels themselves stay paper, not dim blue */
+        [class*="rounded-md"][class*="border"][class*="bg-white"],
+        [class*="rounded-lg"][class*="border"][class*="bg-white"],
+        [class*="rounded-xl"][class*="border"][class*="bg-white"] {
+            background-color: var(--paper) !important;
+        }
+
+        /* Pagination active page — softer in dark mode */
+        .crm-pager button[aria-current="page"],
+        .pagination .active, .pagination .is-active {
+            background: var(--ink) !important;
+            color: var(--paper) !important;
+            border-color: var(--ink) !important;
+        }
+        [data-theme="dark"] .crm-pager button[aria-current="page"],
+        [data-theme="dark"] .pagination .active,
+        [data-theme="dark"] .pagination .is-active {
+            background: var(--paper-3) !important;
+            color: var(--ink) !important;
+            border-color: var(--hairline-strong) !important;
+        }
+
+        /* Search result rows / typeahead dropdowns — neutral hover */
+        .search-result-item,
+        [class*="search-result"],
+        [class*="dropdown"] li, [class*="dropdown"] a, [class*="dropdown"] button {
+            color: var(--ink);
+        }
+        .search-result-item:hover,
+        [class*="search-result"]:hover,
+        .search-result-item.active, .search-result-item.is-active,
+        .search-result-item.highlighted, .search-result-item.is-highlighted {
+            background-color: var(--paper-2) !important;
+            color: var(--ink) !important;
+        }
+
+        /* Selected/active card states (.tx-create-card.selected, .ownership-card.selected, etc.)
+           used to be hardcoded orange. Map to accent-soft. */
+        .tx-create-card.selected,
+        .ownership-card.selected,
+        .type-card.selected,
+        [class*="-card"].selected {
+            border-color: var(--accent) !important;
+            background: var(--accent-soft) !important;
+            box-shadow: 0 0 0 3px var(--accent-soft) !important;
+            color: var(--accent-ink) !important;
+        }
+        .tx-create-card.selected *,
+        .ownership-card.selected * {
+            color: inherit;
+        }
+
+        /* Borders — !important so the runtime Tailwind CDN can't trump them.
+           Without this, dark-mode renders white-ish 1px borders that scream. */
         .border, .border-slate-200, .border-slate-100,
-        .border-gray-200, .border-gray-100, .divide-slate-100 > * + *,
-        .divide-slate-200 > * + *, .divide-gray-100 > * + *, .divide-gray-200 > * + * {
-            border-color: var(--hairline);
+        .border-gray-200, .border-gray-100,
+        .border-zinc-200, .border-neutral-200, .border-stone-200 {
+            border-color: var(--hairline) !important;
         }
-        .border-slate-300, .border-slate-400, .border-gray-300, .border-gray-400 {
-            border-color: var(--hairline-strong);
+        .divide-slate-100 > * + *, .divide-slate-200 > * + *,
+        .divide-gray-100 > * + *, .divide-gray-200 > * + * {
+            border-color: var(--hairline) !important;
         }
-        .border-orange-500, .border-orange-600 { border-color: var(--accent); }
-        .border-emerald-200, .border-green-200 { border-color: var(--hairline); }
+        .border-slate-300, .border-slate-400, .border-gray-300, .border-gray-400,
+        .border-zinc-300, .border-neutral-300 {
+            border-color: var(--hairline-strong) !important;
+        }
+        .border-slate-700, .border-slate-800, .border-slate-900 {
+            border-color: var(--hairline-strong) !important;
+        }
+        .border-orange-500, .border-orange-600 { border-color: var(--accent) !important; }
+        .border-emerald-200, .border-green-200 { border-color: var(--hairline) !important; }
+        .border-amber-200, .border-yellow-200 { border-color: var(--hairline) !important; }
+        .border-red-200, .border-rose-200 { border-color: var(--hairline) !important; }
+        .border-blue-200, .border-sky-200, .border-indigo-200 { border-color: var(--hairline) !important; }
 
-        /* Hover states (Tailwind hover utilities) */
-        .hover\:bg-slate-50:hover, .hover\:bg-gray-50:hover { background-color: var(--paper-2); }
-        .hover\:bg-slate-100:hover, .hover\:bg-gray-100:hover { background-color: var(--paper-2); }
-        .hover\:bg-slate-200:hover { background-color: var(--paper-3); }
-        .hover\:bg-orange-50:hover { background-color: var(--accent-soft); }
-        .hover\:bg-orange-100:hover { background-color: var(--accent-soft); }
-        .hover\:text-slate-900:hover, .hover\:text-gray-900:hover { color: var(--ink); }
-        .hover\:text-slate-700:hover, .hover\:text-gray-700:hover { color: var(--ink-2); }
-        .hover\:text-orange-700:hover, .hover\:text-orange-600:hover { color: var(--accent-ink); }
-        .hover\:border-slate-300:hover { border-color: var(--ink-5); }
+        /* Hover states (Tailwind hover utilities) — !important to win the cascade */
+        .hover\:bg-slate-50:hover, .hover\:bg-gray-50:hover { background-color: var(--paper-2) !important; }
+        .hover\:bg-slate-100:hover, .hover\:bg-gray-100:hover { background-color: var(--paper-2) !important; }
+        .hover\:bg-slate-200:hover, .hover\:bg-gray-200:hover { background-color: var(--paper-3) !important; }
+        .hover\:bg-orange-50:hover, .hover\:bg-orange-100:hover { background-color: var(--accent-soft) !important; }
+        .hover\:bg-white:hover { background-color: var(--paper) !important; }
+        .hover\:text-slate-900:hover, .hover\:text-gray-900:hover { color: var(--ink) !important; }
+        .hover\:text-slate-700:hover, .hover\:text-gray-700:hover { color: var(--ink-2) !important; }
+        .hover\:text-orange-700:hover, .hover\:text-orange-600:hover { color: var(--accent-ink) !important; }
+        .hover\:border-slate-300:hover, .hover\:border-gray-300:hover { border-color: var(--ink-5) !important; }
+        .hover\:border-orange-400:hover { border-color: var(--accent-line) !important; }
+        .hover\:border-orange-500:hover { border-color: var(--accent) !important; }
 
         /* Inputs/selects/textareas: pick up theme by default */
         input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not(.crm-search):not(.crm-input):not(.crm-textarea),
