@@ -6,14 +6,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Origen TechnolOG{% endblock %}</title>
-    <!-- Theme guard: applies stored theme before any paint to avoid FOUC. -->
+    <!-- Theme guard: applies stored theme before any paint to avoid FOUC.
+         Default is Light. We deliberately don't follow the OS color scheme so
+         dark mode is opt-in via the toggle. Users who have explicitly chosen
+         a theme keep their choice (persisted in localStorage as 'crm-theme'). -->
     <script>
         (function () {
             try {
-                var stored = localStorage.getItem('crm-theme');
-                if (!stored) {
-                    stored = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
+                var stored = localStorage.getItem('crm-theme') || 'light';
                 document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
             } catch (e) { /* ignore */ }
         })();
