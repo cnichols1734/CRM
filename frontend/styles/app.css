@@ -43,9 +43,11 @@
     --danger: oklch(55% 0.18 25);
     --danger-soft: oklch(95% 0.025 25);
 
-    /* Type */
-    --font-sans: "Geist", "Inter Tight", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
-    --font-serif: "Instrument Serif", "Cormorant Garamond", "Times New Roman", serif;
+    /* Type — Inter primary for that polished SaaS feel (Stripe / Linear / Figma family).
+       The --font-serif name is kept for backward compatibility; it now points at the same
+       family with weight + tracking tuned at the use-site for display headings. */
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
     --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
 
     /* Radii */
@@ -117,9 +119,12 @@
     font-family: var(--font-sans);
     color: var(--ink);
     background: var(--canvas);
-    font-feature-settings: "ss01", "cv11";
+    /* Inter OpenType features: cv11 = single-storey 'a' off, ss03 = open digit forms,
+       cv02 = open '4', "calt" on for proper contextual alternates. */
+    font-feature-settings: "cv02", "cv11", "ss03", "calt";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   .tnum,
@@ -183,20 +188,20 @@
 
   .crm-page-title {
     font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.028em;
     color: var(--ink);
-    font-size: 36px;
-    line-height: 1.05;
+    font-size: 32px;
+    line-height: 1.08;
     margin-top: 8px;
   }
   @media (min-width: 768px) {
-    .crm-page-title { font-size: 44px; }
+    .crm-page-title { font-size: 38px; letter-spacing: -0.032em; }
   }
   .crm-page-title em {
-    font-style: italic;
+    font-style: normal;
     color: var(--ink-3);
-    font-weight: 400;
+    font-weight: 500;
   }
 
   .crm-page-description {
@@ -211,11 +216,11 @@
   /* Section heading */
   .crm-section-title {
     font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 22px;
-    letter-spacing: -0.015em;
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.022em;
     color: var(--ink);
-    line-height: 1.15;
+    line-height: 1.2;
   }
   .crm-section-description { @apply mt-1 text-sm; color: var(--ink-3); }
 
@@ -677,9 +682,9 @@
   }
   .crm-kpi__value {
     font-family: var(--font-serif);
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    font-size: 40px;
+    font-weight: 600;
+    letter-spacing: -0.030em;
+    font-size: 36px;
     line-height: 1;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
@@ -971,9 +976,10 @@
   }
   .crm-inspector__name {
     font-family: var(--font-serif);
-    font-size: 28px;
-    line-height: 1;
-    letter-spacing: -0.015em;
+    font-weight: 600;
+    font-size: 24px;
+    line-height: 1.1;
+    letter-spacing: -0.022em;
     color: var(--ink);
     margin: 0 0 4px;
   }
@@ -1082,9 +1088,9 @@
   .crm-empty h3 {
     margin-top: 12px;
     font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 18px;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.018em;
     color: var(--ink);
   }
   .crm-empty p {
@@ -1150,9 +1156,9 @@
   .crm-mi__kpi-value {
     margin-top: 4px;
     font-family: var(--font-serif);
-    font-size: 32px;
-    font-weight: 400;
-    letter-spacing: -0.02em;
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.026em;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
     line-height: 1;
@@ -1236,7 +1242,7 @@
   }
 
   /* Editorial helpers */
-  .crm-serif { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.01em; }
+  .crm-serif { font-family: var(--font-serif); font-weight: 600; letter-spacing: -0.022em; }
   .crm-mono { font-family: var(--font-mono); }
   .crm-eyebrow {
     font-size: 10.5px;
@@ -1425,10 +1431,10 @@
   }
   .crm-stat__value {
     font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 28px;
+    font-weight: 600;
+    font-size: 26px;
     line-height: 1;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.024em;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
@@ -1555,18 +1561,19 @@
   .crm-plan--featured .crm-plan__feature .is-locked { color: oklch(60% 0.004 75); }
   .crm-plan__name {
     font-family: var(--font-serif);
-    font-weight: 400;
-    font-size: 28px;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    font-size: 24px;
+    letter-spacing: -0.024em;
     color: var(--ink);
     line-height: 1;
   }
   .crm-plan__sub { color: var(--ink-3); font-size: 12.5px; }
   .crm-plan__price {
     font-family: var(--font-serif);
-    font-size: 44px;
+    font-weight: 600;
+    font-size: 40px;
     line-height: 1;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.030em;
     color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
