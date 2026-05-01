@@ -1,497 +1,427 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}{% if is_admin_edit %}Edit User{% else %}Profile{% endif %} - Origen TechnolOG{% endblock %}
+{% block mobile_title %}{% if is_admin_edit %}Edit User{% else %}Profile{% endif %}{% endblock %}
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-
-    .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
-    .animate-fade-in-up-delay-1 { animation: fadeInUp 0.5s ease-out 0.1s forwards; opacity: 0; }
-    .animate-fade-in-up-delay-2 { animation: fadeInUp 0.5s ease-out 0.2s forwards; opacity: 0; }
-
-    /* Premium input styling */
-    .premium-input {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 0.9375rem;
-        transition: all 0.2s ease-out;
-        color: #1e293b;
-    }
-
-    .premium-input:hover { border-color: #cbd5e1; }
-    .premium-input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .premium-input:read-only {
-        background-color: #f1f5f9;
-        cursor: not-allowed;
-        color: #64748b;
-    }
-
-    .premium-input::placeholder { color: #94a3b8; }
-
-    /* Premium card */
-    .premium-card {
-        transition: all 0.3s ease;
-    }
-
-    .premium-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Form label styling */
-    .form-label {
-        display: block;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: #475569;
-        margin-bottom: 0.5rem;
-        text-transform: uppercase;
-        letter-spacing: 0.025em;
-    }
-
-    /* Section divider */
-    .section-divider {
-        height: 1px;
-        background: linear-gradient(to right, transparent, #e2e8f0, transparent);
-        margin: 1.5rem 0;
-    }
-    
-    /* Quill editor styling */
+    /* Quill editor — Atelier polish */
     #signature-editor-container .ql-toolbar {
-        border: 1px solid #e2e8f0;
-        border-radius: 0.5rem 0.5rem 0 0;
-        background: #f8fafc;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius) var(--radius) 0 0;
+        background: var(--paper-2);
     }
-    
     #signature-editor-container .ql-container {
-        border: 1px solid #e2e8f0;
+        border: 1px solid var(--hairline);
         border-top: none;
-        border-radius: 0 0 0.5rem 0.5rem;
-        font-size: 0.9375rem;
-        min-height: 120px;
+        border-radius: 0 0 var(--radius) var(--radius);
+        background: var(--paper);
+        font-size: 13px;
+        font-family: var(--font-sans);
+        color: var(--ink);
+        min-height: 130px;
     }
-    
     #signature-editor-container .ql-editor {
-        min-height: 120px;
-        padding: 1rem;
+        min-height: 130px;
+        padding: 12px 14px;
+        line-height: 1.55;
     }
-    
     #signature-editor-container .ql-editor.ql-blank::before {
-        color: #94a3b8;
+        color: var(--ink-4);
         font-style: normal;
     }
-    
-    /* Signature images should be block-level and sized appropriately */
     #signature-editor-container .ql-editor img {
         display: block;
         max-width: 200px;
         height: auto;
         margin: 0.5rem 0;
     }
+
+    /* Integration row — used for Gmail / Calendar toggles */
+    .integration-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        background: var(--paper);
+    }
+    .integration-row.is-on { background: var(--paper); border-color: var(--positive); }
+    .integration-row.is-warn { background: var(--warn-soft); border-color: transparent; }
+    .integration-row.is-disabled { opacity: 0.6; }
+
+    .integration-row__icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--paper-2);
+        border: 1px solid var(--hairline);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .integration-row__title {
+        font-size: 13px;
+        color: var(--ink);
+        font-weight: 500;
+    }
+    .integration-row__desc {
+        margin-top: 2px;
+        font-size: 11.5px;
+        color: var(--ink-3);
+        line-height: 1.45;
+    }
 </style>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100 py-8 px-4">
-    <div class="max-w-5xl mx-auto">
-        
-        <!-- Back Button & Title -->
-        <div class="flex items-center justify-between mb-6 animate-fade-in-up">
-            <a href="{{ url_for('main.dashboard') }}" class="inline-flex items-center gap-2 text-slate-600 hover:text-slate-800 transition-colors group">
-                <div class="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-200 flex items-center justify-center group-hover:bg-slate-50 transition-colors">
-                    <i class="fas fa-arrow-left text-sm"></i>
-                </div>
-                <span class="font-medium">Back</span>
-            </a>
-        </div>
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1200px]">
+        <a href="{{ url_for('main.dashboard') }}"
+           class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span>Dashboard</span>
+        </a>
 
-        <!-- Editorial profile header -->
+        {# ── Editorial profile header ────────────────────────── #}
         <div class="mb-6 pb-5" style="border-bottom: 1px solid var(--hairline);">
-            <div class="flex items-center gap-5">
-                <span class="crm-avatar crm-avatar-lg crm-avatar-serif">
-                    {{ user.first_name[0] if user.first_name else user.username[0]|upper }}{{ user.last_name[0] if user.last_name else '' }}
-                </span>
-                <div class="min-w-0">
-                    <div class="crm-eyebrow mb-1">{% if is_admin_edit %}Admin · Edit user{% else %}Account · Profile{% endif %}</div>
-                    <h1 class="crm-page-title" style="font-size: 36px; line-height: 1.05;">
-                        {% if is_admin_edit %}Edit User{% else %}{{ user.first_name }} {{ user.last_name }}{% endif %}
-                    </h1>
-                    <p class="mt-2 text-sm" style="color: var(--ink-3);">
-                        {{ user.email }}
-                        {% if user.license_number %}<span class="mx-2" style="color: var(--ink-5);">·</span>License {{ user.license_number }}{% endif %}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            <!-- Left Column - Profile Form -->
-            <div class="lg:col-span-2 space-y-6">
-                
-                <!-- Personal Information Card -->
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-1">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                                <i class="fas fa-user text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Personal Information</h2>
-                        </div>
-                    </div>
-                    
-                    <form method="POST" action="{% if is_admin_edit %}{{ url_for('auth.edit_user', user_id=user.id) }}{% else %}{{ url_for('auth.update_profile') }}{% endif %}" class="p-6">
-                        {{ form.csrf_token if form }}
-                        
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="form-label">Username</label>
-                                <input type="text" name="username" value="{{ user.username }}" readonly class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Email</label>
-                                <input type="email" name="email" value="{{ user.email }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">First Name</label>
-                                <input type="text" name="first_name" value="{{ user.first_name }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Last Name</label>
-                                <input type="text" name="last_name" value="{{ user.last_name }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Phone</label>
-                                <input type="tel" name="phone" value="{{ user.phone }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">License Number</label>
-                                <input type="text" name="license_number" maxlength="16" value="{{ user.license_number }}" class="premium-input">
-                            </div>
-                        </div>
-
-                        <div class="section-divider"></div>
-
-                        <!-- Supervisor Information -->
-                        <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Supervisor Information</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="form-label">Supervisor Name</label>
-                                <input type="text" name="licensed_supervisor" value="{{ user.licensed_supervisor }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Supervisor License</label>
-                                <input type="text" name="licensed_supervisor_license" maxlength="16" value="{{ user.licensed_supervisor_license }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Supervisor Email</label>
-                                <input type="email" name="licensed_supervisor_email" value="{{ user.licensed_supervisor_email }}" class="premium-input">
-                            </div>
-                            <div>
-                                <label class="form-label">Supervisor Phone</label>
-                                <input type="tel" name="licensed_supervisor_phone" value="{{ user.licensed_supervisor_phone }}" class="premium-input">
-                            </div>
-                        </div>
-
-                        <div class="section-divider"></div>
-
-                        <!-- Password Section -->
-                        <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Change Password</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            {% if not is_admin_edit %}
-                            <div>
-                                <label class="form-label">Current Password</label>
-                                <input type="password" name="current_password" class="premium-input" placeholder="Required for changes">
-                            </div>
-                            {% endif %}
-                            <div>
-                                <label class="form-label">{% if is_admin_edit %}Set New Password{% else %}New Password{% endif %}</label>
-                                <input type="password" name="new_password" class="premium-input" placeholder="Leave blank to keep current">
-                            </div>
-                            {% if not is_admin_edit %}
-                            <div>
-                                <label class="form-label">Confirm Password</label>
-                                <input type="password" name="confirm_password" class="premium-input" placeholder="Confirm new password">
-                            </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="mt-8 flex justify-end">
-                            <button type="submit" class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:from-blue-700 hover:to-indigo-700 transition-all duration-200">
-                                <i class="fas fa-save mr-2"></i>
-                                {% if is_admin_edit %}Save Changes{% else %}Update Profile{% endif %}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Email Signature Card (in left column for more width) -->
-                {% if not is_admin_edit and gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-1">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-                                <i class="fas fa-signature text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Email Signature</h2>
-                        </div>
-                    </div>
-                    
-                    <div class="p-6">
-                        <!-- Signature Editor -->
-                        <div id="signature-editor-container" class="mb-4">
-                            <div id="signature-editor" class="min-h-[150px]"></div>
-                        </div>
-                        
-                        <!-- Signature Images -->
-                        <div class="border-t border-slate-100 pt-4">
-                            <div class="flex items-center justify-between mb-3">
-                                <label class="text-sm font-semibold text-slate-700">Signature Images</label>
-                                <span id="image-count" class="text-xs text-slate-400">0/3 images</span>
-                            </div>
-                            <div id="signature-images" class="flex flex-wrap gap-3 mb-3">
-                                <!-- Images will be rendered here -->
-                            </div>
-                            <div id="image-upload-container" class="flex items-center gap-3">
-                                <input type="file" id="signature-image-input" accept="image/png,image/jpeg,image/gif" class="hidden">
-                                <button type="button" onclick="document.getElementById('signature-image-input').click()" class="inline-flex items-center px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors border border-slate-200">
-                                    <i class="fas fa-image mr-2"></i>
-                                    Add Image
-                                </button>
-                                <span class="text-xs text-slate-500">Max 600px wide, 250KB each. Image auto-inserts at cursor.</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Save Button -->
-                        <div class="mt-6 flex justify-end gap-3">
-                            <button type="button" id="save-signature-btn" class="inline-flex items-center px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all">
-                                <i class="fas fa-save mr-2"></i>
-                                Save Signature
-                            </button>
-                        </div>
-                        
-                        <p class="text-xs text-slate-400 mt-4 text-center">
-                            Your signature will be added to all emails sent from CRM
+            <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div class="flex items-center gap-5 min-w-0">
+                    <span class="crm-avatar crm-avatar-lg crm-avatar-serif">
+                        {{ user.first_name[0] if user.first_name else user.username[0]|upper }}{{ user.last_name[0] if user.last_name else '' }}
+                    </span>
+                    <div class="min-w-0">
+                        <p class="crm-eyebrow mb-1">{% if is_admin_edit %}Admin · Edit user{% else %}Account · Profile{% endif %}</p>
+                        <h1 class="crm-page-title" style="font-size: 36px; line-height: 1.05;">
+                            {% if is_admin_edit %}Edit <em>User</em>{% else %}{{ user.first_name }} <em>{{ user.last_name }}</em>{% endif %}
+                        </h1>
+                        <p class="mt-2 text-sm" style="color: var(--ink-3);">
+                            {{ user.email }}
+                            {% if user.license_number %}<span class="mx-2" style="color: var(--ink-5);">·</span>License {{ user.license_number }}{% endif %}
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
+            {# ── LEFT: forms ──────────────────────────────── #}
+            <div class="space-y-6">
+                {# Personal information #}
+                <section class="crm-surface">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Personal information</h2>
+                            <p class="crm-section-description">Used for outbound emails and document signing blocks.</p>
+                        </div>
+                    </header>
+
+                    <form method="POST"
+                          action="{% if is_admin_edit %}{{ url_for('auth.edit_user', user_id=user.id) }}{% else %}{{ url_for('auth.update_profile') }}{% endif %}"
+                          class="crm-surface-body">
+                        {{ form.csrf_token if form }}
+
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div>
+                                <label class="crm-form-label" for="pf-username">Username</label>
+                                <input id="pf-username" type="text" name="username" value="{{ user.username }}" readonly class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-email">Email</label>
+                                <input id="pf-email" type="email" name="email" value="{{ user.email }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-first">First name</label>
+                                <input id="pf-first" type="text" name="first_name" value="{{ user.first_name }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-last">Last name</label>
+                                <input id="pf-last" type="text" name="last_name" value="{{ user.last_name }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-phone">Phone</label>
+                                <input id="pf-phone" type="tel" name="phone" value="{{ user.phone }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-license">License number</label>
+                                <input id="pf-license" type="text" name="license_number" maxlength="16" value="{{ user.license_number }}" class="crm-input">
+                            </div>
+                        </div>
+
+                        <div class="crm-section-divider"></div>
+
+                        <p class="crm-eyebrow mb-4">Supervisor information</p>
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            <div>
+                                <label class="crm-form-label" for="pf-sup-name">Supervisor name</label>
+                                <input id="pf-sup-name" type="text" name="licensed_supervisor" value="{{ user.licensed_supervisor }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-sup-license">Supervisor license</label>
+                                <input id="pf-sup-license" type="text" name="licensed_supervisor_license" maxlength="16" value="{{ user.licensed_supervisor_license }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-sup-email">Supervisor email</label>
+                                <input id="pf-sup-email" type="email" name="licensed_supervisor_email" value="{{ user.licensed_supervisor_email }}" class="crm-input">
+                            </div>
+                            <div>
+                                <label class="crm-form-label" for="pf-sup-phone">Supervisor phone</label>
+                                <input id="pf-sup-phone" type="tel" name="licensed_supervisor_phone" value="{{ user.licensed_supervisor_phone }}" class="crm-input">
+                            </div>
+                        </div>
+
+                        <div class="crm-section-divider"></div>
+
+                        <p class="crm-eyebrow mb-4">Change password</p>
+                        <div class="grid grid-cols-1 gap-5 md:grid-cols-2">
+                            {% if not is_admin_edit %}
+                            <div>
+                                <label class="crm-form-label" for="pf-cur-pwd">Current password</label>
+                                <input id="pf-cur-pwd" type="password" name="current_password" class="crm-input" placeholder="Required for changes">
+                            </div>
+                            {% endif %}
+                            <div>
+                                <label class="crm-form-label" for="pf-new-pwd">{% if is_admin_edit %}Set new password{% else %}New password{% endif %}</label>
+                                <input id="pf-new-pwd" type="password" name="new_password" class="crm-input" placeholder="Leave blank to keep current">
+                            </div>
+                            {% if not is_admin_edit %}
+                            <div>
+                                <label class="crm-form-label" for="pf-confirm-pwd">Confirm password</label>
+                                <input id="pf-confirm-pwd" type="password" name="confirm_password" class="crm-input" placeholder="Confirm new password">
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-7 flex justify-end">
+                            <button type="submit" class="crm-btn crm-btn-primary">
+                                <i class="fas fa-check text-xs"></i>
+                                {% if is_admin_edit %}Save changes{% else %}Update profile{% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </section>
+
+                {# Email signature #}
+                {% if not is_admin_edit and gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}
+                <section class="crm-surface">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Email signature</h2>
+                            <p class="crm-section-description">Appended to all emails sent through Gmail integration.</p>
+                        </div>
+                        <span class="crm-icon-block"><i class="fas fa-signature text-xs"></i></span>
+                    </header>
+
+                    <div class="crm-surface-body">
+                        <div id="signature-editor-container" class="mb-4">
+                            <div id="signature-editor" class="min-h-[130px]"></div>
+                        </div>
+
+                        <div class="pt-4" style="border-top: 1px solid var(--hairline);">
+                            <div class="flex items-center justify-between mb-3">
+                                <span class="crm-form-label" style="margin-bottom: 0;">Signature images</span>
+                                <span id="image-count" class="text-[11px]" style="color: var(--ink-4);">0/3 images</span>
+                            </div>
+                            <div id="signature-images" class="flex flex-wrap gap-3 mb-3"></div>
+                            <div id="image-upload-container" class="flex flex-wrap items-center gap-3">
+                                <input type="file" id="signature-image-input" accept="image/png,image/jpeg,image/gif" class="hidden">
+                                <button type="button" onclick="document.getElementById('signature-image-input').click()" class="crm-btn crm-btn-secondary">
+                                    <i class="far fa-image text-xs"></i>
+                                    Add image
+                                </button>
+                                <span class="text-[11px]" style="color: var(--ink-4);">Max 600px wide, 250KB each. Auto-inserts at cursor.</span>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 flex items-center justify-between gap-3 flex-wrap">
+                            <p class="text-[11px]" style="color: var(--ink-4);">
+                                <i class="fas fa-info-circle mr-1"></i>
+                                Saved signature is added to every outbound email.
+                            </p>
+                            <button type="button" id="save-signature-btn" class="crm-btn crm-btn-primary">
+                                <i class="fas fa-check text-xs"></i>
+                                Save signature
+                            </button>
+                        </div>
+                    </div>
+                </section>
                 {% endif %}
             </div>
 
-            <!-- Right Column - Integrations -->
+            {# ── RIGHT: integrations / sidebar ─────────────── #}
             <div class="space-y-6">
-                
                 {% if not is_admin_edit %}
-                <!-- Google Integrations Card -->
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-white border border-slate-200 flex items-center justify-center">
-                                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                </svg>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Google Integrations</h2>
+                {# Google integrations #}
+                <section class="crm-surface">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Google integrations</h2>
+                            <p class="crm-section-description">Send via Gmail and sync tasks to Calendar.</p>
                         </div>
-                    </div>
-                    
-                    <div class="p-6 space-y-4">
-                        
-                        <!-- Gmail Send Toggle -->
-                        <div class="flex items-center justify-between p-4 rounded-xl {% if gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-200{% elif gmail_integration and gmail_integration.needs_reauth %}bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200{% else %}bg-slate-50 border border-slate-200{% endif %}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    </header>
+
+                    <div class="crm-surface-body space-y-3">
+                        {# Gmail #}
+                        <div class="integration-row {% if gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}is-on{% elif gmail_integration and gmail_integration.needs_reauth %}is-warn{% endif %}">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="integration-row__icon">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                                         <path fill="#EA4335" d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z"/>
                                     </svg>
-                                </div>
-                                <div>
-                                    <p class="font-medium text-slate-700">Gmail Send</p>
-                                    <p class="text-xs text-slate-500">
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="integration-row__title">Gmail send</p>
+                                    <p class="integration-row__desc">
                                         {% if gmail_integration and gmail_integration.needs_reauth %}
-                                            <span class="text-amber-700 font-medium">Update required</span> · <a href="{{ url_for('gmail.connect') }}" class="text-amber-700 hover:underline font-semibold">Reconnect now</a>
+                                        <span style="color: var(--warn);">Update required.</span>
+                                        <a href="{{ url_for('gmail.connect') }}" class="hover:underline" style="color: var(--warn);">Reconnect now</a>
                                         {% elif gmail_integration and gmail_integration.sync_enabled %}
-                                            {{ gmail_integration.connected_email }}
+                                        {{ gmail_integration.connected_email }}
                                         {% else %}
-                                            Send emails from your Gmail account
+                                        Send emails from your Gmail account.
                                         {% endif %}
                                     </p>
                                 </div>
                             </div>
+
                             {% if gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}
-                                <form method="POST" action="{{ url_for('gmail.disconnect') }}" class="inline">
-                                    <button type="submit" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-emerald-500 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 hover:bg-emerald-600" title="Click to disconnect">
-                                        <span class="sr-only">Disconnect Gmail</span>
-                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-5"></span>
-                                    </button>
-                                </form>
+                            <form method="POST" action="{{ url_for('gmail.disconnect') }}" class="inline">
+                                <label class="crm-toggle crm-toggle--positive" title="Disconnect Gmail">
+                                    <input type="checkbox" checked onchange="this.form.submit()">
+                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                </label>
+                            </form>
                             {% elif gmail_integration and gmail_integration.needs_reauth %}
-                                <a href="{{ url_for('gmail.connect') }}" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors">
-                                    Reconnect
-                                </a>
+                            <a href="{{ url_for('gmail.connect') }}" class="crm-btn crm-btn-sm crm-btn-secondary">Reconnect</a>
                             {% else %}
-                                <a href="{{ url_for('gmail.connect') }}" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hover:bg-slate-300" title="Click to connect Gmail">
-                                    <span class="sr-only">Connect Gmail</span>
-                                    <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
-                                </a>
+                            <a href="{{ url_for('gmail.connect') }}" class="crm-btn crm-btn-sm crm-btn-primary">
+                                <i class="fas fa-plug text-[10px]"></i> Connect
+                            </a>
                             {% endif %}
                         </div>
-                        
-                        <!-- Calendar Sync Toggle -->
-                        <div class="flex items-center justify-between p-4 rounded-xl {% if gmail_integration and gmail_integration.calendar_sync_enabled %}bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200{% else %}bg-slate-50 border border-slate-200{% endif %} {% if not gmail_integration or not gmail_integration.sync_enabled %}opacity-60{% endif %}">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center flex-shrink-0">
-                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+
+                        {# Calendar #}
+                        <div class="integration-row
+                            {% if gmail_integration and gmail_integration.calendar_sync_enabled %}is-on{% endif %}
+                            {% if not gmail_integration or not gmail_integration.sync_enabled %}is-disabled{% endif %}">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="integration-row__icon">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                                         <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
                                         <path fill="#fff" d="M19 20H5V9h14v11z"/>
                                         <path fill="#EA4335" d="M12 13h5v5h-5z"/>
-                                        <path fill="#FBBC05" d="M7 13h5v5H7z"/>
-                                        <path fill="#34A853" d="M7 9h5v4H7z"/>
                                     </svg>
-                                </div>
-                                <div>
-                                    <p class="font-medium text-slate-700">Calendar Sync</p>
-                                    <p class="text-xs text-slate-500">
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="integration-row__title">Calendar sync</p>
+                                    <p class="integration-row__desc">
                                         {% if gmail_integration and gmail_integration.calendar_sync_enabled %}
-                                            Tasks sync to Google Calendar
+                                        Tasks sync to Google Calendar.
                                         {% elif gmail_integration and gmail_integration.sync_enabled %}
-                                            Sync tasks to Google Calendar
+                                        Sync tasks to Google Calendar.
                                         {% else %}
-                                            Connect Gmail first to enable
+                                        Connect Gmail first to enable.
                                         {% endif %}
                                     </p>
                                 </div>
                             </div>
+
                             {% if gmail_integration and gmail_integration.sync_enabled %}
-                                <form method="POST" action="{{ url_for('gmail.toggle_calendar_sync') }}" class="inline">
-                                    <button type="submit" class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 {% if gmail_integration.calendar_sync_enabled %}bg-blue-500 hover:bg-blue-600{% else %}bg-slate-200 hover:bg-slate-300{% endif %}">
-                                        <span class="sr-only">Toggle calendar sync</span>
-                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {% if gmail_integration.calendar_sync_enabled %}translate-x-5{% else %}translate-x-0{% endif %}"></span>
-                                    </button>
-                                </form>
+                            <form method="POST" action="{{ url_for('gmail.toggle_calendar_sync') }}" class="inline">
+                                <label class="crm-toggle">
+                                    <input type="checkbox"
+                                           {% if gmail_integration.calendar_sync_enabled %}checked{% endif %}
+                                           onchange="this.form.submit()">
+                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                </label>
+                            </form>
                             {% else %}
-                                <span class="relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent bg-slate-200 cursor-not-allowed">
-                                    <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 translate-x-0"></span>
-                                </span>
+                            <label class="crm-toggle">
+                                <input type="checkbox" disabled>
+                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                            </label>
                             {% endif %}
                         </div>
-                        
-                        <!-- Info text -->
-                        <p class="text-xs text-slate-400 flex items-center justify-center gap-1.5 pt-2">
-                            <i class="fas fa-shield-alt text-slate-300"></i>
-                            Secure OAuth connection · Send emails & sync tasks
+
+                        <p class="text-[11px] text-center" style="color: var(--ink-4);">
+                            <i class="fas fa-shield-alt mr-1"></i>
+                            Secure OAuth · email + calendar
                         </p>
                     </div>
-                </div>
+                </section>
                 {% endif %}
 
+                {# Brokerage info (admin/owner only) #}
                 {% if not is_admin_edit and current_user.org_role in ('admin', 'owner') %}
-                <!-- Brokerage Information Card (Admin/Owner Only) -->
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center">
-                                <i class="fas fa-building text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Brokerage Information</h2>
+                <section class="crm-surface">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Brokerage information</h2>
+                            <p class="crm-section-description">Used for document generation (e.g. wire-fraud warning).</p>
                         </div>
-                    </div>
-                    
-                    <form method="POST" action="{{ url_for('auth.update_broker_info') }}" class="p-6">
-                        <p class="text-xs text-slate-500 mb-4">
-                            <i class="fas fa-info-circle mr-1"></i>
-                            Used for document generation (e.g., Wire Fraud Warning)
-                        </p>
-                        
+                    </header>
+                    <form method="POST" action="{{ url_for('auth.update_broker_info') }}" class="crm-surface-body">
                         <div class="space-y-4">
                             <div>
-                                <label class="form-label">Broker Name</label>
-                                <input type="text" name="broker_name" 
-                                       value="{{ current_user.organization.broker_name or '' }}" 
-                                       class="premium-input" 
-                                       placeholder="e.g., Origen Realty">
+                                <label class="crm-form-label" for="bk-name">Broker name</label>
+                                <input id="bk-name" type="text" name="broker_name"
+                                       value="{{ current_user.organization.broker_name or '' }}"
+                                       class="crm-input" placeholder="e.g. Origen Realty">
                             </div>
                             <div>
-                                <label class="form-label">Broker License Number</label>
-                                <input type="text" name="broker_license_number" 
-                                       value="{{ current_user.organization.broker_license_number or '' }}" 
-                                       class="premium-input" 
-                                       placeholder="e.g., 9003104">
+                                <label class="crm-form-label" for="bk-license">Broker license number</label>
+                                <input id="bk-license" type="text" name="broker_license_number"
+                                       value="{{ current_user.organization.broker_license_number or '' }}"
+                                       class="crm-input" placeholder="e.g. 9003104">
                             </div>
                             <div>
-                                <label class="form-label">Broker Address</label>
-                                <input type="text" name="broker_address" 
-                                       value="{{ current_user.organization.broker_address or '' }}" 
-                                       class="premium-input" 
-                                       placeholder="Full address">
+                                <label class="crm-form-label" for="bk-address">Broker address</label>
+                                <input id="bk-address" type="text" name="broker_address"
+                                       value="{{ current_user.organization.broker_address or '' }}"
+                                       class="crm-input" placeholder="Full address">
                             </div>
                         </div>
-                        
-                        <div class="mt-5">
-                            <button type="submit"
-                                    class="w-full inline-flex items-center justify-center px-4 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 text-white font-semibold rounded-xl shadow-lg shadow-rose-500/25 hover:shadow-xl hover:shadow-rose-500/30 transition-all duration-200">
-                                <i class="fas fa-save mr-2"></i>
-                                Save Brokerage Info
+                        <div class="mt-5 flex justify-end">
+                            <button type="submit" class="crm-btn crm-btn-primary">
+                                <i class="fas fa-check text-xs"></i>
+                                Save brokerage info
                             </button>
                         </div>
                     </form>
-                </div>
+                </section>
                 {% endif %}
 
-                <!-- Notification Settings Card -->
+                {# Notification settings link #}
                 {% if not is_admin_edit %}
-                <a href="{{ url_for('notifications.settings_page') }}"
-                   class="block bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2 no-underline hover:border-orange-200 transition-colors">
-                    <div class="p-5 flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                            <i class="fas fa-bell text-white text-sm"></i>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h2 class="text-base font-semibold text-slate-800">Notification Settings</h2>
-                            <p class="text-xs text-slate-500 mt-0.5">Manage in-app and email notification preferences</p>
-                        </div>
-                        <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                <a href="{{ url_for('notifications.settings_page') }}" class="crm-link-tile">
+                    <span class="crm-link-tile__icon"><i class="far fa-bell text-xs"></i></span>
+                    <div class="min-w-0">
+                        <div class="crm-link-tile__title">Notification settings</div>
+                        <div class="crm-link-tile__desc">In-app and email notification preferences.</div>
                     </div>
+                    <i class="fas fa-chevron-right text-xs crm-link-tile__chev"></i>
                 </a>
                 {% endif %}
 
-                <!-- Magic Inbox Card -->
+                {# Magic Inbox #}
                 {% if not is_admin_edit and user.inbox_address %}
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2"
-                     data-controller="copy">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center">
-                                <i class="fas fa-paper-plane text-white text-sm"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <h2 class="text-base font-semibold text-slate-800">Magic Inbox</h2>
-                                <p class="text-xs text-slate-500 mt-0.5">Forward emails or photos here to auto-create contacts</p>
-                            </div>
+                <section class="crm-surface" data-controller="copy">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Magic Inbox</h2>
+                            <p class="crm-section-description">Forward emails or photos to auto-create contacts.</p>
                         </div>
-                    </div>
-                    <div class="p-5 space-y-3">
-                        <label class="form-label">Your private address</label>
+                        <span class="crm-icon-block"><i class="far fa-paper-plane text-xs"></i></span>
+                    </header>
+                    <div class="crm-surface-body space-y-3">
+                        <label for="magic-inbox-address" class="crm-form-label">Your private address</label>
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch">
-                            <input type="text" readonly
+                            <input id="magic-inbox-address" type="text" readonly
                                    value="{{ user.inbox_address }}"
                                    data-copy-target="source"
-                                   class="premium-input flex-1 font-mono text-sm"
+                                   class="crm-input flex-1 crm-mono"
                                    aria-label="Your magic inbox address">
                             <button type="button"
                                     data-action="copy#copy"
@@ -499,19 +429,17 @@
                                     data-copy-default-text="Copy"
                                     data-copy-success-text="Copied"
                                     class="crm-btn crm-btn-secondary whitespace-nowrap">
-                                <i class="fas fa-copy text-xs"></i>
+                                <i class="far fa-copy text-xs"></i>
                                 <span data-copy-target="label">Copy</span>
                             </button>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2 pt-2">
-                            <a href="{{ url_for('inbound_email.inbox_home') }}"
-                               class="crm-btn crm-btn-primary">
+                            <a href="{{ url_for('inbound_email.inbox_home') }}" class="crm-btn crm-btn-primary">
                                 <i class="fas fa-arrow-right text-xs"></i>
                                 Open Magic Inbox
                             </a>
-                            <a href="{{ url_for('inbound_email.download_vcard') }}"
-                               class="crm-btn crm-btn-secondary">
+                            <a href="{{ url_for('inbound_email.download_vcard') }}" class="crm-btn crm-btn-secondary">
                                 <i class="fas fa-mobile-alt text-xs"></i>
                                 Save to phone
                             </a>
@@ -528,7 +456,7 @@
                             </form>
                         </div>
                     </div>
-                </div>
+                </section>
                 <script>
                 (function () {
                     document.querySelectorAll('[data-controller="copy"]').forEach(function (root) {
@@ -565,53 +493,44 @@
                 </script>
                 {% endif %}
 
-                <!-- Quick Stats Card -->
-                <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden premium-card animate-fade-in-up-delay-2">
-                    <div class="p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                                <i class="fas fa-chart-bar text-white text-sm"></i>
-                            </div>
-                            <h2 class="text-lg font-semibold text-slate-800">Account Info</h2>
+                {# Account info #}
+                <section class="crm-surface">
+                    <header class="crm-surface-header">
+                        <div>
+                            <h2 class="crm-section-title">Account info</h2>
+                            <p class="crm-section-description">Membership and role details.</p>
                         </div>
-                    </div>
-                    
-                    <div class="p-6 space-y-4">
-                        <div class="flex items-center justify-between py-2 border-b border-slate-100">
-                            <span class="text-sm text-slate-500">Organization</span>
-                            <span class="font-semibold text-slate-800">{{ user.organization.name if user.organization else 'N/A' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between py-2 border-b border-slate-100">
-                            <span class="text-sm text-slate-500">Role</span>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold 
-                                {% if user.org_role == 'owner' %}bg-amber-100 text-amber-800
-                                {% elif user.org_role == 'admin' %}bg-purple-100 text-purple-800
-                                {% else %}bg-blue-100 text-blue-800{% endif %}">
-                                {{ user.org_role|capitalize if user.org_role else 'Agent' }}
-                            </span>
-                        </div>
-                        <div class="flex items-center justify-between py-2">
-                            <span class="text-sm text-slate-500">Member Since</span>
-                            <span class="font-semibold text-slate-800">{{ user.created_at.strftime('%b %Y') if user.created_at else 'N/A' }}</span>
-                        </div>
-                    </div>
-                </div>
+                    </header>
+                    <div class="crm-surface-body">
+                        <dl class="crm-kv">
+                            <dt>Organization</dt>
+                            <dd>{{ user.organization.name if user.organization else 'N/A' }}</dd>
 
+                            <dt>Role</dt>
+                            <dd>
+                                <span class="crm-badge {% if user.org_role == 'owner' %}crm-badge-accent{% elif user.org_role == 'admin' %}crm-badge-info{% endif %}">
+                                    {{ user.org_role|capitalize if user.org_role else 'Agent' }}
+                                </span>
+                            </dd>
+
+                            <dt>Member since</dt>
+                            <dd>{{ user.created_at.strftime('%b %Y') if user.created_at else 'N/A' }}</dd>
+                        </dl>
+                    </div>
+                </section>
             </div>
         </div>
     </div>
 </div>
 
-{% if gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}
-<!-- Quill Editor for Signature -->
+{% if not is_admin_edit and gmail_integration and gmail_integration.sync_enabled and not gmail_integration.needs_reauth %}
 <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Quill editor for signature
     const quill = new Quill('#signature-editor', {
         theme: 'snow',
-        placeholder: 'Create your email signature...',
+        placeholder: 'Create your email signature…',
         modules: {
             toolbar: [
                 ['bold', 'italic', 'underline'],
@@ -621,11 +540,9 @@ document.addEventListener('DOMContentLoaded', function() {
             ]
         }
     });
-    
+
     let signatureImages = [];
-    
-    // Convert cid: URLs to data: URLs for display in editor
-    // Also removes orphaned cid: references that don't have matching images
+
     function cidToDataUrl(html) {
         let result = html;
         signatureImages.forEach(img => {
@@ -633,12 +550,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const dataUrl = `data:${img.mime_type};base64,${img.bytes_b64}`;
             result = result.split(cidUrl).join(dataUrl);
         });
-        // Remove any orphaned cid: image tags (images that were deleted)
         result = result.replace(/<img[^>]*src="cid:[^"]*"[^>]*>/g, '');
         return result;
     }
-    
-    // Convert data: URLs back to cid: URLs for storage
+
     function dataUrlToCid(html) {
         let result = html;
         signatureImages.forEach(img => {
@@ -648,8 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         return result;
     }
-    
-    // Load existing signature
+
     async function loadSignature() {
         try {
             const response = await fetch('/integrations/gmail/signature');
@@ -657,7 +571,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 signatureImages = data.signature_images || [];
                 if (data.signature_html) {
-                    // Convert cid: to data: for display
                     quill.root.innerHTML = cidToDataUrl(data.signature_html);
                 }
                 renderImages();
@@ -666,33 +579,34 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error loading signature:', error);
         }
     }
-    
-    // Render signature images
+
     function renderImages() {
         const container = document.getElementById('signature-images');
         const countEl = document.getElementById('image-count');
-        
+
         container.innerHTML = '';
         signatureImages.forEach(img => {
             const div = document.createElement('div');
             div.className = 'relative group';
             div.innerHTML = `
-                <div class="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+                <div class="w-16 h-16 rounded-md overflow-hidden flex items-center justify-center"
+                     style="background: var(--paper-2); border: 1px solid var(--hairline);">
                     <img src="data:${img.mime_type};base64,${img.bytes_b64}" class="max-w-full max-h-full object-contain" alt="Signature image">
                 </div>
-                <button type="button" onclick="deleteImage('${img.content_id}')" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button type="button" onclick="deleteImage('${img.content_id}')"
+                        class="absolute -top-1 -right-1 w-5 h-5 rounded-full text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        style="background: var(--danger); color: var(--paper);">
                     <i class="fas fa-times"></i>
                 </button>
                 <div class="mt-1 text-center">
-                    <code class="text-[10px] text-slate-400 select-all cursor-pointer" title="Copy CID to use in signature">cid:${img.content_id}</code>
+                    <code class="text-[10px] select-all cursor-pointer" style="color: var(--ink-4);" title="Copy CID to use in signature">cid:${img.content_id}</code>
                 </div>
             `;
             container.appendChild(div);
         });
-        
+
         countEl.textContent = `${signatureImages.length}/3 images`;
-        
-        // Disable upload if max reached
+
         const uploadContainer = document.getElementById('image-upload-container');
         if (signatureImages.length >= 3) {
             uploadContainer.classList.add('opacity-50', 'pointer-events-none');
@@ -700,33 +614,29 @@ document.addEventListener('DOMContentLoaded', function() {
             uploadContainer.classList.remove('opacity-50', 'pointer-events-none');
         }
     }
-    
-    // Upload image
+
     document.getElementById('signature-image-input').addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if (!file) return;
-        
+
         const formData = new FormData();
         formData.append('image', file);
-        
+
         try {
             const response = await fetch('/integrations/gmail/signature/image', {
                 method: 'POST',
                 body: formData
             });
             const data = await response.json();
-            
+
             if (data.success) {
-                // Reload to get updated images list
                 await loadSignature();
-                
-                // Find the newly uploaded image and insert at the END of the content
+
                 const newImg = signatureImages.find(img => img.content_id === data.content_id);
                 if (newImg) {
                     const dataUrl = `data:${newImg.mime_type};base64,${newImg.bytes_b64}`;
-                    // Insert at the end of the content
                     const length = quill.getLength();
-                    quill.insertText(length - 1, '\n'); // Add newline before image
+                    quill.insertText(length - 1, '\n');
                     quill.insertEmbed(length, 'image', dataUrl);
                     quill.setSelection(length + 1);
                 }
@@ -737,21 +647,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error uploading image:', error);
             alert('Failed to upload image');
         }
-        
-        // Reset input
+
         e.target.value = '';
     });
-    
-    // Delete image
+
     window.deleteImage = async function(contentId) {
         if (!confirm('Delete this image?')) return;
-        
+
         try {
             const response = await fetch(`/integrations/gmail/signature/image/${contentId}`, {
                 method: 'DELETE'
             });
             const data = await response.json();
-            
+
             if (data.success) {
                 signatureImages = signatureImages.filter(img => img.content_id !== contentId);
                 renderImages();
@@ -763,37 +671,29 @@ document.addEventListener('DOMContentLoaded', function() {
             alert('Failed to delete image');
         }
     };
-    
-    // Save signature
+
     document.getElementById('save-signature-btn').addEventListener('click', async function() {
         const btn = this;
         const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> Saving…';
         btn.disabled = true;
-        
+
         try {
-            // Convert data: URLs to cid: URLs before saving
             const htmlToSave = dataUrlToCid(quill.root.innerHTML);
-            
+
             const response = await fetch('/integrations/gmail/signature', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    signature_html: htmlToSave
-                })
+                body: JSON.stringify({ signature_html: htmlToSave })
             });
             const data = await response.json();
-            
+
             if (data.success) {
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i>Saved!';
-                btn.classList.remove('from-blue-600', 'to-indigo-600');
-                btn.classList.add('from-emerald-500', 'to-green-600');
+                btn.innerHTML = '<i class="fas fa-check text-xs"></i> Saved';
                 setTimeout(() => {
                     btn.innerHTML = originalHtml;
-                    btn.classList.remove('from-emerald-500', 'to-green-600');
-                    btn.classList.add('from-blue-600', 'to-indigo-600');
                     btn.disabled = false;
-                }, 2000);
+                }, 1800);
             } else {
                 alert(data.error || 'Failed to save signature');
                 btn.innerHTML = originalHtml;
@@ -806,8 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.disabled = false;
         }
     });
-    
-    // Initial load
+
     loadSignature();
 });
 </script>

@@ -1,361 +1,327 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header, badge, empty_state %}
 
+{% block title %}Client Tasks - Origen TechnolOG{% endblock %}
 {% block mobile_title %}Client Tasks{% endblock %}
 
 {% block content %}
 <style>
-    /* Subtle animations */
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-in { animation: fadeIn 0.4s ease-out forwards; }
-    .animate-delay-1 { animation-delay: 0.05s; opacity: 0; }
-    .animate-delay-2 { animation-delay: 0.1s; opacity: 0; }
-    .animate-delay-3 { animation-delay: 0.15s; opacity: 0; }
-    
-    /* Task row hover */
+    /* Priority indicator strip */
     .task-row {
-        transition: all 0.15s ease;
+        position: relative;
+        transition: background 100ms ease;
+        cursor: pointer;
     }
-    .task-row:hover {
-        background-color: #fafafa;
-    }
-    .task-row:hover .task-actions {
-        opacity: 1;
-    }
-    
-    /* Priority indicator */
-    .priority-indicator {
-        width: 3px;
+    .task-row:hover { background: var(--paper-2); }
+    .task-row::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 12px;
+        bottom: 12px;
+        width: 2px;
         border-radius: 2px;
+        background: var(--ink-5);
+    }
+    .task-row.priority-high::before { background: var(--danger); }
+    .task-row.priority-medium::before { background: var(--warn); }
+    .task-row.priority-low::before { background: var(--positive); }
+    .task-row:hover .task-actions { opacity: 1; }
+
+    /* Custom checkbox styled like the rest of the site */
+    .task-check {
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border: 1px solid var(--hairline-strong);
+        border-radius: 4px;
+        background: var(--paper);
+        cursor: pointer;
+        position: relative;
+        transition: border-color 120ms ease, background 120ms ease;
         flex-shrink: 0;
     }
-    .priority-high { background-color: #ef4444; }
-    .priority-medium { background-color: #f59e0b; }
-    .priority-low { background-color: #22c55e; }
-    
-    /* Custom checkbox */
-    .task-checkbox {
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        border: 2px solid #d1d5db;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        position: relative;
+    .task-check:hover { border-color: var(--ink-4); }
+    .task-check:checked {
+        background: var(--ink);
+        border-color: var(--ink);
     }
-    .task-checkbox:hover {
-        border-color: #9ca3af;
-    }
-    .task-checkbox:checked {
-        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-        border-color: #22c55e;
-    }
-    .task-checkbox:checked::after {
-        content: '';
+    .task-check:checked::after {
+        content: "";
         position: absolute;
-        left: 5px;
-        top: 2px;
+        left: 4px;
+        top: 1px;
         width: 4px;
         height: 8px;
-        border: solid white;
-        border-width: 0 2px 2px 0;
+        border: solid var(--paper);
+        border-width: 0 1.5px 1.5px 0;
         transform: rotate(45deg);
     }
-    
-    /* Tab styling */
-    .tab-button {
-        position: relative;
-        padding: 0.5rem 1rem;
-        font-size: 0.875rem;
+
+    .task-row.is-completed .task-subject { text-decoration: line-through; color: var(--ink-4); }
+    .task-row.is-completed::before { background: var(--ink-5); opacity: 0.5; }
+
+    /* Compact priority pill */
+    .priority-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 22px;
+        padding: 0 8px;
+        font-size: 11px;
+        border-radius: 4px;
+        border: 1px solid var(--hairline);
+        background: var(--paper);
+        color: var(--ink-2);
         font-weight: 500;
-        color: #64748b;
-        transition: color 0.15s ease;
+        line-height: 1;
+        cursor: pointer;
+        transition: border-color 120ms ease, background 120ms ease;
     }
-    .tab-button:hover {
-        color: #334155;
+    .priority-pill:hover { border-color: var(--ink-5); }
+    .priority-pill .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--ink-4);
     }
-    .tab-button.active {
-        color: #ea580c;
+    .priority-pill.is-high .dot { background: var(--danger); }
+    .priority-pill.is-medium .dot { background: var(--warn); }
+    .priority-pill.is-low .dot { background: var(--positive); }
+
+    /* Priority menu */
+    .priority-menu {
+        position: fixed;
+        z-index: 100;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        box-shadow: 0 8px 24px oklch(0% 0 0 / 0.08);
+        min-width: 140px;
+        overflow: hidden;
     }
-    .tab-button.active::after {
-        content: '';
+    .priority-menu button {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        font-size: 12.5px;
+        color: var(--ink-2);
+        width: 100%;
+        text-align: left;
+        background: transparent;
+        transition: background 100ms ease;
+    }
+    .priority-menu button:hover { background: var(--paper-2); color: var(--ink); }
+    .priority-menu button .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+    }
+
+    /* Tabs */
+    .crm-task-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
+        border-bottom: 1px solid var(--hairline);
+        padding: 0 4px;
+    }
+    .crm-task-tab {
+        position: relative;
+        padding: 10px 14px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--ink-3);
+        transition: color 120ms ease;
+        text-decoration: none;
+    }
+    .crm-task-tab:hover { color: var(--ink); }
+    .crm-task-tab.is-active { color: var(--ink); }
+    .crm-task-tab.is-active::after {
+        content: "";
         position: absolute;
+        left: 8px;
+        right: 8px;
         bottom: -1px;
-        left: 0;
-        right: 0;
         height: 2px;
-        background: linear-gradient(90deg, #f97316, #ea580c);
-        border-radius: 2px 2px 0 0;
+        background: var(--ink);
+        border-radius: 1px 1px 0 0;
     }
+    .crm-task-tab .count {
+        margin-left: 6px;
+        font-size: 10.5px;
+        color: var(--ink-4);
+        font-variant-numeric: tabular-nums;
+    }
+
+    .due-soft { color: var(--ink-3); }
+    .due-soon { color: var(--warn); font-weight: 500; }
+    .due-today { color: var(--accent-ink); font-weight: 500; }
+    .due-overdue { color: var(--danger); font-weight: 500; }
 </style>
 
-<div class="min-h-screen bg-slate-50/50">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        
-        <!-- Header -->
-        <div class="mb-6 animate-in">
-            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-                <div>
-                    <div class="crm-eyebrow mb-2 hidden md:block">Workspace</div>
-                    <h1 class="crm-page-title hidden md:block" style="font-size: 36px;">Client tasks</h1>
-                    <p class="text-sm mt-2" style="color: var(--ink-3);">
-                        {% if show_all %}All tasks across your organization{% else %}Your assigned tasks{% endif %}
-                    </p>
-                </div>
-                <div class="flex items-center gap-3">
-                    {% if current_user.role == 'admin' %}
-                    <div class="relative">
-                        <select onchange="window.location.href='?view=' + this.value + '&status={{ current_status }}'" 
-                                class="text-sm bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 cursor-pointer appearance-none">
-                            <option value="my" {% if not show_all %}selected{% endif %}>My Tasks</option>
-                            <option value="all" {% if show_all %}selected{% endif %}>All Tasks</option>
-                        </select>
-                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
-                    </div>
-                    {% endif %}
-                    <a href="{{ url_for('tasks.create_task') }}" 
-                       class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors shadow-sm">
-                        <i class="fas fa-plus text-xs"></i>
-                        <span class="hidden sm:inline">New Task</span>
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1400px]">
+        {% set _title = 'Client <em>Tasks</em>' %}
+        {% call page_header(_title, ('All tasks across your organization' if show_all else 'Your assigned tasks'), 'Workspace') %}
+            {% if current_user.role == 'admin' %}
+            <div class="crm-segment">
+                <a href="?view=my&status={{ current_status }}" class="crm-segment__item {% if not show_all %}is-active{% endif %}">My Tasks</a>
+                <a href="?view=all&status={{ current_status }}" class="crm-segment__item {% if show_all %}is-active{% endif %}">All Tasks</a>
+            </div>
+            {% endif %}
+            <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-accent">
+                <i class="fas fa-plus text-xs"></i>
+                New Task
+            </a>
+        {% endcall %}
+
+        <section class="crm-surface">
+            <div class="px-2 pt-1">
+                <nav class="crm-task-tabs" aria-label="Task status">
+                    <a href="?status=pending{% if show_all %}&view=all{% endif %}"
+                       class="crm-task-tab {% if current_status == 'pending' %}is-active{% endif %}">
+                        Active
                     </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Card -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in animate-delay-1">
-            
-            <!-- Tabs -->
-            <div class="flex items-center gap-1 px-4 border-b border-slate-100">
-                <a href="?status=pending{% if show_all %}&view=all{% endif %}" 
-                   class="tab-button {% if current_status == 'pending' %}active{% endif %}">
-                    Active
-                </a>
-                <a href="?status=completed{% if show_all %}&view=all{% endif %}" 
-                   class="tab-button {% if current_status == 'completed' %}active{% endif %}">
-                    Completed
-                </a>
-                <a href="?status=all{% if show_all %}&view=all{% endif %}" 
-                   class="tab-button {% if current_status == 'all' %}active{% endif %}">
-                    All
-                </a>
+                    <a href="?status=completed{% if show_all %}&view=all{% endif %}"
+                       class="crm-task-tab {% if current_status == 'completed' %}is-active{% endif %}">
+                        Completed
+                    </a>
+                    <a href="?status=all{% if show_all %}&view=all{% endif %}"
+                       class="crm-task-tab {% if current_status == 'all' %}is-active{% endif %}">
+                        All
+                    </a>
+                </nav>
             </div>
 
-            <!-- Task List -->
             {% if tasks %}
-            <div class="divide-y divide-slate-100">
+            <ul class="divide-y" style="border-color: var(--hairline);">
                 {% for task in tasks %}
                 {% set task_date = task.due_date.date() %}
                 {% set current_date = now.date() %}
                 {% set days_until_due = (task_date - current_date).days %}
-                
-                <div class="task-row group">
-                    <div class="flex items-stretch">
-                        <!-- Priority Indicator -->
-                        <div class="priority-indicator {% if task.priority == 'high' %}priority-high{% elif task.priority == 'medium' %}priority-medium{% else %}priority-low{% endif %}"></div>
-                        
-                        <!-- Task Content -->
-                        <div class="flex-1 flex items-center gap-4 px-4 py-4">
-                            <!-- Checkbox -->
-                            <input type="checkbox"
-                                   {% if task.status == 'completed' %}checked{% endif %}
-                                   onchange="quickUpdateStatus({{ task.id }}, this.checked)"
-                                   class="task-checkbox flex-shrink-0">
-                            
-                            <!-- Main Content -->
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-2 mb-1">
-                                    <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks" 
-                                       class="text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors truncate">
-                                        {{ task.subject }}
-                                    </a>
-                                    {% if task.google_calendar_event_id %}
-                                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600" title="Synced to Google Calendar">
-                                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none">
-                                            <path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z" fill="#34A853" opacity="0.2"/>
-                                            <path d="M9 12l2 2 4-4" stroke="#34A853" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24">
-                                            <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
-                                            <path fill="#fff" d="M19 20H5V9h14v11z"/>
-                                            <path fill="#EA4335" d="M12 13h5v5h-5z"/>
-                                        </svg>
-                                    </span>
-                                    {% endif %}
-                                </div>
-                                
-                                <div class="flex items-center gap-3 text-xs text-slate-500">
-                                    <!-- Due Date -->
-                                    <span class="inline-flex items-center gap-1
-                                        {% if days_until_due < 0 %}text-red-600 font-medium
-                                        {% elif days_until_due == 0 %}text-orange-600 font-medium
-                                        {% elif days_until_due <= 2 %}text-amber-600{% endif %}">
-                                        <i class="far fa-calendar text-[10px]"></i>
-                                        {% if days_until_due < 0 %}
-                                            Overdue {{ days_until_due|abs }}d
-                                        {% elif days_until_due == 0 %}
-                                            Today
-                                        {% elif days_until_due == 1 %}
-                                            Tomorrow
-                                        {% else %}
-                                            {{ task.due_date.strftime('%b %d') }}
-                                        {% endif %}
-                                    </span>
-                                    
-                                    <!-- Contact -->
-                                    {% if task.contact %}
-                                    <span class="inline-flex items-center gap-1">
-                                        <i class="far fa-user text-[10px]"></i>
-                                        <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                                           class="hover:text-orange-600 transition-colors">
-                                            {{ task.contact.first_name }} {{ task.contact.last_name }}
-                                        </a>
-                                    </span>
-                                    {% endif %}
-                                    
-                                    <!-- Type -->
-                                    <span class="hidden sm:inline-flex items-center text-slate-400">
-                                        {{ task.task_type.name }}
-                                    </span>
-                                    
-                                    {% if current_user.role == 'admin' and show_all %}
-                                    <span class="hidden md:inline-flex items-center gap-1 text-slate-400">
-                                        <i class="far fa-user-circle text-[10px]"></i>
-                                        {{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[0] }}.
-                                    </span>
-                                    {% endif %}
-                                </div>
+                <li class="task-row priority-{{ task.priority }} {% if task.status == 'completed' %}is-completed{% endif %}"
+                    onclick="window.location.href='{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks'">
+                    <div class="flex items-center gap-4 px-5 py-3.5 pl-6">
+                        <input type="checkbox"
+                               {% if task.status == 'completed' %}checked{% endif %}
+                               onclick="event.stopPropagation();"
+                               onchange="quickUpdateStatus({{ task.id }}, this.checked)"
+                               class="task-check">
+
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="task-subject text-sm font-medium" style="color: var(--ink);">
+                                    {{ task.subject }}
+                                </span>
+                                {% if task.google_calendar_event_id %}
+                                <span class="inline-flex items-center" title="Synced to Google Calendar">
+                                    <svg class="h-3 w-3" viewBox="0 0 24 24">
+                                        <path fill="#4285F4" d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2z"/>
+                                        <path fill="#fff" d="M19 20H5V9h14v11z"/>
+                                        <path fill="#EA4335" d="M12 13h5v5h-5z"/>
+                                    </svg>
+                                </span>
+                                {% endif %}
                             </div>
-                            
-                            <!-- Priority Badge (clickable) -->
-                            <div class="relative flex-shrink-0">
-                                <button onclick="togglePriorityMenu({{ task.id }})"
-                                        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
-                                            {% if task.priority == 'high' %}bg-red-50 text-red-700 hover:bg-red-100
-                                            {% elif task.priority == 'medium' %}bg-amber-50 text-amber-700 hover:bg-amber-100
-                                            {% else %}bg-green-50 text-green-700 hover:bg-green-100{% endif %}">
-                                    <span class="w-1.5 h-1.5 rounded-full {% if task.priority == 'high' %}bg-red-500{% elif task.priority == 'medium' %}bg-amber-500{% else %}bg-green-500{% endif %}"></span>
-                                    {{ task.priority|capitalize }}
-                                </button>
-                                
-                                <!-- Priority Dropdown -->
-                                <div id="priority-menu-{{ task.id }}"
-                                     class="hidden fixed mt-1 w-32 rounded-lg shadow-lg bg-white ring-1 ring-slate-200 z-[100] overflow-hidden">
-                                    <button onclick="quickUpdatePriority({{ task.id }}, 'high')"
-                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                        <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                                        High
-                                    </button>
-                                    <button onclick="quickUpdatePriority({{ task.id }}, 'medium')"
-                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                                        Medium
-                                    </button>
-                                    <button onclick="quickUpdatePriority({{ task.id }}, 'low')"
-                                            class="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 w-full transition-colors">
-                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-                                        Low
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Actions -->
-                            <div class="task-actions flex items-center gap-1 opacity-0 transition-opacity flex-shrink-0">
-                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
-                                   class="p-2 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                                   title="View">
-                                    <i class="fas fa-arrow-right text-xs"></i>
+                            <div class="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style="color: var(--ink-4);">
+                                <span class="inline-flex items-center gap-1.5
+                                    {% if days_until_due < 0 %}due-overdue
+                                    {% elif days_until_due == 0 %}due-today
+                                    {% elif days_until_due <= 2 %}due-soon
+                                    {% else %}due-soft{% endif %}">
+                                    <i class="far fa-calendar text-[10px]"></i>
+                                    {% if days_until_due < 0 %}
+                                        Overdue {{ days_until_due|abs }}d
+                                    {% elif days_until_due == 0 %}
+                                        Today
+                                    {% elif days_until_due == 1 %}
+                                        Tomorrow
+                                    {% else %}
+                                        {{ task.due_date.strftime('%b %d') }}
+                                    {% endif %}
+                                </span>
+                                {% if task.contact %}
+                                <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
+                                   onclick="event.stopPropagation();"
+                                   class="inline-flex items-center gap-1.5 hover:underline" style="color: var(--ink-3);">
+                                    <i class="far fa-user text-[10px]"></i>
+                                    {{ task.contact.first_name }} {{ task.contact.last_name }}
                                 </a>
-                                <button onclick="deleteTask({{ task.id }})"
-                                        class="p-2 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                                        title="Delete">
-                                    <i class="fas fa-trash text-xs"></i>
+                                {% endif %}
+                                <span class="hidden sm:inline-flex items-center gap-1.5">
+                                    <i class="fas fa-tag text-[9px]"></i>
+                                    {{ task.task_type.name }}
+                                </span>
+                                {% if current_user.role == 'admin' and show_all %}
+                                <span class="hidden md:inline-flex items-center gap-1.5">
+                                    <i class="far fa-user-circle text-[10px]"></i>
+                                    {{ task.assigned_to.first_name }} {{ task.assigned_to.last_name[0] }}.
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="relative shrink-0" onclick="event.stopPropagation();">
+                            <button type="button"
+                                    onclick="togglePriorityMenu(event, {{ task.id }})"
+                                    class="priority-pill is-{{ task.priority }} hidden sm:inline-flex">
+                                <span class="dot"></span>
+                                {{ task.priority|capitalize }}
+                            </button>
+                            <div id="priority-menu-{{ task.id }}" class="priority-menu hidden">
+                                <button type="button" onclick="quickUpdatePriority({{ task.id }}, 'high')">
+                                    <span class="dot" style="background: var(--danger);"></span> High
+                                </button>
+                                <button type="button" onclick="quickUpdatePriority({{ task.id }}, 'medium')">
+                                    <span class="dot" style="background: var(--warn);"></span> Medium
+                                </button>
+                                <button type="button" onclick="quickUpdatePriority({{ task.id }}, 'low')">
+                                    <span class="dot" style="background: var(--positive);"></span> Low
                                 </button>
                             </div>
                         </div>
+
+                        <div class="task-actions flex items-center gap-1 shrink-0 opacity-0 transition-opacity"
+                             onclick="event.stopPropagation();">
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
+                               class="crm-btn-icon crm-btn crm-btn-secondary crm-btn-sm" title="View">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                            <button type="button" onclick="deleteTask({{ task.id }})"
+                                    class="crm-btn-icon crm-btn crm-btn-sm crm-btn-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </li>
                 {% endfor %}
-            </div>
+            </ul>
             {% else %}
-            <!-- Empty State -->
-            <div class="py-16 px-4 text-center">
-                <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-slate-100 flex items-center justify-center">
-                    <i class="fas fa-check-circle text-slate-400 text-xl"></i>
-                </div>
-                <h3 class="text-sm font-medium text-slate-900 mb-1">No tasks found</h3>
-                <p class="text-sm text-slate-500 mb-6">
-                    {% if current_status == 'pending' %}
-                        You're all caught up!
-                    {% elif current_status == 'completed' %}
-                        No completed tasks yet.
-                    {% else %}
-                        Get started by creating your first task.
-                    {% endif %}
-                </p>
-                <a href="{{ url_for('tasks.create_task') }}" 
-                   class="inline-flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors">
-                    <i class="fas fa-plus text-xs"></i>
-                    Create Task
-                </a>
+            <div class="crm-surface-body">
+                {% if current_status == 'pending' %}
+                    {% set _empty_msg = "You're all caught up." %}
+                {% elif current_status == 'completed' %}
+                    {% set _empty_msg = "No completed tasks yet." %}
+                {% else %}
+                    {% set _empty_msg = "Get started by creating your first task." %}
+                {% endif %}
+                {% call empty_state('No tasks found', _empty_msg, 'fa-clipboard-check') %}
+                    <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-accent">
+                        <i class="fas fa-plus text-xs"></i>
+                        Create task
+                    </a>
+                {% endcall %}
             </div>
             {% endif %}
-        </div>
-        
-        <!-- Task count -->
+        </section>
+
         {% if tasks %}
-        <p class="mt-4 text-xs text-slate-400 text-center animate-in animate-delay-2">
+        <p class="mt-4 text-center text-xs" style="color: var(--ink-4);">
             Showing {{ tasks|length }} task{{ 's' if tasks|length != 1 else '' }}
         </p>
         {% endif %}
-    </div>
-</div>
-
-<!-- Contact Modal -->
-<div id="contactModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] overflow-y-auto">
-    <div class="flex min-h-full items-center justify-center p-4">
-        <div class="relative bg-white rounded-xl shadow-xl max-w-lg w-full">
-            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                <div class="flex items-center gap-3">
-                    <div id="modalContactInitials" class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-600"></div>
-                    <h3 class="text-base font-semibold text-slate-900" id="modalContactName"></h3>
-                </div>
-                <button onclick="closeContactModal()" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="p-5 space-y-3">
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3 bg-slate-50 rounded-lg">
-                        <p class="text-xs text-slate-500 mb-0.5">Email</p>
-                        <p id="modalContactEmail" class="text-sm text-slate-900"></p>
-                    </div>
-                    <div class="p-3 bg-slate-50 rounded-lg">
-                        <p class="text-xs text-slate-500 mb-0.5">Phone</p>
-                        <p id="modalContactPhone" class="text-sm text-slate-900"></p>
-                    </div>
-                </div>
-                <div class="p-3 bg-slate-50 rounded-lg">
-                    <p class="text-xs text-slate-500 mb-0.5">Address</p>
-                    <p id="modalContactAddress" class="text-sm text-slate-900"></p>
-                </div>
-                <div class="p-3 bg-slate-50 rounded-lg">
-                    <p class="text-xs text-slate-500 mb-1">Groups</p>
-                    <div id="modalContactGroups" class="flex flex-wrap gap-1.5"></div>
-                </div>
-                <div class="p-3 bg-slate-50 rounded-lg">
-                    <p class="text-xs text-slate-500 mb-0.5">Notes</p>
-                    <p id="modalContactNotes" class="text-sm text-slate-900 whitespace-pre-line"></p>
-                </div>
-                <div class="p-3 bg-slate-50 rounded-lg">
-                    <p class="text-xs text-slate-500 mb-0.5">Potential Commission</p>
-                    <p id="modalContactCommission" class="text-sm text-slate-900"></p>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 
@@ -392,23 +358,18 @@ function quickUpdatePriority(taskId, priority) {
     });
 }
 
-function togglePriorityMenu(taskId) {
+function togglePriorityMenu(event, taskId) {
     event.stopPropagation();
     const button = event.currentTarget;
     const menu = document.getElementById(`priority-menu-${taskId}`);
-    const allMenus = document.querySelectorAll('[id^="priority-menu-"]');
-    
-    allMenus.forEach(m => {
+    document.querySelectorAll('.priority-menu').forEach(m => {
         if (m.id !== `priority-menu-${taskId}`) m.classList.add('hidden');
     });
-    
     menu.classList.toggle('hidden');
-    
     if (!menu.classList.contains('hidden')) {
         const rect = button.getBoundingClientRect();
         menu.style.left = `${rect.left}px`;
         menu.style.top = `${rect.bottom + 4}px`;
-        
         const menuRect = menu.getBoundingClientRect();
         if (menuRect.right > window.innerWidth) {
             menu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
@@ -420,14 +381,13 @@ function togglePriorityMenu(taskId) {
 }
 
 document.addEventListener('click', function(event) {
-    if (!event.target.closest('[id^="priority-menu-"]') && !event.target.closest('button[onclick^="togglePriorityMenu"]')) {
-        document.querySelectorAll('[id^="priority-menu-"]').forEach(menu => menu.classList.add('hidden'));
+    if (!event.target.closest('.priority-menu') && !event.target.closest('.priority-pill')) {
+        document.querySelectorAll('.priority-menu').forEach(menu => menu.classList.add('hidden'));
     }
 });
 
 function deleteTask(taskId) {
     if (!confirm('Delete this task?')) return;
-    
     fetch(`/tasks/${taskId}/delete`, { method: 'POST' })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
@@ -438,47 +398,5 @@ function deleteTask(taskId) {
         alert('Error deleting task');
     });
 }
-
-function openContactModal(contactId) {
-    fetch(`/contact/${contactId}`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-    .then(response => response.json())
-    .then(contact => {
-        document.getElementById('modalContactName').textContent = `${contact.first_name} ${contact.last_name}`;
-        document.getElementById('modalContactInitials').textContent = `${contact.first_name[0]}${contact.last_name[0]}`;
-        document.getElementById('modalContactEmail').textContent = contact.email || 'Not provided';
-        document.getElementById('modalContactPhone').textContent = contact.phone || 'Not provided';
-        
-        const addressParts = [contact.street_address, contact.city, contact.state, contact.zip_code].filter(Boolean);
-        document.getElementById('modalContactAddress').textContent = addressParts.join(', ') || 'Not provided';
-        document.getElementById('modalContactNotes').textContent = contact.notes || 'No notes';
-        document.getElementById('modalContactCommission').textContent = contact.potential_commission ? `$${contact.potential_commission}` : 'Not set';
-
-        const groupsContainer = document.getElementById('modalContactGroups');
-        groupsContainer.innerHTML = '';
-        if (contact.groups?.length > 0) {
-            contact.groups.forEach(group => {
-                const badge = document.createElement('span');
-                badge.className = 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-700';
-                badge.textContent = group.name;
-                groupsContainer.appendChild(badge);
-            });
-        } else {
-            groupsContainer.innerHTML = '<span class="text-slate-400 text-xs">No groups</span>';
-        }
-
-        document.getElementById('contactModal').classList.remove('hidden');
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error loading contact details');
-    });
-}
-
-function closeContactModal() {
-    document.getElementById('contactModal').classList.add('hidden');
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContactModal(); });
-document.getElementById('contactModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeContactModal(); });
 </script>
 {% endblock %}

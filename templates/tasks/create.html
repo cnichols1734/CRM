@@ -1,284 +1,184 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Create Task - Origen TechnolOG{% endblock %}
 
 {% block content %}
 <style>
-    /* Premium animations */
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+    .section-title {
+        font-size: 10.5px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        font-weight: 500;
+        margin-bottom: 14px;
     }
-    @keyframes pulse-glow {
-        0%, 100% { opacity: 0.3; }
-        50% { opacity: 0.5; }
-    }
-    .animate-fade-in-up { 
-        animation: fadeInUp 0.6s ease-out forwards; 
-    }
-    .animate-fade-in-up-delay-1 { 
-        animation: fadeInUp 0.6s ease-out 0.1s forwards; 
-        opacity: 0; 
-    }
-    .animate-fade-in-up-delay-2 { 
-        animation: fadeInUp 0.6s ease-out 0.2s forwards; 
-        opacity: 0; 
-    }
-    
-    /* Premium input styling */
-    .premium-input {
+    .field-label {
         display: block;
-        width: 100%;
-        padding: 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 1rem;
-        transition: all 0.2s ease-out;
+        margin-bottom: 6px;
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--ink-2);
     }
-    .premium-input:hover {
-        border-color: #cbd5e1;
-    }
-    .premium-input:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-    
-    /* Premium select styling */
-    .premium-select {
-        display: block;
-        width: 100%;
-        padding: 0.75rem 2.5rem 0.75rem 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        background-color: #f8fafc;
-        font-size: 1rem;
-        transition: all 0.2s ease-out;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-        background-position: right 0.75rem center;
-        background-repeat: no-repeat;
-        background-size: 1.25rem 1.25rem;
-    }
-    .premium-select:hover {
-        border-color: #cbd5e1;
-    }
-    .premium-select:focus {
-        outline: none;
-        border-color: #f97316;
-        background-color: #ffffff;
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
-    }
-    
-    textarea.premium-input {
-        min-height: 120px;
-        resize: vertical;
-    }
-    
-    /* Section header with gradient icon */
-    .section-icon {
-        width: 2.5rem;
-        height: 2.5rem;
-        border-radius: 0.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-    }
+    .field-required { color: var(--danger); }
+    .field-optional { color: var(--ink-4); font-weight: 400; font-size: 11px; }
 </style>
 
-<!-- Premium gradient background -->
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
-    <!-- Premium Header Bar -->
-    <div class="bg-white/80 backdrop-blur-sm border-b border-slate-100 sticky top-0 z-10">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-4 flex items-center justify-between">
-                <button onclick="navigateBack()" class="inline-flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all">
-                    <i class="fas fa-arrow-left"></i>
-                    <span class="font-medium">Back</span>
-        </button>
+<div class="crm-page">
+    {# Sticky top nav #}
+    <div class="sticky top-0 z-50 border-b" style="background: var(--paper); border-color: var(--hairline);">
+        <div class="mx-auto max-w-[1100px] px-4 sm:px-6">
+            <div class="flex h-12 items-center justify-between">
+                <button onclick="navigateBack()"
+                        class="inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+                    <i class="fas fa-arrow-left text-xs"></i>
+                    <span>Back</span>
+                </button>
             </div>
         </div>
     </div>
 
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Page Header -->
-        <div class="mb-8 animate-fade-in-up">
-            <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/25">
-                    <i class="fas fa-plus text-white text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                        Create New Task
-                    </h1>
-                    <p class="text-slate-500 mt-1">Add a new client task to your workflow</p>
-                </div>
-            </div>
-    </div>
+    <div class="crm-page__inner max-w-[1100px]">
+        {% set _title = 'Create <em>Task</em>' %}
+        {% call page_header(_title, 'Add a new client task to your workflow.', 'Workspace') %}{% endcall %}
 
-        <!-- Task Form Card -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-fade-in-up-delay-1">
+        <section class="crm-surface overflow-hidden">
             <form method="POST" action="{{ url_for('tasks.create_task') }}">
-                <!-- Contact & Assignment Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-blue-400 to-blue-600 text-white">
-                            <i class="fas fa-user"></i>
+                {# Contact & Assignment #}
+                <div class="crm-surface-body">
+                    <h2 class="section-title">Contact & Assignment</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="field-label">
+                                Contact <span class="field-required">*</span>
+                            </label>
+                            <select name="contact_id" id="contact_id" required class="crm-select">
+                                <option value="">Select a contact</option>
+                                {% for contact in contacts %}
+                                <option value="{{ contact.id }}"
+                                        {% if contact.id == request.args.get('contact_id')|int %}selected{% endif %}>
+                                    {{ contact.first_name }} {{ contact.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Contact & Assignment</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Contact <span class="text-red-500">*</span>
+                        {% if current_user.role == 'admin' %}
+                        <div>
+                            <label class="field-label">
+                                Assign To <span class="field-required">*</span>
                             </label>
-                            <select name="contact_id" id="contact_id" required class="premium-select">
-                            <option value="">Select a contact</option>
-                            {% for contact in contacts %}
-                            <option value="{{ contact.id }}"
-                                    {% if contact.id == request.args.get('contact_id')|int %}selected{% endif %}>
-                                {{ contact.first_name }} {{ contact.last_name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    {% if current_user.role == 'admin' %}
-                    <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Assign To <span class="text-red-500">*</span>
-                            </label>
-                            <select name="assigned_to_id" id="assigned_to_id" required class="premium-select">
-                            {% for user in users %}
-                            <option value="{{ user.id }}" {% if user.id == current_user.id %}selected{% endif %}>
-                                {{ user.first_name }} {{ user.last_name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    {% endif %}
+                            <select name="assigned_to_id" id="assigned_to_id" required class="crm-select">
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if user.id == current_user.id %}selected{% endif %}>
+                                    {{ user.first_name }} {{ user.last_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
-                <!-- Task Type Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-purple-400 to-purple-600 text-white">
-                            <i class="fas fa-tag"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Task Type</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Type <span class="text-red-500">*</span>
-                            </label>
-                            <select name="type_id" id="type_id" required onchange="updateSubtypes(this.value)" class="premium-select">
-                            <option value="">Select type</option>
-                            {% for type in task_types %}
-                            <option value="{{ type.id }}">{{ type.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Subtype <span class="text-red-500">*</span>
-                            </label>
-                            <select name="subtype_id" id="subtype_id" required class="premium-select">
-                            <option value="">Select type first</option>
-                        </select>
-                    </div>
-                    </div>
-                    </div>
-
-                <!-- Task Details Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-green-400 to-green-600 text-white">
-                            <i class="fas fa-file-alt"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Task Details</h2>
-                    </div>
-                    <div class="space-y-5">
+                {# Task Type #}
+                <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                    <h2 class="section-title">Task Type</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-medium text-slate-700 mb-2">
-                                Subject <span class="text-red-500">*</span>
+                            <label class="field-label">
+                                Type <span class="field-required">*</span>
                             </label>
-                            <input type="text" name="subject" id="subject" required 
-                                   class="premium-input" placeholder="Enter task subject">
+                            <select name="type_id" id="type_id" required onchange="updateSubtypes(this.value)" class="crm-select">
+                                <option value="">Select type</option>
+                                {% for type in task_types %}
+                                <option value="{{ type.id }}">{{ type.name }}</option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Due Date <span class="text-red-500">*</span>
-                                </label>
-                                <input type="date" name="due_date" id="due_date" required class="premium-input">
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Scheduled Time <span class="text-slate-400">(Optional)</span>
-                                </label>
-                                <input type="time" name="scheduled_time" id="scheduled_time" class="premium-input">
-                            </div>
+                        <div>
+                            <label class="field-label">
+                                Subtype <span class="field-required">*</span>
+                            </label>
+                            <select name="subtype_id" id="subtype_id" required class="crm-select">
+                                <option value="">Select type first</option>
+                            </select>
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Priority <span class="text-red-500">*</span>
-                                </label>
-                                <select name="priority" id="priority" required class="premium-select">
-                            <option value="low">Low</option>
-                            <option value="medium" selected>Medium</option>
-                            <option value="high">High</option>
-                        </select>
                     </div>
-                    <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-2">
-                                    Property Address <span class="text-slate-400">(Optional)</span>
+                </div>
+
+                {# Task Details #}
+                <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                    <h2 class="section-title">Task Details</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="field-label">
+                                Subject <span class="field-required">*</span>
+                            </label>
+                            <input type="text" name="subject" id="subject" required
+                                   class="crm-input" placeholder="Enter task subject">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label">
+                                    Due Date <span class="field-required">*</span>
                                 </label>
-                        <input type="text" name="property_address" id="property_address"
-                                       class="premium-input" placeholder="Enter property address"
+                                <input type="date" name="due_date" id="due_date" required class="crm-input">
+                            </div>
+                            <div>
+                                <label class="field-label">
+                                    Scheduled Time <span class="field-optional">(Optional)</span>
+                                </label>
+                                <input type="time" name="scheduled_time" id="scheduled_time" class="crm-input">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="field-label">
+                                    Priority <span class="field-required">*</span>
+                                </label>
+                                <select name="priority" id="priority" required class="crm-select">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label">
+                                    Property Address <span class="field-optional">(Optional)</span>
+                                </label>
+                                <input type="text" name="property_address" id="property_address"
+                                       class="crm-input" placeholder="Enter property address"
                                        value="{{ prefill_address or '' }}">
                             </div>
                         </div>
                     </div>
-                    </div>
-
-                <!-- Description Section -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="flex items-center gap-3 mb-5">
-                        <div class="section-icon bg-gradient-to-br from-slate-400 to-slate-600 text-white">
-                            <i class="fas fa-align-left"></i>
-                        </div>
-                        <h2 class="text-lg font-semibold text-slate-800">Description</h2>
-                    </div>
-                    <textarea name="description" id="description" 
-                              class="premium-input"
-                              placeholder="Add any additional details about the task..."></textarea>
                 </div>
 
-                <!-- Form Actions -->
-                <div class="p-6 bg-slate-50/50">
+                {# Description #}
+                <div class="border-t crm-surface-body" style="border-color: var(--hairline);">
+                    <h2 class="section-title">Description</h2>
+                    <textarea name="description" id="description" rows="5" class="crm-input"
+                              placeholder="Add any additional details about the task…"></textarea>
+                </div>
+
+                {# Form Actions #}
+                <div class="border-t px-5 py-4 flex flex-col sm:flex-row justify-end gap-3"
+                     style="border-color: var(--hairline); background: var(--paper-2);">
                     <input type="hidden" name="return_to" value="{% if request.args.get('transaction_id') %}transaction{% else %}{{ request.args.get('return_to', '') }}{% endif %}">
                     <input type="hidden" name="return_contact_id" value="{{ request.args.get('contact_id', '') }}">
                     {% if request.args.get('transaction_id') %}
                     <input type="hidden" name="transaction_id" value="{{ request.args.get('transaction_id') }}">
                     {% endif %}
-                    <div class="flex flex-col sm:flex-row justify-end gap-3">
-                    <a href="{% if request.args.get('transaction_id') %}{{ url_for('transactions.view_transaction', id=request.args.get('transaction_id')) }}{% elif request.args.get('return_to') == 'contact' %}{{ url_for('contacts.view_contact', contact_id=request.args.get('contact_id')) }}{% else %}{{ url_for('tasks.tasks') }}{% endif %}" 
-                           class="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-white hover:border-slate-300 transition-all">
+                    <a href="{% if request.args.get('transaction_id') %}{{ url_for('transactions.view_transaction', id=request.args.get('transaction_id')) }}{% elif request.args.get('return_to') == 'contact' %}{{ url_for('contacts.view_contact', contact_id=request.args.get('contact_id')) }}{% else %}{{ url_for('tasks.tasks') }}{% endif %}"
+                       class="crm-btn crm-btn-secondary">
                         Cancel
                     </a>
-                    <button type="submit"
-                                class="inline-flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl text-sm font-medium shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all">
-                            <i class="fas fa-plus"></i>
-                            Create Task
+                    <button type="submit" class="crm-btn crm-btn-accent">
+                        <i class="fas fa-plus text-xs"></i>
+                        Create Task
                     </button>
-                    </div>
                 </div>
             </form>
-        </div>
+        </section>
     </div>
 </div>
 
@@ -287,7 +187,7 @@ function navigateBack() {
     const returnTo = '{{ request.args.get("return_to", "") }}';
     const contactId = '{{ request.args.get("contact_id", "") }}';
     const transactionId = '{{ request.args.get("transaction_id", "") }}';
-    
+
     if (transactionId) {
         window.location.href = `/transactions/${transactionId}`;
     } else if (returnTo === 'contact' && contactId) {
@@ -300,16 +200,16 @@ function navigateBack() {
 function updateSubtypes(typeId) {
     const subtypeSelect = document.getElementById('subtype_id');
     subtypeSelect.innerHTML = '<option value="">Loading...</option>';
-    
+
     if (!typeId) {
         subtypeSelect.innerHTML = '<option value="">Select type first</option>';
         return;
     }
-    
+
     fetch(`/tasks/types/${typeId}/subtypes`)
         .then(response => response.json())
         .then(subtypes => {
-            subtypeSelect.innerHTML = subtypes.map(subtype => 
+            subtypeSelect.innerHTML = subtypes.map(subtype =>
                 `<option value="${subtype.id}">${subtype.name}</option>`
             ).join('');
         })
@@ -319,4 +219,4 @@ function updateSubtypes(typeId) {
         });
 }
 </script>
-{% endblock %} 
+{% endblock %}

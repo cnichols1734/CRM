@@ -1,281 +1,167 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Upgrade to Pro - Origen TechnolOG{% endblock %}
+{% block mobile_title %}Upgrade{% endblock %}
 
 {% block content %}
-<!-- Premium Upgrade Page - Matching Landing Page Style -->
-<div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-12 px-4 -mt-4 -mx-4 sm:-mx-6 lg:-mx-8">
-    
-    <div class="max-w-5xl mx-auto relative">
-        
-        <!-- Header -->
-        <div class="text-center mb-12">
-            <span class="inline-flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-sm font-semibold mb-6">
-                <i class="fas fa-clock"></i>
-                Coming Soon
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[1200px]">
+        <a href="#" id="backButton"
+           class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span id="backButtonText">Settings</span>
+        </a>
+
+        {% set _title = 'Upgrade to <em>Pro</em>' %}
+        {% call page_header(_title, 'Unlock unlimited AI, transactions, document generation, and team invites.', 'Plans · Coming soon') %}
+            <span class="crm-badge crm-badge-warning">
+                <i class="far fa-clock text-[10px] mr-1.5"></i>
+                Coming soon
             </span>
-            <h1 class="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
-                Upgrade to <span class="text-orange-500">Pro</span>
-            </h1>
-            <p class="text-xl text-slate-600 max-w-2xl mx-auto">
-                Unlock the full power of your CRM with advanced features designed for growing teams and serious agents.
-            </p>
-        </div>
-        
-        <!-- Pricing Cards -->
-        <div class="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch mb-16">
-            
-            <!-- Free Plan (Current) -->
-            <div class="bg-white rounded-2xl p-8 border-2 border-slate-200 shadow-lg flex flex-col h-full relative overflow-hidden">
-                <div class="absolute top-4 right-4">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-bold rounded-full">
-                        CURRENT PLAN
-                    </span>
-                </div>
-                
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-seedling text-slate-600 text-xl"></i>
-                    </div>
+        {% endcall %}
+
+        {# ── Pricing comparison ──────────────────────────────── #}
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {# ── Free plan ──────────────────────────── #}
+            <article class="crm-plan">
+                <header class="flex items-center justify-between gap-3">
                     <div>
-                        <h3 class="text-2xl font-bold text-slate-900">Free</h3>
-                        <p class="text-slate-500 text-sm">For individual agents</p>
+                        <p class="crm-eyebrow">Current plan</p>
+                        <h2 class="crm-plan__name mt-1">Free</h2>
+                        <p class="crm-plan__sub mt-1">For individual agents.</p>
                     </div>
-                </div>
-                
-                <div class="mb-6">
-                    <span class="text-4xl font-bold text-slate-900">$0</span>
-                    <span class="text-slate-500">/month</span>
-                    <p class="text-sm text-slate-500 mt-1">Forever free</p>
-                </div>
-                
-                <ul class="space-y-3 flex-grow">
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        1 user account
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        Up to 10,000 contacts
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        Task management
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        Dashboard & analytics
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        Google Integration (Gmail & Calendar)
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-700">
-                        <i class="fas fa-check text-green-500"></i>
-                        B.O.B. AI Chat (10/day)
-                    </li>
-                    
-                    <li class="flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-lock text-slate-300"></i>
-                        Unlimited AI chat (Pro)
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-lock text-slate-300"></i>
-                        AI daily todo & action plans (Pro)
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-lock text-slate-300"></i>
-                        Transaction management (Pro)
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-lock text-slate-300"></i>
-                        Document generation (Pro)
-                    </li>
-                    <li class="flex items-center gap-3 text-slate-400">
-                        <i class="fas fa-lock text-slate-300"></i>
-                        Team invitations (Pro)
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- Pro Plan -->
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-8 shadow-xl relative overflow-hidden flex flex-col h-full border-2 border-slate-700">
-                <!-- Recommended badge -->
-                <div class="absolute top-4 right-4">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-full">
-                        <i class="fas fa-star text-[10px]"></i> RECOMMENDED
+                    <span class="crm-badge">
+                        <i class="fas fa-check text-[9px] mr-1"></i>
+                        Active
                     </span>
+                </header>
+
+                <div>
+                    <span class="crm-plan__price">$0</span>
+                    <span class="crm-plan__price-suffix">/month · forever free</span>
                 </div>
-                
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                        <i class="fas fa-rocket text-white text-xl"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-2xl font-bold text-white">Pro</h3>
-                        <p class="text-slate-400 text-sm">For teams & power users</p>
-                    </div>
-                </div>
-                
-                <div class="mb-6">
-                    <span class="text-3xl font-bold text-white">Coming Soon</span>
-                    <p class="text-sm text-slate-400 mt-1">Be the first to know</p>
-                </div>
-                
-                <ul class="space-y-3 flex-grow">
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Everything in Free
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Up to 25 users
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Unlimited contacts
-                    </li>
-                    <li class="flex items-center gap-3 text-white font-semibold">
-                        <i class="fas fa-infinity text-orange-400"></i>
-                        <strong>Unlimited</strong> B.O.B. AI chat
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        AI daily todo generator
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        AI action plan builder
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Transaction management
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Document generation & e-signing
-                    </li>
-                    <li class="flex items-center gap-3 text-white">
-                        <i class="fas fa-check text-orange-400"></i>
-                        Team invites & member management
-                    </li>
+
+                <ul class="crm-plan__features">
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> 1 user account</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Up to 10,000 contacts</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Task management</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Dashboard &amp; analytics</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Google integration (Gmail &amp; Calendar)</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> B.O.B. AI Chat (10/day)</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Unlimited AI chat</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> AI daily todo &amp; action plans</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Transaction management</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Document generation</li>
+                    <li class="crm-plan__feature is-locked"><i class="fas fa-lock"></i> Team invitations</li>
                 </ul>
-                
-                <div class="mt-auto pt-8">
-                    <button onclick="openContactUsModal('app')" 
-                       class="block w-full text-center px-6 py-3 bg-orange-500 text-white font-semibold rounded-xl hover:bg-orange-600 transition-colors cursor-pointer">
-                        Contact Us About Pro
-                    </button>
+            </article>
+
+            {# ── Pro plan ───────────────────────────── #}
+            <article class="crm-plan crm-plan--featured relative">
+                <span class="absolute right-5 top-5 crm-badge crm-badge-accent">
+                    <i class="fas fa-star text-[9px] mr-1"></i>
+                    Recommended
+                </span>
+
+                <header>
+                    <p class="crm-eyebrow" style="color: var(--accent);">Pro</p>
+                    <h2 class="crm-plan__name mt-1">Pro</h2>
+                    <p class="crm-plan__sub mt-1">For teams &amp; power users.</p>
+                </header>
+
+                <div>
+                    <span class="crm-plan__price">Coming soon</span>
+                    <p class="crm-plan__sub mt-1">Be the first to know when Pro launches.</p>
                 </div>
-            </div>
+
+                <ul class="crm-plan__features">
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Everything in Free</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Up to 25 users</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Unlimited contacts</li>
+                    <li class="crm-plan__feature"><i class="fas fa-infinity"></i> <b>Unlimited</b> B.O.B. AI chat</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> AI daily todo generator</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> AI action plan builder</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Transaction management</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Document generation &amp; e-signing</li>
+                    <li class="crm-plan__feature"><i class="fas fa-check"></i> Team invites &amp; member management</li>
+                </ul>
+
+                <button type="button" onclick="openContactUsModal('app')" class="crm-btn crm-btn-accent w-full">
+                    Contact us about Pro
+                    <i class="fas fa-arrow-right text-xs"></i>
+                </button>
+            </article>
         </div>
-        
-        <!-- Pro Features Showcase -->
-        <div class="mb-16">
-            <h2 class="text-2xl font-bold text-slate-900 text-center mb-8">What you'll unlock with Pro</h2>
-            
-            <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <!-- Unlimited AI -->
-                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300">
-                    <div class="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/20">
-                        <i class="fas fa-infinity text-white text-xl"></i>
+
+        {# ── Pro feature highlights ──────────────────────────── #}
+        <section class="mt-12">
+            <header class="mb-5">
+                <p class="crm-eyebrow">What you'll unlock with Pro</p>
+                <h2 class="crm-section-title mt-1.5">Capabilities included with the Pro plan</h2>
+            </header>
+
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {% set highlights = [
+                    ('Unlimited AI', 'fa-infinity', 'Unlimited B.O.B. conversations, plus AI daily todos and action plans.'),
+                    ('Transaction management', 'fa-file-contract', 'Track deals from listing to close with full timeline visibility.'),
+                    ('Document generation', 'fa-file-signature', 'Auto-generate contracts and collect e-signatures seamlessly.'),
+                    ('Team collaboration', 'fa-users', 'Invite teammates with role-based access and permissions.')
+                ] %}
+                {% for title, icon, desc in highlights %}
+                <article class="crm-surface" style="height: 100%;">
+                    <div class="crm-surface-body">
+                        <span class="crm-icon-block mb-4"><i class="fas {{ icon }} text-xs"></i></span>
+                        <h3 class="text-sm font-medium" style="color: var(--ink); letter-spacing: -0.005em;">{{ title }}</h3>
+                        <p class="mt-1.5 text-xs" style="color: var(--ink-3); line-height: 1.5;">{{ desc }}</p>
                     </div>
-                    <h3 class="font-bold text-slate-900 mb-2">Unlimited AI</h3>
-                    <p class="text-sm text-slate-600">Unlimited B.O.B. conversations, plus AI daily todos and action plans.</p>
-                </div>
-                
-                <!-- Transactions -->
-                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300">
-                    <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-blue-500/20">
-                        <i class="fas fa-file-contract text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-900 mb-2">Transaction Management</h3>
-                    <p class="text-sm text-slate-600">Track deals from listing to close with full timeline visibility.</p>
-                </div>
-                
-                <!-- Documents -->
-                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300">
-                    <div class="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
-                        <i class="fas fa-file-signature text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-900 mb-2">Document Generation</h3>
-                    <p class="text-sm text-slate-600">Auto-generate contracts and collect e-signatures seamlessly.</p>
-                </div>
-                
-                <!-- Team -->
-                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-orange-200 transition-all duration-300">
-                    <div class="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center mb-4 shadow-lg shadow-amber-500/20">
-                        <i class="fas fa-users text-white text-xl"></i>
-                    </div>
-                    <h3 class="font-bold text-slate-900 mb-2">Team Collaboration</h3>
-                    <p class="text-sm text-slate-600">Invite team members with role-based access and permissions.</p>
-                </div>
+                </article>
+                {% endfor %}
             </div>
-        </div>
-        
-        <!-- Contact CTA -->
-        <div class="bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 rounded-2xl p-8 text-center relative overflow-hidden">
-            <!-- Background pattern -->
-            <div class="absolute inset-0 opacity-10">
-                <div class="absolute top-0 left-0 w-64 h-64 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-                <div class="absolute bottom-0 right-0 w-80 h-80 bg-white rounded-full translate-x-1/4 translate-y-1/4"></div>
-            </div>
-            
-            <div class="relative">
-                <div class="w-16 h-16 bg-white/20 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-6">
-                    <i class="fas fa-envelope text-white text-2xl"></i>
+        </section>
+
+        {# ── Contact CTA ─────────────────────────────────────── #}
+        <section class="mt-12 crm-surface" style="background: var(--ink); border-color: var(--ink);">
+            <div class="crm-surface-body flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between">
+                <div class="min-w-0">
+                    <p class="crm-eyebrow" style="color: var(--accent);">Interested in Pro?</p>
+                    <h3 class="mt-2 crm-serif" style="font-size: 24px; line-height: 1.1; color: var(--paper);">
+                        We&rsquo;re finalizing pricing — and we&rsquo;d love to hear from you.
+                    </h3>
+                    <p class="mt-2 text-sm max-w-xl" style="color: oklch(78% 0.004 75);">
+                        Reach out to learn more, lock in early-access pricing, or get notified when Pro launches.
+                    </p>
                 </div>
-                
-                <h2 class="text-2xl font-bold text-white mb-3">Interested in Pro?</h2>
-                <p class="text-white/90 mb-6 max-w-lg mx-auto">
-                    We're finalizing Pro pricing and would love to hear from you. 
-                    Reach out to learn more or get notified when Pro becomes available.
-                </p>
-                
-                <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
-                    <button onclick="openContactUsModal('app')" 
-                       class="inline-flex items-center gap-2 px-8 py-4 bg-white text-orange-600 font-bold rounded-xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 cursor-pointer">
-                        <i class="fas fa-paper-plane"></i>
-                        Contact Us
-                    </button>
-                    <a href="#" id="backButton"
-                       class="inline-flex items-center gap-2 px-6 py-4 bg-white/10 text-white font-semibold rounded-xl border-2 border-white/30 hover:bg-white/20 transition-all duration-200">
-                        <i class="fas fa-arrow-left"></i>
-                        <span id="backButtonText">Back to Settings</span>
-                    </a>
-                </div>
+                <button type="button" onclick="openContactUsModal('app')" class="crm-btn crm-btn-accent shrink-0">
+                    <i class="far fa-paper-plane text-xs"></i>
+                    Contact us
+                </button>
             </div>
-        </div>
-        
-        <!-- Footer note -->
-        <div class="mt-8 text-center">
-            <p class="text-slate-500 text-sm">
-                <i class="fas fa-shield-alt mr-2"></i>
-                Your data is safe. You won't be charged anything until you explicitly upgrade.
-            </p>
-        </div>
+        </section>
+
+        <p class="mt-6 text-center text-xs" style="color: var(--ink-4);">
+            <i class="fas fa-shield-alt mr-1.5"></i>
+            Your data is safe. You won&rsquo;t be charged anything until you explicitly upgrade.
+        </p>
     </div>
 </div>
 
-<!-- Contact Us Modal -->
 {% include 'modals/contact_us_modal.html' %}
 
 <script>
-// Dynamic back button based on referrer
 document.addEventListener('DOMContentLoaded', function() {
     const backButton = document.getElementById('backButton');
     const backButtonText = document.getElementById('backButtonText');
     const referrer = document.referrer;
-    
-    // Check if user came from a page with BOB chat (any page really, but we can also check URL param)
     const urlParams = new URLSearchParams(window.location.search);
     const fromChat = urlParams.get('from') === 'chat';
-    
-    // If from chat or referrer doesn't include 'settings', go to dashboard
+
     if (fromChat || (referrer && !referrer.includes('/org/settings'))) {
         backButton.href = "{{ url_for('main.dashboard') }}";
-        backButtonText.textContent = "Back to Dashboard";
+        backButtonText.textContent = "Dashboard";
     } else {
         backButton.href = "{{ url_for('org.settings') }}";
-        backButtonText.textContent = "Back to Settings";
+        backButtonText.textContent = "Settings";
     }
 });
 </script>
