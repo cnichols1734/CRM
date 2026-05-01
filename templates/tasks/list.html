@@ -58,6 +58,11 @@
         transform: rotate(45deg);
     }
 
+    .task-subject {
+        color: var(--ink);
+        text-decoration: none;
+    }
+    .task-subject:hover { color: var(--ink); }
     .task-row.is-completed .task-subject { text-decoration: line-through; color: var(--ink-4); }
     .task-row.is-completed::before { background: var(--ink-5); opacity: 0.5; }
 
@@ -212,9 +217,11 @@
 
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-2">
-                                <span class="task-subject text-sm font-medium" style="color: var(--ink);">
+                                <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=tasks"
+                                   onclick="event.stopPropagation();"
+                                   class="task-subject text-sm font-medium">
                                     {{ task.subject }}
-                                </span>
+                                </a>
                                 {% if task.google_calendar_event_id %}
                                 <span class="inline-flex items-center" title="Synced to Google Calendar">
                                     <svg class="h-3 w-3" viewBox="0 0 24 24">
