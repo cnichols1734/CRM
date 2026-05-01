@@ -60,9 +60,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap"
         rel="stylesheet">
-    <!-- Atelier type system: Geist (UI), Instrument Serif (display), JetBrains Mono (data). -->
+    <!-- Atelier type system: Inter (UI + display), JetBrains Mono (data). -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- Add AI Chat Widget styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
     <!-- Local app bundle for progressive frontend rewrite -->
@@ -1529,13 +1529,13 @@
         .crm-page-title,
         .crm-section-title {
             font-family: var(--font-serif) !important;
-            font-weight: 400 !important;
-            letter-spacing: -0.015em !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.024em !important;
             color: var(--ink) !important;
         }
 
-        /* Make sure Tailwind 'font-bold' / 'font-extrabold' on display titles
-           don't override the serif by reverting them to medium where serif is on. */
+        /* Tailwind 'font-bold' / 'font-extrabold' is too heavy on display titles —
+           lock to semibold (600) which is the "pro" weight for Inter at large sizes. */
         h1.text-3xl.font-bold,
         h1.text-2xl.font-bold,
         h1.text-4xl.font-bold,
@@ -1546,7 +1546,7 @@
         h2.text-xl.font-bold,
         h2.text-xl.font-semibold,
         h2.text-2xl.font-semibold {
-            font-weight: 400 !important;
+            font-weight: 600 !important;
         }
         /* Card-level h3/h4 titles inside surfaces */
         h3.text-base.font-semibold,
@@ -1641,9 +1641,9 @@
             -webkit-text-fill-color: var(--ink) !important;
             color: var(--ink) !important;
             font-family: var(--font-serif) !important;
-            font-weight: 400 !important;
-            letter-spacing: -0.015em !important;
-            font-size: 18px !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.022em !important;
+            font-size: 17px !important;
         }
         .bob-header-subtitle {
             color: var(--ink-3) !important;
@@ -1710,8 +1710,8 @@
             -webkit-text-fill-color: var(--ink) !important;
             color: var(--ink) !important;
             font-family: var(--font-serif) !important;
-            font-weight: 400 !important;
-            letter-spacing: -0.02em !important;
+            font-weight: 600 !important;
+            letter-spacing: -0.026em !important;
         }
         .bob-subtitle { color: var(--ink-3) !important; font-weight: 500 !important; letter-spacing: 0 !important; }
         .bob-tagline {
