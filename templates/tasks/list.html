@@ -97,10 +97,11 @@
         
         <!-- Header -->
         <div class="mb-6 animate-in">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                 <div>
-                    <h1 class="text-2xl font-semibold text-slate-900 hidden md:block">Client Tasks</h1>
-                    <p class="text-sm text-slate-500 mt-0.5">
+                    <div class="crm-eyebrow mb-2 hidden md:block">Workspace</div>
+                    <h1 class="crm-page-title hidden md:block" style="font-size: 36px;">Client tasks</h1>
+                    <p class="text-sm mt-2" style="color: var(--ink-3);">
                         {% if show_all %}All tasks across your organization{% else %}Your assigned tasks{% endif %}
                     </p>
                 </div>

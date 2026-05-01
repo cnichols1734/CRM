@@ -116,23 +116,21 @@
             </a>
         </div>
 
-        <!-- Profile Header Card -->
-        <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden mb-6 animate-fade-in-up">
-            <div class="bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 px-8 py-10">
-                <div class="flex items-center gap-6">
-                    <!-- Avatar -->
-                    <div class="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-                        {{ user.first_name[0] if user.first_name else user.username[0]|upper }}{{ user.last_name[0] if user.last_name else '' }}
-                    </div>
-                    <div>
-                        <h1 class="text-2xl font-bold text-white">
-                            {% if is_admin_edit %}Edit User{% else %}{{ user.first_name }} {{ user.last_name }}{% endif %}
-                        </h1>
-                        <p class="text-blue-100 mt-1">{{ user.email }}</p>
-                        {% if user.license_number %}
-                        <p class="text-blue-200 text-sm mt-1">License: {{ user.license_number }}</p>
-                        {% endif %}
-                    </div>
+        <!-- Editorial profile header -->
+        <div class="mb-6 pb-5" style="border-bottom: 1px solid var(--hairline);">
+            <div class="flex items-center gap-5">
+                <span class="crm-avatar crm-avatar-lg crm-avatar-serif">
+                    {{ user.first_name[0] if user.first_name else user.username[0]|upper }}{{ user.last_name[0] if user.last_name else '' }}
+                </span>
+                <div class="min-w-0">
+                    <div class="crm-eyebrow mb-1">{% if is_admin_edit %}Admin · Edit user{% else %}Account · Profile{% endif %}</div>
+                    <h1 class="crm-page-title" style="font-size: 36px; line-height: 1.05;">
+                        {% if is_admin_edit %}Edit User{% else %}{{ user.first_name }} {{ user.last_name }}{% endif %}
+                    </h1>
+                    <p class="mt-2 text-sm" style="color: var(--ink-3);">
+                        {{ user.email }}
+                        {% if user.license_number %}<span class="mx-2" style="color: var(--ink-5);">·</span>License {{ user.license_number }}{% endif %}
+                    </p>
                 </div>
             </div>
         </div>

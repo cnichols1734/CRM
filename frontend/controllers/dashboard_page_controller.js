@@ -129,7 +129,7 @@ export default class extends Controller {
         type: "donut"
       },
       labels: this.groupStatsValue.map((item) => item.name),
-      colors: ["#f97316", "#0f172a", "#475569", "#94a3b8", "#cbd5e1", "#e2e8f0"],
+      colors: this._chartColors(),
       dataLabels: {
         enabled: false
       },
@@ -156,5 +156,26 @@ export default class extends Controller {
     });
 
     this.groupChart.render();
+
+    // Re-render on theme toggle so colors stay readable in dark mode.
+    this._themeListener = () => {
+      if (!this.groupChart) return;
+      this.groupChart.updateOptions({ colors: this._chartColors() }, false, false);
+    };
+    window.addEventListener("crm:theme", this._themeListener);
+  }
+
+  _chartColors() {
+    const root = getComputedStyle(document.documentElement);
+    const tok = (name, fallback) => (root.getPropertyValue(name).trim() || fallback);
+    // Prefer ink/accent tokens so the donut adapts to theme automatically.
+    return [
+      tok("--accent",  "#c1623f"),
+      tok("--ink",     "#1d2026"),
+      tok("--ink-3",   "#7a7572"),
+      tok("--ink-4",   "#a39e9b"),
+      tok("--ink-5",   "#c9c5c1"),
+      tok("--paper-3", "#ebe7e2"),
+    ];
   }
 }

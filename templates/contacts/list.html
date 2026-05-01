@@ -8,7 +8,8 @@
 
 <div class="crm-page" data-controller="contacts-page">
     <div class="crm-page__inner">
-        {% call page_header('Contacts', '', 'Database') %}
+        {% set _title_html = 'Contacts <em>· ' ~ total_contacts ~ '</em>' %}
+        {% call page_header(_title_html, '', 'Database') %}
             <button type="button"
                     class="crm-btn crm-btn-secondary"
                     data-action="contacts-page#openImportDialog"
@@ -27,7 +28,7 @@
                 <i class="fas fa-download text-xs"></i>
                 Export
             </a>
-            <a href="{{ url_for('contacts.create_contact') }}" class="crm-btn crm-btn-primary">
+            <a href="{{ url_for('contacts.create_contact') }}" class="crm-btn crm-btn-accent">
                 <i class="fas fa-plus text-xs"></i>
                 Create contact
             </a>
