@@ -6,8 +6,9 @@
 {% block content %}
 <div class="crm-page">
     <div class="crm-page__inner">
-        {% call page_header('Partner Directory', 'Companies and people your team works with at closing.', 'Transactions') %}
-            <button type="button" onclick="openAddPartnerModal()" class="crm-btn crm-btn-primary">
+        {% set _pd_title = 'Partner <em>Directory</em>' %}
+        {% call page_header(_pd_title, 'Companies and people your team works with at closing.', 'Transactions') %}
+            <button type="button" onclick="openAddPartnerModal()" class="crm-btn crm-btn-accent">
                 <i class="fas fa-plus text-xs"></i>
                 Add Company
             </button>
@@ -105,14 +106,14 @@
 
         {# Duplicate warning (shown when POST returns with warnings) #}
         {% if duplicate_warnings %}
-        <div class="border-b border-amber-200 bg-amber-50 px-6 py-4">
-            <p class="text-sm font-medium text-amber-900">Possible duplicate — review before creating</p>
+        <div class="px-6 py-4" style="border-bottom: 1px solid var(--hairline); background: var(--warn-soft);">
+            <p class="text-sm font-medium" style="color: var(--warn);">Possible duplicate — review before creating</p>
             <div class="mt-2 grid gap-2 sm:grid-cols-2">
                 {% for dup in duplicate_warnings %}
                 <a href="{{ url_for('partner_directory.detail', partner_id=dup.id) }}"
-                   class="rounded border border-amber-200 bg-white px-3 py-2 text-sm hover:bg-amber-50">
-                    <span class="font-semibold text-amber-900">{{ dup.name }}</span>
-                    <span class="block text-xs text-amber-700">{{ dup.full_address or dup.type_label }}</span>
+                   class="rounded px-3 py-2 text-sm" style="border: 1px solid var(--hairline); background: var(--paper);">
+                    <span class="font-semibold" style="color: var(--ink);">{{ dup.name }}</span>
+                    <span class="block text-xs" style="color: var(--ink-3);">{{ dup.full_address or dup.type_label }}</span>
                 </a>
                 {% endfor %}
             </div>
@@ -123,7 +124,7 @@
                 {% endfor %}
                 {% endif %}
                 <input type="hidden" name="force_create" value="1">
-                <button type="submit" class="text-xs font-medium text-orange-600 hover:text-orange-700">
+                <button type="submit" class="text-xs font-medium" style="color: var(--accent-ink);">
                     None of these match — create anyway &rarr;
                 </button>
             </form>
@@ -138,10 +139,10 @@
                         <input name="name" required autofocus value="{{ pending_company.name if pending_company else '' }}" class="crm-input" placeholder="e.g. Austin Title Company">
                     </div>
                     <div class="sm:col-span-2">
-                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Type</label>
+                        <label class="mb-1.5 block text-xs font-medium" style="color: var(--ink-3);">Type</label>
                         <div class="flex flex-wrap gap-2" id="partnerTypeButtons">
                             {% for value, label in partner_types.items() %}
-                            <label class="partner-type-btn cursor-pointer select-none rounded-md border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:border-orange-400 hover:bg-orange-50 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50 has-[:checked]:text-orange-700 has-[:checked]:font-medium">
+                            <label class="partner-type-btn">
                                 <input type="radio" name="partner_type" value="{{ value }}" {% if (pending_company and pending_company.partner_type == value) or (not pending_company and value == 'other') %}checked{% endif %} class="sr-only">
                                 {{ label }}
                             </label>

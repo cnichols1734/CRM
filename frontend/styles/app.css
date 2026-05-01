@@ -1245,4 +1245,32 @@
     color: var(--ink-3);
     font-weight: 500;
   }
+
+  /* ── Partner Directory: type pill selector ──────────────── */
+  .partner-type-btn {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: var(--radius);
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--ink-2);
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .partner-type-btn:hover {
+    background: var(--paper-2);
+    border-color: var(--ink-5);
+    color: var(--ink);
+  }
+  .partner-type-btn:has(input:checked) {
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
+    color: var(--accent-ink);
+    font-weight: 500;
+  }
 }
