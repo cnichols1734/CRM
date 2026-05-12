@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Tests
 
 on:
   pull_request:
@@ -8,9 +8,9 @@ on:
 
 jobs:
   # -------------------------------------------------------------------
-  # Job 1: Pytest integration tests (Flask test client, no browser)
+  # Job 1: Unit tests (Flask test client, no browser)
   # -------------------------------------------------------------------
-  pytest:
+  unit:
     runs-on: ubuntu-latest
 
     env:
@@ -44,7 +44,7 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Run pytest integration tests
+      - name: Run unit tests
         run: |
           pytest tests/ -x -v --ignore=tests/run_tests.py --ignore=tests/run_scheduled_tests.py --ignore=tests/test_idor_protection.py --ignore=tests/test_sendgrid.py --tb=short
           pytest tests/test_idor_protection.py -x -v --tb=short

@@ -16,6 +16,123 @@ from sqlalchemy import or_, case
 
 main_bp = Blueprint('main', __name__)
 
+
+def _weekly_buckets(rows, ts_attr='created_at', value_attr=None, weeks=20, end_dt=None):
+    """Bucket rows into `weeks` weekly buckets ending today (UTC).
+
+    Each bucket holds the sum of `value_attr` (or a count of rows if `value_attr`
+    is None). Returns a list of `weeks` floats, oldest week first. Done in
+    Python so it works on both SQLite (local dev) and Postgres without
+    DB-specific date_trunc shenanigans.
+    """
+    if end_dt is None:
+        end_dt = datetime.now(timezone.utc)
+    end_day = end_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    period_start = end_day - timedelta(days=weeks * 7) + timedelta(days=1)
+    period_end = end_day + timedelta(days=1)
+
+    buckets = [0.0] * weeks
+    for row in rows:
+        ts = getattr(row, ts_attr, None)
+        if ts is None:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if ts < period_start or ts >= period_end:
+            continue
+        days_in = (ts - period_start).days
+        idx = min(days_in // 7, weeks - 1)
+        if value_attr is None:
+            buckets[idx] += 1
+        else:
+            v = getattr(row, value_attr, None) or 0
+            buckets[idx] += float(v)
+    return buckets
+
+
+def _smooth_trailing(values, window=4):
+    """Trailing average over `window` weeks, ignoring zero buckets so the
+    sparkline trends instead of slamming to zero on quiet weeks."""
+    out = []
+    for i in range(len(values)):
+        lo = max(0, i - window + 1)
+        chunk = [v for v in values[lo:i + 1] if v > 0]
+        out.append(sum(chunk) / len(chunk) if chunk else 0.0)
+    return out
+
+
+def _catmull_rom_path(points, tension=1.0):
+    """Generate an SVG path string passing smoothly through `points` using
+    Catmull-Rom -> cubic Bezier conversion. Returns the line path only."""
+    n = len(points)
+    if n == 0:
+        return ""
+    if n == 1:
+        x, y = points[0]
+        return f"M {x:.2f} {y:.2f}"
+
+    parts = [f"M {points[0][0]:.2f} {points[0][1]:.2f}"]
+    for i in range(n - 1):
+        p0 = points[i - 1] if i > 0 else points[0]
+        p1 = points[i]
+        p2 = points[i + 1]
+        p3 = points[i + 2] if i + 2 < n else points[-1]
+
+        cp1x = p1[0] + (p2[0] - p0[0]) * tension / 6.0
+        cp1y = p1[1] + (p2[1] - p0[1]) * tension / 6.0
+        cp2x = p2[0] - (p3[0] - p1[0]) * tension / 6.0
+        cp2y = p2[1] - (p3[1] - p1[1]) * tension / 6.0
+
+        parts.append(
+            f"C {cp1x:.2f} {cp1y:.2f}, {cp2x:.2f} {cp2y:.2f}, {p2[0]:.2f} {p2[1]:.2f}"
+        )
+    return " ".join(parts)
+
+
+def _sparkline_paths(values, width=200, height=80, pad_top=6, pad_bottom=2):
+    """Build SVG path strings for a smooth area sparkline.
+
+    Returns dict with `line`, `area`, `end_x`, `end_y`, and `has_data`.
+    Coordinates are in the SVG viewBox space; pair with
+    preserveAspectRatio="none" + vector-effect="non-scaling-stroke" so the
+    chart stretches to fill any container without distorting the stroke.
+    """
+    n = len(values)
+    if n < 2:
+        baseline_y = height - pad_bottom
+        return {
+            'line': f"M 0 {baseline_y:.2f} L {width} {baseline_y:.2f}",
+            'area': f"M 0 {baseline_y:.2f} L {width} {baseline_y:.2f} "
+                    f"L {width} {height} L 0 {height} Z",
+            'end_x': float(width),
+            'end_y': float(baseline_y),
+            'has_data': False,
+        }
+
+    max_v = max(values)
+    has_data = max_v > 0
+    range_v = max_v if has_data else 1
+    usable_h = height - pad_top - pad_bottom
+
+    points = []
+    for i, v in enumerate(values):
+        x = (i / (n - 1)) * width
+        # Flat baseline when there's no data, otherwise scaled from bottom up.
+        y = (height - pad_bottom) - ((v / range_v) * usable_h if has_data else 0)
+        points.append((x, y))
+
+    line_path = _catmull_rom_path(points, tension=1.0)
+    area_path = f"{line_path} L {width:.2f} {height} L 0 {height} Z"
+    end_x, end_y = points[-1]
+    return {
+        'line': line_path,
+        'area': area_path,
+        'end_x': end_x,
+        'end_y': end_y,
+        'has_data': has_data,
+    }
+
+
 # Track when the app started for uptime calculation
 _app_start_time = datetime.now(timezone.utc)
 
@@ -525,6 +642,84 @@ def dashboard():
         'commission_tiers': commission_tier_rows,
     }
 
+    # ── KPI right-rail area sparklines (last 20 weeks of contact activity).
+    # One small query, bucketed in Python, drives all three cards. Each card
+    # gets smoothed weekly values rendered as a server-built SVG area chart.
+    spark_weeks = 20
+    spark_period_start = (
+        datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        - timedelta(days=spark_weeks * 7) + timedelta(days=1)
+    )
+    spark_rows = base_contact_query.with_entities(
+        Contact.created_at,
+        Contact.potential_commission,
+    ).filter(Contact.created_at >= spark_period_start).all()
+
+    commission_weekly = _weekly_buckets(spark_rows, value_attr='potential_commission', weeks=spark_weeks)
+    contacts_weekly = _weekly_buckets(spark_rows, weeks=spark_weeks)
+    weekly_avg_raw = [
+        (s / c) if c > 0 else 0.0
+        for s, c in zip(commission_weekly, contacts_weekly)
+    ]
+    # Smooth each series with a trailing 4-week mean so the area curve flows
+    # gracefully instead of spiking on quiet weeks.
+    commission_smoothed = _smooth_trailing(commission_weekly, window=4)
+    contacts_smoothed = _smooth_trailing(contacts_weekly, window=4)
+    avg_commission_smoothed = _smooth_trailing(weekly_avg_raw, window=4)
+
+    total_commission_added = sum(commission_weekly)
+    total_contacts_added = int(sum(contacts_weekly))
+    recent_avg_chunk = [v for v in avg_commission_smoothed[-4:] if v > 0]
+    recent_avg = (sum(recent_avg_chunk) / len(recent_avg_chunk)) if recent_avg_chunk else 0
+
+    # SVG viewBox dimensions; chart stretches to fill its container.
+    _spark_w, _spark_h = 240, 88
+
+    def _spark_card(card_id, kicker, values, has_data, meta):
+        paths = _sparkline_paths(values, width=_spark_w, height=_spark_h)
+        # Convert the end-point Y coordinate to a percentage of the viewBox so
+        # the HTML end-dot can be positioned outside the (stretched) SVG and
+        # stay a perfect circle regardless of container aspect ratio.
+        end_y_pct = (paths['end_y'] / _spark_h) * 100 if _spark_h else 0
+        return {
+            'id': card_id,
+            'kicker': kicker,
+            'meta': meta,
+            'has_data': has_data and paths['has_data'],
+            'view_w': _spark_w,
+            'view_h': _spark_h,
+            'line': paths['line'],
+            'area': paths['area'],
+            'end_y_pct': end_y_pct,
+        }
+
+    kpi_sparks = {
+        'potential_commission': _spark_card(
+            'pc',
+            'Inflow · 20w',
+            commission_smoothed,
+            total_commission_added > 0,
+            '+${:,.0f} added'.format(total_commission_added)
+                if total_commission_added > 0 else 'Awaiting activity',
+        ),
+        'tracked_contacts': _spark_card(
+            'tc',
+            'Recent · 20w',
+            contacts_smoothed,
+            total_contacts_added > 0,
+            '+{:,d} added'.format(total_contacts_added)
+                if total_contacts_added > 0 else 'Awaiting activity',
+        ),
+        'avg_commission': _spark_card(
+            'ac',
+            'Trend · 20w',
+            avg_commission_smoothed,
+            recent_avg > 0,
+            '4w avg ${:,.0f}'.format(recent_avg)
+                if recent_avg > 0 else 'Awaiting activity',
+        ),
+    }
+
     # Get user's timezone (default to 'America/Chicago' if not set)
     user_tz = pytz.timezone('America/Chicago')
     
@@ -787,6 +982,7 @@ def dashboard():
                          total_contacts=total_contacts,
                          avg_commission=avg_commission,
                          kpi_breakdowns=kpi_breakdowns,
+                         kpi_sparks=kpi_sparks,
                          group_stats=group_stats,
                          top_contacts=top_contacts,
                          upcoming_tasks=upcoming_tasks,

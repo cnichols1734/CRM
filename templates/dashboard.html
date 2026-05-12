@@ -24,6 +24,40 @@
 {% endif %}
 {%- endmacro %}
 
+{% macro kpi_rail(spark) -%}
+{# Smooth area sparkline filling the right half of each KPI card.
+   Server-rendered SVG, no JS. Single ink color so it reads as restrained
+   editorial data viz; warm accent dot pinned to the latest value. #}
+<div class="crm-kpi__rail" aria-hidden="true">
+    <div class="crm-kpi__rail-kicker">{{ spark.kicker }}</div>
+    <div class="crm-spark-chart {% if not spark.has_data %}is-empty{% endif %}">
+        <svg viewBox="0 0 {{ spark.view_w }} {{ spark.view_h }}"
+             preserveAspectRatio="none"
+             xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <linearGradient id="kpi-spark-{{ spark.id }}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   class="crm-spark-chart__grad-top" />
+                    <stop offset="100%" class="crm-spark-chart__grad-bot" />
+                </linearGradient>
+            </defs>
+            <path class="crm-spark-chart__area"
+                  d="{{ spark.area }}"
+                  fill="url(#kpi-spark-{{ spark.id }})" />
+            <path class="crm-spark-chart__line"
+                  d="{{ spark.line }}"
+                  fill="none"
+                  vector-effect="non-scaling-stroke" />
+        </svg>
+        {% if spark.has_data %}
+        {# Dot lives outside the (stretched) SVG so it stays perfectly round. #}
+        <span class="crm-spark-chart__dot"
+              style="top: {{ '%.2f' % spark.end_y_pct }}%"></span>
+        {% endif %}
+    </div>
+    <div class="crm-kpi__rail-meta">{{ spark.meta }}</div>
+</div>
+{%- endmacro %}
+
 {% block head_scripts %}
 <script src="{{ url_for('static', filename='js/todo-manager.js') }}" defer></script>
 <script defer src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
@@ -369,28 +403,37 @@
         {% else %}
         <div class="crm-kpi-grid mb-6">
             <div class="crm-kpi">
-                <div class="crm-kpi__label">
-                    <span>Potential commission</span>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__label">
+                        <span>Potential commission</span>
+                    </div>
+                    <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(total_commission) }}</div>
+                    {{ kpi_breakdown(kpi_breakdowns.top_opportunities, 'blue', 'No commission values') }}
+                    <div class="crm-kpi__meta">Top contacts by estimated value</div>
                 </div>
-                <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(total_commission) }}</div>
-                {{ kpi_breakdown(kpi_breakdowns.top_opportunities, 'blue', 'No commission values') }}
-                <div class="crm-kpi__meta">Top contacts by estimated value</div>
+                {{ kpi_rail(kpi_sparks.potential_commission) }}
             </div>
             <div class="crm-kpi">
-                <div class="crm-kpi__label">
-                    <span>Tracked contacts</span>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__label">
+                        <span>Tracked contacts</span>
+                    </div>
+                    <div class="crm-kpi__value">{{ total_contacts }}</div>
+                    {{ kpi_breakdown(kpi_breakdowns.contact_mix, 'orange', 'No groups yet') }}
+                    <div class="crm-kpi__meta">Largest active contact groups</div>
                 </div>
-                <div class="crm-kpi__value">{{ total_contacts }}</div>
-                {{ kpi_breakdown(kpi_breakdowns.contact_mix, 'orange', 'No groups yet') }}
-                <div class="crm-kpi__meta">Largest active contact groups</div>
+                {{ kpi_rail(kpi_sparks.tracked_contacts) }}
             </div>
             <div class="crm-kpi">
-                <div class="crm-kpi__label">
-                    <span>Average commission</span>
+                <div class="crm-kpi__main">
+                    <div class="crm-kpi__label">
+                        <span>Average commission</span>
+                    </div>
+                    <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(avg_commission) }}</div>
+                    {{ kpi_breakdown(kpi_breakdowns.commission_tiers, 'slate', 'No values yet') }}
+                    <div class="crm-kpi__meta">Contact count by value range</div>
                 </div>
-                <div class="crm-kpi__value"><span class="currency">$</span>{{ "{:,.0f}".format(avg_commission) }}</div>
-                {{ kpi_breakdown(kpi_breakdowns.commission_tiers, 'slate', 'No values yet') }}
-                <div class="crm-kpi__meta">Contact count by value range</div>
+                {{ kpi_rail(kpi_sparks.avg_commission) }}
             </div>
         </div>
         {% endif %}
