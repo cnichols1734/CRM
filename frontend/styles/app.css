@@ -9,11 +9,15 @@
 
 @layer base {
   :root {
-    /* Surfaces — warm off-white system */
-    --canvas: oklch(98.2% 0.004 75);
-    --paper: oklch(99.6% 0.002 75);
+    /* Surfaces — warm off-white system.
+       Canvas (page bg) sits a clear step below paper (cards) so individual
+       sections read as distinct modules instead of bleeding into the page.
+       paper-2 stays between paper and canvas as a "muted card" tone, paper-3
+       drops below canvas for true insets (skeletons, meter tracks). */
+    --canvas: oklch(95.6% 0.005 75);
+    --paper: oklch(99.7% 0.002 75);
     --paper-2: oklch(97.4% 0.005 75);
-    --paper-3: oklch(95.5% 0.006 75);
+    --paper-3: oklch(94.0% 0.006 75);
 
     /* Ink scale — near-black down to soft */
     --ink: oklch(18% 0.012 75);
@@ -22,9 +26,10 @@
     --ink-4: oklch(64% 0.006 75);
     --ink-5: oklch(78% 0.004 75);
 
-    /* Hairlines */
-    --hairline: oklch(90% 0.004 75);
-    --hairline-strong: oklch(82% 0.005 75);
+    /* Hairlines — keep restrained; the canvas/paper value step now carries
+       most of the section separation, the border just trims the card edge. */
+    --hairline: oklch(89% 0.005 75);
+    --hairline-strong: oklch(80% 0.006 75);
 
     /* Restrained ember accent (replaces loud orange) */
     --accent: oklch(58% 0.16 38);
@@ -68,12 +73,13 @@
 
   /* ── Dark variant ──────────────────────────────────────────
      Brightened text scale (ink-2/3/4) so labels and helper text
-     stay readable on the dark canvas. */
+     stay readable on the dark canvas. Paper sits ~8% above canvas so
+     cards visibly "lift" off the page rather than melting into it. */
   [data-theme="dark"] {
-    --canvas: oklch(16% 0.008 75);
-    --paper: oklch(20% 0.008 75);
-    --paper-2: oklch(24% 0.009 75);
-    --paper-3: oklch(28% 0.010 75);
+    --canvas: oklch(13.5% 0.008 75);
+    --paper: oklch(21.5% 0.009 75);
+    --paper-2: oklch(26% 0.010 75);
+    --paper-3: oklch(30% 0.011 75);
 
     --ink: oklch(98% 0.004 75);
     --ink-2: oklch(90% 0.005 75);
@@ -81,8 +87,8 @@
     --ink-4: oklch(62% 0.007 75);
     --ink-5: oklch(48% 0.008 75);
 
-    --hairline: oklch(32% 0.008 75);
-    --hairline-strong: oklch(40% 0.010 75);
+    --hairline: oklch(34% 0.009 75);
+    --hairline-strong: oklch(42% 0.011 75);
 
     --accent: oklch(70% 0.16 40);
     --accent-ink: oklch(78% 0.14 40);
