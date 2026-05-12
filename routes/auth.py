@@ -604,11 +604,3 @@ def delete_user(user_id):
     
     return redirect(url_for('auth.manage_users'))
 
-@auth_bp.before_request
-def update_last_login():
-    if current_user.is_authenticated:
-        current_user.last_login = datetime.utcnow()
-        try:
-            db.session.commit()
-        except:
-            db.session.rollback()
