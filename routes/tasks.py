@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from models import db, Task, Contact, TaskType, TaskSubtype, User
+from services.tenant_service import org_query
 from datetime import datetime, timezone, time
 import pytz
 from sqlalchemy.orm import joinedload
@@ -38,7 +39,9 @@ def tasks():
     status_filter = request.args.get('status', 'pending')
     user_tz = get_user_timezone()
 
-    query = Task.query.options(
+    query = Task.query.filter_by(
+        organization_id=current_user.organization_id
+    ).options(
         joinedload(Task.contact),
         joinedload(Task.assigned_to),
         joinedload(Task.task_type),
@@ -82,7 +85,7 @@ def create_task():
     if request.method == 'POST':
         try:
             contact_id = request.form.get('contact_id')
-            contact = db.session.get(Contact, contact_id)
+            contact = org_query(Contact).filter_by(id=contact_id).first()
             if not contact:
                 abort(404)
 

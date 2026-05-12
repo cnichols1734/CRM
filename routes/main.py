@@ -329,13 +329,21 @@ def contacts():
 
     owners = request.args.get('owners')
     if show_all and owners:
-        owner_ids = [int(id) for id in owners.split(',')]
-        query = query.filter(Contact.user_id.in_(owner_ids))
+        try:
+            owner_ids = [int(x) for x in owners.split(',') if x.strip()]
+        except (ValueError, TypeError):
+            owner_ids = []
+        if owner_ids:
+            query = query.filter(Contact.user_id.in_(owner_ids))
 
     groups = request.args.get('groups')
     if groups:
-        group_ids = [int(id) for id in groups.split(',')]
-        query = query.join(Contact.groups).filter(ContactGroup.id.in_(group_ids))
+        try:
+            group_ids = [int(x) for x in groups.split(',') if x.strip()]
+        except (ValueError, TypeError):
+            group_ids = []
+        if group_ids:
+            query = query.join(Contact.groups).filter(ContactGroup.id.in_(group_ids))
 
     zips = request.args.get('zips')
     if zips:
