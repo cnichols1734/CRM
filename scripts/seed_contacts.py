@@ -6,18 +6,22 @@ one ContactGroup (the app's create-contact form requires this).
 Usage:
 
     DATABASE_URL="sqlite:///$(pwd)/instance/crm_dev.db" \
-        .venv/bin/python seed_contacts.py
+        .venv/bin/python scripts/seed_contacts.py
 
 Re-running is safe: contacts with the same email are skipped.
 """
 from __future__ import annotations
 
+import os
+import sys
 import random
 from datetime import date, timedelta
 from decimal import Decimal
 
-from app import create_app
-from models import Contact, ContactGroup, Organization, User, db
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app  # noqa: E402  -- needs sys.path patched first.
+from models import Contact, ContactGroup, Organization, User, db  # noqa: E402
 
 RANDOM_SEED = 2026
 ORG_SLUG = "origen-realty"
@@ -68,13 +72,13 @@ def main() -> None:
         if org is None:
             raise SystemExit(
                 f"Organization with slug {ORG_SLUG!r} not found. "
-                "Run seed_admin.py first."
+                "Run scripts/seed_admin.py first."
             )
 
         owner = User.query.filter_by(email=OWNER_EMAIL).first()
         if owner is None:
             raise SystemExit(
-                f"Owner user {OWNER_EMAIL!r} not found. Run seed_admin.py first."
+                f"Owner user {OWNER_EMAIL!r} not found. Run scripts/seed_admin.py first."
             )
 
         groups_by_name = {g.name: g for g in ContactGroup.query.all()}
@@ -86,7 +90,7 @@ def main() -> None:
         }
         if missing:
             raise SystemExit(
-                f"ContactGroups missing: {sorted(missing)}. Run seed_admin.py."
+                f"ContactGroups missing: {sorted(missing)}. Run scripts/seed_admin.py."
             )
 
         created = 0

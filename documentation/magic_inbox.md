@@ -95,7 +95,7 @@ production. Order matters.
    it private. Set lifecycle policy to delete after 30 days.
 7. **Run the migration:**
    ```bash
-   python3 manage_db.py upgrade
+   python3 scripts/manage_db.py upgrade
    ```
 8. **Backfill existing users:**
    ```bash
@@ -135,7 +135,7 @@ the same webhook route and the same SendGrid-shaped multipart fields.
    ```
 2. Apply migrations and provision inbox addresses:
    ```bash
-   python3 manage_db.py upgrade
+   python3 scripts/manage_db.py upgrade
    python3 scripts/backfill_inbox_addresses.py --commit
    python3 scripts/simulate_inbound.py who-am-i
    ```
@@ -292,7 +292,7 @@ can stay in place — they're harmless if the webhook is unreachable.
 To fully remove, downgrade the migration:
 
 ```bash
-python3 manage_db.py downgrade <previous_revision>
+python3 scripts/manage_db.py downgrade <previous_revision>
 ```
 
 ---

@@ -7,7 +7,7 @@ now has automatic Gmail fallback built-in. This standalone script is kept
 for manual/emergency sending when you need to bypass the app entirely.
 
 Usage:
-    python3 send_gmail_html.py
+    python3 scripts/send_gmail_html.py
 
 You'll need a Gmail App Password (not your regular password):
 1. Go to myaccount.google.com

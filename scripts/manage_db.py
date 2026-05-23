@@ -4,15 +4,18 @@ Database Management Script
 Helps manage database operations across different environments.
 """
 
-from dotenv import load_dotenv
-load_dotenv()  # Load .env file before any other imports
-
 import os
 import sys
-from flask import Flask
-from flask_migrate import Migrate, init, migrate, upgrade, current, history
-from config import Config
-from models import db
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv()  # Load .env file before any other imports
+
+from flask import Flask  # noqa: E402
+from flask_migrate import Migrate, init, migrate, upgrade, current, history  # noqa: E402
+from config import Config  # noqa: E402
+from models import db  # noqa: E402
 
 def create_app(config_class=Config):
     """Create Flask application with specified config."""
@@ -159,7 +162,7 @@ def seed_existing_orgs():
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python manage_db.py <command>")
+        print("Usage: python scripts/manage_db.py <command>")
         print("Commands:")
         print("  init        - Initialize new database")
         print("  setup       - Set up migration repository")
