@@ -417,8 +417,9 @@
             </div>
 
             <div class="flex items-center gap-2 text-sm text-slate-500">
-                <span>Rows per page</span>
+                <span id="rowsPerPageLabel">Rows per page</span>
                 <select class="crm-select w-auto"
+                        aria-labelledby="rowsPerPageLabel"
                         data-action="change->contacts-page#changePerPage">
                     <option value="25" {% if per_page == 25 %}selected{% endif %}>25</option>
                     <option value="50" {% if per_page == 50 %}selected{% endif %}>50</option>

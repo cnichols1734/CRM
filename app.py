@@ -27,6 +27,7 @@ from flask.logging import default_handler
 from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
 from flask_migrate import Migrate
+from flask_compress import Compress
 from sqlalchemy import text
 from models import db, User
 from routes.main import main_bp
@@ -106,6 +107,15 @@ def create_app():
         app.logger.removeHandler(default_handler)
     app.logger.propagate = True
     app.logger.setLevel(logging.INFO)
+
+    # Response compression (gzip/deflate) for all text responses
+    app.config.setdefault('COMPRESS_MIMETYPES', [
+        'text/html', 'text/css', 'text/xml', 'text/plain',
+        'application/json', 'application/javascript', 'application/xml',
+        'image/svg+xml',
+    ])
+    app.config.setdefault('COMPRESS_MIN_SIZE', 256)
+    Compress(app)
 
     # Initialize extensions
     db.init_app(app)
