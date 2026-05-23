@@ -9,6 +9,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "static/dist"),
     emptyOutDir: true,
+    minify: "esbuild",
+    cssMinify: true,
     rollupOptions: {
       input: path.resolve(__dirname, "frontend/main.js"),
       output: {

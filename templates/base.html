@@ -20,22 +20,45 @@
     </script>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
-    <!-- Include DaisyUI from CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
-    <!-- Add Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <!-- Preconnect to CDN origins for faster resource fetching -->
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Critical CSS: app bundle loaded synchronously (contains Tailwind utilities for layout) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.css') }}">
+
+    <!-- Non-critical CSS: loaded async via media swap to avoid render-blocking -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css">
+    </noscript>
+
+    <!-- Google Fonts with display=swap (already non-blocking via &display=swap param) -->
     <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@400;600&family=Outfit:wght@800&display=swap"
         rel="stylesheet">
-    <!-- Atelier type system: Inter (UI + display), JetBrains Mono (data). -->
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <!-- Add AI Chat Widget styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}">
-    <!-- Local app bundle for progressive frontend rewrite -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.css') }}">
-    <!-- NProgress - YouTube-style progress bar for navigation feedback -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" />
     <style>
+        /* Critical: hide BOB chat elements before ai_chat.css loads to prevent FOUC.
+           Uses class selectors so ai_chat.css (same specificity, later in DOM) overrides cleanly. */
+        .bob-panel { position: fixed; transform: translateX(100%); visibility: hidden; pointer-events: none; overflow: hidden; }
+        .bob-panel.open { visibility: visible; transform: translateX(0); pointer-events: auto; overflow: visible; }
+        .bob-overlay { position: fixed; inset: 0; opacity: 0; pointer-events: none; visibility: hidden; }
+        /* Force font-display: swap on Font Awesome to prevent FOIT (flash of invisible text) */
+        @font-face {
+            font-family: 'Font Awesome 6 Free';
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Font Awesome 6 Brands';
+            font-display: swap;
+        }
         /* NProgress customization - YouTube-style */
         #nprogress .bar { 
             background: #f97316 !important; 
@@ -49,6 +72,10 @@
     </style>
     <!-- Loading Overlay styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay.css') }}">
+    <!-- AI Chat styles: only loaded when feature is active, deferred to avoid render-blocking -->
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}" media="print" onload="this.media='all'">
+    {% endif %}
     <style>
         body {
             font-family: -apple-system, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
@@ -1945,7 +1972,7 @@
     <header class="crm-topbar text-white h-14 items-center justify-between hidden md:flex">
         <div class="crm-header-logo pl-4 pr-6 flex items-center h-full">
             <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
-                class="block h-14 w-auto object-contain" />
+                class="block h-14 w-auto object-contain" width="151" height="56" />
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex items-center gap-2 pr-4">
@@ -1953,6 +1980,7 @@
                 <i class="fas fa-search search-icon"></i>
                 <input id="crmGlobalSearchInput" type="text"
                        placeholder="Search contacts, transactions..."
+                       role="combobox"
                        aria-label="Search"
                        aria-autocomplete="list"
                        aria-controls="crmGlobalSearchResults"
@@ -2022,7 +2050,7 @@
             </button>
             {% endif %}
             <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
-                class="block h-10 w-auto object-contain" />
+                class="block h-10 w-auto object-contain" width="108" height="40" />
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}
@@ -2954,25 +2982,22 @@
     <!-- AI Chat Widget will be injected here by JavaScript -->
     {% endif %}
 
-    <!-- Add AI Chat Widget script (Feature Gated) -->
+    <!-- AI Chat Widget script (Feature Gated, deferred) -->
     {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
-    <!-- Marked.js for markdown parsing -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
-    <!-- DOMPurify for XSS protection -->
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
-    <script src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script defer src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
     {% endif %}
 
-    <!-- Include JavaScript files -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include JavaScript files (deferred to avoid blocking) -->
+    <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     {% if current_user.is_authenticated and org_has_feature('AI_DAILY_TODO') %}
-    <script src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
     {% endif %}
     {% if current_user.is_authenticated %}
-    <script src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
     {% endif %}
-    <!-- Loading Overlay (document spinner) -->
-    <script src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>
 
     <!-- NProgress - Navigation progress bar -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>

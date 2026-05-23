@@ -53,6 +53,7 @@ rq==2.7.0
 
 # Server
 gunicorn==23.0.0
+flask-compress==1.24
 
 # System monitoring (for health checks)
 psutil==5.9.8
