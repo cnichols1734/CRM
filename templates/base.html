@@ -31,11 +31,10 @@
 
     <!-- Non-critical CSS: loaded async via media swap to avoid render-blocking -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}" media="print" onload="this.media='all'">
     <noscript>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css">
-        <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
         <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}">
     </noscript>
 
