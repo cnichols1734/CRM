@@ -22,7 +22,6 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
 
     <!-- Preconnect to CDN origins for faster resource fetching -->
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -32,12 +31,11 @@
 
     <!-- Non-critical CSS: loaded async via media swap to avoid render-blocking -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" media="print" onload="this.media='all'">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}" media="print" onload="this.media='all'">
     <noscript>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.css">
+        <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}">
     </noscript>
 
     <!-- Google Fonts with display=swap (already non-blocking via &display=swap param) -->
@@ -50,15 +48,6 @@
         .bob-panel { position: fixed; transform: translateX(100%); visibility: hidden; pointer-events: none; overflow: hidden; }
         .bob-panel.open { visibility: visible; transform: translateX(0); pointer-events: auto; overflow: visible; }
         .bob-overlay { position: fixed; inset: 0; opacity: 0; pointer-events: none; visibility: hidden; }
-        /* Force font-display: swap on Font Awesome to prevent FOIT (flash of invisible text) */
-        @font-face {
-            font-family: 'Font Awesome 6 Free';
-            font-display: swap;
-        }
-        @font-face {
-            font-family: 'Font Awesome 6 Brands';
-            font-display: swap;
-        }
         /* NProgress customization - YouTube-style */
         #nprogress .bar { 
             background: #f97316 !important; 
@@ -3000,7 +2989,7 @@
     <script defer src="{{ url_for('static', filename='js/loading_overlay.js') }}"></script>
 
     <!-- NProgress - Navigation progress bar -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/nprogress/0.2.0/nprogress.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/nprogress/nprogress.min.js') }}"></script>
     <script>
         // Configure NProgress - trickle effect + boosted to reach higher
         NProgress.configure({ 
