@@ -784,14 +784,18 @@ def send_for_signature(id, doc_id):
     
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
-    # Check document is ready to send (must be filled or generated/previewed)
     if doc.status not in ['filled', 'generated']:
         return jsonify({
             'success': False, 
             'error': 'Please fill out the document form before sending for signature'
         }), 400
-    
-    # Get document definition from new system
+
+    if doc.docuseal_submission_id:
+        return jsonify({
+            'success': False,
+            'error': 'Document has already been sent for signature'
+        }), 409
+
     definition = DocumentLoader.get(doc.template_slug)
     
     if not definition:

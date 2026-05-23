@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from config import Config
 from models import db, Contact, Task, TaskType, TaskSubtype, Transaction, ChatConversation, ChatMessage
 from feature_flags import feature_required
-from services.ai_service import generate_chat_response, generate_ai_response
+from services.ai_service import generate_chat_response, generate_ai_response, stream_chat_response
 from sqlalchemy import or_, func
 from tier_config.tier_limits import get_tier_defaults
 import openai
@@ -506,109 +506,18 @@ def chat_stream():
 """
 
         def generate():
-            """Generator that yields SSE events"""
+            """Generator that yields SSE events via centralized fallback chain."""
             full_response = ""
-            
-            try:
-                client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-                
-                # Check if we have an image attachment
-                if image_data:
-                    # Use Chat Completions API with vision for images
-                    # Build content array with text and image
-                    user_content = [
-                        {"type": "text", "text": full_user_prompt}
-                    ]
-                    
-                    # Add image to content
-                    user_content.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{image_data}",
-                            "detail": "auto"
-                        }
-                    })
-                    
-                    # Stream with Chat Completions API (vision-compatible)
-                    stream = client.chat.completions.create(
-                        model="gpt-5.1",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_content}
-                        ],
-                        stream=True
-                    )
-                    
-                    for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            content = chunk.choices[0].delta.content
-                            full_response += content
-                            escaped = content.replace('\n', '\\n').replace('\r', '\\r')
-                            yield f"data: {escaped}\n\n"
-                else:
-                    # Use GPT-5.1 Responses API with streaming (no image)
-                    stream = client.responses.create(
-                        model="gpt-5.1",
-                        instructions=SYSTEM_PROMPT,
-                        input=full_user_prompt,
-                        stream=True
-                    )
-                    
-                    for event in stream:
-                        # Handle different event types from Responses API
-                        if hasattr(event, 'type'):
-                            if event.type == "response.output_text.delta":
-                                chunk = event.delta
-                                full_response += chunk
-                                # Escape newlines for SSE
-                                escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
-                                yield f"data: {escaped}\n\n"
-                            elif event.type == "response.completed":
-                                # Stream completed
-                                pass
-                        elif hasattr(event, 'delta') and event.delta:
-                            # Fallback for different event structure
-                            chunk = event.delta
-                            full_response += chunk
-                            escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
-                            yield f"data: {escaped}\n\n"
-                
-            except Exception as e:
-                print(f"Streaming error with GPT-5.1: {e}")
-                # Fallback to GPT-4.1-mini with Chat Completions streaming
-                try:
-                    client = openai.OpenAI(api_key=Config.OPENAI_API_KEY)
-                    
-                    # Build messages for fallback
-                    if image_data:
-                        user_content = [
-                            {"type": "text", "text": full_user_prompt},
-                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}", "detail": "auto"}}
-                        ]
-                    else:
-                        user_content = full_user_prompt
-                    
-                    stream = client.chat.completions.create(
-                        model="gpt-4.1-mini",
-                        messages=[
-                            {"role": "system", "content": SYSTEM_PROMPT},
-                            {"role": "user", "content": user_content}
-                        ],
-                        stream=True
-                    )
-                    
-                    for chunk in stream:
-                        if chunk.choices[0].delta.content:
-                            content = chunk.choices[0].delta.content
-                            full_response += content
-                            escaped = content.replace('\n', '\\n').replace('\r', '\\r')
-                            yield f"data: {escaped}\n\n"
-                            
-                except Exception as fallback_error:
-                    print(f"Fallback streaming error: {fallback_error}")
-                    yield f"data: Sorry, I encountered an error. Please try again.\n\n"
-            
-            # Signal completion and send the full response for history
+
+            for chunk in stream_chat_response(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=full_user_prompt,
+                image_data=image_data
+            ):
+                full_response += chunk
+                escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
+                yield f"data: {escaped}\n\n"
+
             yield f"data: [DONE]\n\n"
             yield f"data: [FULL_RESPONSE]{full_response}[/FULL_RESPONSE]\n\n"
 

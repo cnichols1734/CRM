@@ -3,8 +3,11 @@
  * Handles: signature operations, document viewing/downloading, status checks
  */
 
-function sendForSignature(docId) {
+function sendForSignature(docId, btnEl) {
     if (!confirm('Send this document for signature?')) return;
+
+    const btn = btnEl || event.currentTarget;
+    if (btn && !btn.disabled) { btn.disabled = true; }
 
     showToast('Sending document...', 'info');
 
@@ -19,13 +22,20 @@ function sendForSignature(docId) {
             setTimeout(() => location.reload(), 2000);
         } else {
             showToast('Error: ' + data.error, 'error');
+            if (btn) { btn.disabled = false; }
         }
     })
-    .catch(err => showToast('Error: ' + err.message, 'error'));
+    .catch(err => {
+        showToast('Error: ' + err.message, 'error');
+        if (btn) { btn.disabled = false; }
+    });
 }
 
-function sendAdhocDocument(docId) {
+function sendAdhocDocument(docId, btnEl) {
     if (!confirm('Send this document for signature?')) return;
+
+    const btn = btnEl || event.currentTarget;
+    if (btn && !btn.disabled) { btn.disabled = true; }
 
     showToast('Sending document...', 'info');
 
@@ -40,9 +50,13 @@ function sendAdhocDocument(docId) {
             setTimeout(() => location.reload(), 2000);
         } else {
             showToast('Error: ' + data.error, 'error');
+            if (btn) { btn.disabled = false; }
         }
     })
-    .catch(err => showToast('Error: ' + err.message, 'error'));
+    .catch(err => {
+        showToast('Error: ' + err.message, 'error');
+        if (btn) { btn.disabled = false; }
+    });
 }
 
 function convertToHybrid(docId) {

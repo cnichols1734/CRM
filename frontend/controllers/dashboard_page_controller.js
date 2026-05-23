@@ -8,7 +8,7 @@ export default class extends Controller {
 
   connect() {
     this.animatePipelineValue();
-    this.renderGroupChart();
+    this._waitForApexCharts().then(() => this.renderGroupChart());
     this.initializeTodos();
   }
 
@@ -116,6 +116,21 @@ export default class extends Controller {
       inputId: "dashboardNewTodoInput",
       addBtnId: "dashboardAddTodoBtn"
     });
+  }
+
+  _waitForApexCharts() {
+    if (this._apexReady) return this._apexReady;
+    this._apexReady = new Promise((resolve) => {
+      if (window.ApexCharts) return resolve();
+      const start = Date.now();
+      const tick = () => {
+        if (window.ApexCharts) return resolve();
+        if (Date.now() - start > 5000) return resolve();
+        setTimeout(tick, 50);
+      };
+      tick();
+    });
+    return this._apexReady;
   }
 
   renderGroupChart() {
