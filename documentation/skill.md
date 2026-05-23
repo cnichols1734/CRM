@@ -27,7 +27,7 @@ Use this skill for user-facing writing work such as UI copy, product copy, docs,
 
 Do not apply it to code, migrations, tests, API names, SQL, or configuration unless the user explicitly asks for prose editing there.
 
-Repo-wide coding and design instructions live in `AGENTS.md`, `.impeccable.md`, and `STYLEGUIDE.md`. This file is for writing quality only.
+Repo-wide coding and design instructions live in `AGENTS.md`, `.impeccable.md`, and `documentation/STYLEGUIDE.md`. This file is for writing quality only.
 
 You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page, maintained by WikiProject AI Cleanup.
 

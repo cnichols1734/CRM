@@ -1,5 +1,10 @@
-from app import create_app
-from models import db, ContactGroup
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app  # noqa: E402  -- needs sys.path patched first.
+from models import db, ContactGroup  # noqa: E402
 
 INITIAL_GROUPS = [
     # Buyer Groups (10-19)

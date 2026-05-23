@@ -18,7 +18,7 @@ Implemented automatic Gmail fallback in the `EmailService` class. When SendGrid 
 
 ### Code Location
 - **Main implementation**: `services/email_service.py`
-- **Standalone script**: `send_gmail_html.py` (for manual/emergency use)
+- **Standalone script**: `scripts/send_gmail_html.py` (for manual/emergency use)
 
 ### Configuration
 Gmail fallback uses existing `.env` variables:
@@ -58,7 +58,7 @@ email_service.send_org_approved(
 If you need to send an email completely outside the app:
 
 ```bash
-python3 send_gmail_html.py
+python3 scripts/send_gmail_html.py
 ```
 
 The script will:

@@ -1,7 +1,12 @@
 """One-shot seeder: creates an org, an admin user, contact groups, task types."""
-from app import create_app
-from models import db, Organization, User, ContactGroup
-from init_db import INITIAL_GROUPS, TASK_TYPES
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app  # noqa: E402  -- needs sys.path patched first.
+from models import db, Organization, User, ContactGroup  # noqa: E402
+from scripts.init_db import INITIAL_GROUPS, TASK_TYPES  # noqa: E402
 
 app = create_app()
 with app.app_context():

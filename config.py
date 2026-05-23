@@ -9,8 +9,8 @@ class Config:
 
     # Database configuration - supports multiple environments
     if FLASK_ENV == 'production':
-        # Production: Use PythonAnywhere MySQL or specified database
-        SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:////home/yourusername/CRM/instance/crm_prod.db')
+        # Production: Railway provides DATABASE_URL pointing to Supabase PostgreSQL
+        SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///instance/crm_prod.db')
     else:
         # Development: Use local SQLite database
         SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///instance/crm_dev.db')

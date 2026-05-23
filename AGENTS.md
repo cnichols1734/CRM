@@ -10,15 +10,15 @@ Read this file first for runtime, architecture, data-safety, and repo convention
 
 ### For UI and design work
 
-Read `.impeccable.md` for design context and anti-slop guardrails, then `STYLEGUIDE.md` for concrete tokens, components, and implementation patterns.
+Read `.impeccable.md` for design context and anti-slop guardrails, then `documentation/STYLEGUIDE.md` for concrete tokens, components, and implementation patterns.
 
-If the agent supports installed skills and the global `impeccable` skill set is available, use it as the general design method. Treat `.impeccable.md` and `STYLEGUIDE.md` as the repo-specific source of truth.
+If the agent supports installed skills and the global `impeccable` skill set is available, use it as the general design method. Treat `.impeccable.md` and `documentation/STYLEGUIDE.md` as the repo-specific source of truth.
 
-If `.impeccable.md`, `STYLEGUIDE.md`, and the current page disagree, preserve the shipped CRM design language unless the user explicitly asks for a redesign.
+If `.impeccable.md`, `documentation/STYLEGUIDE.md`, and the current page disagree, preserve the shipped CRM design language unless the user explicitly asks for a redesign.
 
 ### For copy, docs, prompts, and user-facing text
 
-Read `skill.md`. Use it for humanizing and tightening prose, not for changing technical names, code, migrations, schema details, or precise product behavior.
+Read `documentation/skill.md`. Use it for humanizing and tightening prose, not for changing technical names, code, migrations, schema details, or precise product behavior.
 
 ## Project Overview
 
@@ -36,10 +36,10 @@ DATABASE_URL="sqlite:////workspace/instance/crm_dev.db" python3 app.py
 pip install -r requirements.txt
 
 # Database migrations
-python3 manage_db.py status
-python3 manage_db.py upgrade
-python3 manage_db.py migrate "message"
-python3 manage_db.py seed_orgs
+python3 scripts/manage_db.py status
+python3 scripts/manage_db.py upgrade
+python3 scripts/manage_db.py migrate "message"
+python3 scripts/manage_db.py seed_orgs
 
 # Playwright integration tests
 pip install -r tests/requirements.txt
@@ -136,14 +136,14 @@ Every model has an `organization_id`. PostgreSQL RLS is enforced via `SET LOCAL 
 Always check the current head before creating a migration:
 
 ```bash
-python3 manage_db.py status
+python3 scripts/manage_db.py status
 ```
 
 When writing migration files manually:
 
 1. Set `down_revision` to the current head revision ID from the status output.
 2. Use `IF NOT EXISTS` and `IF EXISTS` in SQL for safety.
-3. Run `python3 manage_db.py upgrade` after creating the migration.
+3. Run `python3 scripts/manage_db.py upgrade` after creating the migration.
 
 If you see "Multiple head revisions are present", the migration's `down_revision` points to an old revision. Update it to the actual current head.
 

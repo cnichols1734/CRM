@@ -1137,7 +1137,7 @@ The codebase includes several migration scripts:
 
 ## Initial Data
 
-The `init_db.py` script initializes the database with:
+The `scripts/init_db.py` script initializes the database with:
 
 *   Initial contact groups (Buyer, Seller, Rating, Network, Professional).
 *   Initial task types (Call, Meeting, Email, Document) and their subtypes.
@@ -1201,7 +1201,7 @@ The `config.py` file contains application settings:
 **Production Mode (`FLASK_ENV=production`):**
 - Uses Supabase PostgreSQL via `DATABASE_URL` environment variable (contains Supabase connection string)
 - Full SSL verification enabled
-- Optimized for production deployment (PythonAnywhere)
+- Optimized for production deployment (Railway)
 
 ## HTML Templates
 

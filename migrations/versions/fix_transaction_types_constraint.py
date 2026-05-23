@@ -1,7 +1,7 @@
 """Fix transaction_types unique constraint to be org-scoped
 
 Revision ID: fix_transaction_types_constraint
-Revises: (run manage_db.py status to get current head)
+Revises: (run scripts/manage_db.py status to get current head)
 Create Date: 2026-01-25
 
 """

@@ -3,6 +3,6 @@
 Use `AGENTS.md` as the canonical instruction file for this repository.
 
 - Read `AGENTS.md` first for runtime, architecture, and repo conventions.
-- For UI or frontend work, read `.impeccable.md` and `STYLEGUIDE.md`.
-- For copy, docs, prompts, and user-facing text, read `skill.md`.
+- For UI or frontend work, read `.impeccable.md` and `documentation/STYLEGUIDE.md`.
+- For copy, docs, prompts, and user-facing text, read `documentation/skill.md`.
 - Preserve the existing CRM design language. Do not introduce generic AI SaaS visuals or a second competing design system.
