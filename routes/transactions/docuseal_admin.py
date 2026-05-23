@@ -3,14 +3,19 @@
 DocuSeal admin, webhook, and debug endpoints.
 """
 
+import hmac
+import logging
 from datetime import datetime
 from flask import request, jsonify
 from flask_login import login_required
+from config import Config
 from models import db, Transaction, TransactionDocument, DocumentSignature
 from services import audit_service
 from . import transactions_bp
 from .decorators import transactions_required
 from .helpers import download_and_store_signed_document
+
+logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -104,18 +109,53 @@ def docuseal_status():
 # WEBHOOK ENDPOINT
 # =============================================================================
 
+def _verify_docuseal_webhook(req) -> bool:
+    """Verify DocuSeal webhook authenticity via shared secret.
+
+    Checks the X-Docuseal-Webhook-Secret header against DOCUSEAL_WEBHOOK_SECRET.
+    If no secret is configured, accepts with a warning in dev and rejects in production.
+    """
+    secret = (Config.DOCUSEAL_WEBHOOK_SECRET or '').strip()
+
+    if not secret:
+        if Config.FLASK_ENV == 'production':
+            logger.error(
+                'DocuSeal webhook: DOCUSEAL_WEBHOOK_SECRET not configured — rejecting in production.'
+            )
+            return False
+        logger.warning(
+            'DocuSeal webhook: DOCUSEAL_WEBHOOK_SECRET not configured — accepting in development.'
+        )
+        return True
+
+    provided = (req.headers.get('X-Docuseal-Webhook-Secret') or '').strip()
+    if not provided:
+        provided = (req.args.get('secret') or '').strip()
+
+    if not provided:
+        return False
+
+    return hmac.compare_digest(secret, provided)
+
+
 @transactions_bp.route('/webhook/docuseal', methods=['POST'])
 def docuseal_webhook():
     """
     Receive webhooks from DocuSeal for signature events.
 
-    Configure this URL in DocuSeal: https://yourdomain.com/transactions/webhook/docuseal
+    Configure this URL in DocuSeal:
+        https://yourdomain.com/transactions/webhook/docuseal?secret=<DOCUSEAL_WEBHOOK_SECRET>
 
     Events:
     - form.viewed: Signer opened the document
     - form.started: Signer began filling
     - form.completed: All signers finished
+    - form.declined: Signer declined to sign
     """
+    if not _verify_docuseal_webhook(request):
+        logger.warning('DocuSeal webhook: signature verification failed — dropping.')
+        return jsonify({'error': 'Unauthorized'}), 401
+
     from services.docuseal_service import process_webhook
 
     try:
@@ -124,30 +164,24 @@ def docuseal_webhook():
         if not payload:
             return jsonify({'error': 'No payload'}), 400
 
-        # Process the webhook
         result = process_webhook(payload)
         event_type = result.get('event_type')
         submission_id = result.get('submission_id')
 
-        # Extract signer info from payload
         submitter_data = payload.get('data', {})
         signer_email = submitter_data.get('email')
         signer_role = submitter_data.get('role')
 
-        # Find the document by submission ID
         doc = TransactionDocument.query.filter_by(
             docuseal_submission_id=str(submission_id)
         ).first()
 
         if not doc:
-            # Log webhook received even if no matching doc (for debugging)
             audit_service.log_webhook_received(None, None, event_type, payload)
             return jsonify({'received': True, 'matched': False})
 
-        # Log webhook received for audit trail
         audit_service.log_webhook_received(doc.transaction_id, doc.id, event_type, payload)
 
-        # Find matching signature record if possible
         signature = None
         if signer_email:
             signature = DocumentSignature.query.filter_by(
@@ -155,73 +189,66 @@ def docuseal_webhook():
                 signer_email=signer_email
             ).first()
 
-        # Update based on event type
         if event_type == 'form.viewed':
-            # Update signature record with viewed timestamp
             if signature:
                 signature.viewed_at = datetime.utcnow()
                 signature.status = 'viewed'
 
-            # Log document viewed event
             audit_service.log_document_viewed(doc, signature, {
                 'signer_email': signer_email,
                 'signer_role': signer_role,
                 'submission_id': submission_id
             })
-
             db.session.commit()
 
         elif event_type == 'form.started':
-            # Signer started filling - just log
             pass
 
         elif event_type == 'form.completed':
-            # Check if this is a single signer completion or all signers
-            # For now assume all signers finished
+            if doc.status == 'signed':
+                logger.info(
+                    f"DocuSeal webhook: doc {doc.id} already signed — skipping duplicate."
+                )
+                return jsonify({'received': True, 'duplicate': True})
+
             doc.status = 'signed'
             doc.signed_at = datetime.utcnow()
             doc.signing_method = 'esign'
 
-            # Update all signature records
             signatures = DocumentSignature.query.filter_by(document_id=doc.id).all()
             for sig in signatures:
                 sig.signed_at = datetime.utcnow()
                 sig.status = 'signed'
 
-            # Download and store the signed document in Supabase
             documents_list = payload.get('data', {}).get('documents', [])
             if documents_list:
                 try:
                     download_and_store_signed_document(doc, documents_list)
                 except Exception as e:
-                    # Log error but don't fail the webhook - status still updated
-                    import logging
-                    logging.getLogger(__name__).error(
+                    logger.error(
                         f"Failed to store signed document for doc {doc.id}: {e}"
                     )
 
-            # Log document signed event
             audit_service.log_document_signed(doc, signature, {
                 'signer_email': signer_email,
                 'signer_role': signer_role,
                 'submission_id': submission_id,
                 'signed_file_stored': bool(doc.signed_file_path)
             })
-
             db.session.commit()
 
         elif event_type == 'form.declined':
-            # Signer declined to sign
+            if doc.status == 'declined':
+                return jsonify({'received': True, 'duplicate': True})
+
             decline_reason = submitter_data.get('decline_reason', '')
             signer_name = submitter_data.get('name', '')
-            
+
             doc.status = 'declined'
-            
-            # Update the specific signature record that declined
+
             if signature:
                 signature.status = 'declined'
-            
-            # Log document declined event
+
             audit_service.log_document_declined(doc, signature, {
                 'signer_email': signer_email,
                 'signer_name': signer_name,
@@ -229,7 +256,6 @@ def docuseal_webhook():
                 'decline_reason': decline_reason,
                 'submission_id': submission_id
             })
-
             db.session.commit()
 
         return jsonify({
@@ -239,4 +265,5 @@ def docuseal_webhook():
         })
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.exception(f"DocuSeal webhook error: {e}")
+        return jsonify({'error': 'Internal server error'}), 500

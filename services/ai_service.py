@@ -250,6 +250,98 @@ def generate_chat_response(
         raise
 
 
+def stream_chat_response(
+    system_prompt: str,
+    user_prompt: str,
+    image_data: str = None,
+    api_key: str = None
+):
+    """
+    Stream a chat response with the same model fallback chain as non-streaming.
+
+    Yields text chunks. Falls back through GPT-5.1 -> GPT-5-mini -> GPT-4.1-mini.
+    If all fail, yields an error message.
+
+    Args:
+        system_prompt: System instructions
+        user_prompt: Full user prompt (including conversation context)
+        image_data: Optional base64-encoded image for vision
+        api_key: Optional API key override
+
+    Yields:
+        str: Text chunks of the response
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        yield "Sorry, the AI service is not configured. Please try again later."
+        return
+
+    client = openai.OpenAI(api_key=key)
+
+    def _build_user_content(prompt, img):
+        if img:
+            return [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}", "detail": "auto"}}
+            ]
+        return prompt
+
+    user_content = _build_user_content(user_prompt, image_data)
+    models = [PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL]
+
+    for i, model in enumerate(models):
+        try:
+            logger.info(f"[{i+1}/{len(models)}] Streaming: attempting {model}")
+
+            if model in (PRIMARY_MODEL, FALLBACK_MODEL) and not image_data:
+                stream = client.responses.create(
+                    model=model,
+                    instructions=system_prompt,
+                    input=user_prompt,
+                    stream=True
+                )
+                for event in stream:
+                    if hasattr(event, 'type') and event.type == "response.output_text.delta":
+                        yield event.delta
+                    elif hasattr(event, 'delta') and event.delta:
+                        yield event.delta
+            else:
+                stream = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_content}
+                    ],
+                    stream=True
+                )
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+
+            logger.info(f"SUCCESS: Streaming completed with {model}")
+            return
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            logger.warning(f"Stream fallback: {model} failed with {type(e).__name__}")
+            continue
+
+        except openai.APIError as e:
+            if _should_fallback(e):
+                logger.warning(f"Stream fallback: {model} failed with status {e.status_code}")
+                continue
+            logger.error(f"Stream fatal: {model} unrecoverable error: {e}")
+            break
+
+        except Exception as e:
+            logger.error(f"Stream error with {model}: {e}")
+            if i < len(models) - 1:
+                continue
+            break
+
+    yield "Sorry, I encountered an error. Please try again."
+
+
 def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: str = None) -> str:
     """
     Transcribe audio using OpenAI Whisper API.

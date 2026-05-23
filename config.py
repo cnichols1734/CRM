@@ -18,12 +18,12 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)  # 24-hour sliding expiration
 
-    # Connection pool health settings for cloud PostgreSQL (Supabase)
-    # - pool_pre_ping: Test connection before use (prevents stale connection errors)
-    # - pool_recycle: Recycle connections every 5 min (before Supabase timeout)
+    # Connection pool settings for cloud PostgreSQL (Supabase Pro)
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
-        'pool_recycle': 300,
+        'pool_recycle': 1800,
+        'pool_size': 5,
+        'max_overflow': 3,
     }
 
     # Mail settings
@@ -52,6 +52,9 @@ class Config:
     # and the free tier is 50 calls/month, so we default to 7 days. With ~5 ZIPs
     # seeded that works out to roughly 22 calls per month.
     MARKET_DATA_REFRESH_HOURS = int(os.getenv('MARKET_DATA_REFRESH_HOURS', 168))
+
+    # DocuSeal configuration
+    DOCUSEAL_WEBHOOK_SECRET = os.getenv('DOCUSEAL_WEBHOOK_SECRET')
 
     # Google Gmail Integration (OAuth)
     GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
