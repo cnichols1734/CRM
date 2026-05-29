@@ -5,6 +5,8 @@ from feature_flags import can_access_transactions, feature_required
 from forms import ContactForm
 from services import supabase_storage
 from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
+from services.activation_service import record_event
+from models import ActivationEvent
 import csv
 from io import StringIO
 from sqlalchemy import func
@@ -268,6 +270,9 @@ def create_contact():
         db.session.add(contact)
         db.session.commit()
 
+        record_event(ActivationEvent.CONTACT_CREATED, user=current_user,
+                     data={'source': 'form'})
+
         if _is_ajax_request():
             return jsonify({
                 'status': 'success',
@@ -290,6 +295,55 @@ def create_contact():
         }), 400
 
     return render_template('contacts/form.html', form=form, return_transaction_id=transaction_id)
+
+
+@contacts_bp.route('/contacts/quick-add', methods=['POST'])
+@login_required
+def quick_add_contact():
+    """Minimal-friction first contact.
+
+    Created for new-user activation: a name (and optional phone) is enough to
+    create a contact, no long form and no required group. Returns JSON for the
+    dashboard quick-add widget. The contact stays ungrouped on purpose -- it is
+    faster and more honest than guessing a pipeline stage; the user can group
+    it later.
+    """
+    allowed, message = org_can_add_contact()
+    if not allowed:
+        return jsonify({'status': 'error', 'message': message}), 403
+
+    name = (request.form.get('name') or '').strip()
+    phone = (request.form.get('phone') or '').strip()
+
+    if not name:
+        return jsonify({'status': 'error', 'message': 'Enter a name to add a contact.'}), 400
+
+    parts = name.split()
+    first_name = parts[0][:80]
+    last_name = (' '.join(parts[1:]))[:80]
+
+    phone_value = format_phone_number(phone) or (phone[:20] if phone else None)
+
+    contact = Contact(
+        organization_id=current_user.organization_id,
+        user_id=current_user.id,
+        created_by_id=current_user.id,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone_value,
+    )
+    db.session.add(contact)
+    db.session.commit()
+
+    record_event(ActivationEvent.CONTACT_CREATED, user=current_user,
+                 data={'source': 'quick_add'})
+
+    return jsonify({
+        'status': 'success',
+        'contact': _serialize_contact_summary(contact),
+        'view_url': url_for('contacts.view_contact', contact_id=contact.id),
+        'contacts_url': url_for('main.contacts'),
+    }), 200
 
 
 @contacts_bp.route('/contacts/<int:contact_id>/edit', methods=['POST'])

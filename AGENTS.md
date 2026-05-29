@@ -46,6 +46,11 @@ pip install -r tests/requirements.txt
 playwright install chromium
 python tests/run_tests.py --base-url http://127.0.0.1:5011
 
+# New-user activation E2E (self-contained: boots its own server + throwaway DB).
+# Signs up a fresh account, creates a contact + task, logs out/in, verifies persistence.
+# No running server or seed data required. Use --headed --slow to watch it.
+python tests/run_onboarding_e2e.py
+
 # Unit tests
 pytest tests/test_document_definitions.py
 pytest tests/test_sendgrid.py

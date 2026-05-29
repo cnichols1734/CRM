@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
 from flask_login import login_user, logout_user, login_required, current_user
-from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite
+from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite, ActivationEvent
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
+from services.activation_service import record_event
 from services.email_service import get_email_service
 from services.inbox_provisioning import provision_inbox_address
 from services.tenant_service import (
@@ -174,6 +175,8 @@ def register():
             )
 
         login_user(user)
+        record_event(ActivationEvent.ACCOUNT_CREATED, user=user,
+                     data={'source': 'self_serve'})
         flash('Welcome to Origen. Your account is ready to use.', 'success')
         return redirect(url_for('main.dashboard'))
 
