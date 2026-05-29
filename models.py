@@ -2707,3 +2707,36 @@ class RentcastApiLog(db.Model):
 
     def __repr__(self):
         return f'<RentcastApiLog {self.endpoint} zip={self.zip_code} status={self.status_code}>'
+
+
+class ActivationEvent(db.Model):
+    """Append-only log of new-user activation milestones.
+
+    Lets us answer the questions we currently can't: what share of signups ever
+    add a contact, how long that takes, and whether the dashboard quick-add is
+    pulling its weight. Writes are best-effort (see services/activation_service)
+    so analytics can never break a user-facing flow. No RLS by design: this is
+    internal product analytics, not tenant-visible data.
+    """
+    __tablename__ = 'activation_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'),
+        nullable=True, index=True,
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'),
+        nullable=True, index=True,
+    )
+    event = db.Column(db.String(50), nullable=False, index=True)
+    event_data = db.Column(db.JSON, default=dict)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Event name constants (keep in sync with services/activation_service.py).
+    ACCOUNT_CREATED = 'account_created'
+    CONTACT_CREATED = 'contact_created'
+    TASK_CREATED = 'task_created'
+
+    def __repr__(self):
+        return f'<ActivationEvent {self.event} org={self.organization_id} user={self.user_id}>'

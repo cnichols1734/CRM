@@ -67,7 +67,17 @@
     document.getElementById('welcomeDismiss').addEventListener('click', function () { dismiss(); });
     document.getElementById('welcomeBackdrop').addEventListener('click', function () { dismiss(); });
     document.getElementById('welcomeAddContact').addEventListener('click', function () {
-        dismiss(function () { window.location.href = addContactUrl; });
+        // Prefer the on-page quick-add (10-second path); fall back to the full
+        // form only if the quick-add field isn't on this view.
+        dismiss(function () {
+            var quickName = document.getElementById('quick-add-name');
+            if (quickName) {
+                quickName.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                quickName.focus();
+            } else {
+                window.location.href = addContactUrl;
+            }
+        });
     });
 })();
 </script>

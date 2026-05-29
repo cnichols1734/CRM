@@ -340,29 +340,43 @@
         {% if is_first_run %}
         <div class="crm-surface mb-6" {% if not current_user.has_seen_dashboard_onboarding %}data-dashboard-page-target="onboarding"{% endif %}>
             <div class="crm-surface-body">
-                <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-                    <div class="max-w-2xl">
+                <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="w-full max-w-2xl">
                         <div class="crm-section-kicker">Get Started</div>
-                        <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Set up the workspace around your first real client.</h2>
-                        <p class="mt-2 text-sm text-slate-500">Add contacts, then this view populates automatically.</p>
+                        <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Add your first contact.</h2>
+                        <p class="mt-2 text-sm text-slate-500">Takes about ten seconds &mdash; just a name. Everything else on this dashboard fills in from here.</p>
+
+                        <form id="quick-add-form" autocomplete="off" class="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <input id="quick-add-name" name="name" type="text" required
+                                   class="crm-input flex-1" placeholder="Contact name" aria-label="Contact name">
+                            <input id="quick-add-phone" name="phone" type="text" inputmode="tel"
+                                   class="crm-input flex-1" placeholder="Phone (optional)" aria-label="Phone number">
+                            <button type="submit" id="quick-add-submit" class="crm-btn crm-btn-accent shrink-0">
+                                <i class="fas fa-user-plus text-xs"></i>
+                                Add contact
+                            </button>
+                        </form>
+                        <div id="quick-add-result" class="mt-3 text-sm" role="status" aria-live="polite"></div>
+
+                        <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
+                            <a href="{{ url_for('main.contacts') }}" class="inline-flex items-center gap-1.5 font-medium text-slate-500 transition-colors hover:text-orange-600">
+                                <i class="fas fa-file-import text-xs"></i>
+                                <span>Import a list</span>
+                            </a>
+                            <span class="text-slate-300" aria-hidden="true">&middot;</span>
+                            <a href="{{ url_for('contacts.create_contact') }}" class="inline-flex items-center gap-1.5 font-medium text-slate-500 transition-colors hover:text-orange-600">
+                                <i class="fas fa-sliders-h text-xs"></i>
+                                <span>Add with full details</span>
+                            </a>
+                        </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <a href="{{ url_for('main.contacts') }}" class="crm-btn crm-btn-secondary">
-                            <i class="fas fa-file-import text-xs"></i>
-                            Import contacts
-                        </a>
-                        <a href="{{ url_for('contacts.create_contact') }}" class="crm-btn crm-btn-primary">
-                            <i class="fas fa-user-plus text-xs"></i>
-                            Add first contact
-                        </a>
-                        {% if not current_user.has_seen_dashboard_onboarding %}
-                        <button type="button"
-                                class="crm-btn crm-btn-subtle"
-                                data-action="dashboard-page#dismissOnboarding">
-                            Dismiss
-                        </button>
-                        {% endif %}
-                    </div>
+                    {% if not current_user.has_seen_dashboard_onboarding %}
+                    <button type="button"
+                            class="crm-btn crm-btn-subtle shrink-0"
+                            data-action="dashboard-page#dismissOnboarding">
+                        Dismiss
+                    </button>
+                    {% endif %}
                 </div>
 
                 <div class="mt-6 grid gap-4 md:grid-cols-3">
@@ -400,6 +414,69 @@
                 </div>
             </div>
         </div>
+        <script>
+        (function () {
+            const form = document.getElementById('quick-add-form');
+            if (!form) return;
+            const nameInput = document.getElementById('quick-add-name');
+            const phoneInput = document.getElementById('quick-add-phone');
+            const submitBtn = document.getElementById('quick-add-submit');
+            const result = document.getElementById('quick-add-result');
+            const endpoint = {{ url_for('contacts.quick_add_contact')|tojson }};
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, function (c) {
+                    return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c];
+                });
+            }
+
+            form.addEventListener('submit', async function (e) {
+                e.preventDefault();
+                const name = (nameInput.value || '').trim();
+                if (!name) { nameInput.focus(); return; }
+
+                const original = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = 'Adding\u2026';
+                result.className = 'mt-3 text-sm text-slate-500';
+                result.textContent = '';
+
+                try {
+                    const body = new FormData();
+                    body.append('name', name);
+                    body.append('phone', (phoneInput.value || '').trim());
+                    const resp = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: body
+                    });
+                    const data = await resp.json().catch(function () { return {}; });
+
+                    if (resp.ok && data.status === 'success') {
+                        const nm = (data.contact && data.contact.name) ? data.contact.name.trim() : name;
+                        result.className = 'mt-3 text-sm text-emerald-600';
+                        result.innerHTML = '<i class="fas fa-check"></i> Added <strong>' + escapeHtml(nm) + '</strong>. '
+                            + '<a class="font-medium text-orange-600 underline" href="' + data.view_url + '">Open</a>'
+                            + ' &middot; '
+                            + '<a class="font-medium text-orange-600 underline" href="' + data.contacts_url + '">View all contacts</a>';
+                        nameInput.value = '';
+                        phoneInput.value = '';
+                        nameInput.focus();
+                    } else {
+                        result.className = 'mt-3 text-sm text-red-600';
+                        result.textContent = (data && data.message) ? data.message
+                            : 'Could not add the contact. Please try again.';
+                    }
+                } catch (err) {
+                    result.className = 'mt-3 text-sm text-red-600';
+                    result.textContent = 'Network error. Please try again.';
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = original;
+                }
+            });
+        })();
+        </script>
         {% else %}
         <div class="crm-kpi-grid mb-6">
             <div class="crm-kpi">

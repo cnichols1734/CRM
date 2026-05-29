@@ -157,6 +157,9 @@ Thumbs.db
 *.tmp
 *.temp
 
+# E2E test artifacts (failure screenshots / page dumps)
+tests/artifacts/
+
 # Frontend toolchain
 node_modules/
 .vite/

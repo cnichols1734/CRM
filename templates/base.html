@@ -1952,6 +1952,35 @@
             } catch (e) { /* ignore */ }
         })();
     </script>
+    <style>
+        /* Compatibility shim. The Tailwind/daisyUI Preflight reset zeroes the
+           background on <button> elements, which makes the solid crm-btn fills
+           render transparent (and white labels disappear). Outline variants are
+           unaffected. Re-assert the intended fill with element+class specificity
+           (0,1,1) so it beats the reset regardless of stylesheet load order. */
+        button.crm-btn-primary {
+            background: var(--ink);
+            color: var(--paper);
+            border-color: var(--ink);
+        }
+        button.crm-btn-primary:hover {
+            background: var(--ink-2);
+            border-color: var(--ink-2);
+            color: var(--paper);
+        }
+        button.crm-btn-accent {
+            background: var(--accent);
+            color: var(--accent-on);
+            border-color: var(--accent);
+        }
+        button.crm-btn-accent:hover {
+            background: var(--accent-ink);
+            border-color: var(--accent-ink);
+            color: var(--accent-on);
+        }
+        button.crm-btn-primary:disabled,
+        button.crm-btn-accent:disabled { opacity: 0.6; cursor: default; }
+    </style>
     {% block head_scripts %}{% endblock %}
 </head>
 
