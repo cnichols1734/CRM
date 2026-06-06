@@ -1,0 +1,292 @@
+{% extends "portal/base.html" %}
+{% block title %}{{ property.street }}{% endblock %}
+
+{% block body %}
+<header class="pp-bar" data-bar>
+  <div class="pp-bar__inner">
+    <div class="pp-brand">{{ agent.brokerage or 'Origen' }}</div>
+    <nav class="pp-bar__links">
+      {% if agent.phone %}<a class="pp-link" href="tel:{{ agent.phone }}">Call</a>
+      <a class="pp-link" href="sms:{{ agent.phone }}">Text</a>{% endif %}
+      {% if agent.email %}<a class="pp-link" href="mailto:{{ agent.email }}">Email</a>{% endif %}
+    </nav>
+  </div>
+</header>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+  <div class="pp-flash">
+    {% for category, message in messages %}
+      <div class="pp-flash__item {{ category }}">
+        <i class="fas {{ 'fa-circle-check' if category == 'success' else 'fa-circle-exclamation' }}"></i>
+        <span>{{ message }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endwith %}
+
+<main class="pp-doc">
+
+  {# ----------------------------------------------------------------- hero #}
+  <section class="pp-hero" data-reveal>
+    <div class="pp-eyebrow">{{ property.locality or 'Your listing' }}{% if headline.mls_number %} &middot; MLS {{ headline.mls_number }}{% endif %}</div>
+    <h1 class="pp-display pp-hero__addr">{{ property.street }}</h1>
+
+    <div class="pp-status">
+      {% if headline.status == 'closed' %}<span class="pp-live pp-live--sold"></span>
+      {% elif headline.status == 'cancelled' %}<span class="pp-live pp-live--paused"></span>
+      {% else %}<span class="pp-live"></span>{% endif %}
+      {{ headline.status_label }}
+    </div>
+
+    {% if headline.list_price or headline.days_on_market is not none %}
+    <div class="pp-specs">
+      {% if headline.list_price %}
+      <div class="pp-spec">
+        <div class="pp-spec__v">{{ headline.list_price }}{% if headline.price_reduced %}<span class="pp-was">{{ headline.original_price }}</span>{% endif %}</div>
+        <div class="pp-spec__l">{{ 'Sold price' if headline.status == 'closed' else 'List price' }}</div>
+      </div>
+      {% endif %}
+      {% if headline.days_on_market is not none %}
+      <div class="pp-spec">
+        <div class="pp-spec__v">{{ headline.days_on_market }}</div>
+        <div class="pp-spec__l">Days listed</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+
+  {# -------------------------------------------------------------- tracker #}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-eyebrow">Where we are</div>
+    <h2 class="pp-display pp-statement">{{ headline_statement }}</h2>
+    {% if current_stage %}
+    <div class="pp-track-meta">Step <b>{{ current_stage.index + 1 }}</b> of {{ stages|length }}</div>
+    {% endif %}
+
+    <div class="pp-rail">
+      <div class="pp-rail__fill" style="--p: {{ '%.4f'|format(progress_pct / 100) }};"></div>
+      {% for stage in stages %}
+      <span class="pp-rail__tick is-{{ stage.state }}"
+            style="left: {{ '%.2f'|format(loop.index0 / (stages|length - 1) * 100) }}%;"></span>
+      {% endfor %}
+    </div>
+
+    <ol class="pp-stages">
+      {% for stage in stages %}
+      <li class="pp-stage is-{{ stage.state }}">
+        <span class="pp-stage__dot"></span>
+        <span class="pp-stage__name">{{ stage.label }}{% if stage.state == 'current' %}<span class="pp-stage__here">You are here</span>{% endif %}</span>
+        {% if stage.date %}<span class="pp-stage__date">{{ stage.date }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {# --------------------------------------------------- needs signature #}
+  {% if documents.needs_signature %}
+  <section class="pp-sec pp-sec--action" data-reveal>
+    <div class="pp-sec__head">
+      <div>
+        <div class="pp-eyebrow">Action needed</div>
+        <h2 class="pp-sec__title">Ready for your signature</h2>
+      </div>
+      <span class="pp-sec__count">{{ documents.needs_count }}</span>
+    </div>
+    {% for doc in documents.needs_signature %}
+    <div class="pp-action">
+      <div class="pp-action__row">
+        <div class="pp-action__main">
+          <div class="pp-action__title">{{ doc.name }}</div>
+          <div class="pp-action__sub">{{ 'Opened — not yet signed' if doc.viewed else 'Waiting for you' }}</div>
+        </div>
+        {% if doc.submitter_slug %}
+        <a class="pp-btn pp-btn--primary pp-btn--sm" href="{{ url_for('portal.sign_document', token=token, doc_id=doc.doc_id) }}">
+          <i class="fas fa-signature"></i> Review &amp; sign
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  {# ----------------------------------------------- showings & feedback #}
+  {% if headline.status in ['active', 'under_contract', 'closed'] %}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-eyebrow">Interest</div>
+    <h2 class="pp-sec__title">Showings &amp; feedback</h2>
+    {% if showings.total %}
+      <div class="pp-bigstat">
+        <b>{{ showings.total }}</b> showing{{ '' if showings.total == 1 else 's' }}{% if showings.this_week %} &middot; <b>{{ showings.this_week }}</b> this week{% endif %}{% if showings.with_feedback %} &middot; <b>{{ showings.with_feedback }}</b> shared feedback{% endif %}
+      </div>
+
+      {% set quotes = showings['items'] | selectattr('feedback_notes') | list %}
+      {% if quotes %}
+        <div style="margin-top: var(--s5);">
+        {% for s in quotes[:5] %}
+        <blockquote class="pp-quote">
+          <div class="pp-quote__text">&ldquo;{{ s.feedback_notes }}&rdquo;</div>
+          <div class="pp-quote__by">
+            <span>{{ s.agent_brokerage or 'Buyer' }} &middot; {{ s.date }}</span>
+            {% if s.interest_level %}<span class="pp-int pp-int--{{ s.interest_level }}">{{ s.interest }}</span>{% endif %}
+          </div>
+        </blockquote>
+        {% endfor %}
+        </div>
+      {% else %}
+        <div style="margin-top: var(--s5);">
+        {% for s in showings['items'][:6] %}
+        <div class="pp-line-item">
+          <div>
+            <div class="pp-li__date">{{ s.date }}{% if s.time %} &middot; {{ s.time }}{% endif %}</div>
+            <div class="pp-li__sub">{{ s.agent_brokerage or 'Buyer showing' }}</div>
+          </div>
+          {% if s.interest_level %}<span class="pp-int pp-int--{{ s.interest_level }}" style="font-size:11.5px;">{{ s.interest }}</span>{% endif %}
+        </div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="pp-empty"><p>No showings yet. As buyers tour your home, their visits and feedback will appear here.</p></div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {# ----------------------------------------------------------- offers #}
+  {% if offers.total %}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-sec__head">
+      <div>
+        <div class="pp-eyebrow">On the table</div>
+        <h2 class="pp-sec__title">Offers</h2>
+      </div>
+      <span class="pp-sec__count">{{ offers.active_count }} active</span>
+    </div>
+    <div style="margin-top: var(--s4);">
+    {% for o in offers['items'] %}
+    <div class="pp-offer">
+      <div>
+        <div class="pp-offer__price">{{ o.price or o.label }}</div>
+        <div class="pp-offer__terms">
+          {% if o.financing %}{{ o.financing }}{% endif %}
+          {% if o.close_date %} &middot; close {{ o.close_date }}{% endif %}
+          {% if o.option_days %} &middot; {{ o.option_days }}-day option{% endif %}
+        </div>
+      </div>
+      <span class="pp-label {% if o.is_accepted %}pp-label--green{% elif o.is_active %}pp-label--accent{% endif %}">{{ o.status }}</span>
+    </div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# --------------------------------------------------- road to closing #}
+  {% if milestones['items'] %}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-eyebrow">Toward closing</div>
+    <h2 class="pp-sec__title">What happens next</h2>
+    {% if milestones.next %}
+    <div class="pp-bigstat" style="margin-top: var(--s3);">Next: <b>{{ milestones.next.title }}</b>{% if milestones.next.due_short %} &middot; {{ milestones.next.due_short }}{% endif %}</div>
+    {% endif %}
+    <div style="margin-top: var(--s5);">
+    {% for m in milestones['items'] %}
+    <div class="pp-line-item">
+      <div>
+        <div class="pp-li__date" {% if m.done or m.not_applicable %}style="color:var(--pp-muted);font-weight:550;"{% endif %}>{{ m.title }}</div>
+        {% if m.due_short %}<div class="pp-li__sub">{{ m.due_short }}</div>{% endif %}
+      </div>
+      {% if m.done %}<span class="pp-label pp-label--green">Done</span>
+      {% elif m.not_applicable %}<span class="pp-label">N/A</span>
+      {% elif m.status == 'overdue' %}<span class="pp-label pp-label--accent">Overdue</span>
+      {% elif m.status == 'due_soon' %}<span class="pp-label pp-label--accent">Due soon</span>
+      {% else %}<span class="pp-label">Upcoming</span>{% endif %}
+    </div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# -------------------------------------------------------- net proceeds #}
+  {% if net_proceeds %}
+  <section data-reveal>
+    <div class="pp-proceeds">
+      <div class="pp-proceeds__l">{{ net_proceeds.label }}</div>
+      <div class="pp-proceeds__v">{{ net_proceeds.value }}</div>
+      {% if net_proceeds.estimate %}<div class="pp-proceeds__note">An estimate — final figures are confirmed at closing.</div>{% endif %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ---------------------------------------------------- your documents #}
+  {% if documents.completed %}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-sec__head">
+      <div>
+        <div class="pp-eyebrow">On file</div>
+        <h2 class="pp-sec__title">Your documents</h2>
+      </div>
+      <span class="pp-sec__count">{{ documents.completed_count }}</span>
+    </div>
+    <div style="margin-top: var(--s4);">
+    {% for doc in documents.completed %}
+    <div class="pp-doc-item">
+      <div>
+        <div class="pp-doc-name">{{ doc.name }}</div>
+        <div class="pp-doc-sub">{% if doc.signed_on %}Signed {{ doc.signed_on }}{% else %}Completed{% endif %}</div>
+      </div>
+      {% if doc.can_view %}
+      <a class="pp-btn pp-btn--ghost pp-btn--sm" href="{{ url_for('portal.view_document', token=token, doc_id=doc.doc_id) }}" target="_blank" rel="noopener">
+        <i class="fas fa-arrow-up-right-from-square"></i> View
+      </a>
+      {% else %}<span class="pp-label pp-label--green">Signed</span>{% endif %}
+    </div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# -------------------------------------------------------- updates #}
+  {% if updates %}
+  <section class="pp-sec" data-reveal>
+    <div class="pp-eyebrow">From {{ agent.name.split(' ')[0] }}</div>
+    <h2 class="pp-sec__title">Latest updates</h2>
+    <div style="margin-top: var(--s4);">
+    {% for u in updates %}
+    <div class="pp-update">
+      <div class="pp-update__meta">{{ u.author }}{% if u.date %} &middot; {{ u.date }}{% endif %}</div>
+      <div class="pp-update__body">{{ u.body }}</div>
+    </div>
+    {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ----------------------------------------------------- talk to agent #}
+  <section class="pp-sec" id="talk" data-reveal>
+    <div class="pp-eyebrow">Questions?</div>
+    <h2 class="pp-sec__title">Send {{ agent.name.split(' ')[0] }} a note</h2>
+    <form class="pp-compose" method="POST" action="{{ url_for('portal.post_message', token=token) }}">
+      <textarea class="pp-textarea" name="body" placeholder="Type your message&hellip;" maxlength="4000" required></textarea>
+      <button type="submit" class="pp-btn pp-btn--ink pp-btn--block">
+        <i class="fas fa-paper-plane"></i> Send to {{ agent.name.split(' ')[0] }}
+      </button>
+    </form>
+  </section>
+
+  {# -------------------------------------------------------------- footer #}
+  <footer class="pp-foot">
+    <div class="pp-foot__agent">Represented by <b>{{ agent.name }}</b></div>
+    {% if agent.phone or agent.email %}
+    <div class="pp-foot__contact">
+      {% if agent.phone %}{{ agent.phone }}{% endif %}{% if agent.phone and agent.email %} &middot; {% endif %}{% if agent.email %}{{ agent.email }}{% endif %}
+    </div>
+    {% endif %}
+    <div class="pp-foot__note">This page is private to you and updates on its own as things move.</div>
+    <div class="pp-foot__brand">{{ agent.brokerage or 'Origen' }}</div>
+  </footer>
+
+</main>
+{% endblock %}

@@ -37,3 +37,4 @@ from . import signing
 from . import download
 from . import docuseal_admin
 from . import history
+from . import portal_admin

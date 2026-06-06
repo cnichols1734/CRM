@@ -1,0 +1,28 @@
+{% extends "portal/base.html" %}
+{% block title %}Sign {{ doc_name }}{% endblock %}
+
+{% block head_extra %}
+<script src="https://cdn.docuseal.com/js/form.js"></script>
+{% endblock %}
+
+{% block body %}
+<header class="pp-bar is-stuck" data-bar>
+  <div class="pp-bar__inner">
+    <div class="pp-brand">{{ agent.brokerage or 'Origen' }}</div>
+  </div>
+</header>
+
+<div class="pp-sign-wrap">
+  <a class="pp-back" href="{{ url_for('portal.home', token=token) }}"><i class="fas fa-arrow-left"></i> Back to your listing</a>
+  <h1 class="pp-sign-title">{{ doc_name }}</h1>
+  <div class="pp-note" style="margin-bottom: var(--s5);">{{ property.street }}</div>
+  <div class="pp-sign-frame">
+    <docuseal-form
+      data-src="{{ embed_src }}"
+      data-with-title="false"
+      data-logo=""
+      data-completed-redirect-url="{{ url_for('portal.home', token=token, _external=True) }}">
+    </docuseal-form>
+  </div>
+</div>
+{% endblock %}
