@@ -52,6 +52,7 @@ from routes.market_insights import market_insights_bp
 from routes.notifications import notifications_bp
 from routes.inbound_email import inbound_bp
 from routes.partner_directory import partner_directory_bp
+from routes.portal import portal_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -228,6 +229,7 @@ def create_app():
     app.register_blueprint(notifications_bp)
     app.register_blueprint(inbound_bp)
     app.register_blueprint(partner_directory_bp)
+    app.register_blueprint(portal_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

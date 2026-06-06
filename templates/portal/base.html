@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#f4f5f7">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{% block title %}Your listing{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/portal.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body class="pp">
+    {% block body %}{% endblock %}
+
+    <script>
+      // Masthead hairline appears only once you leave the top.
+      (function () {
+        var bar = document.querySelector('[data-bar]');
+        if (bar) {
+          var onScroll = function () {
+            bar.classList.toggle('is-stuck', window.scrollY > 8);
+          };
+          onScroll();
+          window.addEventListener('scroll', onScroll, { passive: true });
+        }
+        // Staggered reveal — gentle, slow, reduced-motion aware.
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        document.querySelectorAll('[data-reveal]').forEach(function (el, i) {
+          el.classList.add('pp-reveal');
+          el.style.animationDelay = Math.min(i * 90, 720) + 'ms';
+        });
+      })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

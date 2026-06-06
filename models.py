@@ -2534,6 +2534,7 @@ class Notification(db.Model):
         'task_reminder': 'Task Reminders',
         'company_update': 'Company Updates',
         'magic_inbox': 'Magic Inbox',
+        'portal': 'Client Portal',
     }
 
     def mark_read(self):
@@ -2740,3 +2741,103 @@ class ActivationEvent(db.Model):
 
     def __repr__(self):
         return f'<ActivationEvent {self.event} org={self.organization_id} user={self.user_id}>'
+
+
+# =============================================================================
+# CLIENT PORTAL (passwordless, per-seller "magic link" transaction portal)
+# =============================================================================
+
+class ClientPortalAccess(db.Model):
+    """A private, revocable magic link that lets one transaction participant
+    (a seller) view their own transaction in the client portal.
+
+    Auth is the token itself: a long, url-safe random string. There is no
+    password and no User account. The link can be rotated or revoked by the
+    agent at any time. One row per participant per transaction.
+    """
+    __tablename__ = 'client_portal_access'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id',
+                               ondelete='CASCADE'), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id',
+                               ondelete='CASCADE'), nullable=False, index=True)
+
+    # The secret in the URL. ~43 chars from token_urlsafe(32).
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    last_viewed_at = db.Column(db.DateTime, nullable=True)
+    view_count = db.Column(db.Integer, nullable=False, default=0)
+
+    transaction = db.relationship('Transaction', backref=db.backref(
+        'portal_access_links', lazy='dynamic', cascade='all, delete-orphan'))
+    participant = db.relationship('TransactionParticipant', backref=db.backref(
+        'portal_access', lazy='dynamic', cascade='all, delete-orphan'))
+
+    @staticmethod
+    def generate_token():
+        """Cryptographically secure, url-safe token (~43 chars)."""
+        return secrets.token_urlsafe(32)
+
+    def record_view(self):
+        self.view_count = (self.view_count or 0) + 1
+        self.last_viewed_at = datetime.utcnow()
+
+    def __repr__(self):
+        return (f'<ClientPortalAccess {self.id} tx={self.transaction_id} '
+                f'participant={self.participant_id} active={self.is_active}>')
+
+
+class PortalMessage(db.Model):
+    """A note shown in the client portal. Powers two things with one model:
+
+    - kind='update': an agent-posted status note ("This week's update").
+    - kind='message': a two-way message between the agent and the client.
+
+    Scoped to a single participant + transaction so each seller sees only
+    their own thread.
+    """
+    __tablename__ = 'portal_messages'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id',
+                               ondelete='CASCADE'), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id',
+                               ondelete='CASCADE'), nullable=False, index=True)
+
+    # 'agent' | 'client'
+    sender = db.Column(db.String(20), nullable=False, default='agent', index=True)
+    # 'update' | 'message'
+    kind = db.Column(db.String(20), nullable=False, default='message', index=True)
+
+    body = db.Column(db.Text, nullable=False)
+    # Supabase path when a client attaches a requested file to a message.
+    attachment_path = db.Column(db.String(500), nullable=True)
+    attachment_name = db.Column(db.String(255), nullable=True)
+
+    # Which agent authored an agent-side message/update (null for client).
+    author_user_id = db.Column(db.Integer, db.ForeignKey('user.id',
+                               ondelete='SET NULL'), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    read_by_agent_at = db.Column(db.DateTime, nullable=True)
+    read_by_client_at = db.Column(db.DateTime, nullable=True)
+
+    transaction = db.relationship('Transaction', backref=db.backref(
+        'portal_messages', lazy='dynamic', cascade='all, delete-orphan',
+        order_by='PortalMessage.created_at.desc()'))
+    author = db.relationship('User', foreign_keys=[author_user_id])
+
+    SENDERS = {'agent', 'client'}
+    KINDS = {'update', 'message'}
+
+    def __repr__(self):
+        return (f'<PortalMessage {self.id} tx={self.transaction_id} '
+                f'sender={self.sender} kind={self.kind}>')
