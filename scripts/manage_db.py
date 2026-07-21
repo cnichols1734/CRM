@@ -17,6 +17,14 @@ from flask_migrate import Migrate, init, migrate, upgrade, current, history  # n
 from config import Config  # noqa: E402
 from models import db  # noqa: E402
 
+def safe_uri(uri):
+    """Render a database URI with the password masked for logging."""
+    try:
+        from sqlalchemy.engine.url import make_url
+        return make_url(uri).render_as_string(hide_password=True)
+    except Exception:
+        return '<database uri hidden>'
+
 def create_app(config_class=Config):
     """Create Flask application with specified config."""
     app = Flask(__name__)
@@ -35,7 +43,7 @@ def init_database():
     app, migrate_obj = create_app()
 
     with app.app_context():
-        print(f"Initializing database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        print(f"Initializing database: {safe_uri(app.config['SQLALCHEMY_DATABASE_URI'])}")
 
         # Create database directory if it doesn't exist
         db_path = app.config['SQLALCHEMY_DATABASE_URI']
@@ -52,7 +60,7 @@ def setup_migrations():
     app, migrate_obj = create_app()
 
     with app.app_context():
-        print(f"Setting up migrations for: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        print(f"Setting up migrations for: {safe_uri(app.config['SQLALCHEMY_DATABASE_URI'])}")
         init()
         print("Migration repository initialized!")
 
@@ -61,7 +69,7 @@ def create_migration(message="auto migration"):
     app, migrate_obj = create_app()
 
     with app.app_context():
-        print(f"Creating migration for: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        print(f"Creating migration for: {safe_uri(app.config['SQLALCHEMY_DATABASE_URI'])}")
         migrate(message=message)
         print(f"Migration created with message: {message}")
 
@@ -70,7 +78,7 @@ def upgrade_database():
     app, migrate_obj = create_app()
 
     with app.app_context():
-        print(f"Upgrading database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        print(f"Upgrading database: {safe_uri(app.config['SQLALCHEMY_DATABASE_URI'])}")
         upgrade()
         print("Database upgraded successfully!")
 
@@ -79,7 +87,7 @@ def show_migration_status():
     app, migrate_obj = create_app()
 
     with app.app_context():
-        print(f"Database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+        print(f"Database: {safe_uri(app.config['SQLALCHEMY_DATABASE_URI'])}")
         print("\nCurrent revision:")
         current()
         print("\nMigration history:")
