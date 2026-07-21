@@ -125,8 +125,9 @@
                         <select name="groups" class="crm-select">
                             <option value="">All groups</option>
                             {% for group in all_groups %}
-                            <option value="{{ group.id }}" {% if request.args.get('groups') == group.id|string %}selected{% endif %}>
-                                {{ group.name }}
+                            {% set option_value = group.group_ids|join(',') %}
+                            <option value="{{ option_value }}" {% if request.args.get('groups') == option_value %}selected{% endif %}>
+                                {{ group.label or group.name }}
                             </option>
                             {% endfor %}
                         </select>
@@ -159,8 +160,9 @@
                     {% endif %}
                     {% if request.args.get('groups') %}
                     {% for group in all_groups %}
-                        {% if request.args.get('groups') == group.id|string %}
-                        {{ badge(group.name) }}
+                        {% set option_value = group.group_ids|join(',') %}
+                        {% if request.args.get('groups') == option_value %}
+                        {{ badge(group.label or group.name) }}
                         {% endif %}
                     {% endfor %}
                     {% endif %}

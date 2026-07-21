@@ -105,7 +105,11 @@
                                 {% if contact.groups %}
                                 <div class="mt-3 flex flex-wrap gap-1.5">
                                     {% for group in contact.groups %}
+                                    {% if group.is_active %}
                                     {{ badge(group.name, 'accent') }}
+                                    {% else %}
+                                    {{ badge(group.name ~ ' (inactive)', 'neutral') }}
+                                    {% endif %}
                                     {% endfor %}
                                 </div>
                                 {% endif %}
@@ -374,7 +378,11 @@
                             <div class="crm-section-kicker mb-3">Groups</div>
                             <div class="flex flex-wrap gap-1.5">
                                 {% for group in contact.groups %}
+                                {% if group.is_active %}
                                 {{ badge(group.name, 'accent') }}
+                                {% else %}
+                                {{ badge(group.name ~ ' (inactive)', 'neutral') }}
+                                {% endif %}
                                 {% else %}
                                 <span class="text-sm text-slate-400">&mdash;</span>
                                 {% endfor %}

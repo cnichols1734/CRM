@@ -46,9 +46,15 @@ def seed_data(app):
         db.session.add(user_b)
         db.session.flush()
 
-        # Contact groups for both orgs
-        group_a = ContactGroup(name='Default', organization_id=org_a.id, category='general', sort_order=0)
-        group_b = ContactGroup(name='Default', organization_id=org_b.id, category='general', sort_order=0)
+        # Contact groups for both orgs (per-user)
+        group_a = ContactGroup(
+            name='Default', organization_id=org_a.id, user_id=user_a.id,
+            category='general', sort_order=0, is_active=True,
+        )
+        group_b = ContactGroup(
+            name='Default', organization_id=org_b.id, user_id=user_b.id,
+            category='general', sort_order=0, is_active=True,
+        )
         db.session.add_all([group_a, group_b])
         db.session.flush()
 

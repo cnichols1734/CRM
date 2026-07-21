@@ -336,66 +336,102 @@ def get_or_404_org(model, resource_id: int):
 # ORGANIZATION SETUP HELPERS
 # =============================================================================
 
-def create_default_groups_for_org(org_id: int):
+# Canonical default contact groups for every new user.
+# Single source of truth — do not duplicate this list elsewhere.
+DEFAULT_CONTACT_GROUPS = [
+    # Buyer pipeline
+    {'name': 'Buyer - New Potential Client', 'category': 'Status', 'sort_order': 1},
+    {'name': 'Buyer - Actively Showing Homes', 'category': 'Status', 'sort_order': 2},
+    {'name': 'Buyer - Under Contract', 'category': 'Status', 'sort_order': 3},
+    {'name': 'Buyer - Previous Client', 'category': 'Status', 'sort_order': 4},
+    # Seller pipeline
+    {'name': 'Seller - New Potential Client', 'category': 'Status', 'sort_order': 5},
+    {'name': 'Seller - Active Listing', 'category': 'Status', 'sort_order': 6},
+    {'name': 'Seller - Under Contract', 'category': 'Status', 'sort_order': 7},
+    {'name': 'Seller - Previous Client', 'category': 'Status', 'sort_order': 8},
+    # Priority groups
+    {'name': 'A', 'category': 'Priority', 'sort_order': 9},
+    {'name': 'B', 'category': 'Priority', 'sort_order': 10},
+    {'name': 'C', 'category': 'Priority', 'sort_order': 11},
+    {'name': 'D', 'category': 'Priority', 'sort_order': 12},
+    # Relationship groups
+    {'name': 'Family', 'category': 'Relationship', 'sort_order': 13},
+    {'name': 'Friend', 'category': 'Relationship', 'sort_order': 14},
+    # Professional groups
+    {'name': 'Real Estate Agent', 'category': 'Professional', 'sort_order': 15},
+    {'name': 'Lender', 'category': 'Professional', 'sort_order': 16},
+    {'name': 'Inspector', 'category': 'Professional', 'sort_order': 17},
+    {'name': 'Insurance Broker', 'category': 'Professional', 'sort_order': 18},
+]
+
+
+def create_default_groups_for_user(org_id: int, user_id: int, *, commit: bool = True):
     """
-    Create default contact groups for a new organization.
-    Called when an organization is approved.
-    Idempotent - safe to call multiple times.
-    
+    Create the canonical default contact groups for a single user.
+    Idempotent per (org_id, user_id) — skips if the user already has any groups.
+
     Args:
-        org_id: The organization ID to create groups for
-        
+        org_id: Organization ID
+        user_id: User who will own the groups
+        commit: When False, flush only (caller owns the transaction)
+
     Returns:
-        List of created ContactGroup objects
+        List of ContactGroup objects (created or existing)
     """
     from models import db, ContactGroup
-    
-    # Check if any groups already exist for this org
-    existing_count = ContactGroup.query.filter_by(organization_id=org_id).count()
-    if existing_count > 0:
-        # Already created, return existing groups
-        return ContactGroup.query.filter_by(organization_id=org_id).all()
-    
-    # Default groups for real estate CRM
-    default_groups = [
-        # Buyer pipeline
-        {'name': 'Buyer - New Potential Client', 'category': 'Status', 'sort_order': 1},
-        {'name': 'Buyer - Actively Showing Homes', 'category': 'Status', 'sort_order': 2},
-        {'name': 'Buyer - Under Contract', 'category': 'Status', 'sort_order': 3},
-        {'name': 'Buyer - Previous Client', 'category': 'Status', 'sort_order': 4},
-        # Seller pipeline
-        {'name': 'Seller - New Potential Client', 'category': 'Status', 'sort_order': 5},
-        {'name': 'Seller - Active Listing', 'category': 'Status', 'sort_order': 6},
-        {'name': 'Seller - Under Contract', 'category': 'Status', 'sort_order': 7},
-        {'name': 'Seller - Previous Client', 'category': 'Status', 'sort_order': 8},
-        # Priority groups
-        {'name': 'A', 'category': 'Priority', 'sort_order': 9},
-        {'name': 'B', 'category': 'Priority', 'sort_order': 10},
-        {'name': 'C', 'category': 'Priority', 'sort_order': 11},
-        {'name': 'D', 'category': 'Priority', 'sort_order': 12},
-        # Relationship groups
-        {'name': 'Family', 'category': 'Relationship', 'sort_order': 13},
-        {'name': 'Friend', 'category': 'Relationship', 'sort_order': 14},
-        # Professional groups
-        {'name': 'Real Estate Agent', 'category': 'Professional', 'sort_order': 15},
-        {'name': 'Lender', 'category': 'Professional', 'sort_order': 16},
-        {'name': 'Inspector', 'category': 'Professional', 'sort_order': 17},
-        {'name': 'Insurance Broker', 'category': 'Professional', 'sort_order': 18},
-    ]
-    
+    from services.cache_helpers import clear_user_contact_groups_cache
+
+    existing = ContactGroup.query.filter_by(
+        organization_id=org_id,
+        user_id=user_id,
+    ).all()
+    if existing:
+        return existing
+
     created_groups = []
-    for group_data in default_groups:
+    for group_data in DEFAULT_CONTACT_GROUPS:
         group = ContactGroup(
             organization_id=org_id,
+            user_id=user_id,
             name=group_data['name'],
-            category=group_data.get('category', 'Status'),
-            sort_order=group_data.get('sort_order', 0)
+            category=group_data['category'],
+            sort_order=group_data['sort_order'],
+            is_active=True,
         )
         db.session.add(group)
         created_groups.append(group)
-    
-    db.session.commit()
+
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
+
+    clear_user_contact_groups_cache(org_id, user_id)
     return created_groups
+
+
+def create_default_groups_for_org(org_id: int, *, commit: bool = True):
+    """
+    Repair helper: ensure every user in the org has default groups.
+    Does NOT seed a shared org catalog — groups are per-user.
+
+    Returns:
+        Dict of {user_id: list[ContactGroup]} for users that were seeded or already had groups.
+    """
+    from models import User
+
+    users = User.query.filter_by(organization_id=org_id).all()
+    result = {}
+    for user in users:
+        result[user.id] = create_default_groups_for_user(
+            org_id, user.id, commit=False
+        )
+
+    if commit:
+        from models import db
+        db.session.commit()
+
+    return result
 
 
 def create_default_task_types_for_org(org_id: int):

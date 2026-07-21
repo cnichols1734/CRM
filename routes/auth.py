@@ -6,7 +6,7 @@ from services.activation_service import record_event
 from services.email_service import get_email_service
 from services.inbox_provisioning import provision_inbox_address
 from services.tenant_service import (
-    create_default_groups_for_org,
+    create_default_groups_for_user,
     create_default_task_types_for_org,
     create_default_transaction_types_for_org,
 )
@@ -135,10 +135,27 @@ def register():
         user.set_password(form.password.data)
         user.last_login = datetime.utcnow()
         db.session.add(user)
-        db.session.commit()
+        db.session.flush()  # Need user.id before seeding per-user groups
 
         try:
-            create_default_groups_for_org(org.id)
+            # Groups are seeded in the same transaction as the user so a new
+            # account never lands without a personal group catalog.
+            create_default_groups_for_user(org.id, user.id, commit=False)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception(
+                'Failed to create user/groups during signup org_id=%s owner_email=%s',
+                org.id,
+                form.email.data,
+            )
+            flash(
+                'We could not finish creating your account. Please try again or contact support.',
+                'error'
+            )
+            return render_template('auth/register.html', form=form)
+
+        try:
             create_default_task_types_for_org(org.id)
             create_default_transaction_types_for_org(org.id)
         except Exception:
@@ -357,7 +374,25 @@ def complete_invite(token):
     invite.used_at = datetime.utcnow()
     
     db.session.add(user)
-    db.session.commit()
+    db.session.flush()  # Need user.id before seeding per-user groups
+
+    try:
+        create_default_groups_for_user(
+            invite.organization_id, user.id, commit=False
+        )
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception(
+            'Failed to create invited user/groups org_id=%s email=%s',
+            invite.organization_id,
+            invite.email,
+        )
+        flash(
+            'We could not finish creating your account. Please try again or contact support.',
+            'error'
+        )
+        return render_template('auth/accept_invite.html', invite=invite)
 
     try:
         provision_inbox_address(user)

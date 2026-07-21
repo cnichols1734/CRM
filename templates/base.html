@@ -80,7 +80,10 @@
 
         :root {
             --sidebar-width: 4rem;
-            --sidebar-expanded-width: 12.5rem;
+            /* Wide enough for the longest label ("Customize Groups") plus its
+               NEW tag — labels are clipped by the sidebar edge, so anything
+               that does not fit is silently cut off. */
+            --sidebar-expanded-width: 15rem;
         }
 
         html.sidebar-expanded {
@@ -159,6 +162,7 @@
         }
 
         .crm-nav-link {
+            position: relative;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -174,6 +178,47 @@
             white-space: nowrap;
             min-width: 0;
             transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        /* Compact "NEW" tag for freshly launched nav items. Sized for the
+           13px nav rows — the shared .crm-badge is too tall here. */
+        .crm-nav-badge {
+            display: inline-flex;
+            align-items: center;
+            flex-shrink: 0;
+            height: 15px;
+            padding: 0 5px;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            line-height: 1;
+            text-transform: uppercase;
+            background: var(--accent-soft, #ffedd5);
+            color: var(--accent-ink, #c2410c);
+        }
+        /* Mobile slide-in menu sits on the dark slate shell, where the light
+           accent-soft chip would glare. Use a translucent ember treatment. */
+        #mobileNavMenu .crm-nav-badge {
+            background: rgba(249, 115, 22, 0.18);
+            color: #fdba74;
+        }
+
+        /* Collapsed sidebar clips labels (and the NEW tag with them), so a
+           link carrying a new feature shows a small ember dot on the icon's
+           corner until the sidebar is expanded. */
+        .crm-nav-link--new::after {
+            content: "";
+            position: absolute;
+            top: 0.4rem;
+            left: 1.7rem;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--accent, #f97316);
+        }
+        html.sidebar-expanded .crm-nav-link--new::after {
+            display: none;
         }
 
         .crm-nav-link > i,
@@ -2130,11 +2175,6 @@
             {% if current_user.role == 'admin' %}
             <div class="py-2">
                 <div class="px-6 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</div>
-                <a href="{{ url_for('admin.manage_groups') }}"
-                    class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
-                    <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>
-                    Manage Groups
-                </a>
                 <a href="{{ url_for('admin.manage_resources') }}"
                     class="flex items-center px-6 py-3 text-base text-gray-700 hover:bg-gray-50">
                     <i class="fas fa-link w-5 mr-3 text-gray-400"></i>
@@ -2257,6 +2297,17 @@
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
                     <i class="fas fa-paper-plane w-6 mr-3"></i>
                     Magic Inbox
+                </a>
+                <a href="{{ url_for('groups.customize') }}"
+                    aria-label="Customize Groups"
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('groups.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-tags w-6 mr-3"></i>
+                    <span class="flex items-center gap-2">
+                        Customize Groups
+                        {% if show_customize_groups_new_badge %}
+                        <span class="crm-nav-badge" aria-hidden="true">NEW</span>
+                        {% endif %}
+                    </span>
                 </a>
                 {% if current_user.role == 'admin' and org_has_feature('TRANSACTIONS') %}
                 <a href="{{ url_for('transactions.list_transactions') }}"
@@ -2393,6 +2444,17 @@
                        class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}is-active{% endif %}">
                         <i class="fas fa-paper-plane"></i>
                         <span>Magic Inbox</span>
+                    </a>
+                    <a href="{{ url_for('groups.customize') }}"
+                       aria-label="Customize Groups"
+                       class="crm-nav-link {% if show_customize_groups_new_badge %}crm-nav-link--new{% endif %} {% if request.endpoint and request.endpoint.startswith('groups.') %}is-active{% endif %}">
+                        <i class="fas fa-tags"></i>
+                        <span class="flex items-center gap-1.5">
+                            Customize Groups
+                            {% if show_customize_groups_new_badge %}
+                            <span class="crm-nav-badge" aria-hidden="true">NEW</span>
+                            {% endif %}
+                        </span>
                     </a>
                 </div>
 
@@ -2555,9 +2617,6 @@
                     {% if current_user.role == 'admin' %}
                     <div class="py-2">
                         <div class="px-4 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin Tools</div>
-                        <a href="{{ url_for('admin.manage_groups') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                            <i class="fas fa-tags w-5 mr-3 text-gray-400"></i>Manage Groups
-                        </a>
                         <a href="{{ url_for('admin.manage_resources') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
                             <i class="fas fa-link w-5 mr-3 text-gray-400"></i>Manage Resources
                         </a>

@@ -17,7 +17,7 @@ browser_env = configure_browser_test_environment(project_root)
 from app import create_app
 from models import Organization, User, db
 from services.tenant_service import (
-    create_default_groups_for_org,
+    create_default_groups_for_user,
     create_default_task_types_for_org,
     create_default_transaction_types_for_org,
 )
@@ -57,9 +57,11 @@ def bootstrap_browser_test_db() -> None:
         )
         user.set_password(browser_env["test_password"])
         db.session.add(user)
+        db.session.flush()
+
+        create_default_groups_for_user(organization.id, user.id, commit=False)
         db.session.commit()
 
-        create_default_groups_for_org(organization.id)
         create_default_task_types_for_org(organization.id)
         create_default_transaction_types_for_org(organization.id)
 

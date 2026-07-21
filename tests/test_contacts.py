@@ -26,8 +26,9 @@ class TestContactList:
         assert resp.status_code == 200
 
     def test_contacts_group_filter(self, owner_a_client, seed):
-        resp = owner_a_client.get(f'/contacts?group_id={seed["group_a1"]}')
+        resp = owner_a_client.get(f'/contacts?groups={seed["group_a1"]}')
         assert resp.status_code == 200
+        assert b'Jane' in resp.data
 
     def test_contacts_pagination(self, owner_a_client, seed):
         resp = owner_a_client.get('/contacts?page=1')
@@ -88,7 +89,7 @@ class TestContactCreate:
             'first_name': 'AgentCreated',
             'last_name': 'Contact',
             'email': 'agentcreated@test.com',
-            'group_ids': str(seed['group_a1']),
+            'group_ids': str(seed['group_agent_a1']),
         }, follow_redirects=True)
         assert resp.status_code == 200
 

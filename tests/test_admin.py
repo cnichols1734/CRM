@@ -9,59 +9,20 @@ import pytest
 from conftest import login
 
 
-class TestGroupManagement:
-    """Contact group CRUD (admin only)."""
+class TestLegacyGroupRedirects:
+    """Legacy /admin/groups routes redirect or return 410."""
 
-    def test_groups_page_loads(self, owner_a_client, seed):
-        resp = owner_a_client.get('/admin/groups')
-        assert resp.status_code in (200, 302)
-        if resp.status_code == 200:
-            assert b'Buyers' in resp.data or b'group' in resp.data.lower()
+    def test_admin_groups_redirects_to_customize(self, owner_a_client, seed):
+        resp = owner_a_client.get('/admin/groups', follow_redirects=False)
+        assert resp.status_code == 301
+        assert '/groups' in (resp.headers.get('Location') or '')
 
-    def test_groups_page_agent_denied(self, agent_a_client, seed):
-        resp = agent_a_client.get('/admin/groups')
-        assert resp.status_code in (302, 403), f"Agent should be denied, got {resp.status_code}"
-
-    def test_add_group(self, owner_a_client, seed):
+    def test_legacy_mutations_gone(self, owner_a_client, seed):
         resp = owner_a_client.post('/admin/groups/add', data={
             'name': 'TestNewGroup',
             'category': 'general',
-        }, follow_redirects=True)
-        assert resp.status_code == 200
-
-    def test_add_group_agent_denied(self, agent_a_client, seed):
-        resp = agent_a_client.post('/admin/groups/add', data={
-            'name': 'AgentGroup',
-            'category': 'general',
         })
-        assert resp.status_code in (302, 403), f"Agent should be denied, got {resp.status_code}"
-
-    def test_update_group(self, owner_a_client, seed):
-        resp = owner_a_client.put(
-            f'/admin/groups/{seed["group_a1"]}',
-            json={'name': 'Buyers Updated'},
-            content_type='application/json',
-        )
-        assert resp.status_code in (200, 302)
-
-    def test_update_group_cross_org_blocked(self, owner_a_client, seed):
-        resp = owner_a_client.put(
-            f'/admin/groups/{seed["group_b1"]}',
-            json={'name': 'Hacked'},
-            content_type='application/json',
-        )
-        assert resp.status_code in (403, 404)
-
-    def test_reorder_groups(self, owner_a_client, seed):
-        resp = owner_a_client.post(
-            '/admin/groups/reorder',
-            json=[
-                {'id': seed['group_a2'], 'sort_order': 0},
-                {'id': seed['group_a1'], 'sort_order': 1},
-            ],
-            content_type='application/json',
-        )
-        assert resp.status_code in (200, 302, 400)
+        assert resp.status_code == 410
 
 
 class TestResourceManagement:

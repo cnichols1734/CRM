@@ -281,10 +281,15 @@ class ContactGroup(db.Model):
     # Multi-tenant: organization scoping
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
                                 ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
+
+    # Per-user ownership: each agent manages their own catalog
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
     
-    name = db.Column(db.String(100), nullable=False)  # Unique per org, not globally
+    name = db.Column(db.String(100), nullable=False)  # Unique per user within org
     category = db.Column(db.String(50), nullable=False)
     sort_order = db.Column(db.Integer, nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relationship definition using the association table
@@ -292,10 +297,15 @@ class ContactGroup(db.Model):
                              secondary=contact_groups,
                              back_populates='groups',
                              lazy='dynamic')
+    owner = db.relationship('User', foreign_keys=[user_id],
+                            backref=db.backref('contact_groups', lazy='dynamic'))
     
-    # Unique constraint: name must be unique within organization
+    # Unique constraint: name must be unique per user within organization
     __table_args__ = (
-        db.UniqueConstraint('organization_id', 'name', name='uq_contact_group_org_name'),
+        db.UniqueConstraint('organization_id', 'user_id', 'name',
+                            name='uq_contact_group_org_user_name'),
+        db.Index('ix_contact_group_org_user_sort',
+                 'organization_id', 'user_id', 'sort_order'),
     )
 
 class Contact(db.Model):

@@ -1,10 +1,18 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, Response, jsonify, current_app
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo
+from models import db, Contact, User, Transaction, TransactionParticipant, ContactFile, Interaction, Task, TaskType, TaskSubtype, ContactEmail, ContactVoiceMemo
 from feature_flags import can_access_transactions, feature_required
 from forms import ContactForm
 from services import supabase_storage
 from services.tenant_service import org_query, can_view_all_org_data, org_can_add_contact
+from services.contact_group_service import (
+    ContactGroupError,
+    assign_groups_to_contact,
+    groups_for_contact_owner,
+    list_user_groups,
+    resolve_groups_by_name,
+    resolve_groups_for_owner,
+)
 from services.activation_service import record_event
 from models import ActivationEvent
 import csv
@@ -146,9 +154,8 @@ def view_contact(contact_id):
             } for task in active_tasks]
         })
 
-    # Multi-tenant: Get groups within org (cached)
-    from services.cache_helpers import get_org_contact_groups
-    all_groups = get_org_contact_groups(current_user.organization_id)
+    # Assignment picker uses the contact owner's active groups
+    all_groups = groups_for_contact_owner(contact, active_only=True)
     user_tz = get_user_timezone()
     now = datetime.now(user_tz)
 
@@ -225,8 +232,12 @@ def create_contact():
         return redirect(url_for('main.contacts'))
     
     form = ContactForm()
-    # Multi-tenant: Get groups within org
-    form.group_ids.choices = [(g.id, g.name) for g in org_query(ContactGroup).order_by(ContactGroup.sort_order)]
+    form.group_ids.choices = [
+        (g.id, g.name)
+        for g in list_user_groups(
+            current_user.organization_id, current_user.id, active_only=True
+        )
+    ]
     
     # Check for return_to parameter (for redirecting back to transaction)
     return_to = request.args.get('return_to')
@@ -261,11 +272,20 @@ def create_contact():
         # Update the last contact date
         contact.update_last_contact_date()
 
-        # Multi-tenant: Get groups within org
-        selected_groups = org_query(ContactGroup).filter(
-            ContactGroup.id.in_(form.group_ids.data)
-        ).all()
-        contact.groups = selected_groups
+        try:
+            contact.groups = resolve_groups_for_owner(
+                current_user.organization_id,
+                current_user.id,
+                form.group_ids.data,
+                active_only=True,
+            )
+        except ContactGroupError as exc:
+            if _is_ajax_request():
+                return jsonify({'status': 'error', 'message': exc.message}), exc.status_code
+            flash(exc.message, 'error')
+            return render_template(
+                'contacts/form.html', form=form, return_transaction_id=transaction_id
+            )
 
         db.session.add(contact)
         db.session.commit()
@@ -403,10 +423,15 @@ def edit_contact(contact_id):
         contact.update_last_contact_date()
 
         selected_group_ids = request.form.getlist('group_ids')
-        # Multi-tenant: Get groups within org
-        contact.groups = org_query(ContactGroup).filter(
-            ContactGroup.id.in_(selected_group_ids)
-        ).all()
+        try:
+            assign_groups_to_contact(
+                contact,
+                selected_group_ids,
+                preserve_inactive=True,
+            )
+        except ContactGroupError as exc:
+            db.session.rollback()
+            return jsonify({'status': 'error', 'message': exc.message}), exc.status_code
 
         db.session.commit()
         if not _is_ajax_request():
@@ -777,11 +802,17 @@ def import_contacts():
                 if row.get('groups'):
                     group_names = [name.strip() for name in row['groups'].split(';') if name.strip()]
                     if group_names:
-                        # Multi-tenant: filter groups by organization
-                        groups = org_query(ContactGroup).filter(ContactGroup.name.in_(group_names)).all()
-                        if len(groups) < len(group_names):
-                            missing_groups = set(group_names) - set(g.name for g in groups)
-                            error_details.append(f"Row {row_num}: Some groups not found: {', '.join(missing_groups)}")
+                        groups, missing_groups = resolve_groups_by_name(
+                            current_user.organization_id,
+                            target_user_id,
+                            group_names,
+                            active_only=True,
+                        )
+                        if missing_groups:
+                            error_details.append(
+                                f"Row {row_num}: Some groups not found: "
+                                f"{', '.join(missing_groups)}"
+                            )
                         contact.groups = groups
 
                 db.session.add(contact)
