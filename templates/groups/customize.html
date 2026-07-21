@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header, empty_state %}
+
+{% block title %}Customize Groups - Origen TechnolOG{% endblock %}
+
+{% block head_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="crm-page" data-controller="groups-page"
+     data-groups-page-reorder-url-value="{{ url_for('groups.reorder') }}"
+     data-groups-page-create-url-value="{{ url_for('groups.create') }}"
+     data-groups-page-restore-url-value="{{ url_for('groups.restore_defaults') }}">
+    <div class="crm-page__inner max-w-[960px]">
+        {% call page_header(
+            'Customize Groups',
+            'These labels are yours. Changes do not affect other agents in your organization.',
+            'People'
+        ) %}
+            <button type="button"
+                    class="crm-btn crm-btn-secondary"
+                    data-action="groups-page#restoreDefaults"
+                    data-groups-page-target="restoreButton">
+                <i class="fas fa-undo" aria-hidden="true"></i>
+                Add missing defaults
+            </button>
+            <button type="button"
+                    class="crm-btn crm-btn-primary"
+                    data-action="groups-page#openCreateModal">
+                <i class="fas fa-plus" aria-hidden="true"></i>
+                Add group
+            </button>
+        {% endcall %}
+
+        <div data-groups-page-target="status"
+             class="crm-groups-status hidden"
+             role="status"
+             aria-live="polite"></div>
+
+        {% if total_groups == 0 %}
+        <div class="crm-surface">
+            <div class="crm-surface-body">
+                {% call empty_state(
+                    'No groups yet',
+                    'Add your own labels, or restore the default buyer/seller set to get started.',
+                    'fa-tags'
+                ) %}
+                    <button type="button"
+                            class="crm-btn crm-btn-primary"
+                            data-action="groups-page#restoreDefaults">
+                        Add missing defaults
+                    </button>
+                {% endcall %}
+            </div>
+        </div>
+        {% else %}
+        <div class="space-y-4" data-groups-page-target="categoryList">
+            {% for category in category_order %}
+            {% if groups_by_category.get(category) %}
+            <section class="crm-surface" data-category="{{ category }}">
+                <div class="crm-surface-header">
+                    <div class="flex items-center gap-3">
+                        <h2 class="crm-section-title">{{ category }}</h2>
+                        <span class="crm-badge">
+                            {{ groups_by_category[category]|length }}
+                            {{ 'group' if groups_by_category[category]|length == 1 else 'groups' }}
+                        </span>
+                    </div>
+                </div>
+                <ul class="crm-group-rows"
+                    data-groups-page-target="sortableList"
+                    data-category="{{ category }}"
+                    role="list">
+                    {% for group in groups_by_category[category] %}
+                    <li class="crm-group-row {% if not group.is_active %}is-inactive{% endif %}"
+                        data-group-id="{{ group.id }}"
+                        data-groups-page-target="groupRow">
+                        <button type="button"
+                                class="crm-group-row__handle"
+                                data-groups-page-target="dragHandle"
+                                aria-label="Drag to reorder {{ group.name }}"
+                                title="Drag to reorder">
+                            <i class="fas fa-grip-vertical" aria-hidden="true"></i>
+                        </button>
+
+                        <div class="crm-group-row__main">
+                            <span class="crm-group-row__name truncate">{{ group.name }}</span>
+                            {% if not group.is_active %}
+                            <span class="crm-badge">Hidden</span>
+                            {% endif %}
+                        </div>
+
+                        <span class="crm-group-row__count">
+                            {{ group.usage_count }}
+                            {{ 'contact' if group.usage_count == 1 else 'contacts' }}
+                        </span>
+
+                        <div class="crm-group-row__actions">
+                            <button type="button"
+                                    class="crm-group-row__btn"
+                                    data-action="groups-page#moveUp"
+                                    aria-label="Move {{ group.name }} up"
+                                    title="Move up">
+                                <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                            </button>
+                            <button type="button"
+                                    class="crm-group-row__btn"
+                                    data-action="groups-page#moveDown"
+                                    aria-label="Move {{ group.name }} down"
+                                    title="Move down">
+                                <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                            </button>
+                            <button type="button"
+                                    class="crm-group-row__btn"
+                                    data-action="groups-page#openEditModal"
+                                    data-group-id="{{ group.id }}"
+                                    data-group-name="{{ group.name }}"
+                                    data-group-category="{{ group.category }}"
+                                    data-group-active="{{ 'true' if group.is_active else 'false' }}"
+                                    aria-label="Edit {{ group.name }}"
+                                    title="Edit">
+                                <i class="fas fa-pen" aria-hidden="true"></i>
+                            </button>
+                            {% if group.usage_count == 0 %}
+                            <button type="button"
+                                    class="crm-group-row__btn crm-group-row__btn--danger"
+                                    data-action="groups-page#deleteGroup"
+                                    data-group-id="{{ group.id }}"
+                                    data-group-name="{{ group.name }}"
+                                    aria-label="Delete {{ group.name }}"
+                                    title="Delete">
+                                <i class="fas fa-trash-can" aria-hidden="true"></i>
+                            </button>
+                            {% endif %}
+                            <label class="crm-toggle crm-group-row__toggle"
+                                   title="{{ 'Shown in contact pickers' if group.is_active else 'Hidden from contact pickers' }}">
+                                <input type="checkbox"
+                                       {% if group.is_active %}checked{% endif %}
+                                       data-action="groups-page#toggleActive"
+                                       data-group-id="{{ group.id }}"
+                                       aria-label="Show {{ group.name }} in contact pickers">
+                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                            </label>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    {# Create / Edit modal #}
+    <div class="crm-modal hidden"
+         data-groups-page-target="modal"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="groups-modal-title">
+        <div class="crm-modal__backdrop"
+             data-action="click->groups-page#closeModal"></div>
+        <div class="crm-modal__panel">
+            <div class="crm-modal__header">
+                <h2 id="groups-modal-title"
+                    class="crm-modal__title"
+                    data-groups-page-target="modalTitle">Add group</h2>
+                <button type="button"
+                        class="crm-modal__close"
+                        data-action="groups-page#closeModal"
+                        aria-label="Close">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <form class="flex min-h-0 flex-1 flex-col"
+                  data-groups-page-target="form"
+                  data-action="submit->groups-page#submitForm">
+                <div class="crm-modal__body">
+                    <input type="hidden" data-groups-page-target="groupIdInput">
+                    <div>
+                        <label class="crm-form-label" for="group-name-input">Name</label>
+                        <input id="group-name-input"
+                               type="text"
+                               maxlength="100"
+                               required
+                               class="crm-input"
+                               data-groups-page-target="nameInput"
+                               autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="crm-form-label" for="group-category-input">Category</label>
+                        <input id="group-category-input"
+                               type="text"
+                               list="group-category-options"
+                               maxlength="50"
+                               required
+                               class="crm-input"
+                               data-groups-page-target="categoryInput"
+                               autocomplete="off">
+                        <datalist id="group-category-options">
+                            {% for category in categories %}
+                            <option value="{{ category }}"></option>
+                            {% endfor %}
+                            {% for category in ['Status', 'Priority', 'Relationship', 'Professional'] %}
+                            {% if category not in categories %}
+                            <option value="{{ category }}"></option>
+                            {% endif %}
+                            {% endfor %}
+                        </datalist>
+                        <p class="crm-form-help">Pick an existing category or type a new one.</p>
+                    </div>
+                    <div class="crm-modal__row" data-groups-page-target="activeField">
+                        <div>
+                            <div class="crm-setting-row__title">Active</div>
+                            <div class="crm-setting-row__desc">Shown in contact pickers.</div>
+                        </div>
+                        <label class="crm-toggle">
+                            <input type="checkbox"
+                                   data-groups-page-target="activeInput"
+                                   checked>
+                            <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                        </label>
+                    </div>
+                    <p class="crm-form-error hidden"
+                       data-groups-page-target="formError"
+                       role="alert"></p>
+                </div>
+                <div class="crm-modal__footer">
+                    <button type="button"
+                            class="crm-btn crm-btn-ghost"
+                            data-action="groups-page#closeModal">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="crm-btn crm-btn-primary"
+                            data-groups-page-target="submitButton">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

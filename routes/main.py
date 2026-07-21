@@ -3,6 +3,11 @@ from flask_login import login_required, current_user
 from models import db, Contact, ContactGroup, Task, User, Transaction, TransactionParticipant, contact_groups as contact_groups_table
 from feature_flags import can_access_transactions, feature_required
 from services.tenant_service import org_query, can_view_all_org_data
+from services.contact_group_service import (
+    aggregate_filter_groups,
+    aggregate_group_stats,
+    list_user_groups,
+)
 from datetime import datetime, timedelta, timezone, date
 import pytz
 import os
@@ -516,9 +521,25 @@ def contacts():
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
     contacts_list = pagination.items
 
-    # Multi-tenant: Get contact groups (cached)
-    from services.cache_helpers import get_org_contact_groups
-    all_groups = get_org_contact_groups(current_user.organization_id)
+    # Group filter options: personal catalog, or name-aggregated when viewing all
+    if show_all and can_view_all_org_data():
+        all_groups = aggregate_filter_groups(current_user.organization_id)
+        group_filter_mode = 'aggregate'
+    else:
+        all_groups = [
+            {
+                'id': g.id,
+                'name': g.name,
+                'group_ids': [g.id],
+                'label': g.name,
+            }
+            for g in list_user_groups(
+                current_user.organization_id,
+                current_user.id,
+                active_only=True,
+            )
+        ]
+        group_filter_mode = 'personal'
 
     # Get all users in this organization (for admin filters)
     all_owners = []
@@ -534,6 +555,7 @@ def contacts():
                          current_sort=sort_by,
                          current_dir=sort_dir,
                          all_groups=all_groups,
+                         group_filter_mode=group_filter_mode,
                          all_owners=all_owners,
                          pagination=pagination,
                          per_page=per_page)
@@ -576,23 +598,11 @@ def dashboard():
         Contact.potential_commission.desc()
     ).limit(5).all()
 
-    # Multi-tenant: Get group stats with SQL GROUP BY instead of Python loop
-    group_stats_query = db.session.query(
-        ContactGroup.name,
-        func.count(contact_groups_table.c.contact_id).label('count')
-    ).join(
-        contact_groups_table, ContactGroup.id == contact_groups_table.c.group_id
-    ).join(
-        Contact, Contact.id == contact_groups_table.c.contact_id
-    ).filter(
-        ContactGroup.organization_id == current_user.organization_id
+    group_stats = aggregate_group_stats(
+        current_user.organization_id,
+        owner_user_id=current_user.id,
+        show_all=show_all,
     )
-    # Apply same user filter for non-admin users
-    if not show_all:
-        group_stats_query = group_stats_query.filter(Contact.user_id == current_user.id)
-    
-    group_stats_raw = group_stats_query.group_by(ContactGroup.id, ContactGroup.name).all()
-    group_stats = [{'name': name, 'count': count} for name, count in group_stats_raw if count > 0]
 
     top_opportunity_rows = []
     top_contact_values = [float(contact.potential_commission or 0) for contact in top_contacts]

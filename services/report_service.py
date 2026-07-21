@@ -434,64 +434,68 @@ class ReportService:
         }
 
     def get_contact_group_distribution(self, user_id=None):
-        """Get contact counts by group."""
-        # Get all groups for this org with contact counts using a more efficient query
+        """Get contact counts by group (per-user, or name-aggregated for all)."""
+        from services.contact_group_service import (
+            aggregate_group_stats,
+            normalize_group_name,
+        )
         from sqlalchemy import func
 
-        # Build base query - if user_id is provided, filter contacts by user
-        if user_id:
-            # Join with Contact to filter by user_id
+        org_id = current_user.organization_id
+        show_all = user_id is None
+
+        if show_all:
+            stats = aggregate_group_stats(org_id, show_all=True)
+            # Attach a representative category from any matching active group
+            category_by_name = {}
+            for group in ContactGroup.query.filter_by(
+                organization_id=org_id, is_active=True
+            ).all():
+                key = normalize_group_name(group.name)
+                category_by_name.setdefault(key, group.category)
+            rows = []
+            for item in stats:
+                rows.append({
+                    'group_name': item['name'],
+                    'category': category_by_name.get(
+                        normalize_group_name(item['name']), 'Uncategorized'
+                    ),
+                    'count': item['count'],
+                })
+        else:
             results = db.session.query(
                 ContactGroup.id,
                 ContactGroup.name,
                 ContactGroup.category,
-                func.count(contact_groups.c.contact_id).label('contact_count')
+                func.count(func.distinct(contact_groups.c.contact_id)).label(
+                    'contact_count'
+                ),
             ).outerjoin(
                 contact_groups, ContactGroup.id == contact_groups.c.group_id
             ).outerjoin(
                 Contact, contact_groups.c.contact_id == Contact.id
             ).filter(
-                ContactGroup.organization_id == current_user.organization_id,
-                or_(Contact.user_id == user_id, Contact.id == None)
-            ).group_by(
-                ContactGroup.id, ContactGroup.name, ContactGroup.category
-            ).all()
-        else:
-            # Query groups with contact counts
-            results = db.session.query(
-                ContactGroup.id,
-                ContactGroup.name,
-                ContactGroup.category,
-                func.count(contact_groups.c.contact_id).label('contact_count')
-            ).outerjoin(
-                contact_groups, ContactGroup.id == contact_groups.c.group_id
-            ).filter(
-                ContactGroup.organization_id == current_user.organization_id
+                ContactGroup.organization_id == org_id,
+                ContactGroup.user_id == user_id,
+                ContactGroup.is_active.is_(True),
+                or_(Contact.user_id == user_id, Contact.id.is_(None)),
             ).group_by(
                 ContactGroup.id, ContactGroup.name, ContactGroup.category
             ).all()
 
-        rows = []
-        chart_labels = []
-        chart_values = []
-
-        for group_id, name, category, count in results:
-            if count > 0:
-                rows.append({
+            rows = [
+                {
                     'group_name': name,
                     'category': category or 'Uncategorized',
-                    'count': count
-                })
-                chart_labels.append(name)
-                chart_values.append(count)
+                    'count': count,
+                }
+                for _gid, name, category, count in results
+                if count > 0
+            ]
 
-        # Sort by count descending
         rows.sort(key=lambda x: x['count'], reverse=True)
-
-        # Re-sort chart data to match rows order
-        sorted_data = sorted(zip(chart_labels, chart_values), key=lambda x: x[1], reverse=True)
-        chart_labels = [x[0] for x in sorted_data]
-        chart_values = [x[1] for x in sorted_data]
+        chart_labels = [r['group_name'] for r in rows]
+        chart_values = [r['count'] for r in rows]
 
         return {
             'chart_data': {

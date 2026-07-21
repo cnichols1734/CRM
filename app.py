@@ -53,6 +53,7 @@ from routes.notifications import notifications_bp
 from routes.inbound_email import inbound_bp
 from routes.partner_directory import partner_directory_bp
 from routes.portal import portal_bp
+from routes.groups import groups_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -191,11 +192,18 @@ def create_app():
     # Context processor to make feature flags available in templates
     @app.context_processor
     def inject_feature_flags():
+        from datetime import date as date_cls
         from feature_flags import org_has_feature, can_access_reports, can_access_transactions
+
+        cutoff = app.config.get('CUSTOMIZE_GROUPS_NEW_UNTIL')
+        show_customize_groups_new_badge = bool(
+            cutoff and date_cls.today() <= cutoff
+        )
         return dict(
             org_has_feature=org_has_feature,
             can_access_reports=can_access_reports,
             can_access_transactions=can_access_transactions,
+            show_customize_groups_new_badge=show_customize_groups_new_badge,
         )
 
     # Initialize Flask-Mail
@@ -230,6 +238,7 @@ def create_app():
     app.register_blueprint(inbound_bp)
     app.register_blueprint(partner_directory_bp)
     app.register_blueprint(portal_bp)
+    app.register_blueprint(groups_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

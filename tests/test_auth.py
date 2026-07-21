@@ -57,7 +57,7 @@ class TestProtectedRoutes:
 
     @pytest.mark.parametrize('url', [
         '/dashboard', '/contacts', '/tasks', '/profile',
-        '/tasks/new', '/contacts/create', '/admin/groups',
+        '/tasks/new', '/contacts/create', '/groups',
     ])
     def test_unauthenticated_redirect(self, client, seed, url):
         resp = client.get(url)
@@ -143,7 +143,10 @@ class TestRegistration:
         with app.app_context():
             user = User.query.filter_by(email='sam.seeded@test.com').first()
             assert user is not None
-            assert ContactGroup.query.filter_by(organization_id=user.organization_id).count() > 0
+            assert ContactGroup.query.filter_by(
+                organization_id=user.organization_id,
+                user_id=user.id,
+            ).count() > 0
             assert TaskType.query.filter_by(organization_id=user.organization_id).count() > 0
             assert TransactionType.query.filter_by(organization_id=user.organization_id).count() > 0
 

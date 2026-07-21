@@ -1956,6 +1956,255 @@
   .crm-plan__feature.is-locked { color: var(--ink-4); }
   .crm-plan__feature.is-locked i { color: var(--ink-5); }
 
+  /* ── Customize Groups page ───────────────────────────────── */
+  .crm-group-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .crm-group-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 8px 8px;
+    border-bottom: 1px solid var(--hairline);
+    transition: background 120ms ease;
+  }
+  .crm-group-row:last-child { border-bottom: none; }
+  .crm-group-row:hover { background: var(--paper-2); }
+
+  .crm-group-row__handle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-5);
+    font-size: 11px;
+    cursor: grab;
+    touch-action: none;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .crm-group-row__handle:hover { color: var(--ink-2); background: var(--paper-3); }
+  .crm-group-row__handle:active { cursor: grabbing; }
+  .crm-group-row__handle:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+
+  .crm-group-row__main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .crm-group-row__name {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+
+  .crm-group-row__count {
+    font-size: 11.5px;
+    color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .crm-group-row__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* Quiet icon buttons for per-row actions (move, edit, delete) */
+  .crm-group-row__btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-4);
+    font-size: 11px;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .crm-group-row__btn:hover { color: var(--ink); background: var(--paper-3); }
+  .crm-group-row__btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .crm-group-row__btn--danger:hover {
+    color: var(--danger);
+    background: var(--danger-soft);
+  }
+
+  .crm-group-row__toggle { margin-left: 8px; }
+
+  /* Inactive groups are hidden from pickers — the row reads quiet */
+  .crm-group-row.is-inactive .crm-group-row__name {
+    color: var(--ink-3);
+    font-weight: 400;
+  }
+  .crm-group-row.is-inactive .crm-group-row__count { color: var(--ink-5); }
+
+  /* Small screens: give the name the full first line, drop the count and
+     controls to a second line so labels stay readable. */
+  @media (max-width: 640px) {
+    .crm-group-row { row-gap: 2px; }
+    .crm-group-row__main { flex-basis: calc(100% - 40px); }
+    .crm-group-row__count { margin-left: 34px; }
+    .crm-group-row__actions { margin-left: auto; }
+  }
+
+  /* SortableJS drop placeholder */
+  .crm-group-row--ghost {
+    background: var(--paper-2);
+    box-shadow: inset 0 0 0 1px var(--hairline-strong);
+    border-radius: var(--radius-sm);
+  }
+  .crm-group-row--ghost > * { opacity: 0; }
+
+  /* Inline status banner (save confirmations / errors) */
+  .crm-groups-status {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--paper);
+    color: var(--ink-2);
+    font-size: 12.5px;
+  }
+  .crm-groups-status.is-error {
+    background: var(--danger-soft);
+    border-color: transparent;
+    color: var(--danger);
+  }
+
+  /* ── Modal (Atelier) ─────────────────────────────────────── */
+  .crm-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+  .crm-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: oklch(18% 0.012 75 / 0.40);
+  }
+  [data-theme="dark"] .crm-modal__backdrop {
+    background: oklch(0% 0 0 / 0.55);
+  }
+  .crm-modal__panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 26rem;
+    max-height: calc(100vh - 32px);
+    overflow: hidden;
+    background: var(--paper);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    box-shadow:
+      0 18px 44px -22px rgba(15, 23, 42, 0.25),
+      0 4px 14px -8px rgba(15, 23, 42, 0.12);
+    animation: crm-modal-in 180ms cubic-bezier(.2, .7, .3, 1) both;
+  }
+  [data-theme="dark"] .crm-modal__panel {
+    box-shadow:
+      0 24px 60px -28px rgba(0, 0, 0, 0.70),
+      0 6px 18px -10px rgba(0, 0, 0, 0.45);
+  }
+  @keyframes crm-modal-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.985); }
+    to { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .crm-modal__panel { animation: none; }
+  }
+  .crm-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .crm-modal__title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+  }
+  .crm-modal__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    width: 28px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--ink-3);
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .crm-modal__close:hover {
+    background: var(--paper-2);
+    color: var(--ink);
+    border-color: var(--hairline);
+  }
+  .crm-modal__close:focus-visible {
+    outline: none;
+    border-color: var(--accent-line);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .crm-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    overflow-y: auto;
+  }
+  .crm-modal__footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--hairline);
+  }
+  .crm-modal__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+  }
+
+  .crm-form-error {
+    font-size: 12.5px;
+    color: var(--danger);
+  }
+
   /* ── Partner Directory: type pill selector ──────────────── */
   .partner-type-btn {
     display: inline-flex;

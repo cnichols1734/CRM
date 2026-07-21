@@ -243,7 +243,11 @@ def approve_org(org_id):
         # Create default contact groups
         try:
             created_groups = create_default_groups_for_org(org.id)
-            log_platform_action('org_groups_created', org.id, {'groups_count': len(created_groups)})
+            groups_count = sum(len(groups) for groups in created_groups.values())
+            log_platform_action('org_groups_created', org.id, {
+                'users_seeded': len(created_groups),
+                'groups_count': groups_count,
+            })
             db.session.commit()
         except Exception as e:
             db.session.rollback()
@@ -549,8 +553,14 @@ def repair_org(org_id):
     # Create default contact groups
     try:
         created_groups = create_default_groups_for_org(org.id)
-        results.append(f"Contact groups: {len(created_groups)}")
-        log_platform_action('org_repair_groups', org.id, {'groups_count': len(created_groups)})
+        groups_count = sum(len(groups) for groups in created_groups.values())
+        results.append(
+            f"Contact groups: {groups_count} across {len(created_groups)} users"
+        )
+        log_platform_action('org_repair_groups', org.id, {
+            'users_seeded': len(created_groups),
+            'groups_count': groups_count,
+        })
         db.session.commit()
     except Exception as e:
         db.session.rollback()

@@ -129,18 +129,16 @@ def _group_lookup_key(value: str | None) -> str:
 
 
 def _resolve_group_by_name(org_id: int,
+                           owner_user_id: int,
                            requested_name: str | None) -> ContactGroup | None:
-    """Resolve body/alias group hints to an existing group in the org."""
-    key = _group_lookup_key(requested_name)
-    if not key:
-        return None
-    groups = (ContactGroup.query
-              .filter(ContactGroup.organization_id == org_id)
-              .all())
-    for group in groups:
-        if _group_lookup_key(group.name) == key:
-            return group
-    return None
+    """Resolve body/alias group hints to an owner's active group."""
+    from services.contact_group_service import resolve_group_by_fuzzy_name
+    return resolve_group_by_fuzzy_name(
+        org_id,
+        owner_user_id,
+        requested_name,
+        active_only=True,
+    )
 
 
 def _build_notes(raw_notes: str | None,
@@ -304,6 +302,7 @@ def process_inbound(user: User, message: InboundMessage,
         )
         group = _resolve_group_by_name(
             org.id,
+            user.id,
             c.get('group_name') or bundle.plus_alias,
         )
         if group is not None:

@@ -5,8 +5,8 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import create_app  # noqa: E402  -- needs sys.path patched first.
-from models import db, Organization, User, ContactGroup  # noqa: E402
-from scripts.init_db import INITIAL_GROUPS, TASK_TYPES  # noqa: E402
+from models import db, Organization, User  # noqa: E402
+from services.tenant_service import create_default_groups_for_user  # noqa: E402
 
 app = create_app()
 with app.app_context():
@@ -45,15 +45,13 @@ with app.app_context():
         )
         user.set_password('changeme123')
         db.session.add(user)
+        db.session.flush()
         print(f'Created admin user email={email} password=changeme123')
     else:
         print(f'User already exists email={email}')
+        db.session.flush()
 
-    # Contact groups (globally for now; app uses them to validate contact forms)
-    if ContactGroup.query.count() == 0:
-        for g in INITIAL_GROUPS:
-            db.session.add(ContactGroup(**g))
-        print(f'Seeded {len(INITIAL_GROUPS)} contact groups')
-
+    groups = create_default_groups_for_user(org.id, user.id, commit=False)
     db.session.commit()
+    print(f'Seeded {len(groups)} contact groups for user id={user.id}')
     print('OK')

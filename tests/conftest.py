@@ -105,11 +105,30 @@ def seed(app, db):
         owner_b = _make_user(db, org_b, 'owner_b', 'owner_b@test.com',
                              'Bob', 'Owner', role='admin', org_role='owner')
 
-        # ---- Contact groups ----
-        group_a1 = ContactGroup(name='Buyers', organization_id=org_a.id, category='general', sort_order=0)
-        group_a2 = ContactGroup(name='Sellers', organization_id=org_a.id, category='general', sort_order=1)
-        group_b1 = ContactGroup(name='Leads', organization_id=org_b.id, category='general', sort_order=0)
-        db.session.add_all([group_a1, group_a2, group_b1])
+        # ---- Contact groups (per-user) ----
+        group_a1 = ContactGroup(
+            name='Buyers', organization_id=org_a.id, user_id=owner_a.id,
+            category='general', sort_order=0, is_active=True,
+        )
+        group_a2 = ContactGroup(
+            name='Sellers', organization_id=org_a.id, user_id=owner_a.id,
+            category='general', sort_order=1, is_active=True,
+        )
+        group_agent_a1 = ContactGroup(
+            name='Buyers', organization_id=org_a.id, user_id=agent_a.id,
+            category='general', sort_order=0, is_active=True,
+        )
+        group_agent_a2 = ContactGroup(
+            name='Sellers', organization_id=org_a.id, user_id=agent_a.id,
+            category='general', sort_order=1, is_active=True,
+        )
+        group_b1 = ContactGroup(
+            name='Leads', organization_id=org_b.id, user_id=owner_b.id,
+            category='general', sort_order=0, is_active=True,
+        )
+        db.session.add_all([
+            group_a1, group_a2, group_agent_a1, group_agent_a2, group_b1,
+        ])
         db.session.flush()
 
         # ---- Contacts ----
@@ -129,7 +148,7 @@ def seed(app, db):
         db.session.flush()
 
         contact_a.groups.append(group_a1)
-        contact_a2.groups.append(group_a2)
+        contact_a2.groups.append(group_agent_a2)
         contact_b.groups.append(group_b1)
 
         # ---- Task types / subtypes ----
@@ -225,7 +244,9 @@ def seed(app, db):
             'owner_a': owner_a.id, 'admin_a': admin_a.id, 'agent_a': agent_a.id,
             'owner_b': owner_b.id,
             'contact_a': contact_a.id, 'contact_a2': contact_a2.id, 'contact_b': contact_b.id,
-            'group_a1': group_a1.id, 'group_a2': group_a2.id, 'group_b1': group_b1.id,
+            'group_a1': group_a1.id, 'group_a2': group_a2.id,
+            'group_agent_a1': group_agent_a1.id, 'group_agent_a2': group_agent_a2.id,
+            'group_b1': group_b1.id,
             'task_a': task_a.id, 'task_a2': task_a2.id, 'task_b': task_b.id,
             'task_type_a': tt_a.id, 'task_type_a2': tt_a2.id, 'task_type_b': tt_b.id,
             'subtype_a': st_a.id, 'subtype_a2': st_a2.id, 'subtype_b': st_b.id,

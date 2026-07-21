@@ -67,7 +67,7 @@ class TestAuthenticatedPageLoads:
         assert resp.status_code == 200, f"{url} returned {resp.status_code}"
 
     @pytest.mark.parametrize('url', [
-        '/admin/groups',
+        '/groups',
         '/admin/resources',
         '/admin/document-mapping',
         '/admin/document-mapper-v2',
@@ -132,14 +132,14 @@ class TestAgentNavigation:
 
     @pytest.mark.parametrize('url', [
         '/dashboard', '/contacts', '/tasks', '/profile',
-        '/user_todo', '/updates',
+        '/user_todo', '/updates', '/groups',
     ])
     def test_agent_core_pages(self, agent_a_client, seed, url):
         resp = agent_a_client.get(url)
         assert resp.status_code == 200, f"Agent denied from {url}"
 
     @pytest.mark.parametrize('url', [
-        '/admin/groups', '/admin/resources', '/manage-users',
+        '/admin/resources', '/manage-users',
     ])
     def test_agent_admin_pages_denied(self, agent_a_client, seed, url):
         resp = agent_a_client.get(url)

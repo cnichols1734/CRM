@@ -35,7 +35,7 @@ except ImportError:  # pragma: no cover - psutil is available in production
     psutil = None
 
 from forms import ContactForm
-from models import db, Contact, ContactGroup
+from models import db, Contact
 from feature_flags import feature_required
 from services.tenant_service import org_query, can_view_all_org_data
 from services.tax_protest_service import (
@@ -633,10 +633,11 @@ def _build_xlsx_report(export_data):
 @feature_required("TAX_PROTEST")
 def index():
     """Main Tax Protest page."""
-    contact_groups = (
-        org_query(ContactGroup)
-        .order_by(ContactGroup.sort_order.asc(), ContactGroup.name.asc())
-        .all()
+    from services.contact_group_service import list_user_groups
+    contact_groups = list_user_groups(
+        current_user.organization_id,
+        current_user.id,
+        active_only=True,
     )
     return render_template(
         "tax_protest/index.html",

@@ -36,31 +36,51 @@ def _delete_cached(key):
         del _cache[key]
 
 
-def get_org_contact_groups(org_id: int):
+def get_user_contact_groups(org_id: int, user_id: int, active_only: bool = True):
     """
-    Get all contact groups for an organization (cached 5 min).
-    
+    Get contact groups for a specific user (cached 5 min).
+
     Args:
         org_id: Organization ID
-        
+        user_id: Owning user ID
+        active_only: When True (default), only return active groups
+
     Returns:
         List of ContactGroup objects
     """
     from models import ContactGroup
-    
-    cache_key = f'contact_groups_{org_id}'
-    
+
+    cache_key = f'contact_groups_{org_id}_{user_id}_{"active" if active_only else "all"}'
+
     result = _get_cached(cache_key)
     if result is not None:
         return result
-    
-    # Query from database
-    result = ContactGroup.query.filter_by(
-        organization_id=org_id
-    ).order_by(ContactGroup.sort_order).all()
-    
+
+    query = ContactGroup.query.filter_by(
+        organization_id=org_id,
+        user_id=user_id,
+    )
+    if active_only:
+        query = query.filter_by(is_active=True)
+
+    result = query.order_by(ContactGroup.sort_order, ContactGroup.id).all()
     _set_cached(cache_key, result)
     return result
+
+
+def get_org_contact_groups(org_id: int):
+    """Deprecated: org-wide groups no longer exist.
+
+    Kept as a thin shim that returns an empty list so stale imports fail softly
+    in tests/scripts. Prefer get_user_contact_groups / contact_group_service.
+    """
+    import warnings
+    warnings.warn(
+        'get_org_contact_groups is deprecated; use get_user_contact_groups',
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return []
 
 
 def get_org_transaction_types(org_id: int):
@@ -91,9 +111,25 @@ def get_org_transaction_types(org_id: int):
     return result
 
 
+def clear_user_contact_groups_cache(org_id: int, user_id: int):
+    """Clear the contact groups cache for a specific user."""
+    _delete_cached(f'contact_groups_{org_id}_{user_id}_active')
+    _delete_cached(f'contact_groups_{org_id}_{user_id}_all')
+
+
 def clear_org_contact_groups_cache(org_id: int):
-    """Clear the contact groups cache for an organization."""
+    """Clear contact group caches for every user in an organization."""
+    from models import User
+
+    # Drop any leftover org-level key
     _delete_cached(f'contact_groups_{org_id}')
+
+    user_ids = [
+        row[0]
+        for row in User.query.filter_by(organization_id=org_id).with_entities(User.id).all()
+    ]
+    for user_id in user_ids:
+        clear_user_contact_groups_cache(org_id, user_id)
 
 
 def clear_org_transaction_types_cache(org_id: int):

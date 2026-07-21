@@ -659,8 +659,10 @@ class TestOrchestrator:
             target = ContactGroup(
                 name='InboxAliasGroup',
                 organization_id=user.organization_id,
+                user_id=user.id,
                 category='custom',
                 sort_order=99,
+                is_active=True,
             )
             db.session.add(target)
             db.session.commit()
@@ -701,8 +703,10 @@ class TestOrchestrator:
             target = ContactGroup(
                 name='Open House Leads',
                 organization_id=user.organization_id,
+                user_id=user.id,
                 category='custom',
                 sort_order=100,
+                is_active=True,
             )
             db.session.add(target)
             db.session.commit()

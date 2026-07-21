@@ -1,9 +1,15 @@
 import os
-from datetime import timedelta
+from datetime import date, timedelta
+
 
 class Config:
     # Environment
     FLASK_ENV = os.getenv('FLASK_ENV', 'development')
+
+    # Global NEW badge cutoff for Customize Groups (launch date + 28 days).
+    # Update CUSTOMIZE_GROUPS_LAUNCH_DATE when shipping to production.
+    CUSTOMIZE_GROUPS_LAUNCH_DATE = date(2026, 7, 21)
+    CUSTOMIZE_GROUPS_NEW_UNTIL = date(2026, 8, 18)
 
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 
