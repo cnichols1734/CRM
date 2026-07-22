@@ -2340,6 +2340,13 @@
                     Tax Protest
                 </a>
                 {% endif %}
+                {% if org_has_feature('AI_DAILY_TODO') %}
+                <a href="{{ url_for('daily_todo.briefing_page') }}"
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'daily_todo.briefing_page' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    <i class="fas fa-sun w-6 mr-3"></i>
+                    Daily Briefing
+                </a>
+                {% endif %}
                 {% if org_has_feature('AI_ACTION_PLAN') %}
                 <a href="{{ url_for('action_plan.action_plan') }}"
                     class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'action_plan.action_plan' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
@@ -2490,9 +2497,17 @@
                 {% set _has_reports   = can_access_reports(current_user) %}
                 {% set _has_tax       = org_has_feature('TAX_PROTEST') %}
                 {% set _has_action    = org_has_feature('AI_ACTION_PLAN') %}
-                {% if _has_marketing or _has_reports or _has_tax or _has_action %}
+                {% set _has_briefing  = org_has_feature('AI_DAILY_TODO') %}
+                {% if _has_marketing or _has_reports or _has_tax or _has_action or _has_briefing %}
                 <div class="crm-nav-section">
                     <div class="crm-nav-label">Insights</div>
+                    {% if _has_briefing %}
+                    <a href="{{ url_for('daily_todo.briefing_page') }}"
+                       class="crm-nav-link {% if request.endpoint == 'daily_todo.briefing_page' %}is-active{% endif %}">
+                        <i class="fas fa-sun"></i>
+                        <span>Daily Briefing</span>
+                    </a>
+                    {% endif %}
                     {% if _has_reports %}
                     <a href="{{ url_for('reports.landing') }}"
                        class="crm-nav-link {% if request.endpoint and request.endpoint.startswith('reports.') %}is-active{% endif %}">
@@ -3064,13 +3079,14 @@
     <script defer src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script defer src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>
+    {% elif current_user.is_authenticated and org_has_feature('AI_DAILY_TODO') %}
+    {# Briefing chat needs the same markdown stack when B.O.B. chat is off #}
+    <script defer src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     {% endif %}
 
     <!-- Include JavaScript files (deferred to avoid blocking) -->
     <script defer src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    {% if current_user.is_authenticated and org_has_feature('AI_DAILY_TODO') %}
-    <script defer src="{{ url_for('static', filename='js/daily_todo.js') }}"></script>
-    {% endif %}
     {% if current_user.is_authenticated %}
     <script defer src="{{ url_for('static', filename='js/agent-resources.js') }}"></script>
     {% endif %}

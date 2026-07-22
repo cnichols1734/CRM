@@ -940,21 +940,30 @@ class BOBChatPanel {
                         const data = line.slice(6);
                         
                         if (data === '[DONE]') continue;
-                        if (data.startsWith('[FULL_RESPONSE]')) {
-                            const match = data.match(/\[FULL_RESPONSE\]([\s\S]*)\[\/FULL_RESPONSE\]/);
-                            if (match) fullResponse = match[1];
+                        if (data.startsWith('[FULL_RESPONSE]') || data.includes('[FULL_RESPONSE]')) {
+                            // Trailer only — never overwrite/paint the streamed bubble.
+                            // Streamed chunks already built fullResponse.
                             continue;
                         }
                         
-                        const unescaped = data.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+                        const unescaped = data
+                            .replace(/\\n/g, '\n')
+                            .replace(/\\r/g, '\r');
                         fullResponse += unescaped;
-                        aiMessageEl.innerHTML = this.formatMessage(fullResponse) + '<span class="bob-cursor">▌</span>';
+                        // Collapse any leftover literal \n from a double-escape
+                        const display = fullResponse
+                            .replace(/\\n/g, '\n')
+                            .replace(/\\r/g, '\r');
+                        aiMessageEl.innerHTML = this.formatMessage(display) + '<span class="bob-cursor">▌</span>';
                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                     }
                 }
             }
             
             // Finalize message
+            fullResponse = fullResponse
+                .replace(/\\n/g, '\n')
+                .replace(/\\r/g, '\r');
             aiMessageEl.innerHTML = this.formatMessage(fullResponse);
             aiMessageEl.classList.remove('streaming');
             

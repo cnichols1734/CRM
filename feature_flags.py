@@ -71,7 +71,6 @@ TIER_FEATURES = {
 # Use this as a temporary kill switch for features that should not be available
 # to any user while leaving their normal tier configuration intact for later.
 GLOBAL_FEATURE_OVERRIDES = {
-    'AI_DAILY_TODO': False,
     'MARKET_INSIGHTS': False,
 }
 

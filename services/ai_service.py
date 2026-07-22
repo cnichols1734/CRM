@@ -2,10 +2,13 @@
 Centralized AI Service for all OpenAI interactions.
 Provides consistent model selection with fallback chain across all features.
 
-Model Hierarchy:
-1. Primary: GPT-5.1 (Responses API with reasoning)
-2. Fallback: GPT-5-mini (Responses API with reasoning)
-3. Legacy: GPT-4o (Chat Completions API)
+Model Hierarchy (GPT-5.6 family, Responses API preferred):
+1. Primary: gpt-5.6-sol (flagship)
+2. Fallback: gpt-5.6-terra
+3. Legacy: gpt-5.4
+
+Pro mode (reasoning.mode=pro) is intentionally OFF unless a caller opts in later.
+Structured outputs use Responses API ``text.format`` (json_schema), not Chat Completions.
 
 Usage:
     from services.ai_service import generate_ai_response
@@ -28,9 +31,10 @@ from config import Config
 logger = logging.getLogger(__name__)
 
 # Model configuration - change these to update all AI features at once
-PRIMARY_MODEL = "gpt-5.1"
-FALLBACK_MODEL = "gpt-5-mini"
-LEGACY_MODEL = "gpt-4.1-mini"  # Updated from gpt-4o for better vision support and speed
+PRIMARY_MODEL = "gpt-5.6-sol"
+FALLBACK_MODEL = "gpt-5.6-terra"
+LEGACY_MODEL = "gpt-5.4"
+MODEL_CHAIN = (PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL)
 
 # Errors that should trigger fallback (model not available, rate limited, etc.)
 FALLBACK_ERROR_CODES = [401, 403, 404, 429]
@@ -43,14 +47,45 @@ def _should_fallback(error):
     return False
 
 
-def _call_responses_api(client, model, system_prompt, user_prompt, reasoning_effort="medium"):
-    """Call the OpenAI Responses API (for GPT-5.x models)."""
-    response = client.responses.create(
-        model=model,
-        instructions=system_prompt,
-        input=user_prompt,
-        reasoning={"effort": reasoning_effort}
-    )
+def _supports_text_verbosity(model: str) -> bool:
+    """``text.verbosity`` is a GPT-5.6 family control."""
+    return model.startswith("gpt-5.6")
+
+
+def _call_responses_api(
+    client,
+    model,
+    system_prompt,
+    user_prompt,
+    reasoning_effort="medium",
+    text_format=None,
+    verbosity=None,
+):
+    """
+    Call the OpenAI Responses API (preferred path for GPT-5.6 / GPT-5.4).
+
+    Args:
+        text_format: Optional structured-output format dict for ``text.format``
+            e.g. {"type": "json_schema", "name": "...", "strict": True, "schema": {...}}
+        verbosity: Optional ``text.verbosity`` — "low" | "medium" | "high"
+            (only sent for gpt-5.6* models)
+    """
+    kwargs = {
+        "model": model,
+        "instructions": system_prompt,
+        "input": user_prompt,
+        # Standard mode only — do not set reasoning.mode = "pro"
+        "reasoning": {"effort": reasoning_effort},
+    }
+    text_opts = {}
+    if text_format:
+        text_opts["format"] = text_format
+    if verbosity and _supports_text_verbosity(model):
+        text_opts["verbosity"] = verbosity
+    if text_opts:
+        kwargs["text"] = text_opts
+
+    response = client.responses.create(**kwargs)
     return response.output_text
 
 
@@ -122,50 +157,180 @@ def generate_ai_response(
     masked_key = f"{key[:8]}...{key[-4:]}" if len(key) > 12 else "***"
     logger.info(f"AI Service using API key: {masked_key}")
     
-    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
-    try:
-        logger.info(f"[1/3] Attempting primary model: {PRIMARY_MODEL}")
-        result = _call_responses_api(client, PRIMARY_MODEL, system_prompt, user_prompt, reasoning_effort)
-        logger.info(f"SUCCESS: Generated response with {PRIMARY_MODEL}")
-        return result
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with {type(e).__name__}. Error: {str(e)}")
-        
-    except openai.APIError as e:
-        if _should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with status {e.status_code}. Error: {str(e)}")
-        else:
-            logger.error(f"FATAL: {PRIMARY_MODEL} failed with unrecoverable error: {str(e)}")
+    last_error = None
+    for i, model in enumerate(MODEL_CHAIN):
+        try:
+            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Attempting model: {model}")
+            result = _call_responses_api(
+                client, model, system_prompt, user_prompt, reasoning_effort
+            )
+            logger.info(f"SUCCESS: Generated response with {model}")
+            return result
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            last_error = e
+            logger.warning(
+                f"FALLBACK TRIGGERED: {model} failed with {type(e).__name__}. Error: {e}"
+            )
+            continue
+
+        except openai.APIError as e:
+            last_error = e
+            if _should_fallback(e):
+                logger.warning(
+                    f"FALLBACK TRIGGERED: {model} failed with status {e.status_code}. Error: {e}"
+                )
+                continue
+            logger.error(f"FATAL: {model} failed with unrecoverable error: {e}")
             raise
-    
-    # ===== TRY FALLBACK MODEL (GPT-5-mini) =====
+
+        except Exception as e:
+            last_error = e
+            logger.warning(f"FALLBACK TRIGGERED: {model} unexpected error: {e}")
+            continue
+
+    # Last-ditch Chat Completions on LEGACY_MODEL (e.g. json_mode callers)
     try:
-        logger.info(f"[2/3] Attempting fallback model: {FALLBACK_MODEL}")
-        result = _call_responses_api(client, FALLBACK_MODEL, system_prompt, user_prompt, reasoning_effort)
-        logger.info(f"SUCCESS: Generated response with {FALLBACK_MODEL}")
+        logger.info(f"Chat Completions fallback: {LEGACY_MODEL}")
+        result = _call_chat_completions_api(
+            client, LEGACY_MODEL, system_prompt, user_prompt, temperature, json_mode
+        )
+        logger.info(f"SUCCESS: Generated response with {LEGACY_MODEL} (Chat Completions)")
         return result
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with {type(e).__name__}. Error: {str(e)}")
-        
-    except openai.APIError as e:
-        if _should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with status {e.status_code}. Error: {str(e)}")
-        else:
-            logger.error(f"FATAL: {FALLBACK_MODEL} failed with unrecoverable error: {str(e)}")
-            raise
-    
-    # ===== TRY LEGACY MODEL (GPT-4o) =====
-    try:
-        logger.info(f"[3/3] Attempting legacy model: {LEGACY_MODEL} (using Chat Completions API)")
-        result = _call_chat_completions_api(client, LEGACY_MODEL, system_prompt, user_prompt, temperature, json_mode)
-        logger.info(f"SUCCESS: Generated response with legacy model {LEGACY_MODEL}")
-        return result
-        
     except Exception as legacy_error:
-        logger.error(f"FATAL: All models failed. Legacy model {LEGACY_MODEL} error: {str(legacy_error)}")
+        logger.error(f"FATAL: All models failed. Last error: {last_error}; Chat Completions: {legacy_error}")
         raise
+
+
+def generate_structured_response(
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict,
+    schema_name: str = "structured_output",
+    temperature: float = 0.4,
+    reasoning_effort: str = "medium",
+    api_key: str = None,
+) -> tuple:
+    """
+    Generate a validated JSON object via Responses API + strict json_schema.
+
+    GPT-5.6 prefers Responses ``text.format`` over Chat Completions
+    ``response_format``. Falls back through MODEL_CHAIN; if Responses structured
+    output fails for a model, retries that model once via Chat Completions.
+
+    Returns:
+        (parsed_dict, model_used)
+
+    Raises:
+        ValueError: If API key is missing
+        Exception: If all models fail or the response is not valid JSON
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        logger.error("OpenAI API key is not configured!")
+        raise ValueError("OpenAI API key is not configured")
+
+    client = openai.OpenAI(api_key=key)
+    last_error = None
+    text_format = {
+        "type": "json_schema",
+        "name": schema_name,
+        "strict": True,
+        "schema": schema,
+    }
+
+    for i, model in enumerate(MODEL_CHAIN):
+        # --- Preferred: Responses API text.format ---
+        try:
+            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Structured (Responses): {model}")
+            raw = _call_responses_api(
+                client,
+                model,
+                system_prompt,
+                user_prompt,
+                reasoning_effort=reasoning_effort,
+                text_format=text_format,
+            )
+            parsed = json.loads(raw or "{}")
+            logger.info(f"SUCCESS: Structured response with {model} (Responses)")
+            return parsed, model
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            last_error = e
+            logger.warning(
+                f"Structured fallback: {model} Responses failed with {type(e).__name__}"
+            )
+            # Fall through to Chat Completions attempt, then next model
+        except openai.APIError as e:
+            last_error = e
+            if _should_fallback(e):
+                logger.warning(
+                    f"Structured fallback: {model} Responses status {e.status_code}"
+                )
+            else:
+                logger.warning(f"Structured: {model} Responses error, trying Chat Completions: {e}")
+        except json.JSONDecodeError as e:
+            last_error = e
+            logger.warning(f"Structured JSON parse failed on {model} (Responses): {e}")
+        except Exception as e:
+            last_error = e
+            logger.warning(f"Structured Responses error with {model}: {e}")
+
+        # --- Compatibility: Chat Completions response_format ---
+        try:
+            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Structured (Chat Completions): {model}")
+            kwargs = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "schema": schema,
+                        "strict": True,
+                    },
+                },
+                "reasoning_effort": reasoning_effort,
+            }
+            response = client.chat.completions.create(**kwargs)
+            raw = response.choices[0].message.content or "{}"
+            parsed = json.loads(raw)
+            logger.info(f"SUCCESS: Structured response with {model} (Chat Completions)")
+            return parsed, model
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            last_error = e
+            logger.warning(
+                f"Structured fallback: {model} Chat Completions failed with {type(e).__name__}"
+            )
+            continue
+        except openai.APIError as e:
+            last_error = e
+            if _should_fallback(e):
+                logger.warning(
+                    f"Structured fallback: {model} Chat Completions status {e.status_code}"
+                )
+                continue
+            logger.error(f"Structured fatal: {model} unrecoverable: {e}")
+            raise
+        except json.JSONDecodeError as e:
+            last_error = e
+            logger.warning(f"Structured JSON parse failed on {model} (Chat Completions): {e}")
+            continue
+        except Exception as e:
+            last_error = e
+            logger.error(f"Structured error with {model}: {e}")
+            if i < len(MODEL_CHAIN) - 1:
+                continue
+            raise
+
+    raise Exception(f"All models failed for structured response: {last_error}")
 
 
 def generate_chat_response(
@@ -206,47 +371,48 @@ def generate_chat_response(
         else:
             conversation_context += f"\n{msg['role'].upper()}: {msg['content']}\n"
     
-    # ===== TRY PRIMARY MODEL (GPT-5.1) =====
-    try:
-        logger.info(f"[1/3] Chat: Attempting primary model: {PRIMARY_MODEL}")
-        result = _call_responses_api(client, PRIMARY_MODEL, system_prompt, conversation_context, "medium")
-        logger.info(f"SUCCESS: Chat response generated with {PRIMARY_MODEL}")
-        return result
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with {type(e).__name__}")
-        
-    except openai.APIError as e:
-        if _should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {PRIMARY_MODEL} failed with status {e.status_code}")
-        else:
+    last_error = None
+    for i, model in enumerate(MODEL_CHAIN):
+        try:
+            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Chat: Attempting {model}")
+            result = _call_responses_api(
+                client,
+                model,
+                system_prompt,
+                conversation_context,
+                reasoning_effort="medium",
+                verbosity="medium",
+            )
+            logger.info(f"SUCCESS: Chat response generated with {model}")
+            return result
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            last_error = e
+            logger.warning(f"FALLBACK TRIGGERED: {model} failed with {type(e).__name__}")
+            continue
+
+        except openai.APIError as e:
+            last_error = e
+            if _should_fallback(e):
+                logger.warning(f"FALLBACK TRIGGERED: {model} failed with status {e.status_code}")
+                continue
             raise
-    
-    # ===== TRY FALLBACK MODEL (GPT-5-mini) =====
+
+        except Exception as e:
+            last_error = e
+            logger.warning(f"FALLBACK TRIGGERED: {model} unexpected error: {e}")
+            continue
+
     try:
-        logger.info(f"[2/3] Chat: Attempting fallback model: {FALLBACK_MODEL}")
-        result = _call_responses_api(client, FALLBACK_MODEL, system_prompt, conversation_context, "medium")
-        logger.info(f"SUCCESS: Chat response generated with {FALLBACK_MODEL}")
+        logger.info(f"Chat Completions fallback: {LEGACY_MODEL}")
+        result = _call_chat_completions_with_history(
+            client, LEGACY_MODEL, messages, temperature, max_tokens
+        )
+        logger.info(f"SUCCESS: Chat response generated with {LEGACY_MODEL} (Chat Completions)")
         return result
-        
-    except (openai.NotFoundError, openai.AuthenticationError, openai.PermissionDeniedError, openai.RateLimitError) as e:
-        logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with {type(e).__name__}")
-        
-    except openai.APIError as e:
-        if _should_fallback(e):
-            logger.warning(f"FALLBACK TRIGGERED: {FALLBACK_MODEL} failed with status {e.status_code}")
-        else:
-            raise
-    
-    # ===== TRY LEGACY MODEL (GPT-4o) =====
-    try:
-        logger.info(f"[3/3] Chat: Attempting legacy model: {LEGACY_MODEL}")
-        result = _call_chat_completions_with_history(client, LEGACY_MODEL, messages, temperature, max_tokens)
-        logger.info(f"SUCCESS: Chat response generated with legacy model {LEGACY_MODEL}")
-        return result
-        
     except Exception as legacy_error:
-        logger.error(f"FATAL: All chat models failed. Error: {str(legacy_error)}")
+        logger.error(f"FATAL: All chat models failed. Last: {last_error}; Chat Completions: {legacy_error}")
         raise
 
 
@@ -254,12 +420,14 @@ def stream_chat_response(
     system_prompt: str,
     user_prompt: str,
     image_data: str = None,
-    api_key: str = None
+    api_key: str = None,
+    reasoning_effort: str = "medium",
 ):
     """
     Stream a chat response with the same model fallback chain as non-streaming.
 
-    Yields text chunks. Falls back through GPT-5.1 -> GPT-5-mini -> GPT-4.1-mini.
+    Yields text chunks. Falls back through gpt-5.6-sol -> gpt-5.6-terra -> gpt-5.4.
+    Uses Responses API (standard reasoning mode, no pro) when there is no image.
     If all fail, yields an error message.
 
     Args:
@@ -267,6 +435,7 @@ def stream_chat_response(
         user_prompt: Full user prompt (including conversation context)
         image_data: Optional base64-encoded image for vision
         api_key: Optional API key override
+        reasoning_effort: GPT-5.6 reasoning effort (default medium; pro mode OFF)
 
     Yields:
         str: Text chunks of the response
@@ -287,32 +456,37 @@ def stream_chat_response(
         return prompt
 
     user_content = _build_user_content(user_prompt, image_data)
-    models = [PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL]
 
-    for i, model in enumerate(models):
+    for i, model in enumerate(MODEL_CHAIN):
         try:
-            logger.info(f"[{i+1}/{len(models)}] Streaming: attempting {model}")
+            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Streaming: attempting {model}")
 
-            if model in (PRIMARY_MODEL, FALLBACK_MODEL) and not image_data:
-                stream = client.responses.create(
-                    model=model,
-                    instructions=system_prompt,
-                    input=user_prompt,
-                    stream=True
-                )
+            if not image_data:
+                # Responses API is the GPT-5.6-recommended path for chat
+                stream_kwargs = {
+                    "model": model,
+                    "instructions": system_prompt,
+                    "input": user_prompt,
+                    "reasoning": {"effort": reasoning_effort},
+                    "stream": True,
+                }
+                if _supports_text_verbosity(model):
+                    stream_kwargs["text"] = {"verbosity": "medium"}
+                stream = client.responses.create(**stream_kwargs)
                 for event in stream:
                     if hasattr(event, 'type') and event.type == "response.output_text.delta":
                         yield event.delta
                     elif hasattr(event, 'delta') and event.delta:
                         yield event.delta
             else:
+                # Vision attachments: Chat Completions multimodal path
                 stream = client.chat.completions.create(
                     model=model,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_content}
                     ],
-                    stream=True
+                    stream=True,
                 )
                 for chunk in stream:
                     if chunk.choices[0].delta.content:
@@ -335,7 +509,7 @@ def stream_chat_response(
 
         except Exception as e:
             logger.error(f"Stream error with {model}: {e}")
-            if i < len(models) - 1:
+            if i < len(MODEL_CHAIN) - 1:
                 continue
             break
 

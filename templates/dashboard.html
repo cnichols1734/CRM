@@ -190,6 +190,46 @@
         </script>
         {% endif %}
 
+        {% if org_has_feature('AI_DAILY_TODO') %}
+        <section class="crm-magic-banner mb-6 hidden"
+                 data-controller="daily-briefing-banner"
+                 data-daily-briefing-banner-poll-url-value="{{ url_for('daily_todo.get_today_briefing') }}"
+                 data-daily-briefing-banner-generate-url-value="{{ url_for('daily_todo.generate_briefing') }}"
+                 data-daily-briefing-banner-later-url-value="{{ url_for('daily_todo.banner_later') }}"
+                 data-daily-briefing-banner-briefing-url-value="{{ url_for('daily_todo.briefing_page') }}">
+            <div class="crm-magic-banner__glyph">
+                <i class="fas fa-sun text-xs"></i>
+            </div>
+            <div class="crm-magic-banner__copy">
+                <span class="crm-section-kicker" data-daily-briefing-banner-target="label">Today · Daily Briefing</span>
+                <h3 data-daily-briefing-banner-target="teaser">Checking today's plan…</h3>
+                <p>A focused list of who to touch and what to move — grounded in your CRM.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 shrink-0 mt-3 lg:mt-0"
+                 data-daily-briefing-banner-target="actions">
+                <a href="{{ url_for('daily_todo.briefing_page') }}"
+                   class="crm-btn crm-btn-sm crm-btn-accent hidden"
+                   data-daily-briefing-banner-target="review">
+                    <i class="fas fa-arrow-right"></i>
+                    Review briefing
+                </a>
+                <button type="button"
+                        class="crm-btn crm-btn-sm crm-btn-accent hidden"
+                        data-action="daily-briefing-banner#retry"
+                        data-daily-briefing-banner-target="retry">
+                    <i class="fas fa-rotate-right"></i>
+                    Try again
+                </button>
+                <button type="button"
+                        class="crm-btn crm-btn-sm crm-btn-ghost"
+                        data-action="daily-briefing-banner#later"
+                        data-daily-briefing-banner-target="later">
+                    Later
+                </button>
+            </div>
+        </section>
+        {% endif %}
+
         {% if org_has_feature('MARKET_INSIGHTS') %}
         <section class="crm-surface crm-mi mb-6"
                  data-controller="market-insights"
@@ -766,10 +806,6 @@
         {% endif %}
     </div>
 </div>
-
-{% if org_has_feature('AI_DAILY_TODO') %}
-{% include 'modals/daily_todo_modal.html' %}
-{% endif %}
 
 <template id="todoItemTemplate">
     <li class="todo-item group rounded-md border border-slate-200 bg-white">

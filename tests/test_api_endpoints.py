@@ -58,16 +58,21 @@ class TestActionPlanAPI:
 
 
 class TestDailyTodoAPI:
-    """Daily todo API endpoints."""
+    """Daily Briefing API endpoints."""
 
-    def test_get_latest_todo_globally_disabled(self, owner_a_client, seed):
-        resp = owner_a_client.get('/api/daily-todo/latest')
-        assert resp.status_code in (302, 403)
+    def test_get_today_briefing_when_missing(self, owner_a_client, seed):
+        resp = owner_a_client.get('/api/daily-briefing/today')
+        assert resp.status_code in (200, 404)
 
-    def test_daily_todo_unauthenticated(self, client, seed):
+    def test_briefing_unauthenticated(self, client, seed):
         client.get('/logout')
-        resp = client.get('/api/daily-todo/latest')
+        resp = client.get('/api/daily-briefing/today')
         assert resp.status_code in (302, 401, 403, 404)
+
+    def test_legacy_latest_endpoint_still_gated(self, owner_a_client, seed):
+        resp = owner_a_client.get('/api/daily-todo/latest')
+        # Feature is on for Pro — 404 (none yet) or 200
+        assert resp.status_code in (200, 404)
 
 
 class TestTaskWindowAPI:

@@ -623,15 +623,27 @@ class Task(db.Model):
     task_subtype = db.relationship('TaskSubtype')
 
 class DailyTodoList(db.Model):
+    """Per-user Daily Briefing plan (one row per calendar day)."""
+    __tablename__ = 'daily_todo_list'
+
     id = db.Column(db.Integer, primary_key=True)
-    
+
     # Multi-tenant: organization scoping
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
                                 ondelete='RESTRICT'), nullable=True)  # Made NOT NULL after migration
-    
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     generated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    todo_content = db.Column(db.JSON, nullable=False)
+    todo_content = db.Column(db.JSON, nullable=False, default=dict)
+
+    # Daily Briefing fields
+    plan_date = db.Column(db.Date, nullable=True, index=True)
+    status = db.Column(db.String(20), nullable=False, default='ready')  # generating | ready | failed
+    viewed_at = db.Column(db.DateTime, nullable=True)
+    item_states = db.Column(db.JSON, nullable=False, default=dict)  # {item_id: done|dismissed, ...}
+    model_used = db.Column(db.String(64), nullable=True)
+    error = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -644,13 +656,33 @@ class DailyTodoList(db.Model):
         return cls.query.filter_by(user_id=user_id).order_by(cls.generated_at.desc()).first()
 
     @classmethod
+    def get_for_user_date(cls, user_id, plan_date):
+        """Get today's briefing row for a user (any status)."""
+        return (
+            cls.query
+            .filter_by(user_id=user_id, plan_date=plan_date)
+            .order_by(cls.generated_at.desc())
+            .first()
+        )
+
+    @classmethod
     def should_generate_new(cls, user_id):
-        """Check if we should generate a new todo list (>16 hours since last one)"""
+        """Legacy helper: regenerate if none exists or last one is >16h old."""
         latest = cls.get_latest_for_user(user_id)
         if not latest:
             return True
         time_since_last = datetime.utcnow() - latest.generated_at
-        return time_since_last.total_seconds() > (16 * 3600)  # 16 hours in seconds
+        return time_since_last.total_seconds() > (16 * 3600)
+
+    @property
+    def banner_dismissed(self):
+        states = self.item_states or {}
+        return bool(states.get('_banner_later'))
+
+    def mark_banner_later(self):
+        states = dict(self.item_states or {})
+        states['_banner_later'] = True
+        self.item_states = states
 
 class UserTodo(db.Model):
     __tablename__ = 'user_todos'

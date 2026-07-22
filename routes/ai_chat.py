@@ -89,6 +89,8 @@ Communication Style:
 - Acknowledge mistakes directly without over-apologizing
 - Skip unnecessary words that don't add value
 - Find the middle ground between casual and corporate
+- NEVER use em dashes (—) or en dashes (–). Use a period or comma instead.
+- When drafting texts/emails for clients, sound human and ready to send, not like marketing copy.
 
 Your background includes:
 - 15+ years of real estate experience in Houston
@@ -536,11 +538,21 @@ def chat_stream():
                 image_data=image_data
             ):
                 full_response += chunk
-                escaped = chunk.replace('\n', '\\n').replace('\r', '\\r')
+                escaped = (
+                    chunk.replace('\\', '\\\\')
+                    .replace('\n', '\\n')
+                    .replace('\r', '\\r')
+                )
                 yield f"data: {escaped}\n\n"
 
             yield f"data: [DONE]\n\n"
-            yield f"data: [FULL_RESPONSE]{full_response}[/FULL_RESPONSE]\n\n"
+            # Client accumulates during the stream; trailer is optional metadata.
+            escaped_full = (
+                full_response.replace('\\', '\\\\')
+                .replace('\n', '\\n')
+                .replace('\r', '\\r')
+            )
+            yield f"data: [FULL_RESPONSE]{escaped_full}[/FULL_RESPONSE]\n\n"
 
         return Response(
             stream_with_context(generate()),
