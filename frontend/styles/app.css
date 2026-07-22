@@ -2241,81 +2241,219 @@
   }
   @media (min-width: 1100px) {
     .crm-briefing-layout {
-      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+      grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr);
     }
   }
   .crm-briefing-main { min-width: 0; }
 
-  .crm-briefing-item {
+  /* The briefing reads as one document: lede, then grouped lists. */
+  .crm-briefing-lede {
+    margin: 0;
+    padding: 20px 24px;
+    font-size: 14.5px;
+    line-height: 1.6;
+    color: var(--ink-2);
+    max-width: 68ch;
+  }
+  .crm-briefing-group {
+    padding: 16px 24px 18px;
+    border-top: 1px solid var(--hairline);
+  }
+  .crm-briefing-group__head {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+  }
+  .crm-briefing-group__count {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .crm-briefing-row {
     display: grid;
-    grid-template-columns: 28px 1fr;
-    gap: 14px;
+    grid-template-columns: 26px minmax(0, 1fr);
     padding: 14px 0;
     border-bottom: 1px solid var(--hairline);
   }
-  .crm-briefing-item:last-child { border-bottom: 0; }
-  .crm-briefing-item.is-done {
-    opacity: 0.55;
+  .crm-briefing-row--flat { grid-template-columns: minmax(0, 1fr); }
+  .crm-briefing-row:last-child {
+    border-bottom: 0;
+    padding-bottom: 4px;
   }
-  .crm-briefing-item.is-done .crm-briefing-item__title {
+  .crm-briefing-row__body { min-width: 0; }
+  .crm-briefing-row.is-done { opacity: 0.5; }
+  .crm-briefing-row.is-done .crm-briefing-row__title {
     text-decoration: line-through;
+    text-decoration-color: var(--ink-4);
   }
-  .crm-briefing-item__index {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    background: var(--paper-2);
-    color: var(--ink-2);
-    font-size: 12px;
-    font-weight: 600;
-    display: grid;
-    place-items: center;
+
+  /* Leading done-toggle: one quiet control instead of a button row. */
+  .crm-check {
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1.5px solid var(--hairline-strong);
+    background: transparent;
+    color: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  }
+  .crm-check i { font-size: 9px; }
+  .crm-check:hover {
+    border-color: var(--ink-4);
+    color: var(--ink-5);
+  }
+  .crm-check[aria-pressed="true"] {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--paper);
+  }
+  .crm-check:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    border-color: var(--accent-line);
+  }
+
+  .crm-briefing-row__top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  .crm-briefing-row__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 550;
+    letter-spacing: -0.008em;
+    line-height: 1.35;
+    color: var(--ink);
+  }
+  .crm-briefing-row__title a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .crm-briefing-row__title a:hover { color: var(--accent-ink); }
+  .crm-briefing-row__top .crm-badge {
+    height: 18px;
+    padding: 0 6px;
+    font-size: 10px;
+  }
+  .crm-briefing-row__aside {
+    margin-left: auto;
     flex-shrink: 0;
+    font-size: 11.5px;
+    color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
-  .crm-briefing-item__meta {
+  .crm-briefing-row__why {
+    margin: 5px 0 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-3);
+    max-width: 62ch;
+  }
+
+  /* Drafted script: quiet labeled quote, copy lives inside it. */
+  .crm-briefing-quote {
+    margin-top: 10px;
+    padding: 9px 12px 11px;
+    background: var(--paper-2);
+    border-radius: var(--radius);
+    max-width: 62ch;
+  }
+  .crm-briefing-quote__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 3px;
+  }
+  .crm-briefing-quote__label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  .crm-briefing-quote__copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    background: none;
+    padding: 2px 5px;
+    margin: -2px -5px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-4);
+    cursor: pointer;
+    transition: color 120ms ease, background 120ms ease;
+  }
+  .crm-briefing-quote__copy:hover {
+    color: var(--ink-2);
+    background: var(--paper-3);
+  }
+  .crm-briefing-quote__copy:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .crm-briefing-quote__copy i { font-size: 10px; }
+  .crm-briefing-quote__text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-2);
+  }
+
+  /* Row footer: text-level actions, no button chrome. */
+  .crm-briefing-row__foot {
+    margin-top: 9px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 16px;
   }
-  .crm-briefing-item__action {
+  .crm-briefing-rowlink {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    background: none;
+    padding: 0;
     font-size: 12px;
-    color: var(--ink-3);
-    text-transform: capitalize;
+    font-weight: 500;
+    color: var(--ink-4);
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 120ms ease;
   }
-  .crm-briefing-item__action i { margin-right: 4px; }
-  .crm-briefing-item__title {
-    margin: 0 0 4px;
-    font-size: 14.5px;
-    font-weight: 550;
-    color: var(--ink);
-    letter-spacing: -0.005em;
+  .crm-briefing-rowlink:hover { color: var(--accent-ink); }
+  .crm-briefing-rowlink:disabled { cursor: default; }
+  .crm-briefing-rowlink:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    border-radius: 3px;
   }
-  .crm-briefing-item__why {
+  .crm-briefing-rowlink i { font-size: 10px; }
+  .crm-briefing-rowlink.is-added { color: var(--positive); }
+
+  .crm-briefing-empty {
     margin: 0;
+    padding: 10px 0 2px;
     font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink-3);
+    color: var(--ink-4);
   }
-  .crm-briefing-script {
-    margin: 10px 0 0;
-    padding: 10px 12px;
-    border-left: 2px solid var(--accent);
-    background: var(--paper-2);
-    border-radius: 0 var(--radius) var(--radius) 0;
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--ink-2);
-  }
-  .crm-briefing-item__actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 12px;
-  }
+
   .crm-briefing-link {
-    font-size: 12.5px;
+    font-size: 12px;
     font-weight: 500;
     color: var(--accent-ink);
     text-decoration: none;
@@ -2335,8 +2473,23 @@
     overflow: hidden;
   }
   .crm-briefing-chat__header {
-    padding: 16px 18px 12px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--hairline);
+  }
+  .crm-briefing-chat__title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .crm-briefing-chat__hint {
+    font-size: 11px;
+    color: var(--ink-4);
   }
   .crm-briefing-chat__messages {
     flex: 1;

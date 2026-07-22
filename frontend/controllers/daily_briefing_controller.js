@@ -1,16 +1,11 @@
 import { Controller } from "@hotwired/stimulus";
 
-const ACTION_ICONS = {
-  call: "fa-phone",
-  text: "fa-comment-sms",
-  email: "fa-envelope",
-  other: "fa-circle-check",
-};
-
-const PRIORITY_BADGE = {
-  high: "crm-badge crm-badge-warning",
-  medium: "crm-badge",
-  low: "crm-badge crm-badge-info",
+// Label for the drafted script block, keyed by action type / channel.
+const QUOTE_LABELS = {
+  call: "Call script",
+  text: "Text draft",
+  email: "Email draft",
+  other: "Suggested script",
 };
 
 export default class extends Controller {
@@ -20,9 +15,13 @@ export default class extends Controller {
     "content",
     "statusLabel",
     "skeletonLines",
+    "headline",
     "priorities",
+    "prioritiesCount",
     "reconnect",
+    "reconnectCount",
     "pipeline",
+    "pipelineCount",
     "seed",
   ];
   static values = {
@@ -158,9 +157,10 @@ export default class extends Controller {
     if (this.hasSkeletonTarget) this.skeletonTarget.classList.add("hidden");
     if (this.hasContentTarget) this.contentTarget.classList.remove("hidden");
 
-    // Update page description if present
-    const desc = this.element.querySelector(".crm-page-description");
-    if (desc && data.headline) desc.textContent = data.headline;
+    if (this.hasHeadlineTarget) {
+      this.headlineTarget.textContent = data.headline || "";
+      this.headlineTarget.classList.toggle("hidden", !data.headline);
+    }
 
     this.renderPriorities(data.priorities || []);
     this.renderReconnect(data.reconnect || []);
@@ -170,43 +170,43 @@ export default class extends Controller {
 
   renderPriorities(items) {
     if (!this.hasPrioritiesTarget) return;
+    this._setCount(this.hasPrioritiesCountTarget && this.prioritiesCountTarget, items.length);
     if (!items.length) {
       this.prioritiesTarget.innerHTML = this._empty(
-        "No priorities today",
-        "You're clear on urgent CRM work. Check reconnects below."
+        "Nothing urgent today. The reconnect list below is the best use of the morning."
       );
       return;
     }
     this.prioritiesTarget.innerHTML = items
-      .map((item, i) => this._priorityCard(item, i))
+      .map((item) => this._priorityRow(item))
       .join("");
   }
 
   renderReconnect(items) {
     if (!this.hasReconnectTarget) return;
+    this._setCount(this.hasReconnectCountTarget && this.reconnectCountTarget, items.length);
     if (!items.length) {
       this.reconnectTarget.innerHTML = this._empty(
-        "Sphere looks warm",
-        "No contacts are going cold right now."
+        "Sphere looks warm. No one's going cold right now."
       );
       return;
     }
     this.reconnectTarget.innerHTML = items
-      .map((item) => this._reconnectCard(item))
+      .map((item) => this._reconnectRow(item))
       .join("");
   }
 
   renderPipeline(items) {
     if (!this.hasPipelineTarget) return;
+    this._setCount(this.hasPipelineCountTarget && this.pipelineCountTarget, items.length);
     if (!items.length) {
       this.pipelineTarget.innerHTML = this._empty(
-        "Nothing to watch",
-        "No active deals or commission notes need attention."
+        "No active deals need attention right now."
       );
       return;
     }
     this.pipelineTarget.innerHTML = items
-      .map((item) => this._pipelineCard(item))
+      .map((item) => this._pipelineRow(item))
       .join("");
   }
 
@@ -216,12 +216,9 @@ export default class extends Controller {
     const currentlyDone = this.itemStates[itemId] === "done";
     const next = currentlyDone ? "" : "done";
     await this._setState(itemId, next);
-    const card = btn.closest("[data-item-id]");
-    if (card) card.classList.toggle("is-done", !currentlyDone);
+    const row = btn.closest(".crm-briefing-row");
+    if (row) row.classList.toggle("is-done", !currentlyDone);
     btn.setAttribute("aria-pressed", String(!currentlyDone));
-    btn.innerHTML = !currentlyDone
-      ? '<i class="fas fa-check"></i> Done'
-      : '<i class="far fa-circle"></i> Mark done';
   }
 
   async createTask(event) {
@@ -246,10 +243,15 @@ export default class extends Controller {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.error || "Failed");
-      btn.innerHTML = '<i class="fas fa-check"></i> Task added';
-      const card = btn.closest("[data-item-id]");
-      if (card) card.classList.add("is-done");
+      btn.classList.add("is-added");
+      btn.innerHTML = '<i class="fas fa-check"></i> Added to tasks';
       this.itemStates[payload.item_id] = "done";
+      const row = btn.closest(".crm-briefing-row");
+      if (row) {
+        row.classList.add("is-done");
+        const check = row.querySelector(".crm-check");
+        if (check) check.setAttribute("aria-pressed", "true");
+      }
     } catch (e) {
       console.error(e);
       btn.disabled = false;
@@ -305,155 +307,136 @@ export default class extends Controller {
     if (sendBtn) sendBtn.disabled = !ready;
   }
 
-  _empty(title, description) {
-    return `<div class="crm-empty">
-      <h3 class="text-sm font-semibold text-slate-900">${this._esc(title)}</h3>
-      <p class="mt-1 text-sm text-slate-500">${this._esc(description)}</p>
-    </div>`;
+  _setCount(el, count) {
+    if (!el) return;
+    el.textContent = count > 0 ? String(count) : "";
   }
 
-  _priorityCard(item, index) {
-    const done = this.itemStates[item.id] === "done";
-    const icon = ACTION_ICONS[item.action_type] || ACTION_ICONS.other;
-    const badgeClass = PRIORITY_BADGE[item.priority] || "crm-badge";
-    const contactLink = item.contact_id
-      ? `<a href="/contact/${item.contact_id}" class="crm-briefing-link">${this._esc(
-          item.contact_name || "Contact"
-        )}</a>`
-      : this._esc(item.contact_name || "");
-
-    return `<article class="crm-briefing-item ${done ? "is-done" : ""}" data-item-id="${this._esc(
-      item.id
-    )}">
-      <div class="crm-briefing-item__index">${index + 1}</div>
-      <div class="crm-briefing-item__body">
-        <div class="crm-briefing-item__meta">
-          <span class="${badgeClass}">${this._esc(item.priority || "medium")}</span>
-          <span class="crm-briefing-item__action"><i class="fas ${icon}"></i> ${this._esc(
-            item.action_type || "other"
-          )}</span>
-          ${contactLink ? `<span class="crm-briefing-item__who">${contactLink}</span>` : ""}
-        </div>
-        <h3 class="crm-briefing-item__title">${this._esc(item.title)}</h3>
-        <p class="crm-briefing-item__why">${this._esc(item.why)}</p>
-        ${
-          item.suggested_script
-            ? `<blockquote class="crm-briefing-script">${this._esc(
-                item.suggested_script
-              )}</blockquote>`
-            : ""
-        }
-        <div class="crm-briefing-item__actions">
-          <button type="button" class="crm-btn crm-btn-sm"
-                  data-action="daily-briefing#toggleDone"
-                  data-item-id="${this._esc(item.id)}"
-                  aria-pressed="${done}">
-            ${
-              done
-                ? '<i class="fas fa-check"></i> Done'
-                : '<i class="far fa-circle"></i> Mark done'
-            }
-          </button>
-          ${
-            item.contact_id
-              ? `<button type="button" class="crm-btn crm-btn-sm crm-btn-accent"
-                        data-action="daily-briefing#createTask"
-                        data-item-id="${this._esc(item.id)}"
-                        data-contact-id="${item.contact_id}"
-                        data-subject="${this._esc(item.title)}"
-                        data-description="${this._esc(item.why || "")}"
-                        data-action-type="${this._esc(item.action_type || "call")}"
-                        data-priority="${this._esc(item.priority || "medium")}">
-                  <i class="fas fa-plus"></i> Add as task
-                </button>`
-              : ""
-          }
-          ${
-            item.task_id
-              ? `<a href="/tasks" class="crm-btn crm-btn-sm crm-btn-ghost">
-                  <i class="fas fa-arrow-right"></i> Open tasks
-                </a>`
-              : ""
-          }
-        </div>
-      </div>
-    </article>`;
+  _empty(text) {
+    return `<p class="crm-briefing-empty">${this._esc(text)}</p>`;
   }
 
-  _reconnectCard(item) {
-    const done = this.itemStates[item.id] === "done";
-    const channelIcon = ACTION_ICONS[item.channel] || ACTION_ICONS.text;
-    return `<article class="crm-briefing-item ${done ? "is-done" : ""}" data-item-id="${this._esc(
-      item.id
-    )}">
-      <div class="crm-briefing-item__index"><i class="fas ${channelIcon}"></i></div>
-      <div class="crm-briefing-item__body">
-        <div class="crm-briefing-item__meta">
-          <a href="/contact/${item.contact_id}" class="crm-briefing-link">${this._esc(
-            item.contact_name
-          )}</a>
-          <span class="crm-badge">${item.days_since_touch}d cold</span>
-        </div>
-        <p class="crm-briefing-item__why">${this._esc(item.reason)}</p>
-        ${
-          item.suggested_message
-            ? `<blockquote class="crm-briefing-script">${this._esc(
-                item.suggested_message
-              )}</blockquote>`
-            : ""
-        }
-        <div class="crm-briefing-item__actions">
-          <button type="button" class="crm-btn crm-btn-sm"
+  _check(itemId, done) {
+    return `<button type="button" class="crm-check"
+              data-action="daily-briefing#toggleDone"
+              data-item-id="${this._esc(itemId)}"
+              aria-pressed="${done}"
+              aria-label="Mark done"
+              title="Mark done">
+        <i class="fas fa-check"></i>
+      </button>`;
+  }
+
+  _quote(kind, text) {
+    if (!text) return "";
+    const label = QUOTE_LABELS[kind] || QUOTE_LABELS.other;
+    return `<div class="crm-briefing-quote">
+        <div class="crm-briefing-quote__top">
+          <span class="crm-briefing-quote__label">${this._esc(label)}</span>
+          <button type="button" class="crm-briefing-quote__copy"
                   data-action="daily-briefing#copyMessage"
-                  data-message="${this._esc(item.suggested_message || "")}">
-            <i class="fas fa-copy"></i> <span data-label>Copy message</span>
-          </button>
-          <button type="button" class="crm-btn crm-btn-sm crm-btn-accent"
-                  data-action="daily-briefing#createTask"
-                  data-item-id="${this._esc(item.id)}"
-                  data-contact-id="${item.contact_id}"
-                  data-subject="Reconnect: ${this._esc(item.contact_name)}"
-                  data-description="${this._esc(item.reason || "")}"
-                  data-action-type="${this._esc(item.channel || "text")}"
-                  data-priority="medium">
-            <i class="fas fa-plus"></i> Add as task
-          </button>
-          <button type="button" class="crm-btn crm-btn-sm crm-btn-ghost"
-                  data-action="daily-briefing#toggleDone"
-                  data-item-id="${this._esc(item.id)}">
-            ${
-              done
-                ? '<i class="fas fa-check"></i> Done'
-                : '<i class="far fa-circle"></i> Mark done'
-            }
+                  data-message="${this._esc(text)}">
+            <i class="far fa-copy"></i> <span data-label>Copy</span>
           </button>
         </div>
+        <p class="crm-briefing-quote__text">${this._esc(text)}</p>
+      </div>`;
+  }
+
+  _addTaskLink(item, subject, actionType, priority) {
+    if (!item.contact_id) return "";
+    return `<button type="button" class="crm-briefing-rowlink"
+              data-action="daily-briefing#createTask"
+              data-item-id="${this._esc(item.id)}"
+              data-contact-id="${item.contact_id}"
+              data-subject="${this._esc(subject)}"
+              data-description="${this._esc(item.why || item.reason || "")}"
+              data-action-type="${this._esc(actionType)}"
+              data-priority="${this._esc(priority)}">
+        <i class="fas fa-plus"></i> Add to tasks
+      </button>`;
+  }
+
+  _priorityRow(item) {
+    const done = this.itemStates[item.id] === "done";
+    const badge =
+      item.priority === "high"
+        ? '<span class="crm-badge crm-badge-warning">High</span>'
+        : "";
+    const title = item.contact_id
+      ? `<a href="/contact/${item.contact_id}">${this._esc(item.title)}</a>`
+      : this._esc(item.title);
+    const foot = item.task_id
+      ? `<a href="/tasks" class="crm-briefing-rowlink">View in tasks <i class="fas fa-arrow-right"></i></a>`
+      : this._addTaskLink(
+          item,
+          item.title,
+          item.action_type || "call",
+          item.priority || "medium"
+        );
+
+    return `<article class="crm-briefing-row ${done ? "is-done" : ""}" data-item-id="${this._esc(
+      item.id
+    )}">
+      ${this._check(item.id, done)}
+      <div class="crm-briefing-row__body">
+        <div class="crm-briefing-row__top">
+          <h3 class="crm-briefing-row__title">${title}</h3>
+          ${badge}
+        </div>
+        <p class="crm-briefing-row__why">${this._esc(item.why)}</p>
+        ${this._quote(item.action_type, item.suggested_script)}
+        ${foot ? `<div class="crm-briefing-row__foot">${foot}</div>` : ""}
       </div>
     </article>`;
   }
 
-  _pipelineCard(item) {
+  _reconnectRow(item) {
+    const done = this.itemStates[item.id] === "done";
+    const foot = this._addTaskLink(
+      item,
+      `Reconnect: ${item.contact_name}`,
+      item.channel || "text",
+      "medium"
+    );
+
+    return `<article class="crm-briefing-row ${done ? "is-done" : ""}" data-item-id="${this._esc(
+      item.id
+    )}">
+      ${this._check(item.id, done)}
+      <div class="crm-briefing-row__body">
+        <div class="crm-briefing-row__top">
+          <h3 class="crm-briefing-row__title">
+            <a href="/contact/${item.contact_id}">${this._esc(item.contact_name)}</a>
+          </h3>
+          <span class="crm-briefing-row__aside">${item.days_since_touch}d cold</span>
+        </div>
+        <p class="crm-briefing-row__why">${this._esc(item.reason)}</p>
+        ${this._quote(item.channel, item.suggested_message)}
+        ${foot ? `<div class="crm-briefing-row__foot">${foot}</div>` : ""}
+      </div>
+    </article>`;
+  }
+
+  _pipelineRow(item) {
     const amount =
-      item.amount != null
-        ? `$${Number(item.amount).toLocaleString()}`
-        : null;
+      item.amount != null ? `$${Number(item.amount).toLocaleString()}` : "";
     const link = item.contact_id
-      ? `<a href="/contact/${item.contact_id}" class="crm-briefing-link">${this._esc(
-          item.contact_name || "Contact"
-        )}</a>`
+      ? `<a href="/contact/${item.contact_id}" class="crm-briefing-rowlink">${this._esc(
+          item.contact_name || "Open contact"
+        )} <i class="fas fa-arrow-right"></i></a>`
       : item.transaction_id
-        ? `<a href="/transactions/${item.transaction_id}" class="crm-briefing-link">Deal #${item.transaction_id}</a>`
+        ? `<a href="/transactions/${item.transaction_id}" class="crm-briefing-rowlink">Open deal <i class="fas fa-arrow-right"></i></a>`
         : "";
 
-    return `<article class="crm-briefing-item">
-      <div class="crm-briefing-item__index"><i class="fas fa-chart-line"></i></div>
-      <div class="crm-briefing-item__body">
-        <div class="crm-briefing-item__meta">
-          ${link}
-          ${amount ? `<span class="crm-badge crm-badge-accent">${amount}</span>` : ""}
+    return `<article class="crm-briefing-row crm-briefing-row--flat">
+      <div class="crm-briefing-row__body">
+        <div class="crm-briefing-row__top">
+          <h3 class="crm-briefing-row__title">${this._esc(item.title)}</h3>
+          ${amount ? `<span class="crm-briefing-row__aside">${amount}</span>` : ""}
         </div>
-        <h3 class="crm-briefing-item__title">${this._esc(item.title)}</h3>
-        <p class="crm-briefing-item__why">${this._esc(item.insight)}</p>
+        <p class="crm-briefing-row__why">${this._esc(item.insight)}</p>
+        ${link ? `<div class="crm-briefing-row__foot">${link}</div>` : ""}
       </div>
     </article>`;
   }

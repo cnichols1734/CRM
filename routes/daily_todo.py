@@ -329,12 +329,22 @@ def briefing_chat_stream():
                 user_prompt=user_prompt,
             ):
                 full.append(chunk)
-                escaped = chunk.replace('\n', '\\n')
+                escaped = (
+                    chunk.replace('\\', '\\\\')
+                    .replace('\n', '\\n')
+                    .replace('\r', '\\r')
+                )
                 yield f"data: {escaped}\n\n"
             yield "data: [DONE]\n\n"
             full_text = ''.join(full)
             assistant_holder['text'] = full_text
-            yield f"data: [FULL_RESPONSE]{full_text}[/FULL_RESPONSE]\n\n"
+            # Client accumulates during the stream; trailer is optional metadata.
+            escaped_full = (
+                full_text.replace('\\', '\\\\')
+                .replace('\n', '\\n')
+                .replace('\r', '\\r')
+            )
+            yield f"data: [FULL_RESPONSE]{escaped_full}[/FULL_RESPONSE]\n\n"
         except Exception as e:
             logger.exception(f"Briefing chat stream error: {e}")
             yield "data: Sorry, something went wrong. Please try again.\n\n"

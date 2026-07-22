@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "components/ui.html" import page_header, section_header, badge, empty_state %}
+{% from "components/ui.html" import page_header %}
 
 {% block title %}Daily Briefing{% endblock %}
 
@@ -12,7 +12,6 @@
     <div class="crm-page__inner">
         {% call page_header(
             'Daily Briefing',
-            description=(briefing.headline if briefing and briefing.status == 'ready' else 'Your focused plan for the day — grounded in your CRM.'),
             eyebrow=plan_date.strftime('%A · %B %d, %Y') if plan_date else 'Today'
         ) %}
             <button type="button"
@@ -24,15 +23,14 @@
             </button>
         {% endcall %}
 
-        {# ── Generating / failed / ready shells ── #}
         <div class="crm-briefing-layout"
              data-daily-briefing-target="layout">
 
             <div class="crm-briefing-main">
-                {# Generating skeleton #}
+                {# Generating / failed shell #}
                 <div class="{% if briefing and briefing.status == 'ready' %}hidden{% endif %}"
                      data-daily-briefing-target="skeleton">
-                    <section class="crm-surface mb-4">
+                    <section class="crm-surface">
                         <div class="crm-surface-body">
                             <p class="crm-section-kicker mb-3" data-daily-briefing-target="statusLabel">
                                 {% if briefing and briefing.status == 'failed' %}
@@ -62,35 +60,39 @@
                     </section>
                 </div>
 
-                {# Ready content #}
+                {# Ready: the briefing reads as one document #}
                 <div class="{% if not briefing or briefing.status != 'ready' %}hidden{% endif %}"
                      data-daily-briefing-target="content">
+                    <section class="crm-surface crm-briefing-doc">
+                        <p class="crm-briefing-lede"
+                           data-daily-briefing-target="headline">{{ briefing.headline if briefing and briefing.status == 'ready' else '' }}</p>
 
-                    <section class="crm-surface mb-4">
-                        <div class="crm-surface-header">
-                            {{ section_header('Top priorities', kicker='Do these first') }}
-                        </div>
-                        <div class="crm-surface-body crm-stack"
-                             data-daily-briefing-target="priorities">
-                        </div>
-                    </section>
+                        <section class="crm-briefing-group">
+                            <header class="crm-briefing-group__head">
+                                <h2 class="crm-section-kicker">Priorities</h2>
+                                <span class="crm-briefing-group__count"
+                                      data-daily-briefing-target="prioritiesCount"></span>
+                            </header>
+                            <div data-daily-briefing-target="priorities"></div>
+                        </section>
 
-                    <section class="crm-surface mb-4">
-                        <div class="crm-surface-header">
-                            {{ section_header('Reconnect', kicker='Going cold') }}
-                        </div>
-                        <div class="crm-surface-body crm-stack"
-                             data-daily-briefing-target="reconnect">
-                        </div>
-                    </section>
+                        <section class="crm-briefing-group">
+                            <header class="crm-briefing-group__head">
+                                <h2 class="crm-section-kicker">Reconnect</h2>
+                                <span class="crm-briefing-group__count"
+                                      data-daily-briefing-target="reconnectCount"></span>
+                            </header>
+                            <div data-daily-briefing-target="reconnect"></div>
+                        </section>
 
-                    <section class="crm-surface mb-4">
-                        <div class="crm-surface-header">
-                            {{ section_header('Pipeline watch', kicker='Worth a look') }}
-                        </div>
-                        <div class="crm-surface-body crm-stack"
-                             data-daily-briefing-target="pipeline">
-                        </div>
+                        <section class="crm-briefing-group">
+                            <header class="crm-briefing-group__head">
+                                <h2 class="crm-section-kicker">Pipeline watch</h2>
+                                <span class="crm-briefing-group__count"
+                                      data-daily-briefing-target="pipelineCount"></span>
+                            </header>
+                            <div data-daily-briefing-target="pipeline"></div>
+                        </section>
                     </section>
                 </div>
             </div>
@@ -101,10 +103,8 @@
                    data-briefing-chat-stream-url-value="{{ url_for('daily_todo.briefing_chat_stream') }}"
                    data-briefing-chat-ready-value="{{ 'true' if briefing and briefing.status == 'ready' else 'false' }}">
                 <div class="crm-briefing-chat__header">
-                    <div>
-                        <div class="crm-section-kicker">Ask B.O.B.</div>
-                        <h2 class="crm-section-title">About today's plan</h2>
-                    </div>
+                    <h2 class="crm-briefing-chat__title">Ask B.O.B.</h2>
+                    <span class="crm-briefing-chat__hint">Knows today's plan</span>
                 </div>
                 <div class="crm-briefing-chat__messages"
                      data-briefing-chat-target="messages">
@@ -138,10 +138,9 @@
                               data-briefing-chat-target="input"
                               {% if not briefing or briefing.status != 'ready' %}disabled{% endif %}></textarea>
                     <button type="submit"
-                            class="crm-btn crm-btn-accent crm-btn-sm"
+                            class="crm-btn crm-btn-primary crm-btn-sm"
                             data-briefing-chat-target="sendBtn"
                             {% if not briefing or briefing.status != 'ready' %}disabled{% endif %}>
-                        <i class="fas fa-paper-plane"></i>
                         Send
                     </button>
                 </form>

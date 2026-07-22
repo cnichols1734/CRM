@@ -59,6 +59,7 @@ export default class extends Controller {
       const decoder = new TextDecoder();
       let buffer = "";
       let full = "";
+      let doneSeen = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -68,20 +69,31 @@ export default class extends Controller {
         buffer = parts.pop() || "";
 
         for (const part of parts) {
-          const line = part
+          // One SSE event may contain a single data line. Do not re-join
+          // multiple data lines with real newlines — that invents breaks.
+          const dataLines = part
             .split("\n")
             .filter((l) => l.startsWith("data: "))
-            .map((l) => l.slice(6))
-            .join("\n");
-          if (!line) continue;
-          if (line === "[DONE]") continue;
-          if (line.startsWith("[FULL_RESPONSE]") && line.endsWith("[/FULL_RESPONSE]")) {
-            full = line.slice("[FULL_RESPONSE]".length, -"[/FULL_RESPONSE]".length);
-            continue;
+            .map((l) => l.slice(6));
+          if (!dataLines.length) continue;
+
+          for (const data of dataLines) {
+            if (data === "[DONE]") {
+              doneSeen = true;
+              continue;
+            }
+            // Trailer / post-done metadata — never paint into the bubble.
+            // Streamed chunks already built `full`.
+            if (
+              doneSeen ||
+              data.startsWith("[FULL_RESPONSE]") ||
+              data.includes("[FULL_RESPONSE]")
+            ) {
+              continue;
+            }
+            full += this._unescapeSse(data);
+            this._renderMarkdown(assistantEl, full);
           }
-          const chunk = line.replace(/\\n/g, "\n");
-          full += chunk;
-          this._renderMarkdown(assistantEl, full);
         }
       }
 
@@ -122,11 +134,31 @@ export default class extends Controller {
     return el;
   }
 
+  _unescapeSse(value) {
+    // Wire format uses \\n / \\r for real breaks. Also collapse any literal
+    // backslash-n sequences that slipped through a double-escape.
+    return String(value ?? "")
+      .replace(/\\n/g, "\n")
+      .replace(/\\r/g, "\r");
+  }
+
+  _normalizeNewlines(text) {
+    // Final safety net: turn leftover literal \n into real breaks.
+    let out = String(text ?? "");
+    // Run twice in case of double-escaped \\\\n
+    out = out.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+    out = out.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+    return out;
+  }
+
   _renderMarkdown(el, text) {
+    const normalized = this._normalizeNewlines(text);
     if (window.marked && window.DOMPurify) {
-      el.innerHTML = window.DOMPurify.sanitize(window.marked.parse(text || ""));
+      el.innerHTML = window.DOMPurify.sanitize(
+        window.marked.parse(normalized || "")
+      );
     } else {
-      el.textContent = text || "";
+      el.textContent = normalized || "";
     }
   }
 
