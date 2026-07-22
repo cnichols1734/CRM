@@ -13,15 +13,23 @@ class TestFreeTierRestrictions:
     """Free-tier org (Org B) should be blocked from premium features."""
 
     def test_ai_daily_todo_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.post('/api/daily-todo/generate',
+        resp = owner_b_client.post('/api/daily-briefing/generate',
                                    follow_redirects=True)
         assert resp.status_code in (200, 302, 403)
         if resp.status_code == 200:
-            assert b'upgrade' in resp.data.lower() or b'subscription' in resp.data.lower() or resp.content_type == 'application/json'
+            assert (
+                b'upgrade' in resp.data.lower()
+                or b'subscription' in resp.data.lower()
+                or resp.content_type == 'application/json'
+            )
 
-    def test_ai_daily_todo_latest_blocked(self, owner_b_client, seed):
-        resp = owner_b_client.get('/api/daily-todo/latest',
+    def test_ai_daily_todo_today_blocked(self, owner_b_client, seed):
+        resp = owner_b_client.get('/api/daily-briefing/today',
                                   follow_redirects=True)
+        assert resp.status_code in (200, 302, 403)
+
+    def test_briefing_page_blocked(self, owner_b_client, seed):
+        resp = owner_b_client.get('/briefing', follow_redirects=True)
         assert resp.status_code in (200, 302, 403)
 
     def test_action_plan_page_blocked(self, owner_b_client, seed):
@@ -46,15 +54,22 @@ class TestProTierAccess:
         resp = owner_a_client.get('/action-plan')
         assert resp.status_code == 200
 
-    def test_ai_daily_todo_globally_disabled(self, owner_a_client, seed):
-        resp = owner_a_client.get('/api/daily-todo/latest')
-        assert resp.status_code in (302, 403)
+    def test_ai_daily_briefing_allowed(self, owner_a_client, seed):
+        resp = owner_a_client.get('/api/daily-briefing/today')
+        # 404 = no briefing yet (feature is on); 200 = ready
+        assert resp.status_code in (200, 404)
 
-    def test_ai_daily_todo_assets_hidden_but_chat_available(self, owner_a_client, seed):
+    def test_briefing_page_allowed(self, owner_a_client, seed):
+        resp = owner_a_client.get('/briefing')
+        assert resp.status_code == 200
+        assert b'Daily Briefing' in resp.data
+
+    def test_ai_daily_todo_legacy_assets_gone(self, owner_a_client, seed):
         resp = owner_a_client.get('/dashboard')
         assert resp.status_code == 200
         assert b'js/daily_todo.js' not in resp.data
         assert b'dailyTodoModal' not in resp.data
+        assert b'daily-briefing-banner' in resp.data
         assert b'js/ai_chat.js' in resp.data
 
     def test_market_insights_panel_globally_disabled(self, owner_a_client, seed):
@@ -71,21 +86,22 @@ class TestGlobalFeatureOverrides:
         org = Organization(
             subscription_tier='enterprise',
             is_platform_admin=True,
-            feature_flags={'AI_DAILY_TODO': True},
+            feature_flags={'MARKET_INSIGHTS': True},
         )
 
-        assert org_has_feature('AI_DAILY_TODO', org) is False
+        # MARKET_INSIGHTS remains globally killed; AI_DAILY_TODO is live again
         assert org_has_feature('MARKET_INSIGHTS', org) is False
+        assert org_has_feature('AI_DAILY_TODO', org) is True
         assert org_has_feature('AI_CHAT', org) is True
 
-    def test_feature_context_keeps_daily_todo_disabled(self):
+    def test_feature_context_keeps_market_insights_disabled(self):
         org = Organization(
             subscription_tier='pro',
-            feature_flags={'AI_DAILY_TODO': True},
+            feature_flags={'MARKET_INSIGHTS': True, 'AI_DAILY_TODO': True},
         )
 
         features = get_org_features(org)
-        assert features['AI_DAILY_TODO'] is False
+        assert features['AI_DAILY_TODO'] is True
         assert features['MARKET_INSIGHTS'] is False
         assert features['AI_CHAT'] is True
 

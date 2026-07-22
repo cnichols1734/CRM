@@ -168,6 +168,97 @@ def generate_ai_response(
         raise
 
 
+def generate_structured_response(
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict,
+    schema_name: str = "structured_output",
+    temperature: float = 0.4,
+    api_key: str = None,
+) -> tuple:
+    """
+    Generate a validated JSON object via Chat Completions + strict json_schema.
+
+    Uses the same model fallback chain as other helpers, but always goes through
+    Chat Completions so ``response_format.json_schema`` is honored on every model.
+
+    Returns:
+        (parsed_dict, model_used)
+
+    Raises:
+        ValueError: If API key is missing
+        Exception: If all models fail or the response is not valid JSON
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        logger.error("OpenAI API key is not configured!")
+        raise ValueError("OpenAI API key is not configured")
+
+    client = openai.OpenAI(api_key=key)
+    models = [PRIMARY_MODEL, FALLBACK_MODEL, LEGACY_MODEL]
+    last_error = None
+
+    for i, model in enumerate(models):
+        try:
+            logger.info(f"[{i+1}/{len(models)}] Structured: attempting {model}")
+            kwargs = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": schema_name,
+                        "schema": schema,
+                        "strict": True,
+                    },
+                },
+            }
+            # GPT-5.x reasoning models reject temperature on Chat Completions
+            if not model.startswith("gpt-5"):
+                kwargs["temperature"] = temperature
+
+            response = client.chat.completions.create(**kwargs)
+            raw = response.choices[0].message.content or "{}"
+            parsed = json.loads(raw)
+            logger.info(f"SUCCESS: Structured response with {model}")
+            return parsed, model
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            last_error = e
+            logger.warning(
+                f"Structured fallback: {model} failed with {type(e).__name__}"
+            )
+            continue
+
+        except openai.APIError as e:
+            last_error = e
+            if _should_fallback(e):
+                logger.warning(
+                    f"Structured fallback: {model} failed with status {e.status_code}"
+                )
+                continue
+            logger.error(f"Structured fatal: {model} unrecoverable: {e}")
+            raise
+
+        except json.JSONDecodeError as e:
+            last_error = e
+            logger.warning(f"Structured JSON parse failed on {model}: {e}")
+            continue
+
+        except Exception as e:
+            last_error = e
+            logger.error(f"Structured error with {model}: {e}")
+            if i < len(models) - 1:
+                continue
+            raise
+
+    raise Exception(f"All models failed for structured response: {last_error}")
+
+
 def generate_chat_response(
     messages: list,
     temperature: float = 0.7,
