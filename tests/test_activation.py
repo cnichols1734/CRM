@@ -130,6 +130,40 @@ def test_quick_activation_creates_contact_task_and_milestones(
             _cleanup_user(user_id)
 
 
+def test_baselined_user_does_not_see_activation_prompts(app, client, seed):
+    with app.app_context():
+        user = _new_user(
+            seed,
+            'activation_baselined',
+            created_at=datetime.utcnow() - timedelta(days=30),
+        )
+        user.has_seen_dashboard_onboarding = True
+        contact = Contact(
+            organization_id=user.organization_id,
+            user_id=user.id,
+            created_by_id=user.id,
+            first_name='Legacy',
+            last_name='Contact',
+        )
+        db.session.add(contact)
+        db.session.commit()
+        user_id = user.id
+
+    try:
+        client.post('/login', data={
+            'username': 'activation_baselined',
+            'password': 'password123',
+        })
+        dashboard = client.get('/dashboard?friction=1')
+        assert dashboard.status_code == 200
+        assert b'What stopped you from finishing setup?' not in dashboard.data
+        assert b'Give this relationship a next date.' not in dashboard.data
+        assert b'How do you want to start?' not in dashboard.data
+    finally:
+        with app.app_context():
+            _cleanup_user(user_id)
+
+
 def test_lifecycle_stops_for_activated_user(app, seed, monkeypatch):
     with app.app_context():
         user = _new_user(

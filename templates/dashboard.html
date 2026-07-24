@@ -66,7 +66,7 @@
 
 {% block content %}
 {% set total_deals = transactions_by_status.values()|map(attribute='count')|sum if show_transactions else 0 %}
-{% set is_first_run = activation_state.mode == 'start' %}
+{% set is_first_run = show_activation_onboarding and activation_state.mode == 'start' %}
 {% set _hour = now.hour if now is defined else 12 %}
 {% set greeting = 'Good morning' if _hour < 12 else ('Good afternoon' if _hour < 18 else 'Good evening') %}
 {% set first_name = current_user.first_name if current_user.is_authenticated else '' %}
@@ -549,7 +549,7 @@
             <div class="hidden p-5 sm:p-8" data-dashboard-page-target="activationSuccess"></div>
         </section>
         {% else %}
-        {% if activation_state.mode == 'follow_up' %}
+        {% if show_activation_onboarding and activation_state.mode == 'follow_up' %}
         <section class="crm-surface mb-6 overflow-hidden">
             <div class="border-b border-slate-200 px-5 py-5 sm:px-7">
                 <div class="crm-section-kicker">One step left</div>

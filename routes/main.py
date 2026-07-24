@@ -674,6 +674,9 @@ def dashboard():
         'contact': first_contact,
         'follow_up': first_follow_up,
     }
+    show_activation_onboarding = not bool(
+        current_user.has_seen_dashboard_onboarding
+    )
     days_since_signup = (
         (datetime.utcnow() - current_user.created_at).days
         if current_user.created_at else 0
@@ -683,10 +686,12 @@ def dashboard():
         event=ActivationEvent.FRICTION_RESPONSE,
     ).first()
     show_friction = (
-        activation_state['mode'] != 'complete'
+        show_activation_onboarding
+        and activation_state['mode'] != 'complete'
+        and prior_friction is None
         and (
             request.args.get('friction') == '1'
-            or (days_since_signup >= 1 and prior_friction is None)
+            or days_since_signup >= 1
         )
     )
     # Only auto-complete for recent signups so legacy users do not pollute
@@ -1114,6 +1119,7 @@ def dashboard():
                          task_window_days=task_window_days,
                          now=now,
                          activation_state=activation_state,
+                         show_activation_onboarding=show_activation_onboarding,
                          show_friction=show_friction,
                          show_transactions=show_transactions,
                          transactions_by_status=transactions_by_status,
