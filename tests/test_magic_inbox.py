@@ -256,27 +256,39 @@ class TestUndoToken:
 
 
 class TestSendGridTemplateData:
-    def test_account_welcome_uses_dynamic_template_when_configured(
-            self, app, seed):
+    def test_account_welcome_sends_activation_email(self, app, seed):
+        # The welcome email leads with the first-follow-up activation goal
+        # (inline HTML), not the Magic Inbox dynamic template.
         from services.sendgrid_outbound import send_account_welcome
 
         with app.app_context(), app.test_request_context('/'):
             user = _ensure_inbox(seed, 'owner_a')
-            with patch('services.sendgrid_outbound._send_template',
-                       return_value=True) as send_template, \
-                    patch('services.sendgrid_outbound._send_html') as send_html:
+            with patch('services.sendgrid_outbound._send_html',
+                       return_value=True) as send_html:
                 assert send_account_welcome(user) is True
 
-            send_template.assert_called_once()
-            _, template_id, data = send_template.call_args.args[:3]
-            assert template_id == 'd-8ca289d2b7fa4778a8c4b3d10992aab5'
-            assert data['first_name'] == user.first_name
-            assert data['inbox_address'] == user.inbox_address
-            assert '/inbox/vcard/' in data['vcard_url']
-            assert data['dashboard_url'].endswith('/dashboard')
-            assert data['contacts_url'].endswith('/contacts')
-            assert data['inbox_url'].endswith('/inbox')
-            send_html.assert_not_called()
+            send_html.assert_called_once()
+            to_email, subject, html = send_html.call_args.args[:3]
+            assert to_email == user.email
+            assert 'follow-up' in subject.lower()
+            assert '/dashboard' in html
+            assert user.inbox_address in html
+
+    def test_account_welcome_sends_without_inbox_address(self, app, seed):
+        # Welcome must go out even if Magic Inbox provisioning failed.
+        from services.sendgrid_outbound import send_account_welcome
+
+        with app.app_context(), app.test_request_context('/'):
+            user = _ensure_inbox(seed, 'owner_a')
+            original_address = user.inbox_address
+            try:
+                user.inbox_address = None
+                with patch('services.sendgrid_outbound._send_html',
+                           return_value=True) as send_html:
+                    assert send_account_welcome(user) is True
+                send_html.assert_called_once()
+            finally:
+                user.inbox_address = original_address
 
     def test_welcome_uses_dynamic_template_when_configured(self, app, seed):
         from services.sendgrid_outbound import send_inbox_welcome

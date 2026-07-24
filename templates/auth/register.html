@@ -341,7 +341,9 @@
                         <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Secure</span>
                     </div>
                     
-                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4">
+                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4"
+                          data-analytics-form="registration"
+                          data-validation-categories="{{ form.errors.keys()|join(',') }}">
                         {{ form.hidden_tag() }}
                         
                         <!-- Honeypot field - invisible to humans, bots will fill it -->

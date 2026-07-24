@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app
+from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import User, db, Contact, ActionPlan, Organization, OrganizationInvite, ActivationEvent
 from forms import RegistrationForm, LoginForm, RequestResetForm, ResetPasswordForm
@@ -58,6 +58,15 @@ def register():
     """
     if current_user.is_authenticated:
         return redirect(url_for('main.contacts'))
+
+    if request.method == 'GET':
+        acquisition = {}
+        for key in ('utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'ref'):
+            value = request.args.get(key, '').strip()
+            if value:
+                acquisition[key] = value[:80]
+        if acquisition:
+            session['signup_acquisition'] = acquisition
 
     form = RegistrationForm()
     if form.validate_on_submit():
@@ -183,8 +192,7 @@ def register():
 
         try:
             from services.sendgrid_outbound import send_account_welcome
-            if user.inbox_address:
-                send_account_welcome(user)
+            send_account_welcome(user)
         except Exception:
             current_app.logger.exception(
                 'Failed to send account welcome email user_id=%s',
@@ -192,8 +200,9 @@ def register():
             )
 
         login_user(user)
+        acquisition = session.pop('signup_acquisition', {})
         record_event(ActivationEvent.ACCOUNT_CREATED, user=user,
-                     data={'source': 'self_serve'})
+                     data={'source': 'self_serve', **acquisition}, once=True)
         flash('Welcome to Origen. Your account is ready to use.', 'success')
         return redirect(url_for('main.dashboard'))
 
@@ -243,6 +252,11 @@ def login():
             # Update last_login timestamp at the moment of login
             user.last_login = datetime.utcnow()
             db.session.commit()
+            record_event(
+                ActivationEvent.LOGIN_SUCCEEDED,
+                user=user,
+                data={'days_since_signup': (datetime.utcnow() - user.created_at).days},
+            )
             # Check for return URL in query args (Flask-Login) or form data (session expiry)
             next_page = request.args.get('next') or request.form.get('next')
             # Basic security check - only allow relative URLs

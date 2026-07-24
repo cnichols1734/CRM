@@ -62,7 +62,7 @@
     <!-- Loading Overlay styles -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/loading_overlay.css') }}">
     <!-- AI Chat styles: only loaded when feature is active, deferred to avoid render-blocking -->
-    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ai_chat.css') }}" media="print" onload="this.media='all'">
     {% endif %}
     <style>
@@ -2050,7 +2050,7 @@
                        aria-expanded="false" />
                 <div id="crmGlobalSearchResults" class="crm-search-results" role="listbox" aria-label="Search results" hidden></div>
             </form>
-            {% if org_has_feature('AI_CHAT') %}
+            {% if org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
             <button id="bob-toggle-desktop" type="button" class="crm-utility-btn">
                 <svg class="assistant-star" width="14" height="14" viewBox="0 0 32 32" fill="none">
                     <path d="M16 2L18.5 12L28 14L18.5 16.5L16 28L13.5 16.5L4 14L13.5 12L16 2Z" fill="currentColor"/>
@@ -2117,7 +2117,7 @@
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}
-            {% if org_has_feature('AI_CHAT') %}
+            {% if org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
             <button id="bob-toggle-mobile" class="bob-assistant-btn-mobile">
                 <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M16 2L18.5 12L28 14L18.5 16.5L16 28L13.5 16.5L4 14L13.5 12L16 2Z" fill="currentColor"/>
@@ -3068,14 +3068,24 @@
             setInterval(poll, 60000);
         })();
     </script>
+    <script>
+        window.CRM_ANALYTICS = {
+            enabled: {{ (not config.TESTING and config.POSTHOG_ENABLED and (current_user.is_authenticated or request.endpoint == 'auth.register'))|tojson }},
+            token: {{ config.POSTHOG_PROJECT_TOKEN|tojson }},
+            host: {{ config.POSTHOG_HOST|tojson }},
+            distinctId: {% if current_user.is_authenticated %}{{ ('user_' ~ current_user.id)|tojson }}{% else %}null{% endif %},
+            sessionReplay: {{ config.POSTHOG_SESSION_REPLAY|tojson }},
+            replayAllowed: {{ (config.POSTHOG_SESSION_REPLAY and (request.endpoint == 'auth.register' or (activation_state is defined and activation_state.mode == 'start')))|tojson }}
+        };
+    </script>
     <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>
 
-    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
     <!-- AI Chat Widget will be injected here by JavaScript -->
     {% endif %}
 
     <!-- AI Chat Widget script (Feature Gated, deferred) -->
-    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') %}
+    {% if current_user.is_authenticated and org_has_feature('AI_CHAT') and (activation_state is not defined or activation_state.mode != 'start') %}
     <script defer src="https://cdn.jsdelivr.net/npm/marked/lib/marked.umd.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
     <script defer src="{{ url_for('static', filename='js/ai_chat.js') }}"></script>

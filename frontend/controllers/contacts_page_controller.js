@@ -15,6 +15,8 @@ export default class extends Controller {
     "statusMessage",
     "errorDetails",
     "errorList",
+    "importPreview",
+    "importPreviewRows",
     "layout",
     "previewRail",
     "previewBody",
@@ -315,6 +317,31 @@ export default class extends Controller {
   async uploadImport(event) {
     const file = event.target.files[0];
     if (!file) return;
+    this.pendingImportFile = file;
+
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    const headers = (lines[0] || "").toLowerCase();
+    const recognized = [
+      "name", "first", "last", "email", "phone", "mobile"
+    ].some((header) => headers.includes(header));
+
+    this.importStatusTarget.classList.remove("hidden");
+    this.statusIconTarget.className = recognized
+      ? "fas fa-file-csv text-slate-500 text-xl"
+      : "fas fa-times-circle text-red-500 text-xl";
+    this.statusMessageTarget.textContent = recognized
+      ? `Review ${Math.max(lines.length - 1, 0)} contact rows before import.`
+      : "We could not find a name, email, or phone column in this file.";
+    this.importPreviewRowsTarget.textContent = lines.slice(0, 4).join("\n");
+    this.importPreviewTarget.classList.toggle("hidden", !recognized);
+    event.target.value = "";
+  }
+
+  async confirmImport(event) {
+    event.preventDefault();
+    const file = this.pendingImportFile;
+    if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -341,7 +368,8 @@ export default class extends Controller {
       });
     } finally {
       this.setImportState(false);
-      event.target.value = "";
+      this.pendingImportFile = null;
+      this.importPreviewTarget.classList.add("hidden");
     }
   }
 

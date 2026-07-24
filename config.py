@@ -48,6 +48,15 @@ class Config:
     # SendGrid configuration
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
+    # Product analytics. The project token is intentionally public-safe; never
+    # expose a PostHog personal API key to the application or browser.
+    POSTHOG_PROJECT_TOKEN = os.getenv('POSTHOG_PROJECT_TOKEN')
+    POSTHOG_HOST = os.getenv('POSTHOG_HOST', 'https://us.i.posthog.com')
+    POSTHOG_ENABLED = bool(POSTHOG_PROJECT_TOKEN)
+    POSTHOG_SESSION_REPLAY = (
+        os.getenv('POSTHOG_SESSION_REPLAY', 'False').lower() == 'true'
+    )
+
     # Redis / RQ task queue
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 

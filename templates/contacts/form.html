@@ -239,7 +239,7 @@
                                 <i class="fas fa-users text-white text-sm"></i>
                             </div>
                             <h2 class="text-lg font-semibold text-slate-800">Groups</h2>
-                            <span class="text-sm text-slate-500">(Select at least one)</span>
+                            <span class="text-sm text-slate-500">(Optional)</span>
                         </div>
                         <div class="bg-slate-50/50 rounded-xl p-6 border border-slate-100">
                             <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -474,33 +474,6 @@
             e.target.value = formattedNumber;
         });
 
-        // Form validation
-        form.addEventListener('submit', function(e) {
-            const groupCheckboxes = document.querySelectorAll('input[name="group_ids"]');
-            const isAnyGroupSelected = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
-
-            if (!isAnyGroupSelected) {
-                e.preventDefault();
-                // Show toast with fade in
-                toastMessage.classList.remove('hidden');
-                // Force a reflow to ensure the transition works
-                toastMessage.offsetHeight;
-                toastMessage.classList.add('opacity-100');
-                
-                // Start fade out after 2.5 seconds
-                setTimeout(() => {
-                    toastMessage.classList.remove('opacity-100');
-                    // Hide the element after fade out completes
-                    setTimeout(() => {
-                        toastMessage.classList.add('hidden');
-                    }, 300);
-                }, 2500);
-
-                // Scroll to groups section
-                const groupsSection = document.querySelector('.groups-section');
-                groupsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        });
     });
 </script>
 {% endblock %}

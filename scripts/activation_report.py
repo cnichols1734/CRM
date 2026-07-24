@@ -3,8 +3,9 @@
 
 Read-only. Answers the questions we couldn't before:
   - How many orgs signed up?
-  - What share ever added a contact (activation rate)?
-  - How long does the first contact take?
+  - What share created a contact + follow-up within 24 hours?
+  - How long does activation take?
+  - What share returns for meaningful work during days 2-7?
   - How many used the dashboard quick-add?
 
 Usage:
@@ -53,12 +54,14 @@ def main():
     print("  NEW-USER ACTIVATION FUNNEL")
     print("=" * 48)
     print(f"  Signups (orgs)            : {total}")
-    print(f"  Added >=1 contact         : {activated}")
-    print(f"  Activation rate           : {rate:.1f}%")
+    print(f"  Activated within 24h      : {activated}")
+    print(f"  24h activation rate       : {rate:.1f}%")
+    print(f"  D2-D7 return rate         : {s['d7_return_rate'] * 100:.1f}%")
     print(f"  Used dashboard quick-add  : {s['quick_add_orgs']}")
     print("-" * 48)
     print(f"  Median time to 1st contact: {_fmt_duration(s['median_seconds_to_first_contact'])}")
-    print(f"  Avg time to 1st contact   : {_fmt_duration(s['avg_seconds_to_first_contact'])}")
+    print(f"  Median time to activation : {_fmt_duration(s['median_seconds_to_activation'])}")
+    print(f"  Largest stalled stage     : {s['stalled_stage']} ({s['stalled_count']})")
     print("=" * 48)
     if total == 0:
         print("  (No activation events recorded yet.)")

@@ -6,6 +6,7 @@ import GroupsPageController from "./controllers/groups_page_controller";
 import DailyBriefingController from "./controllers/daily_briefing_controller";
 import DailyBriefingBannerController from "./controllers/daily_briefing_banner_controller";
 import BriefingChatController from "./controllers/briefing_chat_controller";
+import "./analytics";
 import "./styles/app.css";
 
 const application = Application.start();

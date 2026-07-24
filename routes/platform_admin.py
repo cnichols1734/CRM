@@ -152,7 +152,10 @@ def dashboard():
         ).all()
         for owner in owners:
             org_owners[owner.organization_id] = owner.email
-    
+
+    from services.activation_service import funnel_summary
+    activation = funnel_summary()
+
     return render_template('platform_admin/dashboard.html',
         # Origen stats
         origen_stats=origen_stats,
@@ -174,7 +177,8 @@ def dashboard():
         include_origen=include_origen,
         # Org list
         orgs=orgs,
-        org_owners=org_owners
+        org_owners=org_owners,
+        activation=activation,
     )
 
 

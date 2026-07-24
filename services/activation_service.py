@@ -15,13 +15,15 @@ from __future__ import annotations
 
 import logging
 
+from datetime import datetime, timedelta
+
 from models import db, ActivationEvent
 
 logger = logging.getLogger(__name__)
 
 
 def record_event(event, *, user=None, organization_id=None, user_id=None,
-                 data=None, commit=True):
+                 data=None, commit=True, once=False):
     """Append an activation event. Never raises.
 
     Pass either a ``user`` (org/user ids are pulled from it) or explicit
@@ -32,6 +34,15 @@ def record_event(event, *, user=None, organization_id=None, user_id=None,
             organization_id = organization_id or getattr(user, 'organization_id', None)
             user_id = user_id or getattr(user, 'id', None)
 
+        if once:
+            existing = ActivationEvent.query.filter_by(
+                event=event,
+                organization_id=organization_id,
+                user_id=user_id,
+            ).first()
+            if existing is not None:
+                return existing
+
         entry = ActivationEvent(
             event=event,
             organization_id=organization_id,
@@ -41,6 +52,18 @@ def record_event(event, *, user=None, organization_id=None, user_id=None,
         db.session.add(entry)
         if commit:
             db.session.commit()
+
+        try:
+            from services.product_analytics import capture
+            capture(
+                event,
+                user=user,
+                user_id=user_id,
+                organization_id=organization_id,
+                properties=data,
+            )
+        except Exception:
+            logger.exception('PostHog mirror failed for activation event %s', event)
         return entry
     except Exception:
         logger.exception('Failed to record activation event %s (org=%s user=%s)',
@@ -50,6 +73,23 @@ def record_event(event, *, user=None, organization_id=None, user_id=None,
         except Exception:
             pass
         return None
+
+
+def record_daily_session(user):
+    """Record at most one authenticated session event per user per UTC day."""
+    today = datetime.utcnow().date()
+    existing = ActivationEvent.query.filter(
+        ActivationEvent.event == ActivationEvent.SESSION_STARTED,
+        ActivationEvent.user_id == user.id,
+        ActivationEvent.created_at >= datetime.combine(today, datetime.min.time()),
+    ).first()
+    if existing is not None:
+        return existing
+    return record_event(
+        ActivationEvent.SESSION_STARTED,
+        user=user,
+        data={'day': today.isoformat()},
+    )
 
 
 def funnel_summary():
@@ -79,18 +119,75 @@ def funnel_summary():
     )
     first_contact_at = {org_id: ts for org_id, ts in first_contacts if org_id is not None}
 
+    first_activations = (
+        db.session.query(ActivationEvent.organization_id,
+                         func.min(ActivationEvent.created_at))
+        .filter(ActivationEvent.event == ActivationEvent.ACTIVATION_COMPLETED)
+        .group_by(ActivationEvent.organization_id)
+        .all()
+    )
+    activation_at = {
+        org_id: ts for org_id, ts in first_activations if org_id is not None
+    }
     quick_add_orgs = _quick_add_orgs_portable()
 
     total_signups = len(signup_at)
-    activated = [org for org in signup_at if org in first_contact_at]
+    activated = [
+        org_id for org_id, ts in activation_at.items()
+        if org_id in signup_at
+        and timedelta(0) <= ts - signup_at[org_id] <= timedelta(hours=24)
+    ]
 
     times_to_first = []
     for org in activated:
+        if org not in first_contact_at:
+            continue
         delta = first_contact_at[org] - signup_at[org]
         secs = delta.total_seconds()
         if secs >= 0:
             times_to_first.append(secs)
     times_to_first.sort()
+    times_to_activation = [
+        (activation_at[org_id] - signup_at[org_id]).total_seconds()
+        for org_id in activated
+    ]
+    times_to_activation.sort()
+
+    returned_d2_d7 = set()
+    session_rows = ActivationEvent.query.filter_by(
+        event=ActivationEvent.SESSION_STARTED
+    ).all()
+    for event in session_rows:
+        signup = signup_at.get(event.organization_id)
+        if signup and timedelta(days=1) <= event.created_at - signup < timedelta(days=8):
+            returned_d2_d7.add(event.organization_id)
+
+    stage_order = [
+        (ActivationEvent.FOLLOW_UP_CREATED, 'follow-up'),
+        (ActivationEvent.CONTACT_CREATED, 'contact'),
+        (ActivationEvent.ACTIVATION_PATH_SELECTED, 'path selection'),
+        (ActivationEvent.DASHBOARD_VIEWED, 'dashboard'),
+        (ActivationEvent.ACCOUNT_CREATED, 'signup'),
+    ]
+    stalled_counts = {}
+    all_events = {}
+    for org_id, event_name in db.session.query(
+        ActivationEvent.organization_id, ActivationEvent.event
+    ).filter(ActivationEvent.organization_id.in_(signup_at.keys())).all():
+        all_events.setdefault(org_id, set()).add(event_name)
+    for org_id in signup_at:
+        if org_id in activated:
+            continue
+        names = all_events.get(org_id, set())
+        stage = next(
+            (label for event_name, label in stage_order if event_name in names),
+            'signup',
+        )
+        stalled_counts[stage] = stalled_counts.get(stage, 0) + 1
+    stalled_stage, stalled_count = (
+        max(stalled_counts.items(), key=lambda item: item[1])
+        if stalled_counts else ('none', 0)
+    )
 
     def _median(values):
         if not values:
@@ -108,6 +205,13 @@ def funnel_summary():
         'median_seconds_to_first_contact': _median(times_to_first),
         'avg_seconds_to_first_contact': (sum(times_to_first) / len(times_to_first))
                                         if times_to_first else None,
+        'median_seconds_to_activation': _median(times_to_activation),
+        'd7_returned': len(returned_d2_d7),
+        'd7_return_rate': (
+            len(returned_d2_d7) / total_signups if total_signups else 0.0
+        ),
+        'stalled_stage': stalled_stage,
+        'stalled_count': stalled_count,
     }
 
 

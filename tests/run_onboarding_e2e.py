@@ -344,32 +344,32 @@ class OnboardingJourney:
         assert "Dashboard" in body, "Dashboard heading not found after signup"
 
     def step_dashboard_empty_state(self):
-        # Brand-new account: dashboard should load cleanly with zero contacts
-        # and surface the quick-add form (the new activation feature).
+        # Free-tier, transaction-disabled accounts get one focused workspace.
         self.page.goto(f"{self.base_url}/dashboard")
         self.page.wait_for_load_state("networkidle")
         body = self._body_text()
-        assert "Dashboard" in body, "Dashboard did not render for new user"
-        assert self.page.locator("#quick-add-form").count() > 0, (
-            "Dashboard quick-add form is missing for a brand-new user"
+        assert "How do you want to start?" in body
+        assert "transaction pipeline" not in body.lower()
+        assert self.page.locator("#welcomeOverlay").count() == 0, (
+            "Blocking welcome overlay still renders for a brand-new user"
         )
 
     def step_dashboard_quick_add(self):
-        # Use the 10-second quick-add to create the very first contact.
+        # Complete contact + dated follow-up without leaving the dashboard.
         self.page.goto(f"{self.base_url}/dashboard")
         self.page.wait_for_load_state("networkidle")
-        self.dismiss_welcome_overlay()
-        self.dismiss_ai_chat_panel()
-        self.page.wait_for_selector("#quick-add-name", state="visible")
+        self.page.click('[data-analytics-path="manual"]')
+        self.page.wait_for_selector("#activation-name", state="visible")
+        self.page.fill("#activation-name", self.quick_add_name)
+        self.page.fill("#activation-phone", "5125550199")
+        self.page.get_by_role("button", name="Choose a follow-up day").click()
+        self.page.locator('input[name="follow_up"][value="tomorrow"]').check()
+        self.page.click("#activation-submit")
 
-        self.page.fill("#quick-add-name", self.quick_add_name)
-        self.page.fill("#quick-add-phone", "5125550199")
-        self.page.click("#quick-add-submit")
-
-        # Inline success confirmation appears without a full page reload.
-        result = self.page.locator("#quick-add-result")
-        expect(result).to_contain_text("Added", timeout=10000)
-        expect(result).to_contain_text(self.quick_add_name, timeout=10000)
+        success = self.page.locator('[data-dashboard-page-target="activationSuccess"]')
+        expect(success).to_contain_text("Your next follow-up", timeout=10000)
+        expect(success).to_contain_text(self.quick_add_name, timeout=10000)
+        expect(success).to_contain_text("Due", timeout=10000)
 
         # And it really persisted.
         self.page.goto(f"{self.base_url}/contacts?q={self.quick_add_last}")
@@ -393,12 +393,9 @@ class OnboardingJourney:
         self.page.fill("#state", "TX")
         self.page.fill("#zip_code", "78701")
 
-        # At least one group is required (seeded automatically at signup).
+        # Groups are available but optional during activation and later entry.
         groups = self.page.locator('input[name="group_ids"]')
         assert groups.count() > 0, "No contact groups were seeded for the new org"
-        self.dismiss_ai_chat_panel()
-        groups.first.check(force=True)
-        assert groups.first.is_checked(), "Group checkbox did not check"
 
         self.dismiss_ai_chat_panel()
         self.page.click('form button[type="submit"]')
@@ -495,6 +492,12 @@ class OnboardingJourney:
         self.page.wait_for_load_state("networkidle")
         assert self.contact_last in self._body_text(), (
             "Contact did not persist across logout/login"
+        )
+        self.page.goto(f"{self.base_url}/dashboard")
+        self.page.wait_for_load_state("networkidle")
+        body = self._body_text()
+        assert self.quick_add_last in body, (
+            "Activation follow-up did not persist across logout/login"
         )
 
     # ---- runner -------------------------------------------------------------
