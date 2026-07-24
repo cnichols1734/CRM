@@ -168,3 +168,4 @@ node_modules/
 
 # Tax data (large reference files, imported via scripts/import_tax_data.py)
 tax_data/
+tmp/

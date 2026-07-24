@@ -37,6 +37,7 @@ UNDO_TOKEN_MAX_AGE = 24 * 3600  # 24h, per the plan
 DEFAULT_ACCOUNT_WELCOME_TEMPLATE_ID = 'd-8ca289d2b7fa4778a8c4b3d10992aab5'
 DEFAULT_WELCOME_TEMPLATE_ID = 'd-d89070c074554464a728867471e173e1'
 DEFAULT_RECEIPT_TEMPLATE_ID = 'd-f3ef49fcfb80406ab22ec2d0bf87c0e7'
+DEFAULT_ACTIVATION_LIFECYCLE_TEMPLATE_ID = 'd-9f6eaf6cb88340e2b6cdfcf6375b68ca'
 
 
 def _env_value(name: str) -> str | None:
@@ -64,6 +65,11 @@ def _account_welcome_template_id() -> str:
 def _receipt_template_id() -> str:
     return (_env_value('SENDGRID_INBOX_RECEIPT_TEMPLATE_ID')
             or DEFAULT_RECEIPT_TEMPLATE_ID)
+
+
+def _activation_lifecycle_template_id() -> str:
+    return (_env_value('SENDGRID_ACTIVATION_LIFECYCLE_TEMPLATE_ID')
+            or DEFAULT_ACTIVATION_LIFECYCLE_TEMPLATE_ID)
 
 
 def _sendgrid_api_key() -> str | None:
@@ -229,7 +235,8 @@ def _send_html(to_email: str, subject: str, html: str,
 
 def _send_template(to_email: str, template_id: str, data: dict,
                    *, subject: str | None = None,
-                   reply_to: str | None = None) -> bool:
+                   reply_to: str | None = None,
+                   custom_args: dict | None = None) -> bool:
     """Send a SendGrid Dynamic Template with dynamic_template_data."""
     api_key = _sendgrid_api_key()
     if not api_key:
@@ -248,6 +255,15 @@ def _send_template(to_email: str, template_id: str, data: dict,
         message.dynamic_template_data = data
         if reply_to:
             message.reply_to = Email(reply_to)
+        if custom_args:
+            try:
+                from sendgrid.helpers.mail import CustomArg
+                for key, value in custom_args.items():
+                    if value is None:
+                        continue
+                    message.add_custom_arg(CustomArg(str(key), str(value)))
+            except Exception:
+                logger.exception('Failed to attach SendGrid custom args')
         response = SendGridAPIClient(api_key).send(message)
         ok = response.status_code in (200, 201, 202)
         if not ok:
@@ -578,42 +594,65 @@ def send_account_welcome(user) -> bool:
 
 
 def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
-    """Send one of the capped self-serve activation reminders."""
+    """Send one of the capped self-serve activation reminders.
+
+    Uses the branded SendGrid Dynamic Template that matches OGT Welcome /
+    Magic Inbox email design. Falls back to the same HTML shell if the
+    template send fails.
+    """
     if not user or not user.email:
         return False
 
+    # (subject, eyebrow, hero_title, hero_emphasis, hero_body, body, cta, footer)
     messages = {
         'no_contact_2h': (
-            'One useful contact is enough to start',
-            'Add someone you already need to follow up with. Pick the day and '
-            'Origen will put the next action on your dashboard.',
-            'Add my first follow-up',
+            'Add one contact to get started',
+            'First step',
+            'Add one contact.',
+            'Pick the follow-up day.',
+            'Someone you already need to call or email. Origen puts the next '
+            'action on your dashboard.',
+            'Your account is ready. Start with one real person. You can import '
+            'the rest later.',
+            'Add a contact',
+            'One contact and a date is enough to get going.',
         ),
         'no_follow_up_24h': (
-            'Put your next contact on the calendar',
-            'Your contact is saved. Add a dated follow-up so the CRM can bring '
-            'the relationship back to you at the right time.',
-            'Schedule the follow-up',
+            'Schedule your next follow-up',
+            'Next step',
+            'Contact is saved.',
+            'Add a follow-up date.',
+            'Put a date on it so Origen can bring it back when you need it.',
+            'You have a contact in. A dated follow-up is the next step.',
+            'Schedule follow-up',
+            'Once that date is set, setup is done.',
         ),
         'stalled_3d': (
-            'What got in the way?',
-            'You should not have to wrestle with a new CRM. Tell us where setup '
-            'stopped and we will use the answer to make it less annoying.',
-            'Tell us what stopped me',
+            'Stuck on setup?',
+            'Quick check',
+            'Where did',
+            'things stall?',
+            'Tap a reason below, or open Origen and finish your first follow-up.',
+            'If setup got messy, tell us what happened. Or jump back in and add '
+            'a dated follow-up.',
+            'Open my dashboard',
+            'One tap is enough. We read these.',
         ),
     }
     if stage not in messages:
         return False
-    subject, body, action = messages[stage]
+    (
+        subject, eyebrow, hero_title, hero_emphasis, hero_body,
+        body, action, footer_note,
+    ) = messages[stage]
 
-    reason_links = ''
+    reasons = []
     if stage == 'stalled_3d':
         try:
             from flask import current_app
             from services.retention_tokens import (
                 CHURN_REASON_LABELS, make_churn_reason_token,
             )
-            links = []
             for reason, label in CHURN_REASON_LABELS.items():
                 token = make_churn_reason_token(
                     current_app,
@@ -621,39 +660,84 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
                     reason=reason,
                     stage=stage,
                 )
-                url = _safe_url('main.churn_reason', token=token)
-                links.append(
-                    f'<li style="margin:0 0 8px">'
-                    f'<a href="{_html(url)}" style="color:#ea580c">'
-                    f'{_html(label)}</a></li>'
-                )
-            reason_links = (
-                '<ul style="margin:20px 0 0;padding-left:18px;color:#334155;'
-                f'font-size:14px">{"".join(links)}</ul>'
-            )
+                reasons.append({
+                    'label': label,
+                    'url': _safe_url('main.churn_reason', token=token),
+                })
         except Exception:
             logger.exception('Failed to build churn reason links')
 
-    html = _wrap_html(
-        title=subject,
-        body=f"""
-            <h1 style="margin:0 0 12px;font-size:21px;color:#0f172a">{_html(subject)}</h1>
-            <p style="margin:0;color:#475569;font-size:15px">{_html(body)}</p>
-            <p style="margin:24px 0 0">
-                <a class="btn-primary" href="{_html(action_url)}">{_html(action)}</a>
-            </p>
-            {reason_links}
-        """,
+    first_name = (
+        (getattr(user, 'first_name', None) or '').strip()
+        or (user.email or 'there').split('@')[0]
+    )
+    template_data = {
+        'subject': subject,
+        'preheader': hero_body,
+        'header_label': 'Activation',
+        'eyebrow': eyebrow,
+        'hero_title': hero_title,
+        'hero_emphasis': hero_emphasis,
+        'hero_body': hero_body,
+        'first_name': first_name,
+        'body_text': body,
+        'cta_url': action_url,
+        'cta_label': action,
+        'has_reasons': bool(reasons),
+        'reasons': reasons,
+        'footer_note': footer_note,
+        'year': str(datetime.utcnow().year),
+    }
+    custom_args = {
+        'crm_user_id': str(user.id),
+        'crm_campaign': 'lifecycle',
+        'crm_stage': stage,
+    }
+    if _send_template(
+        user.email,
+        _activation_lifecycle_template_id(),
+        template_data,
+        subject=subject,
+        custom_args=custom_args,
+    ):
+        return True
+
+    # Branded HTML fallback if the Dynamic Template send fails.
+    reason_links = ''
+    if reasons:
+        items = ''.join(
+            f'<p style="margin:0 0 10px 0;font-family:\'DM Sans\',sans-serif;'
+            f'font-size:14px;line-height:1.5">'
+            f'<a href="{_html(r["url"])}" style="color:#ea580c;'
+            f'text-decoration:none;font-weight:600">{_html(r["label"])}</a></p>'
+            for r in reasons
+        )
+        reason_links = f"""
+          <tr><td style="padding:36px 48px 8px;background:#ffffff;">
+            <p style="margin:0 0 14px 0;font-family:'DM Sans',sans-serif;
+               font-size:11px;font-weight:700;color:#627d98;letter-spacing:1.6px;
+               text-transform:uppercase;">What blocked you</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
+                   style="background:#f8fafc;border:1px solid #dbe4ee;border-radius:12px;">
+              <tr><td style="padding:18px 20px;">{items}</td></tr>
+            </table>
+          </td></tr>
+        """
+    html = _lifecycle_branded_html(
+        subject=subject,
+        eyebrow=eyebrow,
+        hero_title=hero_title,
+        hero_emphasis=hero_emphasis,
+        hero_body=hero_body,
+        first_name=first_name,
+        body_text=body,
+        cta_url=action_url,
+        cta_label=action,
+        reason_block=reason_links,
+        footer_note=footer_note,
     )
     return _send_html(
-        user.email,
-        subject,
-        html,
-        custom_args={
-            'crm_user_id': str(user.id),
-            'crm_campaign': 'lifecycle',
-            'crm_stage': stage,
-        },
+        user.email, subject, html, custom_args=custom_args,
     )
 
 
@@ -787,6 +871,66 @@ def send_over_limit_notice(user, *, reason: str) -> bool:
 # ---------------------------------------------------------------------------
 # HTML scaffolding
 # ---------------------------------------------------------------------------
+
+def _lifecycle_branded_html(
+    *, subject: str, eyebrow: str, hero_title: str, hero_emphasis: str,
+    hero_body: str, first_name: str, body_text: str, cta_url: str,
+    cta_label: str, reason_block: str, footer_note: str,
+) -> str:
+    """Fallback shell matching the OGT Welcome / lifecycle Dynamic Template."""
+    year = datetime.utcnow().year
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{_html(subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#f0f4f8;font-family:'DM Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f0f4f8;">
+<tr><td align="center" style="padding:40px 16px;">
+<table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 4px 32px rgba(16,42,67,0.08);">
+  <tr><td style="padding:22px 32px;background:#ffffff;border-bottom:1px solid #eef2f7;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+      <td style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;">
+        <span style="color:#102a43;">Origen Technol</span><span style="color:#f97316;">OG</span>
+      </td>
+      <td align="right" style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:1.2px;text-transform:uppercase;">Activation</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background:linear-gradient(160deg,#0b1b2b 0%,#102a43 55%,#1a3a5c 100%);padding:56px 48px 52px;">
+    <p style="margin:0 0 18px 0;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:700;color:#f97316;letter-spacing:2.4px;text-transform:uppercase;">{_html(eyebrow)}</p>
+    <h1 style="margin:0 0 18px 0;font-family:'Fraunces','DM Sans',serif;font-size:42px;line-height:1.08;font-weight:500;color:#f8fafc;letter-spacing:-0.5px;">
+      {_html(hero_title)}<br>
+      <em style="font-style:italic;color:#f97316;font-weight:500;">{_html(hero_emphasis)}</em>
+    </h1>
+    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:16px;line-height:1.6;color:#a8c3df;max-width:448px;">{_html(hero_body)}</p>
+  </td></tr>
+  <tr><td style="padding:36px 48px 8px;background:#ffffff;">
+    <p style="margin:0 0 16px 0;font-family:'DM Sans',sans-serif;font-size:16px;color:#334e68;line-height:1.65;">Hi {_html(first_name)},</p>
+    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:15px;color:#334e68;line-height:1.7;">{_html(body_text)}</p>
+  </td></tr>
+  <tr><td style="padding:28px 48px 8px;background:#ffffff;">
+    <a href="{_html(cta_url)}" style="display:block;text-align:center;font-family:'DM Sans',sans-serif;background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);color:#ffffff;font-size:15px;font-weight:600;text-decoration:none;padding:15px 16px;border-radius:10px;box-shadow:0 8px 22px rgba(249,115,22,0.32);">{_html(cta_label)}</a>
+  </td></tr>
+  {reason_block}
+  <tr><td style="padding:28px 48px 40px;background:#ffffff;">
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+      <td style="border-top:1px dashed #cbd5e1;padding-top:22px;">
+        <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:13.5px;color:#627d98;line-height:1.7;">{_html(footer_note)}</p>
+      </td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="background:#f8fafc;border-top:1px solid #e8eff5;padding:28px 40px;text-align:center;">
+    <p style="margin:0 0 6px 0;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;">
+      <span style="color:#334e68;">Origen Technol</span><span style="color:#f97316;">OG</span>
+    </p>
+    <p style="margin:0 0 14px 0;font-family:'DM Sans',sans-serif;font-size:12px;color:#829ab1;">The Real Estate CRM Built for Serious Agents</p>
+    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:11px;color:#9fb3c8;">&copy; {year} Origen TechnolOG. All rights reserved.</p>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>"""
+
 
 def _wrap_html(title: str, body: str) -> str:
     """Minimal email shell. Inline styles only; no external CSS."""
