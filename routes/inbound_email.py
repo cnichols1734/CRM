@@ -32,7 +32,8 @@ from markupsafe import Markup
 from sqlalchemy import text
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from models import Contact, InboundMessage, User, db
+from models import ActivationEvent, Contact, InboundMessage, User, db
+from services.activation_service import record_event
 from services.contact_extraction import process_inbound
 from services.inbound_payload import normalize_sendgrid_payload
 from services.inbox_provisioning import (
@@ -154,7 +155,18 @@ def sendgrid_inbound_parse():
         message.source_kind = bundle.source_kind
         db.session.commit()
 
-        process_inbound(user, message, bundle)
+        outcome = process_inbound(user, message, bundle)
+        created_count = len(outcome.get('created_contacts') or [])
+        if created_count:
+            record_event(
+                ActivationEvent.CONTACT_CREATED,
+                user=user,
+                data={
+                    'method': 'magic_inbox',
+                    'contact_count': created_count,
+                    'source_kind': bundle.source_kind,
+                },
+            )
         return ('ok', 200)
 
     except RequestEntityTooLarge:

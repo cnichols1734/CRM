@@ -66,13 +66,14 @@
 
 {% block content %}
 {% set total_deals = transactions_by_status.values()|map(attribute='count')|sum if show_transactions else 0 %}
-{% set is_first_run = total_contacts == 0 and total_deals == 0 and upcoming_tasks|length == 0 %}
+{% set is_first_run = activation_state.mode == 'start' %}
 {% set _hour = now.hour if now is defined else 12 %}
 {% set greeting = 'Good morning' if _hour < 12 else ('Good afternoon' if _hour < 18 else 'Good evening') %}
 {% set first_name = current_user.first_name if current_user.is_authenticated else '' %}
 
 <div class="crm-page"
      data-controller="dashboard-page"
+     data-dashboard-page-quick-add-url-value="{{ url_for('contacts.quick_add_contact') }}"
      data-dashboard-page-group-stats-value='{{ group_stats|tojson|safe }}'>
     <div class="crm-page__inner">
         {% set _greeting_html = greeting ~ (', <em>' ~ first_name ~ '</em>' if first_name else '') %}
@@ -377,147 +378,209 @@
         </section>
         {% endif %}
 
-        {% if is_first_run %}
-        <div class="crm-surface mb-6" {% if not current_user.has_seen_dashboard_onboarding %}data-dashboard-page-target="onboarding"{% endif %}>
+        {% if request.args.get('friction') == '1' and activation_state.mode != 'complete' %}
+        <section class="crm-surface mb-6">
             <div class="crm-surface-body">
-                <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                    <div class="w-full max-w-2xl">
-                        <div class="crm-section-kicker">Get Started</div>
-                        <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Add your first contact.</h2>
-                        <p class="mt-2 text-sm text-slate-500">Takes about ten seconds &mdash; just a name. Everything else on this dashboard fills in from here.</p>
-
-                        <form id="quick-add-form" autocomplete="off" class="mt-5 flex flex-col gap-2 sm:flex-row sm:items-center">
-                            <input id="quick-add-name" name="name" type="text" required
-                                   class="crm-input flex-1" placeholder="Contact name" aria-label="Contact name">
-                            <input id="quick-add-phone" name="phone" type="text" inputmode="tel"
-                                   class="crm-input flex-1" placeholder="Phone (optional)" aria-label="Phone number">
-                            <button type="submit" id="quick-add-submit" class="crm-btn crm-btn-accent shrink-0">
-                                <i class="fas fa-user-plus text-xs"></i>
-                                Add contact
-                            </button>
-                        </form>
-                        <div id="quick-add-result" class="mt-3 text-sm" role="status" aria-live="polite"></div>
-
-                        <div class="mt-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
-                            <a href="{{ url_for('main.contacts') }}" class="inline-flex items-center gap-1.5 font-medium text-slate-500 transition-colors hover:text-orange-600">
-                                <i class="fas fa-file-import text-xs"></i>
-                                <span>Import a list</span>
-                            </a>
-                            <span class="text-slate-300" aria-hidden="true">&middot;</span>
-                            <a href="{{ url_for('contacts.create_contact') }}" class="inline-flex items-center gap-1.5 font-medium text-slate-500 transition-colors hover:text-orange-600">
-                                <i class="fas fa-sliders-h text-xs"></i>
-                                <span>Add with full details</span>
-                            </a>
-                        </div>
-                    </div>
-                    {% if not current_user.has_seen_dashboard_onboarding %}
-                    <button type="button"
-                            class="crm-btn crm-btn-subtle shrink-0"
-                            data-action="dashboard-page#dismissOnboarding">
-                        Dismiss
-                    </button>
-                    {% endif %}
-                </div>
-
-                <div class="mt-6 grid gap-4 md:grid-cols-3">
-                    <div class="crm-surface-muted p-4">
-                        <div class="crm-icon-block">
-                            <i class="fas fa-address-book text-sm"></i>
-                        </div>
-                        <h3 class="mt-4 text-sm font-semibold text-slate-900">1. Build the database</h3>
-                        <p class="mt-2 text-sm text-slate-500">Import your sphere or add a contact.</p>
-                    </div>
-                    {% if show_transactions %}
-                    <div class="crm-surface-muted p-4">
-                        <div class="crm-icon-block">
-                            <i class="fas fa-file-contract text-sm"></i>
-                        </div>
-                        <h3 class="mt-4 text-sm font-semibold text-slate-900">2. Track active deals</h3>
-                        <p class="mt-2 text-sm text-slate-500">Add a transaction to track live deals.</p>
-                    </div>
-                    {% else %}
-                    <div class="crm-surface-muted p-4">
-                        <div class="crm-icon-block">
-                            <i class="fas fa-user-check text-sm"></i>
-                        </div>
-                        <h3 class="mt-4 text-sm font-semibold text-slate-900">2. Keep follow-up tight</h3>
-                        <p class="mt-2 text-sm text-slate-500">Use tasks to keep follow-up tight.</p>
-                    </div>
-                    {% endif %}
-                    <div class="crm-surface-muted p-4">
-                        <div class="crm-icon-block">
-                            <i class="fas fa-tasks text-sm"></i>
-                        </div>
-                        <h3 class="mt-4 text-sm font-semibold text-slate-900">3. Work your next action</h3>
-                        <p class="mt-2 text-sm text-slate-500">Tasks and top contacts surface here.</p>
-                    </div>
+                <div class="max-w-2xl">
+                    <div class="crm-section-kicker">One quick question</div>
+                    <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">What stopped you from finishing setup?</h2>
+                    <form action="{{ url_for('main.activation_friction') }}" method="post" class="mt-4 flex flex-wrap gap-2">
+                        {% for value, label in [('no_time', 'I ran out of time'), ('unclear_value', 'I wasn’t sure what I’d get'), ('import_problem', 'My contacts were hard to import'), ('too_much_setup', 'It felt like too much setup'), ('other', 'Something else')] %}
+                        <button type="submit" name="reason" value="{{ value }}" class="crm-btn crm-btn-secondary">{{ label }}</button>
+                        {% endfor %}
+                    </form>
                 </div>
             </div>
-        </div>
-        <script>
-        (function () {
-            const form = document.getElementById('quick-add-form');
-            if (!form) return;
-            const nameInput = document.getElementById('quick-add-name');
-            const phoneInput = document.getElementById('quick-add-phone');
-            const submitBtn = document.getElementById('quick-add-submit');
-            const result = document.getElementById('quick-add-result');
-            const endpoint = {{ url_for('contacts.quick_add_contact')|tojson }};
+        </section>
+        {% endif %}
 
-            function escapeHtml(s) {
-                return String(s).replace(/[&<>"']/g, function (c) {
-                    return ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c];
-                });
-            }
+        {% if is_first_run %}
+        <section class="crm-surface mb-6 overflow-hidden" data-dashboard-page-target="activationWorkspace">
+            <div class="border-b border-slate-200 bg-slate-950 px-5 py-6 text-slate-50 sm:px-8 sm:py-8">
+                <div class="max-w-2xl">
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-300">Your first follow-up</div>
+                    <h2 class="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Put one real relationship on the calendar.</h2>
+                    <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Choose how your contacts live today. We’ll get one person and one next action ready before you leave this page.</p>
+                </div>
+            </div>
 
-            form.addEventListener('submit', async function (e) {
-                e.preventDefault();
-                const name = (nameInput.value || '').trim();
-                if (!name) { nameInput.focus(); return; }
+            <div class="crm-surface-body" data-dashboard-page-target="pathChooser">
+                <h3 class="text-base font-semibold text-slate-950">How do you want to start?</h3>
+                <div class="mt-4 grid gap-3 lg:grid-cols-[1.35fr_1fr_1fr]">
+                    <button type="button"
+                            class="group rounded-md border border-orange-300 bg-orange-50 p-4 text-left transition-colors hover:border-orange-500 hover:bg-orange-100"
+                            data-action="dashboard-page#selectContactPath"
+                            data-analytics-event="activation_path_selected"
+                            data-analytics-path="manual"
+                            data-analytics-surface="dashboard">
+                        <span class="flex items-center justify-between gap-4">
+                            <span class="flex h-9 w-9 items-center justify-center rounded-md bg-orange-600 text-white"><i class="fas fa-user-plus text-sm"></i></span>
+                            <i class="fas fa-arrow-right text-xs text-orange-600 transition-transform group-hover:translate-x-0.5"></i>
+                        </span>
+                        <span class="mt-4 block text-sm font-semibold text-slate-950">Add someone I need to follow up with</span>
+                        <span class="mt-1 block text-xs leading-5 text-slate-600">Name them, then pick the day.</span>
+                    </button>
 
-                const original = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = 'Adding\u2026';
-                result.className = 'mt-3 text-sm text-slate-500';
-                result.textContent = '';
+                    <a href="{{ url_for('main.contacts', import='1') }}"
+                       class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
+                       data-action="click->dashboard-page#recordImportPath"
+                       data-analytics-event="activation_path_selected"
+                       data-analytics-path="csv_import"
+                       data-analytics-surface="dashboard">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-file-import text-sm"></i></span>
+                        <span class="mt-4 block text-sm font-semibold text-slate-950">Import my contacts</span>
+                        <span class="mt-1 block text-xs leading-5 text-slate-500">Bring over a CSV list.</span>
+                    </a>
 
-                try {
-                    const body = new FormData();
-                    body.append('name', name);
-                    body.append('phone', (phoneInput.value || '').trim());
-                    const resp = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        body: body
-                    });
-                    const data = await resp.json().catch(function () { return {}; });
+                    <button type="button"
+                            class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
+                            data-action="dashboard-page#selectInboxPath"
+                            data-analytics-event="activation_path_selected"
+                            data-analytics-path="magic_inbox"
+                            data-analytics-surface="dashboard">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-paper-plane text-sm"></i></span>
+                        <span class="mt-4 block text-sm font-semibold text-slate-950">Forward a lead or business card</span>
+                        <span class="mt-1 block text-xs leading-5 text-slate-500">Use your private inbox.</span>
+                    </button>
+                </div>
+            </div>
 
-                    if (resp.ok && data.status === 'success') {
-                        const nm = (data.contact && data.contact.name) ? data.contact.name.trim() : name;
-                        result.className = 'mt-3 text-sm text-emerald-600';
-                        result.innerHTML = '<i class="fas fa-check"></i> Added <strong>' + escapeHtml(nm) + '</strong>. '
-                            + '<a class="font-medium text-orange-600 underline" href="' + data.view_url + '">Open</a>'
-                            + ' &middot; '
-                            + '<a class="font-medium text-orange-600 underline" href="' + data.contacts_url + '">View all contacts</a>';
-                        nameInput.value = '';
-                        phoneInput.value = '';
-                        nameInput.focus();
-                    } else {
-                        result.className = 'mt-3 text-sm text-red-600';
-                        result.textContent = (data && data.message) ? data.message
-                            : 'Could not add the contact. Please try again.';
-                    }
-                } catch (err) {
-                    result.className = 'mt-3 text-sm text-red-600';
-                    result.textContent = 'Network error. Please try again.';
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = original;
-                }
-            });
-        })();
-        </script>
+            <div class="hidden p-5 sm:p-8" data-dashboard-page-target="contactPath">
+                <button type="button" class="mb-5 text-xs font-medium text-slate-500 hover:text-slate-900" data-action="dashboard-page#resetActivationPath">
+                    <i class="fas fa-arrow-left mr-1"></i> Choose another way
+                </button>
+                <form id="activation-contact-form" autocomplete="off" data-action="submit->dashboard-page#createActivation">
+                    <div data-dashboard-page-target="contactStep">
+                        <div class="max-w-xl">
+                            <div class="crm-section-kicker">Step 1 of 2</div>
+                            <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">Who needs your attention?</h3>
+                            <p class="mt-1 text-sm text-slate-500">A name is enough. Add whichever contact detail you use most.</p>
+                            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                                <label class="sm:col-span-2">
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Name</span>
+                                    <input id="activation-name" name="name" type="text" required class="crm-input w-full" placeholder="Jordan Lee" data-dashboard-page-target="activationName">
+                                </label>
+                                <label>
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Phone <span class="text-slate-400">(optional)</span></span>
+                                    <input id="activation-phone" name="phone" type="tel" inputmode="tel" class="crm-input w-full" placeholder="(555) 555-0123">
+                                </label>
+                                <label>
+                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Email <span class="text-slate-400">(optional)</span></span>
+                                    <input name="email" type="email" class="crm-input w-full" placeholder="jordan@example.com">
+                                </label>
+                            </div>
+                            <button type="button" class="crm-btn crm-btn-primary mt-5" data-action="dashboard-page#showFollowUpStep">
+                                Choose a follow-up day <i class="fas fa-arrow-right text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="hidden max-w-xl" data-dashboard-page-target="followUpStep">
+                        <div class="crm-section-kicker">Step 2 of 2</div>
+                        <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">When should you follow up?</h3>
+                        <p class="mt-1 text-sm text-slate-500">We’ll put the task on your dashboard.</p>
+                        <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {% for value, label in [('today', 'Today'), ('tomorrow', 'Tomorrow'), ('week', 'In one week'), ('custom', 'Pick a date')] %}
+                            <label class="cursor-pointer">
+                                <input type="radio" name="follow_up" value="{{ value }}" class="peer sr-only" {% if value == 'tomorrow' %}checked{% endif %} data-action="dashboard-page#toggleCustomDate">
+                                <span class="flex min-h-11 items-center justify-center rounded-md border border-slate-200 px-3 py-2 text-center text-sm font-medium text-slate-700 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-800">{{ label }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <label class="mt-3 hidden" data-dashboard-page-target="customDateWrap">
+                            <span class="mb-1.5 block text-xs font-medium text-slate-700">Follow-up date</span>
+                            <input name="follow_up_date" type="date" class="crm-input w-full">
+                        </label>
+                        <div class="mt-5 flex flex-wrap items-center gap-3">
+                            <button type="button" class="crm-btn crm-btn-secondary" data-action="dashboard-page#showContactStep">Back</button>
+                            <button id="activation-submit" type="submit" class="crm-btn crm-btn-primary" data-dashboard-page-target="activationSubmit">
+                                Add contact and follow-up
+                            </button>
+                        </div>
+                        <p class="mt-3 text-sm" role="status" aria-live="polite" data-dashboard-page-target="activationResult"></p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="hidden p-5 sm:p-8" data-dashboard-page-target="inboxPath">
+                <button type="button" class="mb-5 text-xs font-medium text-slate-500 hover:text-slate-900" data-action="dashboard-page#resetActivationPath">
+                    <i class="fas fa-arrow-left mr-1"></i> Choose another way
+                </button>
+                <div class="max-w-2xl">
+                    <div class="crm-section-kicker">Magic Inbox</div>
+                    <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">Forward the lead. We’ll build the contact.</h3>
+                    {% if current_user.inbox_address %}
+                    <p class="mt-2 text-sm text-slate-500">Send a lead email, business card photo, or contact details to:</p>
+                    <div class="mt-5 flex flex-col gap-2 sm:flex-row">
+                        <code class="min-w-0 flex-1 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">{{ current_user.inbox_address }}</code>
+                        <button type="button" class="crm-btn crm-btn-secondary" data-action="dashboard-page#copyInboxAddress" data-address="{{ current_user.inbox_address }}">Copy address</button>
+                    </div>
+                    {% else %}
+                    <p class="mt-2 text-sm text-slate-500">Your private inbox is still being prepared. Add a contact here for now, and we’ll keep working on it.</p>
+                    <button type="button" class="crm-btn crm-btn-primary mt-5" data-action="dashboard-page#selectContactPath">Add someone instead</button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hidden p-5 sm:p-8" data-dashboard-page-target="activationSuccess"></div>
+        </section>
         {% else %}
+        {% if activation_state.mode == 'follow_up' %}
+        <section class="crm-surface mb-6 overflow-hidden">
+            <div class="border-b border-slate-200 bg-slate-950 px-5 py-5 text-slate-50 sm:px-7">
+                <div class="crm-section-kicker text-orange-300">One step left</div>
+                <h2 class="mt-2 text-xl font-semibold tracking-tight">Give this relationship a next date.</h2>
+                <p class="mt-1 text-sm text-slate-300">{{ activation_state.contact.first_name }} {{ activation_state.contact.last_name }} is saved. Schedule the follow-up that brings them back to your dashboard.</p>
+            </div>
+            <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+                <p class="text-sm text-slate-500">A contact without a next action is easy to forget.</p>
+                <a href="{{ url_for('tasks.create_task', contact_id=activation_state.contact.id, return_to='contact') }}"
+                   class="crm-btn crm-btn-primary"
+                   data-analytics-event="activation_follow_up_started"
+                   data-analytics-surface="dashboard">
+                    Schedule the follow-up
+                </a>
+            </div>
+        </section>
+        {% endif %}
+
+        <section class="crm-surface mb-6">
+            <div class="crm-surface-header">
+                <div>
+                    {{ section_header('Today', 'Work the next relationship, then move on.', 'Next actions') }}
+                </div>
+                <a href="{{ url_for('tasks.tasks') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">All tasks</a>
+            </div>
+            <div class="crm-surface-body">
+                {% if upcoming_tasks %}
+                <div class="divide-y divide-slate-100">
+                    {% for task in upcoming_tasks[:3] %}
+                    {% set days_until_due = (task.due_date.date() - now.date()).days %}
+                    <div class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                        <input type="checkbox"
+                               class="h-5 w-5 shrink-0 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                               data-action="change->dashboard-page#updateTaskStatus"
+                               data-task-id="{{ task.id }}">
+                        <div class="min-w-0 flex-1">
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="block truncate text-sm font-semibold text-slate-900">{{ task.subject }}</a>
+                            <div class="mt-1 text-xs text-slate-500">
+                                {% if task.contact %}{{ task.contact.first_name }} {{ task.contact.last_name }} · {% endif %}
+                                {% if days_until_due < 0 %}<span class="font-medium text-amber-700">Overdue</span>{% elif days_until_due == 0 %}<span class="font-medium text-amber-700">Due today</span>{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }} days{% endif %}
+                            </div>
+                        </div>
+                        <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-btn crm-btn-secondary">Open</a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-slate-500">Nothing is due yet. Add a follow-up while the conversation is fresh.</p>
+                    <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Schedule follow-up</a>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
         <div class="crm-kpi-grid mb-6">
             <div class="crm-kpi">
                 <div class="crm-kpi__main">
@@ -833,7 +896,4 @@
     </li>
 </template>
 
-{% if not current_user.has_seen_dashboard_onboarding %}
-{% include 'modals/dashboard_onboarding.html' %}
-{% endif %}
 {% endblock %}

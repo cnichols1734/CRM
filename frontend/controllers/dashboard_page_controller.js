@@ -1,9 +1,15 @@
 import { Controller } from "@hotwired/stimulus";
 
 export default class extends Controller {
-  static targets = ["taskWindowButton", "pipelineValue", "onboarding", "groupChart"];
+  static targets = [
+    "taskWindowButton", "pipelineValue", "onboarding", "groupChart",
+    "activationWorkspace", "pathChooser", "contactPath", "inboxPath",
+    "contactStep", "followUpStep", "activationName", "customDateWrap",
+    "activationSubmit", "activationResult", "activationSuccess"
+  ];
   static values = {
-    groupStats: Array
+    groupStats: Array,
+    quickAddUrl: String
   };
 
   connect() {
@@ -56,7 +62,12 @@ export default class extends Controller {
       });
 
       if (!response.ok) throw new Error("Unable to update task");
-      window.location.reload();
+      const data = await response.json();
+      if (completed && data.contact_id) {
+        this._showNextActionPrompt(data.contact_id);
+      } else {
+        window.location.reload();
+      }
     } catch (error) {
       console.error(error);
       event.currentTarget.checked = !completed;
@@ -79,6 +90,149 @@ export default class extends Controller {
     } catch (error) {
       console.error("Failed to dismiss dashboard onboarding", error);
     }
+  }
+
+  selectContactPath(event) {
+    event.preventDefault();
+    this._selectActivationPath("manual");
+    this.pathChooserTarget.classList.add("hidden");
+    this.inboxPathTarget.classList.add("hidden");
+    this.contactPathTarget.classList.remove("hidden");
+    window.requestAnimationFrame(() => this.activationNameTarget.focus());
+  }
+
+  selectInboxPath(event) {
+    event.preventDefault();
+    this._selectActivationPath("magic_inbox");
+    this.pathChooserTarget.classList.add("hidden");
+    this.contactPathTarget.classList.add("hidden");
+    this.inboxPathTarget.classList.remove("hidden");
+  }
+
+  recordImportPath() {
+    this._selectActivationPath("csv_import");
+  }
+
+  resetActivationPath(event) {
+    event.preventDefault();
+    this.contactPathTarget.classList.add("hidden");
+    this.inboxPathTarget.classList.add("hidden");
+    this.pathChooserTarget.classList.remove("hidden");
+    this.showContactStep(event);
+  }
+
+  showFollowUpStep(event) {
+    event.preventDefault();
+    if (!this.activationNameTarget.value.trim()) {
+      this.activationNameTarget.focus();
+      this.activationNameTarget.reportValidity();
+      return;
+    }
+    this.contactStepTarget.classList.add("hidden");
+    this.followUpStepTarget.classList.remove("hidden");
+  }
+
+  showContactStep(event) {
+    event.preventDefault();
+    this.followUpStepTarget.classList.add("hidden");
+    this.contactStepTarget.classList.remove("hidden");
+  }
+
+  toggleCustomDate(event) {
+    this.customDateWrapTarget.classList.toggle(
+      "hidden",
+      event.currentTarget.value !== "custom"
+    );
+    const dateInput = this.customDateWrapTarget.querySelector("input");
+    if (dateInput) dateInput.required = event.currentTarget.value === "custom";
+  }
+
+  async createActivation(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    if (!form.reportValidity()) return;
+
+    this.activationSubmitTarget.disabled = true;
+    this.activationSubmitTarget.textContent = "Saving…";
+    this.activationResultTarget.className = "mt-3 text-sm text-slate-500";
+    this.activationResultTarget.textContent = "";
+
+    try {
+      const response = await fetch(this.quickAddUrlValue, {
+        method: "POST",
+        headers: { "X-Requested-With": "XMLHttpRequest" },
+        body: new FormData(form)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Could not save your first follow-up.");
+      }
+
+      const contactName = data.contact?.name?.trim() || "Your contact";
+      const dueDate = data.task?.due_date || "the selected day";
+      this.contactPathTarget.classList.add("hidden");
+      this.pathChooserTarget.classList.add("hidden");
+      this.activationSuccessTarget.classList.remove("hidden");
+      this.activationSuccessTarget.innerHTML = `
+        <div class="max-w-2xl">
+          <div class="flex h-10 w-10 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
+            <i class="fas fa-check"></i>
+          </div>
+          <div class="crm-section-kicker mt-5">Your next follow-up</div>
+          <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950" data-contact-name></h3>
+          <p class="mt-2 text-sm text-slate-500">Due <strong class="text-slate-800" data-due-date></strong>. It is already on your task list.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <a class="crm-btn crm-btn-primary" href="/tasks">Open my tasks</a>
+            <a class="crm-btn crm-btn-secondary" href="${data.view_url}">Open contact</a>
+          </div>
+        </div>`;
+      this.activationSuccessTarget.querySelector("[data-contact-name]").textContent = contactName;
+      this.activationSuccessTarget.querySelector("[data-due-date]").textContent = dueDate;
+      window.crmAnalytics?.stopReplay();
+    } catch (error) {
+      this.activationResultTarget.className = "mt-3 text-sm text-red-600";
+      this.activationResultTarget.textContent = error.message || "Please try again.";
+      this.activationSubmitTarget.disabled = false;
+      this.activationSubmitTarget.textContent = "Add contact and follow-up";
+    }
+  }
+
+  async copyInboxAddress(event) {
+    const address = event.currentTarget.dataset.address;
+    if (!address) return;
+    await navigator.clipboard.writeText(address);
+    event.currentTarget.textContent = "Copied";
+  }
+
+  _selectActivationPath(path) {
+    fetch("/dashboard/activation-path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path })
+    }).catch(() => {});
+  }
+
+  _showNextActionPrompt(contactId) {
+    this.element.querySelector("[data-next-action-prompt]")?.remove();
+    const prompt = document.createElement("div");
+    prompt.dataset.nextActionPrompt = "";
+    prompt.className = "crm-surface mb-6 border-emerald-200 bg-emerald-50";
+    prompt.innerHTML = `
+      <div class="crm-surface-body flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div class="text-sm font-semibold text-emerald-900">Follow-up complete.</div>
+          <p class="mt-1 text-sm text-emerald-800">Log the next action while the conversation is fresh.</p>
+        </div>
+        <div class="flex gap-2">
+          <a class="crm-btn crm-btn-primary" href="/tasks/new?contact_id=${encodeURIComponent(contactId)}&return_to=contact">Schedule next action</a>
+          <button type="button" class="crm-btn crm-btn-secondary" data-dismiss-next-action>Not now</button>
+        </div>
+      </div>`;
+    prompt.querySelector("[data-dismiss-next-action]").addEventListener("click", () => {
+      window.location.reload();
+    });
+    this.element.querySelector(".crm-page__inner")?.prepend(prompt);
+    prompt.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   animatePipelineValue() {

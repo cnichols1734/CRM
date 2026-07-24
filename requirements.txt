@@ -18,6 +18,7 @@ email-validator==2.2.0
 openai==2.14.0
 sendgrid==6.11.0
 requests==2.32.5
+posthog==7.29.0
 
 # Google Gmail Integration
 google-auth==2.29.0

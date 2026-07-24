@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, jsonify
 from flask_login import login_required, current_user
-from models import db, Contact, ContactGroup, Task, User, Transaction, TransactionParticipant, contact_groups as contact_groups_table
+from models import db, Contact, ContactGroup, Task, User, Transaction, TransactionParticipant, ActivationEvent, contact_groups as contact_groups_table
 from feature_flags import can_access_transactions, feature_required
+from services.activation_service import record_event, record_daily_session
 from services.tenant_service import org_query, can_view_all_org_data
 from services.contact_group_service import (
     aggregate_filter_groups,
@@ -563,6 +564,21 @@ def contacts():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
+    record_daily_session(current_user)
+    lifecycle_stage = request.args.get('lifecycle')
+    if lifecycle_stage in {'no_contact_2h', 'no_follow_up_24h', 'stalled_3d'}:
+        record_event(
+            ActivationEvent.LIFECYCLE_MESSAGE_CLICKED,
+            user=current_user,
+            data={'stage': lifecycle_stage},
+            once=True,
+        )
+    record_event(
+        ActivationEvent.DASHBOARD_VIEWED,
+        user=current_user,
+        data={'surface': 'dashboard'},
+        once=True,
+    )
     view = request.args.get('view', 'my')
 
     # Multi-tenant: Use org_query and check org_role
@@ -587,6 +603,31 @@ def dashboard():
     total_contacts = stats.total
     total_commission = float(stats.total_commission)
     avg_commission = float(stats.avg_commission or 0)
+
+    first_contact = base_contact_query.order_by(Contact.created_at.asc()).first()
+    first_follow_up = None
+    if first_contact:
+        first_follow_up = org_query(Task).filter_by(
+            contact_id=first_contact.id,
+            assigned_to_id=current_user.id,
+            status='pending',
+        ).order_by(Task.due_date.asc()).first()
+
+    activation_state = {
+        'mode': (
+            'start' if not first_contact
+            else ('follow_up' if not first_follow_up else 'complete')
+        ),
+        'contact': first_contact,
+        'follow_up': first_follow_up,
+    }
+    if first_contact and first_follow_up:
+        record_event(
+            ActivationEvent.ACTIVATION_COMPLETED,
+            user=current_user,
+            data={'method': 'existing_workflow'},
+            once=True,
+        )
 
     # Get top 5 contacts by commission using SQL LIMIT (not Python sort)
     top_contacts = base_contact_query.options(
@@ -998,6 +1039,7 @@ def dashboard():
                          upcoming_tasks=upcoming_tasks,
                          task_window_days=task_window_days,
                          now=now,
+                         activation_state=activation_state,
                          show_transactions=show_transactions,
                          transactions_by_status=transactions_by_status,
                          pipeline_value=pipeline_value,
@@ -1041,6 +1083,40 @@ def dismiss_dashboard_onboarding():
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@main_bp.route('/dashboard/activation-path', methods=['POST'])
+@login_required
+def select_activation_path():
+    """Persist a privacy-safe first-session path choice."""
+    path = (request.get_json(silent=True) or {}).get('path')
+    if path not in {'manual', 'csv_import', 'magic_inbox'}:
+        return jsonify({'success': False, 'error': 'Invalid path'}), 400
+    record_event(
+        ActivationEvent.ACTIVATION_PATH_SELECTED,
+        user=current_user,
+        data={'path': path},
+        once=True,
+    )
+    return jsonify({'success': True})
+
+
+@main_bp.route('/dashboard/activation-friction', methods=['POST'])
+@login_required
+def activation_friction():
+    reason = request.form.get('reason')
+    allowed = {
+        'no_time', 'unclear_value', 'import_problem', 'too_much_setup', 'other',
+    }
+    if reason not in allowed:
+        return redirect(url_for('main.dashboard'))
+    record_event(
+        ActivationEvent.FRICTION_RESPONSE,
+        user=current_user,
+        data={'reason': reason},
+        once=True,
+    )
+    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/api/search')

@@ -1,7 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
-from models import db, Task, Contact, TaskType, TaskSubtype, User
+from models import db, Task, Contact, TaskType, TaskSubtype, User, ActivationEvent
 from services.tenant_service import org_query
+from services.activation_service import record_event
 from datetime import datetime, timezone, time
 import pytz
 from sqlalchemy.orm import joinedload
@@ -126,6 +127,23 @@ def create_task():
 
             db.session.add(task)
             db.session.commit()
+            record_event(
+                ActivationEvent.TASK_CREATED,
+                user=current_user,
+                data={'source': 'task_form', 'has_contact': bool(contact_id)},
+            )
+            record_event(
+                ActivationEvent.FOLLOW_UP_CREATED,
+                user=current_user,
+                data={'source': 'task_form'},
+                once=True,
+            )
+            record_event(
+                ActivationEvent.ACTIVATION_COMPLETED,
+                user=current_user,
+                data={'method': 'task_form'},
+                once=True,
+            )
             
             # Sync to Google Calendar (non-blocking)
             try:
@@ -239,6 +257,12 @@ def edit_task(task_id):
             task.completed_at = None
 
         db.session.commit()
+        if task.status == 'completed' and old_status != 'completed':
+            record_event(
+                ActivationEvent.TASK_COMPLETED,
+                user=current_user,
+                data={'source': 'task_edit'},
+            )
         
         # Sync to Google Calendar (non-blocking)
         try:
@@ -386,6 +410,12 @@ def quick_update_task(task_id):
             task.priority = new_priority
             
         db.session.commit()
+        if new_status == 'completed' and not was_completed:
+            record_event(
+                ActivationEvent.TASK_COMPLETED,
+                user=current_user,
+                data={'source': 'task_status'},
+            )
         
         # Sync completion status to Google Calendar (non-blocking)
         try:
@@ -412,7 +442,11 @@ def quick_update_task(task_id):
             except Exception as e:
                 logger.warning(f"Auto-checkin creation failed for task {task.id}: {e}")
         
-        return jsonify({'status': 'success'}), 200
+        return jsonify({
+            'status': 'success',
+            'contact_id': task.contact_id,
+            'completed': new_status == 'completed',
+        }), 200
         
     except Exception as e:
         db.session.rollback()

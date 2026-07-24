@@ -334,6 +334,9 @@ def quick_add_contact():
 
     name = (request.form.get('name') or '').strip()
     phone = (request.form.get('phone') or '').strip()
+    email = (request.form.get('email') or '').strip()
+    follow_up = (request.form.get('follow_up') or '').strip()
+    follow_up_date = (request.form.get('follow_up_date') or '').strip()
 
     if not name:
         return jsonify({'status': 'error', 'message': 'Enter a name to add a contact.'}), 400
@@ -344,6 +347,46 @@ def quick_add_contact():
 
     phone_value = format_phone_number(phone) or (phone[:20] if phone else None)
 
+    if follow_up:
+        today = datetime.now(pytz.timezone('America/Chicago')).date()
+        due_dates = {
+            'today': today,
+            'tomorrow': today + timedelta(days=1),
+            'week': today + timedelta(days=7),
+        }
+        if follow_up == 'custom':
+            try:
+                due_day = datetime.strptime(follow_up_date, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Choose a valid follow-up date.',
+                }), 400
+        else:
+            due_day = due_dates.get(follow_up)
+        if due_day is None:
+            return jsonify({
+                'status': 'error',
+                'message': 'Choose when you want to follow up.',
+            }), 400
+
+        task_type = TaskType.query.filter_by(
+            organization_id=current_user.organization_id,
+            name='Call',
+        ).first()
+        task_subtype = None
+        if task_type:
+            task_subtype = TaskSubtype.query.filter(
+                TaskSubtype.organization_id == current_user.organization_id,
+                TaskSubtype.task_type_id == task_type.id,
+                TaskSubtype.name.in_(['Follow-up', 'Follow Up']),
+            ).first()
+        if not task_type or not task_subtype:
+            return jsonify({
+                'status': 'error',
+                'message': 'Your follow-up options are still being prepared. Please refresh and try again.',
+            }), 409
+
     contact = Contact(
         organization_id=current_user.organization_id,
         user_id=current_user.id,
@@ -351,16 +394,57 @@ def quick_add_contact():
         first_name=first_name,
         last_name=last_name,
         phone=phone_value,
+        email=email[:120] or None,
     )
     db.session.add(contact)
+    db.session.flush()
+
+    task = None
+    if follow_up:
+        due_date = datetime.combine(due_day, time(17, 0))
+        task = Task(
+            organization_id=current_user.organization_id,
+            contact_id=contact.id,
+            assigned_to_id=current_user.id,
+            created_by_id=current_user.id,
+            type_id=task_type.id,
+            subtype_id=task_subtype.id,
+            subject='Follow up',
+            priority='medium',
+            due_date=due_date,
+        )
+        db.session.add(task)
+
     db.session.commit()
 
     record_event(ActivationEvent.CONTACT_CREATED, user=current_user,
                  data={'source': 'quick_add'})
+    if task:
+        record_event(
+            ActivationEvent.ACTIVATION_COMPLETED,
+            user=current_user,
+            data={'method': 'dashboard_quick_add'},
+            once=True,
+        )
+        record_event(
+            ActivationEvent.TASK_CREATED,
+            user=current_user,
+            data={'source': 'activation', 'has_contact': True},
+        )
+        record_event(
+            ActivationEvent.FOLLOW_UP_CREATED,
+            user=current_user,
+            data={'source': 'activation'},
+            once=True,
+        )
 
     return jsonify({
         'status': 'success',
         'contact': _serialize_contact_summary(contact),
+        'task': {
+            'id': task.id,
+            'due_date': task.due_date.strftime('%A, %B %-d'),
+        } if task else None,
         'view_url': url_for('contacts.view_contact', contact_id=contact.id),
         'contacts_url': url_for('main.contacts'),
     }), 200
@@ -666,7 +750,7 @@ def import_contacts():
             csv_data.fieldnames[0] = csv_data.fieldnames[0].replace('\ufeff', '')
         
         # Detect format based on columns
-        is_alt_format = any(col in csv_data.fieldnames for col in alt_format_columns)
+        is_alt_format = any(col in (csv_data.fieldnames or []) for col in alt_format_columns)
         
         if is_alt_format:
             # Convert to our format using the transformation logic
@@ -707,7 +791,7 @@ def import_contacts():
             csv_data = transformed_data
         
         # Validate required columns for our format
-        required_columns = ['first_name', 'last_name', 'phone']
+        required_columns = []
         if not is_alt_format:  # Only check if not in alt format since we just transformed it
             missing_columns = [col for col in required_columns if col not in (csv_data.fieldnames or [])]
             if missing_columns:
@@ -726,8 +810,21 @@ def import_contacts():
         for row_num, row in enumerate(csv_data, start=1):
             try:
                 # Validate required fields (allow at least one of first or last)
-                first_name_val = row['first_name'].strip() if row.get('first_name') else ''
-                last_name_val = row['last_name'].strip() if row.get('last_name') else ''
+                first_name_val = (
+                    row.get('first_name') or row.get('First Name') or row.get('First')
+                    or ''
+                ).strip()
+                last_name_val = (
+                    row.get('last_name') or row.get('Last Name') or row.get('Last')
+                    or ''
+                ).strip()
+                full_name = (
+                    row.get('name') or row.get('Name') or row.get('Full Name') or ''
+                ).strip()
+                if full_name and not first_name_val and not last_name_val:
+                    name_parts = full_name.split(maxsplit=1)
+                    first_name_val = name_parts[0]
+                    last_name_val = name_parts[1] if len(name_parts) > 1 else ''
                 if not first_name_val and not last_name_val:
                     error_details.append(f"Row {row_num}: Missing both first and last name")
                     error_count += 1
@@ -736,7 +833,10 @@ def import_contacts():
                     continue
 
                 # Handle phone number
-                phone = row['phone'].strip() if row.get('phone') else None
+                phone = (
+                    row.get('phone') or row.get('Phone') or row.get('Phone Number')
+                    or row.get('Mobile') or ''
+                ).strip() or None
                 formatted_phone = None
                 if phone:
                     # Remove any non-digit characters first
@@ -752,7 +852,10 @@ def import_contacts():
                         current_app.logger.info(f"Import row {row_num}: phone invalid or wrong length; treating as missing")
 
                 # Dedupe by email or formatted phone (per target user)
-                candidate_email = (row.get('email') or '').strip() or None
+                candidate_email = (
+                    row.get('email') or row.get('Email') or row.get('Email Address')
+                    or ''
+                ).strip() or None
                 candidate_email_lower = candidate_email.lower() if candidate_email else None
                 if candidate_email_lower:
                     dup = Contact.query\
@@ -826,6 +929,11 @@ def import_contacts():
         if success_count > 0:
             try:
                 db.session.commit()
+                record_event(
+                    ActivationEvent.CONTACT_CREATED,
+                    user=current_user,
+                    data={'method': 'csv_import', 'contact_count': success_count},
+                )
             except Exception as e:
                 db.session.rollback()
                 return {

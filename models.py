@@ -2778,8 +2778,18 @@ class ActivationEvent(db.Model):
 
     # Event name constants (keep in sync with services/activation_service.py).
     ACCOUNT_CREATED = 'account_created'
+    DASHBOARD_VIEWED = 'dashboard_viewed'
+    ACTIVATION_PATH_SELECTED = 'activation_path_selected'
     CONTACT_CREATED = 'contact_created'
     TASK_CREATED = 'task_created'
+    FOLLOW_UP_CREATED = 'follow_up_created'
+    ACTIVATION_COMPLETED = 'activation_completed'
+    TASK_COMPLETED = 'task_completed'
+    SESSION_STARTED = 'session_started'
+    LOGIN_SUCCEEDED = 'login_succeeded'
+    LIFECYCLE_MESSAGE_SENT = 'lifecycle_message_sent'
+    LIFECYCLE_MESSAGE_CLICKED = 'lifecycle_message_clicked'
+    FRICTION_RESPONSE = 'friction_response'
 
     def __repr__(self):
         return f'<ActivationEvent {self.event} org={self.organization_id} user={self.user_id}>'

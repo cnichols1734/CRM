@@ -503,51 +503,76 @@ def send_account_welcome(user) -> bool:
     Magic Inbox feature email stays available through ``send_inbox_welcome``
     for backfills and release announcements to existing users.
     """
-    if not user or not user.email or not user.inbox_address:
+    if not user or not user.email:
         return False
 
     dashboard_url = _safe_url('main.dashboard')
-    contacts_url = _safe_url('main.contacts')
-    inbox_url = _safe_url('inbound_email.inbox_home')
-    vcard_url = _public_vcard_url(user)
 
-    subject = 'Welcome to Origen'
-    template_data = _account_welcome_template_data(
-        first_name=(getattr(user, 'first_name', None) or 'there').strip(),
-        inbox_address=user.inbox_address,
-        vcard_url=vcard_url,
-        dashboard_url=dashboard_url,
-        contacts_url=contacts_url,
-        inbox_url=inbox_url,
-    )
-    if _send_template(
-        user.email,
-        _account_welcome_template_id(),
-        template_data,
-        subject=subject,
-    ):
-        return True
+    subject = 'Your first follow-up in Origen'
+    inbox_note = ''
+    if user.inbox_address:
+        inbox_note = f"""
+            <p style="margin:20px 0 0;color:#64748b;font-size:13px">
+                Prefer forwarding leads? Your private inbox is
+                <strong>{_html(user.inbox_address)}</strong>.
+            </p>
+        """
 
     html = _wrap_html(
-        title='Welcome to Origen',
+        title='Your first follow-up in Origen',
         body=f"""
             <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a">
-                Welcome to Origen.
+                Add one person. Pick the next day.
             </h1>
             <p style="margin:0 0 16px;color:#475569;font-size:15px">
-                Your CRM is ready. Start by saving your Magic Inbox and sending
-                in a few contacts you are working right now.
-            </p>
-            <p style="margin:0 0 24px">
-                <code style="display:inline-block;background:#f1f5f9;padding:10px 14px;
-                       border-radius:8px;font-size:13px;color:#0f172a;
-                       border:1px solid #e2e8f0;font-family:'SF Mono',Menlo,monospace">
-                    {_html(user.inbox_address)}
-                </code>
+                Your workspace is ready. Start with someone you already need to
+                call, email, or check in with. Origen will put the follow-up on
+                your dashboard before you leave the page.
             </p>
             <p style="margin:24px 0 0">
-                <a class="btn-primary" href="{vcard_url}">Save Magic Inbox</a>
-                <a class="btn-secondary" href="{dashboard_url}">Open Origen</a>
+                <a class="btn-primary" href="{dashboard_url}">Set my first follow-up</a>
+            </p>
+            {inbox_note}
+        """,
+    )
+    return _send_html(user.email, subject, html)
+
+
+def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
+    """Send one of the capped self-serve activation reminders."""
+    if not user or not user.email:
+        return False
+
+    messages = {
+        'no_contact_2h': (
+            'One useful contact is enough to start',
+            'Add someone you already need to follow up with. Pick the day and '
+            'Origen will put the next action on your dashboard.',
+            'Add my first follow-up',
+        ),
+        'no_follow_up_24h': (
+            'Put your next contact on the calendar',
+            'Your contact is saved. Add a dated follow-up so the CRM can bring '
+            'the relationship back to you at the right time.',
+            'Schedule the follow-up',
+        ),
+        'stalled_3d': (
+            'What got in the way?',
+            'You should not have to wrestle with a new CRM. Tell us where setup '
+            'stopped and we will use the answer to make it less annoying.',
+            'Tell us what stopped me',
+        ),
+    }
+    if stage not in messages:
+        return False
+    subject, body, action = messages[stage]
+    html = _wrap_html(
+        title=subject,
+        body=f"""
+            <h1 style="margin:0 0 12px;font-size:21px;color:#0f172a">{_html(subject)}</h1>
+            <p style="margin:0;color:#475569;font-size:15px">{_html(body)}</p>
+            <p style="margin:24px 0 0">
+                <a class="btn-primary" href="{_html(action_url)}">{_html(action)}</a>
             </p>
         """,
     )
