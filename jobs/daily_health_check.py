@@ -64,6 +64,8 @@ class CheckResult:
     ok: bool
     detail: str
     warn: bool = False
+    # Plain-English "so what?" line for the email.
+    meaning: str = ''
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -95,46 +97,64 @@ def _http_json(url: str, timeout: float = 15.0) -> tuple[int, dict | list | None
         return 0, {'error': str(exc)}, latency_ms
 
 
+_EXTERNAL_LABELS = {
+    'docuseal': 'E-sign (DocuSeal)',
+    'sendgrid': 'Email (SendGrid)',
+    'google_oauth': 'Google login',
+}
+
+
 def check_app_health() -> CheckResult:
     status, payload, latency_ms = _http_json(f'{APP_BASE_URL}/health')
     if status != 200 or not isinstance(payload, dict):
         return CheckResult(
-            name='App /health',
+            name='Core app',
             ok=False,
-            detail=f'HTTP {status or "error"} in {latency_ms}ms',
+            detail='The app health check did not respond normally.',
+            meaning='Users may not be able to use Origen right now.',
             meta={'latency_ms': latency_ms, 'payload': payload},
         )
 
     health_status = payload.get('status', 'unknown')
     warnings = payload.get('warnings') or []
     checks = payload.get('checks') or {}
-    db = checks.get('database') or {}
     external = checks.get('external') or {}
-    memory = checks.get('memory') or {}
-    bits = [
-        f'status={health_status}',
-        f'latency={latency_ms}ms',
-        f"db={db.get('status', '?')} ({db.get('latency_ms', '?')}ms)",
-        f"rss={memory.get('rss_mb', '?')}MB",
-        f"version={payload.get('version', '?')}",
-    ]
-    for name, info in external.items():
-        if isinstance(info, dict):
-            bits.append(f"{name}={info.get('status', '?')}")
+
+    bad_externals = []
+    for key, info in external.items():
+        if not isinstance(info, dict):
+            continue
+        if info.get('status') not in ('connected', 'ok', None):
+            bad_externals.append(_EXTERNAL_LABELS.get(key, key))
 
     ok = health_status == 'healthy' and status == 200
-    warn = bool(warnings) or any(
-        isinstance(info, dict) and info.get('status') not in ('connected', 'ok', None)
-        for info in external.values()
-    )
-    detail = '; '.join(bits)
-    if warnings:
-        detail += f" | warnings: {', '.join(warnings)}"
+    warn = bool(warnings) or bool(bad_externals)
+
+    if not ok:
+        detail = 'The core app reported unhealthy.'
+        meaning = 'Something is wrong with the main app process.'
+    elif bad_externals:
+        detail = (
+            'App is up, but a connected service is unhappy: '
+            + ', '.join(bad_externals) + '.'
+        )
+        meaning = (
+            'Origen itself is running. One helper service (like e-sign or email) '
+            'needs a look when you have a minute.'
+        )
+    elif warnings:
+        detail = 'App is up with a minor warning.'
+        meaning = 'Nothing urgent — worth a glance later.'
+    else:
+        detail = 'App is up and responding normally.'
+        meaning = 'The main CRM is healthy.'
+
     return CheckResult(
-        name='App /health',
+        name='Core app',
         ok=ok,
         warn=warn and ok,
         detail=detail,
+        meaning=meaning,
         meta={'payload': payload, 'latency_ms': latency_ms},
     )
 
@@ -143,10 +163,19 @@ def check_homepage() -> CheckResult:
     status, _, latency_ms = _http_json(APP_BASE_URL + '/', timeout=15.0)
     # Homepage may redirect; treat 2xx/3xx as success.
     ok = 200 <= status < 400
+    if ok:
+        return CheckResult(
+            name='Website',
+            ok=True,
+            detail='origentechnolog.com is loading.',
+            meaning='People can reach the public site.',
+            meta={'latency_ms': latency_ms},
+        )
     return CheckResult(
-        name='Public site',
-        ok=ok,
-        detail=f'HTTP {status or "error"} in {latency_ms}ms',
+        name='Website',
+        ok=False,
+        detail='The public website did not load cleanly.',
+        meaning='Visitors may hit an error page or timeout.',
         meta={'latency_ms': latency_ms},
     )
 
@@ -155,10 +184,11 @@ def check_redis_and_rq() -> CheckResult:
     redis_url = os.environ.get('REDIS_URL')
     if not redis_url:
         return CheckResult(
-            name='Redis / RQ',
+            name='Background jobs',
             ok=False,
             warn=True,
-            detail='REDIS_URL not set',
+            detail='Job queue settings are missing.',
+            meaning='Document processing and some background work may be offline.',
         )
     try:
         from redis import Redis
@@ -174,9 +204,10 @@ def check_redis_and_rq() -> CheckResult:
         latency_ms = round((time.time() - started) * 1000, 1)
         if not pong:
             return CheckResult(
-                name='Redis / RQ',
+                name='Background jobs',
                 ok=False,
-                detail=f'ping failed in {latency_ms}ms',
+                detail='The job queue did not respond.',
+                meaning='Background work like document extraction may be stuck.',
             )
 
         queue_names = [
@@ -198,21 +229,24 @@ def check_redis_and_rq() -> CheckResult:
         except Exception:
             pass
 
-        depth_bits = ', '.join(f'{k}={v}' for k, v in depths.items() if v)
-        detail = f'ping ok ({latency_ms}ms)'
-        if depth_bits:
-            detail += f'; queues: {depth_bits}'
-        else:
-            detail += '; queues empty'
-        if failed:
-            detail += f'; failed={failed}'
-
+        waiting = sum(depths.values())
         warn = failed > 0 or any(v >= 25 for v in depths.values())
+        if failed:
+            detail = f'Queue is up, but {failed} job(s) have failed.'
+            meaning = 'Some background tasks need a retry or cleanup.'
+        elif waiting >= 25:
+            detail = f'Queue is up, with {waiting} jobs waiting.'
+            meaning = 'Work is backing up — the worker may be slow or stuck.'
+        else:
+            detail = 'Background job queue is healthy.'
+            meaning = 'Document processing and delayed work can run normally.'
+
         return CheckResult(
-            name='Redis / RQ',
+            name='Background jobs',
             ok=True,
             warn=warn,
             detail=detail,
+            meaning=meaning,
             meta={'latency_ms': latency_ms, 'depths': depths, 'failed': failed},
         )
     except Exception as exc:
@@ -225,15 +259,17 @@ def check_redis_and_rq() -> CheckResult:
         # Private Redis is only resolvable inside Railway's network.
         if private_dns and dns_miss:
             return CheckResult(
-                name='Redis / RQ',
+                name='Background jobs',
                 ok=True,
-                warn=True,
-                detail='private Redis DNS unreachable from this host (checked on Railway cron)',
+                warn=False,
+                detail='Skipped from this machine (checked on the daily Railway run).',
+                meaning='This is normal for a laptop test. The scheduled run checks it for real.',
             )
         return CheckResult(
-            name='Redis / RQ',
+            name='Background jobs',
             ok=False,
-            detail=f'error: {exc}',
+            detail='Could not reach the job queue.',
+            meaning='Background work may be down until Redis is reachable again.',
         )
 
 
@@ -244,7 +280,8 @@ def check_database() -> CheckResult:
             name='Database',
             ok=False,
             warn=True,
-            detail='DATABASE_URL not set',
+            detail='Database settings are missing.',
+            meaning='The app cannot read or save CRM data without this.',
         )
     try:
         from sqlalchemy import create_engine, text
@@ -256,18 +293,28 @@ def check_database() -> CheckResult:
         latency_ms = round((time.time() - started) * 1000, 1)
         engine.dispose()
         warn = latency_ms > 500
+        if warn:
+            return CheckResult(
+                name='Database',
+                ok=True,
+                warn=True,
+                detail='Database answered, but it was a bit slow.',
+                meaning='CRM data is available. If this keeps happening, pages may feel sluggish.',
+                meta={'latency_ms': latency_ms},
+            )
         return CheckResult(
             name='Database',
             ok=True,
-            warn=warn,
-            detail=f'SELECT 1 ok ({latency_ms}ms)',
+            detail='Database is reachable and answering quickly.',
+            meaning='Contacts, tasks, and deals can load and save.',
             meta={'latency_ms': latency_ms},
         )
-    except Exception as exc:
+    except Exception:
         return CheckResult(
             name='Database',
             ok=False,
-            detail=f'error: {exc}',
+            detail='Could not reach the database.',
+            meaning='The CRM likely cannot load or save data right now.',
         )
 
 
@@ -408,10 +455,11 @@ def check_railway_services() -> CheckResult:
             source = 'graphql'
     if services is None:
         return CheckResult(
-            name='Railway services',
+            name='Hosting (Railway)',
             ok=True,
-            warn=True,
-            detail='Skipped (Railway CLI/API unavailable in this runtime)',
+            warn=False,
+            detail='Hosting status was not available in this run.',
+            meaning='Skipped this time — the other checks still cover the live app.',
         )
 
     rows = []
@@ -426,21 +474,31 @@ def check_railway_services() -> CheckResult:
         seen.add(name)
         rows.append(f'{name}={status}')
         if status not in ('SUCCESS', 'SLEEPING'):
-            bad.append(f'{name}:{status}')
+            bad.append(name)
 
     missing = [name for name in EXPECTED_SERVICES if name not in seen]
-    detail = '; '.join(rows) if rows else 'No services found'
-    detail += f' (via {source})'
-    if missing:
-        detail += f" | missing: {', '.join(missing)}"
-
     ok = not bad
-    warn = bool(missing)
+    warn = bool(missing) and ok
+
+    if bad:
+        detail = 'These services look unhealthy: ' + ', '.join(bad) + '.'
+        meaning = 'One or more Railway pieces may need a redeploy or restart.'
+    elif missing:
+        detail = (
+            'Running services look fine. Not seen in this check: '
+            + ', '.join(missing) + '.'
+        )
+        meaning = 'Hosting is mostly fine — a scheduled job may be missing from the project.'
+    else:
+        detail = 'All expected Railway services look healthy.'
+        meaning = 'Hosting, workers, and scheduled jobs are in good shape.'
+
     return CheckResult(
-        name='Railway services',
+        name='Hosting (Railway)',
         ok=ok,
-        warn=warn and ok,
-        detail=detail if not bad else f"issues: {', '.join(bad)} | {detail}",
+        warn=warn,
+        detail=detail,
+        meaning=meaning,
         meta={'rows': rows, 'missing': missing, 'bad': bad, 'source': source},
     )
 
@@ -463,84 +521,165 @@ def overall_status(checks: list[CheckResult]) -> str:
     return 'OK'
 
 
+def _status_copy(status: str) -> tuple[str, str, str]:
+    """Return headline, subject verb, badge color."""
+    if status == 'OK':
+        return (
+            'All clear',
+            'All clear',
+            '#15803d',
+        )
+    if status == 'WARN':
+        return (
+            'Needs a look',
+            'Needs a look',
+            '#c2410c',
+        )
+    return (
+        'Action needed',
+        'Action needed',
+        '#b91c1c',
+    )
+
+
+def _verdict_sentence(checks: list[CheckResult], status: str) -> str:
+    if status == 'OK':
+        return 'Origen looks healthy this morning. No action needed.'
+    problems = [c for c in checks if not c.ok]
+    warns = [c for c in checks if c.ok and c.warn]
+    if problems:
+        names = ', '.join(c.name for c in problems)
+        return f'Something needs attention: {names}.'
+    names = ', '.join(c.name for c in warns)
+    return f'App is up, but worth a glance: {names}.'
+
+
 def render_email(checks: list[CheckResult], *, when_ct: datetime) -> tuple[str, str]:
     status = overall_status(checks)
-    subject = f'[Origen] Daily health check — {status} — {when_ct.strftime("%b %-d, %Y")}'
-    try:
-        subject = subject  # %-d works on Unix
-    except Exception:
-        subject = f'[Origen] Daily health check — {status} — {when_ct.strftime("%b %d, %Y")}'
+    headline, subject_verb, status_color = _status_copy(status)
+    date_label = when_ct.strftime('%b %-d, %Y')
+    subject = f'[Origen] {subject_verb} — {date_label}'
+    verdict = _verdict_sentence(checks, status)
 
-    rows_html = []
+    cards = []
     for check in checks:
         if not check.ok:
-            color = '#b91c1c'
-            label = 'FAIL'
+            badge = 'Broken'
+            badge_bg = '#fef2f2'
+            badge_fg = '#b91c1c'
         elif check.warn:
-            color = '#c2410c'
-            label = 'WARN'
+            badge = 'Watch'
+            badge_bg = '#fff7ed'
+            badge_fg = '#c2410c'
         else:
-            color = '#15803d'
-            label = 'OK'
-        rows_html.append(
-            '<tr>'
-            f'<td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;'
-            f'font-weight:600;color:#0f172a">{_esc(check.name)}</td>'
-            f'<td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;'
-            f'color:{color};font-weight:700">{label}</td>'
-            f'<td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;'
-            f'color:#475569;font-size:13px">{_esc(check.detail)}</td>'
-            '</tr>'
+            badge = 'Good'
+            badge_bg = '#f0fdf4'
+            badge_fg = '#15803d'
+        meaning = check.meaning or check.detail
+        cards.append(
+            f'''
+            <tr>
+              <td style="padding:14px 0;border-bottom:1px solid #e2e8f0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:15px;font-weight:700;color:#0f172a;padding-bottom:4px;">
+                      {_esc(check.name)}
+                    </td>
+                    <td align="right" style="padding-bottom:4px;">
+                      <span style="display:inline-block;background:{badge_bg};color:{badge_fg};
+                            font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;">
+                        {badge}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="font-size:14px;color:#334155;line-height:1.45;padding-top:2px;">
+                      {_esc(check.detail)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="font-size:13px;color:#64748b;line-height:1.45;padding-top:6px;">
+                      {_esc(meaning)}
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            '''
         )
 
-    status_color = {
-        'OK': '#15803d',
-        'WARN': '#c2410c',
-        'FAIL': '#b91c1c',
-    }[status]
+    action_items = []
+    for check in checks:
+        if not check.ok:
+            action_items.append(f'Fix {check.name}: {check.meaning or check.detail}')
+        elif check.warn:
+            action_items.append(f'Check {check.name}: {check.meaning or check.detail}')
+
+    if action_items:
+        bullets = ''.join(
+            f'<li style="margin:0 0 8px;color:#334155;">{_esc(item)}</li>'
+            for item in action_items
+        )
+        action_block = f'''
+          <div style="margin-top:22px;padding:16px 18px;background:#fff7ed;
+                      border:1px solid #fed7aa;border-radius:12px;">
+            <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#9a3412;">
+              What this means for you
+            </p>
+            <ul style="margin:0;padding-left:18px;">{bullets}</ul>
+          </div>
+        '''
+    else:
+        action_block = '''
+          <div style="margin-top:22px;padding:16px 18px;background:#f0fdf4;
+                      border:1px solid #bbf7d0;border-radius:12px;">
+            <p style="margin:0;font-size:14px;color:#166534;line-height:1.5;">
+              Nothing to do. Sip coffee. Ship product.
+            </p>
+          </div>
+        '''
+
+    legend = '''
+      <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+        Good = healthy · Watch = up but imperfect · Broken = needs action
+      </p>
+    '''
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{_esc(subject)}</title></head>
 <body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,
 'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <div style="max-width:720px;margin:0 auto;padding:28px 16px;">
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px;">
+  <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.2px;
-         text-transform:uppercase;color:#ea580c;">Origen TechnolOG</p>
-      <h1 style="margin:0 0 8px;font-size:22px;">Daily health check</h1>
-      <p style="margin:0 0 18px;color:#64748b;font-size:14px;">
-        {when_ct.strftime('%A, %b %-d %Y · %-I:%M %p %Z')}
+         text-transform:uppercase;color:#ea580c;">Origen morning check</p>
+      <h1 style="margin:0 0 8px;font-size:26px;letter-spacing:-0.02em;">{_esc(headline)}</h1>
+      <p style="margin:0 0 6px;color:#64748b;font-size:14px;">
+        {when_ct.strftime('%A, %b %-d · %-I:%M %p %Z')}
       </p>
-      <p style="margin:0 0 20px;">
+      <p style="margin:0 0 8px;">
         <span style="display:inline-block;background:{status_color};color:#fff;
-              font-weight:700;font-size:13px;padding:6px 12px;border-radius:999px;">
-          {status}
+              font-weight:700;font-size:12px;padding:6px 12px;border-radius:999px;">
+          {_esc(headline)}
         </span>
       </p>
-      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"
-             style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:10px;">
-        <thead>
-          <tr style="background:#f8fafc;">
-            <th align="left" style="padding:10px 12px;font-size:12px;color:#64748b;">Check</th>
-            <th align="left" style="padding:10px 12px;font-size:12px;color:#64748b;">Status</th>
-            <th align="left" style="padding:10px 12px;font-size:12px;color:#64748b;">Detail</th>
-          </tr>
-        </thead>
-        <tbody>
-          {''.join(rows_html)}
-        </tbody>
+      <p style="margin:16px 0 8px;font-size:16px;color:#0f172a;line-height:1.5;">
+        {_esc(verdict)}
+      </p>
+      {action_block}
+      <p style="margin:28px 0 8px;font-size:12px;font-weight:700;letter-spacing:1px;
+         text-transform:uppercase;color:#94a3b8;">What we checked</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+        {''.join(cards)}
       </table>
-      <p style="margin:20px 0 0;font-size:13px;color:#64748b;">
-        Live probe:
-        <a href="{_esc(APP_BASE_URL)}/health" style="color:#ea580c;">
-          {_esc(APP_BASE_URL)}/health
-        </a>
-        ·
-        <a href="{_esc(APP_BASE_URL)}/health/ui" style="color:#ea580c;">Health UI</a>
+      {legend}
+      <p style="margin:18px 0 0;font-size:13px;color:#64748b;">
+        Want the nerdy view?
+        <a href="{_esc(APP_BASE_URL)}/health/ui" style="color:#ea580c;">Open health dashboard</a>
       </p>
     </div>
     <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:16px;">
-      Automated Railway cron · Daily Health Check
+      Daily automated check · Origen TechnolOG
     </p>
   </div>
 </body></html>"""
@@ -600,7 +739,16 @@ def run_daily_health_check(*, to_email: str, dry_run: bool = False) -> int:
     if dry_run:
         print(subject)
         print(json.dumps(
-            [{'name': c.name, 'ok': c.ok, 'warn': c.warn, 'detail': c.detail} for c in checks],
+            [
+                {
+                    'name': c.name,
+                    'ok': c.ok,
+                    'warn': c.warn,
+                    'detail': c.detail,
+                    'meaning': c.meaning,
+                }
+                for c in checks
+            ],
             indent=2,
         ))
         return 0 if status != 'FAIL' else 1
