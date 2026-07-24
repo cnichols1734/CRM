@@ -396,11 +396,11 @@
 
         {% if is_first_run %}
         <section class="crm-surface mb-6 overflow-hidden" data-dashboard-page-target="activationWorkspace">
-            <div class="border-b border-slate-200 bg-slate-950 px-5 py-6 text-slate-50 sm:px-8 sm:py-8">
+            <div class="border-b border-orange-200 bg-orange-50 px-5 py-6 text-orange-950 sm:px-8 sm:py-8">
                 <div class="max-w-2xl">
-                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-300">Your first follow-up</div>
+                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-orange-700">Your first follow-up</div>
                     <h2 class="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">Put one real relationship on the calendar.</h2>
-                    <p class="mt-2 max-w-xl text-sm leading-6 text-slate-300">Choose how your contacts live today. We’ll get one person and one next action ready before you leave this page.</p>
+                    <p class="mt-2 max-w-xl text-sm leading-6 text-orange-900/70">Choose how your contacts live today. We’ll get one person and one next action ready before you leave this page.</p>
                 </div>
             </div>
 
@@ -527,10 +527,10 @@
         {% else %}
         {% if activation_state.mode == 'follow_up' %}
         <section class="crm-surface mb-6 overflow-hidden">
-            <div class="border-b border-slate-200 bg-slate-950 px-5 py-5 text-slate-50 sm:px-7">
-                <div class="crm-section-kicker text-orange-300">One step left</div>
+            <div class="border-b border-orange-200 bg-orange-50 px-5 py-5 text-orange-950 sm:px-7">
+                <div class="crm-section-kicker text-orange-700">One step left</div>
                 <h2 class="mt-2 text-xl font-semibold tracking-tight">Give this relationship a next date.</h2>
-                <p class="mt-1 text-sm text-slate-300">{{ activation_state.contact.first_name }} {{ activation_state.contact.last_name }} is saved. Schedule the follow-up that brings them back to your dashboard.</p>
+                <p class="mt-1 text-sm text-orange-900/70">{{ activation_state.contact.first_name }} {{ activation_state.contact.last_name }} is saved. Schedule the follow-up that brings them back to your dashboard.</p>
             </div>
             <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
                 <p class="text-sm text-slate-500">A contact without a next action is easy to forget.</p>
