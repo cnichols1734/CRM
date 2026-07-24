@@ -127,23 +127,43 @@ def create_task():
 
             db.session.add(task)
             db.session.commit()
+            from services.activation_service import (
+                is_follow_up_task, is_user_activated, record_meaningful_action,
+            )
             record_event(
                 ActivationEvent.TASK_CREATED,
                 user=current_user,
                 data={'source': 'task_form', 'has_contact': bool(contact_id)},
+                surface='tasks',
             )
-            record_event(
-                ActivationEvent.FOLLOW_UP_CREATED,
-                user=current_user,
-                data={'source': 'task_form'},
-                once=True,
-            )
-            record_event(
-                ActivationEvent.ACTIVATION_COMPLETED,
-                user=current_user,
-                data={'method': 'task_form'},
-                once=True,
-            )
+            if is_follow_up_task(task):
+                record_event(
+                    ActivationEvent.FOLLOW_UP_CREATED,
+                    user=current_user,
+                    data={
+                        'source': 'task_form',
+                        'activation_task_id': task.id,
+                    },
+                    once=True,
+                    surface='tasks',
+                )
+                record_meaningful_action(
+                    current_user,
+                    action='follow_up_created',
+                    surface='tasks',
+                    data={'source': 'task_form'},
+                )
+                if is_user_activated(current_user):
+                    record_event(
+                        ActivationEvent.ACTIVATION_COMPLETED,
+                        user=current_user,
+                        data={
+                            'source': 'task_form',
+                            'activation_task_id': task.id,
+                        },
+                        once=True,
+                        surface='tasks',
+                    )
             
             # Sync to Google Calendar (non-blocking)
             try:
@@ -258,10 +278,36 @@ def edit_task(task_id):
 
         db.session.commit()
         if task.status == 'completed' and old_status != 'completed':
+            from services.activation_service import (
+                is_follow_up_task, record_meaningful_action,
+            )
+            follow_up_created = ActivationEvent.query.filter_by(
+                user_id=current_user.id,
+                event=ActivationEvent.FOLLOW_UP_CREATED,
+            ).order_by(ActivationEvent.created_at.asc()).first()
+            activation_task_id = None
+            if follow_up_created and isinstance(follow_up_created.event_data, dict):
+                activation_task_id = follow_up_created.event_data.get(
+                    'activation_task_id'
+                )
             record_event(
                 ActivationEvent.TASK_COMPLETED,
                 user=current_user,
-                data={'source': 'task_edit'},
+                data={
+                    'source': 'task_edit',
+                    'surface': 'tasks',
+                    'is_follow_up': is_follow_up_task(task),
+                    'is_activation_follow_up': (
+                        activation_task_id == task.id
+                    ),
+                },
+                surface='tasks',
+            )
+            record_meaningful_action(
+                current_user,
+                action='task_completed',
+                surface='tasks',
+                data={'is_follow_up': is_follow_up_task(task)},
             )
         
         # Sync to Google Calendar (non-blocking)
@@ -411,10 +457,36 @@ def quick_update_task(task_id):
             
         db.session.commit()
         if new_status == 'completed' and not was_completed:
+            from services.activation_service import (
+                is_follow_up_task, record_meaningful_action,
+            )
+            follow_up_created = ActivationEvent.query.filter_by(
+                user_id=current_user.id,
+                event=ActivationEvent.FOLLOW_UP_CREATED,
+            ).order_by(ActivationEvent.created_at.asc()).first()
+            activation_task_id = None
+            if follow_up_created and isinstance(follow_up_created.event_data, dict):
+                activation_task_id = follow_up_created.event_data.get(
+                    'activation_task_id'
+                )
             record_event(
                 ActivationEvent.TASK_COMPLETED,
                 user=current_user,
-                data={'source': 'task_status'},
+                data={
+                    'source': 'task_status',
+                    'surface': 'dashboard',
+                    'is_follow_up': is_follow_up_task(task),
+                    'is_activation_follow_up': (
+                        activation_task_id == task.id
+                    ),
+                },
+                surface='dashboard',
+            )
+            record_meaningful_action(
+                current_user,
+                action='task_completed',
+                surface='dashboard',
+                data={'is_follow_up': is_follow_up_task(task)},
             )
         
         # Sync completion status to Google Calendar (non-blocking)

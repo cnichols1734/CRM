@@ -181,7 +181,8 @@ def parse_vcard_token(token: str) -> dict | None:
 # ---------------------------------------------------------------------------
 
 def _send_html(to_email: str, subject: str, html: str,
-               *, reply_to: str | None = None) -> bool:
+               *, reply_to: str | None = None,
+               custom_args: dict | None = None) -> bool:
     """Wrap the SendGrid call and swallow errors (logged) so callers stay safe."""
     api_key = _sendgrid_api_key()
     if not api_key:
@@ -197,6 +198,16 @@ def _send_html(to_email: str, subject: str, html: str,
         )
         if reply_to:
             message.reply_to = Email(reply_to)
+        if custom_args:
+            # Opaque analytics attribution only — never include email/name.
+            try:
+                from sendgrid.helpers.mail import CustomArg
+                for key, value in custom_args.items():
+                    if value is None:
+                        continue
+                    message.add_custom_arg(CustomArg(str(key), str(value)))
+            except Exception:
+                logger.exception('Failed to attach SendGrid custom args')
         response = SendGridAPIClient(api_key).send(message)
         ok = response.status_code in (200, 201, 202)
         if not ok:
@@ -503,10 +514,22 @@ def send_account_welcome(user) -> bool:
     Magic Inbox feature email stays available through ``send_inbox_welcome``
     for backfills and release announcements to existing users.
     """
+    from models import ActivationEvent
+    from services.activation_service import record_event
+
     if not user or not user.email:
         return False
 
-    dashboard_url = _safe_url('main.dashboard')
+    dashboard_url = _safe_url('main.dashboard', email='welcome')
+    try:
+        from flask import current_app
+        from services.retention_tokens import make_email_click_token
+        token = make_email_click_token(
+            current_app, user_id=user.id, campaign='welcome',
+        )
+        dashboard_url = _safe_url('main.dashboard', email='welcome', ect=token)
+    except Exception:
+        pass
 
     subject = 'Your first follow-up in Origen'
     inbox_note = ''
@@ -535,7 +558,23 @@ def send_account_welcome(user) -> bool:
             {inbox_note}
         """,
     )
-    return _send_html(user.email, subject, html)
+    custom_args = {
+        'crm_user_id': str(user.id),
+        'crm_campaign': 'welcome',
+    }
+    ok = _send_html(user.email, subject, html, custom_args=custom_args)
+    try:
+        record_event(
+            ActivationEvent.WELCOME_EMAIL_SENT if ok
+            else ActivationEvent.WELCOME_EMAIL_FAILED,
+            user=user,
+            data={'source': 'account_welcome'},
+            once=True,
+            sync_person=False,
+        )
+    except Exception:
+        logger.exception('Failed to record welcome email analytics')
+    return ok
 
 
 def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
@@ -566,6 +605,35 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
     if stage not in messages:
         return False
     subject, body, action = messages[stage]
+
+    reason_links = ''
+    if stage == 'stalled_3d':
+        try:
+            from flask import current_app
+            from services.retention_tokens import (
+                CHURN_REASON_LABELS, make_churn_reason_token,
+            )
+            links = []
+            for reason, label in CHURN_REASON_LABELS.items():
+                token = make_churn_reason_token(
+                    current_app,
+                    user_id=user.id,
+                    reason=reason,
+                    stage=stage,
+                )
+                url = _safe_url('main.churn_reason', token=token)
+                links.append(
+                    f'<li style="margin:0 0 8px">'
+                    f'<a href="{_html(url)}" style="color:#ea580c">'
+                    f'{_html(label)}</a></li>'
+                )
+            reason_links = (
+                '<ul style="margin:20px 0 0;padding-left:18px;color:#334155;'
+                f'font-size:14px">{"".join(links)}</ul>'
+            )
+        except Exception:
+            logger.exception('Failed to build churn reason links')
+
     html = _wrap_html(
         title=subject,
         body=f"""
@@ -574,9 +642,19 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
             <p style="margin:24px 0 0">
                 <a class="btn-primary" href="{_html(action_url)}">{_html(action)}</a>
             </p>
+            {reason_links}
         """,
     )
-    return _send_html(user.email, subject, html)
+    return _send_html(
+        user.email,
+        subject,
+        html,
+        custom_args={
+            'crm_user_id': str(user.id),
+            'crm_campaign': 'lifecycle',
+            'crm_stage': stage,
+        },
+    )
 
 
 def send_inbox_welcome(user) -> bool:

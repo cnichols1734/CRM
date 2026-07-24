@@ -155,17 +155,49 @@ def sendgrid_inbound_parse():
         message.source_kind = bundle.source_kind
         db.session.commit()
 
+        record_event(
+            ActivationEvent.INBOUND_MESSAGE_RECEIVED,
+            user=user,
+            data={'source_kind': bundle.source_kind or 'unknown'},
+            surface='inbox',
+            sync_person=False,
+        )
         outcome = process_inbound(user, message, bundle)
         created_count = len(outcome.get('created_contacts') or [])
         if created_count:
+            from services.activation_service import (
+                count_bucket, record_meaningful_action,
+            )
             record_event(
                 ActivationEvent.CONTACT_CREATED,
                 user=user,
                 data={
-                    'method': 'magic_inbox',
+                    'source': 'magic_inbox',
                     'contact_count': created_count,
+                    'contact_count_bucket': count_bucket(created_count),
                     'source_kind': bundle.source_kind,
                 },
+                surface='inbox',
+            )
+            record_meaningful_action(
+                user,
+                action='inbox_contact_created',
+                surface='inbox',
+                data={
+                    'source_kind': bundle.source_kind,
+                    'contact_count_bucket': count_bucket(created_count),
+                },
+            )
+        elif outcome.get('error'):
+            record_event(
+                ActivationEvent.INBOUND_PROCESSING_FAILED,
+                user=user,
+                data={
+                    'reason': str(outcome.get('error_code') or 'processing')[:40],
+                    'source_kind': bundle.source_kind,
+                },
+                surface='inbox',
+                sync_person=False,
             )
         return ('ok', 200)
 

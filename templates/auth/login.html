@@ -382,7 +382,7 @@
             <div class="subtitle mt-1">Enter your email/username and password.</div>
           </div>
 
-          <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-4" id="loginForm">
+          <form method="POST" action="{{ url_for('auth.login') }}" class="space-y-4" id="loginForm" data-analytics-form="login">
             {{ form.hidden_tag() }}
             <input type="hidden" name="next" id="nextUrl" value="{{ request.args.get('next', '') }}">
 

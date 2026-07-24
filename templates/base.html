@@ -2284,17 +2284,20 @@
             <!-- Navigation Links -->
             <nav class="py-4">
                 <a href="{{ url_for('main.dashboard') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.dashboard' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.dashboard' %}bg-slate-800 border-l-4 border-orange-500{% endif %}"
+                    {% if activation_state is defined and activation_state.mode == 'start' %}data-analytics-nav="dashboard"{% endif %}>
                     <i class="fas fa-chart-line w-6 mr-3"></i>
                     Dashboard
                 </a>
                 <a href="{{ url_for('main.contacts') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.contacts' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'main.contacts' %}bg-slate-800 border-l-4 border-orange-500{% endif %}"
+                    {% if activation_state is defined and activation_state.mode == 'start' %}data-analytics-nav="contacts"{% endif %}>
                     <i class="fas fa-address-book w-6 mr-3"></i>
                     Contacts
                 </a>
                 <a href="{{ url_for('inbound_email.inbox_home') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint and request.endpoint.startswith('inbound_email.') %}bg-slate-800 border-l-4 border-orange-500{% endif %}"
+                    {% if activation_state is defined and activation_state.mode == 'start' %}data-analytics-nav="inbox"{% endif %}>
                     <i class="fas fa-paper-plane w-6 mr-3"></i>
                     Magic Inbox
                 </a>
@@ -2317,7 +2320,8 @@
                 </a>
                 {% endif %}
                 <a href="{{ url_for('tasks.tasks') }}"
-                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'tasks.tasks' %}bg-slate-800 border-l-4 border-orange-500{% endif %}">
+                    class="flex items-center px-6 py-3 text-white hover:bg-slate-800 {% if request.endpoint == 'tasks.tasks' %}bg-slate-800 border-l-4 border-orange-500{% endif %}"
+                    {% if activation_state is defined and activation_state.mode == 'start' %}data-analytics-nav="tasks"{% endif %}>
                     <i class="fas fa-clipboard-list w-6 mr-3"></i>
                     Client Tasks
                 </a>
@@ -3070,12 +3074,17 @@
     </script>
     <script>
         window.CRM_ANALYTICS = {
-            enabled: {{ (not config.TESTING and config.POSTHOG_ENABLED and (current_user.is_authenticated or request.endpoint == 'auth.register'))|tojson }},
+            enabled: {{ (not config.TESTING and config.POSTHOG_ENABLED and (current_user.is_authenticated or request.endpoint in ('auth.register', 'auth.login')))|tojson }},
             token: {{ config.POSTHOG_PROJECT_TOKEN|tojson }},
             host: {{ config.POSTHOG_HOST|tojson }},
             distinctId: {% if current_user.is_authenticated %}{{ ('user_' ~ current_user.id)|tojson }}{% else %}null{% endif %},
+            aliasAnonymous: {{ (current_user.is_authenticated and request.endpoint == 'main.dashboard')|tojson }},
             sessionReplay: {{ config.POSTHOG_SESSION_REPLAY|tojson }},
-            replayAllowed: {{ (config.POSTHOG_SESSION_REPLAY and (request.endpoint == 'auth.register' or (activation_state is defined and activation_state.mode == 'start')))|tojson }}
+            replayAllowed: {{ (config.POSTHOG_SESSION_REPLAY and (request.endpoint == 'auth.register' or (activation_state is defined and activation_state.mode == 'start')))|tojson }},
+            experienceVersion: {{ config.ACTIVATION_EXPERIENCE_VERSION|tojson }},
+            subscriptionTier: {% if current_user.is_authenticated and current_user.organization %}{{ current_user.organization.subscription_tier|tojson }}{% else %}"anonymous"{% endif %},
+            activationMode: {% if activation_state is defined %}{{ activation_state.mode|tojson }}{% else %}null{% endif %},
+            activated: {% if activation_state is defined %}{{ (activation_state.mode == 'complete')|tojson }}{% else %}false{% endif %}
         };
     </script>
     <script type="module" src="{{ url_for('static', filename='dist/app.js') }}"></script>

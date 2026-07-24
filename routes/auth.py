@@ -173,6 +173,11 @@ def register():
                 org.id,
                 user.email,
             )
+            record_event(
+                ActivationEvent.ACCOUNT_SETUP_FAILED,
+                user=user,
+                data={'stage': 'seed_defaults'},
+            )
             flash(
                 'Your account was created, but we could not finish the default setup. '
                 'Please contact support before adding contacts.',
@@ -189,6 +194,11 @@ def register():
                 'Failed to provision magic inbox during signup user_id=%s',
                 user.id,
             )
+            record_event(
+                ActivationEvent.ACCOUNT_SETUP_FAILED,
+                user=user,
+                data={'stage': 'inbox_provision'},
+            )
 
         try:
             from services.sendgrid_outbound import send_account_welcome
@@ -198,11 +208,21 @@ def register():
                 'Failed to send account welcome email user_id=%s',
                 user.id,
             )
+            record_event(
+                ActivationEvent.WELCOME_EMAIL_FAILED,
+                user=user,
+                data={'source': 'self_serve'},
+                once=True,
+            )
 
         login_user(user)
         acquisition = session.pop('signup_acquisition', {})
-        record_event(ActivationEvent.ACCOUNT_CREATED, user=user,
-                     data={'source': 'self_serve', **acquisition}, once=True)
+        record_event(
+            ActivationEvent.ACCOUNT_CREATED,
+            user=user,
+            data={'source': 'self_serve', **acquisition},
+            once=True,
+        )
         flash('Welcome to Origen. Your account is ready to use.', 'success')
         return redirect(url_for('main.dashboard'))
 
@@ -230,24 +250,27 @@ def login():
             # Multi-tenant: Check organization status before login
             if user.organization:
                 org = user.organization
-                if org.status == 'pending_approval':
-                    return render_template('auth/login.html', form=form, 
-                                         pending_status='pending_approval',
-                                         org_name=org.name,
-                                         user_email=user.email)
-                elif org.status == 'suspended':
-                    return render_template('auth/login.html', form=form,
-                                         pending_status='suspended',
-                                         org_name=org.name)
-                elif org.status == 'pending_deletion':
-                    return render_template('auth/login.html', form=form,
-                                         pending_status='pending_deletion',
-                                         org_name=org.name)
-                elif org.status != 'active':
-                    return render_template('auth/login.html', form=form,
-                                         pending_status='inactive',
-                                         org_name=org.name)
-            
+                blocked = {
+                    'pending_approval': 'pending_approval',
+                    'suspended': 'suspended',
+                    'pending_deletion': 'pending_deletion',
+                }.get(org.status)
+                if blocked or org.status != 'active':
+                    reason = blocked or 'inactive'
+                    record_event(
+                        ActivationEvent.LOGIN_FAILED,
+                        user=user,
+                        data={'reason': reason},
+                        sync_person=False,
+                    )
+                    return render_template(
+                        'auth/login.html',
+                        form=form,
+                        pending_status=reason,
+                        org_name=org.name,
+                        user_email=user.email if reason == 'pending_approval' else None,
+                    )
+
             login_user(user)
             # Update last_login timestamp at the moment of login
             user.last_login = datetime.utcnow()
@@ -255,7 +278,11 @@ def login():
             record_event(
                 ActivationEvent.LOGIN_SUCCEEDED,
                 user=user,
-                data={'days_since_signup': (datetime.utcnow() - user.created_at).days},
+                data={
+                    'days_since_signup': (
+                        datetime.utcnow() - user.created_at
+                    ).days if user.created_at else 0,
+                },
             )
             # Check for return URL in query args (Flask-Login) or form data (session expiry)
             next_page = request.args.get('next') or request.form.get('next')
@@ -264,6 +291,22 @@ def login():
                 return redirect(next_page)
             return redirect(url_for('main.dashboard'))
         else:
+            if user:
+                record_event(
+                    ActivationEvent.LOGIN_FAILED,
+                    user=user,
+                    data={'reason': 'bad_credentials'},
+                    sync_person=False,
+                )
+            else:
+                try:
+                    from services.product_analytics import capture_anonymous
+                    capture_anonymous(
+                        ActivationEvent.LOGIN_FAILED,
+                        properties={'reason': 'bad_credentials', 'matched': False},
+                    )
+                except Exception:
+                    pass
             flash('Invalid username/email or password', 'error')
 
     return render_template('auth/login.html', form=form)
@@ -418,14 +461,19 @@ def complete_invite(token):
 
     try:
         from services.sendgrid_outbound import send_account_welcome
-        if user.inbox_address:
-            send_account_welcome(user)
+        send_account_welcome(user)
     except Exception:
         current_app.logger.exception(
             'Failed to send account welcome email user_id=%s', user.id,
         )
 
     login_user(user)
+    record_event(
+        ActivationEvent.ACCOUNT_CREATED,
+        user=user,
+        data={'source': 'invite'},
+        once=True,
+    )
     flash(f'Welcome to {invite.organization.name}!', 'success')
     return redirect(url_for('main.dashboard'))
 
@@ -522,11 +570,30 @@ def reset_request():
         user = User.query.filter_by(email=form.email.data).first()
         if user:
             if send_reset_email(user):
+                record_event(
+                    ActivationEvent.PASSWORD_RESET_REQUESTED,
+                    user=user,
+                    data={'outcome': 'sent'},
+                    sync_person=False,
+                )
                 flash('An email has been sent with instructions to reset your password.', 'info')
                 return redirect(url_for('auth.login'))
-            else:
-                flash('Unable to send reset email. Please try again later or contact support.', 'error')
+            record_event(
+                ActivationEvent.PASSWORD_RESET_REQUESTED,
+                user=user,
+                data={'outcome': 'send_failed'},
+                sync_person=False,
+            )
+            flash('Unable to send reset email. Please try again later or contact support.', 'error')
         else:
+            try:
+                from services.product_analytics import capture_anonymous
+                capture_anonymous(
+                    ActivationEvent.PASSWORD_RESET_REQUESTED,
+                    properties={'outcome': 'unknown_email'},
+                )
+            except Exception:
+                pass
             flash('There is no account with that email.', 'error')
     return render_template('auth/reset_request.html', form=form)
 
@@ -542,6 +609,11 @@ def reset_password(token):
     if form.validate_on_submit():
         user.set_password(form.password.data)
         db.session.commit()
+        record_event(
+            ActivationEvent.PASSWORD_RESET_COMPLETED,
+            user=user,
+            sync_person=False,
+        )
         flash('Your password has been updated! You are now able to log in', 'success')
         return redirect(url_for('auth.login'))
     return render_template('auth/reset_password.html', form=form)

@@ -1,8 +1,22 @@
-from flask import Blueprint, render_template, request, redirect, url_for, jsonify
+from flask import (
+    Blueprint, current_app, flash, render_template, request, redirect, url_for,
+    jsonify,
+)
 from flask_login import login_required, current_user
 from models import db, Contact, ContactGroup, Task, User, Transaction, TransactionParticipant, ActivationEvent, contact_groups as contact_groups_table
 from feature_flags import can_access_transactions, feature_required
-from services.activation_service import record_event, record_daily_session
+from services.activation_service import (
+    is_user_activated,
+    record_event,
+    record_daily_session,
+    record_surface_viewed,
+    FOLLOW_UP_SUBTYPE_NAMES,
+)
+from services.retention_tokens import (
+    CHURN_REASONS,
+    parse_churn_reason_token,
+    parse_email_click_token,
+)
 from services.tenant_service import org_query, can_view_all_org_data
 from services.contact_group_service import (
     aggregate_filter_groups,
@@ -564,7 +578,8 @@ def contacts():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    record_daily_session(current_user)
+    record_daily_session(current_user, surface='dashboard')
+    record_surface_viewed(current_user, 'dashboard')
     lifecycle_stage = request.args.get('lifecycle')
     if lifecycle_stage in {'no_contact_2h', 'no_follow_up_24h', 'stalled_3d'}:
         record_event(
@@ -572,7 +587,32 @@ def dashboard():
             user=current_user,
             data={'stage': lifecycle_stage},
             once=True,
+            once_stage=lifecycle_stage,
         )
+    if request.args.get('email') == 'welcome' or request.args.get('ect'):
+        ect = request.args.get('ect')
+        if ect:
+            parsed = parse_email_click_token(current_app, ect)
+            if parsed and parsed['user_id'] == current_user.id:
+                record_event(
+                    ActivationEvent.WELCOME_EMAIL_CLICKED
+                    if parsed.get('campaign') == 'welcome'
+                    else ActivationEvent.LIFECYCLE_MESSAGE_CLICKED,
+                    user=current_user,
+                    data={
+                        'campaign': parsed.get('campaign'),
+                        'stage': parsed.get('stage'),
+                    },
+                    once=True,
+                    once_stage=parsed.get('stage') or parsed.get('campaign'),
+                )
+        else:
+            record_event(
+                ActivationEvent.WELCOME_EMAIL_CLICKED,
+                user=current_user,
+                data={'campaign': 'welcome'},
+                once=True,
+            )
     record_event(
         ActivationEvent.DASHBOARD_VIEWED,
         user=current_user,
@@ -607,25 +647,59 @@ def dashboard():
     first_contact = base_contact_query.order_by(Contact.created_at.asc()).first()
     first_follow_up = None
     if first_contact:
-        first_follow_up = org_query(Task).filter_by(
-            contact_id=first_contact.id,
-            assigned_to_id=current_user.id,
-            status='pending',
-        ).order_by(Task.due_date.asc()).first()
+        from models import TaskSubtype
+        subtype_ids = [
+            row.id for row in TaskSubtype.query.filter(
+                TaskSubtype.organization_id == current_user.organization_id,
+                TaskSubtype.name.in_(FOLLOW_UP_SUBTYPE_NAMES),
+            ).all()
+        ]
+        follow_query = org_query(Task).filter(
+            Task.contact_id == first_contact.id,
+            Task.assigned_to_id == current_user.id,
+            Task.due_date.isnot(None),
+        )
+        if subtype_ids:
+            follow_query = follow_query.filter(Task.subtype_id.in_(subtype_ids))
+        first_follow_up = follow_query.order_by(Task.due_date.asc()).first()
 
+    activated = is_user_activated(current_user)
     activation_state = {
         'mode': (
-            'start' if not first_contact
-            else ('follow_up' if not first_follow_up else 'complete')
+            'complete' if activated
+            else ('follow_up' if first_contact and not first_follow_up else (
+                'start' if not first_contact else 'complete'
+            ))
         ),
         'contact': first_contact,
         'follow_up': first_follow_up,
     }
-    if first_contact and first_follow_up:
+    days_since_signup = (
+        (datetime.utcnow() - current_user.created_at).days
+        if current_user.created_at else 0
+    )
+    prior_friction = ActivationEvent.query.filter_by(
+        user_id=current_user.id,
+        event=ActivationEvent.FRICTION_RESPONSE,
+    ).first()
+    show_friction = (
+        activation_state['mode'] != 'complete'
+        and (
+            request.args.get('friction') == '1'
+            or (days_since_signup >= 1 and prior_friction is None)
+        )
+    )
+    # Only auto-complete for recent signups so legacy users do not pollute
+    # the activation funnel after deploy.
+    if (
+        activated
+        and current_user.created_at
+        and current_user.created_at >= datetime.utcnow() - timedelta(days=30)
+    ):
         record_event(
             ActivationEvent.ACTIVATION_COMPLETED,
             user=current_user,
-            data={'method': 'existing_workflow'},
+            data={'source': 'existing_workflow'},
             once=True,
         )
 
@@ -1040,6 +1114,7 @@ def dashboard():
                          task_window_days=task_window_days,
                          now=now,
                          activation_state=activation_state,
+                         show_friction=show_friction,
                          show_transactions=show_transactions,
                          transactions_by_status=transactions_by_status,
                          pipeline_value=pipeline_value,
@@ -1095,8 +1170,23 @@ def select_activation_path():
     record_event(
         ActivationEvent.ACTIVATION_PATH_SELECTED,
         user=current_user,
-        data={'path': path},
+        data={'path': path, 'source': path},
         once=True,
+        surface='activation',
+    )
+    return jsonify({'success': True})
+
+
+@main_bp.route('/dashboard/inbox-copied', methods=['POST'])
+@login_required
+def inbox_address_copied():
+    record_event(
+        ActivationEvent.INBOX_ADDRESS_COPIED,
+        user=current_user,
+        data={'surface': 'activation'},
+        once=True,
+        surface='activation',
+        sync_person=False,
     )
     return jsonify({'success': True})
 
@@ -1105,18 +1195,41 @@ def select_activation_path():
 @login_required
 def activation_friction():
     reason = request.form.get('reason')
-    allowed = {
-        'no_time', 'unclear_value', 'import_problem', 'too_much_setup', 'other',
-    }
-    if reason not in allowed:
+    if reason not in CHURN_REASONS:
         return redirect(url_for('main.dashboard'))
     record_event(
         ActivationEvent.FRICTION_RESPONSE,
         user=current_user,
-        data={'reason': reason},
+        data={'reason': reason, 'channel': 'in_app'},
         once=True,
     )
     return redirect(url_for('main.dashboard'))
+
+
+@main_bp.route('/r/churn/<token>')
+def churn_reason(token):
+    """Public one-click churn reason from lifecycle email. No login required."""
+    parsed = parse_churn_reason_token(current_app, token)
+    if not parsed:
+        flash('That feedback link has expired.', 'info')
+        return redirect(url_for('auth.login'))
+    from models import User
+    user = User.query.get(parsed['user_id'])
+    if user is None:
+        flash('Thanks — we recorded your response.', 'success')
+        return redirect(url_for('auth.login'))
+    record_event(
+        ActivationEvent.CHURN_REASON,
+        user=user,
+        data={
+            'reason': parsed['reason'],
+            'stage': parsed['stage'],
+            'channel': 'email',
+        },
+        once=True,
+    )
+    flash('Thanks — that helps us improve Origen.', 'success')
+    return redirect(url_for('auth.login'))
 
 
 @main_bp.route('/api/search')

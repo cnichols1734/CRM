@@ -417,25 +417,53 @@ def quick_add_contact():
 
     db.session.commit()
 
-    record_event(ActivationEvent.CONTACT_CREATED, user=current_user,
-                 data={'source': 'quick_add'})
+    from services.activation_service import record_meaningful_action
+    record_event(
+        ActivationEvent.CONTACT_CREATED,
+        user=current_user,
+        data={'source': 'quick_add'},
+        surface='activation',
+    )
+    record_meaningful_action(
+        current_user, action='contact_created', surface='activation',
+        data={'source': 'quick_add'},
+    )
     if task:
-        record_event(
-            ActivationEvent.ACTIVATION_COMPLETED,
-            user=current_user,
-            data={'method': 'dashboard_quick_add'},
-            once=True,
-        )
         record_event(
             ActivationEvent.TASK_CREATED,
             user=current_user,
-            data={'source': 'activation', 'has_contact': True},
+            data={
+                'source': 'activation',
+                'has_contact': True,
+                'activation_task_id': task.id,
+            },
+            surface='activation',
         )
         record_event(
             ActivationEvent.FOLLOW_UP_CREATED,
             user=current_user,
-            data={'source': 'activation'},
+            data={
+                'source': 'activation',
+                'activation_task_id': task.id,
+            },
             once=True,
+            surface='activation',
+        )
+        record_event(
+            ActivationEvent.ACTIVATION_COMPLETED,
+            user=current_user,
+            data={
+                'source': 'dashboard_quick_add',
+                'activation_task_id': task.id,
+            },
+            once=True,
+            surface='activation',
+        )
+        record_meaningful_action(
+            current_user,
+            action='follow_up_created',
+            surface='activation',
+            data={'source': 'activation'},
         )
 
     return jsonify({
@@ -727,14 +755,43 @@ def import_contacts():
                 return {'status': 'error', 'message': 'Invalid user id provided'}, 400
 
     if 'file' not in request.files:
+        record_event(
+            ActivationEvent.CSV_IMPORT_FAILED,
+            user=current_user,
+            data={'error_code': 'bad_file'},
+            surface='contacts',
+            sync_person=False,
+        )
         return {'status': 'error', 'message': 'No file uploaded'}, 400
 
     file = request.files['file']
     if file.filename == '':
+        record_event(
+            ActivationEvent.CSV_IMPORT_FAILED,
+            user=current_user,
+            data={'error_code': 'bad_file'},
+            surface='contacts',
+            sync_person=False,
+        )
         return {'status': 'error', 'message': 'No file selected'}, 400
 
     if not file.filename.endswith('.csv'):
+        record_event(
+            ActivationEvent.CSV_IMPORT_FAILED,
+            user=current_user,
+            data={'error_code': 'bad_file'},
+            surface='contacts',
+            sync_person=False,
+        )
         return {'status': 'error', 'message': 'Please upload a CSV file'}, 400
+
+    record_event(
+        ActivationEvent.CSV_IMPORT_STARTED,
+        user=current_user,
+        data={'source': 'csv_import'},
+        surface='contacts',
+        sync_person=False,
+    )
 
     try:
         # Read the CSV file
@@ -929,10 +986,39 @@ def import_contacts():
         if success_count > 0:
             try:
                 db.session.commit()
+                from services.activation_service import (
+                    count_bucket, record_meaningful_action,
+                )
                 record_event(
                     ActivationEvent.CONTACT_CREATED,
                     user=current_user,
-                    data={'method': 'csv_import', 'contact_count': success_count},
+                    data={
+                        'source': 'csv_import',
+                        'contact_count': success_count,
+                        'contact_count_bucket': count_bucket(success_count),
+                    },
+                    surface='contacts',
+                )
+                record_event(
+                    ActivationEvent.CSV_IMPORT_COMPLETED
+                    if error_count == 0
+                    else ActivationEvent.CSV_IMPORT_PARTIAL,
+                    user=current_user,
+                    data={
+                        'source': 'csv_import',
+                        'contact_count_bucket': count_bucket(success_count),
+                        'error_count_bucket': count_bucket(error_count),
+                        'duplicates_skipped_bucket': count_bucket(
+                            duplicates_skipped
+                        ),
+                    },
+                    surface='contacts',
+                )
+                record_meaningful_action(
+                    current_user,
+                    action='csv_import_completed',
+                    surface='contacts',
+                    data={'contact_count_bucket': count_bucket(success_count)},
                 )
             except Exception as e:
                 db.session.rollback()

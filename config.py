@@ -56,6 +56,18 @@ class Config:
     POSTHOG_SESSION_REPLAY = (
         os.getenv('POSTHOG_SESSION_REPLAY', 'False').lower() == 'true'
     )
+    ACTIVATION_EXPERIENCE_VERSION = os.getenv(
+        'ACTIVATION_EXPERIENCE_VERSION', 'retention_v2'
+    )
+    ACTIVATION_EVENT_SCHEMA_VERSION = int(
+        os.getenv('ACTIVATION_EVENT_SCHEMA_VERSION', '2')
+    )
+    SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY = os.getenv(
+        'SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY'
+    )
+    APP_BASE_URL = os.getenv(
+        'APP_BASE_URL', 'https://www.origentechnolog.com'
+    ).rstrip('/')
 
     # Redis / RQ task queue
     REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
