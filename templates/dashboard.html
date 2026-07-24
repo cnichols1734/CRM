@@ -378,15 +378,32 @@
         </section>
         {% endif %}
 
-        {% if request.args.get('friction') == '1' and activation_state.mode != 'complete' %}
-        <section class="crm-surface mb-6">
+        {% if show_friction and activation_state.mode != 'complete' %}
+        <section class="crm-surface mb-6"
+                 data-analytics-surface="activation"
+                 data-analytics-component="friction_survey"
+                 data-analytics-impression="friction_survey">
             <div class="crm-surface-body">
                 <div class="max-w-2xl">
                     <div class="crm-section-kicker">One quick question</div>
                     <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">What stopped you from finishing setup?</h2>
                     <form action="{{ url_for('main.activation_friction') }}" method="post" class="mt-4 flex flex-wrap gap-2">
-                        {% for value, label in [('no_time', 'I ran out of time'), ('unclear_value', 'I wasn’t sure what I’d get'), ('import_problem', 'My contacts were hard to import'), ('too_much_setup', 'It felt like too much setup'), ('other', 'Something else')] %}
-                        <button type="submit" name="reason" value="{{ value }}" class="crm-btn crm-btn-secondary">{{ label }}</button>
+                        {% for value, label in [
+                            ('no_time', 'I ran out of time'),
+                            ('unclear_value', 'I wasn’t sure what I’d get'),
+                            ('import_problem', 'My contacts were hard to import'),
+                            ('too_much_setup', 'It felt like too much setup'),
+                            ('technical_problem', 'Something technical went wrong'),
+                            ('login_problem', 'I had trouble logging back in'),
+                            ('missing_feature', 'A feature I needed was missing'),
+                            ('other', 'Something else')
+                        ] %}
+                        <button type="submit" name="reason" value="{{ value }}"
+                                class="crm-btn crm-btn-secondary"
+                                data-analytics-surface="activation"
+                                data-analytics-component="friction_survey"
+                                data-analytics-action="click"
+                                data-analytics-target="friction_{{ value }}">{{ label }}</button>
                         {% endfor %}
                     </form>
                 </div>
@@ -410,9 +427,12 @@
                     <button type="button"
                             class="group rounded-md border border-orange-300 bg-orange-50 p-4 text-left transition-colors hover:border-orange-500 hover:bg-orange-100"
                             data-action="dashboard-page#selectContactPath"
-                            data-analytics-event="activation_path_selected"
+                            data-analytics-surface="activation"
+                            data-analytics-component="path_chooser"
+                            data-analytics-action="click"
+                            data-analytics-target="path_manual"
                             data-analytics-path="manual"
-                            data-analytics-surface="dashboard">
+                            data-analytics-impression="path_chooser">
                         <span class="flex items-center justify-between gap-4">
                             <span class="flex h-9 w-9 items-center justify-center rounded-md bg-orange-600 text-white"><i class="fas fa-user-plus text-sm"></i></span>
                             <i class="fas fa-arrow-right text-xs text-orange-600 transition-transform group-hover:translate-x-0.5"></i>
@@ -424,9 +444,11 @@
                     <a href="{{ url_for('main.contacts', import='1') }}"
                        class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
                        data-action="click->dashboard-page#recordImportPath"
-                       data-analytics-event="activation_path_selected"
-                       data-analytics-path="csv_import"
-                       data-analytics-surface="dashboard">
+                       data-analytics-surface="activation"
+                       data-analytics-component="path_chooser"
+                       data-analytics-action="click"
+                       data-analytics-target="path_csv_import"
+                       data-analytics-path="csv_import">
                         <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-file-import text-sm"></i></span>
                         <span class="mt-4 block text-sm font-semibold text-slate-950">Import my contacts</span>
                         <span class="mt-1 block text-xs leading-5 text-slate-500">Bring over a CSV list.</span>
@@ -435,9 +457,11 @@
                     <button type="button"
                             class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
                             data-action="dashboard-page#selectInboxPath"
-                            data-analytics-event="activation_path_selected"
-                            data-analytics-path="magic_inbox"
-                            data-analytics-surface="dashboard">
+                            data-analytics-surface="activation"
+                            data-analytics-component="path_chooser"
+                            data-analytics-action="click"
+                            data-analytics-target="path_magic_inbox"
+                            data-analytics-path="magic_inbox">
                         <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-paper-plane text-sm"></i></span>
                         <span class="mt-4 block text-sm font-semibold text-slate-950">Forward a lead or business card</span>
                         <span class="mt-1 block text-xs leading-5 text-slate-500">Use your private inbox.</span>
@@ -536,8 +560,10 @@
                 <p class="text-sm text-slate-500">A contact without a next action is easy to forget.</p>
                 <a href="{{ url_for('tasks.create_task', contact_id=activation_state.contact.id, return_to='contact') }}"
                    class="crm-btn crm-btn-primary"
-                   data-analytics-event="activation_follow_up_started"
-                   data-analytics-surface="dashboard">
+                   data-analytics-surface="activation"
+                   data-analytics-component="follow_up_cta"
+                   data-analytics-action="click"
+                   data-analytics-target="schedule_follow_up">
                     Schedule the follow-up
                 </a>
             </div>

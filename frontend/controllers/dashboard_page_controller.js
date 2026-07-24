@@ -16,6 +16,16 @@ export default class extends Controller {
     this.animatePipelineValue();
     this._waitForApexCharts().then(() => this.renderGroupChart());
     this.initializeTodos();
+    if (this.hasPathChooserTarget) {
+      window.crmAnalytics?.capture?.("activation_step_viewed", {
+        surface: "activation",
+        step: "chooser",
+        component: "path_chooser",
+        target: "chooser"
+      });
+      window.crmAnalytics?.setActivationState?.({ lastStep: "chooser" });
+      window.crmAnalytics?.captureImpression?.(this.pathChooserTarget);
+    }
   }
 
   disconnect() {
@@ -98,6 +108,18 @@ export default class extends Controller {
     this.pathChooserTarget.classList.add("hidden");
     this.inboxPathTarget.classList.add("hidden");
     this.contactPathTarget.classList.remove("hidden");
+    window.crmAnalytics?.capture?.("activation_step_viewed", {
+      surface: "activation",
+      step: "contact",
+      path: "manual",
+      component: "manual_form",
+      target: "contact_step"
+    });
+    window.crmAnalytics?.setActivationState?.({
+      lastStep: "contact",
+      path: "manual",
+      hadPath: true
+    });
     window.requestAnimationFrame(() => this.activationNameTarget.focus());
   }
 
@@ -107,10 +129,27 @@ export default class extends Controller {
     this.pathChooserTarget.classList.add("hidden");
     this.contactPathTarget.classList.add("hidden");
     this.inboxPathTarget.classList.remove("hidden");
+    window.crmAnalytics?.capture?.("activation_step_viewed", {
+      surface: "activation",
+      step: "inbox",
+      path: "magic_inbox",
+      component: "inbox_path",
+      target: "inbox_instructions"
+    });
+    window.crmAnalytics?.setActivationState?.({
+      lastStep: "inbox",
+      path: "magic_inbox",
+      hadPath: true
+    });
   }
 
   recordImportPath() {
     this._selectActivationPath("csv_import");
+    window.crmAnalytics?.setActivationState?.({
+      lastStep: "csv_preview",
+      path: "csv_import",
+      hadPath: true
+    });
   }
 
   resetActivationPath(event) {
@@ -118,6 +157,12 @@ export default class extends Controller {
     this.contactPathTarget.classList.add("hidden");
     this.inboxPathTarget.classList.add("hidden");
     this.pathChooserTarget.classList.remove("hidden");
+    window.crmAnalytics?.captureInteraction?.(event.currentTarget, {
+      surface: "activation",
+      component: "manual_form",
+      action: "back",
+      target: "back_to_chooser"
+    });
     this.showContactStep(event);
   }
 
@@ -126,16 +171,31 @@ export default class extends Controller {
     if (!this.activationNameTarget.value.trim()) {
       this.activationNameTarget.focus();
       this.activationNameTarget.reportValidity();
+      window.crmAnalytics?.capture?.("ui_error_shown", {
+        surface: "activation",
+        component: "manual_form",
+        target: "name_required",
+        error_code: "validation"
+      });
       return;
     }
     this.contactStepTarget.classList.add("hidden");
     this.followUpStepTarget.classList.remove("hidden");
+    window.crmAnalytics?.capture?.("activation_step_viewed", {
+      surface: "activation",
+      step: "follow_up",
+      path: "manual",
+      component: "manual_form",
+      target: "follow_up_step"
+    });
+    window.crmAnalytics?.setActivationState?.({ lastStep: "follow_up", path: "manual", hadPath: true });
   }
 
   showContactStep(event) {
     event.preventDefault();
     this.followUpStepTarget.classList.add("hidden");
     this.contactStepTarget.classList.remove("hidden");
+    window.crmAnalytics?.setActivationState?.({ lastStep: "contact", path: "manual", hadPath: true });
   }
 
   toggleCustomDate(event) {
@@ -150,13 +210,32 @@ export default class extends Controller {
   async createActivation(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    if (!form.reportValidity()) return;
+    if (!form.reportValidity()) {
+      window.crmAnalytics?.capture?.("activation_submit_failed", {
+        surface: "activation",
+        path: "manual",
+        error_code: "validation",
+        component: "manual_form",
+        target: "submit"
+      });
+      return;
+    }
 
     this.activationSubmitTarget.disabled = true;
     this.activationSubmitTarget.textContent = "Saving…";
     this.activationResultTarget.className = "mt-3 text-sm text-slate-500";
     this.activationResultTarget.textContent = "";
+    window.crmAnalytics?.setActivationState?.({ submitAttempted: true });
+    window.crmAnalytics?.capture?.("ui_interaction", {
+      surface: "activation",
+      component: "manual_form",
+      action: "submit",
+      target: "submit",
+      path: "manual",
+      step: "follow_up"
+    });
 
+    const startedAt = Date.now();
     try {
       const response = await fetch(this.quickAddUrlValue, {
         method: "POST",
@@ -165,6 +244,18 @@ export default class extends Controller {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.status !== "success") {
+        const errorCode = response.status === 409
+          ? "conflict"
+          : response.status >= 500
+            ? "server"
+            : "validation";
+        window.crmAnalytics?.capture?.("activation_submit_failed", {
+          surface: "activation",
+          path: "manual",
+          error_code: errorCode,
+          component: "manual_form",
+          target: "submit"
+        });
         throw new Error(data.message || "Could not save your first follow-up.");
       }
 
@@ -182,14 +273,41 @@ export default class extends Controller {
           <h3 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950" data-contact-name></h3>
           <p class="mt-2 text-sm text-slate-500">Due <strong class="text-slate-800" data-due-date></strong>. It is already on your task list.</p>
           <div class="mt-5 flex flex-wrap gap-2">
-            <a class="crm-btn crm-btn-primary" href="/tasks">Open my tasks</a>
-            <a class="crm-btn crm-btn-secondary" href="${data.view_url}">Open contact</a>
+            <a class="crm-btn crm-btn-primary" href="/tasks"
+               data-analytics-surface="activation"
+               data-analytics-component="success_card"
+               data-analytics-action="click"
+               data-analytics-target="open_tasks">Open my tasks</a>
+            <a class="crm-btn crm-btn-secondary" href="${data.view_url}"
+               data-analytics-surface="activation"
+               data-analytics-component="success_card"
+               data-analytics-action="click"
+               data-analytics-target="open_contact">Open contact</a>
           </div>
         </div>`;
       this.activationSuccessTarget.querySelector("[data-contact-name]").textContent = contactName;
       this.activationSuccessTarget.querySelector("[data-due-date]").textContent = dueDate;
+      window.crmAnalytics?.markActivationComplete?.();
+      window.crmAnalytics?.capture?.("ui_interaction", {
+        surface: "activation",
+        component: "manual_form",
+        action: "completed",
+        target: "success",
+        path: "manual",
+        latency_ms_bucket: Date.now() - startedAt < 1000 ? "0_1s" : "1s_plus"
+      });
       window.crmAnalytics?.stopReplay();
     } catch (error) {
+      const isNetwork = error instanceof TypeError;
+      if (isNetwork) {
+        window.crmAnalytics?.capture?.("activation_submit_failed", {
+          surface: "activation",
+          path: "manual",
+          error_code: "network",
+          component: "manual_form",
+          target: "submit"
+        });
+      }
       this.activationResultTarget.className = "mt-3 text-sm text-red-600";
       this.activationResultTarget.textContent = error.message || "Please try again.";
       this.activationSubmitTarget.disabled = false;
@@ -202,6 +320,13 @@ export default class extends Controller {
     if (!address) return;
     await navigator.clipboard.writeText(address);
     event.currentTarget.textContent = "Copied";
+    window.crmAnalytics?.capture?.("inbox_address_copied", {
+      surface: "activation",
+      component: "inbox_path",
+      action: "copy",
+      target: "copy_address"
+    });
+    fetch("/dashboard/inbox-copied", { method: "POST" }).catch(() => {});
   }
 
   _selectActivationPath(path) {

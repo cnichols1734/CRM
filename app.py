@@ -54,6 +54,7 @@ from routes.inbound_email import inbound_bp
 from routes.partner_directory import partner_directory_bp
 from routes.portal import portal_bp
 from routes.groups import groups_bp
+from routes.analytics_webhooks import analytics_webhooks_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -239,6 +240,7 @@ def create_app():
     app.register_blueprint(partner_directory_bp)
     app.register_blueprint(portal_bp)
     app.register_blueprint(groups_bp)
+    app.register_blueprint(analytics_webhooks_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT
@@ -323,6 +325,22 @@ def create_app():
                 ensure_inbox_for(current_user)
             except Exception:
                 pass
+
+        # Retention: count an authenticated session on any app surface, not
+        # only /dashboard. Best-effort; never fail the request.
+        try:
+            endpoint = request.endpoint or ''
+            if (
+                request.method in {'GET', 'HEAD'}
+                and not endpoint.startswith('static')
+                and not request.path.startswith('/static')
+                and not request.path.startswith('/api/notifications')
+            ):
+                from services.activation_service import record_daily_session
+                surface = endpoint.split('.')[0] if endpoint else 'app'
+                record_daily_session(current_user, surface=surface)
+        except Exception:
+            pass
 
     @app.after_request
     def record_session_creation(response):

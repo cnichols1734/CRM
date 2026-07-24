@@ -2753,13 +2753,16 @@ class RentcastApiLog(db.Model):
 
 
 class ActivationEvent(db.Model):
-    """Append-only log of new-user activation milestones.
+    """Append-only log of activation and retention milestones.
 
-    Lets us answer the questions we currently can't: what share of signups ever
-    add a contact, how long that takes, and whether the dashboard quick-add is
-    pulling its weight. Writes are best-effort (see services/activation_service)
-    so analytics can never break a user-facing flow. No RLS by design: this is
-    internal product analytics, not tenant-visible data.
+    Lets us answer what share of signups ever add a contact, how long that
+    takes, whether they return, and which drop-off is blocking retention.
+    Writes are best-effort (see services/activation_service) so analytics can
+    never break a user-facing flow.
+
+    RLS is enabled in Postgres with no tenant policy: Supabase anon/authenticated
+    roles cannot read or write these rows. The application DB role continues to
+    write and query them for platform reporting.
     """
     __tablename__ = 'activation_events'
 
@@ -2772,12 +2775,13 @@ class ActivationEvent(db.Model):
         db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'),
         nullable=True, index=True,
     )
-    event = db.Column(db.String(50), nullable=False, index=True)
+    event = db.Column(db.String(80), nullable=False, index=True)
     event_data = db.Column(db.JSON, default=dict)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     # Event name constants (keep in sync with services/activation_service.py).
     ACCOUNT_CREATED = 'account_created'
+    ACCOUNT_SETUP_FAILED = 'account_setup_failed'
     DASHBOARD_VIEWED = 'dashboard_viewed'
     ACTIVATION_PATH_SELECTED = 'activation_path_selected'
     CONTACT_CREATED = 'contact_created'
@@ -2786,10 +2790,33 @@ class ActivationEvent(db.Model):
     ACTIVATION_COMPLETED = 'activation_completed'
     TASK_COMPLETED = 'task_completed'
     SESSION_STARTED = 'session_started'
+    MEANINGFUL_ACTION = 'meaningful_action'
     LOGIN_SUCCEEDED = 'login_succeeded'
+    LOGIN_FAILED = 'login_failed'
+    PASSWORD_RESET_REQUESTED = 'password_reset_requested'
+    PASSWORD_RESET_COMPLETED = 'password_reset_completed'
+    WELCOME_EMAIL_SENT = 'welcome_email_sent'
+    WELCOME_EMAIL_FAILED = 'welcome_email_failed'
+    WELCOME_EMAIL_CLICKED = 'welcome_email_clicked'
+    EMAIL_DELIVERED = 'email_delivered'
+    EMAIL_BOUNCED = 'email_bounced'
+    EMAIL_DROPPED = 'email_dropped'
+    EMAIL_DEFERRED = 'email_deferred'
     LIFECYCLE_MESSAGE_SENT = 'lifecycle_message_sent'
     LIFECYCLE_MESSAGE_CLICKED = 'lifecycle_message_clicked'
     FRICTION_RESPONSE = 'friction_response'
+    CHURN_REASON = 'churn_reason'
+    CSV_IMPORT_STARTED = 'csv_import_started'
+    CSV_IMPORT_FAILED = 'csv_import_failed'
+    CSV_IMPORT_PARTIAL = 'csv_import_partial'
+    CSV_IMPORT_COMPLETED = 'csv_import_completed'
+    INBOX_ADDRESS_COPIED = 'inbox_address_copied'
+    INBOUND_MESSAGE_RECEIVED = 'inbound_message_received'
+    INBOUND_PROCESSING_FAILED = 'inbound_processing_failed'
+    SURFACE_VIEWED = 'surface_viewed'
+    FEATURE_GATE_HIT = 'feature_gate_hit'
+    RETENTION_STAGE_CHANGED = 'retention_stage_changed'
+    RETENTION_BASELINE_SNAPSHOT = 'retention_baseline_snapshot'
 
     def __repr__(self):
         return f'<ActivationEvent {self.event} org={self.organization_id} user={self.user_id}>'
