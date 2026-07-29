@@ -3,6 +3,110 @@
  * Business Optimization Buddy for Origen Realty CRM
  */
 
+/**
+ * Suggestions shown on the welcome screen, sampled at random each time it is
+ * shown so the panel keeps advertising abilities the agent has not tried yet.
+ *
+ * Every entry must map to something the tool layer can actually do; see
+ * services/bob_tools/registry.py. Do not add aspirational examples here,
+ * because a starter that fails is worse than one that never appeared.
+ *
+ * mode 'send'  - self-contained, so it runs on click.
+ * mode 'draft' - needs a name or detail from the agent, so it only fills the
+ *                composer. A prompt ending in '@' opens the contact picker.
+ */
+const BOB_STARTERS = [
+    // ---- Reads: answer a question about the book of business ----
+    { group: 'ask', mode: 'send', icon: 'fa-calendar-day',
+      label: "What's on my plate today?",
+      prompt: "What's on my plate today?" },
+    { group: 'ask', mode: 'send', icon: 'fa-triangle-exclamation',
+      label: 'What have I let slip?',
+      prompt: 'What tasks am I overdue on?' },
+    { group: 'ask', mode: 'send', icon: 'fa-calendar-week',
+      label: "What's coming up this week?",
+      prompt: 'What tasks do I have due over the next 7 days?' },
+    { group: 'ask', mode: 'send', icon: 'fa-chart-column',
+      label: 'How many contacts in each city?',
+      prompt: 'How many contacts do I have in each city?' },
+    { group: 'ask', mode: 'send', icon: 'fa-map-location-dot',
+      label: 'Break my book down by ZIP',
+      prompt: 'How many contacts do I have in each ZIP code?' },
+    { group: 'ask', mode: 'send', icon: 'fa-layer-group',
+      label: "What's in each of my groups?",
+      prompt: 'How many contacts are in each of my contact groups?' },
+    { group: 'ask', mode: 'send', icon: 'fa-address-book',
+      label: 'How big is my book?',
+      prompt: 'How many contacts do I have in total?' },
+    { group: 'ask', mode: 'send', icon: 'fa-list-check',
+      label: "What's on my personal list?",
+      prompt: "What's on my personal to-do list?" },
+    { group: 'ask', mode: 'send', icon: 'fa-circle-check',
+      label: 'What did I finish this week?',
+      prompt: 'Which tasks did I complete in the last 7 days?' },
+    { group: 'ask', mode: 'draft', icon: 'fa-id-card',
+      label: 'Catch me up on',
+      prompt: 'Give me the full picture on @' },
+    { group: 'ask', mode: 'draft', icon: 'fa-clipboard-list',
+      label: 'What is open for',
+      prompt: 'What tasks are still open for @' },
+
+    // ---- Writes: do the work ----
+    { group: 'do', mode: 'draft', icon: 'fa-phone',
+      label: 'Log a call with',
+      prompt: 'Log a call with @' },
+    { group: 'do', mode: 'draft', icon: 'fa-comment-sms',
+      label: 'Log a text to',
+      prompt: 'Log a text message to @' },
+    { group: 'do', mode: 'draft', icon: 'fa-clock',
+      label: 'Set a follow-up for',
+      prompt: 'Create a follow-up task for @' },
+    { group: 'do', mode: 'draft', icon: 'fa-note-sticky',
+      label: 'Add a note to',
+      prompt: 'Add a note to @' },
+    { group: 'do', mode: 'draft', icon: 'fa-user-plus',
+      label: 'Add a new contact',
+      prompt: 'Add a new contact: ' },
+    { group: 'do', mode: 'draft', icon: 'fa-house-chimney',
+      label: 'Book a showing for',
+      prompt: 'Create a showing task for @' },
+    { group: 'do', mode: 'draft', icon: 'fa-right-left',
+      label: 'Move someone to a new group',
+      prompt: 'Move @',
+      suffix: 'into a different contact group' },
+    { group: 'do', mode: 'draft', icon: 'fa-pen',
+      label: 'Update details for',
+      prompt: 'Update the phone number for @' },
+    { group: 'do', mode: 'draft', icon: 'fa-thumbtack',
+      label: 'Add to my personal list',
+      prompt: 'Add this to my personal list: ' },
+    { group: 'do', mode: 'draft', icon: 'fa-check-double',
+      label: 'Check a task off',
+      prompt: 'Mark this task as done: ' },
+
+    // ---- Writes that chain several tools in one sentence ----
+    { group: 'do', mode: 'draft', icon: 'fa-wand-magic-sparkles',
+      label: 'Log a call and set the follow-up',
+      prompt: 'Log a call with @',
+      suffix: 'and set a follow-up task for Friday' },
+    { group: 'do', mode: 'draft', icon: 'fa-wand-magic-sparkles',
+      label: 'Note it and remind me later',
+      prompt: 'Add a note to @',
+      suffix: 'and remind me to call them next Tuesday' },
+    { group: 'do', mode: 'draft', icon: 'fa-wand-magic-sparkles',
+      label: 'Log a showing and move them along',
+      prompt: 'Log a showing with @',
+      suffix: 'and move them into my under-contract group' },
+    { group: 'do', mode: 'draft', icon: 'fa-wand-magic-sparkles',
+      label: 'Add a contact and a first follow-up',
+      prompt: 'Add a new contact and set a follow-up task for next week: ' },
+];
+
+// Kept small on purpose: a wall of suggestions is as unhelpful as none. The
+// rest are a click away behind "more".
+const BOB_STARTER_COUNTS = { ask: 2, do: 3 };
+const BOB_STARTER_STEP = 4;
+
 class BOBChatPanel {
     constructor() {
         this.state = 'closed'; // 'closed' | 'side' | 'modal'
@@ -24,6 +128,7 @@ class BOBChatPanel {
     
     init() {
         this.createPanel();
+        this.renderStarters();
         this.bindEvents();
     }
     
@@ -114,29 +219,15 @@ class BOBChatPanel {
                     </div>
                     <div class="bob-title">B.O.B.</div>
                     <div class="bob-subtitle">Business Optimization Buddy</div>
-                    <div class="bob-tagline">Your AI-powered assistant for real estate success. Ask me anything about your contacts, tasks, or pipeline.</div>
+                    <div class="bob-tagline">I can look things up in your CRM, and now I can do the work too.</div>
+
+                    <div class="bob-starters" id="bob-starters"></div>
                 </div>
-                
+
                 <!-- Messages Container -->
                 <div class="bob-messages" id="bob-messages"></div>
             </div>
-            
-            <!-- Quick Actions - Always visible -->
-            <div class="bob-quick-actions">
-                <div class="bob-quick-label">Quick actions</div>
-                <div class="bob-quick-options visible">
-                    <button class="bob-quick-option" data-action="summarize_tasks">
-                        Summarize my open tasks
-                    </button>
-                    <button class="bob-quick-option" data-action="top_contacts">
-                        Top 3 contacts to reach out to
-                    </button>
-                    <button class="bob-quick-option" data-action="pipeline_overview">
-                        Quick pipeline overview
-                    </button>
-                </div>
-            </div>
-            
+
             <!-- Input Area -->
             <div class="bob-input-area">
                 <!-- Image Preview -->
@@ -253,12 +344,17 @@ class BOBChatPanel {
             this.handleMentionTrigger();
         });
         
-        // Quick actions - no longer need toggle, options are always visible
-        
-        document.querySelectorAll('.bob-quick-option').forEach(btn => {
-            btn.addEventListener('click', () => {
-                this.handleQuickAction(btn.dataset.action);
-            });
+        // Starter prompts. Delegated because the list is re-sampled on every
+        // welcome screen. These go through the normal message path so the agent
+        // sees the real tool activity, not a canned summary.
+        document.getElementById('bob-starters').addEventListener('click', (e) => {
+            const more = e.target.closest('.bob-starters-more');
+            if (more) {
+                this.showMoreStarters(more.dataset.more);
+                return;
+            }
+            const btn = e.target.closest('.bob-starter');
+            if (btn) this.useStarter(btn.dataset.starter);
         });
         
         // New Chat buttons
@@ -298,6 +394,7 @@ class BOBChatPanel {
     
     toggle() {
         if (this.state === 'closed') {
+            this.refreshStartersIfIdle();
             this.openSide();
         } else {
             this.close();
@@ -317,10 +414,18 @@ class BOBChatPanel {
         panel.classList.add('open');
         
         this.updateExpandButton();
-        
+
         // Load conversations for dropdown
         if (!this.conversationsLoaded) {
             this.loadConversations();
+        }
+    }
+
+    /** Re-sample suggestions on open, but never mid-conversation. */
+    refreshStartersIfIdle() {
+        const welcome = document.getElementById('bob-welcome');
+        if (welcome && !welcome.classList.contains('hidden')) {
+            this.renderStarters();
         }
     }
     
@@ -415,7 +520,10 @@ class BOBChatPanel {
         document.getElementById('bob-welcome').classList.remove('hidden');
         this.removeAttachment();
         this.mentionedContacts = [];
-        
+
+        // Fresh suggestions each time the welcome screen comes back.
+        this.renderStarters();
+
         // Update active state in sidebar/dropdown
         this.renderHistorySidebar();
         this.renderHistoryDropdown();
@@ -605,43 +713,116 @@ class BOBChatPanel {
         textarea.focus();
     }
     
-    // ===== Quick Actions =====
-    async handleQuickAction(action) {
-        // Show the messages area
-        document.getElementById('bob-welcome').classList.add('hidden');
-        document.getElementById('bob-messages').classList.add('active');
-        
-        // Add a user message showing what was requested
-        const actionLabels = {
-            'summarize_tasks': 'Summarize my open tasks',
-            'top_contacts': 'Who are my top 3 contacts to reach out to?',
-            'pipeline_overview': 'Give me a quick pipeline overview'
-        };
-        
-        this.addMessage('user', actionLabels[action]);
-        
-        // Show typing indicator
-        this.showTyping();
-        
-        try {
-            const response = await fetch('/api/ai-chat/quick-action', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action })
-            });
-            
-            if (!response.ok) throw new Error('Quick action failed');
-            
-            const data = await response.json();
-            this.hideTyping();
-            this.addMessage('assistant', data.response);
-            
-        } catch (error) {
-            console.error('Quick action error:', error);
-            this.hideTyping();
-            this.addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+    // ===== Starter Prompts =====
+
+    /** Indices into BOB_STARTERS for one group, in random order. */
+    shuffledStarterIndices(group) {
+        const indices = BOB_STARTERS
+            .map((starter, index) => ({ starter, index }))
+            .filter(entry => entry.starter.group === group)
+            .map(entry => entry.index);
+
+        for (let i = indices.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        return indices;
+    }
+
+    /**
+     * @param {boolean} reshuffle Re-sample the order and collapse back to the
+     *   opening few. False when revealing more, so the rows already on screen
+     *   stay put instead of shuffling under the cursor.
+     */
+    renderStarters(reshuffle = true) {
+        const container = document.getElementById('bob-starters');
+        if (!container) return;
+
+        const groups = [
+            { key: 'ask', label: 'Look something up' },
+            { key: 'do', label: 'Get something done' },
+        ];
+
+        if (reshuffle || !this.starterState) {
+            this.starterState = {};
+            for (const { key } of groups) {
+                this.starterState[key] = {
+                    order: this.shuffledStarterIndices(key),
+                    shown: BOB_STARTER_COUNTS[key],
+                };
+            }
+        }
+
+        container.innerHTML = groups.map(({ key, label }) => {
+            const { order, shown } = this.starterState[key];
+
+            const rows = order.slice(0, shown).map(index => {
+                const starter = BOB_STARTERS[index];
+                // Only trail an ellipsis when the blank the agent fills is at
+                // the end of the sentence.
+                const trailing = starter.mode === 'draft' && !starter.suffix
+                    ? '<span class="bob-starter-fill">…</span>'
+                    : '';
+                return `
+                    <button class="bob-starter" type="button" data-starter="${index}">
+                        <i class="fas ${starter.icon}"></i>
+                        <span>${this.escapeHtml(starter.label)}${trailing}</span>
+                    </button>
+                `;
+            }).join('');
+
+            const remaining = order.length - shown;
+            const more = remaining > 0
+                ? `<button class="bob-starters-more" type="button" data-more="${key}">
+                       <i class="fas fa-plus"></i>
+                       <span>${remaining} more</span>
+                   </button>`
+                : '';
+
+            return `
+                <div class="bob-starters-group">
+                    <div class="bob-starters-label">${label}</div>
+                    ${rows}${more}
+                </div>
+            `;
+        }).join('') + `
+            <p class="bob-starters-note">
+                I'll show you a preview before editing or deleting anything.
+            </p>
+        `;
+    }
+
+    showMoreStarters(group) {
+        const state = this.starterState?.[group];
+        if (!state) return;
+
+        state.shown = Math.min(state.shown + BOB_STARTER_STEP, state.order.length);
+        this.renderStarters(false);
+    }
+
+    useStarter(index) {
+        const starter = BOB_STARTERS[Number(index)];
+        if (!starter || this.isTyping) return;
+
+        const textarea = document.getElementById('bob-textarea');
+        textarea.value = starter.prompt + (starter.suffix || '');
+        this.autoResizeTextarea();
+
+        if (starter.mode === 'send') {
+            this.sendMessage();
+            return;
+        }
+
+        // Drafts need a name the agent still has to choose. The caret goes at
+        // the end of `prompt` rather than the end of the text, so a multi-step
+        // suffix stays intact after the contact is inserted.
+        textarea.focus();
+        textarea.setSelectionRange(starter.prompt.length, starter.prompt.length);
+        if (starter.prompt.endsWith('@')) {
+            this.handleMentionTrigger();
         }
     }
+
     
     // ===== Message Handling =====
     addMessage(role, content, saveToArray = true, attachment = null) {
