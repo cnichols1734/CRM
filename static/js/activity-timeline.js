@@ -336,11 +336,19 @@ class ActivityTimelineManager {
         if (!timestamp) return '';
 
         const date = new Date(timestamp);
-        const now = new Date();
-        const diffMs = now - date;
-        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        if (Number.isNaN(date.getTime())) return '';
 
-        if (diffDays === 0) {
+        // Compare calendar days, not elapsed milliseconds. An activity is
+        // logged against a date, and writers anchor it to different times of
+        // day: the log form uses local midnight, B.O.B. uses midday. Anchored
+        // ahead of the current clock time, elapsed-time maths goes negative and
+        // Math.floor turns a same-day entry into "-1d ago".
+        const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+        // Rounded because clocks shifting for DST make some days 23 or 25 hours.
+        const diffDays = Math.round((dayStart(new Date()) - dayStart(date)) / 86400000);
+
+        if (diffDays <= 0) {
             return 'Today';
         } else if (diffDays === 1) {
             return 'Yesterday';
