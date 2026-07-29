@@ -1,17 +1,21 @@
-"""Daily ops health check for Origen CRM.
+"""Ops health check for Origen CRM.
 
-Runs via Railway Cron (9:00 AM Central / 14:00 UTC) and emails a short status
-report. Probes the public /health endpoint, Redis/RQ, and optionally Railway
-service deployment status when RAILWAY_API_TOKEN is set.
+Two modes:
+- Digest (default): always emails the plain-English overview. Used by the
+  twice-daily Railway cron (9:00 AM / 9:00 PM Central).
+- Alert: emails only on WARN/FAIL (and once on recovery). Used by the
+  every-5-minute Railway cron. Redis cooldown prevents inbox spam.
 
 Usage:
     python jobs/daily_health_check.py
     python jobs/daily_health_check.py --dry-run
+    python jobs/daily_health_check.py --alert-only
     HEALTH_CHECK_TO=you@example.com python jobs/daily_health_check.py
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -47,14 +51,26 @@ RAILWAY_PROJECT_ID = os.environ.get(
 RAILWAY_ENVIRONMENT_ID = os.environ.get(
     'RAILWAY_ENVIRONMENT_ID', '107abd3a-2294-4a4e-9dfb-cbe0f7dfcb3c'
 )
+# Core always-on pieces. Cron jobs can be briefly missing during setup without
+# paging — they're listed separately so a missing alert cron doesn't self-alert.
 EXPECTED_SERVICES = (
     'OrigenTechnolOG',
     'document-worker',
     'Redis',
+)
+EXPECTED_CRON_SERVICES = (
     'Task Reminder Cron',
     'Activation Lifecycle Cron',
     'Retention Analytics Cron',
     'Daily Health Check Cron',
+    'Health Alert Cron',
+)
+
+ALERT_STATE_KEY = os.environ.get(
+    'HEALTH_ALERT_REDIS_KEY', 'origen:health_alert:state'
+)
+ALERT_COOLDOWN_SECONDS = int(
+    os.environ.get('HEALTH_ALERT_COOLDOWN_SECONDS', str(30 * 60))
 )
 
 
@@ -524,19 +540,26 @@ def check_railway_services() -> CheckResult:
         if status not in ('SUCCESS', 'SLEEPING'):
             bad.append(name)
 
-    missing = [name for name in EXPECTED_SERVICES if name not in seen]
-    ok = not bad
-    warn = bool(missing) and ok
+    missing_core = [name for name in EXPECTED_SERVICES if name not in seen]
+    missing_crons = [name for name in EXPECTED_CRON_SERVICES if name not in seen]
+    ok = not bad and not missing_core
+    # Missing cron jobs are informational on digests; don't page every 5 minutes.
+    warn = False
 
-    if bad:
-        detail = 'These services look unhealthy: ' + ', '.join(bad) + '.'
+    if bad or missing_core:
+        parts = []
+        if bad:
+            parts.append('unhealthy: ' + ', '.join(bad))
+        if missing_core:
+            parts.append('missing core: ' + ', '.join(missing_core))
+        detail = 'Hosting issue — ' + '; '.join(parts) + '.'
         meaning = 'One or more Railway pieces may need a redeploy or restart.'
-    elif missing:
+    elif missing_crons:
         detail = (
-            'Running services look fine. Not seen in this check: '
-            + ', '.join(missing) + '.'
+            'Core hosting looks fine. Scheduled jobs not seen: '
+            + ', '.join(missing_crons) + '.'
         )
-        meaning = 'Hosting is mostly fine — a scheduled job may be missing from the project.'
+        meaning = 'Main app is up. A cron may be missing — check Railway when convenient.'
     else:
         detail = 'All expected Railway services look healthy.'
         meaning = 'Hosting, workers, and scheduled jobs are in good shape.'
@@ -547,7 +570,13 @@ def check_railway_services() -> CheckResult:
         warn=warn,
         detail=detail,
         meaning=meaning,
-        meta={'rows': rows, 'missing': missing, 'bad': bad, 'source': source},
+        meta={
+            'rows': rows,
+            'missing_core': missing_core,
+            'missing_crons': missing_crons,
+            'bad': bad,
+            'source': source,
+        },
     )
 
 
@@ -590,9 +619,16 @@ def _status_copy(status: str) -> tuple[str, str, str]:
     )
 
 
-def _verdict_sentence(checks: list[CheckResult], status: str) -> str:
-    if status == 'OK':
-        return 'Origen looks healthy this morning. No action needed.'
+def _verdict_sentence(
+    checks: list[CheckResult],
+    status: str,
+    *,
+    kind: str = 'digest',
+) -> str:
+    if kind == 'recovery' or status == 'OK':
+        if kind == 'recovery':
+            return 'Origen is healthy again. Earlier warning/error has cleared.'
+        return 'Origen looks healthy. No action needed.'
     problems = [c for c in checks if not c.ok]
     warns = [c for c in checks if c.ok and c.warn]
     if problems:
@@ -602,12 +638,104 @@ def _verdict_sentence(checks: list[CheckResult], status: str) -> str:
     return f'App is up, but worth a glance: {names}.'
 
 
-def render_email(checks: list[CheckResult], *, when_ct: datetime) -> tuple[str, str]:
+def _issue_signature(checks: list[CheckResult]) -> str:
+    """Stable fingerprint of current problem set for cooldown / re-alert."""
+    parts = []
+    for check in checks:
+        if not check.ok:
+            parts.append(f'fail:{check.name}:{check.detail}')
+        elif check.warn:
+            parts.append(f'warn:{check.name}:{check.detail}')
+    raw = '|'.join(parts) or 'ok'
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:16]
+
+
+def _redis_client():
+    redis_url = os.environ.get('REDIS_URL')
+    if not redis_url:
+        return None
+    try:
+        from redis import Redis
+        return Redis.from_url(
+            redis_url,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            decode_responses=True,
+        )
+    except Exception as exc:
+        logger.warning('Redis client unavailable for alert state: %s', exc)
+        return None
+
+
+def _load_alert_state() -> dict[str, Any]:
+    client = _redis_client()
+    if client is None:
+        return {}
+    try:
+        raw = client.get(ALERT_STATE_KEY)
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception as exc:
+        logger.warning('Failed to load alert state: %s', exc)
+        return {}
+
+
+def _save_alert_state(state: dict[str, Any]) -> None:
+    client = _redis_client()
+    if client is None:
+        return
+    try:
+        client.set(ALERT_STATE_KEY, json.dumps(state), ex=7 * 24 * 3600)
+    except Exception as exc:
+        logger.warning('Failed to save alert state: %s', exc)
+
+
+def _clear_alert_state() -> None:
+    client = _redis_client()
+    if client is None:
+        return
+    try:
+        client.delete(ALERT_STATE_KEY)
+    except Exception as exc:
+        logger.warning('Failed to clear alert state: %s', exc)
+
+
+def render_email(
+    checks: list[CheckResult],
+    *,
+    when_ct: datetime,
+    kind: str = 'digest',
+) -> tuple[str, str]:
     status = overall_status(checks)
-    headline, subject_verb, status_color = _status_copy(status)
+    if kind == 'recovery':
+        headline, subject_verb, status_color = (
+            'Back to healthy',
+            'Recovered',
+            '#15803d',
+        )
+        eyebrow = 'Origen alert · recovered'
+        footer = 'Realtime health alert · Origen TechnolOG'
+    elif kind == 'alert':
+        headline, subject_verb, status_color = _status_copy(status)
+        subject_verb = f'ALERT · {subject_verb}'
+        eyebrow = 'Origen alert · needs attention'
+        footer = 'Realtime health alert · Origen TechnolOG'
+    else:
+        headline, subject_verb, status_color = _status_copy(status)
+        eyebrow = 'Origen morning check'
+        footer = 'Twice-daily overview · Origen TechnolOG'
+
     date_label = when_ct.strftime('%b %-d, %Y')
-    subject = f'[Origen] {subject_verb} — {date_label}'
-    verdict = _verdict_sentence(checks, status)
+    time_label = when_ct.strftime('%-I:%M %p %Z')
+    if kind == 'alert':
+        subject = f'[Origen] {subject_verb} — {date_label} {time_label}'
+    elif kind == 'recovery':
+        subject = f'[Origen] Recovered — {date_label} {time_label}'
+    else:
+        subject = f'[Origen] {subject_verb} — {date_label}'
+    verdict = _verdict_sentence(checks, status, kind=kind)
 
     cards = []
     for check in checks:
@@ -700,7 +828,7 @@ def render_email(checks: list[CheckResult], *, when_ct: datetime) -> tuple[str, 
   <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.2px;
-         text-transform:uppercase;color:#ea580c;">Origen morning check</p>
+         text-transform:uppercase;color:#ea580c;">{_esc(eyebrow)}</p>
       <h1 style="margin:0 0 8px;font-size:26px;letter-spacing:-0.02em;">{_esc(headline)}</h1>
       <p style="margin:0 0 6px;color:#64748b;font-size:14px;">
         {when_ct.strftime('%A, %b %-d · %-I:%M %p %Z')}
@@ -727,7 +855,7 @@ def render_email(checks: list[CheckResult], *, when_ct: datetime) -> tuple[str, 
       </p>
     </div>
     <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:16px;">
-      Daily automated check · Origen TechnolOG
+      {_esc(footer)}
     </p>
   </div>
 </body></html>"""
@@ -770,9 +898,15 @@ def send_report(to_email: str, subject: str, html: str) -> bool:
     return ok
 
 
-def run_daily_health_check(*, to_email: str, dry_run: bool = False) -> int:
+def run_daily_health_check(
+    *,
+    to_email: str,
+    dry_run: bool = False,
+    alert_only: bool = False,
+) -> int:
     when_ct = datetime.now(CT)
-    logger.info('Starting daily health check at %s', when_ct.isoformat())
+    mode = 'alert' if alert_only else 'digest'
+    logger.info('Starting %s health check at %s', mode, when_ct.isoformat())
     checks = collect_checks()
     status = overall_status(checks)
     for check in checks:
@@ -781,7 +915,16 @@ def run_daily_health_check(*, to_email: str, dry_run: bool = False) -> int:
         )
         logger.log(level, '%s: %s — %s', check.name, 'OK' if check.ok else 'FAIL', check.detail)
 
-    subject, html = render_email(checks, when_ct=when_ct)
+    if alert_only:
+        return _run_alert_mode(
+            checks=checks,
+            status=status,
+            to_email=to_email,
+            dry_run=dry_run,
+            when_ct=when_ct,
+        )
+
+    subject, html = render_email(checks, when_ct=when_ct, kind='digest')
     logger.info('Overall status=%s subject=%r', status, subject)
 
     if dry_run:
@@ -810,12 +953,114 @@ def run_daily_health_check(*, to_email: str, dry_run: bool = False) -> int:
     return 0 if status != 'FAIL' else 1
 
 
+def _run_alert_mode(
+    *,
+    checks: list[CheckResult],
+    status: str,
+    to_email: str,
+    dry_run: bool,
+    when_ct: datetime,
+) -> int:
+    signature = _issue_signature(checks)
+    prior = _load_alert_state()
+    prior_status = prior.get('status')
+    prior_signature = prior.get('signature')
+    prior_sent_at = float(prior.get('sent_at') or 0)
+    now_ts = time.time()
+    age = now_ts - prior_sent_at if prior_sent_at else None
+
+    if status == 'OK':
+        if prior_status in ('WARN', 'FAIL'):
+            subject, html = render_email(
+                checks, when_ct=when_ct, kind='recovery',
+            )
+            logger.info('Recovery alert subject=%r', subject)
+            if dry_run:
+                print(subject)
+                print(json.dumps({'action': 'recovery', 'prior': prior}, indent=2))
+                return 0
+            if send_report(to_email, subject, html):
+                _clear_alert_state()
+                print(f'Health alert: recovered; emailed {to_email}')
+                return 0
+            logger.error('Failed to send recovery email to %s', to_email)
+            return 2
+        logger.info('Alert mode: healthy — no email')
+        if dry_run:
+            print('OK — no alert email')
+        else:
+            print('Health alert: OK; no email')
+        return 0
+
+    # WARN / FAIL
+    same_issue = (
+        prior_status == status
+        and prior_signature == signature
+        and age is not None
+        and age < ALERT_COOLDOWN_SECONDS
+    )
+    if same_issue:
+        mins = int((ALERT_COOLDOWN_SECONDS - age) / 60)
+        logger.info(
+            'Alert suppressed (same %s within cooldown; ~%sm left)',
+            status, max(mins, 0),
+        )
+        if dry_run:
+            print(f'Suppressed — same {status}, cooldown active')
+        else:
+            print(f'Health alert: {status}; suppressed by cooldown')
+        return 0 if status != 'FAIL' else 1
+
+    subject, html = render_email(checks, when_ct=when_ct, kind='alert')
+    logger.info('Alert email subject=%r', subject)
+    if dry_run:
+        print(subject)
+        print(json.dumps(
+            {
+                'action': 'alert',
+                'status': status,
+                'signature': signature,
+                'checks': [
+                    {
+                        'name': c.name,
+                        'ok': c.ok,
+                        'warn': c.warn,
+                        'detail': c.detail,
+                    }
+                    for c in checks
+                ],
+            },
+            indent=2,
+        ))
+        return 0 if status != 'FAIL' else 1
+
+    if not send_report(to_email, subject, html):
+        logger.error('Failed to send alert email to %s', to_email)
+        return 2
+
+    _save_alert_state({
+        'status': status,
+        'signature': signature,
+        'sent_at': now_ts,
+    })
+    print(f'Health alert: {status}; emailed {to_email}')
+    return 0 if status != 'FAIL' else 1
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Origen daily health check')
+    parser = argparse.ArgumentParser(description='Origen health check')
     parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Collect checks and print results without emailing',
+    )
+    parser.add_argument(
+        '--alert-only',
+        action='store_true',
+        help=(
+            'Realtime mode: email only on WARN/FAIL (plus one recovery email). '
+            'Uses Redis cooldown so the same issue is not re-mailed every 5 minutes.'
+        ),
     )
     parser.add_argument(
         '--to',
@@ -823,7 +1068,11 @@ def main():
         help=f'Recipient email (default: {DEFAULT_TO})',
     )
     args = parser.parse_args()
-    raise SystemExit(run_daily_health_check(to_email=args.to, dry_run=args.dry_run))
+    raise SystemExit(run_daily_health_check(
+        to_email=args.to,
+        dry_run=args.dry_run,
+        alert_only=args.alert_only,
+    ))
 
 
 if __name__ == '__main__':

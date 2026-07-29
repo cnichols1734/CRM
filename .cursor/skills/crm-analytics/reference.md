@@ -18,7 +18,8 @@ Project: `scintillating-encouragement` (`f64a9388-3778-45e6-9755-97b41a746a1c`)
 | Activation Lifecycle Cron | `0 * * * *` | `python jobs/activation_lifecycle.py` |
 | Retention Analytics Cron | `0 15 * * *` | `python jobs/retention_analytics.py` |
 | Task Reminder Cron | `0 14 * * *` | `python jobs/task_reminder.py` (not activation) |
-| Daily Health Check Cron | `0 14 * * *` | `python jobs/daily_health_check.py` (9:00 AM CT / CDT; emails ops digest) |
+| Daily Health Check Cron | `0 2,14 * * *` | `python -m jobs.daily_health_check` (9:00 AM + 9:00 PM CT digest) |
+| Health Alert Cron | `*/5 * * * *` | `python -m jobs.daily_health_check --alert-only` (email only on WARN/FAIL + recovery; 30m cooldown) |
 
 Lifecycle template env: `SENDGRID_ACTIVATION_LIFECYCLE_TEMPLATE_ID=d-9f6eaf6cb88340e2b6cdfcf6375b68ca`  
 SendGrid template name: **OGT: Activation Lifecycle Nudge**
