@@ -516,6 +516,199 @@ def stream_chat_response(
     yield "Sorry, I encountered an error. Please try again."
 
 
+# Tool loops need real multi-turn message arrays with `tool` role turns, which
+# the Responses path in this module flattens away. Chat Completions is used
+# here for that reason, with the same MODEL_CHAIN fallback behavior.
+MAX_TOOL_ROUNDS = 5
+
+# Chat Completions will not accept function tools from a GPT-5.6 model with any
+# reasoning effort above 'none'. This is the cost of staying on Chat Completions
+# for the tool loop; see _tool_round_with_fallback.
+TOOL_REASONING_EFFORT = "none"
+
+
+def run_tool_conversation(
+    system_prompt: str,
+    messages: list,
+    tools: list,
+    execute_tool,
+    max_rounds: int = MAX_TOOL_ROUNDS,
+    api_key: str = None,
+    temperature: float = 0.3,
+):
+    """Run a tool-calling conversation, yielding (event, payload) tuples.
+
+    Events, in the order a caller will see them:
+
+        ('tool_start', {'name', 'arguments'})   a tool is about to run
+        ('tool_result', {'name', 'result'})     that tool returned
+        ('text', str)                           a chunk of the final answer
+        ('messages', list)                      full transcript incl. tool turns
+        ('error', str)                          fatal; no answer was produced
+
+    ``execute_tool(name, arguments)`` must return a ``(model_payload, meta)``
+    tuple: the JSON the model sees, and anything the caller wants forwarded on
+    the 'tool_result' event. It must not raise; a failure should come back as a
+    payload the model can read and recover from.
+
+    Args:
+        messages: Prior turns as OpenAI message dicts (no system message).
+        tools: OpenAI function-tool schemas.
+        max_rounds: Cap on tool rounds before the loop is cut off, so a model
+            that keeps calling tools cannot spin indefinitely.
+    """
+    key = api_key or Config.OPENAI_API_KEY
+    if not key:
+        yield ('error', 'Sorry, the AI service is not configured. Please try again later.')
+        return
+
+    client = openai.OpenAI(api_key=key)
+    convo = [{"role": "system", "content": system_prompt}] + list(messages)
+
+    for round_index in range(max_rounds):
+        is_final_round = round_index == max_rounds - 1
+
+        completion = _tool_round_with_fallback(
+            client=client,
+            messages=convo,
+            tools=tools,
+            temperature=temperature,
+            # On the last permitted round, drop the tools so the model is
+            # forced to answer instead of requesting another call we would
+            # have to refuse.
+            allow_tools=not is_final_round,
+        )
+        if completion is None:
+            yield ('error', 'Sorry, I encountered an error. Please try again.')
+            return
+
+        message = completion.choices[0].message
+        tool_calls = getattr(message, 'tool_calls', None)
+
+        if not tool_calls:
+            text = message.content or ''
+            convo.append({"role": "assistant", "content": text})
+            for chunk in _chunk_text(text):
+                yield ('text', chunk)
+            yield ('messages', convo[1:])
+            return
+
+        convo.append({
+            "role": "assistant",
+            "content": message.content or None,
+            "tool_calls": [
+                {
+                    "id": call.id,
+                    "type": "function",
+                    "function": {
+                        "name": call.function.name,
+                        "arguments": call.function.arguments or '{}',
+                    },
+                }
+                for call in tool_calls
+            ],
+        })
+
+        for call in tool_calls:
+            name = call.function.name
+            arguments = _parse_tool_arguments(call.function.arguments)
+            yield ('tool_start', {'name': name, 'arguments': arguments})
+
+            payload, meta = execute_tool(name, arguments)
+            yield ('tool_result', {'name': name, 'result': meta})
+
+            convo.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": json.dumps(payload, default=str),
+            })
+
+    # Ran out of rounds without a text answer. Say so rather than leaving the
+    # agent staring at tool chips with no reply.
+    yield ('text', (
+        'I got partway through that but ran out of steps before I could wrap up. '
+        'Anything already confirmed above did go through. Ask me again and I '
+        'will pick it up from here.\n\n--BOB'
+    ))
+    yield ('messages', convo[1:])
+
+
+def _tool_round_with_fallback(*, client, messages, tools, temperature,
+                              allow_tools: bool):
+    """One Chat Completions call, walking MODEL_CHAIN on recoverable errors."""
+    for i, model in enumerate(MODEL_CHAIN):
+        try:
+            kwargs = {
+                "model": model,
+                "messages": messages,
+                "temperature": temperature,
+                # The GPT-5.6 family refuses function tools on
+                # /v1/chat/completions unless reasoning is off entirely:
+                # "Function tools with reasoning_effort are not supported ...
+                # use /v1/responses or set reasoning_effort to 'none'".
+                # Kept uniform across the loop so every round behaves the same.
+                # Restoring reasoning here means moving to the Responses API,
+                # which does support tools and reasoning together.
+                "reasoning_effort": TOOL_REASONING_EFFORT,
+            }
+            if allow_tools and tools:
+                kwargs["tools"] = tools
+                kwargs["tool_choice"] = "auto"
+
+            logger.info(
+                f"[{i+1}/{len(MODEL_CHAIN)}] Tool round: attempting {model} "
+                f"(tools={'on' if allow_tools and tools else 'off'})"
+            )
+            return client.chat.completions.create(**kwargs)
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            logger.warning(f"Tool round fallback: {model} failed with {type(e).__name__}")
+            continue
+
+        except openai.APIError as e:
+            if _should_fallback(e):
+                logger.warning(
+                    f"Tool round fallback: {model} failed with status {e.status_code}"
+                )
+                continue
+            logger.error(f"Tool round fatal: {model} unrecoverable error: {e}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Tool round error with {model}: {e}")
+            if i < len(MODEL_CHAIN) - 1:
+                continue
+            return None
+
+    logger.error("FATAL: All models failed during tool round")
+    return None
+
+
+def _parse_tool_arguments(raw):
+    """Tool arguments arrive as a JSON string and can be malformed."""
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        logger.warning(f"Unparseable tool arguments: {raw!r}")
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _chunk_text(text: str, size: int = 240):
+    """Emit the final answer in chunks so the UI can render progressively.
+
+    The tool loop is not streamed token-by-token: the model has to be able to
+    change course after a tool result, which means waiting for each full turn.
+    """
+    if not text:
+        return
+    for start in range(0, len(text), size):
+        yield text[start:start + size]
+
+
 def transcribe_audio(audio_data: bytes, filename: str = "audio.webm", api_key: str = None) -> str:
     """
     Transcribe audio using OpenAI Whisper API.

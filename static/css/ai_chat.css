@@ -578,6 +578,265 @@
     46%, 100% { opacity: 0; }
 }
 
+/* ===== CRM Action Chips ===== */
+/* What B.O.B. is doing in the CRM, shown above the reply it belongs to. */
+.bob-tool-activity {
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 88%;
+}
+
+.bob-tool-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: #f8fafc;
+    border: 1px solid var(--bob-border);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--bob-muted);
+    width: fit-content;
+    max-width: 100%;
+}
+
+.bob-tool-chip-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bob-tool-chip i {
+    font-size: 11px;
+}
+
+.bob-tool-chip.done {
+    color: var(--bob-navy);
+}
+
+.bob-tool-chip.done i {
+    color: #16a34a;
+}
+
+.bob-tool-chip.waiting {
+    color: var(--bob-navy);
+    border-color: var(--bob-orange-light);
+    background: #fff7ed;
+}
+
+.bob-tool-chip.waiting i {
+    color: var(--bob-orange-dark);
+}
+
+.bob-tool-chip.failed {
+    color: #b91c1c;
+    border-color: #fecaca;
+    background: #fef2f2;
+}
+
+.bob-tool-chip.undone {
+    color: var(--bob-muted);
+}
+
+.bob-tool-chip-spinner {
+    width: 11px;
+    height: 11px;
+    border: 2px solid var(--bob-border);
+    border-top-color: var(--bob-orange);
+    border-radius: 50%;
+    animation: bobChipSpin 0.7s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes bobChipSpin {
+    to { transform: rotate(360deg); }
+}
+
+.bob-tool-chip-undo {
+    margin-left: 2px;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bob-orange-dark);
+    cursor: pointer;
+}
+
+.bob-tool-chip-undo:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.bob-tool-chip-undo:disabled {
+    color: var(--bob-muted);
+    cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bob-tool-chip-spinner {
+        animation: none;
+        border-top-color: var(--bob-border);
+    }
+}
+
+/* ===== Approval Cards ===== */
+/* High-risk writes never apply on their own. This is where the agent decides. */
+.bob-confirm-card {
+    align-self: flex-start;
+    width: 88%;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 1px solid var(--bob-orange-light);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.bob-confirm-card.destructive {
+    border-color: #fca5a5;
+}
+
+.bob-confirm-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--bob-navy);
+}
+
+.bob-confirm-header i {
+    color: var(--bob-orange-dark);
+    font-size: 12px;
+}
+
+.bob-confirm-card.destructive .bob-confirm-header i {
+    color: #dc2626;
+}
+
+.bob-confirm-body {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--bob-text);
+}
+
+.bob-confirm-body:empty {
+    display: none;
+}
+
+.bob-confirm-warning {
+    margin: 0;
+    color: #b91c1c;
+    line-height: 1.5;
+}
+
+.bob-confirm-changes {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bob-confirm-changes li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.bob-confirm-field {
+    min-width: 92px;
+    font-weight: 600;
+    color: var(--bob-muted);
+}
+
+.bob-confirm-from {
+    color: var(--bob-muted);
+    text-decoration: line-through;
+}
+
+.bob-confirm-changes i {
+    font-size: 9px;
+    color: var(--bob-muted);
+}
+
+.bob-confirm-to {
+    font-weight: 600;
+    color: var(--bob-navy);
+}
+
+.bob-confirm-actions {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+}
+
+.bob-confirm-actions button {
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bob-confirm-cancel {
+    border: 1px solid var(--bob-border);
+    background: #ffffff;
+    color: var(--bob-muted);
+}
+
+.bob-confirm-cancel:hover:not(:disabled) {
+    background: #f8fafc;
+    color: var(--bob-text);
+}
+
+.bob-confirm-approve {
+    border: 1px solid var(--bob-orange-dark);
+    background: var(--bob-orange);
+    color: #ffffff;
+}
+
+.bob-confirm-approve:hover:not(:disabled) {
+    background: var(--bob-orange-dark);
+}
+
+.bob-confirm-card.destructive .bob-confirm-approve {
+    border-color: #b91c1c;
+    background: #dc2626;
+}
+
+.bob-confirm-card.destructive .bob-confirm-approve:hover:not(:disabled) {
+    background: #b91c1c;
+}
+
+.bob-confirm-actions button:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.bob-confirm-status {
+    margin-top: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.bob-confirm-status.ok {
+    color: #15803d;
+}
+
+.bob-confirm-status.failed {
+    color: #b91c1c;
+}
+
+.bob-confirm-card.resolved {
+    border-color: var(--bob-border);
+}
+
 /* Typing indicator */
 .bob-typing {
     display: flex;

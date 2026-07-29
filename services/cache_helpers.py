@@ -47,14 +47,29 @@ def get_user_contact_groups(org_id: int, user_id: int, active_only: bool = True)
 
     Returns:
         List of ContactGroup objects
+
+    Only the ordered IDs are cached, never the ORM instances. Caching instances
+    across requests hands out rows whose session is gone: once the request that
+    warmed the cache commits, those instances are expired, and the next request
+    to touch an attribute raises DetachedInstanceError. Rehydrating by primary
+    key keeps every row bound to the caller's session and still avoids the
+    filtered scan and sort on every call.
     """
     from models import ContactGroup
 
     cache_key = f'contact_groups_{org_id}_{user_id}_{"active" if active_only else "all"}'
 
-    result = _get_cached(cache_key)
-    if result is not None:
-        return result
+    cached_ids = _get_cached(cache_key)
+    if cached_ids is not None:
+        if not cached_ids:
+            return []
+        rows = ContactGroup.query.filter(ContactGroup.id.in_(cached_ids)).all()
+        by_id = {row.id: row for row in rows}
+        hydrated = [by_id[gid] for gid in cached_ids if gid in by_id]
+        # A group deleted since we cached means the cache is stale; rebuild it.
+        if len(hydrated) == len(cached_ids):
+            return hydrated
+        _delete_cached(cache_key)
 
     query = ContactGroup.query.filter_by(
         organization_id=org_id,
@@ -64,7 +79,7 @@ def get_user_contact_groups(org_id: int, user_id: int, active_only: bool = True)
         query = query.filter_by(is_active=True)
 
     result = query.order_by(ContactGroup.sort_order, ContactGroup.id).all()
-    _set_cached(cache_key, result)
+    _set_cached(cache_key, [row.id for row in result])
     return result
 
 
@@ -92,22 +107,32 @@ def get_org_transaction_types(org_id: int):
         
     Returns:
         List of TransactionType objects
+
+    Caches ordered IDs only, for the same reason as get_user_contact_groups.
     """
     from models import TransactionType
-    
+
     cache_key = f'transaction_types_{org_id}'
-    
-    result = _get_cached(cache_key)
-    if result is not None:
-        return result
-    
-    # Query from database
+
+    cached_ids = _get_cached(cache_key)
+    if cached_ids is not None:
+        if not cached_ids:
+            return []
+        rows = TransactionType.query.filter(
+            TransactionType.id.in_(cached_ids)
+        ).all()
+        by_id = {row.id: row for row in rows}
+        hydrated = [by_id[tid] for tid in cached_ids if tid in by_id]
+        if len(hydrated) == len(cached_ids):
+            return hydrated
+        _delete_cached(cache_key)
+
     result = TransactionType.query.filter_by(
         organization_id=org_id,
         is_active=True
     ).order_by(TransactionType.sort_order).all()
-    
-    _set_cached(cache_key, result)
+
+    _set_cached(cache_key, [row.id for row in result])
     return result
 
 

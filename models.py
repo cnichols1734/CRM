@@ -2181,6 +2181,72 @@ class ChatMessage(db.Model):
         }
 
 
+class BobAction(db.Model):
+    """One CRM action B.O.B. attempted on an agent's behalf.
+
+    Serves three jobs so there is a single place to look when asking what the
+    assistant did: pending confirmations for risky writes, an audit trail of
+    everything executed, and the payload needed to undo a write.
+    """
+    __tablename__ = 'bob_actions'
+
+    STATUS_PENDING = 'pending'
+    STATUS_EXECUTED = 'executed'
+    STATUS_REJECTED = 'rejected'
+    STATUS_EXPIRED = 'expired'
+    STATUS_UNDONE = 'undone'
+    STATUS_FAILED = 'failed'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    conversation_id = db.Column(db.Integer,
+                                db.ForeignKey('chat_conversations.id',
+                                              ondelete='SET NULL'),
+                                nullable=True, index=True)
+
+    tool_name = db.Column(db.String(64), nullable=False)
+    arguments = db.Column(db.JSON, nullable=False, default=dict)
+    preview = db.Column(db.JSON, nullable=True)
+    result = db.Column(db.JSON, nullable=True)
+
+    status = db.Column(db.String(20), nullable=False,
+                       default=STATUS_EXECUTED, index=True)
+    summary = db.Column(db.String(300), nullable=True)
+    error = db.Column(db.Text, nullable=True)
+    surface = db.Column(db.String(32), nullable=False, default='bob_chat')
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
+                           index=True)
+    executed_at = db.Column(db.DateTime, nullable=True)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref=db.backref('bob_actions',
+                           lazy='dynamic', cascade='all, delete-orphan'))
+
+    @property
+    def is_expired(self):
+        if self.expires_at is None:
+            return False
+        return datetime.utcnow() > self.expires_at
+
+    def to_dict(self):
+        return {
+            'action_id': self.id,
+            'tool_name': self.tool_name,
+            'status': self.status,
+            'summary': self.summary,
+            'preview': self.preview,
+            'surface': self.surface,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f'<BobAction {self.id} {self.tool_name} {self.status}>'
+
+
 # =============================================================================
 # GMAIL INTEGRATION MODELS
 # =============================================================================

@@ -717,6 +717,8 @@ def delete_user(user_id):
     user = User.query.filter_by(id=user_id, organization_id=current_user.organization_id).first_or_404()
     try:
         # Delete all contacts associated with the user
+        from services.contact_group_service import unlink_groups_for_user_contacts
+        unlink_groups_for_user_contacts(user.id)
         Contact.query.filter_by(user_id=user.id).delete()
         # Delete the user
         db.session.delete(user)

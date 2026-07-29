@@ -28,6 +28,36 @@ class ContactGroupError(Exception):
         self.status_code = status_code
 
 
+def unlink_groups_for_contacts(contact_ids: Sequence[int]) -> int:
+    """Drop contact_groups rows for the given contacts.
+
+    Call this before bulk-deleting contacts. A bulk ``Contact.query.delete()``
+    bypasses the ORM, so it never touches the many-to-many table: on PostgreSQL
+    the foreign key blocks the delete outright, and on SQLite the rows survive
+    as orphans that collide with the next contact to reuse the freed id.
+
+    Returns the number of link rows removed.
+    """
+    contact_ids = list(contact_ids)
+    if not contact_ids:
+        return 0
+
+    result = db.session.execute(
+        contact_groups.delete().where(
+            contact_groups.c.contact_id.in_(contact_ids)
+        )
+    )
+    return result.rowcount or 0
+
+
+def unlink_groups_for_user_contacts(user_id: int) -> int:
+    """Drop contact_groups rows for every contact owned by a user."""
+    return unlink_groups_for_contacts([
+        row[0] for row in
+        Contact.query.filter_by(user_id=user_id).with_entities(Contact.id).all()
+    ])
+
+
 def normalize_group_name(name: str | None) -> str:
     """Normalize a group name for aggregate matching (case-insensitive trim)."""
     return ' '.join((name or '').strip().split()).casefold()
