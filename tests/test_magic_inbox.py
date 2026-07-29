@@ -32,6 +32,7 @@ from models import (
     User,
     db,
 )
+from services.contact_group_service import unlink_groups_for_contacts
 from services.inbound_payload import (
     MAX_CSV_ROWS,
     NormalizedInbound,
@@ -81,6 +82,12 @@ def _scrub_inbox_writes(app, seed):
         if 'inbound_messages' in tables:
             InboundMessage.query.delete(synchronize_session=False)
         if 'contact' in tables:
+            doomed = [
+                row[0] for row in Contact.query.filter(
+                    ~Contact.id.in_(seed_contact_ids)
+                ).with_entities(Contact.id).all()
+            ]
+            unlink_groups_for_contacts(doomed)
             Contact.query.filter(
                 ~Contact.id.in_(seed_contact_ids)
             ).delete(synchronize_session=False)

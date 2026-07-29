@@ -104,6 +104,35 @@ class TestTaskEdit:
         })
         assert resp.status_code == 404
 
+    def test_edit_another_agents_task_blocked(self, agent_a_client, seed, app):
+        """Same org, but task_a belongs to the owner.
+
+        Delete and quick-update have always enforced this; edit did not, which
+        let any org member rewrite a teammate's task.
+        """
+        from models import Task
+
+        resp = agent_a_client.post(f'/tasks/{seed["task_a"]}/edit', data={
+            'subject': 'Hijacked by a teammate', 'status': 'completed',
+            'priority': 'high', 'due_date': '2026-12-31',
+            'type_id': str(seed['task_type_a']),
+            'subtype_id': str(seed['subtype_a']),
+        })
+
+        assert resp.status_code == 403
+        with app.app_context():
+            assert Task.query.get(seed['task_a']).subject != 'Hijacked by a teammate'
+
+    def test_agent_can_still_edit_their_own_task(self, agent_a_client, seed):
+        resp = agent_a_client.post(f'/tasks/{seed["task_a2"]}/edit', data={
+            'subject': 'Agent edited their own task',
+            'status': 'pending', 'priority': 'low', 'due_date': '2026-05-01',
+            'contact_id': str(seed['contact_a2']),
+            'type_id': str(seed['task_type_a']),
+            'subtype_id': str(seed['subtype_a']),
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+
 
 class TestTaskQuickUpdate:
     """Quick status/priority updates."""

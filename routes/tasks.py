@@ -231,6 +231,11 @@ def create_task():
 def edit_task(task_id):
     task = Task.query.filter_by(id=task_id, organization_id=current_user.organization_id).first_or_404()
 
+    # Same ownership rule delete and quick-update already enforce. Without it,
+    # any org member could rewrite another agent's task.
+    if not current_user.role == 'admin' and task.assigned_to_id != current_user.id:
+        abort(403)
+
     try:
         user_tz = get_user_timezone()
         old_status = task.status

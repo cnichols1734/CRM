@@ -926,7 +926,14 @@ class BOBChatPanel {
             const decoder = new TextDecoder();
             let fullResponse = '';
             let buffer = '';
-            
+
+            // Action chips show what B.O.B. is doing in the CRM. Tool calls run
+            // sequentially, so pairing each result with the oldest open chip is
+            // correct.
+            const activityEl = this.createToolActivityStrip(messagesDiv, aiMessageEl);
+            const openChips = [];
+            const pendingConfirms = [];
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -943,6 +950,26 @@ class BOBChatPanel {
                         if (data.startsWith('[FULL_RESPONSE]') || data.includes('[FULL_RESPONSE]')) {
                             // Trailer only — never overwrite/paint the streamed bubble.
                             // Streamed chunks already built fullResponse.
+                            continue;
+                        }
+
+                        if (data.startsWith('[BOB_TOOL_START]')) {
+                            const payload = this.parseToolEvent(data, '[BOB_TOOL_START]');
+                            if (payload) openChips.push(this.addToolChip(activityEl, payload));
+                            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                            continue;
+                        }
+                        if (data.startsWith('[BOB_TOOL_RESULT]')) {
+                            const payload = this.parseToolEvent(data, '[BOB_TOOL_RESULT]');
+                            if (payload) this.resolveToolChip(openChips.shift(), payload);
+                            continue;
+                        }
+                        if (data.startsWith('[BOB_CONFIRM]')) {
+                            const payload = this.parseToolEvent(data, '[BOB_CONFIRM]');
+                            if (payload) {
+                                pendingConfirms.push(payload);
+                                this.resolveToolChip(openChips.shift(), payload);
+                            }
                             continue;
                         }
                         
@@ -966,6 +993,14 @@ class BOBChatPanel {
                 .replace(/\\r/g, '\r');
             aiMessageEl.innerHTML = this.formatMessage(fullResponse);
             aiMessageEl.classList.remove('streaming');
+
+            // Approval cards sit after B.O.B.'s explanation so the agent reads
+            // the reasoning before deciding.
+            pendingConfirms.forEach(payload => {
+                this.addConfirmCard(messagesDiv, payload);
+            });
+            if (activityEl && !activityEl.childElementCount) activityEl.remove();
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
             
             // Save to history (both session and database)
             if (fullResponse) {
@@ -1193,6 +1228,179 @@ class BOBChatPanel {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    // =========================================================================
+    // CRM ACTIONS (tool chips, approval cards, undo)
+    // =========================================================================
+
+    parseToolEvent(data, prefix) {
+        try {
+            return JSON.parse(data.slice(prefix.length));
+        } catch (error) {
+            console.error('Could not parse B.O.B. tool event', error);
+            return null;
+        }
+    }
+
+    createToolActivityStrip(messagesDiv, beforeEl) {
+        const strip = document.createElement('div');
+        strip.className = 'bob-tool-activity';
+        messagesDiv.insertBefore(strip, beforeEl);
+        return strip;
+    }
+
+    addToolChip(activityEl, payload) {
+        const chip = document.createElement('div');
+        chip.className = 'bob-tool-chip running';
+        chip.innerHTML = `
+            <span class="bob-tool-chip-spinner"></span>
+            <span class="bob-tool-chip-label">${this.escapeHtml(payload.label || payload.name)}</span>
+        `;
+        activityEl.appendChild(chip);
+        return chip;
+    }
+
+    resolveToolChip(chip, payload) {
+        if (!chip) return;
+        chip.classList.remove('running');
+
+        let icon = 'fa-check';
+        let state = 'done';
+        if (!payload.ok) {
+            icon = 'fa-triangle-exclamation';
+            state = 'failed';
+        } else if (payload.requires_confirmation) {
+            icon = 'fa-hourglass-half';
+            state = 'waiting';
+        }
+        chip.classList.add(state);
+
+        const text = payload.summary || payload.label || payload.name;
+        chip.innerHTML = `
+            <i class="fas ${icon}"></i>
+            <span class="bob-tool-chip-label">${this.escapeHtml(text)}</span>
+        `;
+
+        if (payload.ok && payload.undoable && payload.action_id) {
+            const undo = document.createElement('button');
+            undo.type = 'button';
+            undo.className = 'bob-tool-chip-undo';
+            undo.textContent = 'Undo';
+            undo.addEventListener('click', () => this.undoAction(payload.action_id, chip, undo));
+            chip.appendChild(undo);
+        }
+    }
+
+    addConfirmCard(messagesDiv, payload) {
+        const preview = payload.preview || {};
+        const card = document.createElement('div');
+        card.className = 'bob-confirm-card';
+        if (preview.irreversible) card.classList.add('destructive');
+
+        const title = payload.summary || payload.label || 'Confirm this change';
+        card.innerHTML = `
+            <div class="bob-confirm-header">
+                <i class="fas ${preview.irreversible ? 'fa-triangle-exclamation' : 'fa-pen-to-square'}"></i>
+                <span>${this.escapeHtml(title)}</span>
+            </div>
+            <div class="bob-confirm-body">${this.renderConfirmDetail(preview)}</div>
+            <div class="bob-confirm-actions">
+                <button type="button" class="bob-confirm-cancel">Cancel</button>
+                <button type="button" class="bob-confirm-approve">
+                    ${preview.irreversible ? 'Delete' : 'Apply'}
+                </button>
+            </div>
+            <div class="bob-confirm-status" hidden></div>
+        `;
+        messagesDiv.appendChild(card);
+
+        card.querySelector('.bob-confirm-approve')
+            .addEventListener('click', () => this.resolveConfirm(card, payload.action_id, true));
+        card.querySelector('.bob-confirm-cancel')
+            .addEventListener('click', () => this.resolveConfirm(card, payload.action_id, false));
+        return card;
+    }
+
+    renderConfirmDetail(preview) {
+        if (preview.warning) {
+            return `<p class="bob-confirm-warning">${this.escapeHtml(preview.warning)}</p>`;
+        }
+        const changes = preview.changes || [];
+        if (!changes.length) return '';
+
+        const rows = changes.map(change => `
+            <li>
+                <span class="bob-confirm-field">${this.escapeHtml(this.humanizeField(change.field))}</span>
+                <span class="bob-confirm-from">${this.escapeHtml(change.from || 'empty')}</span>
+                <i class="fas fa-arrow-right"></i>
+                <span class="bob-confirm-to">${this.escapeHtml(change.to || 'empty')}</span>
+            </li>
+        `).join('');
+        return `<ul class="bob-confirm-changes">${rows}</ul>`;
+    }
+
+    humanizeField(field) {
+        return (field || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    async resolveConfirm(card, actionId, approved) {
+        const buttons = card.querySelectorAll('button');
+        buttons.forEach(b => b.disabled = true);
+        const status = card.querySelector('.bob-confirm-status');
+
+        try {
+            const response = await fetch('/api/ai-chat/tool/confirm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actionId, approved })
+            });
+            const result = await response.json();
+
+            card.classList.add('resolved');
+            card.querySelector('.bob-confirm-actions').remove();
+            status.hidden = false;
+            status.classList.add(result.ok ? 'ok' : 'failed');
+            status.textContent = result.ok
+                ? (approved ? result.summary : 'Cancelled, nothing was changed')
+                : (result.error || 'That did not go through.');
+        } catch (error) {
+            console.error('Confirm failed', error);
+            buttons.forEach(b => b.disabled = false);
+            status.hidden = false;
+            status.classList.add('failed');
+            status.textContent = 'Could not reach the server. Nothing was changed.';
+        }
+    }
+
+    async undoAction(actionId, chip, button) {
+        button.disabled = true;
+        button.textContent = 'Undoing...';
+        try {
+            const response = await fetch('/api/ai-chat/tool/undo', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ actionId })
+            });
+            const result = await response.json();
+
+            if (result.ok) {
+                chip.classList.remove('done');
+                chip.classList.add('undone');
+                chip.innerHTML = `
+                    <i class="fas fa-rotate-left"></i>
+                    <span class="bob-tool-chip-label">${this.escapeHtml(result.summary)}</span>
+                `;
+            } else {
+                button.disabled = false;
+                button.textContent = 'Undo';
+                chip.setAttribute('title', result.error || 'Undo failed');
+            }
+        } catch (error) {
+            console.error('Undo failed', error);
+            button.disabled = false;
+            button.textContent = 'Undo';
+        }
     }
     
     toggleHistoryDropdown() {

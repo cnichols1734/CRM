@@ -6,6 +6,7 @@ Create Date: 2026-01-21
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -14,8 +15,16 @@ down_revision = None  # Will be auto-filled by alembic
 branch_labels = None
 depends_on = None
 
+TABLE = 'contact_voice_memos'
+
 
 def upgrade():
+    # This revision was authored after the table had already been created by
+    # db.create_all() in some environments, so it must be safe to re-run.
+    inspector = inspect(op.get_bind())
+    if TABLE in inspector.get_table_names():
+        return
+
     op.create_table('contact_voice_memos',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('organization_id', sa.Integer(), nullable=False),
@@ -38,6 +47,10 @@ def upgrade():
 
 
 def downgrade():
+    inspector = inspect(op.get_bind())
+    if TABLE not in inspector.get_table_names():
+        return
+
     op.drop_index('ix_contact_voice_memos_contact_id', 'contact_voice_memos')
     op.drop_index('ix_contact_voice_memos_organization_id', 'contact_voice_memos')
     op.drop_table('contact_voice_memos')

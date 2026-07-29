@@ -6,6 +6,7 @@ from models import (
     ActivationEvent, Contact, Task, TaskSubtype, TaskType, User, db,
 )
 from services.activation_service import record_event
+from services.contact_group_service import unlink_groups_for_user_contacts
 from services.product_analytics import _safe_properties
 
 
@@ -35,6 +36,7 @@ def _cleanup_user(user_id):
             synchronize_session=False
         )
     ActivationEvent.query.filter_by(user_id=user_id).delete()
+    unlink_groups_for_user_contacts(user_id)
     Contact.query.filter_by(user_id=user_id).delete()
     User.query.filter_by(id=user_id).delete()
     db.session.commit()

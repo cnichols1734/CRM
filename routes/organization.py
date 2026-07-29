@@ -253,6 +253,8 @@ def remove_member(user_id):
         ).delete(synchronize_session=False)
         
         # Delete all contacts associated with the user
+        from services.contact_group_service import unlink_groups_for_user_contacts
+        unlink_groups_for_user_contacts(target_user.id)
         Contact.query.filter_by(user_id=target_user.id).delete()
         
         # Note: Other relationships like CompanyUpdateReaction, CompanyUpdateComment, 
