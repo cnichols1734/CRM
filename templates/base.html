@@ -1766,28 +1766,35 @@
             background-image: none !important;
         }
 
-        /* Quick actions — flat hairline pills */
-        .bob-quick-actions {
-            background: var(--paper) !important;
-            border-top-color: var(--hairline) !important;
-        }
-        .bob-quick-label {
+        /* Starter prompts — flat hairline rows */
+        .bob-starters-label {
             color: var(--ink-3) !important;
             letter-spacing: 0.14em !important;
         }
-        .bob-quick-option {
+        .bob-starter {
             background: var(--paper-2) !important;
             color: var(--ink) !important;
             border: 1px solid var(--hairline) !important;
             border-radius: var(--radius) !important;
             background-image: none !important;
         }
-        .bob-quick-option:hover {
+        .bob-starter:hover {
             background: var(--paper-3) !important;
             border-color: var(--ink-5) !important;
             color: var(--ink) !important;
             background-image: none !important;
         }
+        .bob-starter i,
+        .bob-starter:hover i,
+        .bob-starter-fill { color: var(--ink-3) !important; }
+        .bob-starters-note { color: var(--ink-3) !important; }
+        .bob-starters-more {
+            background: none !important;
+            border: none !important;
+            color: var(--ink-3) !important;
+        }
+        .bob-starters-more:hover,
+        .bob-starters-more:hover i { color: var(--ink) !important; }
 
         /* Input area + send button — ink primary */
         .bob-input-area {
