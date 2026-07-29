@@ -103,6 +103,13 @@ _EXTERNAL_LABELS = {
     'google_oauth': 'Google login',
 }
 
+# DocuSeal is intentionally unused for now — never score it against health.
+_IGNORED_EXTERNALS = frozenset({'docuseal'})
+
+# Warn only when the live app-path DB probe is genuinely slow.
+# Cold standalone connects to Supabase pooler often look "slow" (~1s) and are noise.
+_DB_WARN_MS = 2000
+
 
 def check_app_health() -> CheckResult:
     status, payload, latency_ms = _http_json(f'{APP_BASE_URL}/health')
@@ -116,12 +123,17 @@ def check_app_health() -> CheckResult:
         )
 
     health_status = payload.get('status', 'unknown')
-    warnings = payload.get('warnings') or []
+    warnings = [
+        w for w in (payload.get('warnings') or [])
+        if 'docuseal' not in str(w).lower()
+    ]
     checks = payload.get('checks') or {}
     external = checks.get('external') or {}
 
     bad_externals = []
     for key, info in external.items():
+        if key in _IGNORED_EXTERNALS:
+            continue
         if not isinstance(info, dict):
             continue
         if info.get('status') not in ('connected', 'ok', None):
@@ -139,7 +151,7 @@ def check_app_health() -> CheckResult:
             + ', '.join(bad_externals) + '.'
         )
         meaning = (
-            'Origen itself is running. One helper service (like e-sign or email) '
+            'Origen itself is running. One helper service (like email) '
             'needs a look when you have a minute.'
         )
     elif warnings:
@@ -274,6 +286,50 @@ def check_redis_and_rq() -> CheckResult:
 
 
 def check_database() -> CheckResult:
+    """Score DB from the live app /health probe (warm pool), not a cold connect.
+
+    A fresh SQLAlchemy engine to Supabase's pooler often takes ~1s on first
+    connect even when the running app is fine (~50–100ms). That was false-alarming.
+    """
+    status, payload, _ = _http_json(f'{APP_BASE_URL}/health')
+    if status == 200 and isinstance(payload, dict):
+        db = ((payload.get('checks') or {}).get('database') or {})
+        db_status = db.get('status')
+        latency_ms = db.get('latency_ms')
+        if db_status == 'connected':
+            try:
+                latency_val = float(latency_ms)
+            except (TypeError, ValueError):
+                latency_val = None
+            if latency_val is not None and latency_val > _DB_WARN_MS:
+                return CheckResult(
+                    name='Database',
+                    ok=True,
+                    warn=True,
+                    detail='Database is up, but the live app path is slow.',
+                    meaning=(
+                        'CRM data still works. If this keeps showing up, '
+                        'pages may feel sluggish.'
+                    ),
+                    meta={'latency_ms': latency_val, 'source': 'app_health'},
+                )
+            return CheckResult(
+                name='Database',
+                ok=True,
+                detail='Database is reachable through the live app.',
+                meaning='Contacts, tasks, and deals can load and save.',
+                meta={'latency_ms': latency_val, 'source': 'app_health'},
+            )
+        if db_status == 'error':
+            return CheckResult(
+                name='Database',
+                ok=False,
+                detail='The live app could not reach the database.',
+                meaning='The CRM likely cannot load or save data right now.',
+                meta={'source': 'app_health', 'payload': db},
+            )
+
+    # Fallback: direct connect (reachability only — no slow warning on cold start).
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
         return CheckResult(
@@ -287,27 +343,19 @@ def check_database() -> CheckResult:
         from sqlalchemy import create_engine, text
 
         engine = create_engine(database_url, pool_pre_ping=True)
-        started = time.time()
         with engine.connect() as conn:
+            # Warm the pool, then probe — first hop to Supabase is often slow.
             conn.execute(text('SELECT 1'))
-        latency_ms = round((time.time() - started) * 1000, 1)
+            started = time.time()
+            conn.execute(text('SELECT 1'))
+            latency_ms = round((time.time() - started) * 1000, 1)
         engine.dispose()
-        warn = latency_ms > 500
-        if warn:
-            return CheckResult(
-                name='Database',
-                ok=True,
-                warn=True,
-                detail='Database answered, but it was a bit slow.',
-                meaning='CRM data is available. If this keeps happening, pages may feel sluggish.',
-                meta={'latency_ms': latency_ms},
-            )
         return CheckResult(
             name='Database',
             ok=True,
-            detail='Database is reachable and answering quickly.',
+            detail='Database is reachable.',
             meaning='Contacts, tasks, and deals can load and save.',
-            meta={'latency_ms': latency_ms},
+            meta={'latency_ms': latency_ms, 'source': 'direct'},
         )
     except Exception:
         return CheckResult(
