@@ -702,56 +702,50 @@ def _clear_alert_state() -> None:
         logger.warning('Failed to clear alert state: %s', exc)
 
 
+def _issue_checks(checks: list[CheckResult]) -> list[CheckResult]:
+    return [c for c in checks if (not c.ok) or c.warn]
+
+
+def _affected_names(checks: list[CheckResult]) -> str:
+    names = [c.name for c in _issue_checks(checks)]
+    if not names:
+        return 'all systems'
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f'{names[0]} and {names[1]}'
+    return ', '.join(names[:-1]) + f', and {names[-1]}'
+
+
 def render_email(
     checks: list[CheckResult],
     *,
     when_ct: datetime,
     kind: str = 'digest',
 ) -> tuple[str, str]:
-    status = overall_status(checks)
-    if kind == 'recovery':
-        headline, subject_verb, status_color = (
-            'Back to healthy',
-            'Recovered',
-            '#15803d',
-        )
-        eyebrow = 'Origen alert · recovered'
-        footer = 'Realtime health alert · Origen TechnolOG'
-    elif kind == 'alert':
-        headline, subject_verb, status_color = _status_copy(status)
-        subject_verb = f'ALERT · {subject_verb}'
-        eyebrow = 'Origen alert · needs attention'
-        footer = 'Realtime health alert · Origen TechnolOG'
-    else:
-        headline, subject_verb, status_color = _status_copy(status)
-        eyebrow = 'Origen morning check'
-        footer = 'Twice-daily overview · Origen TechnolOG'
+    if kind in ('alert', 'recovery'):
+        return _render_alert_email(checks, when_ct=when_ct, kind=kind)
+    return _render_digest_email(checks, when_ct=when_ct)
 
-    date_label = when_ct.strftime('%b %-d, %Y')
-    time_label = when_ct.strftime('%-I:%M %p %Z')
-    if kind == 'alert':
-        subject = f'[Origen] {subject_verb} — {date_label} {time_label}'
-    elif kind == 'recovery':
-        subject = f'[Origen] Recovered — {date_label} {time_label}'
-    else:
-        subject = f'[Origen] {subject_verb} — {date_label}'
-    verdict = _verdict_sentence(checks, status, kind=kind)
+
+def _render_digest_email(
+    checks: list[CheckResult],
+    *,
+    when_ct: datetime,
+) -> tuple[str, str]:
+    status = overall_status(checks)
+    headline, subject_verb, status_color = _status_copy(status)
+    subject = f'[Origen] {subject_verb} — {when_ct.strftime("%b %-d, %Y")}'
+    verdict = _verdict_sentence(checks, status, kind='digest')
 
     cards = []
     for check in checks:
         if not check.ok:
-            badge = 'Broken'
-            badge_bg = '#fef2f2'
-            badge_fg = '#b91c1c'
+            badge, badge_bg, badge_fg = 'Broken', '#fef2f2', '#b91c1c'
         elif check.warn:
-            badge = 'Watch'
-            badge_bg = '#fff7ed'
-            badge_fg = '#c2410c'
+            badge, badge_bg, badge_fg = 'Watch', '#fff7ed', '#c2410c'
         else:
-            badge = 'Good'
-            badge_bg = '#f0fdf4'
-            badge_fg = '#15803d'
-        meaning = check.meaning or check.detail
+            badge, badge_bg, badge_fg = 'Good', '#f0fdf4', '#15803d'
         cards.append(
             f'''
             <tr>
@@ -775,7 +769,7 @@ def render_email(
                   </tr>
                   <tr>
                     <td colspan="2" style="font-size:13px;color:#64748b;line-height:1.45;padding-top:6px;">
-                      {_esc(meaning)}
+                      {_esc(check.meaning or check.detail)}
                     </td>
                   </tr>
                 </table>
@@ -815,12 +809,6 @@ def render_email(
           </div>
         '''
 
-    legend = '''
-      <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
-        Good = healthy · Watch = up but imperfect · Broken = needs action
-      </p>
-    '''
-
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>{_esc(subject)}</title></head>
 <body style="margin:0;background:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,
@@ -828,7 +816,7 @@ def render_email(
   <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.2px;
-         text-transform:uppercase;color:#ea580c;">{_esc(eyebrow)}</p>
+         text-transform:uppercase;color:#ea580c;">Origen morning check</p>
       <h1 style="margin:0 0 8px;font-size:26px;letter-spacing:-0.02em;">{_esc(headline)}</h1>
       <p style="margin:0 0 6px;color:#64748b;font-size:14px;">
         {when_ct.strftime('%A, %b %-d · %-I:%M %p %Z')}
@@ -848,18 +836,282 @@ def render_email(
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         {''.join(cards)}
       </table>
-      {legend}
+      <p style="margin:18px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+        Good = healthy · Watch = up but imperfect · Broken = needs action
+      </p>
       <p style="margin:18px 0 0;font-size:13px;color:#64748b;">
         Want the nerdy view?
         <a href="{_esc(APP_BASE_URL)}/health/ui" style="color:#ea580c;">Open health dashboard</a>
       </p>
     </div>
     <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:16px;">
-      {_esc(footer)}
+      Twice-daily overview · Origen TechnolOG
     </p>
   </div>
 </body></html>"""
     return subject, html
+
+
+def _render_alert_email(
+    checks: list[CheckResult],
+    *,
+    when_ct: datetime,
+    kind: str,
+) -> tuple[str, str]:
+    """Incident-style email — issue-first, not a full health scorecard."""
+    status = overall_status(checks)
+    affected = _affected_names(checks)
+    stamp = when_ct.strftime('%b %-d · %-I:%M %p %Z')
+
+    if kind == 'recovery':
+        subject = f'[Origen] Recovered — {affected} — {stamp}'
+        eyebrow = 'Realtime alert · recovered'
+        headline = 'Back to healthy'
+        banner_bg = '#166534'
+        panel_bg = '#f0fdf4'
+        panel_border = '#bbf7d0'
+        panel_title = 'What cleared'
+        intro = (
+            f'Origen looks healthy again as of {stamp}. '
+            'The earlier warning or outage appears cleared.'
+        )
+        next_steps = [
+            'No action needed unless users still report issues.',
+            'The twice-daily overview will confirm again at 9 AM / 9 PM CT.',
+        ]
+        issues = checks  # show full healthy snapshot on recovery
+    else:
+        severity = 'ERROR' if status == 'FAIL' else 'WARNING'
+        subject = f'[Origen] {severity} — {affected} — {stamp}'
+        eyebrow = f'Realtime alert · {severity.lower()}'
+        headline = (
+            'Something is broken'
+            if status == 'FAIL'
+            else 'Something needs a look'
+        )
+        banner_bg = '#b91c1c' if status == 'FAIL' else '#c2410c'
+        panel_bg = '#fef2f2' if status == 'FAIL' else '#fff7ed'
+        panel_border = '#fecaca' if status == 'FAIL' else '#fed7aa'
+        panel_title = 'What triggered this alert'
+        intro = (
+            f'Detected at {stamp}. '
+            + (
+                f'{affected} failed the health check.'
+                if status == 'FAIL'
+                else f'{affected} is degraded but the app may still be usable.'
+            )
+        )
+        next_steps = [
+            'Open the health dashboard and confirm the same issue.',
+            'Check Railway logs for OrigenTechnolOG / document-worker / Redis.',
+            'If users are impacted, fix or roll back; otherwise investigate when free.',
+        ]
+        issues = _issue_checks(checks)
+
+    issue_rows = []
+    for check in issues:
+        if not check.ok:
+            badge, badge_bg, badge_fg = 'Broken', '#fee2e2', '#991b1b'
+            severity_word = 'Error'
+        elif check.warn:
+            badge, badge_bg, badge_fg = 'Watch', '#ffedd5', '#9a3412'
+            severity_word = 'Warning'
+        else:
+            badge, badge_bg, badge_fg = 'Good', '#dcfce7', '#166534'
+            severity_word = 'OK'
+        meta_bits = []
+        if check.meta.get('latency_ms') is not None:
+            meta_bits.append(f"{check.meta['latency_ms']} ms")
+        if check.meta.get('source'):
+            meta_bits.append(str(check.meta['source']))
+        meta_line = (
+            f'<p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">'
+            f'{_esc(" · ".join(meta_bits))}</p>'
+            if meta_bits else ''
+        )
+        issue_rows.append(
+            f'''
+            <tr>
+              <td style="padding:16px;border-bottom:1px solid {panel_border};">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="font-size:16px;font-weight:700;color:#0f172a;">
+                      {_esc(check.name)}
+                      <span style="margin-left:8px;display:inline-block;background:{badge_bg};
+                            color:{badge_fg};font-size:11px;font-weight:700;padding:3px 8px;
+                            border-radius:999px;vertical-align:middle;">{badge}</span>
+                    </td>
+                    <td align="right" style="font-size:12px;font-weight:700;color:{badge_fg};
+                        text-transform:uppercase;letter-spacing:0.04em;">
+                      {_esc(severity_word)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="padding-top:10px;font-size:14px;color:#0f172a;
+                        line-height:1.5;font-weight:600;">
+                      {_esc(check.detail)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colspan="2" style="padding-top:6px;font-size:14px;color:#475569;
+                        line-height:1.5;">
+                      {_esc(check.meaning or '')}
+                    </td>
+                  </tr>
+                  <tr><td colspan="2">{meta_line}</td></tr>
+                </table>
+              </td>
+            </tr>
+            '''
+        )
+
+    steps_html = ''.join(
+        f'<li style="margin:0 0 8px;color:#334155;line-height:1.45;">{_esc(step)}</li>'
+        for step in next_steps
+    )
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>{_esc(subject)}</title></head>
+<body style="margin:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,
+'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <div style="max-width:640px;margin:0 auto;padding:24px 16px;">
+    <div style="background:{banner_bg};border-radius:14px 14px 0 0;padding:20px 24px;">
+      <p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:1.4px;
+         text-transform:uppercase;color:rgba(255,255,255,0.8);">{_esc(eyebrow)}</p>
+      <h1 style="margin:0;font-size:24px;line-height:1.2;color:#ffffff;">{_esc(headline)}</h1>
+      <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">
+        {_esc(affected)} · {_esc(stamp)}
+      </p>
+    </div>
+    <div style="background:#ffffff;border-radius:0 0 14px 14px;padding:24px;">
+      <p style="margin:0 0 18px;font-size:15px;color:#334155;line-height:1.55;">
+        {_esc(intro)}
+      </p>
+      <div style="background:{panel_bg};border:1px solid {panel_border};border-radius:12px;
+                  overflow:hidden;margin-bottom:20px;">
+        <p style="margin:0;padding:12px 16px;font-size:12px;font-weight:700;
+           letter-spacing:1px;text-transform:uppercase;color:#64748b;
+           border-bottom:1px solid {panel_border};">
+          {_esc(panel_title)}
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          {''.join(issue_rows) if issue_rows else '<tr><td style="padding:16px;">No details</td></tr>'}
+        </table>
+      </div>
+      <p style="margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:1px;
+         text-transform:uppercase;color:#94a3b8;">What to do next</p>
+      <ul style="margin:0 0 20px;padding-left:18px;">{steps_html}</ul>
+      <p style="margin:0;">
+        <a href="{_esc(APP_BASE_URL)}/health/ui"
+           style="display:inline-block;background:#ea580c;color:#ffffff;text-decoration:none;
+                  font-weight:700;font-size:14px;padding:12px 16px;border-radius:10px;">
+          Open health dashboard
+        </a>
+      </p>
+      <p style="margin:16px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+        This is a realtime alert (every 5 min). The twice-daily overview still goes out at
+        9 AM and 9 PM CT. Same issue will not re-page for 30 minutes.
+      </p>
+    </div>
+    <p style="text-align:center;color:#64748b;font-size:12px;margin-top:16px;">
+      Realtime health alert · Origen TechnolOG
+    </p>
+  </div>
+</body></html>"""
+    return subject, html
+
+
+def demo_checks(scenario: str) -> list[CheckResult]:
+    """Synthetic checks for previewing alert emails without breaking prod."""
+    healthy = [
+        CheckResult(
+            name='Core app',
+            ok=True,
+            detail='App is up and responding normally.',
+            meaning='The main CRM is healthy.',
+        ),
+        CheckResult(
+            name='Website',
+            ok=True,
+            detail='origentechnolog.com is loading.',
+            meaning='People can reach the public site.',
+        ),
+        CheckResult(
+            name='Database',
+            ok=True,
+            detail='Database is reachable through the live app.',
+            meaning='Contacts, tasks, and deals can load and save.',
+            meta={'latency_ms': 62.4, 'source': 'app_health'},
+        ),
+        CheckResult(
+            name='Background jobs',
+            ok=True,
+            detail='Background job queue is healthy.',
+            meaning='Document processing and delayed work can run normally.',
+        ),
+        CheckResult(
+            name='Hosting (Railway)',
+            ok=True,
+            detail='All expected Railway services look healthy.',
+            meaning='Hosting, workers, and scheduled jobs are in good shape.',
+        ),
+    ]
+    if scenario == 'warn':
+        return [
+            healthy[0],
+            healthy[1],
+            CheckResult(
+                name='Database',
+                ok=True,
+                warn=True,
+                detail='Database is up, but the live app path is slow.',
+                meaning=(
+                    'CRM data still works. If this keeps showing up, '
+                    'pages may feel sluggish.'
+                ),
+                meta={'latency_ms': 2480.0, 'source': 'app_health'},
+            ),
+            CheckResult(
+                name='Background jobs',
+                ok=True,
+                warn=True,
+                detail='Queue is up, with 42 jobs waiting.',
+                meaning='Work is backing up — the worker may be slow or stuck.',
+                meta={'failed': 0, 'depths': {'documents': 42}},
+            ),
+            healthy[4],
+        ]
+    if scenario == 'fail':
+        return [
+            CheckResult(
+                name='Core app',
+                ok=False,
+                detail='The app health check did not respond normally.',
+                meaning='Users may not be able to use Origen right now.',
+            ),
+            CheckResult(
+                name='Website',
+                ok=False,
+                detail='The public website did not load cleanly.',
+                meaning='Visitors may hit an error page or timeout.',
+            ),
+            CheckResult(
+                name='Database',
+                ok=False,
+                detail='The live app could not reach the database.',
+                meaning='The CRM likely cannot load or save data right now.',
+            ),
+            healthy[3],
+            CheckResult(
+                name='Hosting (Railway)',
+                ok=False,
+                detail='Hosting issue — unhealthy: OrigenTechnolOG.',
+                meaning='One or more Railway pieces may need a redeploy or restart.',
+            ),
+        ]
+    if scenario == 'recovery':
+        return healthy
+    raise ValueError(f'Unknown demo scenario: {scenario}')
 
 
 def _esc(value: Any) -> str:
@@ -1047,6 +1299,52 @@ def _run_alert_mode(
     return 0 if status != 'FAIL' else 1
 
 
+def run_demo_alert(
+    *,
+    scenario: str,
+    to_email: str,
+    dry_run: bool = False,
+) -> int:
+    """Send a sample alert/recovery email with synthetic issues (no cooldown write)."""
+    when_ct = datetime.now(CT)
+    checks = demo_checks(scenario)
+    kind = 'recovery' if scenario == 'recovery' else 'alert'
+    status = overall_status(checks)
+    subject, html = render_email(checks, when_ct=when_ct, kind=kind)
+    logger.info(
+        'Demo %s alert status=%s subject=%r',
+        scenario, status, subject,
+    )
+    if dry_run:
+        print(subject)
+        print(json.dumps(
+            {
+                'demo': scenario,
+                'kind': kind,
+                'status': status,
+                'issues': [
+                    {
+                        'name': c.name,
+                        'ok': c.ok,
+                        'warn': c.warn,
+                        'detail': c.detail,
+                        'meaning': c.meaning,
+                    }
+                    for c in _issue_checks(checks) or checks
+                ],
+            },
+            indent=2,
+        ))
+        return 0
+    # Prefix subject so demos are obvious in the inbox.
+    subject = f'[DEMO] {subject}'
+    if not send_report(to_email, subject, html):
+        logger.error('Failed to send demo alert to %s', to_email)
+        return 2
+    print(f'Demo {scenario} alert emailed to {to_email}')
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description='Origen health check')
     parser.add_argument(
@@ -1063,11 +1361,25 @@ def main():
         ),
     )
     parser.add_argument(
+        '--demo',
+        choices=('warn', 'fail', 'recovery'),
+        help=(
+            'Send a sample alert email with synthetic issues so you can preview '
+            'WARNING / ERROR / recovery formatting. Does not write alert cooldown state.'
+        ),
+    )
+    parser.add_argument(
         '--to',
         default=DEFAULT_TO,
         help=f'Recipient email (default: {DEFAULT_TO})',
     )
     args = parser.parse_args()
+    if args.demo:
+        raise SystemExit(run_demo_alert(
+            scenario=args.demo,
+            to_email=args.to,
+            dry_run=args.dry_run,
+        ))
     raise SystemExit(run_daily_health_check(
         to_email=args.to,
         dry_run=args.dry_run,
