@@ -280,6 +280,45 @@ class TestIsolation:
         assert result.ok is True
         assert result.data['contacts'] == []
 
+    def test_agent_only_sees_their_own_tasks(self, app, seed, ctx_agent_a):
+        """A non-admin must never be shown a teammate's task, in any surface."""
+        with app.app_context():
+            result = dispatch('list_tasks', {'status': 'all'}, ctx_agent_a)
+
+        assert result.ok is True
+        subjects = [t['subject'] for t in result.data['tasks']]
+        assert 'Follow up John' in subjects   # assigned to agent_a
+        assert 'Call Jane' not in subjects    # assigned to owner_a
+        assert 'Task B Only' not in subjects  # different org
+
+    def test_agent_agenda_excludes_teammate_tasks(self, app, seed, ctx_agent_a):
+        with app.app_context():
+            result = dispatch('get_agenda', {}, ctx_agent_a)
+
+        assert result.ok is True
+        subjects = [
+            task['subject']
+            for bucket in ('overdue', 'due_today', 'upcoming')
+            for task in result.data.get(bucket, [])
+        ]
+        assert 'Call Jane' not in subjects
+
+    def test_agent_cannot_read_a_teammates_task_by_id(self, app, seed,
+                                                      ctx_agent_a):
+        """Guessing an id must not work either."""
+        with app.app_context():
+            result = dispatch('complete_task', {'task_id': seed['task_a']},
+                              ctx_agent_a)
+        assert result.ok is False
+
+    def test_org_admin_still_sees_the_whole_org(self, app, seed, ctx_owner_a):
+        with app.app_context():
+            result = dispatch('list_tasks', {'status': 'all'}, ctx_owner_a)
+
+        subjects = [t['subject'] for t in result.data['tasks']]
+        assert 'Call Jane' in subjects
+        assert 'Follow up John' in subjects
+
     def test_cannot_write_to_another_orgs_contact(self, app, seed, ctx_owner_b):
         with app.app_context():
             result = dispatch('log_interaction', {
