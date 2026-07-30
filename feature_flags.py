@@ -127,6 +127,94 @@ def org_has_feature(feature_name: str, org=None) -> bool:
     return TIER_FEATURES.get(tier, TIER_FEATURES['free']).get(feature_name, False)
 
 
+# Shown in the platform admin UI instead of raw SCREAMING_SNAKE keys.
+FEATURE_LABELS = {
+    'CONTACTS': 'Contacts',
+    'TASKS': 'Tasks',
+    'USER_TODOS': 'Personal to-dos',
+    'DASHBOARD': 'Dashboard',
+    'TEAM_UPDATES': 'Team updates',
+    'AI_CHAT': 'B.O.B. chat',
+    'AI_DAILY_TODO': 'B.O.B. daily to-do',
+    'AI_ACTION_PLAN': 'B.O.B. action plans',
+    'AI_TASK_SUGGESTIONS': 'B.O.B. task suggestions',
+    'BOB_TELEGRAM': 'B.O.B. on Telegram',
+    'TRANSACTIONS': 'Transactions',
+    'DOCUMENT_GENERATION': 'Document generation',
+    'MARKET_INSIGHTS': 'Market insights',
+    'MARKETING': 'Marketing',
+    'TAX_PROTEST': 'Tax protest',
+}
+
+
+def all_feature_names() -> list:
+    """Every known feature key, in a stable display order."""
+    names = []
+    for tier in ('enterprise', 'pro', 'free'):
+        for name in TIER_FEATURES.get(tier, {}):
+            if name not in names:
+                names.append(name)
+    return names
+
+
+def tier_default_for(feature_name: str, tier: Optional[str]) -> bool:
+    """What this feature would be if the org had no override."""
+    tier = tier or 'free'
+    return TIER_FEATURES.get(tier, TIER_FEATURES['free']).get(feature_name, False)
+
+
+def describe_org_features(org) -> list:
+    """Per-feature rows for the platform admin toggle UI.
+
+    Reports the tier default alongside the effective value so an admin can see
+    at a glance which flags are deliberate overrides rather than inherited.
+    """
+    overrides = org.feature_flags or {}
+    rows = []
+    for name in all_feature_names():
+        default = tier_default_for(name, org.subscription_tier)
+        overridden = name in overrides
+        rows.append({
+            'name': name,
+            'label': FEATURE_LABELS.get(name, name.replace('_', ' ').title()),
+            'tier_default': default,
+            'overridden': overridden,
+            'enabled': bool(overrides[name]) if overridden else default,
+            'locked': name in GLOBAL_FEATURE_OVERRIDES,
+            'locked_value': GLOBAL_FEATURE_OVERRIDES.get(name),
+        })
+    return rows
+
+
+def set_org_feature_overrides(org, desired: dict) -> dict:
+    """Persist only the flags that differ from the org's tier default.
+
+    Storing matches as explicit overrides would silently freeze the org against
+    future tier changes, so anything equal to the default is dropped instead.
+    Returns the new override dict. Caller commits.
+    """
+    overrides = {}
+    existing = org.feature_flags or {}
+    for name, enabled in desired.items():
+        if name in GLOBAL_FEATURE_OVERRIDES:
+            continue
+        if bool(enabled) != tier_default_for(name, org.subscription_tier):
+            overrides[name] = bool(enabled)
+
+    for name, enabled in existing.items():
+        if name in overrides:
+            continue
+        # A killswitch wins at read time and its toggle ships disabled, so keep
+        # the stored intent rather than reading an absent field as a real
+        # "off". Unmanaged keys (older or experimental flags) survive too.
+        if name in GLOBAL_FEATURE_OVERRIDES or name not in TIER_FEATURES['enterprise']:
+            overrides[name] = enabled
+
+    # JSON columns only track whole-value assignment, not in-place mutation.
+    org.feature_flags = overrides
+    return overrides
+
+
 def get_org_features(org=None) -> dict:
     """
     Get all feature flags for an organization.

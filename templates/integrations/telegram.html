@@ -4,6 +4,24 @@
 {% block title %}Connect Telegram - Origen TechnolOG{% endblock %}
 {% block mobile_title %}Telegram{% endblock %}
 
+{% block head_scripts %}
+<style>
+    .setup-step {
+        flex: none;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 9999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #fff;
+        background: var(--accent);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="crm-page">
     <div class="crm-page__inner max-w-[640px]">
@@ -38,13 +56,39 @@
                     </form>
                 </div>
                 {% else %}
-                <div>
-                    <p class="text-sm" style="color: var(--ink-2); line-height: 1.55;">
-                        Scan the QR code with your phone, or open the link below.
-                        Telegram will ask you to start the bot. That one tap links
-                        this CRM account. The link expires in 15 minutes.
-                    </p>
-                </div>
+                {% if link_url %}
+                <ol class="space-y-4">
+                    <li class="flex gap-3">
+                        <span class="setup-step">1</span>
+                        <div class="min-w-0 pt-0.5">
+                            <p class="text-sm font-medium" style="color: var(--ink);">Install Telegram if you don't have it</p>
+                            <p class="mt-0.5 text-sm" style="color: var(--ink-3);">
+                                It's free. Any phone number works, and your number stays private from us.
+                            </p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="setup-step">2</span>
+                        <div class="min-w-0 pt-0.5">
+                            <p class="text-sm font-medium" style="color: var(--ink);">Open the bot</p>
+                            <p class="mt-0.5 text-sm" style="color: var(--ink-3);">
+                                Point your phone camera at the code below, or tap
+                                <span class="font-medium" style="color: var(--ink-2);">Open in Telegram</span>
+                                if you're already on your phone.
+                            </p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <span class="setup-step">3</span>
+                        <div class="min-w-0 pt-0.5">
+                            <p class="text-sm font-medium" style="color: var(--ink);">Tap Start</p>
+                            <p class="mt-0.5 text-sm" style="color: var(--ink-3);">
+                                Telegram shows a blue Start button at the bottom. That one tap
+                                links your account and B.O.B. replies right away.
+                            </p>
+                        </div>
+                    </li>
+                </ol>
 
                 {% if qr_svg %}
                 <div class="flex justify-center">
@@ -52,10 +96,8 @@
                         {{ qr_svg }}
                     </div>
                 </div>
-                <p class="text-center text-xs" style="color: var(--ink-4);">Scan to open Telegram</p>
                 {% endif %}
 
-                {% if link_url %}
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
                     <a href="{{ link_url }}" target="_blank" rel="noopener"
                        class="crm-btn crm-btn-primary">
@@ -64,9 +106,14 @@
                     </a>
                     <a href="{{ url_for('bob_telegram.telegram_connect_page') }}"
                        class="crm-btn crm-btn-secondary">
-                        Refresh QR
+                        New code
                     </a>
                 </div>
+
+                <p class="text-center text-xs" style="color: var(--ink-4);">
+                    This code is yours alone and expires in 15 minutes. Tap
+                    <span class="font-medium">New code</span> if it stops working.
+                </p>
                 {% else %}
                 <p class="text-sm" style="color: var(--warn);">
                     Telegram is not fully configured on this server. Ask an admin

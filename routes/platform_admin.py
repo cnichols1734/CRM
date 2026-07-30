@@ -9,6 +9,11 @@ from flask_login import login_required, current_user
 from datetime import datetime
 from models import db, Organization, OrganizationMetrics, PlatformAuditLog, User
 from services.tenant_service import platform_admin_required, is_platform_admin
+from feature_flags import (
+    all_feature_names,
+    describe_org_features,
+    set_org_feature_overrides,
+)
 from sqlalchemy import func
 from tier_config.tier_limits import TIER_DEFAULTS, apply_tier_defaults
 
@@ -353,6 +358,7 @@ def view_org(org_id):
                           metrics=metrics,
                           owner_email=owner_email,
                           audit_logs=audit_logs,
+                          features=describe_org_features(org),
                           tier_defaults=TIER_DEFAULTS)
 
 
@@ -505,6 +511,42 @@ def update_org_limits(org_id):
     db.session.commit()
     
     flash(f'Limits updated for "{org.name}".', 'success')
+    return redirect(url_for('platform.view_org', org_id=org_id))
+
+
+@platform_bp.route('/orgs/<int:org_id>/update-features', methods=['POST'])
+@login_required
+@platform_admin_required
+def update_org_features(org_id):
+    """Turn individual features on or off for one organization."""
+    org = Organization.query.get_or_404(org_id)
+
+    old_flags = dict(org.feature_flags or {})
+    desired = {
+        name: request.form.get(f'feature_{name}') == 'on'
+        for name in all_feature_names()
+    }
+    new_flags = set_org_feature_overrides(org, desired)
+
+    if new_flags == old_flags:
+        flash('No feature changes to save.', 'info')
+        return redirect(url_for('platform.view_org', org_id=org_id))
+
+    changed = sorted(
+        set(old_flags) ^ set(new_flags)
+        | {k for k in set(old_flags) & set(new_flags) if old_flags[k] != new_flags[k]}
+    )
+    log_platform_action('features_changed', org.id, {
+        'org_name': org.name,
+        'tier': org.subscription_tier,
+        'changed': changed,
+        'old_overrides': old_flags,
+        'new_overrides': new_flags,
+    })
+
+    db.session.commit()
+
+    flash(f'Feature access updated for "{org.name}".', 'success')
     return redirect(url_for('platform.view_org', org_id=org_id))
 
 
