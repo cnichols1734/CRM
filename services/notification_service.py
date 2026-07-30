@@ -31,7 +31,8 @@ def is_channel_enabled(user_id, category, channel='in_app'):
     return getattr(pref, f'{channel}_enabled', True)
 
 
-def set_preference(user_id, organization_id, category, *, in_app=None, email=None):
+def set_preference(user_id, organization_id, category, *, in_app=None,
+                   email=None, telegram=None):
     """Create or update a notification preference row.
 
     Only the channels whose keyword argument is not None are touched.
@@ -49,6 +50,8 @@ def set_preference(user_id, organization_id, category, *, in_app=None, email=Non
         pref.in_app_enabled = in_app
     if email is not None:
         pref.email_enabled = email
+    if telegram is not None:
+        pref.telegram_enabled = telegram
 
     db.session.commit()
     return pref
@@ -69,6 +72,7 @@ def get_all_preferences(user_id):
             'label': cat_label,
             'in_app': row.in_app_enabled if row else True,
             'email': row.email_enabled if row else True,
+            'telegram': row.telegram_enabled if row else True,
         }
     return result
 

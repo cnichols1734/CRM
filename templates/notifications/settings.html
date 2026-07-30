@@ -25,17 +25,18 @@
                     </div>
                 </header>
 
-                <div class="px-5 py-3 grid grid-cols-[1fr_72px_72px] items-center gap-4 crm-eyebrow"
+                <div class="px-5 py-3 grid grid-cols-[1fr_72px_72px_72px] items-center gap-4 crm-eyebrow"
                      style="border-bottom: 1px solid var(--hairline);">
                     <span>Category</span>
                     <span class="text-center">In-app</span>
                     <span class="text-center">Email</span>
+                    <span class="text-center">Telegram</span>
                 </div>
 
                 <div class="divide-y" style="border-color: var(--hairline);">
                     {% for cat_key, cat_label in categories.items() %}
                     {% set p = prefs[cat_key] %}
-                    <div class="grid grid-cols-[1fr_72px_72px] items-center gap-4 px-5 py-4">
+                    <div class="grid grid-cols-[1fr_72px_72px_72px] items-center gap-4 px-5 py-4">
                         <div>
                             <p class="text-sm font-medium" style="color: var(--ink); letter-spacing: -0.005em;">{{ cat_label }}</p>
                             {% if cat_key == 'task_reminder' %}
@@ -57,6 +58,12 @@
                         <div class="flex justify-center">
                             <label class="crm-toggle">
                                 <input type="checkbox" name="{{ cat_key }}_email" {% if p.email %}checked{% endif %}>
+                                <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                            </label>
+                        </div>
+                        <div class="flex justify-center">
+                            <label class="crm-toggle">
+                                <input type="checkbox" name="{{ cat_key }}_telegram" {% if p.telegram %}checked{% endif %}>
                                 <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
                             </label>
                         </div>

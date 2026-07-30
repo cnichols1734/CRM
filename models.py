@@ -2108,6 +2108,11 @@ class ChatConversation(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='CASCADE'), nullable=False, index=True)
     title = db.Column(db.String(100), nullable=True)  # AI-generated, null until first exchange
+    # 'web' for the in-app panel; 'telegram' (and later 'sms'/'whatsapp') for
+    # messaging surfaces. Lets the history UI filter channels without a second
+    # conversation table.
+    channel = db.Column(db.String(32), nullable=False, default='web',
+                        server_default='web', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
     
@@ -2124,6 +2129,7 @@ class ChatConversation(db.Model):
         data = {
             'id': self.id,
             'title': self.title,
+            'channel': self.channel,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -2245,6 +2251,127 @@ class BobAction(db.Model):
 
     def __repr__(self):
         return f'<BobAction {self.id} {self.tool_name} {self.status}>'
+
+
+# =============================================================================
+# MESSAGING CHANNELS (Telegram today; WhatsApp / SMS later)
+# =============================================================================
+
+class AgentMessagingChannel(db.Model):
+    """One linked messaging identity for an agent.
+
+    Provider-agnostic on purpose: Telegram is the first row shape, and a later
+    WhatsApp or SMS adapter reuses the same table with a different ``provider``.
+    Identity is always the provider's immutable external id — never a mutable
+    @username.
+    """
+    __tablename__ = 'agent_messaging_channels'
+
+    PROVIDER_TELEGRAM = 'telegram'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), nullable=False, index=True)
+
+    provider = db.Column(db.String(32), nullable=False, index=True)
+    # Telegram numeric user_id (as string). Unique with provider.
+    external_id = db.Column(db.String(64), nullable=False)
+    # Where to send. Same as external_id for a private Telegram chat.
+    chat_id = db.Column(db.String(64), nullable=False)
+
+    linked_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    disabled_at = db.Column(db.DateTime, nullable=True)
+    disable_reason = db.Column(db.String(100), nullable=True)
+
+    # High-risk write awaiting a Confirm / Cancel tap.
+    pending_action_id = db.Column(
+        db.Integer, db.ForeignKey('bob_actions.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+
+    last_inbound_at = db.Column(db.DateTime, nullable=True)
+    daily_count = db.Column(db.Integer, nullable=False, default=0)
+    daily_count_date = db.Column(db.Date, nullable=True)
+
+    # Soft cap on unprompted pushes so a bad cron run cannot spam.
+    proactive_daily_count = db.Column(db.Integer, nullable=False, default=0)
+    proactive_daily_count_date = db.Column(db.Date, nullable=True)
+
+    user = db.relationship('User', backref=db.backref('messaging_channels',
+                           lazy='dynamic', cascade='all, delete-orphan'))
+    pending_action = db.relationship('BobAction', foreign_keys=[pending_action_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('provider', 'external_id',
+                            name='uq_messaging_provider_external'),
+        db.UniqueConstraint('user_id', 'provider',
+                            name='uq_messaging_user_provider'),
+        db.Index('ix_messaging_channels_org_provider',
+                 'organization_id', 'provider'),
+    )
+
+    @property
+    def is_active(self) -> bool:
+        return self.disabled_at is None
+
+    def __repr__(self):
+        return (f'<AgentMessagingChannel {self.provider} '
+                f'user={self.user_id} ext={self.external_id}>')
+
+
+class MessagingLinkToken(db.Model):
+    """Single-use deep-link token that binds a Telegram account to a CRM user.
+
+    Only the hash is stored. The raw token lives in the t.me/?start= URL the
+    agent scans, so it must be short-lived and one-shot.
+    """
+    __tablename__ = 'messaging_link_tokens'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'),
+                        nullable=False, index=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), nullable=False, index=True)
+    provider = db.Column(db.String(32), nullable=False,
+                         default=AgentMessagingChannel.PROVIDER_TELEGRAM)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<MessagingLinkToken user={self.user_id} used={bool(self.used_at)}>'
+
+
+class MessagingInboundUpdate(db.Model):
+    """Idempotency guard for inbound webhook updates.
+
+    Telegram retries on non-2XX and does not publish a retry schedule, so every
+    update_id must be recorded before work starts. Provider-agnostic so WhatsApp
+    message ids can share the table later.
+    """
+    __tablename__ = 'messaging_inbound_updates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
+                                ondelete='CASCADE'), nullable=True, index=True)
+    provider = db.Column(db.String(32), nullable=False)
+    external_update_id = db.Column(db.String(64), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'),
+                        nullable=True)
+    kind = db.Column(db.String(32), nullable=True)  # message | callback_query | ...
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('provider', 'external_update_id',
+                            name='uq_messaging_inbound_update'),
+    )
+
+    def __repr__(self):
+        return (f'<MessagingInboundUpdate {self.provider} '
+                f'{self.external_update_id}>')
 
 
 # =============================================================================
@@ -2679,9 +2806,11 @@ class UserNotificationPreference(db.Model):
 
     category = db.Column(db.String(50), nullable=False)
 
-    # Channels — start with two; add push/sms later
+    # Channels — in-app and email are the originals; Telegram is the first
+    # messaging surface that can push proactive nudges.
     in_app_enabled = db.Column(db.Boolean, default=True, nullable=False)
     email_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    telegram_enabled = db.Column(db.Boolean, default=True, nullable=False)
 
     updated_at = db.Column(db.DateTime, default=datetime.utcnow,
                            onupdate=datetime.utcnow, nullable=False)
@@ -2697,7 +2826,7 @@ class UserNotificationPreference(db.Model):
     def __repr__(self):
         return (f'<UserNotificationPreference user={self.user_id} '
                 f'cat={self.category} app={self.in_app_enabled} '
-                f'email={self.email_enabled}>')
+                f'email={self.email_enabled} tg={self.telegram_enabled}>')
 
 
 # =============================================================================

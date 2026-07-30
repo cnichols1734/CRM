@@ -88,3 +88,11 @@ class Config:
     GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
     GMAIL_TOKEN_ENCRYPTION_KEY = os.getenv('GMAIL_TOKEN_ENCRYPTION_KEY')
     GMAIL_SYNC_DAYS = int(os.getenv('GMAIL_SYNC_DAYS', 30))  # Initial sync window
+
+    # B.O.B. over Telegram. Off by default; enable per-org via feature_flags.
+    TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+    TELEGRAM_BOT_USERNAME = os.getenv('TELEGRAM_BOT_USERNAME')
+    TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET')
+    # Opaque path segment stacked on top of the secret header. Generate once
+    # with secrets.token_urlsafe(24) and keep it stable across deploys.
+    TELEGRAM_WEBHOOK_PATH = os.getenv('TELEGRAM_WEBHOOK_PATH')

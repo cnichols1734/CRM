@@ -59,7 +59,10 @@ def _connect_redis(url: str, attempts: int = 12, delay: float = 2.5) -> Redis:
 def main():
     with app.app_context():
         conn = _connect_redis(Config.REDIS_URL)
-        queues = [Queue("doc_extraction", connection=conn)]
+        queues = [
+            Queue("doc_extraction", connection=conn),
+            Queue("bob_telegram", connection=conn),
+        ]
         worker = Worker(queues, connection=conn)
         worker.work(with_scheduler=True)
 

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Connect Telegram - Origen TechnolOG{% endblock %}
+{% block mobile_title %}Telegram{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[640px]">
+        <a href="{{ url_for('auth.view_user_profile') }}"
+           class="mb-4 inline-flex items-center gap-1.5 text-sm font-medium" style="color: var(--ink-3);">
+            <i class="fas fa-arrow-left text-xs"></i>
+            <span>Profile</span>
+        </a>
+
+        {% set _title = 'B.O.B. on <em>Telegram</em>' %}
+        {% call page_header(_title, 'Link your Telegram account so B.O.B. can answer you from your phone.', 'Integrations') %}{% endcall %}
+
+        <section class="crm-surface">
+            <div class="crm-surface-body space-y-5">
+                {% if channel %}
+                <div class="rounded-lg border px-4 py-3" style="border-color: var(--hairline); background: var(--surface-2);">
+                    <p class="text-sm font-medium" style="color: var(--ink);">
+                        <i class="fab fa-telegram-plane text-[#229ED9] mr-1.5"></i>
+                        Linked
+                    </p>
+                    <p class="mt-1 text-sm" style="color: var(--ink-3);">
+                        Open Telegram and message
+                        {% if bot_username %}
+                        <a href="https://t.me/{{ bot_username.lstrip('@') }}" class="font-medium hover:underline" style="color: var(--accent);">@{{ bot_username.lstrip('@') }}</a>
+                        {% else %}
+                        your B.O.B. bot
+                        {% endif %}
+                        anytime. Risky changes show a Confirm button first.
+                    </p>
+                    <form method="POST" action="{{ url_for('bob_telegram.telegram_disconnect') }}" class="mt-4">
+                        <button type="submit" class="crm-btn crm-btn-sm crm-btn-secondary">Disconnect</button>
+                    </form>
+                </div>
+                {% else %}
+                <div>
+                    <p class="text-sm" style="color: var(--ink-2); line-height: 1.55;">
+                        Scan the QR code with your phone, or open the link below.
+                        Telegram will ask you to start the bot. That one tap links
+                        this CRM account. The link expires in 15 minutes.
+                    </p>
+                </div>
+
+                {% if qr_svg %}
+                <div class="flex justify-center">
+                    <div class="rounded-lg border p-3 bg-white" style="border-color: var(--hairline);">
+                        {{ qr_svg }}
+                    </div>
+                </div>
+                <p class="text-center text-xs" style="color: var(--ink-4);">Scan to open Telegram</p>
+                {% endif %}
+
+                {% if link_url %}
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
+                    <a href="{{ link_url }}" target="_blank" rel="noopener"
+                       class="crm-btn crm-btn-primary">
+                        <i class="fab fa-telegram-plane text-sm"></i>
+                        Open in Telegram
+                    </a>
+                    <a href="{{ url_for('bob_telegram.telegram_connect_page') }}"
+                       class="crm-btn crm-btn-secondary">
+                        Refresh QR
+                    </a>
+                </div>
+                {% else %}
+                <p class="text-sm" style="color: var(--warn);">
+                    Telegram is not fully configured on this server. Ask an admin
+                    to set TELEGRAM_BOT_USERNAME.
+                </p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
