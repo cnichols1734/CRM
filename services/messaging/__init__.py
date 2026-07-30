@@ -10,6 +10,7 @@ from services.messaging.telegram import (
     TelegramTransport,
     get_transport,
     markdown_to_telegram_html,
+    show_typing,
 )
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     'TelegramTransport',
     'get_transport',
     'markdown_to_telegram_html',
+    'show_typing',
 ]

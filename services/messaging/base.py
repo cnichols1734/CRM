@@ -65,3 +65,10 @@ class MessagingTransport(Protocol):
     ) -> dict:
         """Acknowledge a button tap so the client stops spinning."""
         ...
+
+    def send_activity(self, chat_id: str) -> dict:
+        """Signal that a reply is being composed (typing dots, etc.).
+
+        Best-effort and cosmetic. Channels without the concept may no-op.
+        """
+        ...

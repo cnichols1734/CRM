@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
@@ -501,6 +502,65 @@ class TestToolLoopContract:
         sent = ' '.join(m['text'] for m in _fake_transport.sent)
         assert 'Something went wrong' not in sent
         assert 'contacts' in sent
+
+
+class TestTypingIndicator:
+    def test_typing_is_sent_while_thinking_and_stops_after(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        def slow_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+            time.sleep(0.3)
+            yield ('text', 'Two contacts.')
+
+        with app.app_context():
+            with patch(
+                'services.messaging.telegram.TYPING_REFRESH_SECONDS', 0.05,
+            ), patch(
+                'services.messaging.conversation.run_tool_conversation',
+                slow_run,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='How many contacts do I have?',
+                    telegram_message_id='501',
+                )
+
+        # Refreshed rather than sent once, so the dots survive a long turn.
+        assert len(_fake_transport.activity) > 1
+        assert all(
+            a['chat_id'] == linked_channel['chat_id']
+            for a in _fake_transport.activity
+        )
+        # The refresh thread must not outlive the turn.
+        before = len(_fake_transport.activity)
+        time.sleep(0.3)
+        assert len(_fake_transport.activity) == before
+
+    def test_typing_failure_does_not_break_the_reply(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        def boom(chat_id):
+            raise RuntimeError('telegram down')
+
+        def fake_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+            yield ('text', 'Two contacts.')
+
+        with app.app_context():
+            with patch.object(_fake_transport, 'send_activity', boom), patch(
+                'services.messaging.conversation.run_tool_conversation',
+                fake_run,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='How many contacts do I have?',
+                    telegram_message_id='502',
+                )
+
+        assert any(
+            'Two contacts.' in m['text'] for m in _fake_transport.sent
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -8,7 +8,9 @@ from __future__ import annotations
 import html
 import logging
 import re
+import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Optional, Sequence
 from urllib.parse import urljoin
@@ -26,6 +28,12 @@ SOFT_CHUNK_LENGTH = 3800
 
 # Back off on Telegram's own rate limits. The per-chat floor is ~1 msg/sec.
 MAX_RETRIES = 3
+
+# Telegram drops the typing indicator after ~5s, so refresh under that while
+# the model works. Give up after a bounded run so a wedged turn cannot leave
+# the dots spinning forever.
+TYPING_REFRESH_SECONDS = 4
+MAX_TYPING_SECONDS = 90
 
 
 class TelegramError(RuntimeError):
@@ -192,6 +200,12 @@ class TelegramTransport:
             payload['text'] = text[:200]
         return self._call('answerCallbackQuery', payload)
 
+    def send_activity(self, chat_id: str) -> dict:
+        return self._call('sendChatAction', {
+            'chat_id': chat_id,
+            'action': 'typing',
+        })
+
     def set_webhook(
         self,
         url: str,
@@ -308,6 +322,7 @@ class FakeTransport:
     sent: list[dict] = field(default_factory=list)
     edited: list[dict] = field(default_factory=list)
     answered: list[dict] = field(default_factory=list)
+    activity: list[dict] = field(default_factory=list)
     _next_message_id: int = 1
 
     def send_text(
@@ -381,6 +396,42 @@ class FakeTransport:
         }
         self.answered.append(record)
         return {'ok': True}
+
+    def send_activity(self, chat_id: str) -> dict:
+        self.activity.append({'chat_id': str(chat_id)})
+        return {'ok': True}
+
+
+@contextmanager
+def show_typing(transport: Any, chat_id: str):
+    """Keep the typing indicator alive for the duration of the block.
+
+    Purely cosmetic, so every failure is swallowed — a dropped indicator must
+    never cost the agent their answer. The refresh runs on a daemon thread and
+    is stopped before the caller sends anything, so the two never share the
+    HTTP session concurrently.
+    """
+    stop = threading.Event()
+
+    def refresh():
+        deadline = time.monotonic() + MAX_TYPING_SECONDS
+        while not stop.is_set() and time.monotonic() < deadline:
+            try:
+                transport.send_activity(chat_id)
+            except Exception as exc:  # noqa: BLE001 - cosmetic only
+                logger.debug('Telegram typing indicator stopped: %s', exc)
+                return
+            stop.wait(TYPING_REFRESH_SECONDS)
+
+    thread = threading.Thread(
+        target=refresh, name='telegram-typing', daemon=True,
+    )
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join(timeout=2)
 
 
 _transport_override: Optional[Any] = None
