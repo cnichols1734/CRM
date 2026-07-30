@@ -2224,6 +2224,12 @@ class BobAction(db.Model):
     error = db.Column(db.Text, nullable=True)
     surface = db.Column(db.String(32), nullable=False, default='bob_chat')
 
+    # The bell entry this action was folded into, so an undo can retract it.
+    notification_id = db.Column(db.Integer,
+                                db.ForeignKey('notifications.id',
+                                              ondelete='SET NULL'),
+                                nullable=True, index=True)
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                            index=True)
     executed_at = db.Column(db.DateTime, nullable=True)
@@ -2770,6 +2776,7 @@ class Notification(db.Model):
         'company_update': 'Company Updates',
         'magic_inbox': 'Magic Inbox',
         'portal': 'Client Portal',
+        'bob_action': 'B.O.B. Changes',
     }
 
     def mark_read(self):
