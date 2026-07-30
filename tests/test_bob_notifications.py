@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import BobAction, Notification, db
+from models import BobAction, Contact, Interaction, Notification, Task, db
 from services.bob_tools import BobContext, dispatch, undo_action
 from services.bob_tools.notifications import (
     CATEGORY,
@@ -46,6 +46,11 @@ def ctx_telegram(seed):
     )
 
 
+# Every contact these tests create uses this first name, so cleanup can find
+# them without threading ids through each test.
+SCRATCH_FIRST_NAME = 'Nora'
+
+
 @pytest.fixture(autouse=True)
 def _clean_notifications(app, seed):
     """Isolate counts from any other test file that drove B.O.B."""
@@ -60,6 +65,26 @@ def _wipe(app):
         # pointing at a deleted notification would collide with the next one.
         BobAction.query.delete()
         Notification.query.filter_by(category=CATEGORY).delete()
+
+        # The contacts these tests create own interactions and tasks. Left
+        # behind, they break unrelated files later in the session, because the
+        # SQLite test database is shared for the whole run.
+        scratch = Contact.query.filter_by(
+            first_name=SCRATCH_FIRST_NAME,
+        ).all()
+        if scratch:
+            ids = [c.id for c in scratch]
+            Interaction.query.filter(
+                Interaction.contact_id.in_(ids),
+            ).delete(synchronize_session=False)
+            Task.query.filter(
+                Task.contact_id.in_(ids),
+            ).delete(synchronize_session=False)
+            for contact in scratch:
+                contact.groups = []
+            db.session.flush()
+            for contact in scratch:
+                db.session.delete(contact)
         db.session.commit()
 
 
@@ -74,7 +99,7 @@ def _bob_notifications(user_id):
 
 def _new_contact(ctx, collector, last_name='Notify'):
     return dispatch('create_contact', {
-        'first_name': 'Nora', 'last_name': last_name,
+        'first_name': SCRATCH_FIRST_NAME, 'last_name': last_name,
         'email': f'nora.{last_name.lower()}@test.com',
         'group_names': ['Buyers'],
     }, ctx, collector=collector)
@@ -235,8 +260,11 @@ class TestConfirmedActions:
         from services.bob_tools import confirm_action
 
         with app.app_context():
+            created = _new_contact(ctx_owner_a, None, last_name='Confirmed')
+            assert _bob_notifications(seed['owner_a']) == []
+
             pending = dispatch('update_contact', {
-                'contact_id': seed['contact_a'],
+                'contact_id': created.data['contact']['contact_id'],
                 'fields': {'city': 'Katy'},
             }, ctx_owner_a)
             assert pending.requires_confirmation is True
