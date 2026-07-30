@@ -27,6 +27,7 @@ from services.bob_tools import interactions as interaction_tools
 from services.bob_tools import tasks as task_tools
 from services.bob_tools import todos as todo_tools
 from services.bob_tools.common import ToolError
+from services.bob_tools.notifications import forget_action, notify_actions
 from services.bob_tools.context import (
     RISK_HIGH_WRITE,
     RISK_LOW_WRITE,
@@ -750,7 +751,8 @@ def sanitize_arguments(tool: Tool, raw_args: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
-             conversation_id: int | None = None) -> ToolResult:
+             conversation_id: int | None = None,
+             collector=None) -> ToolResult:
     """Run one tool call under the confirmation and audit policy.
 
     Never raises: every failure becomes a ToolResult the model can read and
@@ -784,6 +786,8 @@ def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
         if result.ok:
             action = _record_executed_action(tool, args, result, ctx,
                                             conversation_id=conversation_id)
+            if collector is not None:
+                collector.add(action, result)
             if tool.undo is not None and result.undoable:
                 result.action_id = action.id
             else:
@@ -843,6 +847,10 @@ def confirm_action(action_id: int, ctx: BobContext) -> ToolResult:
     action.result = _undo_payload(result)
     db.session.commit()
 
+    # A confirmation is its own moment, so it notifies on its own rather than
+    # waiting for a turn that already ended.
+    notify_actions([(action, result.record_url)], ctx)
+
     if tool.undo is not None and result.undoable:
         result.action_id = action.id
     else:
@@ -892,6 +900,7 @@ def undo_action(action_id: int, ctx: BobContext) -> ToolResult:
 
     action.status = BobAction.STATUS_UNDONE
     db.session.commit()
+    forget_action(action)
     return ToolResult.success(summary=summary, data={'undone': True})
 
 

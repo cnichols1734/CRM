@@ -15,6 +15,8 @@ from services.bob_tools import (
     reject_action,
     undo_action,
 )
+from services.bob_tools.notifications import ActionCollector
+from services.bob_tools.notifications import flush as flush_action_notification
 from sqlalchemy import or_, func
 from tier_config.tier_limits import get_tier_defaults
 import logging
@@ -637,10 +639,12 @@ def chat_stream():
         def generate():
             """Yield SSE events for text, tool activity, and confirmations."""
             full_response = ""
+            collector = ActionCollector()
 
             def execute_tool(name, arguments):
                 result = bob_dispatch(
                     name, arguments, bob_ctx, conversation_id=conversation_id,
+                    collector=collector,
                 )
                 return result.for_model(), result.for_client()
 
@@ -685,6 +689,8 @@ def chat_stream():
                 )
                 full_response += message
                 yield f"data: {_sse_escape(message)}\n\n"
+
+            flush_action_notification(collector, bob_ctx)
 
             yield f"data: [DONE]\n\n"
             # Client accumulates during the stream; trailer is optional metadata.

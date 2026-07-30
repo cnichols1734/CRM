@@ -27,6 +27,8 @@ from services.bob_tools import (
     reject_action,
     undo_action,
 )
+from services.bob_tools.notifications import ActionCollector
+from services.bob_tools.notifications import flush as flush_action_notification
 from services.bob_tools.registry import dispatch as bob_dispatch
 from services.messaging.base import ChoiceOption
 from services.messaging.prompt import TELEGRAM_SYSTEM_PROMPT
@@ -271,11 +273,13 @@ def _run_tool_loop(
     pending: Optional[dict] = None
     undoable_action_id: Optional[int] = None
     text_parts: list[str] = []
+    collector = ActionCollector()
 
     def execute_tool(name: str, args: dict) -> tuple[dict, dict]:
         nonlocal pending, undoable_action_id
         result = bob_dispatch(
             name, args, ctx, conversation_id=conversation.id,
+            collector=collector,
         )
         if result.requires_confirmation and result.action_id:
             pending = {
@@ -308,6 +312,8 @@ def _run_tool_loop(
         text_parts.append(
             "Something went wrong on my end. Try that again in a moment."
         )
+
+    flush_action_notification(collector, ctx)
 
     reply = ''.join(text_parts).strip()
     if not reply:
