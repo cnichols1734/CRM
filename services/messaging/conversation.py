@@ -30,7 +30,7 @@ from services.bob_tools import (
 from services.bob_tools.registry import dispatch as bob_dispatch
 from services.messaging.base import ChoiceOption
 from services.messaging.prompt import TELEGRAM_SYSTEM_PROMPT
-from services.messaging.telegram import get_transport
+from services.messaging.telegram import get_transport, show_typing
 
 logger = logging.getLogger(__name__)
 
@@ -125,12 +125,13 @@ def handle_inbound_message(
     _persist_message(conversation, 'user', text)
 
     ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
-    reply_text, pending, undoable = _run_tool_loop(
-        user=user,
-        ctx=ctx,
-        conversation=conversation,
-        user_text=text,
-    )
+    with show_typing(transport, channel.chat_id):
+        reply_text, pending, undoable = _run_tool_loop(
+            user=user,
+            ctx=ctx,
+            conversation=conversation,
+            user_text=text,
+        )
 
     if pending is not None:
         channel.pending_action_id = pending['action_id']
