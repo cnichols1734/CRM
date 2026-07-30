@@ -271,7 +271,7 @@ def _run_tool_loop(
     undoable_action_id: Optional[int] = None
     text_parts: list[str] = []
 
-    def execute_tool(name: str, args: dict) -> dict:
+    def execute_tool(name: str, args: dict) -> tuple[dict, dict]:
         nonlocal pending, undoable_action_id
         result = bob_dispatch(
             name, args, ctx, conversation_id=conversation.id,
@@ -285,7 +285,7 @@ def _run_tool_loop(
             }
         elif result.ok and result.undoable and result.action_id:
             undoable_action_id = result.action_id
-        return result.for_model()
+        return result.for_model(), result.for_client()
 
     try:
         for event, payload in run_tool_conversation(

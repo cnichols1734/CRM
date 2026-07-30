@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -447,7 +447,9 @@ class TestIsolationAndLimits:
                 AgentMessagingChannel, linked_channel['id'],
             )
             channel.daily_count = PER_USER_DAILY_LIMIT
-            channel.daily_count_date = datetime.utcnow().date()
+            # Must match the local date _bump_daily_count compares against,
+            # or the counter resets instead of tripping.
+            channel.daily_count_date = date.today()
             db.session.commit()
 
             with pytest.raises(RateLimitExceeded):
@@ -455,6 +457,50 @@ class TestIsolationAndLimits:
 
             channel.daily_count = 0
             db.session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Disabled channel silence
+# ---------------------------------------------------------------------------
+
+class TestToolLoopContract:
+    """The tool loop only runs with a live model, so pin its contract here.
+
+    ``ai_service.run_tool_conversation`` unpacks ``execute_tool`` into
+    ``(payload, meta)``. A callback returning a bare dict blows up at runtime
+    with "too many values to unpack" and the agent just sees a generic error.
+    """
+
+    def test_execute_tool_returns_model_and_client_payloads(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        captured = {}
+
+        def fake_run_tool_conversation(
+            *, system_prompt, messages, tools, execute_tool, **kwargs
+        ):
+            payload, meta = execute_tool('count_contacts', {})
+            captured['payload'] = payload
+            captured['meta'] = meta
+            yield ('text', f"You have {payload.get('count')} contacts.")
+
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.run_tool_conversation',
+                fake_run_tool_conversation,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='How many contacts do I have?',
+                    telegram_message_id='500',
+                )
+
+        assert isinstance(captured['payload'], dict)
+        assert isinstance(captured['meta'], dict)
+        sent = ' '.join(m['text'] for m in _fake_transport.sent)
+        assert 'Something went wrong' not in sent
+        assert 'contacts' in sent
 
 
 # ---------------------------------------------------------------------------
