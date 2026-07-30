@@ -27,6 +27,9 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': False,
         'AI_ACTION_PLAN': False,
         'AI_TASK_SUGGESTIONS': False,
+        # Telegram is a POC channel — off by default, enable per-org via
+        # Organization.feature_flags JSON override.
+        'BOB_TELEGRAM': False,
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
         'MARKET_INSIGHTS': True,
@@ -43,6 +46,7 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
+        'BOB_TELEGRAM': False,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
@@ -59,6 +63,7 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
+        'BOB_TELEGRAM': False,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,

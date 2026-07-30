@@ -211,8 +211,31 @@ def send_task_reminders():
                         except Exception as notif_err:
                             logger.warning(f"Could not create in-app notification for user {user_id}: {notif_err}")
 
-                    # Mark tasks as reminded when email sent or notification created
-                    if email_ok or is_channel_enabled(user_id, 'task_reminder', 'in_app'):
+                    # ── Telegram channel (linked agents only) ──
+                    telegram_ok = False
+                    if parts:
+                        try:
+                            from services.messaging.outbound import notify_task_reminder
+                            telegram_ok = notify_task_reminder(
+                                user, parts,
+                                action_url=f'{APP_BASE_URL}/tasks',
+                            )
+                            if telegram_ok:
+                                logger.info(
+                                    f"Sent Telegram reminder to user {user_id}"
+                                )
+                        except Exception as tg_err:
+                            logger.warning(
+                                f"Could not send Telegram reminder for user "
+                                f"{user_id}: {tg_err}"
+                            )
+
+                    # Mark tasks as reminded when any channel delivered
+                    if (
+                        email_ok
+                        or is_channel_enabled(user_id, 'task_reminder', 'in_app')
+                        or telegram_ok
+                    ):
                         for task in tasks_by_type['overdue']:
                             task.overdue_reminder_sent = True
                             task.last_reminder_sent_at = now_utc

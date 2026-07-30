@@ -55,6 +55,7 @@ from routes.partner_directory import partner_directory_bp
 from routes.portal import portal_bp
 from routes.groups import groups_bp
 from routes.analytics_webhooks import analytics_webhooks_bp
+from routes.bob_telegram import bob_telegram_bp
 
 SLOW_REQUEST_WARNING_MS = 2000
 
@@ -241,6 +242,7 @@ def create_app():
     app.register_blueprint(portal_bp)
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
+    app.register_blueprint(bob_telegram_bp)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

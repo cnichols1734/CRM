@@ -67,12 +67,14 @@ def save_settings():
     for cat_key in Notification.CATEGORIES:
         in_app = request.form.get(f'{cat_key}_in_app') == 'on'
         email = request.form.get(f'{cat_key}_email') == 'on'
+        telegram = request.form.get(f'{cat_key}_telegram') == 'on'
         ns.set_preference(
             user_id=current_user.id,
             organization_id=current_user.organization_id,
             category=cat_key,
             in_app=in_app,
             email=email,
+            telegram=telegram,
         )
     flash('Notification preferences saved.', 'success')
     return redirect(url_for('notifications.settings_page'))

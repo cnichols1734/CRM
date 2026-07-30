@@ -302,6 +302,40 @@
                             {% endif %}
                         </div>
 
+                        {% if telegram_enabled %}
+                        {# Telegram / B.O.B. #}
+                        <div class="integration-row {% if telegram_channel %}is-on{% endif %}">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="integration-row__icon">
+                                    <i class="fab fa-telegram-plane text-[#229ED9]"></i>
+                                </span>
+                                <div class="min-w-0">
+                                    <p class="integration-row__title">B.O.B. on Telegram</p>
+                                    <p class="integration-row__desc">
+                                        {% if telegram_channel %}
+                                        Linked. Message B.O.B. from your phone.
+                                        {% else %}
+                                        Text B.O.B. from Telegram. Confirm edits with a tap.
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {% if telegram_channel %}
+                            <form method="POST" action="{{ url_for('bob_telegram.telegram_disconnect') }}" class="inline">
+                                <label class="crm-toggle crm-toggle--positive" title="Disconnect Telegram">
+                                    <input type="checkbox" checked onchange="this.form.submit()">
+                                    <span class="crm-toggle__track"><span class="crm-toggle__thumb"></span></span>
+                                </label>
+                            </form>
+                            {% else %}
+                            <a href="{{ url_for('bob_telegram.telegram_connect_page') }}" class="crm-btn crm-btn-sm crm-btn-primary">
+                                <i class="fas fa-plug text-[10px]"></i> Connect
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
                         {# Calendar #}
                         <div class="integration-row
                             {% if gmail_integration and gmail_integration.calendar_sync_enabled %}is-on{% endif %}

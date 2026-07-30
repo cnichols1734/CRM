@@ -481,8 +481,21 @@ def complete_invite(token):
 @login_required
 def view_user_profile():
     from models import UserEmailIntegration
+    from feature_flags import org_has_feature
+    from services.messaging.binding import get_active_channel
     gmail_integration = UserEmailIntegration.query.filter_by(user_id=current_user.id).first()
-    return render_template('auth/user_profile.html', user=current_user, gmail_integration=gmail_integration)
+    telegram_enabled = bool(
+        current_user.organization
+        and org_has_feature('BOB_TELEGRAM', current_user.organization)
+    )
+    telegram_channel = get_active_channel(current_user.id) if telegram_enabled else None
+    return render_template(
+        'auth/user_profile.html',
+        user=current_user,
+        gmail_integration=gmail_integration,
+        telegram_enabled=telegram_enabled,
+        telegram_channel=telegram_channel,
+    )
 
 @auth_bp.route('/profile/update', methods=['POST'])
 @login_required
