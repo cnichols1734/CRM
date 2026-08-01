@@ -82,6 +82,9 @@ class TestAttachmentIntent:
         assert classify_attachment_intent(
             'Add them to my CRM', KIND_IMAGE,
         ) == INTENT_CREATE
+        assert classify_attachment_intent(
+            'imort theses to my crm', KIND_CSV,
+        ) == INTENT_CREATE
 
     def test_analyze_phrases(self):
         assert classify_attachment_intent(

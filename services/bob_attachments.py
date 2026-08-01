@@ -65,7 +65,7 @@ _CREATE_INTENT_RE = re.compile(
     r'create(\s+(this|the|a|my|these|those))?\s+contacts?'
     r'|add(\s+(this|the|a|my|these|those))?\s+contacts?'
     r'|save(\s+(this|the|a|my|these|those))?\s+contacts?'
-    r'|import(\s+(this|the|these|those|my))?\s+(contacts?|list|file|spreadsheet|csv|excel)?'
+    r'|im+p?ort(\s+(this|the|these|those|my))?\s+(contacts?|list|file|spreadsheet|csv|excel)?'
     r'|add(\s+(them|him|her|this|these|those))?\s+to\s+(my\s+)?(crm|contacts?)'
     r'|save(\s+(them|him|her|this|these|those))?\s+to\s+(my\s+)?(crm|contacts?)'
     r'|put\s+(this|them|him|her|these|those)\s+in\s+(my\s+)?(crm|contacts?)'
