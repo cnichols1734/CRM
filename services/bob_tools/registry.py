@@ -570,13 +570,6 @@ TOOLS: tuple[Tool, ...] = (
                 'type': 'integer',
                 'description': 'Max sample rows to return. Defaults to 20.',
             },
-            'attachment_ref': {
-                'type': 'string',
-                'description': (
-                    'Server-managed signed attachment reference. Do not invent '
-                    'this; the CRM fills it in automatically.'
-                ),
-            },
         }),
         risk=RISK_READ,
         handler=attachment_tools.inspect_attachment,
@@ -604,13 +597,6 @@ TOOLS: tuple[Tool, ...] = (
             'caption': {
                 'type': 'string',
                 'description': 'Optional extra context from the agent message.',
-            },
-            'attachment_ref': {
-                'type': 'string',
-                'description': (
-                    'Server-managed signed attachment reference. Do not invent '
-                    'this; the CRM fills it in automatically.'
-                ),
             },
         }),
         risk=RISK_HIGH_WRITE,
@@ -856,7 +842,7 @@ def dispatch(name: str, raw_args: dict, ctx: BobContext, *,
     args = sanitize_arguments(tool, raw_args)
     if name in {'import_contacts', 'inspect_attachment'}:
         turn = getattr(ctx, 'attachment', None)
-        if turn and turn.attachment_ref and not args.get('attachment_ref'):
+        if turn and turn.attachment_ref:
             args['attachment_ref'] = turn.attachment_ref
 
     try:

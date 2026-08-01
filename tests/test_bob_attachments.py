@@ -348,11 +348,20 @@ class TestAttachmentTools:
             ))
             pending = dispatch(
                 'import_contacts',
-                {'candidates': candidates},
+                {
+                    'candidates': candidates,
+                    # Model-visible tool arguments are untrusted; dispatch must
+                    # replace an invented reference with the trusted turn ref.
+                    'attachment_ref': 'model-invented-reference',
+                },
                 ctx,
             )
             assert pending.requires_confirmation is True
             assert pending.data['preview']['create_count'] == 2
+            action = db.session.get(BobAction, pending.action_id)
+            assert action.arguments['attachment_ref'] == (
+                'unused-because-candidates'
+            )
 
             confirmed = confirm_action(pending.action_id, ctx_agent_a)
             assert confirmed.ok is True
