@@ -264,9 +264,10 @@ def _run_tool_loop(
     messages = _history_messages(conversation)
     messages.append({'role': 'user', 'content': user_text})
 
+    first_name = user.first_name or 'there'
     system = (
         TELEGRAM_SYSTEM_PROMPT
-        + f"\n\nAgent first name: {user.first_name or 'there'}."
+        + f"\n\nAgent first name (use rarely, per Name usage rules): {first_name}."
         + f"\nToday (agent local): {ctx.today().isoformat()}."
     )
 
