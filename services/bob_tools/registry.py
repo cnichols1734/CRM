@@ -123,7 +123,9 @@ TOOLS: tuple[Tool, ...] = (
             'total_matching, never the length of the list. For a pure "how '
             'many" question use count_contacts instead. If more than one '
             'plausible match comes back, ask the agent which one rather than '
-            'picking.'
+            'picking. For "list contacts without a group", call this tool with '
+            'group_status="unassigned"; do not try to derive that list from a '
+            'group breakdown. For "list all", use limit=50.'
         ),
         parameters=_obj({
             'query': {
