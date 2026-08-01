@@ -2773,6 +2773,7 @@ class Notification(db.Model):
     # Rows older than 90 days are safe to prune via a periodic job.
     CATEGORIES = {
         'task_reminder': 'Task Reminders',
+        'daily_briefing': 'Daily Briefing',
         'company_update': 'Company Updates',
         'magic_inbox': 'Magic Inbox',
         'portal': 'Client Portal',

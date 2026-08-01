@@ -14,14 +14,23 @@ logger = logging.getLogger(__name__)
 QUEUE_NAME = 'bob_telegram'
 
 
-def enqueue_telegram_message(*, org_id: int, channel_id: int, text: str,
-                             telegram_message_id: str | None = None) -> None:
+def enqueue_telegram_message(
+    *,
+    org_id: int,
+    channel_id: int,
+    text: str,
+    telegram_message_id: str | None = None,
+    voice_file_id: str | None = None,
+    voice_duration_seconds: int | None = None,
+) -> None:
     _enqueue(
         'jobs.bob_telegram_reply.process_telegram_message_job',
         org_id=org_id,
         channel_id=channel_id,
         text=text,
         telegram_message_id=telegram_message_id,
+        voice_file_id=voice_file_id,
+        voice_duration_seconds=voice_duration_seconds,
     )
 
 

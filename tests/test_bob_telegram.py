@@ -575,3 +575,245 @@ class TestDisabledChannel:
             assert find_channel_by_external_id(
                 linked_channel['external_id']
             ) is None
+
+
+# ---------------------------------------------------------------------------
+# Voice notes, commands, disambiguation, deep links
+# ---------------------------------------------------------------------------
+
+class TestVoiceAndMedia:
+    def test_voice_note_is_transcribed_and_answered(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        def fake_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+            assert messages[-1]['content'] == 'What is on my plate today?'
+            yield ('text', 'Three things today.')
+
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.transcribe_telegram_voice',
+                return_value='What is on my plate today?',
+            ), patch(
+                'services.messaging.conversation.run_tool_conversation',
+                fake_run,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='',
+                    voice_file_id='voice-1',
+                    voice_duration_seconds=4,
+                    telegram_message_id='600',
+                )
+
+        texts = [m['text'] for m in _fake_transport.sent]
+        assert any(t.startswith('Heard:') for t in texts)
+        assert any('Three things today.' in t for t in texts)
+
+    def test_voice_transcription_failure_is_polite(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        from services.messaging.voice import VoiceTranscriptionError
+
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.transcribe_telegram_voice',
+                side_effect=VoiceTranscriptionError(
+                    "Couldn't catch that. Try again or type it."
+                ),
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='',
+                    voice_file_id='voice-bad',
+                    telegram_message_id='601',
+                )
+
+        assert any("Couldn't catch that" in m['text'] for m in _fake_transport.sent)
+
+    def test_unsupported_media_gets_a_hint(self, app, seed, linked_channel, _fake_transport):
+        client = app.test_client()
+        payload = {
+            'update_id': 9001,
+            'message': {
+                'message_id': 9,
+                'from': {'id': int(linked_channel['external_id'])},
+                'chat': {'id': int(linked_channel['chat_id'])},
+                'photo': [{'file_id': 'photo-1'}],
+            },
+        }
+        with patch('routes.bob_telegram.enqueue_telegram_message') as enq:
+            assert _webhook(client, payload).status_code == 200
+            enq.assert_not_called()
+        assert any('voice note' in m['text'] for m in _fake_transport.sent)
+
+    def test_voice_message_is_enqueued_with_file_id(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        client = app.test_client()
+        payload = {
+            'update_id': 9002,
+            'message': {
+                'message_id': 10,
+                'from': {'id': int(linked_channel['external_id'])},
+                'chat': {'id': int(linked_channel['chat_id'])},
+                'voice': {'file_id': 'AwVOICE', 'duration': 6},
+            },
+        }
+        with patch('routes.bob_telegram.enqueue_telegram_message') as enq:
+            assert _webhook(client, payload).status_code == 200
+            enq.assert_called_once()
+            kwargs = enq.call_args.kwargs
+            assert kwargs['voice_file_id'] == 'AwVOICE'
+            assert kwargs['voice_duration_seconds'] == 6
+            assert kwargs['text'] == ''
+
+
+class TestCommandsAndDisambiguation:
+    def test_today_command_expands_to_agenda_prompt(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        seen = {}
+
+        def fake_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+            seen['user'] = messages[-1]['content']
+            yield ('text', 'Agenda ready.')
+
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.run_tool_conversation',
+                fake_run,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='/today',
+                    telegram_message_id='610',
+                )
+
+        assert seen['user'] == "What's on my plate today?"
+        assert any('Agenda ready.' in m['text'] for m in _fake_transport.sent)
+
+    def test_search_with_multiple_matches_sends_pick_buttons(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        with app.app_context():
+            from models import Contact, ContactGroup
+            group = ContactGroup.query.filter_by(
+                user_id=seed['agent_a'], organization_id=seed['org_a'],
+            ).first()
+            created_ids = []
+            try:
+                for last in ('Alpha', 'Beta'):
+                    c = Contact(
+                        first_name='Sarah', last_name=last,
+                        user_id=seed['agent_a'],
+                        organization_id=seed['org_a'],
+                        email=f'sarah.{last.lower()}@example.com',
+                    )
+                    if group:
+                        c.groups.append(group)
+                    db.session.add(c)
+                    db.session.flush()
+                    created_ids.append(c.id)
+                db.session.commit()
+
+                def fake_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+                    execute_tool('search_contacts', {'query': 'Sarah'})
+                    yield ('text', 'Which Sarah did you mean?')
+
+                with patch(
+                    'services.messaging.conversation.run_tool_conversation',
+                    fake_run,
+                ):
+                    handle_inbound_message(
+                        channel_id=linked_channel['id'],
+                        org_id=seed['org_a'],
+                        text='Log a call with Sarah',
+                        telegram_message_id='611',
+                    )
+            finally:
+                for cid in created_ids:
+                    row = db.session.get(Contact, cid)
+                    if row is not None:
+                        row.groups.clear()
+                        db.session.delete(row)
+                db.session.commit()
+
+        choice_msgs = [m for m in _fake_transport.sent if m.get('options')]
+        assert choice_msgs
+        labels = [opt.label for opt in choice_msgs[0]['options']]
+        assert any('Sarah Alpha' in label for label in labels)
+        assert any('Sarah Beta' in label for label in labels)
+        callbacks = [opt.callback_data for opt in choice_msgs[0]['options']]
+        assert any(cb.startswith('pick:c:') for cb in callbacks)
+
+    def test_pick_contact_continues_the_turn(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        with app.app_context():
+            # contact_a2 is owned by agent_a (the linked Telegram user).
+            contact_id = seed['contact_a2']
+            seen = {}
+
+            def fake_run(*, system_prompt, messages, tools, execute_tool, **kwargs):
+                seen['user'] = messages[-1]['content']
+                yield ('text', f'Using contact {contact_id}.')
+
+            with patch(
+                'services.messaging.conversation.run_tool_conversation',
+                fake_run,
+            ):
+                handle_callback_query(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    callback_query_id='cb-pick',
+                    data=f'pick:c:{contact_id}',
+                    message_id='70',
+                )
+
+        assert f'contact_id {contact_id}' in seen['user']
+        assert _fake_transport.answered
+
+class TestDeepLinksAndLocalDay:
+    def test_reply_includes_absolute_record_link(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        from services.bob_tools.context import ToolResult
+
+        def run_with_tool(*, system_prompt, messages, tools, execute_tool, **kwargs):
+            execute_tool('add_note', {'contact_id': seed['contact_a'], 'note': 'hi'})
+            yield ('text', 'Note added.')
+
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.bob_dispatch',
+                return_value=ToolResult.success(
+                    summary='Note added',
+                    data={'contact_id': seed['contact_a']},
+                    record_url=f"/contact/{seed['contact_a']}",
+                ),
+            ), patch(
+                'services.messaging.conversation.run_tool_conversation',
+                run_with_tool,
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='Add a note to Jane',
+                    telegram_message_id='620',
+                )
+
+        sent = ' '.join(m['text'] for m in _fake_transport.sent)
+        assert f"https://example.test/contact/{seed['contact_a']}" in sent
+
+    def test_conversation_reuses_local_day_window(
+        self, app, seed, linked_channel,
+    ):
+        with app.app_context():
+            from services.messaging.conversation import _get_or_create_conversation
+            user = db.session.get(User, seed['agent_a'])
+            first = _get_or_create_conversation(user)
+            second = _get_or_create_conversation(user)
+            assert first.id == second.id

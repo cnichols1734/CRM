@@ -87,6 +87,7 @@ def prewarm_daily_briefings(active_within_days: int = 7):
                 db.session.add(row)
             db.session.commit()
             generated += 1
+            _maybe_telegram_briefing_nudge(user, content)
         except Exception as e:
             failed += 1
             logger.exception(f"Prewarm failed for user {user.id}: {e}")
@@ -106,6 +107,28 @@ def prewarm_daily_briefings(active_within_days: int = 7):
         f"skipped={skipped} failed={failed}"
     )
     return {"generated": generated, "skipped": skipped, "failed": failed}
+
+
+def _maybe_telegram_briefing_nudge(user, content: dict) -> None:
+    """Best-effort Telegram push; never fails the prewarm."""
+    try:
+        import os
+        from services.messaging.binding import get_active_channel
+        from services.messaging.outbound import notify_daily_briefing
+
+        if get_active_channel(user.id) is None:
+            return
+        base = (os.environ.get('APP_BASE_URL')
+                or 'https://www.origentechnolog.com').rstrip('/')
+        notify_daily_briefing(
+            user,
+            content,
+            action_url=f'{base}/briefing',
+        )
+    except Exception:
+        logger.exception(
+            'Telegram daily briefing nudge failed for user %s', user.id,
+        )
 
 
 def run_daily_briefing_prewarm():
