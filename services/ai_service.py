@@ -211,13 +211,20 @@ def generate_structured_response(
     temperature: float = 0.4,
     reasoning_effort: str = "medium",
     api_key: str = None,
+    model_chain: tuple | list | None = None,
 ) -> tuple:
     """
     Generate a validated JSON object via Responses API + strict json_schema.
 
     GPT-5.6 prefers Responses ``text.format`` over Chat Completions
-    ``response_format``. Falls back through MODEL_CHAIN; if Responses structured
-    output fails for a model, retries that model once via Chat Completions.
+    ``response_format``. Falls back through ``model_chain`` (default MODEL_CHAIN);
+    if Responses structured output fails for a model, retries that model once via
+    Chat Completions.
+
+    Args:
+        model_chain: Optional override of models to try, in order. Use this to
+            pin a feature (e.g. Daily Briefing) to a faster model without
+            changing chat / Telegram / other callers.
 
     Returns:
         (parsed_dict, model_used)
@@ -231,6 +238,7 @@ def generate_structured_response(
         logger.error("OpenAI API key is not configured!")
         raise ValueError("OpenAI API key is not configured")
 
+    chain = tuple(model_chain) if model_chain else MODEL_CHAIN
     client = openai.OpenAI(api_key=key)
     last_error = None
     text_format = {
@@ -240,10 +248,10 @@ def generate_structured_response(
         "schema": schema,
     }
 
-    for i, model in enumerate(MODEL_CHAIN):
+    for i, model in enumerate(chain):
         # --- Preferred: Responses API text.format ---
         try:
-            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Structured (Responses): {model}")
+            logger.info(f"[{i+1}/{len(chain)}] Structured (Responses): {model}")
             raw = _call_responses_api(
                 client,
                 model,
@@ -280,7 +288,7 @@ def generate_structured_response(
 
         # --- Compatibility: Chat Completions response_format ---
         try:
-            logger.info(f"[{i+1}/{len(MODEL_CHAIN)}] Structured (Chat Completions): {model}")
+            logger.info(f"[{i+1}/{len(chain)}] Structured (Chat Completions): {model}")
             kwargs = {
                 "model": model,
                 "messages": [
@@ -326,7 +334,7 @@ def generate_structured_response(
         except Exception as e:
             last_error = e
             logger.error(f"Structured error with {model}: {e}")
-            if i < len(MODEL_CHAIN) - 1:
+            if i < len(chain) - 1:
                 continue
             raise
 
