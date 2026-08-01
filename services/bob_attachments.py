@@ -649,6 +649,10 @@ def _parse_pdf(parsed: ParsedAttachment, data: bytes) -> None:
             if page_text:
                 chunks.append(f'--- Page {index + 1} ---\n{page_text}')
         text = '\n\n'.join(chunks)
+        parsed.stats = {
+            'page_count': page_count,
+            'extracted_text_chars': len(text),
+        }
         if len(text) > MAX_TEXT_CHARS:
             text = text[:MAX_TEXT_CHARS]
             parsed.truncated = True

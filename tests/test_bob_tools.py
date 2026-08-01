@@ -1611,6 +1611,21 @@ class _FakeCompletion:
         self.choices = [type('Choice', (), {'message': message})()]
 
 
+class _FakeResponseCall:
+    type = 'function_call'
+
+    def __init__(self, call_id, name, arguments):
+        self.call_id = call_id
+        self.name = name
+        self.arguments = arguments
+
+
+class _FakeResponse:
+    def __init__(self, *, text='', output=None):
+        self.output_text = text
+        self.output = output or []
+
+
 class _FakeCompletions:
     """Replays a scripted sequence of model turns and records the calls."""
 
@@ -1625,10 +1640,25 @@ class _FakeCompletions:
         return _FakeCompletion(self.script.pop(0))
 
 
+class _FakeResponses:
+    """Replays Responses API turns and records native-file requests."""
+
+    def __init__(self, script):
+        self.script = list(script)
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        if not self.script:
+            return _FakeResponse(text='Done.')
+        return self.script.pop(0)
+
+
 class _FakeClient:
     def __init__(self, script):
         self.completions = _FakeCompletions(script)
         self.chat = type('Chat', (), {'completions': self.completions})()
+        self.responses = _FakeResponses(script)
 
 
 @pytest.fixture()
@@ -1754,6 +1784,73 @@ class TestToolLoop:
         assert client.completions.calls, 'no request was made'
         for call in client.completions.calls:
             assert call.get('reasoning_effort') == 'none', call.get('model')
+
+    def test_pdf_uses_native_responses_file_input(self, app, fake_openai):
+        client = fake_openai([
+            _FakeResponse(text='All signature pages were reviewed.'),
+        ])
+        events = self._run(input_files=[{
+            'filename': 'contract.pdf',
+            'mime': 'application/pdf',
+            'data': b'%PDF-1.4 multipage contract',
+            'detail': 'high',
+        }])
+
+        assert not client.completions.calls
+        request = client.responses.calls[0]
+        user_content = request['input'][-1]['content']
+        file_part = next(
+            part for part in user_content if part['type'] == 'input_file'
+        )
+        assert file_part['filename'] == 'contract.pdf'
+        assert file_part['detail'] == 'high'
+        assert file_part['file_data'].startswith(
+            'data:application/pdf;base64,'
+        )
+        assert request['reasoning'] == {'effort': 'medium'}
+        assert request['tools'][0]['name'] == openai_tool_schemas()[0][
+            'function'
+        ]['name']
+        assert ''.join(p for e, p in events if e == 'text') == (
+            'All signature pages were reviewed.'
+        )
+
+    def test_native_file_responses_loop_returns_tool_output(
+        self, app, fake_openai,
+    ):
+        client = fake_openai([
+            _FakeResponse(output=[
+                _FakeResponseCall(
+                    'call-1', 'inspect_attachment', '{"operation":"summary"}',
+                ),
+            ]),
+            _FakeResponse(text='The complete PDF is readable.'),
+        ])
+        seen = []
+
+        events = self._run(
+            input_files=[{
+                'filename': 'contract.pdf',
+                'mime': 'application/pdf',
+                'data': b'%PDF-1.4',
+            }],
+            execute=lambda name, args: (
+                seen.append((name, args))
+                or ({'status': 'ok'}, {'ok': True})
+            ),
+        )
+
+        assert seen == [('inspect_attachment', {'operation': 'summary'})]
+        second_input = client.responses.calls[1]['input']
+        assert any(
+            item.get('type') == 'function_call_output'
+            and item.get('call_id') == 'call-1'
+            for item in second_input
+            if isinstance(item, dict)
+        )
+        assert ''.join(p for e, p in events if e == 'text') == (
+            'The complete PDF is readable.'
+        )
 
     def test_missing_api_key_reports_an_error(self, app, monkeypatch):
         from services import ai_service

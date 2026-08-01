@@ -24,6 +24,7 @@ from services.bob_attachments import (
     INTENT_CREATE,
     KIND_CSV,
     KIND_IMAGE,
+    KIND_PDF,
     KIND_TXT,
     AttachmentParseError,
     classify_attachment_intent,
@@ -103,6 +104,17 @@ class TestAttachmentIntent:
         ) == INTENT_AMBIGUOUS
 
 
+class TestDocumentReviewPrompt:
+    def test_texas_broker_review_guardrails_are_present(self):
+        from routes.ai_chat import SYSTEM_PROMPT
+
+        assert '25+ years as a Texas real estate broker' in SYSTEM_PROMPT
+        assert 'Review every page' in SYSTEM_PROMPT
+        assert 'Do not call a document fully executed' in SYSTEM_PROMPT
+        assert 'broker-level transaction guidance, not legal advice' in SYSTEM_PROMPT
+        assert 'Texas real estate attorney' in SYSTEM_PROMPT
+
+
 # ---------------------------------------------------------------------------
 # Parsers
 # ---------------------------------------------------------------------------
@@ -163,6 +175,36 @@ class TestParsers:
     def test_doc_rejected(self):
         with pytest.raises(AttachmentParseError):
             parse_attachment(b'legacy', filename='old.doc', mime='application/msword')
+
+    def test_pdf_page_count_and_native_review_context(self):
+        import fitz
+        from routes.ai_chat import _build_attachment_context
+
+        doc = fitz.open()
+        for page_number in range(1, 3):
+            page = doc.new_page()
+            page.insert_text((72, 72), f'Contract page {page_number}')
+        data = doc.tobytes()
+        doc.close()
+
+        parsed = parse_attachment(
+            data,
+            filename='contract.pdf',
+            mime='application/pdf',
+        )
+        assert parsed.kind == KIND_PDF
+        assert parsed.stats['page_count'] == 2
+
+        context = _build_attachment_context(
+            parsed,
+            intent=INTENT_ANALYZE,
+            candidates=[],
+            native_pdf=True,
+        )
+        assert 'complete original PDF' in context
+        assert '(2 pages)' in context
+        assert 'signatures' in context
+        assert 'Extracted text excerpt follows' not in context
 
     def test_query_tabular_filter(self):
         rows = [
