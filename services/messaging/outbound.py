@@ -92,6 +92,43 @@ def notify_task_reminder(user: User, summary_parts: list[str],
     return notify(user, 'task_reminder', '\n'.join(lines))
 
 
+def notify_daily_briefing(user: User, content: dict,
+                          *, action_url: Optional[str] = None) -> bool:
+    """Short morning nudge when today's Daily Briefing is ready."""
+    if not isinstance(content, dict):
+        return False
+
+    from feature_flags import org_has_feature
+    org = getattr(user, 'organization', None)
+    if org is not None and not org_has_feature('BOB_TELEGRAM', org):
+        return False
+
+    teaser = (content.get('teaser') or '').strip()
+    priorities = content.get('priorities') or []
+    lines = ['Morning briefing', '']
+    if teaser:
+        lines.append(teaser)
+    else:
+        lines.append("Today's Daily Briefing is ready.")
+
+    shown = 0
+    for item in priorities:
+        if not isinstance(item, dict):
+            continue
+        title = (item.get('title') or item.get('why') or '').strip()
+        if not title:
+            continue
+        lines.append(f'- {title}')
+        shown += 1
+        if shown >= 3:
+            break
+
+    if action_url:
+        lines.extend(['', f'Open briefing: {action_url}'])
+    lines.extend(['', '--BOB'])
+    return notify(user, 'daily_briefing', '\n'.join(lines))
+
+
 def _in_quiet_hours(user: User) -> bool:
     tz_name = getattr(user, 'timezone', None) or 'America/Chicago'
     try:

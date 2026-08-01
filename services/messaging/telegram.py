@@ -234,6 +234,37 @@ class TelegramTransport:
     def get_me(self) -> dict:
         return self._call('getMe', {})
 
+    def get_file(self, file_id: str) -> dict:
+        """Resolve a file_id to a Bot API file_path (and size)."""
+        return self._call('getFile', {'file_id': file_id})
+
+    def download_file(self, file_path: str) -> bytes:
+        """Download raw bytes for a path returned by getFile."""
+        url = f'{TELEGRAM_API_BASE}/file/bot{self.bot_token}/{file_path.lstrip("/")}'
+        try:
+            response = self._session.get(url, timeout=60)
+        except requests.RequestException as exc:
+            raise TelegramError('downloadFile', str(exc)) from exc
+        if response.status_code != 200:
+            raise TelegramError(
+                'downloadFile',
+                f'HTTP {response.status_code}',
+                status_code=response.status_code,
+            )
+        return response.content
+
+    def set_my_commands(self, commands: Sequence[dict[str, str]]) -> dict:
+        """Register the bot's / command menu (BotFather-style)."""
+        return self._call('setMyCommands', {
+            'commands': [
+                {
+                    'command': str(item['command']).lstrip('/')[:32],
+                    'description': str(item['description'])[:256],
+                }
+                for item in commands
+            ],
+        })
+
     def _call(self, method: str, payload: dict) -> dict:
         url = urljoin(self._base, method)
         for attempt in range(1, MAX_RETRIES + 1):
@@ -323,6 +354,9 @@ class FakeTransport:
     edited: list[dict] = field(default_factory=list)
     answered: list[dict] = field(default_factory=list)
     activity: list[dict] = field(default_factory=list)
+    files: dict[str, dict] = field(default_factory=dict)
+    file_bytes: dict[str, bytes] = field(default_factory=dict)
+    commands: list[dict] = field(default_factory=list)
     _next_message_id: int = 1
 
     def send_text(
@@ -400,6 +434,38 @@ class FakeTransport:
     def send_activity(self, chat_id: str) -> dict:
         self.activity.append({'chat_id': str(chat_id)})
         return {'ok': True}
+
+    def get_file(self, file_id: str) -> dict:
+        if file_id in self.files:
+            return dict(self.files[file_id])
+        return {
+            'file_id': file_id,
+            'file_path': f'voice/{file_id}.oga',
+            'file_size': len(self.file_bytes.get(file_id, b'')),
+        }
+
+    def download_file(self, file_path: str) -> bytes:
+        for file_id, meta in self.files.items():
+            if meta.get('file_path') == file_path:
+                return self.file_bytes.get(file_id, b'')
+        # Fall back: path ends with file_id.ext from get_file default.
+        name = file_path.rsplit('/', 1)[-1]
+        file_id = name.rsplit('.', 1)[0]
+        return self.file_bytes.get(file_id, b'')
+
+    def set_my_commands(self, commands: Sequence[dict[str, str]]) -> dict:
+        self.commands = list(commands)
+        return {'ok': True}
+
+
+# Commands shown in Telegram's "/" menu after setMyCommands.
+BOT_COMMANDS: tuple[dict[str, str], ...] = (
+    {'command': 'today', 'description': "What's on my plate today"},
+    {'command': 'overdue', 'description': 'Show overdue tasks'},
+    {'command': 'help', 'description': 'What I can help with'},
+    {'command': 'undo', 'description': 'Undo my last change'},
+    {'command': 'stop', 'description': 'Disconnect Telegram'},
+)
 
 
 @contextmanager

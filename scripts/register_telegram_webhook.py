@@ -35,11 +35,15 @@ def main() -> int:
     url = f'{base}/webhooks/telegram/{path}'
     # Import after dotenv so Config is not required.
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from services.messaging.telegram import TelegramTransport
+    from services.messaging.telegram import BOT_COMMANDS, TelegramTransport
 
-    result = TelegramTransport(token).set_webhook(url, secret_token=secret)
+    transport = TelegramTransport(token)
+    result = transport.set_webhook(url, secret_token=secret)
     print(f'Registered webhook: {url}')
     print(result)
+    commands_result = transport.set_my_commands(BOT_COMMANDS)
+    print(f'Registered {len(BOT_COMMANDS)} bot commands')
+    print(commands_result)
     return 0
 
 

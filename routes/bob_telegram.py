@@ -136,7 +136,10 @@ def _handle_message_update(message: dict, update_id: str) -> None:
     chat = message.get('chat') or {}
     external_id = from_user.get('id')
     chat_id = chat.get('id')
-    text_body = (message.get('text') or '').strip()
+    text_body = (message.get('text') or message.get('caption') or '').strip()
+    voice = message.get('voice') or message.get('audio') or {}
+    voice_file_id = voice.get('file_id') if isinstance(voice, dict) else None
+    voice_duration = voice.get('duration') if isinstance(voice, dict) else None
     if external_id is None or chat_id is None:
         return
 
@@ -161,11 +164,23 @@ def _handle_message_update(message: dict, update_id: str) -> None:
         )
         return
 
+    if not text_body and not voice_file_id:
+        get_transport().send_text(
+            channel.chat_id,
+            "I can take a text message or a voice note. "
+            "Photos, stickers, and files aren't supported yet.\n\n--BOB",
+        )
+        return
+
     enqueue_telegram_message(
         org_id=channel.organization_id,
         channel_id=channel.id,
         text=text_body,
         telegram_message_id=str(message.get('message_id') or ''),
+        voice_file_id=voice_file_id,
+        voice_duration_seconds=(
+            int(voice_duration) if voice_duration is not None else None
+        ),
     )
 
 
@@ -234,10 +249,17 @@ def _handle_start(text_body: str, *, external_id: str, chat_id: str,
 
     _set_webhook_org_context(channel.organization_id)
     _annotate_update(update_id, channel)
-    transport.send_text(
+    from services.messaging.base import ChoiceOption
+    transport.send_choice(
         chat_id,
-        "Linked. Ask me about your contacts or tasks anytime. "
-        "Send /help for ideas.\n\n--BOB",
+        "Linked. Ask me about your contacts or tasks anytime, "
+        "or send a voice note from the field.\n\n"
+        "Try one of these, or just type.\n\n--BOB",
+        [
+            ChoiceOption(label="Today's plate", callback_data='cmd:today'),
+            ChoiceOption(label='Overdue', callback_data='cmd:overdue'),
+            ChoiceOption(label='Help', callback_data='cmd:help'),
+        ],
     )
 
 
@@ -332,7 +354,10 @@ def register_webhook():
 
     url = f'{base.rstrip("/")}/webhooks/telegram/{path}'
     try:
-        TelegramTransport(token).set_webhook(url, secret_token=secret)
+        transport = TelegramTransport(token)
+        transport.set_webhook(url, secret_token=secret)
+        from services.messaging.telegram import BOT_COMMANDS
+        transport.set_my_commands(BOT_COMMANDS)
     except Exception as exc:
         logger.exception('setWebhook failed')
         flash(f'Webhook registration failed: {exc}', 'error')
