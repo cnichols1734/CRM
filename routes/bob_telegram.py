@@ -140,6 +140,7 @@ def _handle_message_update(message: dict, update_id: str) -> None:
     voice = message.get('voice') or message.get('audio') or {}
     voice_file_id = voice.get('file_id') if isinstance(voice, dict) else None
     voice_duration = voice.get('duration') if isinstance(voice, dict) else None
+    photo_file_id = _largest_photo_file_id(message)
     if external_id is None or chat_id is None:
         return
 
@@ -164,11 +165,12 @@ def _handle_message_update(message: dict, update_id: str) -> None:
         )
         return
 
-    if not text_body and not voice_file_id:
+    if not text_body and not voice_file_id and not photo_file_id:
         get_transport().send_text(
             channel.chat_id,
-            "I can take a text message or a voice note. "
-            "Photos, stickers, and files aren't supported yet.\n\n--BOB",
+            "I can take a text message, a voice note, or a photo of a "
+            "business card / email / contact screenshot. "
+            "Stickers and other files aren't supported yet.\n\n--BOB",
         )
         return
 
@@ -181,6 +183,7 @@ def _handle_message_update(message: dict, update_id: str) -> None:
         voice_duration_seconds=(
             int(voice_duration) if voice_duration is not None else None
         ),
+        photo_file_id=photo_file_id,
     )
 
 
@@ -253,7 +256,7 @@ def _handle_start(text_body: str, *, external_id: str, chat_id: str,
     transport.send_choice(
         chat_id,
         "Linked. Ask me about your contacts or tasks anytime, "
-        "or send a voice note from the field.\n\n"
+        "send a voice note, or photo a business card.\n\n"
         "Try one of these, or just type.\n\n--BOB",
         [
             ChoiceOption(label="Today's plate", callback_data='cmd:today'),
@@ -277,6 +280,21 @@ def _annotate_update(update_id: str, channel: AgentMessagingChannel) -> None:
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def _largest_photo_file_id(message: dict) -> str | None:
+    """Telegram sends photo sizes ascending; the last entry is the largest."""
+    photos = message.get('photo')
+    if isinstance(photos, list) and photos:
+        file_id = (photos[-1] or {}).get('file_id')
+        return str(file_id) if file_id else None
+
+    # Image sent as a document (e.g. from Files).
+    document = message.get('document') or {}
+    mime = (document.get('mime_type') or '').lower()
+    if mime.startswith('image/') and document.get('file_id'):
+        return str(document['file_id'])
+    return None
 
 
 def _org_allows_telegram(organization_id: int) -> bool:

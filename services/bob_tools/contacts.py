@@ -341,11 +341,24 @@ def create_contact(args: dict, ctx: BobContext) -> ToolResult:
     _record_contact_created(ctx, user)
 
     name = f'{first_name} {last_name}'.strip()
+    saved_groups = [g.name for g in contact.groups if g.is_active]
     result = ToolResult.success(
         summary=f'Created contact {name}',
         data={
             'created': True,
             'contact': contact_summary(contact),
+            'saved': {
+                'first_name': contact.first_name,
+                'last_name': contact.last_name,
+                'email': contact.email,
+                'phone': contact.phone,
+                'street_address': contact.street_address,
+                'city': contact.city,
+                'state': contact.state,
+                'zip_code': contact.zip_code,
+                'notes': contact.notes,
+                'groups': saved_groups,
+            },
             'groups_not_found': missing_groups,
         },
         undoable=True,

@@ -170,7 +170,7 @@ def normalize_sendgrid_payload(form: dict, files: dict | None = None,
             if len(image_blocks) >= MAX_IMAGES:
                 skipped_images += 1
                 continue
-            block = _image_to_base64_jpeg(raw_bytes)
+            block = image_to_base64_jpeg(raw_bytes)
             if block:
                 image_blocks.append(block)
             else:
@@ -364,11 +364,12 @@ def _truncate_csv(data: bytes) -> tuple[str, int, int, bool]:
     return out, total, len(keep), truncated
 
 
-def _image_to_base64_jpeg(data: bytes) -> str | None:
+def image_to_base64_jpeg(data: bytes) -> str | None:
     """Downscale and re-encode an image to JPEG/base64 for the vision model.
 
     Returns None if the image can't be loaded (corrupted, weird format).
     HEIC support depends on the runtime; we try and silently skip on failure.
+    Public so Telegram B.O.B. can reuse the same prep as Magic Inbox.
     """
     try:
         from PIL import Image
@@ -401,6 +402,10 @@ def _image_to_base64_jpeg(data: bytes) -> str | None:
     buf = io.BytesIO()
     img.save(buf, format='JPEG', quality=82, optimize=True)
     return base64.b64encode(buf.getvalue()).decode('ascii')
+
+
+# Back-compat alias for older call sites / tests.
+_image_to_base64_jpeg = image_to_base64_jpeg
 
 
 def _summarize_kind(kinds: set[str], *, has_text: bool, has_image: bool) -> str:

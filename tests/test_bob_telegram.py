@@ -640,13 +640,13 @@ class TestVoiceAndMedia:
                 'message_id': 9,
                 'from': {'id': int(linked_channel['external_id'])},
                 'chat': {'id': int(linked_channel['chat_id'])},
-                'photo': [{'file_id': 'photo-1'}],
+                'sticker': {'file_id': 'sticker-1'},
             },
         }
         with patch('routes.bob_telegram.enqueue_telegram_message') as enq:
             assert _webhook(client, payload).status_code == 200
             enq.assert_not_called()
-        assert any('voice note' in m['text'] for m in _fake_transport.sent)
+        assert any('business card' in m['text'] for m in _fake_transport.sent)
 
     def test_voice_message_is_enqueued_with_file_id(
         self, app, seed, linked_channel, _fake_transport,
@@ -668,6 +668,30 @@ class TestVoiceAndMedia:
             assert kwargs['voice_file_id'] == 'AwVOICE'
             assert kwargs['voice_duration_seconds'] == 6
             assert kwargs['text'] == ''
+
+    def test_photo_message_is_enqueued_with_largest_file_id(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        client = app.test_client()
+        payload = {
+            'update_id': 9003,
+            'message': {
+                'message_id': 11,
+                'from': {'id': int(linked_channel['external_id'])},
+                'chat': {'id': int(linked_channel['chat_id'])},
+                'caption': 'create this contact',
+                'photo': [
+                    {'file_id': 'small', 'width': 90, 'height': 90},
+                    {'file_id': 'large', 'width': 800, 'height': 800},
+                ],
+            },
+        }
+        with patch('routes.bob_telegram.enqueue_telegram_message') as enq:
+            assert _webhook(client, payload).status_code == 200
+            enq.assert_called_once()
+            kwargs = enq.call_args.kwargs
+            assert kwargs['photo_file_id'] == 'large'
+            assert kwargs['text'] == 'create this contact'
 
 
 class TestCommandsAndDisambiguation:
@@ -817,3 +841,162 @@ class TestDeepLinksAndLocalDay:
             first = _get_or_create_conversation(user)
             second = _get_or_create_conversation(user)
             assert first.id == second.id
+
+
+# ---------------------------------------------------------------------------
+# Photo → contact (Magic Inbox extraction)
+# ---------------------------------------------------------------------------
+
+_PHOTO_CANDIDATE = {
+    'first_name': 'Casey',
+    'last_name': 'Card',
+    'email': 'casey.card@example.com',
+    'phone': '(832) 555-0199',
+    'street_address': '100 Main St',
+    'city': 'Houston',
+    'state': 'TX',
+    'zip_code': '77002',
+    'notes': 'Acme Realty',
+    'group_name': None,
+    'confidence': 'high',
+}
+
+
+class TestPhotoContacts:
+    def test_photo_without_create_intent_asks_before_saving(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.download_telegram_photo',
+                return_value=b'fake-image-bytes',
+            ), patch(
+                'services.messaging.conversation.extract_contact_candidates',
+                return_value=[dict(_PHOTO_CANDIDATE)],
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='',
+                    photo_file_id='photo-ask',
+                    telegram_message_id='700',
+                )
+
+            channel = db.session.get(
+                AgentMessagingChannel, linked_channel['id'],
+            )
+            assert channel.pending_action_id is not None
+            action = db.session.get(BobAction, channel.pending_action_id)
+            assert action is not None
+            assert action.status == BobAction.STATUS_PENDING
+            assert (action.preview or {}).get('source') == 'telegram_photo'
+
+        choice_msgs = [m for m in _fake_transport.sent if m.get('options')]
+        assert choice_msgs
+        labels = [opt.label for opt in choice_msgs[0]['options']]
+        assert 'Create contact' in labels
+        assert 'Cancel' in labels
+        assert 'Casey' in choice_msgs[0]['text']
+        assert 'casey.card@example.com' in choice_msgs[0]['text']
+
+    def test_photo_with_create_intent_saves_and_lists_fields(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.download_telegram_photo',
+                return_value=b'fake-image-bytes',
+            ), patch(
+                'services.messaging.conversation.extract_contact_candidates',
+                return_value=[dict(_PHOTO_CANDIDATE)],
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='Create this contact please',
+                    photo_file_id='photo-create',
+                    telegram_message_id='701',
+                )
+
+            from models import Contact
+            contact = Contact.query.filter_by(
+                user_id=seed['agent_a'],
+                email='casey.card@example.com',
+            ).first()
+            assert contact is not None
+            contact_id = contact.id
+            # Cleanup
+            contact.groups.clear()
+            db.session.delete(contact)
+            BobAction.query.filter_by(
+                user_id=seed['agent_a'], surface='bob_telegram',
+            ).delete()
+            db.session.commit()
+
+        sent = ' '.join(m['text'] for m in _fake_transport.sent)
+        assert 'Saved to your CRM' in sent
+        assert 'Casey Card' in sent
+        assert 'casey.card@example.com' in sent
+        assert '(832) 555-0199' in sent
+        assert f'https://example.test/contact/{contact_id}' in sent
+        # Undo button for the create
+        assert any(m.get('options') for m in _fake_transport.sent)
+
+    def test_photo_confirm_creates_and_returns_saved_fields(
+        self, app, seed, linked_channel, _fake_transport,
+    ):
+        with app.app_context():
+            with patch(
+                'services.messaging.conversation.download_telegram_photo',
+                return_value=b'fake-image-bytes',
+            ), patch(
+                'services.messaging.conversation.extract_contact_candidates',
+                return_value=[dict(_PHOTO_CANDIDATE, email='confirm.card@example.com')],
+            ):
+                handle_inbound_message(
+                    channel_id=linked_channel['id'],
+                    org_id=seed['org_a'],
+                    text='',
+                    photo_file_id='photo-confirm',
+                    telegram_message_id='702',
+                )
+
+            channel = db.session.get(
+                AgentMessagingChannel, linked_channel['id'],
+            )
+            action_id = channel.pending_action_id
+            assert action_id
+
+            handle_callback_query(
+                channel_id=linked_channel['id'],
+                org_id=seed['org_a'],
+                callback_query_id='cb-photo',
+                data=f'confirm:{action_id}',
+                message_id='80',
+            )
+
+            from models import Contact
+            contact = Contact.query.filter_by(
+                user_id=seed['agent_a'],
+                email='confirm.card@example.com',
+            ).first()
+            assert contact is not None
+            contact.groups.clear()
+            db.session.delete(contact)
+            BobAction.query.filter_by(
+                user_id=seed['agent_a'], surface='bob_telegram',
+            ).delete()
+            db.session.commit()
+
+        edited = ' '.join(m['text'] for m in _fake_transport.edited)
+        assert 'Saved to your CRM' in edited
+        assert 'Casey Card' in edited
+        assert 'confirm.card@example.com' in edited
+
+    def test_wants_create_contact_phrases(self):
+        from services.messaging.photo_contacts import wants_create_contact
+        assert wants_create_contact('create this contact')
+        assert wants_create_contact('Please add this to my CRM')
+        assert wants_create_contact('save contact')
+        assert not wants_create_contact('')
+        assert not wants_create_contact('what do you see here?')
