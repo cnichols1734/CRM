@@ -73,6 +73,41 @@ def _obj(properties: dict, required: list[str] | None = None) -> dict:
     }
 
 
+_CONTACT_PRESENCE_FIELDS = [
+    'first_name', 'last_name', 'email', 'phone', 'street_address', 'city',
+    'state', 'zip_code', 'notes', 'potential_commission', 'last_email_date',
+    'last_text_date', 'last_phone_call_date', 'last_contact_date',
+    'current_objective', 'move_timeline', 'motivation', 'financial_status',
+    'additional_notes',
+]
+_CONTACT_PRESENCE_FILTERS = {
+    'group_status': {
+        'type': 'string',
+        'enum': ['any', 'assigned', 'unassigned'],
+        'description': (
+            'Filter by active group assignment. Use unassigned for contacts '
+            'without any group. Defaults to any.'
+        ),
+    },
+    'missing_fields': {
+        'type': 'array',
+        'items': {'type': 'string', 'enum': _CONTACT_PRESENCE_FIELDS},
+        'description': (
+            'Return contacts where every listed field is blank or null. For '
+            '"without a phone number", pass ["phone"]; for "without an '
+            'address", pass ["street_address"].'
+        ),
+    },
+    'present_fields': {
+        'type': 'array',
+        'items': {'type': 'string', 'enum': _CONTACT_PRESENCE_FIELDS},
+        'description': (
+            'Return contacts where every listed field has a nonblank value.'
+        ),
+    },
+}
+
+
 TOOLS: tuple[Tool, ...] = (
     # -----------------------------------------------------------------------
     # Reads
@@ -124,6 +159,7 @@ TOOLS: tuple[Tool, ...] = (
                     'list_contact_groups for real names.'
                 ),
             },
+            **_CONTACT_PRESENCE_FILTERS,
             'scope': {
                 'type': 'string',
                 'enum': ['mine', 'organization'],
@@ -136,7 +172,7 @@ TOOLS: tuple[Tool, ...] = (
             },
             'limit': {
                 'type': 'integer',
-                'description': 'Max records returned, 1 to 10. Defaults to 10.',
+                'description': 'Max records returned, 1 to 50. Defaults to 50.',
             },
         }),
         risk=RISK_READ,
@@ -147,9 +183,9 @@ TOOLS: tuple[Tool, ...] = (
         description=(
             'Count contacts, optionally broken down by city, state, ZIP, or '
             'group. Use this for any "how many", "what percentage", "which '
-            'city has the most" style question. It counts every matching row in '
-            'the database rather than a capped page, so it is the only reliable '
-            'way to answer questions about totals.'
+            'city has the most", or "how many are missing a phone/group" style '
+            'question. It counts every matching row in the database rather than '
+            'a capped page, so it is the only reliable way to answer totals.'
         ),
         parameters=_obj({
             'query': {
@@ -168,6 +204,7 @@ TOOLS: tuple[Tool, ...] = (
                 'type': 'string',
                 'description': 'Restrict to one contact group.',
             },
+            **_CONTACT_PRESENCE_FILTERS,
             'group_by': {
                 'type': 'string',
                 'enum': ['city', 'state', 'zip_code', 'group'],
