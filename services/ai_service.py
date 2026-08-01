@@ -21,6 +21,7 @@ Usage:
     )
 """
 
+import base64
 import json
 import os
 import openai
@@ -524,9 +525,9 @@ def stream_chat_response(
     yield "Sorry, I encountered an error. Please try again."
 
 
-# Tool loops need real multi-turn message arrays with `tool` role turns, which
-# the Responses path in this module flattens away. Chat Completions is used
-# here for that reason, with the same MODEL_CHAIN fallback behavior.
+# Ordinary tool loops keep the existing Chat Completions transcript format.
+# Turns with native file inputs use the Responses API because it can ingest
+# PDFs directly while preserving function-call output items between rounds.
 MAX_TOOL_ROUNDS = 5
 
 # Chat Completions will not accept function tools from a GPT-5.6 model with any
@@ -543,6 +544,7 @@ def run_tool_conversation(
     max_rounds: int = MAX_TOOL_ROUNDS,
     api_key: str = None,
     temperature: float = 0.3,
+    input_files: list[dict] | None = None,
 ):
     """Run a tool-calling conversation, yielding (event, payload) tuples.
 
@@ -564,6 +566,8 @@ def run_tool_conversation(
         tools: OpenAI function-tool schemas.
         max_rounds: Cap on tool rounds before the loop is cut off, so a model
             that keeps calling tools cannot spin indefinitely.
+        input_files: Optional trusted file payloads. When present, the turn
+            uses the Responses API so PDFs are read as complete documents.
     """
     key = api_key or Config.OPENAI_API_KEY
     if not key:
@@ -571,6 +575,18 @@ def run_tool_conversation(
         return
 
     client = openai.OpenAI(api_key=key)
+    if input_files:
+        yield from _run_responses_tool_conversation(
+            client=client,
+            system_prompt=system_prompt,
+            messages=messages,
+            tools=tools,
+            execute_tool=execute_tool,
+            input_files=input_files,
+            max_rounds=max_rounds,
+        )
+        return
+
     convo = [{"role": "system", "content": system_prompt}] + list(messages)
 
     for round_index in range(max_rounds):
@@ -639,6 +655,195 @@ def run_tool_conversation(
         'will pick it up from here.\n\n--BOB'
     ))
     yield ('messages', convo[1:])
+
+
+def _run_responses_tool_conversation(
+    *,
+    client,
+    system_prompt: str,
+    messages: list,
+    tools: list,
+    execute_tool,
+    input_files: list[dict],
+    max_rounds: int,
+):
+    """Responses API tool loop for turns containing native file inputs.
+
+    The Responses API can read PDFs as files, including their selectable text
+    and rendered pages. Chat Completions cannot accept PDF content directly.
+    """
+    input_items = _responses_input_items(messages, input_files)
+    response_tools = _responses_tool_schemas(tools)
+
+    for round_index in range(max_rounds):
+        is_final_round = round_index == max_rounds - 1
+        response = _responses_tool_round_with_fallback(
+            client=client,
+            system_prompt=system_prompt,
+            input_items=input_items,
+            tools=response_tools,
+            allow_tools=not is_final_round,
+        )
+        if response is None:
+            yield ('error', 'Sorry, I encountered an error. Please try again.')
+            return
+
+        output_items = list(getattr(response, 'output', None) or [])
+        input_items.extend(output_items)
+        tool_calls = [
+            item for item in output_items
+            if getattr(item, 'type', None) == 'function_call'
+        ]
+
+        if not tool_calls:
+            text = getattr(response, 'output_text', None) or ''
+            transcript = list(messages)
+            transcript.append({'role': 'assistant', 'content': text})
+            for chunk in _chunk_text(text):
+                yield ('text', chunk)
+            yield ('messages', transcript)
+            return
+
+        for call in tool_calls:
+            name = call.name
+            arguments = _parse_tool_arguments(call.arguments)
+            yield ('tool_start', {'name': name, 'arguments': arguments})
+
+            payload, meta = execute_tool(name, arguments)
+            yield ('tool_result', {'name': name, 'result': meta})
+            input_items.append({
+                'type': 'function_call_output',
+                'call_id': call.call_id,
+                'output': json.dumps(payload, default=str),
+            })
+
+    yield ('text', (
+        'I got partway through that but ran out of steps before I could wrap up. '
+        'Anything already confirmed above did go through. Ask me again and I '
+        'will pick it up from here.\n\n--BOB'
+    ))
+    yield ('messages', list(messages))
+
+
+def _responses_input_items(messages: list, input_files: list[dict]) -> list:
+    """Convert chat messages and append native files to the current user turn."""
+    items = []
+    for message in messages:
+        role = message.get('role')
+        content = message.get('content')
+        if role not in {'user', 'assistant', 'developer', 'system'}:
+            continue
+        items.append({'role': role, 'content': content})
+
+    file_parts = []
+    for item in input_files:
+        data = item.get('data')
+        if not isinstance(data, (bytes, bytearray)) or not data:
+            continue
+        mime = item.get('mime') or 'application/octet-stream'
+        encoded = base64.b64encode(bytes(data)).decode('ascii')
+        file_parts.append({
+            'type': 'input_file',
+            'filename': item.get('filename') or 'attachment',
+            'file_data': f'data:{mime};base64,{encoded}',
+            'detail': item.get('detail') or 'high',
+        })
+
+    if not file_parts:
+        return items
+
+    if items and items[-1]['role'] == 'user':
+        current = items[-1].get('content')
+        if isinstance(current, str):
+            items[-1]['content'] = [
+                {'type': 'input_text', 'text': current},
+                *file_parts,
+            ]
+        elif isinstance(current, list):
+            items[-1]['content'] = list(current) + file_parts
+        else:
+            items[-1]['content'] = file_parts
+    else:
+        items.append({'role': 'user', 'content': file_parts})
+    return items
+
+
+def _responses_tool_schemas(tools: list) -> list[dict]:
+    """Translate Chat Completions function tools to Responses API tools."""
+    translated = []
+    for tool in tools or []:
+        function = tool.get('function') if isinstance(tool, dict) else None
+        if not isinstance(function, dict):
+            translated.append(tool)
+            continue
+        translated.append({
+            'type': 'function',
+            'name': function.get('name'),
+            'description': function.get('description'),
+            'parameters': function.get('parameters') or {
+                'type': 'object',
+                'properties': {},
+            },
+        })
+    return translated
+
+
+def _responses_tool_round_with_fallback(
+    *,
+    client,
+    system_prompt: str,
+    input_items: list,
+    tools: list,
+    allow_tools: bool,
+):
+    """One Responses API round, walking the standard model fallback chain."""
+    for i, model in enumerate(MODEL_CHAIN):
+        try:
+            kwargs = {
+                'model': model,
+                'instructions': system_prompt,
+                'input': input_items,
+                'reasoning': {'effort': 'medium'},
+            }
+            if allow_tools and tools:
+                kwargs['tools'] = tools
+                kwargs['tool_choice'] = 'auto'
+
+            logger.info(
+                f"[{i+1}/{len(MODEL_CHAIN)}] Responses tool round: "
+                f"attempting {model} "
+                f"(tools={'on' if allow_tools and tools else 'off'})"
+            )
+            return client.responses.create(**kwargs)
+
+        except (openai.NotFoundError, openai.AuthenticationError,
+                openai.PermissionDeniedError, openai.RateLimitError) as e:
+            logger.warning(
+                f"Responses tool round fallback: {model} failed with "
+                f"{type(e).__name__}"
+            )
+            continue
+
+        except openai.APIError as e:
+            if _should_fallback(e):
+                logger.warning(
+                    f"Responses tool round fallback: {model} failed with "
+                    f"status {e.status_code}"
+                )
+                continue
+            logger.error(
+                f"Responses tool round fatal: {model} unrecoverable error: {e}"
+            )
+            return None
+
+        except Exception as e:
+            logger.error(f"Responses tool round error with {model}: {e}")
+            if i < len(MODEL_CHAIN) - 1:
+                continue
+            return None
+
+    logger.error("FATAL: All models failed during Responses tool round")
+    return None
 
 
 def _tool_round_with_fallback(*, client, messages, tools, temperature,
