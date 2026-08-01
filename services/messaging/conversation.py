@@ -35,6 +35,18 @@ from services.bob_tools.notifications import ActionCollector
 from services.bob_tools.notifications import flush as flush_action_notification
 from services.bob_tools.registry import dispatch as bob_dispatch
 from services.messaging.base import ChoiceOption
+from services.messaging.photo_contacts import (
+    PhotoContactError,
+    confirm_photo_contacts,
+    create_contacts_now,
+    create_pending_photo_action,
+    download_telegram_photo,
+    extract_contact_candidates,
+    format_candidate_preview,
+    format_saved_contacts,
+    is_photo_pending_action,
+    wants_create_contact,
+)
 from services.messaging.prompt import TELEGRAM_SYSTEM_PROMPT
 from services.messaging.telegram import get_transport, show_typing
 from services.messaging.voice import VoiceTranscriptionError, transcribe_telegram_voice
@@ -86,8 +98,9 @@ def handle_inbound_message(
     telegram_message_id: Optional[str] = None,
     voice_file_id: Optional[str] = None,
     voice_duration_seconds: Optional[int] = None,
+    photo_file_id: Optional[str] = None,
 ) -> None:
-    """Process a text or voice message from a linked agent."""
+    """Process a text, voice, or photo message from a linked agent."""
     channel = _load_channel(channel_id, org_id)
     if channel is None:
         return
@@ -103,6 +116,16 @@ def handle_inbound_message(
     transport = get_transport()
     from_voice = False
     working_text = (text or '').strip()
+
+    if photo_file_id:
+        _handle_photo_message(
+            channel=channel,
+            user=user,
+            transport=transport,
+            photo_file_id=photo_file_id,
+            caption=working_text,
+        )
+        return
 
     if voice_file_id and not working_text:
         try:
@@ -263,16 +286,67 @@ def handle_callback_query(
             pass
 
     if verb == 'confirm':
-        result = confirm_action(action_id, ctx)
-        channel.pending_action_id = None
-        db.session.commit()
-        outcome = result.summary if result.ok else (result.error or 'Could not confirm.')
-        transport.answer_callback(callback_query_id, text='Confirmed' if result.ok else 'Failed')
-        body = f"{'Confirmed. ' if result.ok else ''}{outcome}"
-        body = _append_record_links(body, [result.record_url])
+        action = BobAction.query.filter_by(
+            id=action_id,
+            organization_id=user.organization_id,
+            user_id=user.id,
+        ).first()
+        undoable = None
+        record_urls: list[str] = []
+        if action is not None and is_photo_pending_action(action):
+            result, created = confirm_photo_contacts(action, ctx)
+            channel.pending_action_id = None
+            db.session.commit()
+            transport.answer_callback(
+                callback_query_id,
+                text='Saved' if result.ok else 'Failed',
+            )
+            if result.ok and created:
+                body = format_saved_contacts(created)
+                undoable = result.action_id
+                record_urls = [
+                    f'/contact/{c.id}' for c in created
+                ]
+            else:
+                body = result.summary if result.ok else (
+                    result.error or 'Could not confirm.'
+                )
+        else:
+            result = confirm_action(action_id, ctx)
+            channel.pending_action_id = None
+            db.session.commit()
+            transport.answer_callback(
+                callback_query_id,
+                text='Confirmed' if result.ok else 'Failed',
+            )
+            if result.ok and (result.data or {}).get('created'):
+                body = _format_create_confirm_body(result)
+                undoable = result.action_id if result.undoable else None
+            else:
+                body = (
+                    f"{'Confirmed. ' if result.ok else ''}"
+                    f"{result.summary if result.ok else (result.error or 'Could not confirm.')}"
+                )
+            if result.record_url:
+                record_urls = [result.record_url]
+
+        body = _append_record_links(body, record_urls)
         body = _ensure_bob_signoff(body)
+        options = []
+        if undoable is not None:
+            options.append(ChoiceOption(
+                label='Undo', callback_data=f'undo:{undoable}',
+            ))
         if message_id:
+            # editMessageText cannot add a new keyboard reliably after clear;
+            # edit the body, then send Undo as a follow-up if needed.
             transport.edit_message(channel.chat_id, message_id, body)
+            if options:
+                transport.send_choice(
+                    channel.chat_id, 'Changed your mind?', options,
+                )
+        elif options:
+            transport.send_choice(channel.chat_id, body, options)
         else:
             transport.send_text(channel.chat_id, body)
         return
@@ -389,6 +463,7 @@ def _run_tool_loop(
     undoable_action_id: Optional[int] = None
     disambiguation: Optional[list[dict]] = None
     record_urls: list[str] = []
+    created_saved: list[dict] = []
     text_parts: list[str] = []
     collector = ActionCollector()
 
@@ -411,6 +486,14 @@ def _run_tool_loop(
                 pending['record_url'] = result.record_url
         elif result.ok and result.undoable and result.action_id:
             undoable_action_id = result.action_id
+
+        if (
+            name == 'create_contact'
+            and result.ok
+            and (result.data or {}).get('created')
+            and isinstance((result.data or {}).get('saved'), dict)
+        ):
+            created_saved.append(result.data['saved'])
 
         if name == 'search_contacts' and result.ok and pending is None:
             contacts = (result.data or {}).get('contacts') or []
@@ -457,6 +540,22 @@ def _run_tool_loop(
             reply = 'A few people match. Tap the right one:'
         else:
             reply = "Done."
+
+    if created_saved and pending is None:
+        from services.messaging.photo_contacts import display_name, format_fields
+        blocks = []
+        for saved in created_saved:
+            name = display_name(saved)
+            fields = format_fields(saved, skip_name=True)
+            block = f'**{name}**'
+            if fields:
+                block += f'\n{fields}'
+            blocks.append(block)
+        saved_block = 'Saved to your CRM:\n\n' + '\n\n'.join(blocks)
+        # Prefer the structured dump over a vague model summary.
+        if 'Saved to your CRM' not in reply:
+            reply = saved_block
+
     reply = _ensure_bob_signoff(reply)
     return reply, pending, undoable_action_id, disambiguation, record_urls
 
@@ -547,19 +646,141 @@ def _starter_options() -> list[ChoiceOption]:
     ]
 
 
+def _handle_photo_message(
+    *,
+    channel: AgentMessagingChannel,
+    user: User,
+    transport: Any,
+    photo_file_id: str,
+    caption: str,
+) -> None:
+    """Extract contact info from a photo (Magic Inbox vision path)."""
+    try:
+        _bump_daily_count(channel)
+    except RateLimitExceeded as exc:
+        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        return
+
+    conversation = _get_or_create_conversation(user)
+    user_line = caption.strip() if caption.strip() else '[photo]'
+    _persist_message(conversation, 'user', user_line)
+
+    ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
+    try:
+        with show_typing(transport, channel.chat_id):
+            image_bytes = download_telegram_photo(transport, photo_file_id)
+            candidates = extract_contact_candidates(
+                image_bytes, caption=caption, user=user,
+            )
+    except PhotoContactError as exc:
+        body = _ensure_bob_signoff(exc.message)
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+    except Exception:
+        logger.exception('Telegram photo turn crashed channel=%s', channel.id)
+        body = _ensure_bob_signoff(
+            "Couldn't read that photo. Try again, or type the contact details."
+        )
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    if not candidates:
+        body = _ensure_bob_signoff(
+            "I didn't find usable contact info in that photo. "
+            "Try a clearer shot of the card or email, or type the details."
+        )
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    if wants_create_contact(caption):
+        with show_typing(transport, channel.chat_id):
+            body, created, undoable, record_urls = create_contacts_now(
+                ctx=ctx,
+                candidates=candidates,
+                conversation_id=conversation.id,
+            )
+        body = _append_record_links(body, record_urls)
+        body = _ensure_bob_signoff(body)
+        options = []
+        if undoable is not None:
+            options.append(ChoiceOption(
+                label='Undo', callback_data=f'undo:{undoable}',
+            ))
+        if options:
+            transport.send_choice(channel.chat_id, body, options)
+        else:
+            transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    # Ask before creating — same Confirm/Cancel pattern as risky writes.
+    preview = format_candidate_preview(candidates)
+    action = create_pending_photo_action(
+        ctx=ctx,
+        candidates=candidates,
+        conversation_id=conversation.id,
+    )
+    channel.pending_action_id = action.id
+    db.session.commit()
+    body = _ensure_bob_signoff(preview)
+    transport.send_choice(
+        channel.chat_id,
+        body,
+        [
+            ChoiceOption(
+                label='Create contact' if len(candidates) == 1 else 'Create all',
+                callback_data=f'confirm:{action.id}',
+                style='primary',
+            ),
+            ChoiceOption(
+                label='Cancel',
+                callback_data=f'reject:{action.id}',
+            ),
+        ],
+    )
+    _persist_message(conversation, 'assistant', body)
+
+
+def _format_create_confirm_body(result) -> str:
+    """Prefer the full saved field list after a contact create confirm."""
+    saved = (result.data or {}).get('saved')
+    if isinstance(saved, dict) and saved:
+        from services.messaging.photo_contacts import display_name, format_fields
+        name = display_name(saved)
+        fields = format_fields(saved, skip_name=True)
+        body = f'Saved to your CRM:\n\n**{name}**'
+        if fields:
+            body += f'\n{fields}'
+        return body
+
+    contact_id = None
+    contact_data = (result.data or {}).get('contact') or {}
+    if isinstance(contact_data, dict):
+        contact_id = contact_data.get('contact_id')
+    contact_id = contact_id or (result.data or {}).get('undo_target_id')
+    if contact_id:
+        contact = db.session.get(Contact, int(contact_id))
+        if contact is not None:
+            return format_saved_contacts([contact])
+    return result.summary or 'Saved.'
+
+
 def _help_text(user: User) -> str:
     name = user.first_name or 'there'
     return (
         f"Hey {name}. I am B.O.B. in your CRM.\n\n"
-        "Text me, or send a voice note. I can:\n"
+        "Text me, send a voice note, or photo a business card / email. I can:\n"
         "- Show today's agenda and overdue tasks\n"
         "- Look up contacts and counts by city or group\n"
         "- Log calls, texts, notes, and follow-ups\n"
-        "- Add contacts and create tasks\n\n"
+        "- Add contacts (including from photos) and create tasks\n\n"
         "Try:\n"
         "- What's on my plate today?\n"
         "- Log a call with Sarah and follow up Friday\n"
-        "- How many contacts in Houston?\n\n"
+        "- Photo a card with caption: create this contact\n\n"
         "Commands: /today  /overdue  /help  /undo  /stop\n"
         "Risky edits and deletes show a Confirm button first.\n"
         "When a few people match a name, tap the right one.\n\n"
