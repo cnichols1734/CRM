@@ -145,6 +145,18 @@ def delete_file(bucket: str, storage_path: str) -> bool:
         return False
 
 
+def download_file(bucket: str, storage_path: str) -> bytes:
+    """Download a private object by bucket path. Never uses client signed URLs."""
+    client = get_supabase_client()
+    response = client.storage.from_(bucket).download(storage_path)
+    if response is None:
+        raise FileNotFoundError(f'Storage object missing: {bucket}/{storage_path}')
+    if isinstance(response, bytes):
+        return response
+    # Some supabase-py versions return a buffer-like object.
+    return bytes(response)
+
+
 def generate_contact_storage_path(contact_id: int, original_filename: str) -> tuple[str, str]:
     """
     Generate a unique storage path for a contact file.

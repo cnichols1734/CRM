@@ -351,9 +351,34 @@ class TestReadHandlers:
 
     def test_search_limit_is_clamped(self, app, seed, ctx_owner_a):
         with app.app_context():
-            result = dispatch('search_contacts', {'query': '', 'limit': 9999},
-                              ctx_owner_a)
-        assert len(result.data['contacts']) <= 10
+            marker = _unique('ListCap')
+            contacts = [
+                Contact(
+                    organization_id=ctx_owner_a.organization_id,
+                    user_id=ctx_owner_a.user_id,
+                    created_by_id=ctx_owner_a.user_id,
+                    first_name=marker,
+                    last_name=f'Person{i:02d}',
+                )
+                for i in range(55)
+            ]
+            db.session.add_all(contacts)
+            db.session.commit()
+            ids = [contact.id for contact in contacts]
+            try:
+                result = dispatch(
+                    'search_contacts',
+                    {'query': marker, 'limit': 9999},
+                    ctx_owner_a,
+                )
+                assert result.data['total_matching'] == 55
+                assert len(result.data['contacts']) == 50
+                assert result.data['more_available'] is True
+            finally:
+                Contact.query.filter(Contact.id.in_(ids)).delete(
+                    synchronize_session=False,
+                )
+                db.session.commit()
 
     def test_get_contact_includes_related_records(self, app, seed, ctx_owner_a):
         with app.app_context():
@@ -918,6 +943,76 @@ class TestCountContacts:
             result = dispatch('count_contacts', {'group_name': 'Buyers'},
                               ctx_owner_a)
         assert result.data['total'] >= 1
+
+    def test_presence_and_group_assignment_filters(
+            self, app, seed, ctx_owner_a):
+        with app.app_context():
+            marker = _unique('Presence')
+            active_group = Contact.query.get(seed['contact_a']).groups[0]
+            ungrouped_missing = Contact(
+                organization_id=ctx_owner_a.organization_id,
+                user_id=ctx_owner_a.user_id,
+                created_by_id=ctx_owner_a.user_id,
+                first_name=marker,
+                last_name='Ungrouped',
+                email=None,
+                phone=None,
+            )
+            grouped_present = Contact(
+                organization_id=ctx_owner_a.organization_id,
+                user_id=ctx_owner_a.user_id,
+                created_by_id=ctx_owner_a.user_id,
+                first_name=marker,
+                last_name='Present',
+                email='present@test.com',
+                phone='5551119999',
+            )
+            grouped_blank = Contact(
+                organization_id=ctx_owner_a.organization_id,
+                user_id=ctx_owner_a.user_id,
+                created_by_id=ctx_owner_a.user_id,
+                first_name=marker,
+                last_name='Blank',
+                email='blank@test.com',
+                phone='   ',
+            )
+            grouped_present.groups.append(active_group)
+            grouped_blank.groups.append(active_group)
+            contacts = [ungrouped_missing, grouped_present, grouped_blank]
+            db.session.add_all(contacts)
+            db.session.commit()
+            try:
+                ungrouped = dispatch('count_contacts', {
+                    'query': marker,
+                    'group_status': 'unassigned',
+                }, ctx_owner_a)
+                assert ungrouped.data['total'] == 1
+
+                missing_phone = dispatch('count_contacts', {
+                    'query': marker,
+                    'missing_fields': ['phone'],
+                }, ctx_owner_a)
+                assert missing_phone.data['total'] == 2
+
+                missing_phone_and_email = dispatch('count_contacts', {
+                    'query': marker,
+                    'missing_fields': ['phone', 'email'],
+                }, ctx_owner_a)
+                assert missing_phone_and_email.data['total'] == 1
+
+                present_phone = dispatch('search_contacts', {
+                    'query': marker,
+                    'present_fields': ['phone'],
+                }, ctx_owner_a)
+                assert present_phone.data['total_matching'] == 1
+                assert present_phone.data['contacts'][0]['name'].endswith(
+                    'Present'
+                )
+            finally:
+                for contact in contacts:
+                    contact.groups.clear()
+                    db.session.delete(contact)
+                db.session.commit()
 
     def test_unknown_group_by_is_refused(self, app, seed, ctx_owner_a):
         with app.app_context():

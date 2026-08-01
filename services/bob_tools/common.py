@@ -12,7 +12,7 @@ from services.bob_tools.context import BobContext
 
 # Payload ceilings. The model pays for every character a tool returns, and a
 # runaway note field is also the easiest way to smuggle prompt injection.
-MAX_SEARCH_RESULTS = 10
+MAX_SEARCH_RESULTS = 50
 MAX_LIST_RESULTS = 25
 MAX_TEXT_FIELD = 400
 MAX_NOTE_FIELD = 600

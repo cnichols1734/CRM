@@ -736,6 +736,12 @@ def get_interactions(contact_id):
 @contacts_bp.route('/import-contacts', methods=['POST'])
 @login_required
 def import_contacts():
+    from services.contact_import import (
+        ContactImportError,
+        execute_contact_import,
+        parse_contact_rows,
+    )
+
     # Determine target user id (admins may upload on behalf of another user)
     target_user_id = current_user.id
     if current_user.role == 'admin':
@@ -775,7 +781,8 @@ def import_contacts():
         )
         return {'status': 'error', 'message': 'No file selected'}, 400
 
-    if not file.filename.endswith('.csv'):
+    lowered = (file.filename or '').lower()
+    if not lowered.endswith(('.csv', '.xlsx', '.xls')):
         record_event(
             ActivationEvent.CSV_IMPORT_FAILED,
             user=current_user,
@@ -783,7 +790,10 @@ def import_contacts():
             surface='contacts',
             sync_person=False,
         )
-        return {'status': 'error', 'message': 'Please upload a CSV file'}, 400
+        return {
+            'status': 'error',
+            'message': 'Please upload a CSV or Excel (.xlsx/.xls) file',
+        }, 400
 
     record_event(
         ActivationEvent.CSV_IMPORT_STARTED,
@@ -794,269 +804,95 @@ def import_contacts():
     )
 
     try:
-        # Read the CSV file
-        stream = StringIO(file.stream.read().decode("utf-8-sig"), newline=None)
-        csv_data = csv.DictReader(stream)
-        
-        # Define the expected columns for both formats
-        our_format_columns = ['first_name', 'last_name', 'email', 'phone', 'street_address', 'city', 'state', 'zip_code', 'notes', 'groups']
-        alt_format_columns = ['First Name', 'Last Name', 'Email 1', 'Phone Number 1', 'Mailing Address', 'Mailing City', 'Mailing State/Province', 'Mailing Postal Code', 'Groups']
-        
-        # Clean up any BOM characters from fieldnames
-        if csv_data.fieldnames and csv_data.fieldnames[0].startswith('\ufeff'):
-            csv_data.fieldnames[0] = csv_data.fieldnames[0].replace('\ufeff', '')
-        
-        # Detect format based on columns
-        is_alt_format = any(col in (csv_data.fieldnames or []) for col in alt_format_columns)
-        
-        if is_alt_format:
-            # Convert to our format using the transformation logic
-            column_mapping = {
-                'First Name': 'first_name',
-                'Last Name': 'last_name',
-                'Email 1': 'email',
-                'Phone Number 1': 'phone',
-                'Mailing Address': 'street_address',
-                'Mailing City': 'city',
-                'Mailing State/Province': 'state',
-                'Mailing Postal Code': 'zip_code',
-                'Groups': 'groups'
-            }
-            
-            # Transform the data
-            transformed_data = []
-            for row in csv_data:
-                transformed_row = {}
-                # Map the columns
-                for old_col, new_col in column_mapping.items():
-                    transformed_row[new_col] = row.get(old_col, '').strip()
-                
-                # Handle groups delimiter
-                if 'groups' in transformed_row:
-                    transformed_row['groups'] = transformed_row['groups'].replace(',', ';')
-                
-                # Combine additional columns into notes
-                additional_notes = []
-                for col in row.keys():
-                    if col not in column_mapping and row[col]:
-                        additional_notes.append(f"{col}: {row[col]}")
-                
-                transformed_row['notes'] = '; '.join(additional_notes)
-                transformed_data.append(transformed_row)
-            
-            # Replace csv_data with transformed data
-            csv_data = transformed_data
-        
-        # Validate required columns for our format
-        required_columns = []
-        if not is_alt_format:  # Only check if not in alt format since we just transformed it
-            missing_columns = [col for col in required_columns if col not in (csv_data.fieldnames or [])]
-            if missing_columns:
-                return {
-                    'status': 'error',
-                    'message': f'Missing required columns: {", ".join(missing_columns)}'
-                }, 400
-
-        success_count = 0
-        error_count = 0
-        error_details = []
-        duplicates_skipped = 0
-        invalid_phone_count = 0
-        missing_name_count = 0
-
-        for row_num, row in enumerate(csv_data, start=1):
-            try:
-                # Validate required fields (allow at least one of first or last)
-                first_name_val = (
-                    row.get('first_name') or row.get('First Name') or row.get('First')
-                    or ''
-                ).strip()
-                last_name_val = (
-                    row.get('last_name') or row.get('Last Name') or row.get('Last')
-                    or ''
-                ).strip()
-                full_name = (
-                    row.get('name') or row.get('Name') or row.get('Full Name') or ''
-                ).strip()
-                if full_name and not first_name_val and not last_name_val:
-                    name_parts = full_name.split(maxsplit=1)
-                    first_name_val = name_parts[0]
-                    last_name_val = name_parts[1] if len(name_parts) > 1 else ''
-                if not first_name_val and not last_name_val:
-                    error_details.append(f"Row {row_num}: Missing both first and last name")
-                    error_count += 1
-                    missing_name_count += 1
-                    current_app.logger.warning(f"Import skipped row {row_num}: missing both first and last name")
-                    continue
-
-                # Handle phone number
-                phone = (
-                    row.get('phone') or row.get('Phone') or row.get('Phone Number')
-                    or row.get('Mobile') or ''
-                ).strip() or None
-                formatted_phone = None
-                if phone:
-                    # Remove any non-digit characters first
-                    digits_only = ''.join(filter(str.isdigit, phone))
-                    # Handle numbers with a leading country code '1'
-                    if len(digits_only) == 11 and digits_only.startswith('1'):
-                        digits_only = digits_only[1:]
-                    if len(digits_only) == 10:
-                        formatted_phone = format_phone_number(digits_only)
-                    else:
-                        # Treat invalid phone as missing instead of failing the row
-                        invalid_phone_count += 1
-                        current_app.logger.info(f"Import row {row_num}: phone invalid or wrong length; treating as missing")
-
-                # Dedupe by email or formatted phone (per target user)
-                candidate_email = (
-                    row.get('email') or row.get('Email') or row.get('Email Address')
-                    or ''
-                ).strip() or None
-                candidate_email_lower = candidate_email.lower() if candidate_email else None
-                if candidate_email_lower:
-                    dup = Contact.query\
-                        .filter(Contact.user_id == target_user_id)\
-                        .filter(func.lower(Contact.email) == candidate_email_lower)\
-                        .first()
-                    if dup:
-                        duplicates_skipped += 1
-                        current_app.logger.info(f"Duplicate skipped at row {row_num}: email matches existing contact id={dup.id}")
-                        continue
-                if formatted_phone:
-                    dup_phone = Contact.query\
-                        .filter(Contact.user_id == target_user_id, Contact.phone == formatted_phone)\
-                        .first()
-                    if dup_phone:
-                        duplicates_skipped += 1
-                        current_app.logger.info(f"Duplicate skipped at row {row_num}: phone matches existing contact id={dup_phone.id}")
-                        continue
-                # If neither email nor phone, dedupe by first+last name (case-insensitive)
-                if not candidate_email_lower and not formatted_phone:
-                    if first_name_val or last_name_val:
-                        dup_name = Contact.query\
-                            .filter(Contact.user_id == target_user_id)\
-                            .filter(func.lower(Contact.first_name) == first_name_val.lower())\
-                            .filter(func.lower(Contact.last_name) == last_name_val.lower())\
-                            .first()
-                        if dup_name:
-                            duplicates_skipped += 1
-                            current_app.logger.info(f"Duplicate skipped at row {row_num}: name matches existing contact id={dup_name.id}")
-                            continue
-
-                contact = Contact(
-                    organization_id=current_user.organization_id,
-                    user_id=target_user_id,
-                    created_by_id=current_user.id,
-                    first_name=first_name_val or '',
-                    last_name=last_name_val or '',
-                    email=candidate_email,
-                    phone=formatted_phone,
-                    street_address=(row.get('street_address', '') or '').strip() or None,
-                    city=(row.get('city', '') or '').strip() or None,
-                    state=(row.get('state', '') or '').strip() or None,
-                    zip_code=(row.get('zip_code', '') or '').strip() or None,
-                    notes=(row.get('notes', '') or '').strip() or None
-                )
-
-                if row.get('groups'):
-                    group_names = [name.strip() for name in row['groups'].split(';') if name.strip()]
-                    if group_names:
-                        groups, missing_groups = resolve_groups_by_name(
-                            current_user.organization_id,
-                            target_user_id,
-                            group_names,
-                            active_only=True,
-                        )
-                        if missing_groups:
-                            error_details.append(
-                                f"Row {row_num}: Some groups not found: "
-                                f"{', '.join(missing_groups)}"
-                            )
-                        contact.groups = groups
-
-                db.session.add(contact)
-                success_count += 1
-
-            except Exception as e:
-                error_count += 1
-                error_details.append(f"Row {row_num}: {str(e)}")
-                continue
-
-        if success_count > 0:
-            try:
-                db.session.commit()
-                from services.activation_service import (
-                    count_bucket, record_meaningful_action,
-                )
-                record_event(
-                    ActivationEvent.CONTACT_CREATED,
-                    user=current_user,
-                    data={
-                        'source': 'csv_import',
-                        'contact_count': success_count,
-                        'contact_count_bucket': count_bucket(success_count),
-                    },
-                    surface='contacts',
-                )
-                record_event(
-                    ActivationEvent.CSV_IMPORT_COMPLETED
-                    if error_count == 0
-                    else ActivationEvent.CSV_IMPORT_PARTIAL,
-                    user=current_user,
-                    data={
-                        'source': 'csv_import',
-                        'contact_count_bucket': count_bucket(success_count),
-                        'error_count_bucket': count_bucket(error_count),
-                        'duplicates_skipped_bucket': count_bucket(
-                            duplicates_skipped
-                        ),
-                    },
-                    surface='contacts',
-                )
-                record_meaningful_action(
-                    current_user,
-                    action='csv_import_completed',
-                    surface='contacts',
-                    data={'contact_count_bucket': count_bucket(success_count)},
-                )
-            except Exception as e:
-                db.session.rollback()
-                return {
-                    'status': 'error',
-                    'message': f'Database error: {str(e)}',
-                    'error_details': error_details,
-                    'duplicates_skipped': duplicates_skipped,
-                    'invalid_phone_count': invalid_phone_count,
-                    'missing_name_count': missing_name_count
-                }, 500
-        
-        # If we have any errors, include them in the response
-        if error_count > 0:
-            return {
-                'status': 'partial_success' if success_count > 0 else 'error',
-                'success_count': success_count,
-                'error_count': error_count,
-                'error_details': error_details,
-                'duplicates_skipped': duplicates_skipped,
-                'invalid_phone_count': invalid_phone_count,
-                'missing_name_count': missing_name_count
-            }
-        
-        return {
-            'status': 'success',
-            'success_count': success_count,
-            'message': f'Successfully imported {success_count} contacts',
-            'duplicates_skipped': duplicates_skipped,
-            'invalid_phone_count': invalid_phone_count,
-            'missing_name_count': missing_name_count
-        }
-
+        file_bytes = file.stream.read()
+        rows, meta = parse_contact_rows(
+            file_bytes,
+            file.filename,
+            file.mimetype or '',
+            max_rows=None,
+            use_ai_headers=True,
+        )
+        result = execute_contact_import(
+            rows,
+            actor_user_id=current_user.id,
+            owner_user_id=target_user_id,
+            org_id=current_user.organization_id,
+            source='csv_import',
+        )
+    except ContactImportError as exc:
+        record_event(
+            ActivationEvent.CSV_IMPORT_FAILED,
+            user=current_user,
+            data={'error_code': 'parse_or_limit'},
+            surface='contacts',
+            sync_person=False,
+        )
+        return {'status': 'error', 'message': exc.message}, 400
     except Exception as e:
         return {
             'status': 'error',
-            'message': f'Error processing CSV file: {str(e)}'
+            'message': f'Error processing import file: {str(e)}',
         }, 500
+
+    success_count = len(result.created)
+    error_count = result.invalid_count
+    duplicates_skipped = result.skipped_duplicates
+
+    if success_count > 0:
+        from services.activation_service import (
+            count_bucket, record_meaningful_action,
+        )
+        record_event(
+            ActivationEvent.CONTACT_CREATED,
+            user=current_user,
+            data={
+                'source': 'csv_import',
+                'contact_count': success_count,
+                'contact_count_bucket': count_bucket(success_count),
+            },
+            surface='contacts',
+        )
+        record_event(
+            ActivationEvent.CSV_IMPORT_COMPLETED
+            if error_count == 0
+            else ActivationEvent.CSV_IMPORT_PARTIAL,
+            user=current_user,
+            data={
+                'source': 'csv_import',
+                'contact_count_bucket': count_bucket(success_count),
+                'error_count_bucket': count_bucket(error_count),
+                'duplicates_skipped_bucket': count_bucket(duplicates_skipped),
+            },
+            surface='contacts',
+        )
+        record_meaningful_action(
+            current_user,
+            action='csv_import_completed',
+            surface='contacts',
+            data={'contact_count_bucket': count_bucket(success_count)},
+        )
+
+    if error_count > 0:
+        return {
+            'status': 'partial_success' if success_count > 0 else 'error',
+            'success_count': success_count,
+            'error_count': error_count,
+            'error_details': result.error_details,
+            'duplicates_skipped': duplicates_skipped,
+            'invalid_phone_count': result.invalid_phone_count,
+            'missing_name_count': result.missing_name_count,
+            'warnings': (meta.get('warnings') or []) + result.warnings,
+        }
+
+    return {
+        'status': 'success',
+        'success_count': success_count,
+        'message': f'Successfully imported {success_count} contacts',
+        'duplicates_skipped': duplicates_skipped,
+        'invalid_phone_count': result.invalid_phone_count,
+        'missing_name_count': result.missing_name_count,
+        'warnings': (meta.get('warnings') or []) + result.warnings,
+    }
 
 
 @contacts_bp.route('/export-contacts')

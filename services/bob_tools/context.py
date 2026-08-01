@@ -23,6 +23,21 @@ ADMIN_ORG_ROLES = ('owner', 'admin')
 
 
 @dataclass(frozen=True)
+class AttachmentTurnContext:
+    """Trusted, turn-scoped attachment state for policy enforcement."""
+
+    intent: str = 'analyze'
+    kind: str | None = None
+    filename: str | None = None
+    mime: str | None = None
+    attachment_ref: str | None = None
+    allow_attachment_writes: bool = False
+    candidate_count: int = 0
+    truncated: bool = False
+    warnings: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
 class BobContext:
     """Who B.O.B. is acting as, and where the request came from."""
 
@@ -32,10 +47,12 @@ class BobContext:
     surface: str = 'bob_chat'
     org_role: str = 'agent'
     is_org_admin: bool = False
+    attachment: AttachmentTurnContext | None = None
 
     @classmethod
     def from_user(cls, user, *, surface: str = 'bob_chat',
-                  timezone: str = DEFAULT_TIMEZONE) -> 'BobContext':
+                  timezone: str = DEFAULT_TIMEZONE,
+                  attachment: AttachmentTurnContext | None = None) -> 'BobContext':
         """Build a context from an authenticated user.
 
         Raises rather than defaulting, because a tool layer that silently falls
@@ -55,6 +72,18 @@ class BobContext:
             surface=surface,
             org_role=org_role,
             is_org_admin=org_role in ADMIN_ORG_ROLES,
+            attachment=attachment,
+        )
+
+    def with_attachment(self, attachment: AttachmentTurnContext | None) -> 'BobContext':
+        return BobContext(
+            user_id=self.user_id,
+            organization_id=self.organization_id,
+            timezone=self.timezone,
+            surface=self.surface,
+            org_role=self.org_role,
+            is_org_admin=self.is_org_admin,
+            attachment=attachment,
         )
 
     @property

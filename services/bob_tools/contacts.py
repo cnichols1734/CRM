@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, not_, or_
 
 from models import ActivationEvent, Contact, ContactGroup, Interaction, Task, db
 from services.bob_tools.common import (
@@ -35,6 +35,35 @@ from services.contact_group_service import (
 from utils import format_phone_number
 
 logger = logging.getLogger(__name__)
+
+# User-facing fields B.O.B. may test for presence. Internal ownership, tenant,
+# and timestamp columns are deliberately excluded.
+CONTACT_PRESENCE_COLUMNS = {
+    'first_name': Contact.first_name,
+    'last_name': Contact.last_name,
+    'email': Contact.email,
+    'phone': Contact.phone,
+    'street_address': Contact.street_address,
+    'city': Contact.city,
+    'state': Contact.state,
+    'zip_code': Contact.zip_code,
+    'notes': Contact.notes,
+    'potential_commission': Contact.potential_commission,
+    'last_email_date': Contact.last_email_date,
+    'last_text_date': Contact.last_text_date,
+    'last_phone_call_date': Contact.last_phone_call_date,
+    'last_contact_date': Contact.last_contact_date,
+    'current_objective': Contact.current_objective,
+    'move_timeline': Contact.move_timeline,
+    'motivation': Contact.motivation,
+    'financial_status': Contact.financial_status,
+    'additional_notes': Contact.additional_notes,
+}
+_TEXT_PRESENCE_FIELDS = {
+    'first_name', 'last_name', 'email', 'phone', 'street_address', 'city',
+    'state', 'zip_code', 'notes', 'current_objective', 'move_timeline',
+    'motivation', 'financial_status', 'additional_notes',
+}
 
 # Fields update_contact is allowed to touch. Anything outside this set is
 # rejected rather than silently ignored, so a hallucinated field name surfaces
@@ -102,7 +131,51 @@ def _apply_filters(query, args: dict):
             Contact.groups.any(func.lower(ContactGroup.name).like(f'%{group_name.lower()}%'))
         )
 
+    group_status = (args.get('group_status') or 'any').strip().lower()
+    if group_status not in {'any', 'assigned', 'unassigned'}:
+        raise ToolError('group_status must be one of: any, assigned, unassigned.')
+    has_active_group = Contact.groups.any(ContactGroup.is_active.is_(True))
+    if group_status == 'assigned':
+        query = query.filter(has_active_group)
+    elif group_status == 'unassigned':
+        query = query.filter(not_(has_active_group))
+
+    missing_fields = _presence_fields(args, 'missing_fields')
+    present_fields = _presence_fields(args, 'present_fields')
+    overlap = set(missing_fields) & set(present_fields)
+    if overlap:
+        raise ToolError(
+            'A field cannot be required as both missing and present: '
+            + ', '.join(sorted(overlap))
+        )
+    for field in missing_fields:
+        query = query.filter(_field_missing_condition(field))
+    for field in present_fields:
+        query = query.filter(not_(_field_missing_condition(field)))
+
     return query
+
+
+def _presence_fields(args: dict, key: str) -> list[str]:
+    values = args.get(key) or []
+    if not isinstance(values, list):
+        raise ToolError(f'{key} must be a list of contact field names.')
+    normalized = []
+    for value in values:
+        field = str(value or '').strip().lower()
+        if field not in CONTACT_PRESENCE_COLUMNS:
+            allowed = ', '.join(CONTACT_PRESENCE_COLUMNS)
+            raise ToolError(f'Unknown contact field "{field}". Use one of: {allowed}.')
+        if field not in normalized:
+            normalized.append(field)
+    return normalized
+
+
+def _field_missing_condition(field: str):
+    column = CONTACT_PRESENCE_COLUMNS[field]
+    if field in _TEXT_PRESENCE_FIELDS:
+        return or_(column.is_(None), func.trim(column) == '')
+    return column.is_(None)
 
 
 def _filter_description(args: dict) -> str:
@@ -114,6 +187,21 @@ def _filter_description(args: dict) -> str:
         value = (args.get(key) or '').strip() if args.get(key) else ''
         if value:
             parts.append(label % value)
+    group_status = (args.get('group_status') or 'any').strip().lower()
+    if group_status == 'assigned':
+        parts.append('with a group assigned')
+    elif group_status == 'unassigned':
+        parts.append('without a group assigned')
+    missing_fields = _presence_fields(args, 'missing_fields')
+    present_fields = _presence_fields(args, 'present_fields')
+    if missing_fields:
+        parts.append(
+            'missing ' + ', '.join(field.replace('_', ' ') for field in missing_fields)
+        )
+    if present_fields:
+        parts.append(
+            'with ' + ', '.join(field.replace('_', ' ') for field in present_fields)
+        )
     return ' '.join(parts)
 
 

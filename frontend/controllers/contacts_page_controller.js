@@ -319,21 +319,35 @@ export default class extends Controller {
     if (!file) return;
     this.pendingImportFile = file;
 
-    const text = await file.text();
-    const lines = text.split(/\r?\n/).filter((line) => line.trim());
-    const headers = (lines[0] || "").toLowerCase();
-    const recognized = [
-      "name", "first", "last", "email", "phone", "mobile"
-    ].some((header) => headers.includes(header));
+    const name = (file.name || "").toLowerCase();
+    const isExcel = name.endsWith(".xlsx") || name.endsWith(".xls");
+    let recognized = isExcel;
+    let previewText = isExcel
+      ? `${file.name}\nExcel import ready. Click Import to create contacts.`
+      : "";
+    let rowHint = isExcel ? "Excel" : "0";
+
+    if (!isExcel) {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((line) => line.trim());
+      const headers = (lines[0] || "").toLowerCase();
+      recognized = [
+        "name", "first", "last", "email", "phone", "mobile"
+      ].some((header) => headers.includes(header));
+      previewText = lines.slice(0, 4).join("\n");
+      rowHint = String(Math.max(lines.length - 1, 0));
+    }
 
     this.importStatusTarget.classList.remove("hidden");
     this.statusIconTarget.className = recognized
       ? "fas fa-file-csv text-slate-500 text-xl"
       : "fas fa-times-circle text-red-500 text-xl";
     this.statusMessageTarget.textContent = recognized
-      ? `Review ${Math.max(lines.length - 1, 0)} contact rows before import.`
+      ? (isExcel
+        ? `Ready to import contacts from ${file.name}.`
+        : `Review ${rowHint} contact rows before import.`)
       : "We could not find a name, email, or phone column in this file.";
-    this.importPreviewRowsTarget.textContent = lines.slice(0, 4).join("\n");
+    this.importPreviewRowsTarget.textContent = previewText;
     this.importPreviewTarget.classList.toggle("hidden", !recognized);
     event.target.value = "";
   }

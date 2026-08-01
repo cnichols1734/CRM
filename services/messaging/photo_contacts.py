@@ -128,10 +128,13 @@ def extract_contact_candidates(
     return candidates
 
 
-def candidate_to_create_args(candidate: dict) -> dict:
+def candidate_to_create_args(
+    candidate: dict,
+    *,
+    provenance: str = 'Added via Telegram photo.',
+) -> dict:
     """Shape a candidate for ``create_contact``."""
     notes = (candidate.get('notes') or '').strip()
-    provenance = 'Added via Telegram photo.'
     if notes:
         notes = f'{notes}\n\n{provenance}'
     else:
