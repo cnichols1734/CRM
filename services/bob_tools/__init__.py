@@ -8,6 +8,7 @@ from services.bob_tools.context import (
     RISK_HIGH_WRITE,
     RISK_LOW_WRITE,
     RISK_READ,
+    AttachmentTurnContext,
     BobContext,
     ToolResult,
 )
@@ -23,6 +24,7 @@ from services.bob_tools.registry import (
 
 __all__ = [
     'BobContext',
+    'AttachmentTurnContext',
     'ToolResult',
     'RISK_READ',
     'RISK_LOW_WRITE',

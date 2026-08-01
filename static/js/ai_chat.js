@@ -115,6 +115,7 @@ class BOBChatPanel {
         this.mentionedContacts = [];
         this.attachedImage = null;
         this.attachedFile = null;
+        this.attachedImageFile = null;
         this.mentionSearchTimeout = null;
         this.selectedMentionIndex = 0;
         
@@ -273,7 +274,7 @@ class BOBChatPanel {
                 
                 <!-- Hidden file input -->
                 <input type="file" class="bob-file-input" id="bob-file-input" 
-                    accept="image/jpeg,image/png,image/gif,image/webp,.csv,.pdf,.txt,.doc,.docx,.xls,.xlsx,text/csv,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    accept="image/jpeg,image/png,image/gif,image/webp,.csv,.pdf,.txt,.vcf,.docx,.xls,.xlsx,text/csv,text/vcard,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
             </div>
             </div><!-- end bob-main-area -->
         `;
@@ -539,47 +540,51 @@ class BOBChatPanel {
     handleFileSelect(e) {
         const file = e.target.files[0];
         if (!file) return;
-        
-        // Allowed file types
+
+        const name = (file.name || '').toLowerCase();
+        if (name.endsWith('.doc') && !name.endsWith('.docx')) {
+            alert('Legacy .doc files are not supported. Please upload a .docx instead.');
+            return;
+        }
+
         const allowedTypes = [
             'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-            'text/csv', 'application/pdf', 'text/plain',
-            'application/msword', 
+            'text/csv', 'application/pdf', 'text/plain', 'text/vcard', 'text/x-vcard',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         ];
-        
-        // Validate file type
-        if (!allowedTypes.includes(file.type)) {
-            alert('File type not supported. Please select an image, PDF, CSV, TXT, DOC, DOCX, XLS, or XLSX file.');
+        const allowedExt = [
+            '.csv', '.pdf', '.txt', '.vcf', '.docx', '.xls', '.xlsx',
+            '.jpg', '.jpeg', '.png', '.gif', '.webp'
+        ];
+        const hasAllowedExt = allowedExt.some(ext => name.endsWith(ext));
+
+        if (!allowedTypes.includes(file.type) && !hasAllowedExt) {
+            alert('File type not supported. Please select an image, PDF, CSV, Excel, TXT, VCF, or DOCX file.');
             return;
         }
         
-        // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
             alert('File size must be less than 10MB.');
             return;
         }
         
-        // Check if it's an image or other file
-        if (file.type.startsWith('image/')) {
-            // Handle as image
+        if (file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp)$/i.test(name)) {
             const reader = new FileReader();
             reader.onload = (event) => {
                 this.attachedImage = event.target.result;
-                this.attachedFile = null; // Clear any file attachment
+                this.attachedImageFile = file;
+                this.attachedFile = null;
                 document.getElementById('bob-image-preview-img').src = this.attachedImage;
                 document.getElementById('bob-image-preview').classList.add('visible');
                 document.getElementById('bob-file-preview').classList.remove('visible');
             };
             reader.readAsDataURL(file);
         } else {
-            // Handle as file
             this.attachedFile = file;
-            this.attachedImage = null; // Clear any image attachment
-            
-            // Update file preview UI
+            this.attachedImage = null;
+            this.attachedImageFile = null;
             document.getElementById('bob-file-preview-icon').className = this.getFileIconClass(file.type);
             document.getElementById('bob-file-preview-name').textContent = file.name;
             document.getElementById('bob-file-preview-size').textContent = this.formatFileSize(file.size);
@@ -590,6 +595,7 @@ class BOBChatPanel {
     
     removeAttachment() {
         this.attachedImage = null;
+        this.attachedImageFile = null;
         this.attachedFile = null;
         document.getElementById('bob-image-preview').classList.remove('visible');
         document.getElementById('bob-file-preview').classList.remove('visible');
@@ -1006,13 +1012,13 @@ class BOBChatPanel {
         }
         
         // Prepare attachment data (before clearing)
-        const imageData = this.attachedImage ? this.attachedImage.split(',')[1] : null;
-        const fileToUpload = this.attachedFile;
+        const previewImage = this.attachedImage;
+        const fileToUpload = this.attachedFile || this.attachedImageFile;
         
         // Build attachment for display
         let attachmentForDisplay = null;
-        if (this.attachedImage) {
-            attachmentForDisplay = { imageData: this.attachedImage };
+        if (previewImage) {
+            attachmentForDisplay = { imageData: previewImage };
         } else if (fileToUpload) {
             attachmentForDisplay = { 
                 file: { 
@@ -1048,10 +1054,10 @@ class BOBChatPanel {
         let fileType = null;
         let fileSize = null;
         let fileStoragePath = null;
-        let fileContent = null;
+        let attachmentRef = null;
         
         try {
-            // Upload file if present (non-image files)
+            // Upload every attachment (including images) for a signed ref.
             if (fileToUpload) {
                 const formData = new FormData();
                 formData.append('file', fileToUpload);
@@ -1068,10 +1074,20 @@ class BOBChatPanel {
                     fileType = uploadData.type;
                     fileSize = uploadData.size;
                     fileStoragePath = uploadData.storage_path;
-                    
-                    // For text-based files, read content to send to AI
-                    if (['text/csv', 'text/plain'].includes(fileType)) {
-                        fileContent = await fileToUpload.text();
+                    attachmentRef = uploadData.attachment_ref;
+                    if (attachmentForDisplay?.file) {
+                        attachmentForDisplay.file.url = fileUrl;
+                    } else if (previewImage && fileUrl) {
+                        // Prefer private signed URL for persisted image history.
+                        attachmentForDisplay = {
+                            file: {
+                                name: fileName,
+                                type: fileType,
+                                size: fileSize,
+                                url: fileUrl,
+                            },
+                            imageData: previewImage,
+                        };
                     }
                 } else {
                     const errorData = await uploadResponse.json();
@@ -1079,23 +1095,16 @@ class BOBChatPanel {
                 }
             }
             
-            // Build message for AI (include file content for text files)
-            let messageForAI = message;
-            if (fileContent) {
-                messageForAI = `${message}\n\n[File: ${fileName}]\n${fileContent}`;
-            } else if (fileName) {
-                messageForAI = `${message}\n\n[Attached file: ${fileName}]`;
-            }
-            
             const response = await fetch('/api/ai-chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    message: messageForAI,
+                    message: message,
                     pageContent: document.body.innerText.substring(0, 3000),
                     currentUrl: window.location.href,
                     clearHistory: false,
-                    image: imageData,
+                    attachmentRef: attachmentRef,
+                    conversationId: this.currentConversationId,
                     mentionedContactIds: this.mentionedContacts.map(c => c.id)
                 })
             });
@@ -1192,7 +1201,8 @@ class BOBChatPanel {
                         userMessage: message,
                         assistantResponse: fullResponse,
                         conversationId: this.currentConversationId,
-                        imageData: imageData,
+                        // Keep a display thumbnail for images; durable bytes live in storage.
+                        imageData: previewImage ? previewImage.split(',')[1] : null,
                         mentionedContactIds: this.mentionedContacts.map(c => c.id),
                         fileUrl: fileUrl,
                         fileName: fileName,
@@ -1479,7 +1489,11 @@ class BOBChatPanel {
         card.className = 'bob-confirm-card';
         if (preview.irreversible) card.classList.add('destructive');
 
+        const isImport = preview.kind === 'contact_import' || payload.name === 'import_contacts';
         const title = payload.summary || payload.label || 'Confirm this change';
+        const approveLabel = preview.irreversible
+            ? 'Delete'
+            : (isImport ? 'Import contacts' : 'Apply');
         card.innerHTML = `
             <div class="bob-confirm-header">
                 <i class="fas ${preview.irreversible ? 'fa-triangle-exclamation' : 'fa-pen-to-square'}"></i>
@@ -1489,7 +1503,7 @@ class BOBChatPanel {
             <div class="bob-confirm-actions">
                 <button type="button" class="bob-confirm-cancel">Cancel</button>
                 <button type="button" class="bob-confirm-approve">
-                    ${preview.irreversible ? 'Delete' : 'Apply'}
+                    ${approveLabel}
                 </button>
             </div>
             <div class="bob-confirm-status" hidden></div>
@@ -1504,6 +1518,27 @@ class BOBChatPanel {
     }
 
     renderConfirmDetail(preview) {
+        if (preview.kind === 'contact_import') {
+            const sample = (preview.sample || []).map(row => {
+                const bits = [row.name, row.email, row.phone].filter(Boolean).join(' · ');
+                return `<li>${this.escapeHtml(bits)}</li>`;
+            }).join('');
+            const warnings = (preview.warnings || []).map(w =>
+                `<li>${this.escapeHtml(w)}</li>`
+            ).join('');
+            return `
+                <ul class="bob-confirm-changes">
+                    <li><span class="bob-confirm-field">New contacts</span>
+                        <span class="bob-confirm-to">${preview.create_count || 0}</span></li>
+                    <li><span class="bob-confirm-field">Duplicates skipped</span>
+                        <span class="bob-confirm-to">${preview.duplicate_count || 0}</span></li>
+                    <li><span class="bob-confirm-field">Invalid rows</span>
+                        <span class="bob-confirm-to">${preview.invalid_count || 0}</span></li>
+                </ul>
+                ${sample ? `<ul class="bob-confirm-changes">${sample}</ul>` : ''}
+                ${warnings ? `<ul class="bob-confirm-changes bob-confirm-warning-list">${warnings}</ul>` : ''}
+            `;
+        }
         if (preview.warning) {
             return `<p class="bob-confirm-warning">${this.escapeHtml(preview.warning)}</p>`;
         }
@@ -1545,6 +1580,21 @@ class BOBChatPanel {
             status.textContent = result.ok
                 ? (approved ? result.summary : 'Cancelled, nothing was changed')
                 : (result.error || 'That did not go through.');
+
+            if (result.ok && approved && result.undoable && result.actionId) {
+                const undo = document.createElement('button');
+                undo.type = 'button';
+                undo.className = 'bob-tool-chip-undo';
+                undo.textContent = 'Undo';
+                undo.addEventListener('click', () => {
+                    const chip = document.createElement('div');
+                    chip.className = 'bob-tool-chip done';
+                    status.appendChild(chip);
+                    this.undoAction(result.actionId, chip, undo);
+                });
+                status.appendChild(document.createTextNode(' '));
+                status.appendChild(undo);
+            }
         } catch (error) {
             console.error('Confirm failed', error);
             buttons.forEach(b => b.disabled = false);
