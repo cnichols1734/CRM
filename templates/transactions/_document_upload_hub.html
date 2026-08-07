@@ -1,0 +1,100 @@
+{# Single page-level upload dialog. Parent must host data-controller=document-upload-hub. #}
+<dialog class="crm-document-upload-hub"
+        data-document-upload-hub-target="dialog"
+        aria-labelledby="tx-document-upload-hub-title">
+    <form method="dialog" class="crm-document-upload-hub__panel" data-document-upload-hub-target="form" enctype="multipart/form-data">
+        <div class="crm-document-upload-hub__header">
+            <div>
+                <h2 id="tx-document-upload-hub-title" class="text-base font-semibold text-slate-950">Upload documents</h2>
+                <p class="mt-1 text-sm text-slate-500">One PDF or several. Forms are identified after upload; filing terms stays separate.</p>
+            </div>
+            <button type="submit" value="cancel" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" data-action="document-upload-hub#close" aria-label="Close upload dialog">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+
+        <div class="crm-document-upload-hub__body space-y-4">
+            <div>
+                <label for="tx-hub-file" class="mb-1.5 block text-sm font-medium text-slate-700">PDFs</label>
+                <input id="tx-hub-file"
+                       type="file"
+                       name="files"
+                       accept="application/pdf,.pdf"
+                       multiple
+                       required
+                       class="crm-input"
+                       data-document-upload-hub-target="file">
+                <p class="mt-1.5 text-xs text-slate-500">Listing, HOA, MUD, disclosures — drop them together. Up to 20 PDFs, 25 MB each.</p>
+            </div>
+
+            <div>
+                <label for="tx-hub-destination" class="mb-1.5 block text-sm font-medium text-slate-700">Destination</label>
+                <select id="tx-hub-destination"
+                        name="scope"
+                        class="crm-select"
+                        data-document-upload-hub-target="scope"
+                        data-action="change->document-upload-hub#scopeChanged">
+                    <option value="other">Auto-identify / Needs filing</option>
+                    {% if (document_packages.side if document_packages else none) == 'seller' or (transaction.transaction_type and transaction.transaction_type.name == 'seller') %}
+                    <option value="listing">Listing package</option>
+                    {% elif (document_packages.side if document_packages else none) == 'buyer' or (transaction.transaction_type and transaction.transaction_type.name == 'buyer') %}
+                    <option value="other">Buyer transaction / Needs filing</option>
+                    {% endif %}
+                    <option value="offer">Offer package</option>
+                    <option value="contract">Controlling contract</option>
+                    <option value="amendment">Amendment</option>
+                </select>
+            </div>
+
+            <div data-document-upload-hub-target="offerFields" class="hidden space-y-3">
+                <div>
+                    <label for="tx-hub-offer-id" class="mb-1.5 block text-sm font-medium text-slate-700">Offer</label>
+                    <select id="tx-hub-offer-id" name="offer_id" class="crm-select" data-document-upload-hub-target="offerSelect">
+                        <option value="">Select an offer</option>
+                        {% for offer in (seller_offers or []) %}
+                        {% if offer.status not in ('withdrawn', 'expired') %}
+                        <option value="{{ offer.id }}">
+                            {{ offer.buyer_names or ('Offer #' ~ offer.id) }}
+                            {% if offer.offer_price %} · ${{ '{:,.0f}'.format(offer.offer_price|float) }}{% endif %}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <label class="flex min-h-11 items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox"
+                           name="create_new_offer"
+                           value="true"
+                           class="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                           data-document-upload-hub-target="createNewOffer"
+                           data-action="change->document-upload-hub#createNewOfferChanged">
+                    Start a new offer package
+                </label>
+            </div>
+
+            <div>
+                <label for="tx-hub-slug" class="mb-1.5 block text-sm font-medium text-slate-700">Document type</label>
+                <select id="tx-hub-slug" name="template_slug" class="crm-select" data-document-upload-hub-target="slug">
+                    <option value="">Auto-identify each file</option>
+                    <option value="listing-agreement">Listing agreement (TXR-1101)</option>
+                    <option value="one-to-four-family-contract">One to Four Family Contract (TREC 20)</option>
+                    <option value="amendment">Amendment (TREC 39)</option>
+                    <option value="hoa-addendum">HOA / POA Addendum (TREC 36)</option>
+                    <option value="third-party-financing-addendum">Third Party Financing Addendum (TREC 40)</option>
+                    <option value="sellers-disclosure">Seller's Disclosure</option>
+                    <option value="pre-approval-or-proof-of-funds">Pre-approval / Proof of funds</option>
+                </select>
+            </div>
+
+            <p class="hidden text-sm text-red-700" role="alert" data-document-upload-hub-target="error"></p>
+            <p class="hidden text-sm text-slate-600" role="status" aria-live="polite" data-document-upload-hub-target="status"></p>
+        </div>
+
+        <div class="crm-document-upload-hub__footer">
+            <button type="button" class="crm-btn crm-btn-secondary min-h-11" data-action="document-upload-hub#close">Cancel</button>
+            <button type="button" class="crm-btn crm-btn-accent min-h-11" data-action="document-upload-hub#submit" data-document-upload-hub-target="submit">
+                Upload PDFs
+            </button>
+        </div>
+    </form>
+</dialog>

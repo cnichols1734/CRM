@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import section_header %}
 
-{% block title %}Property Questionnaire - {{ transaction.street_address }} - Origen TechnolOG{% endblock %}
+{% block title %}{% if bootstrap_session %}Finish file setup{% else %}Property questionnaire{% endif %} - {{ transaction.street_address }} - Origen TechnolOG{% endblock %}
 
 {% block content %}
 <style>
@@ -23,6 +23,12 @@
     .toggle-card:hover {
         border-color: #cbd5e1;
         background: #f8fafc;
+    }
+
+    .toggle-input:focus-visible + .toggle-card,
+    .option-input:focus-visible + .option-pill {
+        outline: 2px solid #f97316;
+        outline-offset: 2px;
     }
 
     .toggle-card.selected-yes {
@@ -76,12 +82,37 @@
         </a>
 
         <div class="mb-6">
-            <h1 class="crm-page-title">{{ schema.title }}</h1>
+            <p class="crm-eyebrow">{% if bootstrap_session %}Step 3 of 3 · Contract intake{% else %}Transaction setup{% endif %}</p>
+            <h1 class="crm-page-title mt-1">{% if bootstrap_session %}Finish file setup{% else %}{{ schema.title }}{% endif %}</h1>
             <p class="mt-1 text-sm text-slate-600">{{ transaction.street_address }}</p>
-            {% if schema.description %}
+            {% if bootstrap_session %}
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+                Contract saved. Review the answers below so the checklist matches this file.
+            </p>
+            {% elif schema.description %}
             <p class="mt-1 text-sm text-slate-500">{{ schema.description }}</p>
             {% endif %}
         </div>
+
+        {% if bootstrap_session %}
+        <section class="mb-6 border-y border-slate-200 bg-slate-50 px-4 py-4 sm:px-5" aria-label="Contract setup status">
+            <div class="flex items-start gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-emerald-100 text-emerald-700">
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                </span>
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-slate-950">Contract reviewed and attached</p>
+                    <p class="mt-1 text-sm text-slate-600">
+                        {% if suggested_fields %}
+                        {{ suggested_fields|length }} answer{{ 's' if suggested_fields|length != 1 else '' }} came from the uploaded contract and {{ 'are' if suggested_fields|length != 1 else 'is' }} marked below.
+                        {% else %}
+                        Your saved answers are prefilled. Confirm them to sync this file’s document list.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </section>
+        {% endif %}
 
         <section class="crm-surface mb-6">
             <div class="crm-surface-body">
@@ -95,7 +126,7 @@
             </div>
         </section>
 
-        <form id="intakeForm" method="POST" action="{{ url_for('transactions.save_intake', id=transaction.id) }}">
+        <form id="intakeForm" method="POST" action="{{ url_for('transactions.save_intake', id=transaction.id, bootstrap_session_id=bootstrap_session.id if bootstrap_session else None) }}">
             {% for section in schema.sections %}
             <section class="crm-surface mb-6">
                 <div class="crm-surface-header">
@@ -108,6 +139,11 @@
                             <label class="mb-2 block text-sm font-medium text-slate-700">
                                 {{ question.label }}
                                 {% if question.required %}<span class="ml-1 text-red-500">*</span>{% endif %}
+                                {% if question.id in suggested_fields %}
+                                <span class="ml-2 inline-flex items-center gap-1 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-700">
+                                    <span aria-hidden="true">BOB</span> filled
+                                </span>
+                                {% endif %}
                             </label>
 
                             {% if question.help_text %}
@@ -121,7 +157,7 @@
                             <div class="inline-flex gap-2">
                                 <label class="cursor-pointer">
                                     <input type="radio" name="{{ question.id }}" value="true"
-                                           class="hidden toggle-input"
+                                           class="sr-only toggle-input"
                                            {% if intake_data.get(question.id) == true %}checked{% endif %}>
                                     <div class="toggle-card {% if intake_data.get(question.id) == true %}selected-yes{% endif %}">
                                         <i class="fas fa-check toggle-icon text-xs text-slate-400"></i>
@@ -130,7 +166,7 @@
                                 </label>
                                 <label class="cursor-pointer">
                                     <input type="radio" name="{{ question.id }}" value="false"
-                                           class="hidden toggle-input"
+                                           class="sr-only toggle-input"
                                            {% if intake_data.get(question.id) == false %}checked{% endif %}>
                                     <div class="toggle-card {% if intake_data.get(question.id) == false %}selected-no{% endif %}">
                                         <i class="fas fa-times toggle-icon text-xs text-slate-400"></i>
@@ -144,7 +180,7 @@
                                 {% for option in question.options %}
                                 <label class="cursor-pointer">
                                     <input type="radio" name="{{ question.id }}" value="{{ option.value }}"
-                                           class="hidden"
+                                           class="option-input sr-only"
                                            {% if intake_data.get(question.id) == option.value %}checked{% endif %}>
                                     <div class="option-pill {% if intake_data.get(question.id) == option.value %}selected{% endif %}">
                                         {{ option.label }}
@@ -178,11 +214,11 @@
                 <div class="order-1 flex flex-col gap-3 sm:order-2 sm:flex-row">
                     <button type="submit" name="action" value="save" class="crm-btn crm-btn-secondary justify-center">
                         <i class="fas fa-save text-xs"></i>
-                        Save draft
+                        Save file setup draft
                     </button>
                     <button type="button" onclick="saveAndGenerate()" class="crm-btn crm-btn-primary justify-center">
                         <i class="fas fa-file-alt text-xs"></i>
-                        Save &amp; generate documents
+                        {% if bootstrap_session %}Confirm file setup{% else %}Save &amp; create document list{% endif %}
                     </button>
                 </div>
             </div>
@@ -441,7 +477,7 @@ function confirmAndGenerate() {
 
     showToast('Saving questionnaire...', 'info');
 
-    fetch('{{ url_for("transactions.save_intake", id=transaction.id) }}', {
+    fetch('{{ url_for("transactions.save_intake", id=transaction.id, bootstrap_session_id=bootstrap_session.id if bootstrap_session else None) }}', {
         method: 'POST',
         body: formData
     })
@@ -450,7 +486,7 @@ function confirmAndGenerate() {
             showToast('Applying changes...', 'success');
             const generateForm = document.createElement('form');
             generateForm.method = 'POST';
-            generateForm.action = '{{ url_for("transactions.generate_document_package", id=transaction.id) }}';
+            generateForm.action = '{{ url_for("transactions.generate_document_package", id=transaction.id, bootstrap_session_id=bootstrap_session.id if bootstrap_session else None) }}';
             document.body.appendChild(generateForm);
             generateForm.submit();
         } else {

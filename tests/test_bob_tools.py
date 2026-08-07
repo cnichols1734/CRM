@@ -1651,7 +1651,19 @@ class _FakeResponses:
         self.calls.append(kwargs)
         if not self.script:
             return _FakeResponse(text='Done.')
-        return self.script.pop(0)
+        item = self.script.pop(0)
+        # Completions-era fixtures still use _FakeMessage; adapt for Responses.
+        if isinstance(item, _FakeMessage):
+            if item.tool_calls:
+                output = [
+                    _FakeResponseCall(
+                        call.id, call.function.name, call.function.arguments,
+                    )
+                    for call in item.tool_calls
+                ]
+                return _FakeResponse(output=output)
+            return _FakeResponse(text=item.content or '')
+        return item
 
 
 class _FakeClient:
@@ -1755,7 +1767,7 @@ class TestToolLoop:
         ])
         events = self._run(max_rounds=3)
 
-        assert len(client.completions.calls) == 3
+        assert len(client.responses.calls) == 3
         text = ''.join(p for e, p in events if e == 'text')
         assert 'ran out of steps' in text
 
@@ -1766,24 +1778,20 @@ class TestToolLoop:
         ])
         self._run(max_rounds=2)
 
-        assert 'tools' in client.completions.calls[0]
-        assert 'tools' not in client.completions.calls[1]
+        assert 'tools' in client.responses.calls[0]
+        assert 'tools' not in client.responses.calls[1]
 
-    def test_reasoning_is_off_so_tools_are_accepted(self, app, fake_openai):
-        """Chat Completions rejects tools from GPT-5.6 unless reasoning is off.
-
-        The API returns a 400 that no amount of model fallback recovers from, so
-        every request in the loop has to carry reasoning_effort='none'.
-        """
+    def test_reasoning_effort_is_low_on_ordinary_tool_turns(self, app, fake_openai):
+        """Ordinary CRM/Telegram turns use Responses with low reasoning effort."""
         client = fake_openai([
             _FakeMessage(tool_calls=[_FakeToolCall('c1', 'get_agenda', '{}')]),
             _FakeMessage(content='All clear.'),
         ])
         self._run()
 
-        assert client.completions.calls, 'no request was made'
-        for call in client.completions.calls:
-            assert call.get('reasoning_effort') == 'none', call.get('model')
+        assert client.responses.calls, 'no request was made'
+        for call in client.responses.calls:
+            assert call.get('reasoning') == {'effort': 'low'}, call.get('model')
 
     def test_pdf_uses_native_responses_file_input(self, app, fake_openai):
         client = fake_openai([

@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import badge %}
+
+{# Money/date helpers are injected from the route as format_money / format_date. #}
+
+{% block title %}Compare offers · {{ transaction.street_address or 'Transaction' }} · Origen TechnolOG{% endblock %}
+
+{% block content %}
+{% set property_label = transaction.street_address or ('Transaction ' ~ transaction.id) %}
+{% set offer_count = result.offer_count %}
+{% set can_compare = offer_count >= 2 %}
+{% set highlights = result.highlights or {} %}
+{% set highest_price = highlights.highest_price %}
+{% set soonest_close = highlights.soonest_close %}
+
+<div class="offer-compare-workspace flex h-full min-h-0 flex-col overflow-hidden bg-[color:var(--canvas)]"
+     data-controller="offer-compare"
+     data-offer-compare-highest-best-url-value="{{ highest_best_url }}"
+     data-offer-compare-return-url-value="{{ return_url }}">
+
+    <header class="oc-header sticky top-0 z-20 shrink-0">
+        <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0 flex items-start gap-3">
+                <a href="{{ return_url }}"
+                   class="crm-btn crm-btn-subtle crm-btn-sm shrink-0">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">Back to {{ property_label }}</span>
+                    <span class="sm:hidden">Back</span>
+                </a>
+                <div class="min-w-0">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Offers</p>
+                    <h1 class="mt-0.5 truncate text-base font-semibold text-slate-950">
+                        Compare offers
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="font-medium text-slate-600">{{ property_label }}</span>
+                    </h1>
+                    {% if can_compare %}
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        Comparing {{ offer_count }} offer{{ 's' if offer_count != 1 else '' }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                {% if can_compare %}
+                <button type="button"
+                        class="crm-btn crm-btn-primary"
+                        data-action="offer-compare#openHighestBest"
+                        data-offer-compare-target="openHbBtn">
+                    Request highest and best
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="hidden oc-error-banner px-4 py-2 text-sm sm:px-5"
+             data-offer-compare-target="errorBanner"
+             role="alert"></div>
+    </header>
+
+    <div class="min-h-0 flex-1 overflow-y-auto">
+        {% if not can_compare %}
+        <div class="mx-auto max-w-lg px-4 py-16 text-center sm:px-5">
+            <p class="text-sm font-medium text-slate-800">
+                Nothing to compare yet — comparison needs at least two active offers.
+            </p>
+            <p class="mt-2 text-xs text-slate-500">
+                {% if offer_count == 1 %}
+                One offer is on this transaction. Add another, then come back.
+                {% else %}
+                Log offers from the transaction Offers tab, then open Compare.
+                {% endif %}
+            </p>
+            <a href="{{ return_url }}#seller-panel-offers" class="crm-btn crm-btn-secondary mt-5">
+                Back to offers
+            </a>
+        </div>
+        {% else %}
+
+        {# ===== Terms matrix ===== #}
+        <section class="px-4 py-4 sm:px-5" aria-label="Offer terms comparison">
+            <div class="oc-section-label mb-2">
+                <p class="text-xs font-medium text-slate-600">Terms</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">Differing rows are emphasized. Matching rows are dimmed.</p>
+            </div>
+            <div class="oc-scroll">
+                <table class="oc-matrix" style="--oc-cols: {{ result.offers|length }}">
+                    <thead>
+                        <tr>
+                            <th class="oc-stub" scope="col">Term</th>
+                            {% for offer in result.offers %}
+                            {% set status_label, status_tone = status_badge(offer.status) %}
+                            <th class="oc-col-head" scope="col">
+                                <div class="oc-buyer">{{ offer.label }}</div>
+                                {% if offer.buyer_agent_name %}
+                                <div class="oc-agent">{{ offer.buyer_agent_name }}</div>
+                                {% endif %}
+                                <div class="oc-meta">
+                                    {{ badge(status_label, status_tone) }}
+                                    <span class="oc-received">{{ format_date(offer.received_at) }}</span>
+                                </div>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {# net_to_seller_estimate is computed below from the net sheet #}
+                        {% for row in result.rows if row.field != 'net_to_seller_estimate' %}
+                        <tr class="{{ 'oc-row-diff' if row.differs else 'oc-row-same' }}">
+                            <th class="oc-stub" scope="row">{{ row.label }}</th>
+                            {% for offer in result.offers %}
+                            {# row is a dict: row.values would resolve to dict.values #}
+                            {% set val = row['values'][loop.index0] %}
+                            {% set is_price_win = (
+                                row.field == 'offer_price'
+                                and highest_price
+                                and highest_price.offer_id == offer.offer_id
+                                and val is not none
+                            ) %}
+                            {% set is_close_win = (
+                                row.field == 'proposed_close_date'
+                                and soonest_close
+                                and soonest_close.offer_id == offer.offer_id
+                                and val is not none
+                            ) %}
+                            <td class="oc-cell {{ 'oc-cell-win' if is_price_win or is_close_win else '' }}">
+                                <span class="oc-cell-value">{{ format_term_value(row.field, val) }}</span>
+                                {% if is_price_win or is_close_win %}
+                                <span class="oc-win-mark" title="{{ 'Highest price' if is_price_win else 'Soonest close' }}">★</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        {# ===== Net sheet ===== #}
+        <section class="px-4 pb-4 sm:px-5" aria-label="Estimated net to seller">
+            <div class="oc-section-label mb-2">
+                <p class="text-xs font-medium text-slate-600">Estimated net</p>
+                <p class="mt-0.5 text-[11px] text-slate-500">Known costs only. Unknown lines are omitted from the total.</p>
+            </div>
+            <div class="oc-scroll">
+                <table class="oc-matrix oc-net" style="--oc-cols: {{ result.offers|length }}">
+                    <thead>
+                        <tr>
+                            <th class="oc-stub" scope="col">Line</th>
+                            {% for offer in result.offers %}
+                            <th class="oc-col-head" scope="col">
+                                <div class="oc-buyer">{{ offer.label }}</div>
+                            </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for line_spec in net_line_specs %}
+                        <tr class="oc-row-same">
+                            <th class="oc-stub" scope="row">
+                                {{ line_spec.label }}
+                                {% if line_spec.kind == 'cost' %}<span class="oc-kind">deducted</span>{% endif %}
+                            </th>
+                            {% for offer in result.offers %}
+                            {% set line = net_lines_by_offer.get(offer.offer_id, {}).get(line_spec.key) %}
+                            <td class="oc-cell">
+                                {% if line is none or line.amount is none %}
+                                <span class="oc-unknown" title="{{ line.basis if line and line.basis else 'Not provided' }}">—</span>
+                                {% else %}
+                                {% set show_minus = line_spec.kind == 'cost' and line.amount != 0 %}
+                                <span class="oc-cell-value {{ 'oc-cost' if line_spec.kind == 'cost' else '' }}">{% if show_minus %}&minus;{% endif %}{{ format_money(line.amount) }}</span>
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="oc-row-net">
+                            <th class="oc-stub" scope="row">Estimated net to seller</th>
+                            {% for offer in result.offers %}
+                            {% set sheet = net_sheets_by_offer.get(offer.offer_id) %}
+                            {% set is_net_win = best_net_offer_id is not none and offer.offer_id == best_net_offer_id %}
+                            <td class="oc-cell {{ 'oc-cell-win' if is_net_win else '' }}">
+                                {% if sheet is none or sheet.estimated_net is none %}
+                                <span class="oc-unknown" title="Sales price required">—</span>
+                                {% else %}
+                                <span class="oc-cell-value oc-net-value">{{ format_money(sheet.estimated_net) }}</span>
+                                {% if is_net_win %}
+                                <span class="oc-win-mark" title="Highest estimated net">★</span>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            {% if unknown_labels %}
+            <p class="oc-caveat mt-3 text-xs leading-5 text-slate-500">
+                Not included: {{ unknown_labels|map('lower')|join(', ') }}.
+                This is an estimate from known figures only — not a final seller net sheet.
+            </p>
+            {% else %}
+            <p class="oc-caveat mt-3 text-xs leading-5 text-slate-500">
+                This is an estimate from known figures only — not a final seller net sheet.
+            </p>
+            {% endif %}
+        </section>
+
+        {# ===== Per-column accept actions ===== #}
+        <section class="px-4 pb-8 sm:px-5" aria-label="Accept offers">
+            <div class="oc-scroll">
+                <table class="oc-matrix oc-actions" style="--oc-cols: {{ result.offers|length }}">
+                    <tbody>
+                        <tr>
+                            <th class="oc-stub" scope="row">Actions</th>
+                            {% for offer in result.offers %}
+                            <td class="oc-cell oc-action-cell">
+                                <div class="oc-accept-form">
+                                    <button type="button"
+                                            class="crm-btn crm-btn-primary crm-btn-sm w-full"
+                                            data-action="click->offer-compare#acceptOffer"
+                                            data-position="primary"
+                                            data-url="{{ accept_urls[offer.offer_id] }}">
+                                        Accept as primary
+                                    </button>
+                                    <button type="button"
+                                            class="crm-btn crm-btn-secondary crm-btn-sm w-full"
+                                            data-action="click->offer-compare#acceptOffer"
+                                            data-position="backup"
+                                            data-url="{{ accept_urls[offer.offer_id] }}">
+                                        Accept as backup
+                                    </button>
+                                </div>
+                            </td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+    </div>
+
+    {# ===== Highest-and-best panel ===== #}
+    <div class="oc-hb-backdrop hidden"
+         data-offer-compare-target="hbBackdrop"
+         data-action="click->offer-compare#closeHighestBest"
+         aria-hidden="true"></div>
+    <aside class="oc-hb-panel hidden"
+           data-offer-compare-target="hbPanel"
+           role="dialog"
+           aria-modal="true"
+           aria-labelledby="oc-hb-title">
+        <div class="oc-hb-inner">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Highest and best</p>
+                    <h2 id="oc-hb-title" class="mt-0.5 text-base font-semibold text-slate-950">
+                        Request highest and best
+                    </h2>
+                </div>
+                <button type="button"
+                        class="crm-btn crm-btn-subtle crm-btn-sm"
+                        data-action="offer-compare#closeHighestBest"
+                        aria-label="Close">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+
+            <div data-offer-compare-target="hbForm">
+                <p class="mt-3 text-xs leading-5 text-slate-500">
+                    Records the deadline and included offers in the CRM. You still need to send the request to buyer agents yourself — nothing is emailed or texted from here.
+                </p>
+
+                <label class="mt-4 block">
+                    <span class="text-xs font-medium text-slate-600">Deadline</span>
+                    <input type="datetime-local"
+                           class="oc-input mt-1"
+                           data-offer-compare-target="deadlineInput"
+                           required>
+                </label>
+
+                <label class="mt-3 block">
+                    <span class="text-xs font-medium text-slate-600">Message <span class="font-normal text-slate-400">(optional)</span></span>
+                    <textarea class="oc-input mt-1"
+                              rows="3"
+                              data-offer-compare-target="messageInput"
+                              placeholder="Paste or draft the note you will send to buyer agents"></textarea>
+                </label>
+
+                <fieldset class="mt-4">
+                    <legend class="text-xs font-medium text-slate-600">Include offers</legend>
+                    <div class="mt-2 space-y-2">
+                        {% for offer in hb_candidates %}
+                        <label class="oc-check-row">
+                            <input type="checkbox"
+                                   class="oc-check"
+                                   value="{{ offer.offer_id }}"
+                                   data-offer-compare-target="offerCheckbox"
+                                   checked>
+                            <span class="min-w-0">
+                                <span class="block text-sm font-medium text-slate-900">{{ offer.label }}</span>
+                                {% if offer.buyer_agent_name %}
+                                <span class="block text-xs text-slate-500">{{ offer.buyer_agent_name }}</span>
+                                {% endif %}
+                            </span>
+                        </label>
+                        {% else %}
+                        <p class="text-xs text-slate-500">No active offers to include.</p>
+                        {% endfor %}
+                    </div>
+                </fieldset>
+
+                <div class="mt-5 flex flex-wrap gap-2">
+                    <button type="button"
+                            class="crm-btn crm-btn-primary"
+                            data-action="offer-compare#submitHighestBest"
+                            data-offer-compare-target="submitHbBtn">
+                        Record request
+                    </button>
+                    <button type="button"
+                            class="crm-btn crm-btn-subtle"
+                            data-action="offer-compare#closeHighestBest">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+
+            <div class="hidden mt-4"
+                 data-offer-compare-target="hbConfirm">
+                <p class="text-sm font-medium text-slate-900">Highest and best recorded</p>
+                <p class="mt-2 text-sm leading-6 text-slate-600"
+                   data-offer-compare-target="hbConfirmText">
+                    The CRM saved the deadline and which offers are included. Send the request to the buyer agents yourself — nothing was sent from Origen.
+                </p>
+                <button type="button"
+                        class="crm-btn crm-btn-primary mt-5"
+                        data-action="offer-compare#closeHighestBest">
+                    Done
+                </button>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<style>
+    .offer-compare-workspace .oc-header {
+        background: var(--paper);
+        border-bottom: 1px solid var(--hairline);
+        box-shadow: var(--shadow-panel, none);
+    }
+    .offer-compare-workspace .oc-error-banner {
+        background: color-mix(in oklab, var(--danger, #dc2626) 12%, var(--paper));
+        border-top: 1px solid color-mix(in oklab, var(--danger, #dc2626) 35%, var(--hairline));
+        color: var(--danger-ink, #991b1b);
+    }
+    .offer-compare-workspace .oc-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .offer-compare-workspace .oc-matrix {
+        /* Fixed layout so slack splits evenly across offer columns instead of
+           landing entirely on the first one. --oc-cols is set per table. */
+        table-layout: fixed;
+        width: 100%;
+        min-width: calc(11rem + (var(--oc-cols, 3) * 11rem));
+        border-collapse: separate;
+        border-spacing: 0;
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+    }
+    .offer-compare-workspace .oc-stub {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        width: 11rem;
+        min-width: 11rem;
+        max-width: 11rem;
+        padding: 0.65rem 0.85rem;
+        text-align: left;
+        vertical-align: middle;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--ink-2);
+        background: var(--paper);
+        border-bottom: 1px solid var(--hairline);
+        border-right: 1px solid var(--hairline);
+    }
+    .offer-compare-workspace thead .oc-stub {
+        z-index: 3;
+        background: var(--paper-2);
+        color: var(--ink-3);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-size: 0.65rem;
+    }
+    .offer-compare-workspace .oc-col-head {
+        padding: 0.75rem 0.85rem;
+        text-align: left;
+        vertical-align: top;
+        background: var(--paper-2);
+        border-bottom: 1px solid var(--hairline);
+        border-right: 1px solid var(--hairline);
+    }
+    .offer-compare-workspace .oc-col-head:last-child,
+    .offer-compare-workspace .oc-cell:last-child {
+        border-right: 0;
+    }
+    .offer-compare-workspace .oc-buyer {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: var(--ink);
+        line-height: 1.3;
+    }
+    .offer-compare-workspace .oc-agent {
+        margin-top: 0.15rem;
+        font-size: 0.7rem;
+        color: var(--ink-3);
+    }
+    .offer-compare-workspace .oc-meta {
+        margin-top: 0.45rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .offer-compare-workspace .oc-received {
+        font-size: 0.65rem;
+        color: var(--ink-4);
+    }
+    .offer-compare-workspace .oc-cell {
+        padding: 0.6rem 0.85rem;
+        overflow-wrap: anywhere;
+        vertical-align: middle;
+        font-size: 0.8125rem;
+        font-variant-numeric: tabular-nums;
+        border-bottom: 1px solid var(--hairline);
+        border-right: 1px solid var(--hairline);
+        background: var(--paper);
+        color: var(--ink);
+    }
+    .offer-compare-workspace .oc-row-diff .oc-stub,
+    .offer-compare-workspace .oc-row-diff .oc-cell {
+        background: var(--paper);
+        color: var(--ink);
+    }
+    .offer-compare-workspace .oc-row-diff .oc-stub {
+        font-weight: 650;
+        color: var(--ink);
+    }
+    .offer-compare-workspace .oc-row-diff .oc-cell-value {
+        font-weight: 600;
+    }
+    .offer-compare-workspace .oc-row-same .oc-stub,
+    .offer-compare-workspace .oc-row-same .oc-cell {
+        background: var(--paper-2);
+        color: var(--ink-3);
+    }
+    .offer-compare-workspace .oc-row-same .oc-cell-value {
+        font-weight: 400;
+    }
+    .offer-compare-workspace .oc-cell-win {
+        box-shadow: inset 0 0 0 1px var(--accent-line);
+        background: var(--accent-soft) !important;
+        color: var(--ink) !important;
+    }
+    .offer-compare-workspace .oc-win-mark {
+        margin-left: 0.35rem;
+        font-size: 0.65rem;
+        color: var(--accent-ink);
+    }
+    .offer-compare-workspace .oc-unknown {
+        color: var(--ink-4);
+        cursor: help;
+    }
+    .offer-compare-workspace .oc-cost {
+        color: var(--ink-3);
+    }
+    .offer-compare-workspace .oc-kind {
+        margin-left: 0.4rem;
+        font-size: 0.625rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--ink-4);
+    }
+    .offer-compare-workspace .oc-row-net .oc-stub,
+    .offer-compare-workspace .oc-row-net .oc-cell {
+        background: var(--paper);
+        border-bottom: 0;
+        font-weight: 650;
+        color: var(--ink);
+    }
+    .offer-compare-workspace .oc-net-value {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--ink);
+    }
+    .offer-compare-workspace .oc-actions {
+        border: 0;
+        background: transparent;
+    }
+    .offer-compare-workspace .oc-actions .oc-stub,
+    .offer-compare-workspace .oc-actions .oc-cell {
+        background: transparent;
+        border: 0;
+        vertical-align: top;
+    }
+    .offer-compare-workspace .oc-accept-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    .offer-compare-workspace .oc-hb-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        background: color-mix(in oklab, var(--ink) 40%, transparent);
+    }
+    .offer-compare-workspace .oc-hb-panel {
+        position: fixed;
+        z-index: 50;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(26rem, 100%);
+        background: var(--paper);
+        border-left: 1px solid var(--hairline);
+        overflow-y: auto;
+    }
+    .offer-compare-workspace .oc-hb-inner {
+        padding: 1.1rem 1.15rem 1.5rem;
+    }
+    .offer-compare-workspace .oc-input {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0.65rem;
+        font-size: 0.8125rem;
+        color: var(--ink);
+        background: var(--paper);
+        border: 1px solid var(--hairline-strong);
+        border-radius: 6px;
+    }
+    .offer-compare-workspace .oc-input:focus {
+        outline: 2px solid color-mix(in oklab, var(--accent) 45%, transparent);
+        outline-offset: 1px;
+        border-color: var(--accent-line);
+    }
+    .offer-compare-workspace .oc-check-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        padding: 0.55rem 0.65rem;
+        background: var(--paper-2);
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .offer-compare-workspace .oc-check {
+        margin-top: 0.15rem;
+        accent-color: var(--accent);
+    }
+    .offer-compare-workspace {
+        overflow: visible;
+    }
+    @media (min-width: 900px) {
+        #mainContent:has(.offer-compare-workspace) {
+            overflow: hidden;
+        }
+        #mainContent:has(.offer-compare-workspace) .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            padding: 0;
+            max-width: none;
+        }
+        .offer-compare-workspace {
+            overflow: hidden;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,565 @@
+                {# ----- Seller command workspace ----- #}
+                {# Always expose Listing / Offers / Contract so the lifecycle is discoverable. #}
+                {% set default_seller_tab = (
+                    'contract' if stage.key in ('under_contract', 'closing') and primary_seller_contract
+                    else 'offers' if stage.key == 'offers' or (active_seller_offers and active_seller_offers|length)
+                    else 'listing'
+                ) %}
+                <section class="crm-surface" id="seller-workspace" data-default-seller-tab="{{ default_seller_tab }}">
+                    <div class="crm-surface-header">
+                        <div>
+                            {{ section_header('Seller workspace') }}
+                            <p class="mt-1 text-xs text-slate-500">All documents for this file live here — listing paperwork, offers, and the contract.</p>
+                            {% if urgent_seller_offer and urgent_seller_offer.response_deadline_at %}
+                            {% set urgent_state = offer_urgency(urgent_seller_offer) %}
+                            <p class="mt-1 text-xs font-medium {% if urgent_state.state in ['critical', 'strong_warning'] %}text-red-700{% else %}text-orange-700{% endif %}">
+                                {{ urgent_state.label }}: {{ urgent_seller_offer.buyer_names or urgent_seller_offer.buyer_agent_name or 'Offer' }}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="crm-surface-body">
+                        <div class="crm-segment mb-5" data-seller-tabs role="tablist" aria-label="Seller lifecycle">
+                            <button type="button" id="seller-tab-listing" role="tab" aria-selected="{{ 'true' if default_seller_tab == 'listing' else 'false' }}" class="crm-segment__item{% if default_seller_tab == 'listing' %} is-active{% endif %}" onclick="sellerWorkspaceTab('listing')">
+                                Listing
+                            </button>
+                            <button type="button" id="seller-tab-offers" role="tab" aria-selected="{{ 'true' if default_seller_tab == 'offers' else 'false' }}" class="crm-segment__item{% if default_seller_tab == 'offers' %} is-active{% endif %}" onclick="sellerWorkspaceTab('offers')">
+                                Offers{% if active_seller_offers %} <span class="text-orange-600">({{ active_seller_offers|length }})</span>{% endif %}
+                            </button>
+                            <button type="button" id="seller-tab-contract" role="tab" aria-selected="{{ 'true' if default_seller_tab == 'contract' else 'false' }}" class="crm-segment__item{% if default_seller_tab == 'contract' %} is-active{% endif %}" onclick="sellerWorkspaceTab('contract')">
+                                Contract{% if backup_seller_contracts %} <span class="text-slate-400">+ backup</span>{% endif %}
+                            </button>
+                        </div>
+
+                        <div id="seller-panel-listing" class="seller-tab-panel space-y-4{% if default_seller_tab != 'listing' %} hidden{% endif %}">
+                            <div {% if document_packages %}id="listing-documents" class="scroll-mt-28 space-y-4"{% else %}class="space-y-4"{% endif %}>
+                                {% if has_intake_schema %}
+                                <div class="flex flex-wrap items-start justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-4 py-3.5">
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h3 class="text-sm font-semibold text-slate-900">Property questionnaire</h3>
+                                            {% if transaction.intake_data %}
+                                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                                Completed
+                                            </span>
+                                            {% else %}
+                                            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                                                Not started
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-600">
+                                            {% if transaction.intake_data %}
+                                            Answers feed disclosures and listing paperwork.
+                                            {% else %}
+                                            Start here before generating listing paperwork.
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    <a href="{{ url_for('transactions.intake_questionnaire', id=transaction.id) }}" class="crm-btn crm-btn-secondary shrink-0">
+                                        {% if transaction.intake_data %}Edit questionnaire{% else %}Start questionnaire{% endif %}
+                                    </a>
+                                </div>
+                                {% endif %}
+                                {% if document_packages %}
+                                {% set package_mode = 'listing' %}
+                                {% set show_unfiled = true %}
+                                {% include 'transactions/_document_packages_workspace.html' %}
+                                {% else %}
+                                <p class="text-sm text-slate-500">Listing documents appear in the Documents section below.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {% include 'transactions/_offers_panel.html' %}
+
+                        <div id="seller-panel-contract" class="seller-tab-panel{% if default_seller_tab != 'contract' %} hidden{% endif %} space-y-4">
+                            {% if document_packages %}
+                            {% set package_mode = 'contract' %}
+                            {% set show_unfiled = false %}
+                            {% include 'transactions/_document_packages_workspace.html' %}
+                            {% endif %}
+                            {% if not primary_seller_contract %}
+                            <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
+                                <p class="text-sm font-semibold text-slate-900">Contract workspace</p>
+                                <p class="mt-1 text-sm text-slate-600">Accept an offer as primary, or upload a fully executed contract, to open coordination here.</p>
+                            </div>
+                            {% else %}
+                            <div class="rounded-md border border-emerald-200 bg-emerald-50 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-emerald-900">Primary contract active</h3>
+                                        <p class="mt-1 text-xs text-emerald-700">
+                                            {% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% endif %}
+                                            {% if primary_seller_contract.closing_date %} · Closing {{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% endif %}
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap gap-2">
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="showTerminateContractForm()">Terminate</button>
+                                        <button type="button" class="crm-btn crm-btn-primary" onclick="showCloseContractForm()">Mark closed</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% set primary_contract_docs = seller_contract_documents_by_contract.get(primary_seller_contract.id, []) if seller_contract_documents_by_contract else [] %}
+                            {% set contract_supporting = primary_seller_contract.extra_data.get('supporting_documents', {}) if primary_seller_contract.extra_data else {} %}
+                            {% set raw_contract_financing_addendum = primary_seller_contract.addenda_data.get('third_party_financing_addendum', {}) if primary_seller_contract.addenda_data is mapping else {} %}
+                            {% set contract_financing_addendum = raw_contract_financing_addendum if raw_contract_financing_addendum is mapping else {} %}
+                            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_440px]">
+                                <div class="rounded-md border border-slate-200">
+                                    <div class="border-b border-slate-200 px-4 py-3">
+                                        <h3 class="text-sm font-semibold text-slate-900">Contract documents</h3>
+                                        <p class="mt-1 text-xs text-slate-500">Upload executed, signed contract documents for this contract workspace.</p>
+                                    </div>
+                                    <form class="seller-contract-upload-form border-b border-slate-200 bg-slate-50/60 p-4" data-contract-id="{{ primary_seller_contract.id }}" enctype="multipart/form-data">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <h4 class="text-sm font-semibold text-slate-900">Upload executed PDFs</h4>
+                                                <p class="mt-1 text-xs text-slate-500">Attach the signed contract and related executed addenda. We'll extract contract terms from the files.</p>
+                                            </div>
+                                            <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
+                                                <i class="fas fa-bolt text-[10px]"></i>
+                                                Upload &amp; extract
+                                            </button>
+                                        </div>
+                                        <label class="seller-contract-dropzone group mt-3 flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-white px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
+                                            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-rose-50 text-rose-600 ring-1 ring-slate-200">
+                                                <i class="fas fa-file-pdf text-base"></i>
+                                            </span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="seller-contract-dropzone-title block text-sm font-medium text-slate-900">Choose executed PDFs</span>
+                                                <span class="seller-contract-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
+                                            </span>
+                                            <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
+                                            <input type="file" name="files" accept="application/pdf" class="seller-contract-file-input sr-only" multiple required>
+                                        </label>
+                                        <div class="seller-contract-file-list mt-3 hidden space-y-2"></div>
+                                    </form>
+                                    <div class="overflow-hidden rounded-md border border-slate-200">
+                                        {% set contract_parent_ids_with_children = [] %}
+                                        {% for contract_document in primary_contract_docs %}
+                                            {% set doc = contract_document.document %}
+                                            {% if doc and doc.parent_document_id and doc.parent_document_id not in contract_parent_ids_with_children %}
+                                                {% set _ = contract_parent_ids_with_children.append(doc.parent_document_id) %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {% for contract_document in primary_contract_docs %}
+                                        {% set doc = contract_document.document %}
+                                        {% set is_split_child = doc and doc.parent_document_id %}
+                                        {% set is_original_packet = doc and (doc.id in contract_parent_ids_with_children) %}
+                                        <div class="grid grid-cols-1 gap-3 border-b border-slate-100 bg-white px-4 py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center{% if is_split_child %} pl-6 sm:pl-8 border-l-2 border-l-slate-200{% endif %}">
+                                            <div class="min-w-0">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <span class="text-sm font-semibold text-slate-900">{{ contract_document.display_name }}</span>
+                                                    {% if is_original_packet %}
+                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Original uploaded packet">Original upload</span>
+                                                    {% elif is_split_child %}
+                                                    <span class="rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-600" title="Split from the original uploaded packet">Split document{% if doc.page_start and doc.page_end %} · pages {{ doc.page_start }}-{{ doc.page_end }}{% endif %}</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-1 truncate text-xs text-slate-500">
+                                                    {% if doc %}
+                                                    {{ doc.signed_original_filename or doc.template_name }}
+                                                    {% else %}
+                                                    Document reference captured at acceptance
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-2 flex flex-wrap gap-1.5">
+                                                    <span class="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">{{ contract_document.document_type|replace('_', ' ')|title }}</span>
+                                                    {% if doc and doc.extraction_status %}
+                                                    <span class="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">{{ doc.extraction_status|replace('_', ' ')|title }}</span>
+                                                    {% endif %}
+                                                    {% if contract_document.extraction_summary %}
+                                                    <span class="rounded-md bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-500">{{ contract_document.extraction_summary|length }} fields extracted</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% if doc and doc.signed_file_path %}
+                                            <div class="flex w-full justify-end gap-2 sm:w-auto">
+                                                <button type="button" class="crm-btn crm-btn-secondary min-w-20 justify-center px-3 py-1.5 text-xs" onclick="viewStoredDocument({{ doc.id }})">View</button>
+                                                <button type="button" class="crm-btn crm-btn-secondary min-w-24 justify-center px-3 py-1.5 text-xs" onclick="downloadDocument({{ doc.id }})">Download</button>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                        {% else %}
+                                        <div class="bg-white px-4 py-6 text-sm text-slate-500">No contract documents uploaded yet.</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="rounded-md border border-slate-200 bg-white">
+                                    <form id="sellerContractDetailsForm" data-contract-id="{{ primary_seller_contract.id }}" data-contract-mode="view" novalidate>
+                                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3.5 sm:px-5">
+                                            <div class="min-w-0">
+                                                <h3 class="text-sm font-semibold text-slate-900">Contract details</h3>
+                                                <p class="mt-0.5 text-xs text-slate-500">Pulled from the executed contract. Edit only to correct extracted values.</p>
+                                            </div>
+                                            <div class="flex shrink-0 items-center gap-2">
+                                                <button type="button" class="crm-btn crm-btn-secondary px-3 py-1.5 text-xs" data-contract-action="edit">
+                                                    <i class="fas fa-pen text-[10px] text-slate-500"></i>
+                                                    Edit
+                                                </button>
+                                                <button type="button" class="crm-btn crm-btn-secondary hidden px-3 py-1.5 text-xs" data-contract-action="cancel">Cancel</button>
+                                                <button type="submit" class="crm-btn crm-btn-primary hidden px-3 py-1.5 text-xs" data-contract-action="save">Save changes</button>
+                                            </div>
+                                        </div>
+                                        <div class="border-b border-slate-100 px-4 py-4 sm:px-5">
+                                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                                <label class="block min-w-0">
+                                                    <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Contract execution date</span>
+                                                    <input type="date" name="effective_date" class="crm-input mt-1.5 w-full max-w-[220px] py-2"
+                                                           value="{% if primary_seller_contract.effective_date %}{{ primary_seller_contract.effective_date.strftime('%Y-%m-%d') }}{% endif %}"
+                                                           data-contract-execution-date>
+                                                    <span class="mt-1.5 block text-[11px] text-slate-500">Manually entered by the agent. Drives milestone timing.</span>
+                                                </label>
+                                                {% if not primary_seller_contract.effective_date %}
+                                                <span class="inline-flex shrink-0 items-center gap-1.5 self-start rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                                                    <i class="fas fa-circle-exclamation text-amber-500"></i>
+                                                    Required to start milestones
+                                                </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <dl class="grid grid-cols-1 gap-x-8 gap-y-4 px-4 py-4 sm:grid-cols-2 sm:px-5" data-contract-fields>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sales price</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.accepted_price %}${{ "{:,.0f}".format(primary_seller_contract.accepted_price) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="accepted_price" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.accepted_price or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Close date</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%b %d, %Y') }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input type="date" name="closing_date" class="crm-input hidden py-2" value="{% if primary_seller_contract.closing_date %}{{ primary_seller_contract.closing_date.strftime('%Y-%m-%d') }}{% endif %}" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Financing type</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_type %}{{ primary_seller_contract.financing_type }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="financing_type" class="crm-input hidden py-2" value="{{ primary_seller_contract.financing_type or '' }}" placeholder="Conventional, FHA, VA, cash…" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Option period</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.option_period_days %}{{ primary_seller_contract.option_period_days }} day{{ primary_seller_contract.option_period_days != 1 and 's' or '' }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="option_period_days" inputmode="numeric" class="crm-input hidden py-2" value="{{ primary_seller_contract.option_period_days or '' }}" placeholder="0" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Cash portion</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.cash_down_payment %}${{ "{:,.0f}".format(primary_seller_contract.cash_down_payment) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="cash_down_payment" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.cash_down_payment or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Sum of financing</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_amount %}${{ "{:,.0f}".format(primary_seller_contract.financing_amount) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="financing_amount" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.financing_amount or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Financing deadline</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%b %d, %Y') }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input type="date" name="financing_approval_deadline" class="crm-input hidden py-2" value="{% if primary_seller_contract.financing_approval_deadline %}{{ primary_seller_contract.financing_approval_deadline.strftime('%Y-%m-%d') }}{% endif %}" data-contract-input>
+                                                    {% if contract_financing_addendum.get('buyer_approval_days') %}
+                                                    <span class="mt-1 block text-[11px] text-slate-500">TPF Paragraph 2A: {{ contract_financing_addendum.get('buyer_approval_days') }} days after execution.</span>
+                                                    {% endif %}
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Seller contributions</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.seller_concessions_amount %}${{ "{:,.0f}".format(primary_seller_contract.seller_concessions_amount) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="seller_concessions_amount" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.seller_concessions_amount or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buyer agent commission %</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.buyer_agent_commission_percent %}{{ primary_seller_contract.buyer_agent_commission_percent }}%{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="buyer_agent_commission_percent" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.buyer_agent_commission_percent or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Buyer agent commission $</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.buyer_agent_commission_flat %}${{ "{:,.0f}".format(primary_seller_contract.buyer_agent_commission_flat) }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="buyer_agent_commission_flat" inputmode="decimal" class="crm-input hidden py-2" value="{{ primary_seller_contract.buyer_agent_commission_flat or '' }}" placeholder="0.00" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div class="sm:col-span-2" data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Survey furnished by</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.survey_furnished_by %}{{ primary_seller_contract.survey_furnished_by }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <input name="survey_furnished_by" class="crm-input hidden py-2" value="{{ primary_seller_contract.survey_furnished_by or '' }}" placeholder="e.g. Seller, Buyer, or amended terms" data-contract-input>
+                                                </dd>
+                                            </div>
+                                            <div class="sm:col-span-2" data-contract-field>
+                                                <dt class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Residential service contract</dt>
+                                                <dd class="mt-1.5">
+                                                    <span class="block whitespace-pre-line text-sm font-medium text-slate-900" data-contract-display>{% if primary_seller_contract.residential_service_contract %}{{ primary_seller_contract.residential_service_contract }}{% else %}<span class="font-normal text-slate-400">Not extracted</span>{% endif %}</span>
+                                                    <textarea name="residential_service_contract" class="crm-input hidden min-h-[88px] py-2" placeholder="Coverage, premium cap, and provider" data-contract-input>{{ primary_seller_contract.residential_service_contract or '' }}</textarea>
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                    </form>
+                                    {% set contract_supporting_has_data = contract_supporting and (contract_supporting.values()|select|list|length > 0) %}
+                                    {% if contract_supporting_has_data %}
+                                    <div class="border-t border-slate-100 px-4 py-3 sm:px-5">
+                                        <div class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Supporting data</div>
+                                        <div class="mt-2 flex flex-wrap gap-1.5">
+                                            {% for doc_type, extracted in contract_supporting.items() if extracted %}
+                                            <span class="inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">{{ doc_type|replace('_', ' ')|title }} · {{ extracted|length }} fields</span>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if backup_seller_contracts %}
+                            <div class="rounded-md border border-sky-200 bg-sky-50 p-4">
+                                <h3 class="text-sm font-semibold text-sky-900">Backup contracts</h3>
+                                <div class="mt-2 space-y-2">
+                                    {% for contract in backup_seller_contracts %}
+                                    <div class="flex items-center justify-between text-sm">
+                                        <span class="text-sky-800">Backup position {{ contract.backup_position or loop.index }}</span>
+                                        <span class="text-sky-700">{% if contract.accepted_price %}${{ "{:,.0f}".format(contract.accepted_price) }}{% else %}Accepted backup{% endif %}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% set milestone_status_styles = {
+                                'completed': {'dot': 'bg-emerald-500', 'badge': 'border-emerald-200 bg-emerald-50 text-emerald-700', 'label': 'Completed'},
+                                'overdue': {'dot': 'bg-red-500', 'badge': 'border-red-200 bg-red-50 text-red-700', 'label': 'Overdue'},
+                                'due_soon': {'dot': 'bg-amber-500', 'badge': 'border-amber-200 bg-amber-50 text-amber-700', 'label': 'Due soon'},
+                                'waiting': {'dot': 'bg-sky-500', 'badge': 'border-sky-200 bg-sky-50 text-sky-700', 'label': 'Waiting'},
+                                'not_started': {'dot': 'bg-slate-300', 'badge': 'border-slate-200 bg-slate-100 text-slate-600', 'label': 'Not started'},
+                                'not_applicable': {'dot': 'bg-slate-200', 'badge': 'border-slate-200 bg-slate-50 text-slate-500', 'label': 'N/A'}
+                            } %}
+                            {% set milestone_status_options = [('not_started', 'Not started'), ('waiting', 'Waiting'), ('due_soon', 'Due soon'), ('overdue', 'Overdue'), ('completed', 'Completed'), ('not_applicable', 'Not applicable')] %}
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div class="min-w-0">
+                                        <h3 class="text-sm font-semibold text-slate-900">Milestones</h3>
+                                        <p class="mt-0.5 text-xs text-slate-500">Auto-built from contract terms. Click a row to edit, or add your own.</p>
+                                    </div>
+                                    <button type="button" class="crm-btn crm-btn-secondary shrink-0" data-toggle="seller-manual-milestone">
+                                        <i class="fas fa-plus text-xs"></i>
+                                        <span>Add milestone</span>
+                                    </button>
+                                </div>
+                                <form id="sellerManualMilestoneForm" class="hidden border-b border-slate-200 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}">
+                                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                            <input name="title" class="crm-input mt-1" placeholder="e.g. HOA resale certificate ordered" required>
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Due</span>
+                                            <input type="datetime-local" name="due_at" class="crm-input mt-1">
+                                        </label>
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Status</span>
+                                            <select name="status" class="crm-select mt-1">
+                                                {% for value, label in milestone_status_options %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <label class="mt-3 block">
+                                        <span class="text-xs font-medium text-slate-600">Notes</span>
+                                        <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Optional"></textarea>
+                                    </label>
+                                    <div class="mt-3 flex items-center justify-end gap-2">
+                                        <button type="button" class="crm-btn crm-btn-secondary" data-toggle-cancel="seller-manual-milestone">Cancel</button>
+                                        <button type="submit" class="crm-btn crm-btn-primary">Add milestone</button>
+                                    </div>
+                                </form>
+                                <div class="divide-y divide-slate-100">
+                                    {% for milestone in seller_contract_milestones %}
+                                    {% set status_key = milestone.status if milestone.status in milestone_status_styles else 'not_started' %}
+                                    {% set status_style = milestone_status_styles[status_key] %}
+                                    <div class="seller-milestone" data-milestone-id="{{ milestone.id }}">
+                                        <button type="button" class="seller-milestone-toggle group flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-slate-50">
+                                            <span class="mt-1 inline-flex h-2.5 w-2.5 shrink-0 rounded-full {{ status_style.dot }}"></span>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                    <span class="text-sm font-medium text-slate-900">{{ milestone.title }}</span>
+                                                    <span class="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium {{ status_style.badge }}">{{ status_style.label }}</span>
+                                                    {% if milestone.source and milestone.source != 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Auto</span>
+                                                    {% elif milestone.source == 'manual' %}
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Manual</span>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
+                                                    {% if milestone.due_at %}
+                                                    <span class="inline-flex items-center gap-1">
+                                                        <i class="far fa-calendar text-[10px] text-slate-400"></i>
+                                                        {{ milestone.due_at.strftime('%a, %b %d') }}
+                                                        <span class="text-slate-400">{{ milestone.due_at.strftime('%I:%M %p').lstrip('0') }}</span>
+                                                    </span>
+                                                    {% else %}
+                                                    <span class="text-slate-400">No date set</span>
+                                                    {% endif %}
+                                                    {% if milestone.completed_at %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span>Completed {{ milestone.completed_at.strftime('%b %d') }}</span>
+                                                    {% endif %}
+                                                    {% if milestone.notes %}
+                                                    <span class="text-slate-300">&middot;</span>
+                                                    <span class="truncate text-slate-500" title="{{ milestone.notes }}">{{ milestone.notes }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform seller-milestone-chevron"></i>
+                                        </button>
+                                        <form class="seller-milestone-form hidden border-t border-slate-100 bg-slate-50 px-4 py-3" data-contract-id="{{ primary_seller_contract.id }}" data-milestone-id="{{ milestone.id }}">
+                                            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_150px]">
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Milestone</span>
+                                                    <input name="title" class="crm-input mt-1" value="{{ milestone.title }}" required>
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Due</span>
+                                                    <input type="datetime-local" name="due_at" class="crm-input mt-1" value="{% if milestone.due_at %}{{ milestone.due_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Status</span>
+                                                    <select name="status" class="crm-select mt-1">
+                                                        {% for value, label in milestone_status_options %}
+                                                        <option value="{{ value }}" {% if status_key == value %}selected{% endif %}>{{ label }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </label>
+                                            </div>
+                                            <label class="mt-3 block">
+                                                <span class="text-xs font-medium text-slate-600">Notes</span>
+                                                <textarea name="notes" class="crm-input mt-1 min-h-14" placeholder="Internal notes, vendor follow-up, document reference">{{ milestone.notes or '' }}</textarea>
+                                            </label>
+                                            <div class="mt-3 flex items-center justify-end gap-2">
+                                                <button type="button" class="crm-btn crm-btn-secondary seller-milestone-cancel">Cancel</button>
+                                                <button type="submit" class="crm-btn crm-btn-primary">Save</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                    {% else %}
+                                    <div class="px-4 py-10 text-center">
+                                        <div class="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                                            <i class="far fa-calendar-check"></i>
+                                        </div>
+                                        <p class="mt-2 text-sm font-medium text-slate-700">No milestones yet</p>
+                                        <p class="mt-1 text-xs text-slate-500">Milestones populate automatically when an offer is accepted, or you can add one manually.</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <div id="terminateContractForm" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeTerminateContractModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(560px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-red-600">Contract action</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Terminate contract</h3>
+                                            <p class="mt-1 text-xs text-slate-500">Record the reason and any backup contract you want to promote.</p>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeTerminateContractModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerTerminateForm" class="min-h-0 overflow-y-auto px-5 py-4 space-y-4" data-contract-id="{{ primary_seller_contract.id }}">
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Reason</span>
+                                            <select name="termination_reason" class="crm-select mt-1">
+                                                <option value="option_period">Option period</option>
+                                                <option value="financing">Financing</option>
+                                                <option value="appraisal">Appraisal</option>
+                                                <option value="inspection_repairs">Inspection repairs</option>
+                                                <option value="mutual_release">Mutual release</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </label>
+                                        {% if backup_seller_contracts %}
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Backup promotion</span>
+                                                <select name="promote_backup_contract_id" class="crm-select mt-1">
+                                                    <option value="">Return to active instead</option>
+                                                    {% for contract in backup_seller_contracts %}
+                                                    <option value="{{ contract.id }}">Promote backup {{ contract.backup_position or loop.index }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Notice received</span>
+                                                <input type="datetime-local" name="backup_notice_received_at" class="crm-input mt-1">
+                                            </label>
+                                        </div>
+                                        {% endif %}
+                                        <label class="block">
+                                            <span class="text-xs font-medium text-slate-600">Notes</span>
+                                            <textarea name="notes" class="crm-input mt-1 min-h-20" placeholder="Termination notes"></textarea>
+                                        </label>
+                                        <div class="flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeTerminateContractModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-danger" type="submit">Confirm termination</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            <div id="closeContractForm" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/50" onclick="closeCloseContractModal()" aria-label="Close"></button>
+                                <div class="absolute inset-4 flex min-h-0 flex-col overflow-hidden rounded-md bg-white shadow-xl md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[88vh] md:w-[min(640px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-600">Contract action</p>
+                                            <h3 class="text-lg font-semibold text-slate-950">Close transaction</h3>
+                                            <p class="mt-1 text-xs text-slate-500">Capture the final closing details and mark this transaction closed.</p>
+                                        </div>
+                                        <button type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700" onclick="closeCloseContractModal()">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <form id="sellerCloseForm" class="min-h-0 overflow-y-auto px-5 py-4" data-contract-id="{{ primary_seller_contract.id }}">
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Closing date</span>
+                                                <input type="date" name="actual_closing_date" class="crm-input mt-1" required>
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Final sales price</span>
+                                                <input name="final_sales_price" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Listing commission</span>
+                                                <input name="final_listing_commission" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                            <label class="block">
+                                                <span class="text-xs font-medium text-slate-600">Net proceeds</span>
+                                                <input name="final_net_proceeds" class="crm-input mt-1" placeholder="$">
+                                            </label>
+                                        </div>
+                                        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="final_walkthrough_complete" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500"> Final walkthrough complete</label>
+                                            <label class="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="key_access_handoff_complete" class="rounded border-slate-300 text-orange-500 focus:ring-orange-500"> Key/access handoff complete</label>
+                                        </div>
+                                        <div class="mt-5 flex items-center justify-end gap-2 border-t border-slate-200 pt-4">
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="closeCloseContractModal()">Cancel</button>
+                                            <button class="crm-btn crm-btn-primary" type="submit">Mark as closed</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </section>

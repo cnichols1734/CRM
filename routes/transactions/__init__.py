@@ -38,3 +38,9 @@ from . import download
 from . import docuseal_admin
 from . import history
 from . import portal_admin
+from . import document_review
+from . import document_classification
+from . import bootstrap
+from . import assignments
+from . import amendments
+from . import offer_compare

@@ -1,0 +1,206 @@
+{
+  "pack_key": "buyer_ctc",
+  "version": "v1",
+  "name": "Buyer Contract to Close",
+  "description": "Standard buyer under-contract workflow (Texas TREC contract)",
+  "applies_to": {
+    "sides": ["buyer"],
+    "statuses": ["under_contract", "showing"]
+  },
+  "phases": [
+    {
+      "phase_key": "option_period",
+      "name": "Option Period",
+      "description": "Buyer's unrestricted termination window"
+    },
+    {
+      "phase_key": "due_diligence",
+      "name": "Due Diligence",
+      "description": "Inspections, surveys, and investigations"
+    },
+    {
+      "phase_key": "financing",
+      "name": "Financing",
+      "description": "Appraisal and loan approval"
+    },
+    {
+      "phase_key": "closing",
+      "name": "Closing",
+      "description": "Clear to close, walkthrough, and closing"
+    }
+  ],
+  "requirements": {
+    "option_fee": {
+      "phase": "option_period",
+      "title": "Option Fee Delivered",
+      "description": "Buyer delivers option fee to seller/listing agent within 3 days of effective date",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 3,
+        "unit": "calendar",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "buyer",
+      "required": true,
+      "document_slug": "earnest-option-receipt"
+    },
+    "earnest_money": {
+      "phase": "option_period",
+      "title": "Earnest Money Deposited",
+      "description": "Buyer deposits earnest money with title/escrow",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 3,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "buyer",
+      "required": true,
+      "document_slug": "earnest-option-receipt"
+    },
+    "option_period_end": {
+      "phase": "option_period",
+      "title": "Option Period Expires",
+      "description": "Buyer's unrestricted termination right expires",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 7,
+        "unit": "calendar",
+        "time_of_day": "5:00 PM"
+      },
+      "responsibility": "buyer",
+      "required": true,
+      "milestone": true
+    },
+    "inspection": {
+      "phase": "due_diligence",
+      "title": "Inspection Scheduled / Completed",
+      "description": "Home inspection within option period; repairs negotiated if needed",
+      "deadline_rule": {
+        "anchor": "option_period_end",
+        "offset_days": -2,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "buyer",
+      "required": true,
+      "document_slug": "inspection-report"
+    },
+    "survey": {
+      "phase": "due_diligence",
+      "title": "Survey Received",
+      "description": "Property survey delivered to buyer",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 10,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "seller",
+      "required": false,
+      "document_slug": "survey"
+    },
+    "appraisal_ordered": {
+      "phase": "financing",
+      "title": "Appraisal Ordered",
+      "description": "Lender orders appraisal",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 5,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "lender",
+      "required": true
+    },
+    "appraisal": {
+      "phase": "financing",
+      "title": "Appraisal Completed",
+      "description": "Property appraisal received from lender",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 15,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "lender",
+      "required": true
+    },
+    "financing_approval": {
+      "phase": "financing",
+      "title": "Financing Approval",
+      "description": "Buyer obtains financing / underwriting approval",
+      "deadline_rule": {
+        "anchor": "closing_date",
+        "offset_days": -7,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "lender",
+      "required": true
+    },
+    "title_commitment": {
+      "phase": "closing",
+      "title": "Title Commitment Received",
+      "description": "Title company delivers commitment; objections reviewed",
+      "deadline_rule": {
+        "anchor": "effective_date",
+        "offset_days": 20,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "title",
+      "required": true,
+      "document_slug": "title-commitment"
+    },
+    "clear_to_close": {
+      "phase": "closing",
+      "title": "Clear to Close",
+      "description": "Lender issues clear-to-close",
+      "deadline_rule": {
+        "anchor": "closing_date",
+        "offset_days": -3,
+        "unit": "business",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "lender",
+      "required": true
+    },
+    "final_walkthrough": {
+      "phase": "closing",
+      "title": "Final Walkthrough",
+      "description": "Buyer's final property inspection before closing",
+      "deadline_rule": {
+        "anchor": "closing_date",
+        "offset_days": -1,
+        "unit": "calendar",
+        "time_of_day": "end_of_business"
+      },
+      "responsibility": "buyer",
+      "required": true
+    },
+    "closing": {
+      "phase": "closing",
+      "title": "Closing",
+      "description": "Transaction closes and property transfers",
+      "deadline_rule": {
+        "anchor": "closing_date",
+        "offset_days": 0,
+        "unit": "calendar",
+        "time_of_day": "closing_appointment"
+      },
+      "responsibility": "agent",
+      "required": true,
+      "milestone": true
+    }
+  },
+  "business_day_rules": {
+    "excluded_days": ["saturday", "sunday"],
+    "holidays": [
+      "2026-01-01",
+      "2026-07-04",
+      "2026-11-26",
+      "2026-12-25"
+    ]
+  }
+}

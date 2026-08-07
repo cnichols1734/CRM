@@ -5,10 +5,52 @@ Transaction intake questionnaire routes.
 
 from flask import request, jsonify, render_template, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
-from models import db, Transaction, TransactionDocument, AuditEvent
+from models import AuditEvent, ContractBootstrapSession, db, TransactionDocument
 from services import audit_service
+from services.transaction_auth import CAP_EDIT, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
+
+
+def _require_tx(transaction_id, capability=CAP_EDIT):
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
+
+
+def _bootstrap_session_for_intake(transaction):
+    """Resolve an applied bootstrap session without allowing cross-file access.
+
+    Explicit ?bootstrap_session_id= wins. Otherwise use the newest applied
+    session for this transaction so questionnaire prefills still work after
+    document-review handoff.
+    """
+    raw_id = request.args.get('bootstrap_session_id')
+    if raw_id:
+        try:
+            session_id = int(raw_id)
+        except (TypeError, ValueError):
+            abort(404)
+        session = ContractBootstrapSession.query.filter_by(
+            id=session_id,
+            organization_id=current_user.organization_id,
+            matched_transaction_id=transaction.id,
+            status=ContractBootstrapSession.STATUS_APPLIED,
+        ).first()
+        if not session:
+            abort(404)
+        return session
+
+    return (
+        ContractBootstrapSession.query.filter_by(
+            organization_id=current_user.organization_id,
+            matched_transaction_id=transaction.id,
+            status=ContractBootstrapSession.STATUS_APPLIED,
+        )
+        .order_by(ContractBootstrapSession.id.desc())
+        .first()
+    )
 
 
 # =============================================================================
@@ -20,12 +62,9 @@ from .decorators import transactions_required
 @transactions_required
 def intake_questionnaire(id):
     """Show the intake questionnaire for a transaction."""
-    from services.intake_service import get_intake_schema
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
+    from services.intake_service import build_intake_prefill, get_intake_schema
+
+    transaction = _require_tx(id, CAP_EDIT)
     
     # Get the intake schema based on transaction type and ownership status
     schema = get_intake_schema(
@@ -36,12 +75,21 @@ def intake_questionnaire(id):
     if not schema:
         flash('No intake questionnaire available for this transaction type.', 'error')
         return redirect(url_for('transactions.view_transaction', id=id))
+
+    bootstrap_session = _bootstrap_session_for_intake(transaction)
+    intake_data, suggested_fields = build_intake_prefill(
+        transaction,
+        schema,
+        bootstrap_session=bootstrap_session,
+    )
     
     return render_template(
         'transactions/intake.html',
         transaction=transaction,
         schema=schema,
-        intake_data=transaction.intake_data or {}
+        intake_data=intake_data,
+        bootstrap_session=bootstrap_session,
+        suggested_fields=suggested_fields,
     )
 
 
@@ -51,11 +99,9 @@ def intake_questionnaire(id):
 def save_intake(id):
     """Save intake questionnaire answers."""
     from services.intake_service import get_intake_schema, validate_intake_data
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
+
+    transaction = _require_tx(id, CAP_EDIT)
+    bootstrap_session = _bootstrap_session_for_intake(transaction)
     
     # Get the schema
     schema = get_intake_schema(
@@ -97,7 +143,13 @@ def save_intake(id):
         if request.is_json:
             return jsonify({'success': True, 'intake_data': intake_data})
         else:
-            flash('Questionnaire saved successfully!', 'success')
+            flash('File setup answers saved.', 'success')
+            if bootstrap_session:
+                return redirect(url_for(
+                    'transactions.intake_questionnaire',
+                    id=id,
+                    bootstrap_session_id=bootstrap_session.id,
+                ))
             return redirect(url_for('transactions.view_transaction', id=id))
 
     except Exception as e:
@@ -106,7 +158,11 @@ def save_intake(id):
             return jsonify({'success': False, 'error': str(e)}), 500
         else:
             flash(f'Error saving questionnaire: {str(e)}', 'error')
-            return redirect(url_for('transactions.intake_questionnaire', id=id))
+            return redirect(url_for(
+                'transactions.intake_questionnaire',
+                id=id,
+                bootstrap_session_id=bootstrap_session.id if bootstrap_session else None,
+            ))
 
 
 @transactions_bp.route('/<int:id>/intake/preview-changes', methods=['POST'])
@@ -123,12 +179,9 @@ def preview_document_changes(id):
         get_intake_schema, validate_intake_data, compute_document_diff,
         get_question_labels
     )
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_EDIT)
+
     schema = get_intake_schema(
         transaction.transaction_type.name,
         transaction.ownership_status
@@ -240,8 +293,19 @@ def preview_document_changes(id):
             'name': doc.template_name,
             'status': doc.status
         })
+    for required_slug, actual_slug in diff.get('satisfied_aliases', {}).items():
+        doc = existing_docs[actual_slug]
+        kept.append({
+            'slug': required_slug,
+            'name': doc.template_name,
+            'status': doc.status,
+        })
     
-    managed_existing = {s for s in existing_docs if not s.startswith('custom-')}
+    schema_managed_slugs = {
+        rule.get('slug') for rule in schema.get('document_rules', [])
+        if rule.get('slug')
+    }
+    managed_existing = set(existing_docs) & schema_managed_slugs
     is_initial = len(managed_existing) == 0
     has_changes = len(diff['to_add']) > 0 or len(diff['safe_removals']) > 0
     
@@ -282,12 +346,10 @@ def generate_document_package(id):
     from services.intake_service import (
         get_intake_schema, validate_intake_data, compute_document_diff
     )
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
-    
+
+    transaction = _require_tx(id, CAP_EDIT)
+    bootstrap_session = _bootstrap_session_for_intake(transaction)
+
     schema = get_intake_schema(
         transaction.transaction_type.name,
         transaction.ownership_status
@@ -301,7 +363,11 @@ def generate_document_package(id):
     
     if not is_valid:
         flash('Please answer all required questions before generating the document package.', 'error')
-        return redirect(url_for('transactions.intake_questionnaire', id=id))
+        return redirect(url_for(
+            'transactions.intake_questionnaire',
+            id=id,
+            bootstrap_session_id=bootstrap_session.id if bootstrap_session else None,
+        ))
     
     document_workflow = schema.get('document_workflow', 'docuseal')
     
@@ -309,7 +375,11 @@ def generate_document_package(id):
         existing_docs = {doc.template_slug: doc for doc in transaction.documents.all()}
         diff = compute_document_diff(schema, transaction.intake_data, existing_docs)
 
-        managed_existing = {s for s in existing_docs if not s.startswith('custom-')}
+        schema_managed_slugs = {
+            rule.get('slug') for rule in schema.get('document_rules', [])
+            if rule.get('slug')
+        }
+        managed_existing = set(existing_docs) & schema_managed_slugs
 
         added_count = 0
         removed_count = 0
@@ -346,7 +416,16 @@ def generate_document_package(id):
                 audit_service.log_document_added(tx_doc, tx_doc.included_reason)
                 added_count += 1
         else:
-            # Legacy DocuSeal template flow
+            # Legacy DocuSeal template flow — frozen while DOCUMENT_GENERATION is off.
+            from feature_flags import org_has_feature
+            if not org_has_feature('DOCUMENT_GENERATION'):
+                flash(
+                    'Document generation and e-signature sending are paused. '
+                    'Use placeholder upload workflow or fulfill with external signed PDFs.',
+                    'error',
+                )
+                return redirect(url_for('transactions.view_transaction', id=id))
+
             from services.documents import DocumentLoader, FieldResolver
 
             for slug in diff['to_add']:
@@ -429,7 +508,12 @@ def generate_document_package(id):
         if blocked_names:
             flash(f'Warning: Could not remove {", ".join(blocked_names)} because they are already sent/signed. Void them first if needed.', 'warning')
 
-        flash(f'Document package updated: {", ".join(messages)}!', 'success')
+        flash(f'File setup complete: {", ".join(messages)}.', 'success')
+        if bootstrap_session:
+            return redirect(url_for(
+                'transactions.bootstrap_complete',
+                session_id=bootstrap_session.id,
+            ))
         return redirect(url_for('transactions.view_transaction', id=id))
         
     except Exception as e:

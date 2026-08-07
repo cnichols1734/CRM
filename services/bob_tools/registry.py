@@ -16,6 +16,8 @@ Dispatch owns the safety policy:
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -27,6 +29,7 @@ from services.bob_tools import contacts as contact_tools
 from services.bob_tools import interactions as interaction_tools
 from services.bob_tools import tasks as task_tools
 from services.bob_tools import todos as todo_tools
+from services.bob_tools import transactions as tx_tools
 from services.bob_tools.common import ToolError
 from services.bob_tools.notifications import forget_action, notify_actions
 from services.bob_tools.context import (
@@ -271,8 +274,8 @@ TOOLS: tuple[Tool, ...] = (
         name='list_tasks',
         description=(
             'Filtered task list for narrower questions than get_agenda: a '
-            'specific contact\'s tasks, completed work, or an explicit date '
-            'window. Dates are the agent\'s local dates.'
+            'specific contact\'s tasks, transaction tasks, completed work, or '
+            'an explicit date window. Dates are the agent\'s local dates.'
         ),
         parameters=_obj({
             'status': {
@@ -283,6 +286,13 @@ TOOLS: tuple[Tool, ...] = (
             'contact_id': {
                 'type': 'integer',
                 'description': 'Limit to one contact. From search_contacts.',
+            },
+            'transaction_id': {
+                'type': 'integer',
+                'description': (
+                    'Limit to one transaction. From search_transactions or '
+                    'page context. Auth is enforced.'
+                ),
             },
             'due_after': {
                 'type': 'string',
@@ -406,17 +416,27 @@ TOOLS: tuple[Tool, ...] = (
     Tool(
         name='create_task',
         description=(
-            'Create a task or follow-up against an existing contact. Requires a '
-            'real contact_id from search_contacts; if the person is not in the '
-            'CRM yet, call create_contact first. Use subtype "Follow-up" for '
-            'check-ins, which is what the CRM counts as a real follow-up. Does '
-            'not modify existing tasks, use update_task for that. If the agent '
-            'did not say when, ask before calling.'
+            'Create a task or follow-up. Pass contact_id for contact-linked '
+            'work, and/or transaction_id for transaction-native coordinator '
+            'work (contact_id may be omitted when transaction_id is set). Use '
+            'subtype "Follow-up" for check-ins. Does not modify existing '
+            'tasks — use update_task for that. If the agent did not say when, '
+            'ask before calling.'
         ),
         parameters=_obj({
             'contact_id': {
                 'type': 'integer',
-                'description': 'From search_contacts or create_contact. Never guess.',
+                'description': (
+                    'From search_contacts or create_contact. Optional when '
+                    'transaction_id is provided.'
+                ),
+            },
+            'transaction_id': {
+                'type': 'integer',
+                'description': (
+                    'Transaction this task belongs to. Required when '
+                    'contact_id is omitted. Auth is enforced.'
+                ),
             },
             'subject': {
                 'type': 'string',
@@ -464,7 +484,7 @@ TOOLS: tuple[Tool, ...] = (
                 'type': 'string',
                 'description': 'Property this task concerns, if any.',
             },
-        }, ['contact_id', 'subject', 'due_date']),
+        }, ['subject', 'due_date']),
         risk=RISK_LOW_WRITE,
         handler=task_tools.create_task,
         undo=task_tools.undo_create_task,
@@ -811,11 +831,290 @@ TOOLS: tuple[Tool, ...] = (
     ),
 )
 
+# Transaction coordinator tools (appended after core CRM tools).
+_TX_ID = {
+    'type': 'integer',
+    'description': (
+        'Transaction id. Optional when the chat page or Telegram session '
+        'already has an active transaction selected.'
+    ),
+}
+TRANSACTION_TOOLS = (
+    Tool(
+        name='search_transactions',
+        description=(
+            'Search authorized transactions by address, city, status, or type. '
+            'Use before answering status questions when the deal is ambiguous, '
+            'especially on Telegram. Never invent deals outside the results.'
+        ),
+        parameters=_obj({
+            'query': {'type': 'string', 'description': 'Address fragment or status keyword.'},
+            'limit': {'type': 'integer', 'description': 'Max results (default 10).'},
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.search_transactions(
+            ctx, query=args.get('query', ''), limit=args.get('limit', 10),
+        ),
+    ),
+    Tool(
+        name='select_transaction_context',
+        description=(
+            'Select which transaction subsequent tools should use. '
+            'Required on Telegram when multiple deals match an address search.'
+        ),
+        parameters=_obj({
+            'transaction_id': {'type': 'integer', 'description': 'Transaction to select.'},
+        }, ['transaction_id']),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.select_transaction_context(
+            ctx, transaction_id=args['transaction_id'],
+        ),
+    ),
+    Tool(
+        name='get_transaction_summary',
+        description=(
+            'Authorized CRM summary for one transaction: address, status, type, '
+            'requirement counts, and overdue count. Label sources as CRM vs '
+            'calculated requirements; do not claim legal sufficiency.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.get_transaction_summary(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='list_parties',
+        description=(
+            'List participants on a transaction (buyer, seller, lender, title, '
+            'etc.) with role and contact fields the agent is allowed to see.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.list_parties(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='list_documents',
+        description=(
+            'List documents and placeholders on a transaction, including upload '
+            'status, extraction status, and sensitivity class when present.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.list_documents(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='get_upcoming_deadlines',
+        description=(
+            'List upcoming TransactionRequirement deadlines with due dates, '
+            'timing state, risk, and whether the due date came from a deadline '
+            'pack (calculated) or CRM entry.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'days': {'type': 'integer', 'description': 'Lookahead window (default 14).'},
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.get_upcoming_deadlines(
+            ctx, transaction_id=args.get('transaction_id'), days=args.get('days', 14),
+        ),
+    ),
+    Tool(
+        name='get_overdue_work',
+        description=(
+            'List overdue TransactionRequirement items that are still open '
+            '(not completed, waived, or cancelled) past their due_at.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.get_overdue_work(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='closing_readiness_summary',
+        description=(
+            'Summarize open requirements and blockers for closing readiness. '
+            'Use for “are we ready to close?” questions; do not invent external '
+            'clear-to-close status from document text alone.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.closing_readiness_summary(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='get_next_step',
+        description=(
+            'The single most useful next action on a transaction right now, '
+            'in priority order: pending document review, unfinished seller '
+            'questionnaire, missing required documents, then overdue deadlines. '
+            'Use when the agent asks "what should I do next" or after an upload.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.get_next_step(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='identify_missing_documents',
+        description=(
+            'List unfilled document placeholders and waiting document-related '
+            'requirements so the agent knows what still needs upload or review.'
+        ),
+        parameters=_obj({'transaction_id': _TX_ID}),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.identify_missing_documents(
+            ctx, transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='add_transaction_note',
+        description=(
+            'Append an internal note to a transaction (stored in CRM extra_data). '
+            'Never treat this as a client-facing update or approved outbound send.'
+        ),
+        parameters=_obj({
+            'note': {
+                'type': 'string',
+                'description': 'Internal note text to append.',
+            },
+            'transaction_id': _TX_ID,
+        }, ['note']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.add_transaction_note(
+            ctx, note=args.get('note', ''), transaction_id=args.get('transaction_id'),
+        ),
+    ),
+    Tool(
+        name='escalate_transaction_risk',
+        description=(
+            'Raise or set risk_level on a TransactionRequirement and write an '
+            'audit event. Use when a deadline or third-party blocker needs '
+            'brokerage attention.'
+        ),
+        parameters=_obj({
+            'requirement_id': {
+                'type': 'integer',
+                'description': 'TransactionRequirement id to escalate.',
+            },
+            'risk_level': {
+                'type': 'string',
+                'enum': ['low', 'medium', 'high', 'critical'],
+                'description': 'New risk level to store on the requirement.',
+            },
+            'reason': {
+                'type': 'string',
+                'description': 'Short reason recorded on the audit event.',
+            },
+        }, ['requirement_id', 'risk_level']),
+        risk=RISK_LOW_WRITE,
+        handler=lambda args, ctx: tx_tools.escalate_transaction_risk(
+            ctx,
+            requirement_id=args['requirement_id'],
+            risk_level=args['risk_level'],
+            reason=args.get('reason', ''),
+        ),
+    ),
+    Tool(
+        name='compare_offers',
+        description=(
+            'Compare competing SellerOffer terms side-by-side (read-only). '
+            'Summarizes price, financing, earnest, option, close date, contingencies. '
+            'Never auto-accepts or writes CRM fields.'
+        ),
+        parameters=_obj({
+            'transaction_id': _TX_ID,
+            'offer_ids': {
+                'type': 'array',
+                'items': {'type': 'integer'},
+                'description': 'Optional subset of offer ids; default = active offers.',
+            },
+            'include_terminal': {
+                'type': 'boolean',
+                'description': 'Include accepted/declined/withdrawn offers.',
+            },
+        }),
+        risk=RISK_READ,
+        handler=lambda args, ctx: tx_tools.compare_offers(
+            ctx,
+            transaction_id=args.get('transaction_id'),
+            offer_ids=args.get('offer_ids'),
+            include_terminal=bool(args.get('include_terminal', False)),
+        ),
+    ),
+)
+
+TOOLS = TOOLS + TRANSACTION_TOOLS
 TOOLS_BY_NAME: dict[str, Tool] = {tool.name: tool for tool in TOOLS}
 
+# Core CRM tools always available.
+CORE_TOOL_NAMES = frozenset(t.name for t in TOOLS if t.name not in {x.name for x in TRANSACTION_TOOLS})
+TX_READ_TOOL_NAMES = frozenset({
+    'search_transactions', 'select_transaction_context', 'get_transaction_summary',
+    'list_parties', 'list_documents', 'get_upcoming_deadlines', 'get_overdue_work',
+    'closing_readiness_summary', 'identify_missing_documents', 'get_next_step',
+    'compare_offers',
+})
+TX_WRITE_TOOL_NAMES = frozenset({
+    'add_transaction_note', 'escalate_transaction_risk',
+})
 
-def openai_tool_schemas() -> list[dict]:
-    """The ``tools=`` payload for the Chat Completions API."""
+
+def select_tools(ctx: BobContext | None = None) -> tuple[Tool, ...]:
+    """Dynamic tool bundle by surface / entity / attachment state."""
+    if ctx is None:
+        return TOOLS
+
+    names = set(CORE_TOOL_NAMES)
+
+    # Attachment tools when a file is present.
+    if ctx.attachment:
+        names.update({'inspect_attachment', 'import_contacts'})
+
+    has_tx = bool(ctx.active_transaction_id)
+    is_telegram = ctx.surface in ('telegram', 'bob_telegram')
+
+    # CRM chat always gets transaction reads (handlers enforce authZ).
+    # Telegram / pilot orgs get them too; non-pilot Telegram stays CRM-only
+    # unless a transaction is already selected in session context.
+    vtc_enabled = has_tx or ctx.surface == 'bob_chat'
+    try:
+        from feature_flags import org_has_feature
+        from models import Organization
+        org = Organization.query.get(ctx.organization_id)
+        if org and (
+            org_has_feature('BOB_VTC_PILOT', org)
+            or org_has_feature('TRANSACTIONS', org)
+        ):
+            vtc_enabled = True
+    except Exception:
+        # Outside a request/app context (unit tests): keep CRM chat + selected tx.
+        pass
+
+    if vtc_enabled:
+        names.update(TX_READ_TOOL_NAMES)
+        # Telegram without a selected transaction: allow search/select only.
+        if is_telegram and not has_tx:
+            names -= (TX_READ_TOOL_NAMES - {
+                'search_transactions', 'select_transaction_context',
+            })
+            names -= TX_WRITE_TOOL_NAMES
+        elif has_tx or ctx.surface == 'bob_chat':
+            names.update(TX_WRITE_TOOL_NAMES)
+
+    return tuple(t for t in TOOLS if t.name in names)
+
+
+def openai_tool_schemas(ctx: BobContext | None = None) -> list[dict]:
+    """The ``tools=`` payload for the model (nested Completions shape)."""
+    selected = select_tools(ctx)
     return [
         {
             'type': 'function',
@@ -825,7 +1124,7 @@ def openai_tool_schemas() -> list[dict]:
                 'parameters': tool.parameters,
             },
         }
-        for tool in TOOLS
+        for tool in selected
     ]
 
 
@@ -953,6 +1252,11 @@ def confirm_action(action_id: int, ctx: BobContext) -> ToolResult:
     if isinstance(action, ToolResult):
         return action
 
+    stale = _stale_record_version_failure(action)
+    if stale is not None:
+        _mark_action(action, BobAction.STATUS_EXPIRED, error=stale.error)
+        return stale
+
     tool = TOOLS_BY_NAME.get(action.tool_name)
     if tool is None:
         return ToolResult.failure('That action refers to a tool that no longer exists.')
@@ -978,6 +1282,8 @@ def confirm_action(action_id: int, ctx: BobContext) -> ToolResult:
 
     action.status = BobAction.STATUS_EXECUTED
     action.executed_at = datetime.utcnow()
+    action.approved_at = datetime.utcnow()
+    action.approving_user_id = ctx.user_id
     action.summary = result.summary[:300]
     action.result = _undo_payload(result)
     db.session.commit()
@@ -998,6 +1304,8 @@ def reject_action(action_id: int, ctx: BobContext) -> ToolResult:
     if isinstance(action, ToolResult):
         return action
 
+    action.rejecting_user_id = ctx.user_id
+    action.rejected_at = datetime.utcnow()
     _mark_action(action, BobAction.STATUS_REJECTED)
     return ToolResult.success(
         summary='Cancelled, nothing was changed',
@@ -1065,6 +1373,8 @@ def _load_pending(action_id: int, ctx: BobContext):
 
 def _create_pending_action(tool: Tool, args: dict, preview: dict,
                           ctx: BobContext, *, conversation_id) -> BobAction:
+    record_version = _capture_record_version(tool.name, args, ctx)
+    preview_digest = _preview_digest(preview)
     action = BobAction(
         organization_id=ctx.organization_id,
         user_id=ctx.user_id,
@@ -1072,14 +1382,139 @@ def _create_pending_action(tool: Tool, args: dict, preview: dict,
         tool_name=tool.name,
         arguments=args,
         preview=preview,
+        preview_digest=preview_digest,
+        record_version=record_version,
         status=BobAction.STATUS_PENDING,
         summary=_pending_summary(tool, preview)[:300],
         surface=ctx.surface,
+        transaction_id=(
+            args.get('transaction_id')
+            or getattr(ctx, 'selected_transaction_id', None)
+        ),
         expires_at=datetime.utcnow() + timedelta(minutes=CONFIRMATION_TTL_MINUTES),
     )
     db.session.add(action)
     db.session.commit()
     return action
+
+
+def _preview_digest(preview: dict | None) -> str | None:
+    if not preview:
+        return None
+    raw = json.dumps(preview, sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest()[:32]
+
+
+def _capture_record_version(tool_name: str, args: dict, ctx: BobContext) -> dict | None:
+    """Snapshot mutable target versions so confirm can reject stale approvals."""
+    from models import Contact, Task, Transaction
+
+    versions = {}
+    contact_id = args.get('contact_id')
+    if contact_id:
+        contact = Contact.query.filter_by(
+            id=contact_id, organization_id=ctx.organization_id,
+        ).first()
+        if contact is not None:
+            versions['contact'] = {
+                'id': contact.id,
+                'updated_at': (
+                    contact.updated_at.isoformat()
+                    if getattr(contact, 'updated_at', None) else None
+                ),
+            }
+    task_id = args.get('task_id') or args.get('id')
+    if task_id and (
+        'task' in tool_name or tool_name.startswith('complete_')
+        or tool_name.startswith('update_')
+    ):
+        task = Task.query.filter_by(
+            id=task_id, organization_id=ctx.organization_id,
+        ).first()
+        if task is not None:
+            versions['task'] = {
+                'id': task.id,
+                'status': task.status,
+                'due_date': (
+                    task.due_date.isoformat() if task.due_date else None
+                ),
+                'subject': task.subject,
+            }
+    tx_id = args.get('transaction_id')
+    if tx_id:
+        tx = Transaction.query.filter_by(
+            id=tx_id, organization_id=ctx.organization_id,
+        ).first()
+        if tx is not None:
+            versions['transaction'] = {
+                'id': tx.id,
+                'updated_at': (
+                    tx.updated_at.isoformat()
+                    if getattr(tx, 'updated_at', None) else None
+                ),
+                'status': getattr(tx, 'status', None),
+            }
+    return versions or None
+
+
+def _stale_record_version_failure(action: BobAction) -> ToolResult | None:
+    """Reject confirm when the underlying record changed after preview."""
+    snapshot = action.record_version
+    if not isinstance(snapshot, dict) or not snapshot:
+        return None
+
+    from models import Contact, Task, Transaction
+
+    def _iso(value):
+        return value.isoformat() if value is not None else None
+
+    if 'contact' in snapshot:
+        snap = snapshot['contact']
+        contact = Contact.query.filter_by(
+            id=snap.get('id'), organization_id=action.organization_id,
+        ).first()
+        # Missing target is handled by the tool handler (permission re-check).
+        if contact is not None and _iso(getattr(contact, 'updated_at', None)) != snap.get('updated_at'):
+            return ToolResult.failure(
+                'That confirmation is stale — the contact changed since the '
+                'preview. Ask B.O.B. again if you still want the change.'
+            )
+
+    if 'task' in snapshot:
+        snap = snapshot['task']
+        task = Task.query.filter_by(
+            id=snap.get('id'), organization_id=action.organization_id,
+        ).first()
+        if task is not None:
+            current = {
+                'status': task.status,
+                'due_date': task.due_date.isoformat() if task.due_date else None,
+                'subject': task.subject,
+            }
+            if (
+                current['status'] != snap.get('status')
+                or current['due_date'] != snap.get('due_date')
+                or current['subject'] != snap.get('subject')
+            ):
+                return ToolResult.failure(
+                    'That confirmation is stale — the task changed since the '
+                    'preview. Ask B.O.B. again if you still want the change.'
+                )
+
+    if 'transaction' in snapshot:
+        snap = snapshot['transaction']
+        tx = Transaction.query.filter_by(
+            id=snap.get('id'), organization_id=action.organization_id,
+        ).first()
+        if tx is not None and (
+            _iso(getattr(tx, 'updated_at', None)) != snap.get('updated_at')
+            or getattr(tx, 'status', None) != snap.get('status')
+        ):
+            return ToolResult.failure(
+                'That confirmation is stale — the transaction changed since the '
+                'preview. Ask B.O.B. again if you still want the change.'
+            )
+    return None
 
 
 def _record_executed_action(tool: Tool, args: dict, result: ToolResult,

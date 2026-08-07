@@ -1,12 +1,12 @@
 """Seller offer routes."""
 
+import logging
 from datetime import datetime
 
-from flask import abort, jsonify, request
+from flask import abort, jsonify, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from models import (
-    SellerAcceptedContract,
     SellerOffer,
     SellerOfferDocument,
     SellerOfferVersion,
@@ -14,11 +14,24 @@ from models import (
     Transaction,
     db,
 )
+from services.controlling_contracts import (
+    ControllingContractConflict,
+    ControllingContractSeedError,
+    create_baseline_from_accepted_offer,
+)
+from services.offer_package_review import (
+    build_offer_package_review,
+    confirm_offer_package,
+    offer_package_review_url,
+)
+from services.offer_side import (
+    opening_direction_for_side,
+    side_for_transaction,
+    supports_offers,
+)
 from services.seller_workflow import (
     apply_offer_terms,
-    create_contract_milestones,
     create_offer_activity,
-    derive_financing_approval_deadline,
     expire_offer_if_needed,
     get_offer_document_type,
     infer_offer_document_type,
@@ -26,13 +39,13 @@ from services.seller_workflow import (
     offer_urgency,
 )
 from services.intake_service import post_upload_processing
+from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
 
+logger = logging.getLogger(__name__)
 
-def _as_dict(value):
-    """Return JSON object values only; extracted document fields may be free-form strings."""
-    return value if isinstance(value, dict) else {}
+_OFFERS_UNSUPPORTED_ERROR = 'Offers are only available for buyer and seller transactions'
 
 
 def _can_manage_transaction(transaction):
@@ -43,14 +56,15 @@ def _can_manage_transaction(transaction):
     )
 
 
-def _get_seller_transaction(id):
+def _get_offer_transaction(id):
+    """Load an org-scoped transaction that supports offer threads (buyer or seller)."""
     transaction = Transaction.query.filter_by(
         id=id,
         organization_id=current_user.organization_id,
     ).first_or_404()
     if not _can_manage_transaction(transaction):
         abort(403)
-    if transaction.transaction_type and transaction.transaction_type.name != 'seller':
+    if not supports_offers(transaction):
         return None
     return transaction
 
@@ -73,15 +87,6 @@ def _parse_datetime(value):
 def _parse_date(value):
     parsed = _parse_datetime(value)
     return parsed.date() if parsed else None
-
-
-def _parse_int(value):
-    if value in (None, ''):
-        return None
-    try:
-        return int(str(value).strip())
-    except (TypeError, ValueError):
-        return None
 
 
 def _merge_extraction_status(current_status, candidate_status):
@@ -173,52 +178,14 @@ def _offer_payload(offer):
     }
 
 
-def _merged_acceptance_terms(offer, version):
-    """Build a complete terms snapshot for an accepted contract."""
-    terms = dict(version.terms_data or {}) if version and isinstance(version.terms_data, dict) else {}
-    offer_terms = dict(offer.terms_summary or {}) if isinstance(offer.terms_summary, dict) else {}
-
-    for key, value in offer_terms.items():
-        if key in ('supporting_documents', 'addenda'):
-            continue
-        if value is not None and key not in terms:
-            terms[key] = value
-
-    supporting = dict(_as_dict(offer_terms.get('supporting_documents')))
-    supporting.update(_as_dict(terms.get('supporting_documents')))
-    if supporting:
-        terms['supporting_documents'] = supporting
-
-    addenda = dict(_as_dict(offer_terms.get('addenda')))
-    addenda.update(_as_dict(terms.get('addenda')))
-    if addenda:
-        terms['addenda'] = addenda
-
-    return terms
-
-
-def _contract_extra_data_from_offer(offer, terms):
-    supporting = _as_dict(terms.get('supporting_documents'))
-    return {
-        'source_offer_id': offer.id,
-        'source_offer_status': offer.status,
-        'buyer_names': offer.buyer_names,
-        'buyer_agent_name': offer.buyer_agent_name,
-        'buyer_agent_email': offer.buyer_agent_email,
-        'buyer_agent_phone': offer.buyer_agent_phone,
-        'buyer_agent_brokerage': offer.buyer_agent_brokerage,
-        'supporting_documents': supporting,
-    }
-
-
 @transactions_bp.route('/<int:id>/offers', methods=['GET'])
 @login_required
 @transactions_required
 def list_seller_offers(id):
-    """Return seller offers sorted by deadline urgency."""
-    transaction = _get_seller_transaction(id)
+    """Return offer threads sorted by deadline urgency."""
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
 
     offers = transaction.seller_offers.order_by(SellerOffer.received_at.desc()).all()
     offers.sort(key=lambda offer: (offer_urgency(offer)['rank'], offer.response_deadline_at or datetime.max))
@@ -230,13 +197,15 @@ def list_seller_offers(id):
 @transactions_required
 def create_seller_offer(id):
     """Create a manual/verbal offer thread and first version."""
-    transaction = _get_seller_transaction(id)
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
 
     data = request.get_json(silent=True) or request.form
     terms = _normalize_terms(data)
     response_deadline_at = _parse_datetime(data.get('response_deadline_at')) or terms.get('response_deadline_at')
+    side = side_for_transaction(transaction)
+    opening_direction = opening_direction_for_side(side)
 
     offer = SellerOffer(
         organization_id=current_user.organization_id,
@@ -262,7 +231,7 @@ def create_seller_offer(id):
         offer=offer,
         created_by_id=current_user.id,
         version_number=1,
-        direction='buyer_offer',
+        direction=opening_direction,
         status='reviewed' if data.get('reviewed') else 'draft',
         submitted_at=offer.received_at,
         terms_data=terms,
@@ -293,10 +262,10 @@ def create_seller_offer(id):
 @login_required
 @transactions_required
 def upload_seller_offer_document(id):
-    """Upload an offer PDF, creating or attaching to a seller offer thread."""
-    transaction = _get_seller_transaction(id)
+    """Upload an offer PDF, creating or attaching to an offer thread."""
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
 
     files = request.files.getlist('files') or request.files.getlist('file')
     files = [file for file in files if file and file.filename]
@@ -308,6 +277,8 @@ def upload_seller_offer_document(id):
         or request.form.getlist('document_types[]')
         or request.form.getlist('direction')
     )
+    side = side_for_transaction(transaction)
+    default_direction = opening_direction_for_side(side)
 
     try:
         from services.supabase_storage import upload_external_document as upload_storage
@@ -394,7 +365,7 @@ def upload_seller_offer_document(id):
                     created_by_id=current_user.id,
                     transaction_document_id=doc.id,
                     version_number=next_version,
-                    direction=doc_config['direction'] or 'buyer_offer',
+                    direction=doc_config['direction'] or default_direction,
                     status='submitted',
                     submitted_at=datetime.utcnow(),
                     terms_data={},
@@ -466,6 +437,7 @@ def upload_seller_offer_document(id):
             'success': True,
             'message': f'{len(documents_payload)} offer document{"s" if len(documents_payload) != 1 else ""} uploaded. Extraction has started.',
             'offer_id': offer.id,
+            'offer_review_url': offer_package_review_url(transaction.id, offer.id),
             'version_id': first.get('version_id'),
             'document_id': first.get('document_id'),
             'documents': documents_payload,
@@ -475,14 +447,100 @@ def upload_seller_offer_document(id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@transactions_bp.route('/<int:id>/offers/<int:offer_id>/review', methods=['GET'])
+@login_required
+@transactions_required
+def offer_package_review(id, offer_id):
+    """One-page package review: terms + docs + findings, no per-doc filing."""
+    tx, decision = get_transaction_for_user(id, capability=CAP_VIEW)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    if not supports_offers(tx):
+        abort(404)
+
+    offer = SellerOffer.query.filter_by(
+        id=offer_id,
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    ).first_or_404()
+
+    payload = build_offer_package_review(transaction=tx, offer=offer)
+    return render_template(
+        'transactions/offer_package_review.html',
+        transaction=tx,
+        offer=offer,
+        review=payload,
+    )
+
+
+@transactions_bp.route('/<int:id>/offers/<int:offer_id>/review/live', methods=['GET'])
+@login_required
+@transactions_required
+def offer_package_review_live(id, offer_id):
+    """JSON poll while BOB finishes extracting linked package docs."""
+    tx, decision = get_transaction_for_user(id, capability=CAP_VIEW)
+    if not tx:
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+    offer = SellerOffer.query.filter_by(
+        id=offer_id,
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    ).first_or_404()
+    return jsonify({
+        'success': True,
+        'review': build_offer_package_review(transaction=tx, offer=offer),
+    })
+
+
+@transactions_bp.route('/<int:id>/offers/<int:offer_id>/review/confirm', methods=['POST'])
+@login_required
+@transactions_required
+def confirm_offer_package_review(id, offer_id):
+    """Confirm (or draft-save) the whole offer package in one shot."""
+    tx, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not tx:
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+    if not supports_offers(tx):
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
+
+    offer = SellerOffer.query.filter_by(
+        id=offer_id,
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    ).first_or_404()
+
+    data = request.get_json(silent=True) or request.form or {}
+    draft = str(data.get('draft') or '').lower() in ('1', 'true', 'yes')
+    try:
+        confirm_offer_package(
+            offer=offer,
+            actor_id=current_user.id,
+            terms_dict=dict(data),
+            draft=draft,
+        )
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'draft': draft,
+            'offer_id': offer.id,
+            'status': offer.status,
+            'redirect_url': url_for('transactions.view_transaction', id=tx.id) + '#offers',
+            'review': build_offer_package_review(transaction=tx, offer=offer),
+        })
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception('confirm_offer_package failed offer=%s', offer_id)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
 @transactions_bp.route('/<int:id>/offers/<int:offer_id>', methods=['POST', 'PATCH'])
 @login_required
 @transactions_required
 def update_seller_offer(id, offer_id):
     """Update offer summary fields and the current editable terms."""
-    transaction = _get_seller_transaction(id)
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
 
     offer = SellerOffer.query.filter_by(
         id=offer_id,
@@ -492,6 +550,8 @@ def update_seller_offer(id, offer_id):
 
     data = request.get_json(silent=True) or request.form
     terms = _normalize_terms(data)
+    side = side_for_transaction(transaction)
+    opening_direction = opening_direction_for_side(side)
 
     editable_fields = (
         'buyer_names',
@@ -550,7 +610,7 @@ def update_seller_offer(id, offer_id):
                 offer_id=offer.id,
                 created_by_id=current_user.id,
                 version_number=offer.versions.count() + 1,
-                direction='buyer_offer',
+                direction=opening_direction,
                 status='reviewed',
                 submitted_at=offer.received_at,
                 terms_data=merged_terms,
@@ -581,9 +641,9 @@ def update_seller_offer(id, offer_id):
 @transactions_required
 def expire_seller_offer(id, offer_id):
     """Expire an offer if the response deadline has passed."""
-    transaction = _get_seller_transaction(id)
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
 
     offer = SellerOffer.query.filter_by(
         id=offer_id,
@@ -604,10 +664,20 @@ def expire_seller_offer(id, offer_id):
 @login_required
 @transactions_required
 def accept_seller_offer(id, offer_id):
-    """Accept an offer as primary or backup."""
-    transaction = _get_seller_transaction(id)
+    """Accept an offer as primary or backup.
+
+    Seller-only: activates a controlling baseline via the side-neutral
+    controlling-contract service. Buyer acceptance into a contract record is a
+    separate workflow and is not supported here.
+    """
+    transaction = _get_offer_transaction(id)
     if transaction is None:
-        return jsonify({'success': False, 'error': 'Offers are only available for seller transactions'}), 400
+        return jsonify({'success': False, 'error': _OFFERS_UNSUPPORTED_ERROR}), 400
+    if side_for_transaction(transaction) != 'seller':
+        return jsonify({
+            'success': False,
+            'error': 'Accepting an offer as a contract is only available for seller transactions',
+        }), 400
 
     offer = SellerOffer.query.filter_by(
         id=offer_id,
@@ -618,16 +688,6 @@ def accept_seller_offer(id, offer_id):
     position = data.get('position') or 'primary'
     if position not in ('primary', 'backup'):
         return jsonify({'success': False, 'error': 'Invalid acceptance position'}), 400
-
-    if position == 'backup':
-        active_primary = SellerAcceptedContract.query.filter_by(
-            transaction_id=transaction.id,
-            organization_id=current_user.organization_id,
-            position='primary',
-            status='active',
-        ).first()
-        if not active_primary:
-            return jsonify({'success': False, 'error': 'Accept a primary contract before accepting a backup'}), 400
 
     pending_extractions = _pending_offer_extraction_documents(offer)
     if pending_extractions:
@@ -644,79 +704,22 @@ def accept_seller_offer(id, offer_id):
             offer_id=offer.id,
             organization_id=current_user.organization_id,
         ).first()
-    terms = _merged_acceptance_terms(offer, version)
-    addenda = _as_dict(terms.get('addenda'))
-    supporting_documents = _as_dict(terms.get('supporting_documents'))
-    financing_addendum = _as_dict(addenda.get('third_party_financing_addendum'))
-    seller_disclosure = _as_dict(supporting_documents.get('sellers_disclosure'))
-    hoa_addendum = _as_dict(addenda.get('hoa_addendum'))
-    seller_disclosure_delivered = (
-        seller_disclosure.get('buyer_received_date')
-        or seller_disclosure.get('seller_signed_date')
-    )
-    manual_effective_date = _parse_date(data.get('effective_date'))
-    financing_deadline = derive_financing_approval_deadline(terms, manual_effective_date)
-
-    accepted_contract = SellerAcceptedContract(
-        organization_id=current_user.organization_id,
-        transaction_id=transaction.id,
-        offer_id=offer.id,
-        accepted_version_id=version.id if version else None,
-        created_by_id=current_user.id,
-        position=position,
-        backup_position=data.get('backup_position') if position == 'backup' else None,
-        backup_addendum_document_id=data.get('backup_addendum_document_id') or None,
-        accepted_price=offer.offer_price or terms.get('offer_price') or terms.get('sales_price'),
-        effective_date=manual_effective_date,
-        effective_at=_parse_datetime(data.get('effective_at')),
-        closing_date=offer.proposed_close_date or _parse_date(terms.get('proposed_close_date') or terms.get('closing_date')),
-        option_period_days=offer.option_period_days or _parse_int(terms.get('option_period_days')),
-        financing_approval_deadline=_parse_date(financing_deadline),
-        financing_type=offer.financing_type or terms.get('financing_type'),
-        cash_down_payment=offer.cash_down_payment or terms.get('cash_down_payment'),
-        financing_amount=offer.financing_amount or terms.get('financing_amount') or financing_addendum.get('total_financing_amount'),
-        seller_concessions_amount=offer.seller_concessions_amount or terms.get('seller_concessions_amount'),
-        title_company=terms.get('title_company'),
-        escrow_officer=terms.get('escrow_officer'),
-        survey_choice=terms.get('survey_choice'),
-        survey_furnished_by=offer.survey_furnished_by or terms.get('survey_furnished_by'),
-        residential_service_contract=offer.residential_service_contract or terms.get('residential_service_contract'),
-        buyer_agent_commission_percent=offer.buyer_agent_commission_percent or terms.get('buyer_agent_commission_percent'),
-        buyer_agent_commission_flat=offer.buyer_agent_commission_flat or terms.get('buyer_agent_commission_flat'),
-        hoa_applicable=terms.get('hoa_applicable') if terms.get('hoa_applicable') is not None else bool(hoa_addendum),
-        seller_disclosure_required=terms.get('seller_disclosure_required') if terms.get('seller_disclosure_required') is not None else bool(seller_disclosure),
-        seller_disclosure_delivered_at=_parse_datetime(seller_disclosure_delivered),
-        lead_based_paint_required=terms.get('lead_based_paint_required') if terms.get('lead_based_paint_required') is not None else seller_disclosure.get('built_before_1978'),
-        frozen_terms=terms,
-        addenda_data=terms.get('addenda') or {},
-        extra_data=_contract_extra_data_from_offer(offer, terms),
-    )
 
     try:
-        db.session.add(accepted_contract)
-        db.session.flush()
-
-        if position == 'primary':
-            offer.status = 'accepted_primary'
-            transaction.status = 'under_contract'
-            create_contract_milestones(accepted_contract)
-            event_type = 'accepted_primary'
-            label = 'Offer accepted as primary contract'
-        else:
-            offer.status = 'accepted_backup'
-            offer.backup_position = accepted_contract.backup_position
-            offer.backup_addendum_document_id = accepted_contract.backup_addendum_document_id
-            event_type = 'accepted_backup'
-            label = 'Offer accepted as backup contract'
-
-        offer.accepted_version_id = version.id if version else None
-        create_offer_activity(
-            offer,
-            event_type,
-            label,
+        accepted_contract = create_baseline_from_accepted_offer(
+            transaction=transaction,
+            offer=offer,
             actor_id=current_user.id,
-            version_id=version.id if version else None,
-            event_data={'accepted_contract_id': accepted_contract.id, 'position': position},
+            position=position,
+            version=version,
+            effective_date=_parse_date(data.get('effective_date')),
+            effective_at=_parse_datetime(data.get('effective_at')),
+            backup_position=data.get('backup_position') if position == 'backup' else None,
+            backup_addendum_document_id=(
+                data.get('backup_addendum_document_id') or None
+                if position == 'backup'
+                else None
+            ),
         )
         db.session.commit()
         return jsonify({
@@ -724,6 +727,31 @@ def accept_seller_offer(id, offer_id):
             'offer': _offer_payload(offer),
             'accepted_contract_id': accepted_contract.id,
         })
-    except Exception as e:
+    except ControllingContractConflict as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'code': e.code,
+            'existing_contract_id': e.existing_contract_id,
+        }), e.status
+    except ControllingContractSeedError as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'code': e.code,
+        }), 500
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception(
+            'Failed to accept offer %s on transaction %s',
+            offer_id, id,
+        )
+        return jsonify({
+            'success': False,
+            'error': 'Could not accept this offer. Try again or contact support.',
+        }), 500

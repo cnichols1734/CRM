@@ -30,6 +30,9 @@ TIER_FEATURES = {
         # Telegram is a POC channel — off by default, enable per-org via
         # Organization.feature_flags JSON override.
         'BOB_TELEGRAM': False,
+        'BOB_VTC_PILOT': False,
+        'BOB_VTC_PRIVACY_CONTROLS': False,
+        'BOB_VTC_NARROW_AUTONOMY': False,
         'TRANSACTIONS': False,
         'DOCUMENT_GENERATION': False,
         'MARKET_INSIGHTS': True,
@@ -47,6 +50,9 @@ TIER_FEATURES = {
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
         'BOB_TELEGRAM': False,
+        'BOB_VTC_PILOT': False,
+        'BOB_VTC_PRIVACY_CONTROLS': False,
+        'BOB_VTC_NARROW_AUTONOMY': False,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
@@ -64,6 +70,9 @@ TIER_FEATURES = {
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
         'BOB_TELEGRAM': False,
+        'BOB_VTC_PILOT': False,
+        'BOB_VTC_PRIVACY_CONTROLS': False,
+        'BOB_VTC_NARROW_AUTONOMY': False,
         'TRANSACTIONS': True,
         'DOCUMENT_GENERATION': True,
         'MARKET_INSIGHTS': True,
@@ -77,6 +86,9 @@ TIER_FEATURES = {
 # to any user while leaving their normal tier configuration intact for later.
 GLOBAL_FEATURE_OVERRIDES = {
     'MARKET_INSIGHTS': False,
+    # Hard freeze: no TXR generation / DocuSeal send until product re-enable.
+    # Placeholder upload/fulfill of external signed PDFs remains available.
+    'DOCUMENT_GENERATION': False,
 }
 
 # Legacy global flags for backwards compatibility during migration
@@ -139,6 +151,9 @@ FEATURE_LABELS = {
     'AI_ACTION_PLAN': 'B.O.B. action plans',
     'AI_TASK_SUGGESTIONS': 'B.O.B. task suggestions',
     'BOB_TELEGRAM': 'B.O.B. on Telegram',
+    'BOB_VTC_PILOT': 'B.O.B. virtual TC pilot',
+    'BOB_VTC_PRIVACY_CONTROLS': 'B.O.B. VTC privacy controls',
+    'BOB_VTC_NARROW_AUTONOMY': 'B.O.B. VTC narrow autonomy',
     'TRANSACTIONS': 'Transactions',
     'DOCUMENT_GENERATION': 'Document generation',
     'MARKET_INSIGHTS': 'Market insights',

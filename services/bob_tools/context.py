@@ -38,6 +38,15 @@ class AttachmentTurnContext:
 
 
 @dataclass(frozen=True)
+class PageEntityContext:
+    """Server-hydrated page entity. Never trust client-supplied field blobs."""
+
+    entity_type: str
+    entity_id: int
+    summary: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class BobContext:
     """Who B.O.B. is acting as, and where the request came from."""
 
@@ -48,11 +57,15 @@ class BobContext:
     org_role: str = 'agent'
     is_org_admin: bool = False
     attachment: AttachmentTurnContext | None = None
+    page_entity: PageEntityContext | None = None
+    selected_transaction_id: int | None = None
 
     @classmethod
     def from_user(cls, user, *, surface: str = 'bob_chat',
                   timezone: str = DEFAULT_TIMEZONE,
-                  attachment: AttachmentTurnContext | None = None) -> 'BobContext':
+                  attachment: AttachmentTurnContext | None = None,
+                  page_entity: PageEntityContext | None = None,
+                  selected_transaction_id: int | None = None) -> 'BobContext':
         """Build a context from an authenticated user.
 
         Raises rather than defaulting, because a tool layer that silently falls
@@ -73,6 +86,8 @@ class BobContext:
             org_role=org_role,
             is_org_admin=org_role in ADMIN_ORG_ROLES,
             attachment=attachment,
+            page_entity=page_entity,
+            selected_transaction_id=selected_transaction_id,
         )
 
     def with_attachment(self, attachment: AttachmentTurnContext | None) -> 'BobContext':
@@ -84,7 +99,30 @@ class BobContext:
             org_role=self.org_role,
             is_org_admin=self.is_org_admin,
             attachment=attachment,
+            page_entity=self.page_entity,
+            selected_transaction_id=self.selected_transaction_id,
         )
+
+    def with_page_entity(self, page_entity: PageEntityContext | None) -> 'BobContext':
+        return BobContext(
+            user_id=self.user_id,
+            organization_id=self.organization_id,
+            timezone=self.timezone,
+            surface=self.surface,
+            org_role=self.org_role,
+            is_org_admin=self.is_org_admin,
+            attachment=self.attachment,
+            page_entity=page_entity,
+            selected_transaction_id=self.selected_transaction_id,
+        )
+
+    @property
+    def active_transaction_id(self) -> int | None:
+        if self.selected_transaction_id:
+            return self.selected_transaction_id
+        if self.page_entity and self.page_entity.entity_type == 'transaction':
+            return self.page_entity.entity_id
+        return None
 
     @property
     def tzinfo(self):

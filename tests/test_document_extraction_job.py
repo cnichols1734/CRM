@@ -23,7 +23,8 @@ class TestPostUploadEnqueue:
             'file': (io.BytesIO(pdf_bytes), 'listing.pdf'),
         }
 
-        with patch('redis.Redis.from_url', side_effect=ConnectionError("Redis unavailable")), \
+        with patch('threading.Thread.start'), \
+             patch('redis.Redis.from_url', side_effect=ConnectionError("Redis unavailable")), \
              patch('services.supabase_storage.get_supabase_client') as mock_sb:
             mock_client = MagicMock()
             mock_client.storage.from_.return_value.upload.return_value = None
@@ -76,6 +77,51 @@ class TestPostUploadEnqueue:
         mock_queue_instance.enqueue.assert_called_once()
         call_kwargs = mock_queue_instance.enqueue.call_args
         assert call_kwargs.kwargs['doc_id'] == seed['doc_a']
+
+    def test_unknown_placeholder_slug_also_enqueues_universal_review(
+        self, app, db, owner_a_client, seed,
+    ):
+        from config import Config
+        from models import TransactionDocument
+
+        with app.app_context():
+            doc = TransactionDocument(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                template_slug='custom-survey-and-title-packet',
+                template_name='Survey and title packet',
+                status='pending',
+                is_placeholder=True,
+                document_source='placeholder',
+            )
+            db.session.add(doc)
+            db.session.commit()
+            doc_id = doc.id
+
+        mock_queue = MagicMock()
+        try:
+            with patch.object(Config, 'SQLALCHEMY_DATABASE_URI', 'postgresql://test/db'), \
+                 patch.object(Config, 'FLASK_ENV', 'production'), \
+                 patch.object(Config, 'REDIS_URL', 'redis://test:6379/0'), \
+                 patch('rq.Queue', return_value=mock_queue), \
+                 patch('redis.Redis.from_url', return_value=MagicMock()), \
+                 patch('services.supabase_storage.get_supabase_client') as mock_sb:
+                client = MagicMock()
+                client.storage.from_.return_value.upload.return_value = None
+                mock_sb.return_value = client
+                response = owner_a_client.post(
+                    f'/transactions/{seed["tx_a"]}/documents/{doc_id}/fulfill',
+                    data={'file': (io.BytesIO(b'%PDF-1.4 custom'), 'packet.pdf')},
+                    content_type='multipart/form-data',
+                )
+
+            assert response.status_code == 200
+            mock_queue.enqueue.assert_called_once()
+            assert mock_queue.enqueue.call_args.kwargs['doc_id'] == doc_id
+        finally:
+            with app.app_context():
+                TransactionDocument.query.filter_by(id=doc_id).delete()
+                db.session.commit()
 
 
 class TestExtractDocumentJob:

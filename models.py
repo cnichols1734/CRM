@@ -238,7 +238,11 @@ class User(UserMixin, db.Model):
     
     # User preferences
     task_window_days = db.Column(db.Integer, nullable=False, default=30)  # Days for upcoming tasks view (7, 30, 60, or 90)
-    
+    # Optional notification prefs, e.g.:
+    # {"quiet_hours": {"start": "22:00", "end": "08:00"},
+    #  "cadence": {"enabled_windows": ["t7","t3","t1","due_today","overdue"]}}
+    notification_prefs = db.Column(db.JSON, nullable=True)
+
     # Onboarding flags
     has_seen_contacts_onboarding = db.Column(db.Boolean, default=False)
     has_seen_dashboard_onboarding = db.Column(db.Boolean, default=False)
@@ -574,7 +578,7 @@ class Task(db.Model):
     organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id',
                                 ondelete='RESTRICT'), nullable=True, index=True)  # Made NOT NULL after migration
     
-    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=False)
+    contact_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='SET NULL'), nullable=True, index=True)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
@@ -621,6 +625,11 @@ class Task(db.Model):
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_tasks')
     task_type = db.relationship('TaskType')
     task_subtype = db.relationship('TaskSubtype')
+
+    # At least one of contact_id or transaction_id must be set
+    __table_args__ = (
+        db.CheckConstraint('contact_id IS NOT NULL OR transaction_id IS NOT NULL', name='task_has_contact_or_transaction'),
+    )
 
 class DailyTodoList(db.Model):
     """Per-user Daily Briefing plan (one row per calendar day)."""
@@ -988,6 +997,12 @@ class Transaction(db.Model):
                                                 cascade='all, delete-orphan', lazy='dynamic')
     seller_price_changes = db.relationship('SellerListingPriceChange', backref='transaction',
                                            cascade='all, delete-orphan', lazy='dynamic')
+    seller_commission_terms = db.relationship(
+        'SellerCommissionTerms',
+        back_populates='transaction',
+        cascade='all, delete-orphan',
+        uselist=False,
+    )
     
     @property
     def full_address(self):
@@ -1164,6 +1179,57 @@ class TransactionDocument(db.Model):
     page_end = db.Column(db.Integer, nullable=True)
     split_source = db.Column(db.String(50), nullable=True)  # e.g. 'ai_packet_split'
 
+    # Phase 3 privacy and retention hooks
+    # Classes: public_ok, internal, confidential, restricted_tenant
+    sensitivity_class = db.Column(db.String(50), nullable=True)
+    retention_until = db.Column(db.DateTime, nullable=True)
+    ai_processing_allowed = db.Column(db.Boolean, default=True)
+
+    @property
+    def review_filename(self):
+        """Best human-facing filename for BOB review surfaces."""
+        if self.signed_original_filename:
+            return self.signed_original_filename
+        if self.source_file_path:
+            stored_name = self.source_file_path.rsplit('/', 1)[-1]
+            if stored_name and not re.match(
+                r'^(?:[0-9a-f]{8,}|\d+_[0-9a-f]{8,})(?:\.[a-z0-9]+)?$',
+                stored_name,
+                flags=re.IGNORECASE,
+            ):
+                return stored_name
+        return self.template_name or 'Uploaded document'
+
+    @property
+    def review_document_type(self):
+        """Detected document type, falling back to the selected upload slot."""
+        data = self.field_data if isinstance(self.field_data, dict) else {}
+        document_title = str(data.get('document_title') or '').strip()
+        if document_title:
+            return document_title
+        value = data.get('document_classification') or data.get('document_type')
+        if not value:
+            return self.template_name or self.template_slug or 'Uploaded document'
+        text = str(value).replace('_', ' ').replace('-', ' ').strip()
+        if not text:
+            return 'Uploaded document'
+        label = re.sub(r'\s+', ' ', text).title()
+        for acronym in ('HOA', 'TREC', 'IABS', 'HUD', 'FHA', 'VA', 'USDA', 'MLS', 'CDA', 'PDF'):
+            label = re.sub(
+                rf'\b{acronym.title()}\b', acronym, label, flags=re.IGNORECASE,
+            )
+        return label
+
+    @property
+    def review_form_label(self):
+        """Form identifier/revision when the extractor could read one."""
+        data = self.field_data if isinstance(self.field_data, dict) else {}
+        form_id = str(data.get('form_identifier') or '').strip()
+        revision = str(data.get('form_revision_date') or '').strip()
+        if form_id and revision:
+            return f'{form_id} · Revised {revision}'
+        return form_id or (f'Revised {revision}' if revision else None)
+
     # Relationships
     signatures = db.relationship('DocumentSignature', backref='document',
                                 cascade='all, delete-orphan', lazy='dynamic')
@@ -1295,8 +1361,12 @@ class SellerShowing(db.Model):
 
 class SellerOffer(db.Model):
     """
-    A seller-side offer thread. Versions hold uploaded/entered offer documents,
-    while this row stores normalized terms used for urgency and comparisons.
+    An offer thread attached to a transaction.
+
+    Table name is historical: the same model backs seller-side offers received
+    on a listing and buyer-side offers the agent submitted for a buyer.
+    Versions hold uploaded/entered offer documents; this row stores normalized
+    terms used for urgency and comparisons.
     """
     __tablename__ = 'seller_offers'
 
@@ -1447,7 +1517,13 @@ class SellerOfferDocument(db.Model):
 
 
 class SellerContractDocument(db.Model):
-    """A PDF that belongs to an accepted seller contract workspace."""
+    """PDF membership in a controlling-contract package.
+
+    Legacy table/class name (``seller_contract_documents`` /
+    ``SellerContractDocument``). Columns are side-neutral and are used for
+    both buyer and seller controlling baselines via
+    ``services.controlling_contracts``. Do not introduce parallel buyer tables.
+    """
     __tablename__ = 'seller_contract_documents'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1503,7 +1579,14 @@ class SellerOfferActivity(db.Model):
 
 
 class SellerAcceptedContract(db.Model):
-    """Accepted primary or backup contract tied to a seller offer."""
+    """Controlling contract baseline for a transaction.
+
+    Legacy table/class name (``seller_accepted_contracts`` /
+    ``SellerAcceptedContract``). Columns are side-neutral and serve buyer and
+    seller representation sides. ``offer_id`` may be null for buyer bootstrap
+    or direct controlling uploads. Prefer ``services.controlling_contracts`` —
+    do not rename or migrate this table for buyer parity.
+    """
     __tablename__ = 'seller_accepted_contracts'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1592,7 +1675,12 @@ class SellerContractMilestone(db.Model):
 
 
 class SellerContractAmendment(db.Model):
-    """An amendment negotiation thread under an accepted contract."""
+    """Amendment negotiation thread under a controlling contract.
+
+    Legacy table/class name (``seller_contract_amendments`` /
+    ``SellerContractAmendment``). Used for buyer and seller representation
+    sides via ``services.amendment_service``. Do not rename or migrate.
+    """
     __tablename__ = 'seller_contract_amendments'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1621,7 +1709,12 @@ class SellerContractAmendment(db.Model):
 
 
 class SellerContractAmendmentVersion(db.Model):
-    """One uploaded or manual amendment/counter-amendment version."""
+    """One uploaded or manual amendment/counter-amendment version.
+
+    Legacy table/class name. Used for buyer and seller controlling-contract
+    amendments; direction is derived from representation side in
+    ``services.amendment_service``.
+    """
     __tablename__ = 'seller_contract_amendment_versions'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -1632,7 +1725,10 @@ class SellerContractAmendmentVersion(db.Model):
     transaction_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
 
     version_number = db.Column(db.Integer, default=1, nullable=False)
-    direction = db.Column(db.String(50), nullable=False)  # buyer_amendment, seller_counter_amendment, buyer_counter_amendment, accepted_amendment
+    # Free-string directions; common values include buyer_amendment,
+    # seller_amendment, seller_counter_amendment, buyer_counter_amendment,
+    # accepted_amendment (no schema enum — side semantics live in services).
+    direction = db.Column(db.String(50), nullable=False)
     status = db.Column(db.String(50), default='draft')
     submitted_at = db.Column(db.DateTime)
     terms_data = db.Column(db.JSON, default={})
@@ -1741,7 +1837,10 @@ class SellerCommissionTerms(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    transaction = db.relationship('Transaction', backref=db.backref('seller_commission_terms', uselist=False))
+    transaction = db.relationship(
+        'Transaction',
+        back_populates='seller_commission_terms',
+    )
     created_by = db.relationship('User', foreign_keys=[created_by_id], backref='created_seller_commission_terms')
 
     def __repr__(self):
@@ -1889,6 +1988,9 @@ class AuditEvent(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
 
+    # Organization scoping (nullable for backfill, will be NOT NULL after migration)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=True, index=True)
+
     # What was affected
     transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=True)
     document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
@@ -1896,6 +1998,15 @@ class AuditEvent(db.Model):
 
     # Who performed the action (null for system/webhook events)
     actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+
+    # Link to Bob action if this audit event was triggered by Bob.
+    # use_alter avoids SQLite DROP cycles with bob_actions / change proposals.
+    bob_action_id = db.Column(
+        db.Integer,
+        db.ForeignKey('bob_actions.id', ondelete='SET NULL', use_alter=True, name='fk_audit_events_bob_action_id'),
+        nullable=True,
+        index=True,
+    )
 
     # What happened
     event_type = db.Column(db.String(50), nullable=False)
@@ -1975,7 +2086,7 @@ class AuditEvent(db.Model):
     @classmethod
     def log(cls, event_type, transaction_id=None, document_id=None, signature_id=None,
             actor_id=None, description=None, event_data=None, source='app',
-            ip_address=None, user_agent=None):
+            ip_address=None, user_agent=None, organization_id=None, bob_action_id=None):
         """
         Convenience method to create and save an audit event.
         Returns the created event.
@@ -1990,13 +2101,811 @@ class AuditEvent(db.Model):
             event_data=event_data or {},
             source=source,
             ip_address=ip_address,
-            user_agent=user_agent
+            user_agent=user_agent,
+            organization_id=organization_id,
+            bob_action_id=bob_action_id,
         )
         db.session.add(event)
         return event
 
     def __repr__(self):
         return f'<AuditEvent {self.event_type} tx={self.transaction_id} at {self.created_at}>'
+
+
+# =============================================================================
+# VIRTUAL TRANSACTION COORDINATOR (Bob VTC Foundation)
+# =============================================================================
+
+class TransactionAssignment(db.Model):
+    """
+    Links users to transactions with specific roles and capabilities.
+    Supports lead agent, transaction coordinator, and collaborator roles.
+    """
+    __tablename__ = 'transaction_assignments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Role: lead_agent, transaction_coordinator, collaborator
+    role = db.Column(db.String(50), nullable=False)
+
+    # JSON capabilities array, e.g. ['view', 'edit_documents', 'approve_proposals']
+    capabilities = db.Column(db.JSON, default=list)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    transaction = db.relationship('Transaction', backref=db.backref('assignments', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('transaction_assignments', lazy='dynamic'))
+
+    __table_args__ = (
+        db.UniqueConstraint('transaction_id', 'user_id', name='uq_transaction_assignments_transaction_user'),
+    )
+
+    def __repr__(self):
+        return f'<TransactionAssignment tx={self.transaction_id} user={self.user_id} role={self.role}>'
+
+
+class TransactionRequirement(db.Model):
+    """
+    A single actionable requirement within a transaction (e.g., 'Submit earnest money').
+    Sourced from deadline packs or SellerContractMilestone bridge.
+    """
+    __tablename__ = 'transaction_requirements'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Hierarchical key structure: package_key.phase_key.requirement_key
+    package_key = db.Column(db.String(100), nullable=False)
+    phase_key = db.Column(db.String(100), nullable=False)
+    requirement_key = db.Column(db.String(100), nullable=False, index=True)
+
+    # Template versioning for deadline rule evolution
+    template_version = db.Column(db.String(50))
+    deadline_rule_version = db.Column(db.String(50))
+
+    title = db.Column(db.String(300), nullable=False)
+
+    # Status: pending, in_progress, blocked, completed, not_applicable, superseded
+    work_status = db.Column(db.String(50), default='pending', nullable=False, index=True)
+
+    # Timing: on_time, due_soon, overdue, completed_on_time, completed_late
+    timing_state = db.Column(db.String(50))
+
+    # Risk level: none, low, medium, high
+    risk_level = db.Column(db.String(20))
+
+    # Deadline tracking
+    due_at = db.Column(db.DateTime, nullable=True, index=True)
+    due_at_superseded_at = db.Column(db.DateTime, nullable=True)
+    prior_due_at = db.Column(db.DateTime, nullable=True)
+    # Agent set this date by hand; automated recompute must not overwrite it.
+    due_at_manual_override = db.Column(db.Boolean, default=False, nullable=True)
+
+    # Assignment
+    assignee_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    responsibility_type = db.Column(db.String(50))  # agent, buyer, seller, title, lender
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id', ondelete='SET NULL'), nullable=True)
+    responsible_party_label = db.Column(db.String(200))
+
+    # Link to Task if user created one
+    task_id = db.Column(db.Integer, db.ForeignKey('task.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    # Source tracking
+    source = db.Column(db.String(50), default='deadline_pack')  # deadline_pack, milestone_bridge, manual, ai_extracted
+    source_milestone_id = db.Column(db.Integer, db.ForeignKey('seller_contract_milestones.id', ondelete='SET NULL'), nullable=True)
+
+    # Versioning for change tracking
+    version = db.Column(db.Integer, default=1, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    transaction = db.relationship('Transaction', backref=db.backref('requirements', lazy='dynamic', cascade='all, delete-orphan'))
+    assignee = db.relationship('User', foreign_keys=[assignee_user_id], backref='assigned_requirements')
+    participant = db.relationship('TransactionParticipant', backref='requirements')
+    task = db.relationship('Task', backref=db.backref('linked_requirement', uselist=False))
+    source_milestone = db.relationship('SellerContractMilestone', foreign_keys=[source_milestone_id])
+
+    __table_args__ = (
+        db.UniqueConstraint('transaction_id', 'requirement_key', name='uq_transaction_requirements_key'),
+    )
+
+    def __repr__(self):
+        return f'<TransactionRequirement {self.requirement_key} tx={self.transaction_id} status={self.work_status}>'
+
+
+class TransactionRequirementEvidence(db.Model):
+    """
+    Evidence that a requirement was completed (e.g., uploaded doc, email confirmation).
+    """
+    __tablename__ = 'transaction_requirement_evidence'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Type: document, email, screenshot, note
+    evidence_type = db.Column(db.String(50), nullable=False)
+
+    # Link to TransactionDocument if evidence is a document
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+
+    # For other evidence types
+    file_path = db.Column(db.String(500))
+    description = db.Column(db.Text)
+    evidence_metadata = db.Column(db.JSON, default=dict)
+
+    uploaded_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    requirement = db.relationship('TransactionRequirement', backref=db.backref('evidence', lazy='dynamic', cascade='all, delete-orphan'))
+    document = db.relationship('TransactionDocument')
+    uploaded_by = db.relationship('User')
+
+    def __repr__(self):
+        return f'<TransactionRequirementEvidence req={self.requirement_id} type={self.evidence_type}>'
+
+
+class TransactionRequirementEvent(db.Model):
+    """
+    Audit trail for requirement changes (status, deadline, assignment).
+    """
+    __tablename__ = 'transaction_requirement_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Event types: created, status_changed, deadline_updated, assigned, completed, superseded
+    event_type = db.Column(db.String(50), nullable=False)
+
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    actor_type = db.Column(db.String(50), default='user')  # user, system, bob
+
+    # Change details
+    old_value = db.Column(db.JSON)
+    new_value = db.Column(db.JSON)
+    description = db.Column(db.String(500))
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    requirement = db.relationship('TransactionRequirement', backref=db.backref('events', lazy='dynamic', cascade='all, delete-orphan'))
+    actor = db.relationship('User')
+
+    def __repr__(self):
+        return f'<TransactionRequirementEvent req={self.requirement_id} {self.event_type}>'
+
+
+class TransactionRequirementDependency(db.Model):
+    """
+    Dependency graph: requirement A blocks requirement B.
+    """
+    __tablename__ = 'transaction_requirement_dependencies'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+
+    # A blocks B
+    requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='CASCADE'), nullable=False, index=True)
+    blocks_requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Dependency type: hard, soft
+    dependency_type = db.Column(db.String(20), default='hard')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    requirement = db.relationship('TransactionRequirement', foreign_keys=[requirement_id], backref='blocks')
+    blocks_requirement = db.relationship('TransactionRequirement', foreign_keys=[blocks_requirement_id], backref='blocked_by')
+
+    def __repr__(self):
+        return f'<TransactionRequirementDependency {self.requirement_id} blocks {self.blocks_requirement_id}>'
+
+
+class DocumentExtractionRun(db.Model):
+    """
+    One AI extraction run over a transaction document (per plan §22).
+    """
+    __tablename__ = 'document_extraction_runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Status: queued, processing, completed, failed
+    status = db.Column(db.String(50), default='queued', nullable=False, index=True)
+
+    # Extraction type: contract_dates, amendment_terms, offer_details
+    extraction_type = db.Column(db.String(100), nullable=False)
+
+    # AI model used
+    model = db.Column(db.String(100))
+
+    # Raw LLM output
+    raw_output = db.Column(db.JSON)
+
+    # Structured extraction result
+    extracted_data = db.Column(db.JSON, default=dict)
+
+    # Confidence scores per field
+    confidence_scores = db.Column(db.JSON, default=dict)
+
+    # SHA-256 of the source file bytes when available
+    file_sha256 = db.Column(db.String(64), nullable=True, index=True)
+
+    error = db.Column(db.Text)
+
+    started_at = db.Column(db.DateTime)
+    completed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships — cascade required for SQLite (DB ON DELETE CASCADE is not reliable).
+    # No delete-orphan: this row has two required parents (tx + document).
+    transaction = db.relationship(
+        'Transaction',
+        backref=db.backref(
+            'extraction_runs', lazy='dynamic',
+            cascade='all, delete', passive_deletes=True,
+        ),
+    )
+    document = db.relationship(
+        'TransactionDocument',
+        backref=db.backref(
+            'extraction_runs', lazy='dynamic',
+            cascade='all, delete', passive_deletes=True,
+        ),
+    )
+
+    def __repr__(self):
+        return f'<DocumentExtractionRun doc={self.document_id} type={self.extraction_type} status={self.status}>'
+
+
+class ExtractedField(db.Model):
+    """
+    One extracted field from a DocumentExtractionRun.
+    """
+    __tablename__ = 'extracted_fields'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    extraction_run_id = db.Column(db.Integer, db.ForeignKey('document_extraction_runs.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    field_key = db.Column(db.String(100), nullable=False)
+    field_value = db.Column(db.Text)
+    field_type = db.Column(db.String(50))  # date, money, text, boolean
+
+    confidence = db.Column(db.Numeric(5, 2))  # 0.00 to 100.00
+
+    # Human review
+    verified = db.Column(db.Boolean, default=False)
+    verified_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    verified_at = db.Column(db.DateTime)
+
+    corrected_value = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    extraction_run = db.relationship('DocumentExtractionRun', backref=db.backref('fields', lazy='dynamic', cascade='all, delete-orphan'))
+    verified_by = db.relationship('User')
+
+    def __repr__(self):
+        return f'<ExtractedField run={self.extraction_run_id} key={self.field_key}>'
+
+
+class TransactionChangeProposal(db.Model):
+    """
+    Bob's proposed change to transaction data (e.g., update closing date from extracted contract).
+    Agent reviews before applying.
+    """
+    __tablename__ = 'transaction_change_proposals'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # What Bob proposes to change
+    change_type = db.Column(db.String(100), nullable=False)  # update_closing_date, add_milestone, update_requirement
+    target_model = db.Column(db.String(100))  # Transaction, TransactionRequirement, etc.
+    target_id = db.Column(db.Integer)
+
+    # Proposed changes as JSON patch or full object
+    proposed_changes = db.Column(db.JSON, nullable=False)
+
+    # Source of proposal
+    source_extraction_run_id = db.Column(db.Integer, db.ForeignKey('document_extraction_runs.id', ondelete='SET NULL'), nullable=True)
+    source_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+
+    rationale = db.Column(db.Text)
+
+    # Status: pending, approved, rejected, superseded
+    status = db.Column(db.String(50), default='pending', nullable=False, index=True)
+
+    reviewed_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    reviewed_at = db.Column(db.DateTime)
+    rejection_reason = db.Column(db.Text)
+
+    # Link to resulting audit event if applied
+    applied_audit_event_id = db.Column(
+        db.Integer,
+        db.ForeignKey('audit_events.id', ondelete='SET NULL', use_alter=True, name='fk_tx_change_proposals_audit_event_id'),
+        nullable=True,
+    )
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    transaction = db.relationship(
+        'Transaction',
+        backref=db.backref(
+            'change_proposals', lazy='dynamic',
+            cascade='all, delete-orphan', passive_deletes=True,
+        ),
+    )
+    source_extraction_run = db.relationship('DocumentExtractionRun', backref='proposals')
+    source_document = db.relationship('TransactionDocument')
+    reviewed_by = db.relationship('User', foreign_keys=[reviewed_by_id])
+    applied_audit_event = db.relationship('AuditEvent', foreign_keys=[applied_audit_event_id])
+
+    def __repr__(self):
+        return f'<TransactionChangeProposal tx={self.transaction_id} type={self.change_type} status={self.status}>'
+
+
+class OrgRequirementTemplate(db.Model):
+    """Org-scoped learned/custom requirement template (versioned JSON pack).
+
+    Apply path is always deterministic via RequirementsService — never AI
+    deadline calculation.
+    """
+    __tablename__ = 'org_requirement_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'),
+        nullable=False, index=True,
+    )
+    pack_key = db.Column(db.String(100), nullable=False, index=True)
+    version = db.Column(db.Integer, nullable=False, default=1)
+    name = db.Column(db.String(200), nullable=False)
+    # draft | active | archived
+    status = db.Column(db.String(50), nullable=False, default='draft', index=True)
+    template_json = db.Column(db.JSON, nullable=False, default=dict)
+    created_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            'organization_id', 'pack_key', 'version',
+            name='uq_org_requirement_templates_org_pack_version',
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f'<OrgRequirementTemplate org={self.organization_id} '
+            f'{self.pack_key} v{self.version} {self.status}>'
+        )
+
+
+class DocumentReviewReport(db.Model):
+    """BOB post-upload document review for a transaction document.
+
+    Stores operational findings only — never a legal determination.
+    Used for the notification bell, transaction banner, review inbox,
+    dismissible attention toast, and optional Telegram nudge.
+    """
+    __tablename__ = 'document_review_reports'
+
+    SEVERITY_OK = 'ok'
+    SEVERITY_ATTENTION = 'attention'
+    SEVERITY_CRITICAL = 'critical'
+
+    STATUS_OPEN = 'open'
+    STATUS_ACKNOWLEDGED = 'acknowledged'
+    STATUS_RESOLVED = 'resolved'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(
+        db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'),
+        nullable=False, index=True,
+    )
+    transaction_id = db.Column(
+        db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'),
+        nullable=True, index=True,  # Nullable for bootstrap inbox (pre-attach)
+    )
+    document_id = db.Column(
+        db.Integer, db.ForeignKey('transaction_documents.id', ondelete='CASCADE'),
+        nullable=False, index=True,
+    )
+    extraction_run_id = db.Column(
+        db.Integer, db.ForeignKey('document_extraction_runs.id', ondelete='SET NULL'),
+        nullable=True, index=True,
+    )
+
+    # ok | attention | critical — drives toast persistence + banner color
+    severity = db.Column(db.String(20), nullable=False, default=SEVERITY_OK, index=True)
+    status = db.Column(db.String(20), nullable=False, default=STATUS_OPEN, index=True)
+
+    title = db.Column(db.String(300), nullable=False)
+    summary = db.Column(db.Text, nullable=False)
+    # List of {code, severity, message, field_key?, page?, crm_value?, extracted_value?}
+    findings = db.Column(db.JSON, nullable=False, default=list)
+    field_count = db.Column(db.Integer, nullable=False, default=0)
+
+    # Toast must be explicitly dismissed when severity != ok
+    toast_required = db.Column(db.Boolean, nullable=False, default=False)
+    toast_dismissed_at = db.Column(db.DateTime, nullable=True)
+    toast_dismissed_by_id = db.Column(
+        db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True,
+    )
+
+    notification_id = db.Column(
+        db.Integer, db.ForeignKey('notifications.id', ondelete='SET NULL'),
+        nullable=True,
+    )
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False,
+    )
+
+    # No delete-orphan: transaction_id is nullable (bootstrap) and document is a second parent.
+    transaction = db.relationship(
+        'Transaction',
+        backref=db.backref(
+            'document_review_reports', lazy='dynamic',
+            cascade='all, delete', passive_deletes=True,
+        ),
+    )
+    document = db.relationship(
+        'TransactionDocument',
+        backref=db.backref(
+            'review_reports', lazy='dynamic',
+            cascade='all, delete', passive_deletes=True,
+        ),
+    )
+    extraction_run = db.relationship('DocumentExtractionRun')
+    toast_dismissed_by = db.relationship('User', foreign_keys=[toast_dismissed_by_id])
+
+    @property
+    def needs_toast(self) -> bool:
+        return bool(
+            self.toast_required
+            and self.severity != self.SEVERITY_OK
+            and self.toast_dismissed_at is None
+            and self.status == self.STATUS_OPEN
+        )
+
+    def to_dict(self):
+        document = self.document
+        return {
+            'id': self.id,
+            'transaction_id': self.transaction_id,
+            'document_id': self.document_id,
+            'severity': self.severity,
+            'status': self.status,
+            'title': self.title,
+            'summary': self.summary,
+            'findings': self.findings or [],
+            'field_count': self.field_count,
+            'toast_required': self.toast_required,
+            'needs_toast': self.needs_toast,
+            'toast_dismissed_at': (
+                self.toast_dismissed_at.isoformat() + 'Z'
+                if self.toast_dismissed_at else None
+            ),
+            'created_at': (
+                self.created_at.isoformat() + 'Z' if self.created_at else None
+            ),
+            'document_name': (
+                document.review_filename if document else 'Uploaded document'
+            ),
+            'document_type': (
+                document.review_document_type if document else 'Uploaded document'
+            ),
+            'document_form': document.review_form_label if document else None,
+            'transaction_address': (
+                self.transaction.street_address if self.transaction else None
+            ),
+        }
+
+    def __repr__(self):
+        return (
+            f'<DocumentReviewReport doc={self.document_id} '
+            f'severity={self.severity} status={self.status}>'
+        )
+
+
+class TransactionCommunication(db.Model):
+    """
+    Outbound communication ledger + outbox for transaction updates.
+
+    Status: draft | queued | sending | sent | ambiguous | failed | cancelled
+    """
+    __tablename__ = 'transaction_communications'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('transaction_participants.id', ondelete='SET NULL'), nullable=True, index=True)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='SET NULL'), nullable=True, index=True)
+
+    # Communication type: deadline_reminder, status_update, document_ready, client_update
+    communication_type = db.Column(db.String(100), nullable=False)
+
+    # Channel: email | portal | telegram_agent | note
+    channel = db.Column(db.String(50), nullable=False)
+    direction = db.Column(db.String(20), default='outbound', nullable=False)
+    purpose = db.Column(db.String(200))
+
+    subject = db.Column(db.String(300))
+    body = db.Column(db.Text, nullable=False)
+
+    recipients = db.Column(db.JSON, default=list)  # [{email|participant_id, ...}]
+    cc = db.Column(db.JSON, default=list)
+    attachment_refs = db.Column(db.JSON, default=list)
+
+    # Immutable hash of the approved payload; client-generated idempotency key
+    approved_payload_hash = db.Column(db.String(128))
+    client_idempotency_key = db.Column(db.String(200), index=True)
+
+    provider_message_id = db.Column(db.String(200))
+    provider_thread_id = db.Column(db.String(200))
+
+    # Metadata (e.g., template vars, links, override reason)
+    communication_metadata = db.Column(db.JSON, default=dict)
+
+    # Status: draft, queued, sending, sent, ambiguous, failed, cancelled
+    status = db.Column(db.String(50), default='draft', nullable=False, index=True)
+
+    next_attempt_at = db.Column(db.DateTime)
+    locked_at = db.Column(db.DateTime)
+    locked_by = db.Column(db.String(100))
+    last_error = db.Column(db.Text)
+
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    approved_at = db.Column(db.DateTime)
+
+    created_by_bob = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    transaction = db.relationship(
+        'Transaction',
+        backref=db.backref(
+            'communications', lazy='dynamic',
+            cascade='all, delete-orphan', passive_deletes=True,
+        ),
+    )
+    participant = db.relationship('TransactionParticipant', backref='communications')
+    created_by_user = db.relationship('User', foreign_keys=[created_by_user_id])
+    approved_by_user = db.relationship('User', foreign_keys=[approved_by_user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            'organization_id', 'client_idempotency_key',
+            name='uq_transaction_communications_org_idempotency',
+        ),
+    )
+
+    def __repr__(self):
+        return f'<TransactionCommunication tx={self.transaction_id} type={self.communication_type} status={self.status}>'
+
+
+class CommunicationDeliveryAttempt(db.Model):
+    """
+    Individual delivery attempts for a TransactionCommunication
+    (DeliveryAttempt in plan; renamed to avoid a generic clash).
+
+    Outcome/status: sending | sent | failed | ambiguous | bounced
+    """
+    __tablename__ = 'communication_delivery_attempts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    communication_id = db.Column(db.Integer, db.ForeignKey('transaction_communications.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    attempt_number = db.Column(db.Integer, default=1, nullable=False)
+
+    # Outcome: sending, sent, failed, ambiguous, bounced
+    status = db.Column(db.String(50), nullable=False)
+
+    # Provider response
+    provider = db.Column(db.String(50))  # gmail_draft, portal, sendgrid, telegram
+    provider_message_id = db.Column(db.String(200))
+    provider_response = db.Column(db.JSON)
+
+    error = db.Column(db.Text)
+
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    finished_at = db.Column(db.DateTime)
+    attempted_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    communication = db.relationship('TransactionCommunication', backref=db.backref('delivery_attempts', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<CommunicationDeliveryAttempt comm={self.communication_id} attempt={self.attempt_number} status={self.status}>'
+
+
+# =============================================================================
+# CONTRACT BOOTSTRAP (E1B-0)
+# =============================================================================
+
+class ContractBootstrapSession(db.Model):
+    """Contract-to-transaction bootstrap session for uploaded documents.
+
+    Tracks file upload, classification, extraction, transaction matching,
+    and field review/approval before creating or updating transactions.
+    """
+    __tablename__ = 'contract_bootstrap_sessions'
+
+    # Status constants
+    STATUS_UPLOADED = 'uploaded'
+    STATUS_PROCESSING = 'processing'
+    STATUS_AWAITING_MATCH = 'awaiting_match'
+    STATUS_AWAITING_REVIEW = 'awaiting_review'
+    STATUS_APPROVED = 'approved'
+    STATUS_APPLIED = 'applied'
+    STATUS_FAILED = 'failed'
+    STATUS_CANCELLED = 'cancelled'
+
+    # Match status constants
+    MATCH_PENDING = 'pending'
+    MATCH_AMBIGUOUS = 'ambiguous'
+    MATCH_MATCHED = 'matched'
+    MATCH_CREATE_NEW = 'create_new'
+    MATCH_MANUAL = 'manual'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+
+    # Uploader
+    uploader_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+
+    # Document reference (may be set after file stored)
+    document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'))
+
+    # File metadata
+    file_sha256 = db.Column(db.String(64), index=True)
+    original_filename = db.Column(db.String(500))
+    mime_type = db.Column(db.String(100))
+    page_count = db.Column(db.Integer, default=0)
+    upload_source = db.Column(db.String(50))  # transaction_upload | inbox | telegram
+    storage_path = db.Column(db.String(1000))
+
+    # Classification
+    classification = db.Column(db.JSON)  # {document_type, side, address, etc.}
+
+    # Extracted candidates
+    extracted_candidates = db.Column(db.JSON)  # {field_key: {value, confidence, evidence}}
+
+    # Transaction matching
+    match_status = db.Column(db.String(50), default='pending', nullable=False, index=True)
+    matched_transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='SET NULL'))
+    match_candidates = db.Column(db.JSON)  # [{transaction_id, address, score, reason}]
+
+    # Proposal and review
+    proposal_id = db.Column(db.Integer, db.ForeignKey('transaction_change_proposals.id', ondelete='SET NULL'))
+    review_report_id = db.Column(db.Integer, db.ForeignKey('document_review_reports.id', ondelete='SET NULL'))
+
+    # Lifecycle
+    status = db.Column(db.String(50), default='uploaded', nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    applied_at = db.Column(db.DateTime)
+    applied_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'))
+
+    # Relationships
+    uploader = db.relationship('User', foreign_keys=[uploader_user_id], backref='bootstrap_uploads')
+    applied_by = db.relationship('User', foreign_keys=[applied_by_id])
+    matched_transaction = db.relationship('Transaction', foreign_keys=[matched_transaction_id])
+    document = db.relationship('TransactionDocument', foreign_keys=[document_id])
+    proposal = db.relationship('TransactionChangeProposal', foreign_keys=[proposal_id])
+    review_report = db.relationship('DocumentReviewReport', foreign_keys=[review_report_id])
+
+    def __repr__(self):
+        return f'<ContractBootstrapSession {self.id} status={self.status} match={self.match_status}>'
+
+
+class NotificationEvent(db.Model):
+    """
+    Outbox pattern: events that trigger in-app or push notifications.
+    Supports deduplication and scheduling.
+    """
+    __tablename__ = 'notification_events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+
+    # Event type: requirement_due_soon, proposal_pending, document_signed
+    event_type = db.Column(db.String(100), nullable=False, index=True)
+
+    # Target user
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Event payload
+    payload = db.Column(db.JSON, default=dict)
+
+    # Priority: low, normal, high
+    priority = db.Column(db.String(20), default='normal')
+
+    # Status: pending, delivered, failed
+    status = db.Column(db.String(50), default='pending', nullable=False, index=True)
+
+    # Deduplication: prevent duplicate events (e.g., one notification per extraction run)
+    dedupe_key = db.Column(db.String(200), index=True)
+    dedupe_bucket = db.Column(db.String(100))
+
+    # Scheduling: earliest time to deliver
+    not_before = db.Column(db.DateTime)
+    snoozed_until = db.Column(db.DateTime)
+
+    # Related transaction/requirement for filtering and cancellation
+    related_transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'))
+    related_requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='CASCADE'))
+
+    # Category for grouping (e.g., 'document_review', 'deadline', 'proposal')
+    category = db.Column(db.String(50))
+
+    # Escalation level for multi-stage reminders
+    escalation_level = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    user = db.relationship('User', backref=db.backref('notification_events', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<NotificationEvent {self.event_type} user={self.user_id} status={self.status}>'
+
+
+class NotificationDelivery(db.Model):
+    """
+    Delivery record for a NotificationEvent (in-app bell, push, email digest).
+    """
+    __tablename__ = 'notification_deliveries'
+
+    id = db.Column(db.Integer, primary_key=True)
+    organization_id = db.Column(db.Integer, db.ForeignKey('organizations.id', ondelete='RESTRICT'), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('notification_events.id', ondelete='CASCADE'), nullable=False, index=True)
+
+    # Delivery method: in_app, push, email_digest
+    delivery_method = db.Column(db.String(50), nullable=False)
+
+    # Status: queued, sent, failed, read
+    status = db.Column(db.String(50), nullable=False, index=True)
+
+    # Quiet hours rescheduling
+    scheduled_for = db.Column(db.DateTime)
+
+    delivered_at = db.Column(db.DateTime)
+    read_at = db.Column(db.DateTime)
+
+    error = db.Column(db.Text)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    event = db.relationship('NotificationEvent', backref=db.backref('deliveries', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def __repr__(self):
+        return f'<NotificationDelivery event={self.event_id} method={self.delivery_method} status={self.status}>'
 
 
 # =============================================================================
@@ -2113,12 +3022,25 @@ class ChatConversation(db.Model):
     # conversation table.
     channel = db.Column(db.String(32), nullable=False, default='web',
                         server_default='web', index=True)
+    # Optional deal binding for sticky per-transaction web chats.
+    transaction_id = db.Column(
+        db.Integer,
+        db.ForeignKey('transactions.id', ondelete='SET NULL'),
+        nullable=True,
+        index=True,
+    )
+    # When set, the one-shot post-bootstrap setup briefing was already seeded.
+    setup_briefing_sent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
     
     # Relationships
     user = db.relationship('User', backref=db.backref('chat_conversations', lazy='dynamic', cascade='all, delete-orphan'))
     organization = db.relationship('Organization', backref=db.backref('chat_conversations', lazy='dynamic'))
+    transaction = db.relationship(
+        'Transaction',
+        backref=db.backref('chat_conversations', lazy='dynamic'),
+    )
     messages = db.relationship('ChatMessage', backref='conversation', lazy='dynamic', cascade='all, delete-orphan', order_by='ChatMessage.created_at')
     
     def __repr__(self):
@@ -2130,6 +3052,8 @@ class ChatConversation(db.Model):
             'id': self.id,
             'title': self.title,
             'channel': self.channel,
+            'transaction_id': self.transaction_id,
+            'setup_briefing_sent': bool(self.setup_briefing_sent_at),
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -2230,13 +3154,49 @@ class BobAction(db.Model):
                                               ondelete='SET NULL'),
                                 nullable=True, index=True)
 
+    # VTC expansion fields (Phase 1A/1B)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='SET NULL'), nullable=True, index=True)
+    model = db.Column(db.String(100), nullable=True)  # AI model used
+    response_trace_id = db.Column(db.String(100), nullable=True)  # LLM trace ID
+    preview_digest = db.Column(db.String(500), nullable=True)  # Short preview for UI
+    source_document_id = db.Column(db.Integer, db.ForeignKey('transaction_documents.id', ondelete='SET NULL'), nullable=True)
+    extraction_run_id = db.Column(db.Integer, db.ForeignKey('document_extraction_runs.id', ondelete='SET NULL'), nullable=True)
+    record_version = db.Column(db.JSON, nullable=True)  # Snapshot of record before change
+    approving_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    approved_at = db.Column(db.DateTime, nullable=True)
+    rejecting_user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    rejected_at = db.Column(db.DateTime, nullable=True)
+    provider_event_id = db.Column(db.String(200), nullable=True)  # External provider event ID
+    idempotency_key = db.Column(db.String(200), nullable=True, index=True)
+    requirement_id = db.Column(db.Integer, db.ForeignKey('transaction_requirements.id', ondelete='SET NULL'), nullable=True)
+    proposal_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            'transaction_change_proposals.id',
+            ondelete='SET NULL',
+            use_alter=True,
+            name='fk_bob_actions_proposal_id',
+        ),
+        nullable=True,
+    )
+    resulting_audit_event_ids = db.Column(db.JSON, nullable=True)  # List of AuditEvent IDs created by this action
+    tool_bundle = db.Column(db.JSON, nullable=True)  # Multi-tool action bundle
+    risk = db.Column(db.String(20), nullable=True)  # low, medium, high
+    confirmation_surface = db.Column(db.String(50), nullable=True)  # chat, bell, email
+    page_context = db.Column(db.JSON, nullable=True)  # What page/context Bob was in
+
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow,
                            index=True)
     executed_at = db.Column(db.DateTime, nullable=True)
     expires_at = db.Column(db.DateTime, nullable=True)
 
-    user = db.relationship('User', backref=db.backref('bob_actions',
-                           lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship(
+        'User',
+        foreign_keys=[user_id],
+        backref=db.backref('bob_actions', lazy='dynamic', cascade='all, delete-orphan'),
+    )
+    approving_user = db.relationship('User', foreign_keys=[approving_user_id])
+    rejecting_user = db.relationship('User', foreign_keys=[rejecting_user_id])
 
     @property
     def is_expired(self):
@@ -2305,9 +3265,19 @@ class AgentMessagingChannel(db.Model):
     proactive_daily_count = db.Column(db.Integer, nullable=False, default=0)
     proactive_daily_count_date = db.Column(db.Date, nullable=True)
 
+    # Telegram / messaging session: which transaction the agent selected
+    # after disambiguation (stable across turns until cleared or changed).
+    selected_transaction_id = db.Column(
+        db.Integer, db.ForeignKey('transactions.id', ondelete='SET NULL'),
+        nullable=True, index=True,
+    )
+
     user = db.relationship('User', backref=db.backref('messaging_channels',
                            lazy='dynamic', cascade='all, delete-orphan'))
     pending_action = db.relationship('BobAction', foreign_keys=[pending_action_id])
+    selected_transaction = db.relationship(
+        'Transaction', foreign_keys=[selected_transaction_id],
+    )
 
     __table_args__ = (
         db.UniqueConstraint('provider', 'external_id',
@@ -2778,6 +3748,7 @@ class Notification(db.Model):
         'magic_inbox': 'Magic Inbox',
         'portal': 'Client Portal',
         'bob_action': 'B.O.B. Changes',
+        'document_review': 'Document Review',
     }
 
     def mark_read(self):

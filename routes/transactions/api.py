@@ -3,19 +3,37 @@
 Transaction API endpoints (JSON responses).
 """
 
+import hashlib
 import logging
 from datetime import datetime, timedelta
-from flask import request, jsonify
+from flask import abort, request, jsonify, render_template
 from flask_login import login_required, current_user
-from models import db, Transaction, Contact, TransactionDocument, PartnerContact, PartnerOrganization
+from models import (
+    db,
+    Contact,
+    TransactionDocument,
+    PartnerContact,
+    PartnerOrganization,
+    SellerOfferDocument,
+)
 from services import audit_service
+from services.document_review import list_open_reports, pending_toasts
 from services.partners import PARTNER_TYPES, partner_search_payload, partner_type_for_role
+from services.proposal_service import ProposalService
+from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from services.transaction_helpers import build_listing_info
 from config import Config
 from . import transactions_bp
 from .decorators import transactions_required
 
 logger = logging.getLogger(__name__)
+
+
+def _require_tx(transaction_id, capability=CAP_VIEW):
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
 
 
 # =============================================================================
@@ -137,11 +155,8 @@ def search_partners():
 @transactions_required
 def get_signers(id):
     """Get list of signers for a transaction document."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'signers': [], 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_VIEW)
+
     participants = transaction.participants.all()
     signers = []
     
@@ -172,11 +187,8 @@ def get_signers(id):
 @transactions_required
 def update_status(id):
     """Update transaction status via AJAX."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     data = request.get_json()
     new_status = data.get('status')
     
@@ -224,11 +236,8 @@ def update_status(id):
 @transactions_required
 def update_lockbox_combo(id):
     """Update the lockbox combo for a seller transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     # Only allow for seller transactions
     if transaction.transaction_type.name != 'seller':
         return jsonify({'success': False, 'error': 'Lockbox combo only available for seller transactions'}), 400
@@ -258,10 +267,7 @@ def update_lockbox_combo(id):
 @transactions_required
 def update_listing_info_overrides(id):
     """Save manual listing-info overrides for a seller transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    transaction = _require_tx(id, CAP_EDIT)
 
     if transaction.transaction_type.name != 'seller':
         return jsonify({'success': False, 'error': 'Listing info edits only available for seller transactions'}), 400
@@ -327,13 +333,9 @@ def fetch_rentcast_data(id):
         - message: str (optional message for cached responses)
     """
     from services.rentcast_service import fetch_property_data
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    # Authorization check
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_EDIT)
+
     # Only allow for buyer transactions
     if transaction.transaction_type.name != 'buyer':
         return jsonify({
@@ -408,12 +410,8 @@ def get_rentcast_data(id):
     Get cached RentCast data for a transaction (if available).
     Does not trigger a new API fetch - use POST for that.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    # Authorization check
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_VIEW)
+
     if transaction.rentcast_data and transaction.rentcast_fetched_at:
         return jsonify({
             'success': True,
@@ -428,3 +426,103 @@ def get_rentcast_data(id):
             'fetched_at': None,
             'has_data': False
         })
+
+
+@transactions_bp.route('/<int:id>/live', methods=['GET'])
+@login_required
+@transactions_required
+def transaction_live(id):
+    """Unified live-status payload for the transaction detail page poller."""
+    tx, decision = get_transaction_for_user(id, capability=CAP_VIEW)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+
+    reports = list_open_reports(tx.id, current_user.organization_id)
+    proposals = ProposalService.list_pending_proposals(
+        transaction_id=tx.id,
+        organization_id=current_user.organization_id,
+    )
+    proposal_document_ids = {
+        proposal.source_document_id
+        for proposal in proposals
+        if proposal.source_document_id is not None
+    }
+    attention_count = sum(
+        1 for report in reports if report.severity in ('attention', 'critical')
+    )
+
+    doc_rows = db.session.query(
+        TransactionDocument.id,
+        TransactionDocument.extraction_status,
+        TransactionDocument.template_slug,
+    ).filter_by(transaction_id=tx.id).all()
+
+    doc_states = []
+    listing_status = None
+    pending_count = 0
+    processing_count = 0
+    for doc_id, extraction_status, template_slug in doc_rows:
+        doc_states.append((doc_id, extraction_status))
+        if template_slug == 'listing-agreement':
+            listing_status = extraction_status
+        if extraction_status == 'pending':
+            pending_count += 1
+        elif extraction_status == 'processing':
+            processing_count += 1
+
+    in_flight = any(
+        status in ('pending', 'processing') for _, status in doc_states
+    )
+
+    offers_pending = (
+        db.session.query(db.func.count(TransactionDocument.id))
+        .select_from(SellerOfferDocument)
+        .join(
+            TransactionDocument,
+            TransactionDocument.id == SellerOfferDocument.transaction_document_id,
+        )
+        .filter(
+            SellerOfferDocument.transaction_id == tx.id,
+            TransactionDocument.extraction_status.in_(('pending', 'processing')),
+        )
+        .scalar()
+    ) or 0
+
+    sorted_reports = sorted(reports, key=lambda r: r.id)
+    sorted_proposals = sorted(proposals, key=lambda p: p.id)
+    fingerprint = '|'.join([
+        ','.join(f'{r.id}:{r.status}:{r.severity}' for r in sorted_reports),
+        ','.join(str(p.id) for p in sorted_proposals),
+        ','.join(f'{d_id}:{d_status}' for d_id, d_status in sorted(doc_states)),
+    ])
+    version = hashlib.sha1(fingerprint.encode('utf-8')).hexdigest()
+
+    return jsonify({
+        'version': version,
+        'in_flight': in_flight,
+        'reviews': {
+            'reports': [r.to_dict() for r in reports],
+            'pending_toasts': [
+                r.to_dict() for r in pending_toasts(tx.id, current_user.organization_id)
+            ],
+            'report_count': len(reports),
+            'attention_count': attention_count,
+            'html': render_template(
+                'transactions/_document_review_reports.html',
+                document_review_reports=reports,
+                pending_proposal_document_ids=proposal_document_ids,
+            ),
+        },
+        'proposals': {
+            'count': len(proposals),
+            'document_ids': sorted(proposal_document_ids),
+        },
+        'extraction': {
+            'listing_status': listing_status,
+            'pending_count': pending_count,
+            'processing_count': processing_count,
+        },
+        'offers': {
+            'pending_extraction_count': int(offers_pending),
+        },
+    })

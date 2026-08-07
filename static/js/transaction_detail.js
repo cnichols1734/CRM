@@ -19,8 +19,13 @@ function getActiveSellerWorkspaceTab() {
 function restoreSellerWorkspaceTab() {
     let savedTab = sessionStorage.getItem(SELLER_WORKSPACE_TAB_KEY);
     if (savedTab === 'overview') savedTab = 'listing';
-    if (savedTab && document.getElementById(`seller-panel-${savedTab}`)) {
-        sellerWorkspaceTab(savedTab, { persist: false });
+    const workspace = document.getElementById('seller-workspace');
+    const defaultTab = (workspace && workspace.dataset.defaultSellerTab) || 'listing';
+    const tabName = (savedTab && document.getElementById(`seller-panel-${savedTab}`))
+        ? savedTab
+        : defaultTab;
+    if (document.getElementById(`seller-panel-${tabName}`)) {
+        sellerWorkspaceTab(tabName, { persist: false });
     }
 }
 
@@ -790,7 +795,8 @@ function formatSellerCurrency(value) {
 }
 
 function formatSellerDateTime(value) {
-    if (!value) return 'No response deadline';
+    // The urgency label above this line already reads "No deadline".
+    if (!value) return '';
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return String(value);
     return parsed.toLocaleString(undefined, {
@@ -1044,6 +1050,10 @@ document.querySelectorAll('.seller-offer-upload-form').forEach(form => {
                 }
             });
             showToast(data.message || 'Offer document uploaded.', 'success');
+            if (data.offer_review_url) {
+                setTimeout(() => { window.location.href = data.offer_review_url; }, 600);
+                return;
+            }
             setSellerWorkspaceReloadTab('offers');
             setTimeout(() => location.reload(), 800);
         })

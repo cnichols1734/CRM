@@ -52,6 +52,18 @@ def extract_document_job(doc_id: int, org_id: int, _inline=False):
                 doc.extraction_status = 'failed'
                 doc.extraction_error = str(e)[:500]
                 db.session.commit()
+                try:
+                    from services.document_review import finalize_document_review
+                    finalize_document_review(
+                        document_id=doc_id,
+                        org_id=org_id,
+                        extraction_failed=True,
+                    )
+                except Exception:
+                    logger.exception(
+                        'Failed to create document review report after job error doc=%s',
+                        doc_id,
+                    )
         except Exception:
             logger.error(f"Failed to mark doc {doc_id} as failed", exc_info=True)
     finally:

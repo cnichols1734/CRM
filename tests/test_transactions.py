@@ -92,6 +92,37 @@ class TestTransactionDelete:
         resp = owner_a_client.post(f'/transactions/{seed["tx_b"]}/delete')
         assert resp.status_code == 404
 
+    def test_delete_with_seller_commission_terms(self, app, seed, owner_a_client):
+        """Commission terms must be purged — not nullified — on SQLite delete."""
+        from decimal import Decimal
+
+        from models import SellerCommissionTerms, Transaction, db
+
+        with app.app_context():
+            terms = SellerCommissionTerms(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                created_by_id=seed['owner_a'],
+                listing_commission_flat=Decimal('8000'),
+                coop_compensation_percent=Decimal('2'),
+                source='listing_agreement_extraction',
+            )
+            db.session.add(terms)
+            db.session.commit()
+            terms_id = terms.id
+            tx_id = seed['tx_a']
+
+        resp = owner_a_client.post(
+            f'/transactions/{tx_id}/delete',
+            follow_redirects=False,
+        )
+        assert resp.status_code in (302, 303)
+        assert b'Error deleting transaction' not in (resp.data or b'')
+
+        with app.app_context():
+            assert Transaction.query.get(tx_id) is None
+            assert SellerCommissionTerms.query.get(terms_id) is None
+
 
 class TestTransactionStatusAPI:
     """Status update API."""
