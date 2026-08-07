@@ -60,9 +60,15 @@
     <div class="crm-page__inner max-w-[1680px]">
         {% set _tx_title = 'Transactions <em>· ' ~ transactions|length ~ '</em>' %}
         {% call page_header(_tx_title, '', 'Pipeline') %}
-            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-accent">
+            {% if vtc_pilot %}
+            <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-accent">
+                <i class="fas fa-file-upload text-xs"></i>
+                Start from a document
+            </a>
+            {% endif %}
+            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn {% if vtc_pilot %}crm-btn-secondary{% else %}crm-btn-accent{% endif %}">
                 <i class="fas fa-plus text-xs"></i>
-                New transaction
+                Create manually
             </a>
         {% endcall %}
 
@@ -294,10 +300,20 @@
             </table>
         </div>
         {% else %}
-        {% call empty_state('No transactions yet', 'Get started by creating your first transaction to manage your real estate deals.', 'fa-folder-open') %}
-            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-primary">
+        {% call empty_state(
+            'No transactions yet',
+            'Upload a listing agreement, purchase contract, or offer to get started.' if vtc_pilot else 'Create your first transaction to get started.',
+            'fa-folder-open'
+        ) %}
+            {% if vtc_pilot %}
+            <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-accent">
+                <i class="fas fa-file-upload text-xs"></i>
+                Start from a document
+            </a>
+            {% endif %}
+            <a href="{{ url_for('transactions.new_transaction') }}" class="crm-btn crm-btn-secondary">
                 <i class="fas fa-plus text-xs"></i>
-                New transaction
+                Create manually
             </a>
         {% endcall %}
         {% endif %}

@@ -76,6 +76,10 @@ def list_tasks(args: dict, ctx: BobContext) -> ToolResult:
         contact = get_contact_for_read(ctx, args['contact_id'])
         query = query.filter(Task.contact_id == contact.id)
 
+    if args.get('transaction_id'):
+        transaction = _authorize_transaction(ctx, args['transaction_id'], for_write=False)
+        query = query.filter(Task.transaction_id == transaction.id)
+
     if args.get('due_after'):
         after = parse_local_date(args['due_after'], 'due_after')
         query = query.filter(Task.due_date >= due_datetime_utc(ctx, after, None))
@@ -148,7 +152,21 @@ def get_agenda(args: dict, ctx: BobContext) -> ToolResult:
 # ---------------------------------------------------------------------------
 
 def create_task(args: dict, ctx: BobContext) -> ToolResult:
-    contact = get_contact_for_read(ctx, args.get('contact_id'))
+    contact_id = args.get('contact_id')
+    transaction_id = args.get('transaction_id') or ctx.active_transaction_id
+
+    contact = None
+    transaction = None
+    if contact_id is not None:
+        contact = get_contact_for_read(ctx, contact_id)
+    if transaction_id is not None:
+        transaction = _authorize_transaction(ctx, transaction_id, for_write=True)
+
+    if contact is None and transaction is None:
+        raise ToolError(
+            'Provide contact_id and/or transaction_id. Transaction-only tasks '
+            'may omit contact_id.'
+        )
 
     subject = (args.get('subject') or '').strip()
     if not subject:
@@ -169,9 +187,14 @@ def create_task(args: dict, ctx: BobContext) -> ToolResult:
     if user is None:
         raise ToolError('Could not load your account to create the task.')
 
+    property_address = _clean(args.get('property_address'))
+    if not property_address and transaction is not None:
+        property_address = _clean(getattr(transaction, 'street_address', None))
+
     task = Task(
         organization_id=ctx.organization_id,
-        contact_id=contact.id,
+        contact_id=contact.id if contact else None,
+        transaction_id=transaction.id if transaction else None,
         assigned_to_id=ctx.user_id,
         created_by_id=ctx.user_id,
         type_id=task_type.id,
@@ -181,7 +204,7 @@ def create_task(args: dict, ctx: BobContext) -> ToolResult:
         priority=priority,
         due_date=utc_due,
         scheduled_time=utc_due if scheduled else None,
-        property_address=_clean(args.get('property_address')),
+        property_address=property_address,
     )
 
     try:
@@ -195,15 +218,21 @@ def create_task(args: dict, ctx: BobContext) -> ToolResult:
 
     _record_task_created(ctx, user, task)
 
-    contact_name = f'{contact.first_name} {contact.last_name}'.strip()
+    if contact is not None:
+        label = f'{contact.first_name} {contact.last_name}'.strip()
+        record_url = f'/contact/{contact.id}'
+    else:
+        label = getattr(transaction, 'street_address', None) or f'transaction {transaction.id}'
+        record_url = f'/transactions/{transaction.id}'
+
     result = ToolResult.success(
-        summary=f'{subtype.name} for {contact_name} on {due_date.isoformat()}',
+        summary=f'{subtype.name} for {label} on {due_date.isoformat()}',
         data={
             'created': True,
             'task': task_summary(task, ctx),
         },
         undoable=True,
-        record_url=f'/contact/{contact.id}',
+        record_url=record_url,
     )
     result.data['undo_target_id'] = task.id
     return result
@@ -418,6 +447,33 @@ def undo_update_task(action, ctx: BobContext) -> str:
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
+
+def _authorize_transaction(ctx: BobContext, transaction_id, *, for_write: bool):
+    from services.transaction_auth import (
+        CAP_EDIT,
+        CAP_VIEW,
+        get_transaction_for_user,
+    )
+
+    class _UserStub:
+        id = ctx.user_id
+        organization_id = ctx.organization_id
+        org_role = ctx.org_role
+        is_authenticated = True
+
+    capability = CAP_EDIT if for_write else CAP_VIEW
+    try:
+        tid = int(transaction_id)
+    except (TypeError, ValueError):
+        raise ToolError(f'transaction_id must be a number, got {transaction_id!r}.')
+
+    transaction, decision = get_transaction_for_user(tid, _UserStub(), capability)
+    if transaction is None:
+        if decision.reason == 'not_found':
+            raise ToolError(f'No transaction with id {tid} is available to you.')
+        raise ToolError('You are not authorized for that transaction.')
+    return transaction
+
 
 def _validated_task_changes(fields, ctx: BobContext) -> dict:
     if not isinstance(fields, dict) or not fields:

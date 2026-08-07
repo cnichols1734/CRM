@@ -92,6 +92,120 @@ class TestTransactionDelete:
         resp = owner_a_client.post(f'/transactions/{seed["tx_b"]}/delete')
         assert resp.status_code == 404
 
+    def test_delete_with_seller_commission_terms(self, app, seed, owner_a_client):
+        """Commission terms must be purged — not nullified — on SQLite delete."""
+        from decimal import Decimal
+
+        from models import SellerCommissionTerms, Transaction, db
+
+        with app.app_context():
+            # Dedicated tx — session seed tx_a accumulates VTC rows that block delete.
+            tx = Transaction(
+                organization_id=seed['org_a'],
+                created_by_id=seed['owner_a'],
+                transaction_type_id=seed['tx_type_a'],
+                street_address='Delete Commission St',
+                city='Austin',
+                state='TX',
+                status='active',
+            )
+            db.session.add(tx)
+            db.session.flush()
+            terms = SellerCommissionTerms(
+                organization_id=seed['org_a'],
+                transaction_id=tx.id,
+                created_by_id=seed['owner_a'],
+                listing_commission_flat=Decimal('8000'),
+                coop_compensation_percent=Decimal('2'),
+                source='listing_agreement_extraction',
+            )
+            db.session.add(terms)
+            db.session.commit()
+            terms_id = terms.id
+            tx_id = tx.id
+
+        resp = owner_a_client.post(
+            f'/transactions/{tx_id}/delete',
+            follow_redirects=False,
+        )
+        assert resp.status_code in (302, 303)
+        assert b'Error deleting transaction' not in (resp.data or b'')
+
+        with app.app_context():
+            assert Transaction.query.get(tx_id) is None
+            assert SellerCommissionTerms.query.get(terms_id) is None
+
+    def test_delete_with_controlling_contract_documents(self, app, seed, owner_a_client):
+        """Contract package rows must be deleted — not nullified — on Postgres."""
+        from models import (
+            SellerAcceptedContract,
+            SellerContractDocument,
+            Transaction,
+            TransactionDocument,
+            db,
+        )
+
+        with app.app_context():
+            tx = Transaction(
+                organization_id=seed['org_a'],
+                created_by_id=seed['owner_a'],
+                transaction_type_id=seed['tx_type_a'],
+                street_address='Delete Contract Docs St',
+                city='Austin',
+                state='TX',
+                status='under_contract',
+            )
+            db.session.add(tx)
+            db.session.flush()
+            doc = TransactionDocument(
+                organization_id=seed['org_a'],
+                transaction_id=tx.id,
+                template_slug='seller-accepted-contract',
+                template_name='Executed Contract',
+                status='signed',
+                signed_file_path='test/executed.pdf',
+            )
+            db.session.add(doc)
+            db.session.flush()
+            contract = SellerAcceptedContract(
+                organization_id=seed['org_a'],
+                transaction_id=tx.id,
+                created_by_id=seed['owner_a'],
+                position='primary',
+                status='active',
+            )
+            db.session.add(contract)
+            db.session.flush()
+            link = SellerContractDocument(
+                organization_id=seed['org_a'],
+                transaction_id=tx.id,
+                accepted_contract_id=contract.id,
+                transaction_document_id=doc.id,
+                created_by_id=seed['owner_a'],
+                document_type='final_acceptance',
+                display_name='Executed Contract',
+                is_primary_contract_document=True,
+            )
+            db.session.add(link)
+            db.session.commit()
+            tx_id = tx.id
+            contract_id = contract.id
+            link_id = link.id
+            doc_id = doc.id
+
+        resp = owner_a_client.post(
+            f'/transactions/{tx_id}/delete',
+            follow_redirects=False,
+        )
+        assert resp.status_code in (302, 303), resp.get_data(as_text=True)
+        assert b'Error deleting transaction' not in (resp.data or b'')
+
+        with app.app_context():
+            assert Transaction.query.get(tx_id) is None
+            assert SellerAcceptedContract.query.get(contract_id) is None
+            assert SellerContractDocument.query.get(link_id) is None
+            assert TransactionDocument.query.get(doc_id) is None
+
 
 class TestTransactionStatusAPI:
     """Status update API."""

@@ -1,0 +1,157 @@
+{# Package surfaces for a transaction. Expects document_packages dict.
+   Upload dialog lives once on the detail page ancestor (document-upload-hub).
+#}
+{% set packages = document_packages or {} %}
+{% set unfiled = packages.unfiled_documents %}
+{% set listing_pkg = packages.listing_package %}
+{% set buyer_pkg = packages.buyer_transaction_package %}
+{% set neutral_pkg = packages.transaction_documents_package %}
+{% set contract_pkg = packages.controlling_contract_package %}
+{% set offer_pkgs = packages.offer_packages or [] %}
+{% set amendment_rows = packages.amendments or [] %}
+{% set side = packages.side %}
+{% set show_unfiled = show_unfiled if show_unfiled is defined else true %}
+{% set has_baseline = (contract_pkg is not none) or (primary_seller_contract is defined and primary_seller_contract) %}
+
+<div class="crm-document-packages space-y-4"
+     id="document-packages-{{ package_mode|default('all') }}">
+
+    {% if show_unfiled and unfiled and unfiled.documents %}
+        {% with package=unfiled, title_override='Needs filing', package_variant='unfiled' %}
+            {% include 'transactions/_document_packages.html' %}
+        {% endwith %}
+    {% endif %}
+
+    {% if package_mode == 'listing' and listing_pkg %}
+        {% with package=listing_pkg %}
+            {% include 'transactions/_document_packages.html' %}
+        {% endwith %}
+    {% elif package_mode == 'buyer' and buyer_pkg %}
+        {% with package=buyer_pkg %}
+            {% include 'transactions/_document_packages.html' %}
+        {% endwith %}
+    {% elif package_mode == 'neutral' and neutral_pkg %}
+        {% with package=neutral_pkg %}
+            {% include 'transactions/_document_packages.html' %}
+        {% endwith %}
+    {% elif package_mode == 'contract' %}
+        {% if contract_pkg %}
+            {% with package=contract_pkg %}
+                {% include 'transactions/_document_packages.html' %}
+            {% endwith %}
+        {% else %}
+        <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
+            <p class="text-sm font-semibold text-slate-900">No controlling contract yet</p>
+            <p class="mt-1 text-sm text-slate-600">Amendments become available after a controlling contract is established.</p>
+        </div>
+        {% endif %}
+
+        {% if has_baseline %}
+        <div class="flex flex-wrap gap-2">
+            <button type="button"
+                    class="crm-btn crm-btn-secondary min-h-11"
+                    data-action="document-upload-hub#open"
+                    data-document-upload-hub-scope-param="amendment"
+                    data-document-upload-hub-slug-param="amendment"
+                    data-document-upload-hub-label-param="Amendment">
+                <i class="fas fa-file-signature text-xs" aria-hidden="true"></i>
+                Upload amendment
+            </button>
+        </div>
+        {% endif %}
+
+        {% if amendment_rows %}
+        <section class="crm-document-package" aria-labelledby="amendments-heading-{{ package_mode }}">
+            <div class="crm-document-package__header">
+                <h3 id="amendments-heading-{{ package_mode }}" class="text-sm font-semibold text-slate-950">Amendments</h3>
+            </div>
+            <ul class="crm-document-package__list" role="list">
+                {% for row in amendment_rows %}
+                <li class="crm-document-row">
+                    <div class="crm-document-row__main">
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-950">{{ row.label }}</p>
+                            <p class="crm-document-row__reason">
+                                {{ (row.status or '')|replace('_', ' ')|title }}
+                                {% if row.direction %} · {{ row.direction|replace('_', ' ')|title }}{% endif %}
+                            </p>
+                        </div>
+                        <div class="crm-document-row__actions">
+                            {% if row.review_url %}
+                            <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">Review amendment</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+    {% elif package_mode == 'offers' %}
+        {% if offer_pkgs %}
+            {% for offer_pkg in offer_pkgs %}
+            <details class="crm-document-package group" {% if loop.first %}open{% endif %}>
+                <summary class="crm-document-package__header cursor-pointer list-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-semibold text-slate-950">{{ offer_pkg.label }}</h3>
+                        <p class="mt-0.5 text-xs text-slate-500">
+                            {{ (offer_pkg.status or '')|replace('_', ' ')|title }}
+                            {% if offer_pkg.offer_price %} · ${{ '{:,.0f}'.format(offer_pkg.offer_price) }}{% endif %}
+                            {% if offer_pkg.document_count %} · {{ offer_pkg.document_count }} document{% if offer_pkg.document_count != 1 %}s{% endif %}{% endif %}
+                        </p>
+                    </div>
+                    <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                </summary>
+                <div class="border-t border-slate-100">
+                    {% if offer_pkg.review_url %}
+                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
+                        <p class="text-xs text-slate-600">
+                            {% if offer_pkg.has_review_findings %}
+                            Bob has notes on this offer package.
+                            {% else %}
+                            Review the purchase contract for this offer.
+                            {% endif %}
+                        </p>
+                        <a href="{{ offer_pkg.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">
+                            Review this offer
+                        </a>
+                    </div>
+                    {% endif %}
+                    {% with package=offer_pkg, omit_header=true %}
+                        {% include 'transactions/_document_packages.html' %}
+                    {% endwith %}
+                    <div class="flex flex-wrap gap-2 px-4 py-3">
+                        <button type="button"
+                                class="crm-btn crm-btn-secondary crm-btn-sm min-h-11"
+                                data-action="document-upload-hub#open"
+                                data-document-upload-hub-scope-param="offer"
+                                data-document-upload-hub-scope-id-param="{{ offer_pkg.scope_id }}"
+                                data-document-upload-hub-label-param="{{ offer_pkg.label }}">
+                            Upload to this offer
+                        </button>
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        {% else %}
+        <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
+            <p class="text-sm font-semibold text-slate-900">No offers yet</p>
+            <p class="mt-1 text-sm text-slate-600">
+                {% if side == 'buyer' %}
+                Log an offer you submitted, or upload the purchase contract PDF.
+                {% else %}
+                Incoming offers appear here after you log or upload them.
+                {% endif %}
+            </p>
+            <button type="button"
+                    class="crm-btn crm-btn-accent mt-3 min-h-11"
+                    data-action="document-upload-hub#open"
+                    data-document-upload-hub-scope-param="offer"
+                    data-document-upload-hub-create-new-offer-param="true"
+                    data-document-upload-hub-label-param="Offer package">
+                Upload offer PDF
+            </button>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>

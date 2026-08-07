@@ -6,6 +6,7 @@ surrounding action and audit records are complete.
 """
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
+import logging
 import re
 
 from models import (
@@ -21,6 +22,8 @@ from models import (
     TransactionDocument,
     db,
 )
+
+logger = logging.getLogger(__name__)
 
 
 ACTIVE_OFFER_STATUSES = {
@@ -92,6 +95,37 @@ OFFER_DOCUMENT_TYPES = {
         'direction': None,
         'primary_terms': False,
     },
+    'appraisal_termination': {
+        'label': "Appraisal Termination Addendum",
+        'template_slug': 'appraisal-termination-addendum',
+        'direction': None,
+        'primary_terms': False,
+    },
+    'broker_compensation': {
+        'label': 'Broker Compensation Agreement',
+        'template_slug': 'broker-compensation-agreement',
+        'direction': None,
+        'primary_terms': False,
+    },
+}
+
+_SLUG_TO_OFFER_DOCUMENT_TYPE = {
+    'seller-offer-contract': 'buyer_offer',
+    'one-to-four-family-contract': 'buyer_offer',
+    'condominium-contract': 'buyer_offer',
+    'new-home-completed-construction-contract': 'buyer_offer',
+    'new-home-incomplete-construction-contract': 'buyer_offer',
+    'farm-and-ranch-contract': 'buyer_offer',
+    'unimproved-property-contract': 'buyer_offer',
+    'purchase-contract': 'buyer_offer',
+    'seller-accepted-contract': 'final_acceptance',
+    'third-party-financing-addendum': 'third_party_financing',
+    'hoa-addendum': 'hoa_addendum',
+    'seller-backup-addendum': 'backup_acceptance',
+    'sellers-disclosure': 'sellers_disclosure',
+    'pre-approval-or-proof-of-funds': 'pre_approval',
+    'appraisal-termination-addendum': 'appraisal_termination',
+    'broker-compensation-agreement': 'broker_compensation',
 }
 
 
@@ -254,6 +288,71 @@ def _coerce_text(value):
     return str(value).strip() or None
 
 
+_PARTY_LABELS = {
+    'buyer': 'Buyer',
+    'seller': 'Seller',
+    'split': 'Split',
+    'both': 'Split',
+    'shared': 'Split',
+}
+
+
+def _party_payer_label(value):
+    text = _coerce_text(value)
+    if not text:
+        return None
+    key = re.sub(r'[^a-z]+', '', text.lower())
+    if key in _PARTY_LABELS:
+        return _PARTY_LABELS[key]
+    return text[:1].upper() + text[1:] if text else None
+
+
+def _financing_type_label(value):
+    text = _coerce_text(value)
+    if not text:
+        return None
+    known = {
+        'cash': 'Cash',
+        'conventional': 'Conventional',
+        'fha': 'FHA',
+        'va': 'VA',
+        'usda': 'USDA',
+        'texasveterans': 'Texas Veterans',
+        'reversemortgage': 'Reverse mortgage',
+        'sellerfinancing': 'Seller financing',
+        'other': 'Other',
+    }
+    key = re.sub(r'[^a-z]+', '', text.lower())
+    if key in known:
+        return known[key]
+    return text[:1].upper() + text[1:]
+
+
+def _residential_service_amount(value):
+    """Keep Paragraph 7.H as a dollar amount when possible."""
+    if value in (None, ''):
+        return None
+    amount = _coerce_decimal(value)
+    if amount is not None:
+        if amount == amount.to_integral_value():
+            return str(int(amount))
+        return format(amount.quantize(Decimal('0.01')), 'f')
+    text = _coerce_text(value) or ''
+    match = re.search(
+        r'(?:not\s+exceeding|up\s+to|amount\s+of|reimburse(?:\s+\w+){0,6}\s+)?\$?\s*([0-9][0-9,]*(?:\.[0-9]{1,2})?)',
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return text or None
+    amount = _coerce_decimal(match.group(1))
+    if amount is None:
+        return text
+    if amount == amount.to_integral_value():
+        return str(int(amount))
+    return format(amount.quantize(Decimal('0.01')), 'f')
+
+
 def _parse_date(value):
     if not value:
         return None
@@ -393,18 +492,103 @@ def expire_offer_if_needed(offer, now=None, actor_id=None):
     return False
 
 
+def _normalize_extracted_money(
+    value,
+    *,
+    list_price=None,
+    offer_price=None,
+    field_role='price',
+):
+    """Fix common digits-only OCR blowups ($440,000.00 → 44000000).
+
+    ``field_role``:
+      - ``price``: sales/offer price only (large-magnitude / list-price heuristics)
+      - ``ancillary``: earnest/option fees (may be 100x inflated but still < offer)
+      - ``financing``: loan / cash-down amounts (often near offer price; only fix
+        clear cents blowups, never shrink a plausible mortgage amount)
+    """
+    amount = _coerce_decimal(value)
+    if amount is None or amount <= 0:
+        return None
+    reference = _coerce_decimal(list_price) or _coerce_decimal(offer_price)
+    if amount >= Decimal('10000000') or (
+        reference and reference > 0 and amount > reference * Decimal('5')
+    ):
+        candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
+        if candidate >= Decimal('1000') and (
+            not reference or candidate <= reference * Decimal('3')
+        ):
+            return candidate
+    if field_role == 'financing' and reference and reference > 0 and amount > reference:
+        # $352,000.00 → 35200000 against a $440,000 offer.
+        candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
+        if Decimal('1000') <= candidate <= reference:
+            return candidate
+        return amount.quantize(Decimal('0.01')) if amount == amount.to_integral_value() else amount
+    if field_role == 'ancillary' and reference and reference >= Decimal('10000'):
+        # $250.00 → 25000 / $4,400.00 → 440000 (may equal offer dollars before
+        # cents are restored). Cap at ~15% of price so real prices are never shrunk.
+        if amount >= Decimal('10000') and amount <= reference:
+            candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
+            if Decimal('1') <= candidate <= (reference * Decimal('0.15')):
+                return candidate
+        if amount > reference:
+            candidate = (amount / Decimal('100')).quantize(Decimal('0.01'))
+            if Decimal('1') <= candidate <= reference:
+                return candidate
+    return amount.quantize(Decimal('0.01')) if amount == amount.to_integral_value() else amount
+
+
 def apply_offer_terms(offer, terms):
     """Copy reviewed/extracted terms into canonical offer comparison columns."""
     terms = normalize_offer_terms(terms)
-    offer.offer_price = _coerce_decimal(terms.get('offer_price') or terms.get('sales_price'))
-    offer.financing_type = _coerce_text(terms.get('financing_type'))
-    offer.cash_down_payment = _coerce_decimal(terms.get('cash_down_payment'))
-    offer.financing_amount = _coerce_decimal(terms.get('financing_amount') or terms.get('total_financing_amount'))
-    offer.earnest_money = _coerce_decimal(terms.get('earnest_money'))
-    offer.additional_earnest_money = _coerce_decimal(terms.get('additional_earnest_money'))
-    offer.option_fee = _coerce_decimal(terms.get('option_fee'))
+    list_price = terms.get('list_price')
+    offer_price = _normalize_extracted_money(
+        terms.get('offer_price') or terms.get('sales_price'),
+        list_price=list_price,
+        field_role='price',
+    )
+    offer.offer_price = offer_price
+    offer.financing_type = _financing_type_label(terms.get('financing_type'))
+    offer.cash_down_payment = _normalize_extracted_money(
+        terms.get('cash_down_payment'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='financing',
+    ) or _coerce_decimal(terms.get('cash_down_payment'))
+    offer.financing_amount = _normalize_extracted_money(
+        terms.get('financing_amount') or terms.get('total_financing_amount'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='financing',
+    ) or _coerce_decimal(
+        terms.get('financing_amount') or terms.get('total_financing_amount')
+    )
+    offer.earnest_money = _normalize_extracted_money(
+        terms.get('earnest_money'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='ancillary',
+    ) or _coerce_decimal(terms.get('earnest_money'))
+    offer.additional_earnest_money = _normalize_extracted_money(
+        terms.get('additional_earnest_money'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='ancillary',
+    ) or _coerce_decimal(terms.get('additional_earnest_money'))
+    offer.option_fee = _normalize_extracted_money(
+        terms.get('option_fee'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='ancillary',
+    ) or _coerce_decimal(terms.get('option_fee'))
     offer.option_period_days = _coerce_int(terms.get('option_period_days'))
-    offer.seller_concessions_amount = _coerce_decimal(terms.get('seller_concessions_amount'))
+    offer.seller_concessions_amount = _normalize_extracted_money(
+        terms.get('seller_concessions_amount'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='ancillary',
+    ) or _coerce_decimal(terms.get('seller_concessions_amount'))
     offer.proposed_close_date = _parse_date(terms.get('proposed_close_date') or terms.get('closing_date'))
     offer.possession_type = _coerce_text(terms.get('possession_type'))
     offer.leaseback_days = _coerce_int(terms.get('leaseback_days'))
@@ -412,13 +596,22 @@ def apply_offer_terms(offer, terms):
     offer.financing_contingency = _coerce_bool(terms.get('financing_contingency'))
     offer.sale_of_other_property_contingency = _coerce_bool(terms.get('sale_of_other_property_contingency'))
     offer.inspection_or_repair_terms_summary = _coerce_text(terms.get('inspection_or_repair_terms_summary'))
-    offer.title_policy_payer = _coerce_text(terms.get('title_policy_payer'))
-    offer.survey_payer = _coerce_text(terms.get('survey_payer'))
+    offer.title_policy_payer = _party_payer_label(terms.get('title_policy_payer'))
+    offer.survey_payer = _party_payer_label(terms.get('survey_payer'))
     offer.survey_furnished_by = _coerce_text(terms.get('survey_furnished_by'))
-    offer.hoa_resale_certificate_payer = _coerce_text(terms.get('hoa_resale_certificate_payer'))
-    offer.residential_service_contract = _coerce_text(terms.get('residential_service_contract'))
+    offer.hoa_resale_certificate_payer = _party_payer_label(
+        terms.get('hoa_resale_certificate_payer')
+    )
+    offer.residential_service_contract = _residential_service_amount(
+        terms.get('residential_service_contract')
+    )
     offer.buyer_agent_commission_percent = _coerce_decimal(terms.get('buyer_agent_commission_percent'))
-    offer.buyer_agent_commission_flat = _coerce_decimal(terms.get('buyer_agent_commission_flat'))
+    offer.buyer_agent_commission_flat = _normalize_extracted_money(
+        terms.get('buyer_agent_commission_flat'),
+        list_price=list_price,
+        offer_price=offer_price,
+        field_role='ancillary',
+    ) or _coerce_decimal(terms.get('buyer_agent_commission_flat'))
     offer.response_deadline_at = _parse_datetime(terms.get('response_deadline_at')) or offer.response_deadline_at
     existing_terms = dict(offer.terms_summary or {})
     summary_terms = dict(terms)
@@ -489,6 +682,22 @@ def _normalized_supporting_payload(document_type, extracted):
         }
     if document_type == 'pre_approval':
         return {
+            'supporting_documents': {
+                document_type: extracted,
+            },
+        }
+    if document_type == 'broker_compensation':
+        # Commission only — associate/firm names come from the purchase contract
+        # Other Broker section (Associate's Name), not this form's cooperating-broker line.
+        return {
+            'offer_terms': {
+                'buyer_agent_commission_percent': extracted.get(
+                    'buyer_agent_commission_percent'
+                ),
+                'buyer_agent_commission_flat': extracted.get(
+                    'buyer_agent_commission_flat'
+                ),
+            },
             'supporting_documents': {
                 document_type: extracted,
             },
@@ -893,6 +1102,192 @@ def split_contract_package_into_children(doc_id, file_data, *, split_source='ai_
     return created_children
 
 
+# Listing-package segment labels → (template_slug, display name). Slugs match
+# the seller intake schema document_rules so split children satisfy the same
+# required-document slots the questionnaire would otherwise create.
+LISTING_SPLIT_SEGMENT_MAP = {
+    'iabs': ('iabs', 'Information About Brokerage Services'),
+    'sellers_disclosure': ('sellers-disclosure', "Seller's Disclosure Notice"),
+    'seller_disclosure': ('sellers-disclosure', "Seller's Disclosure Notice"),
+    'lead_based_paint': ('lead-paint', 'Lead-Based Paint Addendum'),
+    'lead_paint': ('lead-paint', 'Lead-Based Paint Addendum'),
+    'hoa_addendum': ('hoa-addendum', 'HOA Addendum'),
+    'wire_fraud_warning': ('wire-fraud-warning', 'Wire Fraud Warning'),
+    'flood_hazard': ('flood-hazard', 'Flood Hazard Information'),
+    't47_affidavit': ('t47-affidavit', 'T-47 Residential Real Property Affidavit'),
+    'special_tax_district_notice': (
+        'special-tax-district-notice', 'Special Tax District Notice',
+    ),
+    'sewer_facility': ('sewer-facility', 'On-Site Sewer Facility Notice'),
+    'referral_agreement': ('referral-agreement', 'Referral Agreement'),
+}
+
+
+def split_listing_package_into_children(doc_id, file_data, *, split_source='ai_packet_split'):
+    """Create split child documents under a listing package parent.
+
+    When a signed listing package PDF contains the listing agreement plus
+    supporting paperwork (IABS, Seller's Disclosure, notices...), slice each
+    supporting document into its own PDF and file it under its canonical
+    template slug. If a placeholder already exists for that slug it is
+    fulfilled in place instead of creating a duplicate row. The parent
+    document remains the listing agreement of record.
+    """
+    if not file_data:
+        return []
+
+    doc = TransactionDocument.query.get(doc_id)
+    if not doc or not doc.field_data or not doc.transaction_id:
+        return []
+
+    slug = (doc.template_slug or '').strip().lower().replace('_', '-')
+    identity = {}
+    if isinstance(doc.field_data, dict):
+        identity = doc.field_data.get('_document_identity') or {}
+    if slug != 'listing-agreement' and (identity.get('kind') or '') != 'listing_agreement':
+        return []
+
+    detected = doc.field_data.get('detected_documents') if isinstance(doc.field_data, dict) else None
+    if not isinstance(detected, list) or not detected:
+        return []
+
+    from services.pdf_splitter import (
+        get_pdf_page_count,
+        normalize_segments,
+        split_pdf_by_segments,
+    )
+
+    total_pages = get_pdf_page_count(file_data)
+    if total_pages <= 0:
+        return []
+
+    segments = normalize_segments(detected, total_pages=total_pages)
+    if len(segments) < 2:
+        return []
+
+    existing_children = TransactionDocument.query.filter_by(parent_document_id=doc.id).count()
+    if existing_children:
+        return []
+
+    from services.supabase_storage import upload_external_document
+
+    organization_id = doc.organization_id
+    transaction_id = doc.transaction_id
+    created_children = []
+    used_slugs = set()
+
+    base_filename = doc.signed_original_filename or 'listing_package.pdf'
+    name_root, _, ext = base_filename.rpartition('.')
+    name_root = name_root or 'listing_package'
+    ext = (ext or 'pdf').lower()
+
+    for split_result in split_pdf_by_segments(file_data, segments):
+        seg = split_result.segment
+        seg_type = (seg.document_type or '').strip().lower()
+        # The parent stays the listing agreement of record; never duplicate it.
+        if seg_type in ('listing_agreement', 'buyer_offer', ''):
+            continue
+        mapping = LISTING_SPLIT_SEGMENT_MAP.get(seg_type)
+        if not mapping:
+            continue
+        child_slug, display_name = mapping
+        if child_slug in used_slugs:
+            continue
+        used_slugs.add(child_slug)
+
+        child_filename = f"{name_root}_p{seg.start_page}-{seg.end_page}_{child_slug}.{ext}"
+
+        try:
+            upload_result = upload_external_document(
+                transaction_id=transaction_id,
+                file_data=split_result.pdf_bytes,
+                original_filename=child_filename,
+                content_type='application/pdf',
+            )
+        except Exception:
+            # Storage may not be configured in dev/tests; persist without a file path.
+            upload_result = {'path': None}
+
+        placeholder = (
+            TransactionDocument.query.filter_by(
+                transaction_id=transaction_id,
+                organization_id=organization_id,
+                template_slug=child_slug,
+                is_placeholder=True,
+            )
+            .filter(TransactionDocument.signed_file_path.is_(None))
+            .first()
+        )
+
+        if placeholder is not None:
+            child_doc = placeholder
+            child_doc.status = 'signed'
+            child_doc.document_source = 'completed'
+            child_doc.is_placeholder = False
+        else:
+            existing_same_slug = (
+                TransactionDocument.query.filter_by(
+                    transaction_id=transaction_id,
+                    organization_id=organization_id,
+                    template_slug=child_slug,
+                )
+                .filter(TransactionDocument.signed_file_path.isnot(None))
+                .count()
+            )
+            if existing_same_slug:
+                continue
+            child_doc = TransactionDocument(
+                organization_id=organization_id,
+                transaction_id=transaction_id,
+                template_slug=child_slug,
+                template_name=display_name,
+                status='signed',
+                document_source='completed',
+            )
+            db.session.add(child_doc)
+
+        child_doc.signed_file_path = upload_result.get('path')
+        child_doc.signed_file_size = len(split_result.pdf_bytes)
+        child_doc.signed_original_filename = child_filename
+        child_doc.signed_at = datetime.utcnow()
+        child_doc.parent_document_id = doc.id
+        child_doc.page_start = seg.start_page
+        child_doc.page_end = seg.end_page
+        child_doc.split_source = split_source
+        db.session.flush()
+        created_children.append(child_doc)
+
+    if created_children:
+        try:
+            from services import audit_service
+            audit_service.log_event(
+                event_type='document_package_split',
+                transaction_id=transaction_id,
+                document_id=doc.id,
+                description=(
+                    f'Listing package split into {len(created_children)} '
+                    f'supporting document(s)'
+                ),
+                event_data={
+                    'parent_document_id': doc.id,
+                    'children': [
+                        {
+                            'document_id': child.id,
+                            'template_slug': child.template_slug,
+                            'page_start': child.page_start,
+                            'page_end': child.page_end,
+                        }
+                        for child in created_children
+                    ],
+                },
+                source='system',
+            )
+        except Exception:
+            logger.exception('Failed to audit listing package split for doc %s', doc.id)
+
+    return created_children
+
+
 def sync_offer_version_from_document(doc_id):
     """Sync AI-extracted TransactionDocument.field_data into linked offer records."""
     doc = TransactionDocument.query.get(doc_id)
@@ -905,9 +1300,26 @@ def sync_offer_version_from_document(doc_id):
         return merge_offer_supporting_document(offer_document)
 
     extracted = dict(doc.field_data or {})
-    offer = version.offer
+    offer = SellerOffer.query.filter_by(
+        id=version.offer_id,
+        organization_id=doc.organization_id,
+    ).first()
+    list_price = None
+    if offer and offer.transaction_id:
+        from models import Transaction
+        tx = Transaction.query.get(offer.transaction_id)
+        extra = (tx.extra_data or {}) if tx else {}
+        list_price = extra.get('list_price')
+
+    from services.scoped_document_intake import terms_from_document_field_data
+    normalized_core = terms_from_document_field_data(extracted, list_price=list_price)
+    price_decimal = normalized_core.pop('_offer_price_decimal', None)
+
     terms = dict(version.terms_data or {})
     terms.update(extracted)
+    terms.update(normalized_core)
+    if list_price not in (None, ''):
+        terms['list_price'] = list_price
     terms = _merge_existing_offer_context(offer, terms)
     version.terms_data = terms
     version.status = 'reviewed'
@@ -915,14 +1327,33 @@ def sync_offer_version_from_document(doc_id):
 
     if offer:
         apply_offer_terms(offer, terms)
+        if price_decimal is not None and (
+            offer.offer_price is None
+            or offer.offer_price <= 0
+            or (
+                price_decimal > 0
+                and offer.offer_price
+                and offer.offer_price < price_decimal / Decimal('10')
+            )
+        ):
+            offer.offer_price = price_decimal
         offer.current_version_id = version.id
-        if extracted.get('buyer_names') and not offer.buyer_names:
-            offer.buyer_names = _coerce_text(extracted.get('buyer_names'))
+        buyers = _coerce_text(
+            normalized_core.get('buyer_names')
+            or extracted.get('buyer_names')
+            or extracted.get('buyer_name')
+        )
+        if buyers:
+            offer.buyer_names = buyers
         if extracted.get('buyer_agent_name') and not offer.buyer_agent_name:
             offer.buyer_agent_name = _coerce_text(extracted.get('buyer_agent_name'))
         if extracted.get('buyer_agent_brokerage') and not offer.buyer_agent_brokerage:
             offer.buyer_agent_brokerage = _coerce_text(extracted.get('buyer_agent_brokerage'))
-        offer.status = 'reviewing' if offer.status in ('draft', 'new') else offer.status
+        if offer.status in ('draft', 'new', 'needs_review'):
+            offer.status = 'needs_review'
+        # Ensure money/buyer columns survive autoflush of related rows.
+        db.session.add(offer)
+        db.session.flush()
         create_offer_activity(
             offer,
             'extraction_completed',
@@ -936,6 +1367,118 @@ def sync_offer_version_from_document(doc_id):
         offer_document.extraction_summary = extracted
 
     return version
+
+
+def sync_offer_thread_from_extraction(doc_id):
+    """Retag + sync a linked offer document after extraction.
+
+    Safe without global EXTRACTION_AUTO_APPLY — only mutates offer-thread
+    columns / versions, never controlling-contract baselines.
+    """
+    from services.document_identity import DocumentIdentity, KIND_PURCHASE_CONTRACT
+    from sqlalchemy.orm.attributes import flag_modified
+
+    doc = TransactionDocument.query.get(doc_id)
+    if not doc:
+        return None
+
+    offer_document = SellerOfferDocument.query.filter_by(
+        transaction_document_id=doc.id,
+        organization_id=doc.organization_id,
+    ).first()
+    if not offer_document:
+        return None
+
+    offer = SellerOffer.query.filter_by(
+        id=offer_document.offer_id,
+        organization_id=doc.organization_id,
+    ).first()
+    if not offer:
+        return None
+
+    identity = DocumentIdentity.from_dict(
+        (doc.field_data or {}).get('_document_identity')
+        if isinstance(doc.field_data, dict)
+        else None
+    )
+    classification = ''
+    if isinstance(doc.field_data, dict):
+        classification = str(
+            doc.field_data.get('document_classification')
+            or doc.field_data.get('document_type')
+            or ''
+        ).strip().lower()
+
+    slug = (identity.template_slug or doc.template_slug or '').strip().lower()
+    if identity.is_high_confidence and identity.template_slug:
+        slug = identity.template_slug.strip().lower()
+        doc.template_slug = slug
+        if identity.label:
+            doc.template_name = str(identity.label)[:200]
+        flag_modified(doc, 'field_data')
+    elif classification == 'commission_document' and slug in ('completed', 'external', 'custom', ''):
+        slug = 'broker-compensation-agreement'
+        doc.template_slug = slug
+        doc.template_name = doc.template_name or 'Broker Compensation Agreement'
+
+    is_primary = (
+        identity.kind == KIND_PURCHASE_CONTRACT
+        or bool(OFFER_DOCUMENT_TYPES.get(
+            _SLUG_TO_OFFER_DOCUMENT_TYPE.get(slug, ''), {}
+        ).get('primary_terms'))
+        or slug in {
+            'seller-offer-contract',
+            'one-to-four-family-contract',
+            'purchase-contract',
+            'condominium-contract',
+            'new-home-completed-construction-contract',
+            'new-home-incomplete-construction-contract',
+            'farm-and-ranch-contract',
+            'unimproved-property-contract',
+        }
+    )
+    doc_type = _SLUG_TO_OFFER_DOCUMENT_TYPE.get(slug)
+    if is_primary:
+        doc_type = 'buyer_offer'
+    elif not doc_type:
+        doc_type = slug or 'supporting'
+
+    offer_document.document_type = doc_type
+    offer_document.display_name = (
+        (identity.label if identity and identity.label else None)
+        or doc.template_name
+        or get_offer_document_type(doc_type).get('label')
+        or 'Offer Document'
+    )
+    offer_document.is_primary_terms_document = bool(is_primary)
+
+    if is_primary:
+        version = SellerOfferVersion.query.filter_by(
+            organization_id=offer.organization_id,
+            transaction_id=offer.transaction_id,
+            transaction_document_id=doc.id,
+        ).first()
+        if not version:
+            doc_config = get_offer_document_type('buyer_offer')
+            version = SellerOfferVersion(
+                organization_id=offer.organization_id,
+                transaction_id=offer.transaction_id,
+                offer_id=offer.id,
+                created_by_id=offer.created_by_id,
+                transaction_document_id=doc.id,
+                version_number=1,
+                direction=doc_config.get('direction') or 'buyer_offer',
+                status='submitted',
+                submitted_at=datetime.utcnow(),
+                terms_data={},
+            )
+            db.session.add(version)
+            db.session.flush()
+            offer.current_version_id = version.id
+            offer_document.offer_version_id = version.id
+        return sync_offer_version_from_document(doc.id)
+
+    return merge_offer_supporting_document(offer_document)
 
 
 def apply_contract_terms(contract, terms):
@@ -1114,6 +1657,16 @@ def normalize_offer_terms(terms):
         addenda['hoa_addendum'] = hoa_addendum
         supporting.setdefault('hoa_addendum', hoa_addendum)
 
+    compensation = _json_object(supporting.get('broker_compensation'))
+    if compensation:
+        for key in (
+            'buyer_agent_commission_percent',
+            'buyer_agent_commission_flat',
+        ):
+            if normalized.get(key) in (None, '') and compensation.get(key) not in (None, ''):
+                normalized[key] = compensation.get(key)
+        supporting['broker_compensation'] = compensation
+
     if addenda:
         normalized['addenda'] = addenda
     if supporting:
@@ -1229,6 +1782,108 @@ def create_contract_milestones(contract, replace=False):
     for item in milestones:
         db.session.add(item)
     return milestones
+
+
+def seed_ctc_requirements_from_accepted_contract(
+    *,
+    transaction,
+    accepted_contract,
+    actor_id=None,
+    pack_key='seller_ctc',
+):
+    """Seed CTC deadline-pack requirements from accepted/effective/closing anchors.
+
+    Idempotent: DeadlineRulesService skips existing requirement keys.
+    Legacy SellerContractMilestone rows remain for compatibility.
+    """
+    from services.deadline_rules import DeadlineRulesService
+
+    anchors = {}
+    if getattr(accepted_contract, 'effective_date', None):
+        anchors['effective_date'] = accepted_contract.effective_date
+    if getattr(accepted_contract, 'closing_date', None):
+        anchors['closing_date'] = accepted_contract.closing_date
+        anchors['expected_close_date'] = accepted_contract.closing_date
+
+    option_days = getattr(accepted_contract, 'option_period_days', None)
+    if option_days is not None and anchors.get('effective_date'):
+        try:
+            anchors['option_period_end'] = (
+                anchors['effective_date'] + timedelta(days=int(option_days))
+            )
+        except (TypeError, ValueError):
+            pass
+
+    if not anchors:
+        return {'created': 0, 'skipped': 0, 'reason': 'no_anchors'}
+
+    side = 'seller'
+    if pack_key.startswith('buyer'):
+        side = 'buyer'
+
+    return DeadlineRulesService.apply_pack_to_transaction(
+        transaction_id=transaction.id,
+        organization_id=transaction.organization_id,
+        pack_key=pack_key,
+        anchors=anchors,
+        side=side,
+        source='offer_acceptance',
+        actor_id=actor_id,
+    )
+
+
+def seed_buyer_ctc_from_terms(
+    *,
+    transaction,
+    terms: dict,
+    actor_id=None,
+):
+    """Seed buyer_ctc requirements from approved/controlling contract terms."""
+    from datetime import date as date_cls
+
+    from services.deadline_rules import DeadlineRulesService
+
+    def _as_date(value):
+        if value is None or value == '':
+            return None
+        if isinstance(value, date_cls) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        text = str(value).strip()[:10]
+        try:
+            return datetime.strptime(text, '%Y-%m-%d').date()
+        except ValueError:
+            return None
+
+    anchors = {}
+    effective = _as_date(terms.get('effective_date'))
+    closing = _as_date(
+        terms.get('closing_date')
+        or terms.get('proposed_close_date')
+        or terms.get('close_date')
+    )
+    if effective:
+        anchors['effective_date'] = effective
+    if closing:
+        anchors['closing_date'] = closing
+    option_days = terms.get('option_period_days')
+    if option_days is not None and effective:
+        try:
+            anchors['option_period_end'] = effective + timedelta(days=int(option_days))
+        except (TypeError, ValueError):
+            pass
+    if not anchors:
+        return {'created': 0, 'skipped': 0, 'reason': 'no_anchors'}
+    return DeadlineRulesService.apply_pack_to_transaction(
+        transaction_id=transaction.id,
+        organization_id=transaction.organization_id,
+        pack_key='buyer_ctc',
+        anchors=anchors,
+        side='buyer',
+        source='buyer_controlling_contract',
+        actor_id=actor_id,
+    )
 
 
 def promote_backup_contract(primary_contract, backup_contract, notice_received_at, actor_id=None):

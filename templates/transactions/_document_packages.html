@@ -1,0 +1,137 @@
+{# Reusable document package rows from build_document_packages().
+   Expects: package (dict with label/documents), transaction, optional title_override.
+   Upload triggers bubble to the page-level document-upload-hub controller.
+#}
+{% from "components/ui.html" import badge %}
+{% set package = package or {} %}
+{% set rows = package.documents or [] %}
+{% set pkg_label = title_override or package.label or 'Documents' %}
+{% set pkg_key = package.key or package.scope or 'package' %}
+{% set omit_header = omit_header|default(false) %}
+{% set package_variant = package_variant|default('') %}
+{% set is_unfiled = package_variant == 'unfiled' or pkg_key == 'unfiled_documents' %}
+{% set state_badge = {
+    'expected': ('Expected', 'neutral'),
+    'missing': ('Needed', 'warning'),
+    'uploaded': ('Uploaded', 'success'),
+    'needs_classification': ('Needs filing', 'warning'),
+    'detected_in_package': ('Detected in package', 'info'),
+    'not_applicable': ('Not applicable', 'neutral'),
+} %}
+{% set appl_badge = {
+    'optional': ('May apply', 'neutral'),
+    'unknown': ('Unknown', 'neutral'),
+    'applicable': ('Expected', 'neutral'),
+} %}
+
+<section class="crm-document-package{% if is_unfiled %} crm-document-package--unfiled{% endif %}"
+         data-package-key="{{ pkg_key }}"
+         {% if not omit_header %}aria-labelledby="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}"{% endif %}>
+    {% if not omit_header %}
+    <div class="crm-document-package__header{% if is_unfiled %} crm-document-package__header--unfiled{% endif %}">
+        <div class="min-w-0">
+            <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="text-sm font-semibold text-slate-950">{{ pkg_label }}</h3>
+            {% if is_unfiled %}
+            <p class="mt-0.5 text-xs text-amber-800">Uploaded PDFs waiting for a package destination.</p>
+            {% elif package.status %}
+            <p class="mt-0.5 text-xs text-slate-500">{{ package.status|replace('_', ' ')|title }}</p>
+            {% endif %}
+        </div>
+        <button type="button"
+                class="crm-btn crm-btn-secondary crm-btn-sm min-h-11"
+                data-action="document-upload-hub#open"
+                data-document-upload-hub-scope-param="{{ 'other' if is_unfiled else (package.scope or 'other') }}"
+                data-document-upload-hub-scope-id-param="{{ package.scope_id or '' }}"
+                data-document-upload-hub-label-param="{{ pkg_label }}">
+            <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+            Upload document
+        </button>
+    </div>
+    {% endif %}
+
+    {% if rows %}
+    <ul class="crm-document-package__list" role="list">
+        {% for row in rows %}
+        {% set state = row.state or 'expected' %}
+        {% set badge_pair = state_badge.get(state) %}
+        {% if not badge_pair and row.applicability in appl_badge %}
+            {% set badge_pair = appl_badge.get(row.applicability) %}
+        {% endif %}
+        {% set badge_label = badge_pair[0] if badge_pair else (state|replace('_', ' ')|title) %}
+        {% set badge_tone = badge_pair[1] if badge_pair else 'neutral' %}
+        {% if state == 'expected' and row.applicability == 'optional' %}
+            {% set badge_label = 'May apply' %}
+            {% set badge_tone = 'neutral' %}
+        {% elif state == 'expected' and row.applicability == 'unknown' %}
+            {% set badge_label = 'Unknown' %}
+            {% set badge_tone = 'neutral' %}
+        {% endif %}
+        <li class="crm-document-row" data-document-row data-state="{{ state }}">
+            <div class="crm-document-row__main">
+                <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-sm font-semibold text-slate-950">
+                            {{ row.label or row.template_name or 'Document' }}
+                            {% if row.form_number %}
+                            <span class="font-medium text-slate-500">· {{ row.form_number }}</span>
+                            {% endif %}
+                        </p>
+                        {{ badge(badge_label, badge_tone) }}
+                    </div>
+                    {% if row.detected_in_package and row.reason %}
+                    <p class="crm-document-row__reason">{{ row.reason }}</p>
+                    {% elif row.reason and state in ('needs_classification', 'missing', 'expected', 'detected_in_package') and row.applicability != 'not_applicable' %}
+                    <p class="crm-document-row__reason">{{ row.reason }}</p>
+                    {% endif %}
+                </div>
+                <div class="crm-document-row__actions">
+                    {% if state == 'not_applicable' %}
+                    <span class="text-xs text-slate-400">—</span>
+                    {% elif state == 'detected_in_package' and row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open parent PDF</a>
+                    {% elif state == 'needs_classification' %}
+                    {% if row.offer_package_review and row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">Review offer</a>
+                    {% elif row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-accent crm-btn-sm min-h-11">File document</a>
+                    {% endif %}
+                    {% if row.doc_url %}
+                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">Open PDF</a>
+                    {% endif %}
+                    {% elif row.document_id and row.doc_url %}
+                    <a href="{{ row.doc_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11" target="_blank" rel="noopener">Open PDF</a>
+                    {% if row.offer_package_review and row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open in offer review</a>
+                    {% elif row.has_review_findings and row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Review findings</a>
+                    {% elif row.review_url %}
+                    <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open review</a>
+                    {% endif %}
+                    {% elif row.document_id and row.is_placeholder %}
+                    <button type="button"
+                            class="crm-btn crm-btn-accent crm-btn-sm min-h-11"
+                            onclick='showFulfillPlaceholderModal({{ row.document_id }}, {{ (row.label or row.template_name or "Document")|tojson }})'>
+                        <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+                        Upload
+                    </button>
+                    {% else %}
+                    <button type="button"
+                            class="crm-btn crm-btn-accent crm-btn-sm min-h-11"
+                            data-action="document-upload-hub#open"
+                            data-document-upload-hub-scope-param="{{ row.scope or package.scope or 'other' }}"
+                            data-document-upload-hub-scope-id-param="{{ row.scope_id or package.scope_id or '' }}"
+                            data-document-upload-hub-slug-param="{{ row.canonical_slug or row.template_slug or '' }}"
+                            data-document-upload-hub-label-param="{{ row.label or 'Document' }}">
+                        <i class="fas fa-upload text-xs" aria-hidden="true"></i>
+                        Upload
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="px-4 py-5 text-sm text-slate-500">No documents in this package yet.</p>
+    {% endif %}
+</section>

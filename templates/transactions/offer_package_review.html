@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import badge %}
+
+{% block title %}Offer review · {{ review.buyer_names or ('Offer #' ~ offer.id) }} · Origen TechnolOG{% endblock %}
+
+{% block content %}
+{% set terms = review.terms or {} %}
+{% set extraction = review.extraction or {} %}
+{% set docs = review.documents or [] %}
+{% set findings = review.findings or [] %}
+{% set price = review.offer_price %}
+
+<div class="document-review-workspace offer-package-review flex h-full min-h-0 flex-col overflow-hidden bg-[color:var(--canvas)]"
+     data-controller="offer-package-review"
+     data-offer-package-review-pdf-url-value="{{ review.primary_pdf_url or '' }}"
+     data-offer-package-review-confirm-url-value="{{ review.confirm_url }}"
+     data-offer-package-review-live-url-value="{{ review.live_url }}"
+     data-offer-package-review-return-url-value="{{ review.return_url }}">
+
+    <header class="offer-package-review__header sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-[color:var(--paper)] shadow-panel">
+        <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0 flex items-start gap-3">
+                <a href="{{ review.return_url }}"
+                   class="crm-btn crm-btn-subtle crm-btn-sm shrink-0"
+                   data-action="offer-package-review#goBack">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">Back to offers</span>
+                    <span class="sm:hidden">Back</span>
+                </a>
+                <div class="min-w-0">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Offer package review</p>
+                    <h1 class="mt-0.5 truncate text-base font-semibold text-slate-950"
+                        data-offer-package-review-target="headerTitle">
+                        {{ review.buyer_names or 'Unnamed buyer' }}
+                        {% if price is not none %}
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="font-medium text-slate-700">${{ '{:,.0f}'.format(price) }}</span>
+                        {% endif %}
+                    </h1>
+                    <p class="mt-0.5 text-xs text-slate-500">
+                        {{ transaction.street_address }}
+                        · {{ docs|length }} document{% if docs|length != 1 %}s{% endif %}
+                        · {{ (offer.status or '')|replace('_', ' ')|title }}
+                    </p>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button type="button"
+                        class="crm-btn crm-btn-secondary"
+                        data-action="offer-package-review#saveDraft"
+                        data-offer-package-review-target="draftBtn">
+                    Save draft
+                </button>
+                <button type="button"
+                        class="crm-btn crm-btn-accent"
+                        data-action="offer-package-review#confirm"
+                        data-offer-package-review-target="confirmBtn">
+                    Confirm offer
+                </button>
+            </div>
+        </div>
+        <div class="{% if not extraction.pending %}hidden {% endif %}border-t border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 sm:px-5"
+             data-offer-package-review-target="extractionBanner">
+            <span data-offer-package-review-target="extractionLabel">
+                Extracting {{ extraction.pending or 0 }} of {{ extraction.total or 0 }} document{% if (extraction.total or 0) != 1 %}s{% endif %}…
+            </span>
+        </div>
+        <div class="hidden border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 sm:px-5"
+             data-offer-package-review-target="errorBanner"
+             role="alert"></div>
+    </header>
+
+    <div class="drw-split flex min-h-0 flex-1 flex-col lg:flex-row">
+        <section class="drw-pdf-pane relative flex min-h-0 min-w-0 flex-1 flex-col border-b border-slate-200 bg-slate-100 lg:border-b-0 lg:border-r"
+                 aria-label="Offer PDF">
+            <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-[color:var(--paper)] px-3 py-2">
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="offer-package-review#prevPage" aria-label="Previous page">
+                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="offer-package-review#nextPage" aria-label="Next page">
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <span class="text-xs font-medium tabular-nums text-slate-600">
+                    Page
+                    <span data-offer-package-review-target="pageLabel">1</span>
+                    /
+                    <span data-offer-package-review-target="pageTotal">–</span>
+                </span>
+                <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="offer-package-review#zoomOut" aria-label="Zoom out">
+                    <i class="fas fa-minus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="offer-package-review#zoomIn" aria-label="Zoom in">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="offer-package-review#fitWidth">Fit</button>
+            </div>
+            <div class="relative min-h-0 flex-1 overflow-auto"
+                 data-offer-package-review-target="pdfPane">
+                <div class="flex flex-col items-center gap-2 py-16 text-sm text-slate-500"
+                     data-offer-package-review-target="pdfLoading">
+                    <i class="fas fa-circle-notch fa-spin text-slate-400" aria-hidden="true"></i>
+                    <span>Loading PDF…</span>
+                </div>
+                <div class="flex flex-col items-center gap-3 px-4 py-4"
+                     data-offer-package-review-target="pageStack"></div>
+                <div class="hidden flex-col items-center gap-3 px-4 py-16 text-center"
+                     data-offer-package-review-target="pdfError">
+                    <p class="text-sm font-medium text-slate-800">Select a document on the right to preview.</p>
+                </div>
+            </div>
+        </section>
+
+        <aside class="offer-package-review__sidebar flex min-h-0 w-full flex-col border-slate-200 bg-[color:var(--paper)] lg:w-[26rem] lg:shrink-0 xl:w-[30rem]"
+               aria-label="Offer terms and package">
+            <div class="offer-package-review__sidebar-scroll min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5 space-y-5">
+                <section aria-labelledby="opr-terms-heading">
+                    <h2 id="opr-terms-heading" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Offer terms</h2>
+                    <p class="mt-1 text-xs leading-5 text-slate-600">Confirm once for the whole package.</p>
+                    <form class="mt-3 space-y-3" data-offer-package-review-target="termsForm" onsubmit="return false;">
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-buyers">Buyers</label>
+                            <input id="opr-buyers" name="buyer_names" type="text" class="crm-input"
+                                   value="{{ terms.buyer_names or '' }}"
+                                   data-offer-package-review-target="buyerNames">
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-price">Offer price</label>
+                                <input id="opr-price" name="offer_price" type="text" inputmode="decimal" class="crm-input"
+                                       value="{{ terms.offer_price if terms.offer_price is not none else '' }}"
+                                       data-offer-package-review-target="offerPrice">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-close">Closing date</label>
+                                <input id="opr-close" name="proposed_close_date" type="date" class="crm-input"
+                                       value="{{ terms.proposed_close_date or '' }}">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-earnest">Earnest</label>
+                                <input id="opr-earnest" name="earnest_money" type="text" inputmode="decimal" class="crm-input"
+                                       value="{{ terms.earnest_money if terms.earnest_money is not none else '' }}">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-option-fee">Option fee</label>
+                                <input id="opr-option-fee" name="option_fee" type="text" inputmode="decimal" class="crm-input"
+                                       value="{{ terms.option_fee if terms.option_fee is not none else '' }}">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-option-days">Option days</label>
+                                <input id="opr-option-days" name="option_period_days" type="number" min="0" class="crm-input"
+                                       value="{{ terms.option_period_days if terms.option_period_days is not none else '' }}">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-concessions">Seller concessions</label>
+                                <input id="opr-concessions" name="seller_concessions_amount" type="text" inputmode="decimal" class="crm-input"
+                                       value="{{ terms.seller_concessions_amount if terms.seller_concessions_amount is not none else '' }}">
+                            </div>
+                        </div>
+
+                        <p class="pt-1 text-[10.5px] font-medium uppercase tracking-[0.12em] text-slate-500">From contract</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-title-paid">Title paid by</label>
+                                <input id="opr-title-paid" name="title_policy_payer" type="text" class="crm-input"
+                                       placeholder="Buyer / Seller / Split"
+                                       value="{{ terms.title_policy_payer or '' }}">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-survey-paid">Survey paid by</label>
+                                <input id="opr-survey-paid" name="survey_payer" type="text" class="crm-input"
+                                       placeholder="Buyer / Seller / Split"
+                                       value="{{ terms.survey_payer or '' }}">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-bac-pct">
+                                Buyer’s agent commission paid by seller
+                            </label>
+                            <p class="mb-1 text-[11px] text-slate-500">Paragraph 12.B(1)</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <input id="opr-bac-pct" name="buyer_agent_commission_percent" type="text"
+                                           inputmode="decimal" class="crm-input" placeholder="%"
+                                           value="{{ terms.buyer_agent_commission_percent if terms.buyer_agent_commission_percent is not none else '' }}">
+                                </div>
+                                <div>
+                                    <input id="opr-bac-flat" name="buyer_agent_commission_flat" type="text"
+                                           inputmode="decimal" class="crm-input" placeholder="Flat $"
+                                           aria-label="Buyer agent commission flat amount"
+                                           value="{{ terms.buyer_agent_commission_flat if terms.buyer_agent_commission_flat is not none else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-rsc">
+                                Residential service contract amount
+                            </label>
+                            <p class="mb-1 text-[11px] text-slate-500">Paragraph 7.H</p>
+                            <input id="opr-rsc" name="residential_service_contract" type="text" class="crm-input"
+                                   value="{{ terms.residential_service_contract or '' }}">
+                        </div>
+
+                        <p class="pt-1 text-[10.5px] font-medium uppercase tracking-[0.12em] text-slate-500">From third party financing</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-fin-type">Financing type</label>
+                                <input id="opr-fin-type" name="financing_type" type="text" class="crm-input"
+                                       value="{{ terms.financing_type or '' }}">
+                            </div>
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-fin-amt">Financing amount</label>
+                                <input id="opr-fin-amt" name="financing_amount" type="text" inputmode="decimal" class="crm-input"
+                                       value="{{ terms.financing_amount if terms.financing_amount is not none else '' }}">
+                            </div>
+                        </div>
+
+                        <p class="pt-1 text-[10.5px] font-medium uppercase tracking-[0.12em] text-slate-500">Buyer representation</p>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-agent">Buyer agent</label>
+                            <input id="opr-agent" name="buyer_agent_name" type="text" class="crm-input"
+                                   value="{{ terms.buyer_agent_name or '' }}">
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-medium text-slate-700" for="opr-broker">Buyer brokerage</label>
+                            <input id="opr-broker" name="buyer_agent_brokerage" type="text" class="crm-input"
+                                   value="{{ terms.buyer_agent_brokerage or '' }}">
+                        </div>
+                    </form>
+                </section>
+
+                <hr class="border-slate-200">
+
+                <section aria-labelledby="opr-docs-heading">
+                    <h2 id="opr-docs-heading" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">In this package</h2>
+                    <ul class="mt-2 divide-y divide-slate-100 border border-slate-200 rounded-md"
+                        data-offer-package-review-target="docList">
+                        {% for doc in docs %}
+                        <li>
+                            <button type="button"
+                                    class="flex w-full items-start gap-3 px-3 py-2.5 text-left hover:bg-slate-50 {% if review.primary_document_id == doc.document_id %}bg-orange-50/60{% endif %}"
+                                    data-offer-package-review-target="docButton"
+                                    data-document-id="{{ doc.document_id }}"
+                                    data-pdf-url="{{ doc.pdf_url or '' }}"
+                                    data-action="offer-package-review#selectDoc">
+                                <span class="mt-0.5 text-slate-400" aria-hidden="true">
+                                    <i class="fas fa-file-pdf"></i>
+                                </span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-sm font-medium text-slate-900 truncate">{{ doc.label }}</span>
+                                    <span class="mt-0.5 block text-xs text-slate-500">
+                                        {% if doc.is_primary %}Primary terms · {% endif %}
+                                        <span data-doc-status>{{ (doc.extraction_status or 'pending')|replace('_',' ')|title }}</span>
+                                    </span>
+                                </span>
+                            </button>
+                        </li>
+                        {% else %}
+                        <li class="px-3 py-4 text-sm text-slate-500">No documents linked yet.</li>
+                        {% endfor %}
+                    </ul>
+                    {% if review.addenda %}
+                    <p class="mt-2 text-xs text-slate-500">
+                        Addenda: {{ review.addenda|join(' · ') }}
+                    </p>
+                    {% endif %}
+                </section>
+
+                {% if findings %}
+                <hr class="border-slate-200">
+                <section aria-labelledby="opr-findings-heading">
+                    <h2 id="opr-findings-heading" class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Findings</h2>
+                    <ul class="mt-2 space-y-2" data-offer-package-review-target="findingsList">
+                        {% for finding in findings %}
+                        <li class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                            <p class="font-medium">{{ finding.message }}</p>
+                            <p class="mt-0.5 text-xs text-amber-800/80">
+                                {{ finding.document_label }}{% if finding.page %} · p. {{ finding.page }}{% endif %}
+                            </p>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% else %}
+                <div class="hidden" data-offer-package-review-target="findingsList"></div>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
+{% endblock %}

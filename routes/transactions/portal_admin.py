@@ -9,30 +9,22 @@ from flask_login import current_user, login_required
 
 from models import (
     ClientPortalAccess,
-    Transaction,
     TransactionParticipant,
     db,
 )
+from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
 
 SELLER_ROLES = ('seller', 'co_seller')
+BUYER_ROLES = ('buyer', 'co_buyer')
+CLIENT_ROLES = SELLER_ROLES + BUYER_ROLES
 
 
-def _can_manage_transaction(transaction):
-    return (
-        transaction.created_by_id == current_user.id
-        or getattr(current_user, 'role', None) == 'admin'
-        or getattr(current_user, 'org_role', None) in ('admin', 'owner')
-    )
-
-
-def _get_transaction(id):
-    transaction = Transaction.query.filter_by(
-        id=id, organization_id=current_user.organization_id,
-    ).first_or_404()
-    if not _can_manage_transaction(transaction):
-        abort(403)
+def _get_transaction(id, capability=CAP_EDIT):
+    transaction, decision = get_transaction_for_user(id, capability=capability)
+    if not transaction:
+        abort(403 if decision.reason != 'not_found' else 404)
     return transaction
 
 
@@ -66,6 +58,15 @@ def _seller_participants(transaction):
     ).all()
 
 
+def _client_participants(transaction):
+    """Seller + buyer participants eligible for portal links."""
+    return TransactionParticipant.query.filter(
+        TransactionParticipant.transaction_id == transaction.id,
+        TransactionParticipant.organization_id == current_user.organization_id,
+        TransactionParticipant.role.in_(CLIENT_ROLES),
+    ).all()
+
+
 def _active_link_for(transaction, participant_id):
     return ClientPortalAccess.query.filter_by(
         transaction_id=transaction.id,
@@ -78,20 +79,21 @@ def _active_link_for(transaction, participant_id):
 @login_required
 @transactions_required
 def portal_status(id):
-    """List seller participants and their active portal links."""
-    transaction = _get_transaction(id)
+    """List client (seller + buyer) participants and their active portal links."""
+    transaction = _get_transaction(id, CAP_VIEW)
     rows = []
-    for participant in _seller_participants(transaction):
+    for participant in _client_participants(transaction):
         access = _active_link_for(transaction, participant.id)
         rows.append(_serialize(participant, access))
-    return jsonify({'success': True, 'sellers': rows})
+    # Keep `sellers` key for existing UI; also expose `clients`.
+    return jsonify({'success': True, 'sellers': rows, 'clients': rows})
 
 
 @transactions_bp.route('/<int:id>/portal/create', methods=['POST'])
 @login_required
 @transactions_required
 def portal_create_link(id):
-    """Create (or return the existing) active portal link for a seller."""
+    """Create (or return the existing) active portal link for a seller or buyer."""
     transaction = _get_transaction(id)
     data = request.get_json(silent=True) or request.form
     try:
@@ -104,8 +106,11 @@ def portal_create_link(id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).first()
-    if not participant or participant.role not in SELLER_ROLES:
-        return jsonify({'success': False, 'error': 'Not a seller on this transaction.'}), 400
+    if not participant or participant.role not in CLIENT_ROLES:
+        return jsonify({
+            'success': False,
+            'error': 'Not a seller or buyer on this transaction.',
+        }), 400
 
     access = _active_link_for(transaction, participant.id)
     if not access:

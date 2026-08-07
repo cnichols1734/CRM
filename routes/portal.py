@@ -18,7 +18,7 @@ from flask import (
 from sqlalchemy import text
 
 from models import db, ClientPortalAccess, PortalMessage
-from services.portal_service import build_portal_context, SELLER_ROLES
+from services.portal_service import CLIENT_PORTAL_ROLES, build_portal_context
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def portal_access(view):
         participant = access.participant
         if (tx is None or participant is None
                 or participant.transaction_id != tx.id
-                or (participant.role or '') not in SELLER_ROLES):
+                or (participant.role or '') not in CLIENT_PORTAL_ROLES):
             return render_template('portal/invalid.html'), 404
 
         g.portal = access
@@ -95,7 +95,7 @@ def portal_access(view):
 @portal_bp.route('/<token>')
 @portal_access
 def home(access):
-    """The seller's portal: status tracker + everything they care about."""
+    """Client portal (seller or buyer): status tracker + client-safe sections."""
     try:
         access.record_view()
         db.session.commit()
@@ -139,7 +139,12 @@ def view_document(access, doc_id):
 @portal_access
 def sign_document(access, doc_id):
     """Embedded DocuSeal signing page for a document awaiting the seller."""
-    from models import TransactionDocument
+    from feature_flags import org_has_feature
+    from models import Organization, TransactionDocument
+
+    org = Organization.query.get(access.organization_id)
+    if not org_has_feature('DOCUMENT_GENERATION', org):
+        abort(403)
 
     doc = TransactionDocument.query.filter_by(
         id=doc_id, transaction_id=access.transaction_id).first()

@@ -19,6 +19,13 @@ from models import (
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy import func, case, and_
 from services import audit_service
+from services.offer_metering import metering_for_transaction
+from services.offer_side import (
+    labels_for_side,
+    side_for_transaction,
+    status_label,
+    supports_offers,
+)
 from services.seller_workflow import offer_urgency
 from . import transactions_bp
 from .decorators import transactions_required
@@ -106,14 +113,12 @@ def list_transactions():
     # Admin view toggle - allow admins to see all transactions in their org
     show_all = request.args.get('view') == 'all' and current_user.org_role in ('admin', 'owner')
     
-    # Base query - ALWAYS filter by organization, then by user unless admin viewing all
+    # Base query - ALWAYS filter by organization, then by creator/assignee unless admin viewing all
     if show_all:
         query = Transaction.query.filter_by(organization_id=current_user.organization_id)
     else:
-        query = Transaction.query.filter_by(
-            organization_id=current_user.organization_id,
-            created_by_id=current_user.id
-        )
+        from services.transaction_auth import transactions_visible_query
+        query = transactions_visible_query(current_user)
     
     # Apply filters
     if status_filter:
@@ -264,7 +269,9 @@ def list_transactions():
     
     # Get transaction types for filter dropdown (org-scoped, cached)
     from services.cache_helpers import get_org_transaction_types
+    from feature_flags import org_has_feature
     transaction_types = get_org_transaction_types(current_user.organization_id)
+    vtc_pilot = org_has_feature('BOB_VTC_PILOT', current_user.organization)
     
     return render_template(
         'transactions/list.html',
@@ -276,7 +283,8 @@ def list_transactions():
         status_filter=status_filter,
         type_filter=type_filter,
         search_query=search_query,
-        show_all=show_all
+        show_all=show_all,
+        vtc_pilot=vtc_pilot,
     )
 
 
@@ -452,13 +460,14 @@ def create_transaction():
 @transactions_required
 def view_transaction(id):
     """View a single transaction."""
+    from services.transaction_auth import can_view_transaction
+
     # Load transaction with transaction_type - SCOPED TO ORGANIZATION
     transaction = Transaction.query.options(
         joinedload(Transaction.transaction_type)
     ).filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    # Ensure user owns this transaction or is org admin
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
+
+    if not can_view_transaction(transaction, current_user).allowed:
         abort(403)
     
     # Load participants with contacts in one query
@@ -484,6 +493,9 @@ def view_transaction(id):
     listing_info = None
     listing_extraction_status = None
     listing_info_overrides = {}
+    seller_listing_profile = None
+    listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
+    has_listing_agreement = listing_doc is not None
     if transaction.transaction_type.name == 'seller':
         offer_scoped_document_ids = {
             row[0] for row in db.session.query(SellerOfferDocument.transaction_document_id).filter(
@@ -505,15 +517,22 @@ def view_transaction(id):
 
         extra_data = transaction.extra_data or {}
         listing_info_overrides = extra_data.get('listing_info_overrides') or {}
+        seller_listing_profile = SellerListingProfile.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+        ).first()
         from services.transaction_helpers import build_listing_info
-        listing_info = build_listing_info(documents, listing_info_overrides)
-        listing_doc = next((d for d in documents if d.template_slug == 'listing-agreement'), None)
+        listing_info = build_listing_info(
+            documents,
+            listing_info_overrides,
+            transaction=transaction,
+            listing_profile=seller_listing_profile,
+        )
         if listing_doc:
             listing_extraction_status = listing_doc.extraction_status
     
     # Get lockbox combo from extra_data (always available for seller transactions)
     lockbox_combo = None
-    seller_listing_profile = None
     seller_offers = []
     active_seller_offers = []
     seller_offer_versions_by_offer = {}
@@ -527,13 +546,12 @@ def view_transaction(id):
     seller_contract_milestones = []
     seller_commission_terms = None
     seller_price_changes = []
-    if transaction.transaction_type.name == 'seller':
-        extra_data = transaction.extra_data or {}
-        lockbox_combo = extra_data.get('lockbox_combo')
-        seller_listing_profile = SellerListingProfile.query.filter_by(
-            transaction_id=transaction.id,
-            organization_id=current_user.organization_id
-        ).first()
+    offer_side = side_for_transaction(transaction)
+    offer_labels = labels_for_side(offer_side) if offer_side else None
+    offer_metering = None
+
+    # Offer threads attach to buyer and seller transactions (shared SellerOffer tables).
+    if supports_offers(transaction):
         seller_offers = SellerOffer.query.filter_by(
             transaction_id=transaction.id,
             organization_id=current_user.organization_id
@@ -602,6 +620,15 @@ def view_transaction(id):
                         version.document.extraction_status,
                     )
         urgent_seller_offer = active_seller_offers[0] if active_seller_offers else None
+        offer_metering = metering_for_transaction(
+            transaction.id,
+            current_user.organization_id,
+        )
+
+    # Listing contracts, commission, and price history remain seller-only.
+    if transaction.transaction_type.name == 'seller':
+        extra_data = transaction.extra_data or {}
+        lockbox_combo = extra_data.get('lockbox_combo')
         primary_seller_contract = SellerAcceptedContract.query.filter_by(
             transaction_id=transaction.id,
             organization_id=current_user.organization_id,
@@ -644,7 +671,22 @@ def view_transaction(id):
             transaction_id=transaction.id,
             organization_id=current_user.organization_id
         ).order_by(SellerListingPriceChange.changed_at.desc()).limit(5).all()
-    
+
+    from services.transaction_helpers import (
+        build_contract_terms,
+        resolve_header_price_display,
+    )
+    contract_terms = build_contract_terms(
+        transaction,
+        accepted_contract=primary_seller_contract,
+        documents=documents,
+    )
+    header_price = resolve_header_price_display(
+        transaction,
+        listing_info=listing_info,
+        contract_terms=contract_terms,
+    )
+
     # Get RentCast data for buyer transactions
     rentcast_data = None
     rentcast_fetched_at = None
@@ -666,17 +708,346 @@ def view_transaction(id):
         transaction_id=transaction.id,
         organization_id=current_user.organization_id,
     ).order_by(Task.status.asc(), Task.due_date.asc()).all()
-    
+
+    # BOB post-upload document review reports (banner / toast / inbox)
+    document_review_reports = []
+    document_review_toasts = []
+    document_review_attention = []
+    pending_change_proposals = []
+    pending_proposal_document_ids = set()
+    try:
+        from services.document_review import list_open_reports, pending_toasts
+        document_review_reports = list_open_reports(
+            transaction.id, current_user.organization_id,
+        )
+        document_review_toasts = pending_toasts(
+            transaction.id, current_user.organization_id,
+        )
+        document_review_attention = [
+            r for r in document_review_reports
+            if r.severity in ('attention', 'critical')
+        ]
+    except Exception:
+        # Table may not exist until migration; never break the transaction page.
+        pass
+
+    try:
+        from services.proposal_service import ProposalService
+        pending_change_proposals = ProposalService.list_pending_proposals(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+        )
+        pending_proposal_document_ids = {
+            proposal.source_document_id
+            for proposal in pending_change_proposals
+            if proposal.source_document_id is not None
+        }
+    except Exception:
+        pending_change_proposals = []
+        pending_proposal_document_ids = set()
+
+    # Phase 1A control tower: requirements + optional milestone backfill for pilot
+    control_tower_requirements = []
+    control_tower_open_requirements = []
+    control_tower_completed_requirements = []
+    control_tower_focus = []
+    control_tower_summary = {
+        'open': 0,
+        'completed': 0,
+        'overdue': 0,
+        'due_soon': 0,
+        'missing_documents': 0,
+    }
+    transaction_assignments = []
+    org_assignable_users = []
+    can_assign_roles = False
+    vtc_pilot = False
+    try:
+        from feature_flags import org_has_feature
+        from models import TransactionAssignment, User
+        from services.requirements_service import RequirementsService
+        from services.transaction_auth import (
+            CAP_ASSIGN,
+            has_capability,
+            is_org_break_glass,
+        )
+
+        vtc_pilot = org_has_feature('BOB_VTC_PILOT', current_user.organization)
+        control_tower_requirements = RequirementsService.list_requirements(transaction.id)
+
+        # Derived timing for display only — never backfill or commit on GET.
+        # Explicit backfill lives on POST /requirements/backfill.
+        for req in control_tower_requirements:
+            derived = RequirementsService.derive_timing_state(
+                req.due_at, req.work_status, now=dt.utcnow(),
+            )
+            # Non-column attribute so the ORM row is not dirtied.
+            req.display_timing_state = derived
+
+            if req.work_status in ('completed', 'not_applicable', 'superseded'):
+                control_tower_completed_requirements.append(req)
+                continue
+
+            control_tower_open_requirements.append(req)
+            if derived == 'overdue':
+                control_tower_summary['overdue'] += 1
+            elif derived == 'due_soon':
+                control_tower_summary['due_soon'] += 1
+
+        control_tower_summary['completed'] = len(control_tower_completed_requirements)
+
+        transaction_assignments = (
+            TransactionAssignment.query.filter_by(
+                transaction_id=transaction.id,
+                organization_id=current_user.organization_id,
+            )
+            .order_by(TransactionAssignment.created_at.asc())
+            .all()
+        )
+        can_assign_roles = (
+            is_org_break_glass(current_user)
+            or has_capability(transaction, CAP_ASSIGN, current_user).allowed
+            or transaction.created_by_id == current_user.id
+        )
+        if can_assign_roles or vtc_pilot:
+            org_assignable_users = (
+                User.query.filter_by(organization_id=current_user.organization_id)
+                .order_by(User.first_name.asc(), User.last_name.asc())
+                .limit(100)
+                .all()
+            )
+    except Exception:
+        logger.exception('Control tower load failed for tx=%s', transaction.id)
+
+    # One operational queue: BOB document exceptions, overdue work, upcoming
+    # deadlines, and one aggregate missing-document action. Avoid repeating the
+    # same missing-doc warning in every document review report.
+    focus_items = []
+    for report in document_review_attention:
+        finding = next(iter(report.findings or []), {})
+        focus_items.append({
+            'kind': 'document_review',
+            'rank': 0 if report.severity == 'critical' else 2,
+            'sort_at': report.created_at or dt.max,
+            'title': finding.get('message') or report.title,
+            'subtitle': (
+                f'{report.document.review_filename} · '
+                f'{report.document.review_document_type}'
+                if report.document else 'Uploaded document'
+            ),
+            'status_label': 'Critical' if report.severity == 'critical' else 'Review',
+            'report': report,
+        })
+
+    for proposal in pending_change_proposals:
+        source_doc = next((doc for doc in documents if doc.id == proposal.source_document_id), None)
+        focus_items.append({
+            'kind': 'proposal',
+            'rank': 3,
+            'sort_at': proposal.created_at or dt.max,
+            'title': 'Review BOB’s suggested transaction updates',
+            'subtitle': source_doc.template_name if source_doc else 'Uploaded document',
+            'status_label': 'Approve',
+            'proposal': proposal,
+        })
+
+    for req in control_tower_open_requirements:
+        timing = getattr(req, 'display_timing_state', None) or req.timing_state
+        rank = 1 if timing == 'overdue' else 4 if timing == 'due_soon' else 6
+        focus_items.append({
+            'kind': 'requirement',
+            'rank': rank,
+            'sort_at': req.due_at or dt.max,
+            'title': req.title,
+            'subtitle': (req.phase_key or 'transaction work').replace('_', ' ').title(),
+            'status_label': (
+                'Overdue' if timing == 'overdue' else
+                'Due soon' if timing == 'due_soon' else
+                'In progress' if req.work_status == 'in_progress' else
+                'Pending'
+            ),
+            'timing': timing,
+            'requirement': req,
+        })
+
+    missing_documents = [
+        doc for doc in documents
+        if doc.is_placeholder and doc.status in ('pending', 'draft')
+    ]
+    control_tower_summary['missing_documents'] = len(missing_documents)
+    if missing_documents:
+        focus_items.append({
+            'kind': 'missing_documents',
+            'rank': 5,
+            'sort_at': dt.max,
+            'title': f'Upload {len(missing_documents)} required document' + ('s' if len(missing_documents) != 1 else ''),
+            'subtitle': 'Document checklist',
+            'status_label': 'Upload',
+            'missing_documents': missing_documents,
+        })
+
+    control_tower_focus = sorted(
+        focus_items,
+        key=lambda item: (item['rank'], item['sort_at']),
+    )[:5]
+    control_tower_summary['open'] = (
+        len(control_tower_open_requirements)
+        + len(document_review_attention)
+        + len(pending_change_proposals)
+        + (1 if missing_documents else 0)
+    )
+
+    # Merged checklist: requirements + folded document placeholders as one list.
+    checklist = []
+    checklist_folded_doc_ids = set()
+    try:
+        from services.checklist_service import build_checklist
+        from services.requirements_service import RequirementsService as _ReqSvc
+
+        checklist = build_checklist(transaction, current_user.organization_id)
+        now_utc = dt.utcnow()
+        for item in checklist:
+            if item.get('kind') == 'requirement':
+                item['timing_state'] = _ReqSvc.derive_timing_state(
+                    item.get('due_at'), item.get('work_status'), now=now_utc,
+                )
+            doc_summary = item.get('document')
+            if item.get('kind') == 'requirement' and doc_summary and doc_summary.get('id'):
+                checklist_folded_doc_ids.add(doc_summary['id'])
+    except Exception:
+        logger.exception('Checklist load failed for tx=%s', transaction.id)
+        checklist = []
+        checklist_folded_doc_ids = set()
+
+    # Amendments card: only when an active primary accepted contract exists.
+    amendments = None
+    active_primary_for_amendments = primary_seller_contract
+    if active_primary_for_amendments is None:
+        active_primary_for_amendments = SellerAcceptedContract.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+            position='primary',
+            status='active',
+        ).first()
+    if active_primary_for_amendments is not None:
+        try:
+            from services import amendment_service
+
+            amendment_rows = amendment_service.list_for_transaction(
+                transaction.id,
+                current_user.organization_id,
+            )
+            amendments = []
+            for row in amendment_rows:
+                label = (row.amendment_type or 'amendment').replace('_', ' ').replace('-', ' ').strip()
+                label = (label[:1].upper() + label[1:]) if label else 'Amendment'
+                changed_count = sum(
+                    1 for entry in amendment_service.diff_against_contract(row)
+                    if entry.get('changed')
+                )
+                amendments.append({
+                    'id': row.id,
+                    'label': label,
+                    'status': row.status,
+                    'created_at': row.created_at,
+                    'changed_count': changed_count,
+                })
+        except Exception:
+            logger.exception('Amendments list failed for tx=%s', transaction.id)
+            amendments = []
+
+    # Whole-transaction stage from signals already loaded above — no new queries.
+    from services.transaction_stage import stage_for_transaction, surface_visibility
+    from services.document_package_workspace import build_document_packages
+
+    stage = stage_for_transaction(
+        transaction,
+        has_listing_agreement=has_listing_agreement,
+        open_offers=active_seller_offers,
+        primary_contract=primary_seller_contract,
+    )
+    document_packages = None
+    try:
+        document_packages = build_document_packages(transaction)
+    except Exception:
+        logger.exception('document_packages build failed for tx=%s', transaction.id)
+        document_packages = None
+
+    # One "what do I do next" pointer for the workspace banner. Priority:
+    # pending document review → questionnaire → missing docs → overdue work.
+    next_step = None
+    try:
+        tx_side_name = (transaction.transaction_type.name or '').lower()
+        review_doc_id = None
+        if document_review_reports:
+            review_doc_id = document_review_reports[0].document_id
+        elif pending_change_proposals:
+            review_doc_id = pending_change_proposals[0].source_document_id
+        if review_doc_id:
+            next_step = {
+                'title': 'Review the latest uploaded document',
+                'description': 'Bob checked it and pulled the key terms. Confirm them side by side with the PDF.',
+                'cta': 'Open review',
+                'url': url_for(
+                    'transactions.document_review_workspace',
+                    id=transaction.id,
+                    doc_id=review_doc_id,
+                ),
+            }
+        elif (
+            tx_side_name == 'seller'
+            and has_intake_schema
+            and not transaction.intake_data
+        ):
+            next_step = {
+                'title': 'Finish the property questionnaire',
+                'description': 'A few quick questions build the required-document list for this listing.',
+                'cta': 'Start questionnaire',
+                'url': url_for('transactions.intake_questionnaire', id=transaction.id),
+            }
+        elif missing_documents:
+            count = len(missing_documents)
+            names = ', '.join(
+                (d.template_name or d.template_slug or 'document')
+                for d in missing_documents[:3]
+            )
+            if count > 3:
+                names += f', and {count - 3} more'
+            next_step = {
+                'title': f'{count} required document{"s" if count != 1 else ""} still needed',
+                'description': f'Missing: {names}. Drop the PDFs in and the system identifies and files them for you.',
+                'cta': 'Upload documents',
+                'url': '#transaction-required-documents',
+            }
+        elif control_tower_summary.get('overdue'):
+            overdue = control_tower_summary['overdue']
+            next_step = {
+                'title': f'{overdue} deadline{"s are" if overdue != 1 else " is"} overdue',
+                'description': 'Update the date or mark the item done in the deadlines list.',
+                'cta': 'Open deadlines',
+                'url': '#transaction-checklist',
+            }
+    except Exception:
+        logger.exception('Next-step banner failed for tx=%s', transaction.id)
+        next_step = None
+
     return render_template(
         'transactions/detail.html',
         transaction=transaction,
         participants=participants,
         documents=documents,
         listing_documents=listing_documents,
+        document_packages=document_packages,
         contact_files=contact_files,
         listing_info=listing_info,
         listing_extraction_status=listing_extraction_status,
         listing_info_overrides=listing_info_overrides,
+        has_listing_agreement=has_listing_agreement,
+        header_price=header_price,
+        contract_terms=contract_terms,
+        amendments=amendments,
+        stage=stage,
+        surface_visibility=surface_visibility,
         lockbox_combo=lockbox_combo,
         seller_listing_profile=seller_listing_profile,
         seller_offers=seller_offers,
@@ -686,6 +1057,10 @@ def view_transaction(id):
         seller_offer_activities_by_offer=seller_offer_activities_by_offer,
         seller_offer_extraction_status=seller_offer_extraction_status,
         urgent_seller_offer=urgent_seller_offer,
+        offer_side=offer_side,
+        offer_labels=offer_labels,
+        offer_metering=offer_metering,
+        status_label=status_label,
         primary_seller_contract=primary_seller_contract,
         backup_seller_contracts=backup_seller_contracts,
         seller_contract_documents_by_contract=seller_contract_documents_by_contract,
@@ -698,6 +1073,23 @@ def view_transaction(id):
         has_intake_schema=has_intake_schema,
         document_workflow_mode=document_workflow_mode,
         transaction_tasks=transaction_tasks,
+        document_review_reports=document_review_reports,
+        document_review_toasts=document_review_toasts,
+        document_review_attention=document_review_attention,
+        pending_change_proposals=pending_change_proposals,
+        pending_proposal_document_ids=pending_proposal_document_ids,
+        control_tower_requirements=control_tower_requirements,
+        control_tower_open_requirements=control_tower_open_requirements,
+        control_tower_completed_requirements=control_tower_completed_requirements,
+        control_tower_focus=control_tower_focus,
+        control_tower_summary=control_tower_summary,
+        checklist=checklist,
+        checklist_folded_doc_ids=checklist_folded_doc_ids,
+        next_step=next_step,
+        transaction_assignments=transaction_assignments,
+        org_assignable_users=org_assignable_users,
+        can_assign_roles=can_assign_roles,
+        vtc_pilot=vtc_pilot,
         now=dt.utcnow()
     )
 
@@ -708,14 +1100,13 @@ def view_transaction(id):
 def extraction_status(id):
     """Check document extraction status and return listing info if ready."""
     from flask import jsonify
-    from services.transaction_helpers import build_listing_info
+    from services.transaction_helpers import build_contract_terms, build_listing_info
 
-    transaction = Transaction.query.filter_by(
-        id=id, organization_id=current_user.organization_id
-    ).first_or_404()
+    from services.transaction_auth import CAP_VIEW, get_transaction_for_user
 
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
-        abort(403)
+    transaction, decision = get_transaction_for_user(id, capability=CAP_VIEW)
+    if not transaction:
+        abort(403 if decision.reason != 'not_found' else 404)
 
     documents = TransactionDocument.query.filter_by(
         transaction_id=transaction.id
@@ -730,13 +1121,40 @@ def extraction_status(id):
         error = listing_doc.extraction_error
 
     listing_info_overrides = (transaction.extra_data or {}).get('listing_info_overrides') or {}
-    listing_info = build_listing_info(documents, listing_info_overrides) if transaction.transaction_type.name == 'seller' else None
+    listing_profile = None
+    if transaction.transaction_type.name == 'seller':
+        listing_profile = SellerListingProfile.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+        ).first()
+    listing_info = build_listing_info(
+        documents,
+        listing_info_overrides,
+        transaction=transaction,
+        listing_profile=listing_profile,
+    ) if transaction.transaction_type.name == 'seller' else None
+
+    accepted_contract = None
+    if transaction.transaction_type.name == 'seller':
+        accepted_contract = SellerAcceptedContract.query.filter_by(
+            transaction_id=transaction.id,
+            organization_id=current_user.organization_id,
+            position='primary',
+            status='active',
+        ).first()
+    contract_terms = build_contract_terms(
+        transaction,
+        accepted_contract=accepted_contract,
+        documents=documents,
+    )
 
     return jsonify({
         'extraction_status': status,
         'extraction_error': error,
         'ready': status in ('complete', 'failed'),
         'listing_info': listing_info,
+        'contract_terms': contract_terms,
+        'has_listing_agreement': listing_doc is not None,
     })
 
 
@@ -745,12 +1163,11 @@ def extraction_status(id):
 @transactions_required
 def edit_transaction(id):
     """Show edit form for a transaction."""
-    transaction = Transaction.query.filter_by(
-        id=id, organization_id=current_user.organization_id
-    ).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
-        abort(403)
+    from services.transaction_auth import CAP_EDIT, get_transaction_for_user
+
+    transaction, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not transaction:
+        abort(403 if decision.reason != 'not_found' else 404)
     
     # Get transaction types (org-scoped)
     # Cached transaction types
@@ -784,13 +1201,16 @@ def delete_transaction(id):
         # Log deletion before actually deleting
         audit_service.log_transaction_deleted(transaction_id, address)
 
-        # Delete the transaction - cascade will handle:
-        # - TransactionParticipants (cascade='all, delete-orphan')
-        # - TransactionDocuments (cascade='all, delete-orphan')
-        #   - DocumentSignatures (cascade='all, delete-orphan' via TransactionDocument)
+        # BOB VTC rows use NOT NULL FKs. ORM nullify-on-delete raises
+        # NotNullViolation on Postgres (seller_contract_documents etc.).
+        from services.transaction_helpers import purge_transaction_dependent_rows
+
+        purge_transaction_dependent_rows(transaction_id)
+
+        # Remaining ORM cascades: participants, documents/signatures,
+        # listing profile, showings, price changes.
         db.session.delete(transaction)
         db.session.commit()
-
         flash(f'Transaction for "{address}" has been deleted.', 'success')
         return redirect(url_for('transactions.list_transactions'))
         
@@ -805,12 +1225,11 @@ def delete_transaction(id):
 @transactions_required
 def update_transaction(id):
     """Update a transaction."""
-    transaction = Transaction.query.filter_by(
-        id=id, organization_id=current_user.organization_id
-    ).first_or_404()
+    from services.transaction_auth import CAP_EDIT, get_transaction_for_user
 
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
-        abort(403)
+    transaction, decision = get_transaction_for_user(id, capability=CAP_EDIT)
+    if not transaction:
+        abort(403 if decision.reason != 'not_found' else 404)
 
     try:
         # Track changes for audit

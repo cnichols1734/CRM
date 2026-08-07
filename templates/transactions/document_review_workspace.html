@@ -1,0 +1,461 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import badge, empty_state %}
+
+{% block title %}Document review · {{ document.review_filename }} · Origen TechnolOG{% endblock %}
+
+{% block content %}
+{% set severity = report.severity if report else 'ok' %}
+{% set severity_tone = 'danger' if severity == 'critical' else ('warning' if severity == 'attention' else 'neutral') %}
+{% set severity_label = 'Critical' if severity == 'critical' else ('Needs review' if severity == 'attention' else 'Clear') %}
+{% set proposed_count = fields|selectattr('proposed')|list|length %}
+
+<div class="document-review-workspace flex h-full min-h-0 flex-col overflow-hidden bg-[color:var(--canvas)]"
+     data-controller="document-review-workspace"
+     data-document-review-workspace-pdf-url-value="{{ pdf_url }}"
+     data-document-review-workspace-transaction-id-value="{{ transaction.id }}"
+     data-document-review-workspace-document-id-value="{{ document.id }}"
+     data-document-review-workspace-proposal-id-value="{{ proposal.id if proposal else '' }}"
+     data-document-review-workspace-approve-url-value="{{ approve_url }}"
+     data-document-review-workspace-resolve-url-value="{{ resolve_url }}"
+     data-document-review-workspace-return-url-value="{{ return_url }}"
+     data-document-review-workspace-download-url-value="{{ download_url }}"
+     data-document-review-workspace-confirm-url-value="{{ classification_confirm_url }}"
+     data-document-review-workspace-routing-context-value="{{ (routing_context or {})|tojson|forceescape }}">
+{% set identity = document_identity or {} %}
+{% set confirmed = classification_confirmation or {} %}
+{% set rc = routing_context or {} %}
+{% set cf = classification_form or {} %}
+{% set side = cf.side or rc.side or (transaction.transaction_type.name if transaction.transaction_type else none) %}
+{% set linked_offer_id = confirmed.offer_id or cf.suggested_offer_id %}
+{% set already_offer_filed = confirmed.scope == 'offer' or linked_offer_id %}
+{% set needs_file_panel = (not already_offer_filed) and ((not confirmed) or ((document.template_slug or '') in ('completed', 'external', 'custom', 'upload', '')) or (identity.kind in ('unknown', 'other', none)) or identity.ambiguous) %}
+{% set model_obs = cf.model_observation or {} %}
+
+    <header class="sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-[color:var(--paper)] shadow-panel">
+        <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0 flex items-start gap-3">
+                <a href="{{ return_url }}"
+                   class="crm-btn crm-btn-subtle crm-btn-sm shrink-0"
+                   data-action="document-review-workspace#goBack">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">Back to {{ transaction.street_address or ('Transaction ' ~ transaction.id) }}</span>
+                    <span class="sm:hidden">Back</span>
+                </a>
+                <div class="min-w-0">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Document review</p>
+                    <h1 class="mt-0.5 truncate text-base font-semibold text-slate-950">
+                        {{ document.review_filename }}
+                        {% if document.review_document_type and document.review_document_type != document.review_filename %}
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="font-medium text-slate-600">{{ document.review_document_type }}</span>
+                        {% endif %}
+                    </h1>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                {{ badge(severity_label, severity_tone) }}
+                {% if report %}
+                <button type="button"
+                        class="crm-btn crm-btn-secondary"
+                        data-document-review-workspace-target="markReviewedBtn"
+                        data-action="document-review-workspace#markReviewed">
+                    Mark reviewed
+                </button>
+                {% endif %}
+                {% if proposal %}
+                <button type="button"
+                        class="crm-btn crm-btn-primary"
+                        data-document-review-workspace-target="applyBtn"
+                        data-action="document-review-workspace#applySelected"
+                        disabled>
+                    <span data-document-review-workspace-target="applyLabel">Apply selected</span>
+                    <span data-document-review-workspace-target="applyCount" class="tabular-nums">(0)</span>
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="hidden border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 sm:px-5"
+             data-document-review-workspace-target="errorBanner"
+             role="alert"></div>
+    </header>
+
+    <div class="drw-split flex min-h-0 flex-1 flex-col">
+        {# ===== PDF pane ===== #}
+        <section class="drw-pdf-pane relative flex min-h-0 min-w-0 flex-1 flex-col border-b border-slate-200 bg-slate-100"
+                 aria-label="Document PDF">
+            <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-[color:var(--paper)] px-3 py-2">
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="document-review-workspace#prevPage" aria-label="Previous page">
+                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="document-review-workspace#nextPage" aria-label="Next page">
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <span class="text-xs font-medium tabular-nums text-slate-600">
+                    Page
+                    <span data-document-review-workspace-target="pageLabel">1</span>
+                    /
+                    <span data-document-review-workspace-target="pageTotal">–</span>
+                </span>
+                <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="document-review-workspace#zoomOut" aria-label="Zoom out">
+                    <i class="fas fa-minus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="document-review-workspace#zoomIn" aria-label="Zoom in">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="document-review-workspace#fitWidth">Fit</button>
+            </div>
+
+            <div class="relative min-h-0 flex-1 overflow-auto"
+                 data-document-review-workspace-target="pdfPane">
+                <div class="flex flex-col items-center gap-2 py-16 text-sm text-slate-500"
+                     data-document-review-workspace-target="pdfLoading">
+                    <i class="fas fa-circle-notch fa-spin text-slate-400" aria-hidden="true"></i>
+                    <span>Loading PDF…</span>
+                </div>
+                <div class="flex flex-col items-center gap-3 px-4 py-4"
+                     data-document-review-workspace-target="pageStack"></div>
+                <div class="hidden flex-col items-center gap-3 px-4 py-16 text-center"
+                     data-document-review-workspace-target="pdfError">
+                    <p class="text-sm font-medium text-slate-800">Could not load this PDF in the viewer.</p>
+                    <a href="{{ download_url }}"
+                       class="crm-btn crm-btn-secondary"
+                       download>
+                        Download the file instead
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        {# ===== Review pane ===== #}
+        <aside class="drw-review-pane flex w-full flex-col border-slate-200 bg-[color:var(--paper)]"
+               aria-label="Findings and extracted fields">
+            <div class="min-h-0 flex-1 overflow-y-auto"
+                 data-document-review-workspace-target="reviewPane"
+                 tabindex="-1">
+                <div class="space-y-4 px-4 py-4 sm:px-5">
+                    <section class="crm-document-identity-card" aria-labelledby="drw-identity-heading">
+                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Document identity</p>
+                        <h2 id="drw-identity-heading" class="mt-1 text-sm font-semibold text-slate-950">
+                            {{ identity_label or document.template_name or 'Unrecognized document' }}
+                            {% if identity.form_number %}<span class="font-medium text-slate-500">· {{ identity.form_number }}</span>{% endif %}
+                        </h2>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            {{ badge(identity_confidence or 'Needs confirmation', 'success' if identity_confidence == 'High confidence' else 'warning') }}
+                            {% if already_offer_filed or confirmed.scope %}{{ badge('Filed · ' ~ ((confirmed.scope or 'offer')|replace('_', ' ')|title), 'neutral') }}{% endif %}
+                        </div>
+                        {% if already_offer_filed and not needs_file_panel %}
+                        <p class="mt-3 text-xs leading-5 text-slate-600" data-document-review-workspace-target="filedNotice">
+                            Filed to {{ (confirmed.scope or 'offer')|replace('_', ' ') }}{% if linked_offer_id %} · offer #{{ linked_offer_id }}{% endif %}.
+                            {% if proposal %}Next: approve selected terms below. {% endif %}Filing does not change transaction terms by itself.
+                        </p>
+                        {% if model_obs.template_slug and confirmed.template_slug and model_obs.template_slug != confirmed.template_slug %}
+                        <p class="mt-2 text-xs text-slate-500">Suggested: {{ model_obs.label }}{% if model_obs.form_number %} · {{ model_obs.form_number }}{% endif %}.</p>
+                        {% endif %}
+                        {% else %}
+                        <div class="mt-4 space-y-3" data-document-review-workspace-target="filePanel">
+                            <p class="text-sm font-semibold text-slate-900">File this document</p>
+                            <p class="text-xs leading-5 text-slate-600">Choose the form type and destination. Filing does not change transaction terms — approve selected fields separately.</p>
+                            {% if model_obs.label %}
+                            <p class="text-xs text-slate-500">Suggested: {{ model_obs.label }}{% if model_obs.form_number %} · {{ model_obs.form_number }}{% endif %} ({{ model_obs.confidence_wording or 'Needs confirmation' }}).</p>
+                            {% endif %}
+                            <div>
+                                <label for="drw-kind-slug" class="mb-1 block text-xs font-medium text-slate-700">Form type</label>
+                                <select id="drw-kind-slug" class="crm-select" data-document-review-workspace-target="fileSlug">
+                                    {% if not cf.selected_slug %}
+                                    <option value="" selected disabled>Choose a form type</option>
+                                    {% endif %}
+                                    {% for opt in (cf.slug_options or []) %}
+                                    <option value="{{ opt.value }}" {% if opt.selected %}selected{% endif %}>{{ opt.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="drw-scope" class="mb-1 block text-xs font-medium text-slate-700">Destination</label>
+                                <select id="drw-scope" class="crm-select" data-document-review-workspace-target="fileScope" data-action="change->document-review-workspace#fileScopeChanged">
+                                    {% if cf.require_destination_choice or not cf.suggested_scope %}
+                                    <option value="" selected disabled>Choose a destination</option>
+                                    {% endif %}
+                                    {% for opt in (cf.scope_options or []) %}
+                                    <option value="{{ opt.value }}" {% if cf.suggested_scope == opt.value and not cf.require_destination_choice %}selected{% endif %}>{{ opt.label }}</option>
+                                    {% else %}
+                                    <option value="" disabled>No valid destinations for this document</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="{% if cf.suggested_scope != 'offer' %}hidden{% endif %}" data-document-review-workspace-target="fileOfferFields">
+                                <label for="drw-offer" class="mb-1 block text-xs font-medium text-slate-700">Offer</label>
+                                <select id="drw-offer" class="crm-select" data-document-review-workspace-target="fileOffer">
+                                    <option value="" {% if not linked_offer_id %}selected{% endif %}>Select offer</option>
+                                    {% for offer in (rc.active_offers or []) %}
+                                    <option value="{{ offer.id }}" {% if linked_offer_id and offer.id == linked_offer_id %}selected{% endif %}>{{ offer.buyer_names or ('Offer #' ~ offer.id) }}{% if offer.offer_price %} · ${{ '{:,.0f}'.format(offer.offer_price) }}{% endif %}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="mt-2 flex min-h-11 items-center gap-2 text-xs text-slate-700">
+                                    <input type="checkbox" data-document-review-workspace-target="fileCreateOffer" class="h-4 w-4 rounded border-slate-300 text-orange-600" {% if linked_offer_id %}disabled{% endif %}>
+                                    Start a new offer package
+                                </label>
+                            </div>
+                            {% if cf.show_explicit_controlling %}
+                            <label class="{% if cf.suggested_scope != 'contract' %}hidden{% endif %} min-h-11 items-center gap-2 text-xs text-slate-700 {% if cf.suggested_scope == 'contract' %}flex{% endif %}" data-document-review-workspace-target="fileExplicitContract">
+                                <input type="checkbox" class="h-4 w-4 rounded border-slate-300 text-orange-600" data-document-review-workspace-target="fileExplicitContractInput">
+                                File as fully executed controlling contract
+                            </label>
+                            {% endif %}
+                            {% if not cf.has_baseline and (identity.kind == 'amendment' or cf.selected_slug == 'amendment') %}
+                            <p class="text-xs text-amber-800">Amendments become available after a controlling contract is established.</p>
+                            {% endif %}
+                            <button type="button"
+                                    class="crm-btn crm-btn-accent min-h-11 w-full justify-center"
+                                    data-action="document-review-workspace#confirmFiling">
+                                Confirm filing
+                            </button>
+                            <p class="hidden text-sm text-emerald-800" role="status" aria-live="polite" data-document-review-workspace-target="fileStatus"></p>
+                            <p class="hidden text-sm text-red-700" role="alert" data-document-review-workspace-target="fileError"></p>
+                        </div>
+                        {% endif %}
+                    </section>
+                    <hr class="border-slate-200">
+
+                    {% if document_summary %}
+                    <div>
+                        <p class="text-xs font-medium text-slate-600">Summary</p>
+                        <p class="mt-1 text-sm leading-6 text-slate-800">{{ document_summary }}</p>
+                    </div>
+                    <hr class="border-slate-200">
+                    {% endif %}
+
+                    {% if general_findings %}
+                    <div>
+                        <p class="text-xs font-medium text-slate-600">General findings</p>
+                        <ul class="mt-2 space-y-2">
+                            {% for finding in general_findings %}
+                            <li class="rounded-md border px-3 py-2.5 text-sm leading-5
+                                {% if finding.severity == 'critical' %}border-red-200 bg-red-50 text-red-700
+                                {% elif finding.severity == 'attention' %}border-amber-200 bg-amber-50 text-amber-800
+                                {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+                                {{ finding.message }}
+                                {% if finding.page %}
+                                <button type="button"
+                                        class="ml-1 inline-flex items-center rounded bg-white/70 px-1.5 py-0.5 text-[10px] font-medium text-slate-600 hover:bg-white"
+                                        data-page="{{ finding.page }}"
+                                        data-action="document-review-workspace#jumpFindingPage">
+                                    Page {{ finding.page }}
+                                </button>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <hr class="border-slate-200">
+                    {% endif %}
+
+                    {% if fields %}
+                    <div>
+                        <div class="mb-2 flex items-baseline justify-between gap-2">
+                            <p class="text-xs font-medium text-slate-600">Extracted fields</p>
+                            {% if proposed_count %}
+                            <p class="text-[11px] text-slate-500">{{ proposed_count }} suggested for CRM</p>
+                            {% endif %}
+                        </div>
+                        {% if not report or not report.findings %}
+                        <p class="mb-3 text-sm text-slate-600">No conflicts found in this document.</p>
+                        {% endif %}
+                        <div class="space-y-2" data-document-review-workspace-target="fieldList">
+                            {% for field in fields %}
+                            {% set top_finding = field.findings[0] if field.findings else none %}
+                            <article class="drw-field rounded-md px-3 py-3 transition-colors cursor-pointer"
+                                     data-document-review-workspace-target="fieldCard"
+                                     data-field-key="{{ field.key }}"
+                                     data-page="{{ field.page if field.page is not none else '' }}"
+                                     data-quote="{{ field.quote or '' }}"
+                                     data-proposed="{{ 'true' if field.proposed else 'false' }}"
+                                     data-flagged="{{ 'true' if top_finding and top_finding.severity in ('critical', 'attention') else 'false' }}"
+                                     data-action="click->document-review-workspace#selectFieldCard"
+                                     tabindex="0">
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-xs font-medium text-slate-600">{{ field.label }}</p>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-1.5">
+                                        {% if field.proposed %}
+                                        {{ badge('Proposed', 'accent') }}
+                                        {% endif %}
+                                        {% if field.page %}
+                                        <span class="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-slate-600">
+                                            p. {{ field.page }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <p class="mt-1.5 font-mono text-sm text-slate-950 break-words"
+                                   data-role="value-display">
+                                    {% if field.value is mapping or field.value is iterable and field.value is not string %}
+                                        {{ field.value|tojson }}
+                                    {% elif field.value is none %}
+                                        —
+                                    {% else %}
+                                        {{ field.value|us_date }}
+                                    {% endif %}
+                                </p>
+                                <div class="mt-1.5 hidden" data-role="value-edit">
+                                    <input type="text"
+                                           class="crm-input w-full font-mono text-sm"
+                                           data-role="value-input"
+                                           value="{% if field.value is mapping or field.value is iterable and field.value is not string %}{{ field.value|tojson }}{% elif field.value is not none %}{{ field.value }}{% endif %}">
+                                </div>
+
+                                {% if field.crm_value is not none %}
+                                <p class="mt-1.5 text-xs text-slate-500">
+                                    CRM:
+                                    <span class="font-mono text-slate-700">
+                                        {% if field.crm_value is mapping or field.crm_value is iterable and field.crm_value is not string %}
+                                            {{ field.crm_value|tojson }}
+                                        {% else %}
+                                            {{ field.crm_value|us_date }}
+                                        {% endif %}
+                                    </span>
+                                </p>
+                                {% endif %}
+
+                                {% if top_finding %}
+                                <p class="mt-2 rounded-md border px-2.5 py-2 text-xs leading-5
+                                    {% if top_finding.severity == 'critical' %}border-red-200 bg-red-50 text-red-700
+                                    {% elif top_finding.severity == 'attention' %}border-amber-200 bg-amber-50 text-amber-800
+                                    {% else %}border-slate-200 bg-slate-50 text-slate-700{% endif %}">
+                                    {{ top_finding.message }}
+                                </p>
+                                {% endif %}
+
+                                {% if field.proposed %}
+                                <div class="mt-2.5 flex flex-wrap gap-1.5" data-role="field-actions">
+                                    <button type="button"
+                                            class="crm-btn crm-btn-sm crm-btn-secondary"
+                                            data-action="click->document-review-workspace#acceptField:stop">
+                                        Accept
+                                    </button>
+                                    <button type="button"
+                                            class="crm-btn crm-btn-sm crm-btn-subtle"
+                                            data-action="click->document-review-workspace#rejectField:stop">
+                                        Reject
+                                    </button>
+                                    <button type="button"
+                                            class="crm-btn crm-btn-sm crm-btn-subtle"
+                                            data-action="click->document-review-workspace#editField:stop">
+                                        Edit value
+                                    </button>
+                                </div>
+                                <p class="mt-1.5 hidden text-[11px] font-medium text-emerald-700" data-role="accept-state">Accepted</p>
+                                <p class="mt-1.5 hidden text-[11px] font-medium text-slate-500" data-role="reject-state">Rejected</p>
+                                <p class="mt-1.5 hidden text-[11px] font-medium text-amber-700" data-role="undecided-state">Needs your decision</p>
+                                {% endif %}
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                        {% call empty_state('Nothing to review yet', 'No fields extracted from this document yet.', 'fa-file-circle-question') %}
+                        {% endcall %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="shrink-0 border-t border-slate-200 px-4 py-2 text-[11px] text-slate-500 sm:px-5">
+                Keys: <kbd class="rounded border border-slate-200 bg-slate-50 px-1">j</kbd>/<kbd class="rounded border border-slate-200 bg-slate-50 px-1">k</kbd> move ·
+                <kbd class="rounded border border-slate-200 bg-slate-50 px-1">a</kbd> accept ·
+                <kbd class="rounded border border-slate-200 bg-slate-50 px-1">r</kbd> reject
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+</script>
+<style>
+    .document-review-workspace .drw-page {
+        position: relative;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        box-shadow: none;
+    }
+    .document-review-workspace .drw-page.is-pulsing::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: color-mix(in oklab, var(--accent) 22%, transparent);
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 900ms linear;
+    }
+    .document-review-workspace .drw-page.is-pulsing-fade::after {
+        opacity: 0;
+    }
+    .document-review-workspace .drw-field {
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+    }
+    .document-review-workspace .drw-field:hover {
+        border-color: var(--hairline-strong);
+    }
+    .document-review-workspace .drw-field-selected,
+    .document-review-workspace .drw-field-selected:hover {
+        border-color: var(--accent);
+        background: var(--accent-soft);
+        box-shadow: inset 3px 0 0 0 var(--accent);
+    }
+    .document-review-workspace .drw-quote-box {
+        position: absolute;
+        border: 2px solid var(--accent);
+        background: color-mix(in oklab, var(--accent) 18%, transparent);
+        pointer-events: none;
+        border-radius: 2px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .document-review-workspace .drw-page.is-pulsing::after {
+            transition: none;
+        }
+    }
+    /* Below the split breakpoint the panes stack and the page scrolls normally. */
+    .document-review-workspace {
+        overflow: visible;
+    }
+    .document-review-workspace .drw-pdf-pane {
+        min-height: 420px;
+    }
+
+    /* Side-by-side: lock the shell and let each pane scroll on its own. */
+    @media (min-width: 900px) {
+        #mainContent:has(.document-review-workspace) {
+            overflow: hidden;
+        }
+        #mainContent:has(.document-review-workspace) .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            padding: 0;
+            max-width: none;
+        }
+        .document-review-workspace {
+            overflow: hidden;
+        }
+        .document-review-workspace .drw-split {
+            flex-direction: row;
+        }
+        .document-review-workspace .drw-pdf-pane {
+            min-height: 0;
+            border-bottom: 0;
+            border-right: 1px solid rgb(226 232 240);
+        }
+        .document-review-workspace .drw-review-pane {
+            width: 440px;
+            max-width: 38%;
+            flex-shrink: 0;
+        }
+    }
+</style>
+{% endblock %}

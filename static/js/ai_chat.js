@@ -106,6 +106,8 @@ const BOB_STARTERS = [
 // rest are a click away behind "more".
 const BOB_STARTER_COUNTS = { ask: 2, do: 3 };
 const BOB_STARTER_STEP = 4;
+const BOB_ACTIVE_CONV_KEY = 'bob.activeConversationId';
+const BOB_ACTIVE_TX_KEY = 'bob.activeTransactionId';
 
 class BOBChatPanel {
     constructor() {
@@ -123,6 +125,7 @@ class BOBChatPanel {
         this.currentConversationId = null;
         this.conversations = [];
         this.conversationsLoaded = false;
+        this._ensureInflight = null;
         
         this.init();
     }
@@ -131,6 +134,70 @@ class BOBChatPanel {
         this.createPanel();
         this.renderStarters();
         this.bindEvents();
+        // Restore sticky thread after refresh without auto-opening the panel.
+        this.restoreStickyConversation({ openPanel: false });
+    }
+
+    persistStickyConversation() {
+        try {
+            if (this.currentConversationId) {
+                sessionStorage.setItem(
+                    BOB_ACTIVE_CONV_KEY,
+                    String(this.currentConversationId),
+                );
+            } else {
+                sessionStorage.removeItem(BOB_ACTIVE_CONV_KEY);
+            }
+            const pageEntity = this.resolvePageEntity();
+            if (pageEntity.entityType === 'transaction' && pageEntity.entityId) {
+                sessionStorage.setItem(
+                    BOB_ACTIVE_TX_KEY,
+                    String(pageEntity.entityId),
+                );
+            }
+        } catch (e) {
+            /* sessionStorage may be unavailable */
+        }
+    }
+
+    async restoreStickyConversation({ openPanel = false } = {}) {
+        let storedId = null;
+        try {
+            storedId = sessionStorage.getItem(BOB_ACTIVE_CONV_KEY);
+        } catch (e) {
+            return;
+        }
+        if (!storedId) return;
+        const id = parseInt(storedId, 10);
+        if (!id) return;
+        try {
+            await this.loadConversation(id);
+            if (openPanel && this.state === 'closed') {
+                this.openSide({ skipEnsure: true });
+            }
+        } catch (e) {
+            try {
+                sessionStorage.removeItem(BOB_ACTIVE_CONV_KEY);
+            } catch (err) { /* ignore */ }
+        }
+    }
+
+    resolvePageEntity() {
+        try {
+            const root = document.querySelector('[data-bob-entity-type][data-bob-entity-id]');
+            if (root) {
+                return {
+                    entityType: root.getAttribute('data-bob-entity-type'),
+                    entityId: parseInt(root.getAttribute('data-bob-entity-id'), 10) || null,
+                };
+            }
+            const path = window.location.pathname || '';
+            let m = path.match(/\/transactions\/(\d+)/);
+            if (m) return { entityType: 'transaction', entityId: parseInt(m[1], 10) };
+            m = path.match(/\/contacts\/(\d+)/);
+            if (m) return { entityType: 'contact', entityId: parseInt(m[1], 10) };
+        } catch (e) { /* ignore */ }
+        return { entityType: null, entityId: null };
     }
     
     createPanel() {
@@ -402,7 +469,7 @@ class BOBChatPanel {
         }
     }
     
-    openSide() {
+    openSide({ skipEnsure = false } = {}) {
         this.state = 'side';
         const panel = document.getElementById('bob-panel');
         const overlay = document.getElementById('bob-overlay');
@@ -420,6 +487,140 @@ class BOBChatPanel {
         if (!this.conversationsLoaded) {
             this.loadConversations();
         }
+
+        if (!skipEnsure) {
+            // Seed briefing once when a deal has setup signal and none was sent yet.
+            this.ensurePageConversation({ seedBriefing: true });
+        }
+
+        const textarea = document.getElementById('bob-textarea');
+        if (textarea) textarea.focus();
+    }
+
+    async ensurePageConversation({ seedBriefing = false, forceBriefing = false } = {}) {
+        const pageEntity = this.resolvePageEntity();
+        if (pageEntity.entityType !== 'transaction' || !pageEntity.entityId) {
+            if (!this.currentConversationId) {
+                await this.restoreStickyConversation({ openPanel: false });
+            }
+            return null;
+        }
+
+        if (this._ensureInflight) {
+            return this._ensureInflight;
+        }
+
+        this._ensureInflight = (async () => {
+            const response = await fetch(
+                `/api/ai-chat/transactions/${pageEntity.entityId}/ensure-conversation`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        seed_briefing: !!seedBriefing,
+                        force_briefing: !!forceBriefing,
+                    }),
+                },
+            );
+            if (!response.ok) {
+                throw new Error('Failed to ensure transaction conversation');
+            }
+            const conversation = await response.json();
+            await this.applyConversationPayload(conversation);
+            return conversation;
+        })()
+            .catch((err) => {
+                console.error('ensurePageConversation failed:', err);
+                return null;
+            })
+            .finally(() => {
+                this._ensureInflight = null;
+            });
+
+        return this._ensureInflight;
+    }
+
+    async openSetupBriefing({ force = false } = {}) {
+        const pageEntity = this.resolvePageEntity();
+        if (pageEntity.entityType !== 'transaction' || !pageEntity.entityId) {
+            return null;
+        }
+        this.openSide({ skipEnsure: true });
+        try {
+            const response = await fetch(
+                `/api/ai-chat/transactions/${pageEntity.entityId}/setup-briefing`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ force: !!force }),
+                },
+            );
+            if (!response.ok) {
+                await this.ensurePageConversation({ seedBriefing: true });
+                return null;
+            }
+            const conversation = await response.json();
+            await this.applyConversationPayload(conversation);
+            return conversation;
+        } catch (err) {
+            console.error('openSetupBriefing failed:', err);
+            return null;
+        }
+    }
+
+    async applyConversationPayload(conversation) {
+        if (!conversation || !conversation.id) return;
+        this.currentConversationId = conversation.id;
+        this.persistStickyConversation();
+
+        const existing = this.conversations.find((c) => c.id === conversation.id);
+        if (existing) {
+            Object.assign(existing, conversation);
+        } else {
+            this.conversations.unshift(conversation);
+        }
+
+        this.messages = [];
+        const messagesDiv = document.getElementById('bob-messages');
+        if (!messagesDiv) return;
+        messagesDiv.innerHTML = '';
+
+        const msgs = conversation.messages || [];
+        if (msgs.length > 0) {
+            document.getElementById('bob-welcome').classList.add('hidden');
+            messagesDiv.classList.add('active');
+            for (const msg of msgs) {
+                let attachment = null;
+                if (msg.image_data) {
+                    attachment = { imageData: msg.image_data };
+                }
+                if (msg.file_url) {
+                    attachment = attachment || {};
+                    attachment.file = {
+                        url: msg.file_url,
+                        name: msg.file_name,
+                        type: msg.file_type,
+                        size: msg.file_size,
+                    };
+                }
+                this.addMessage(msg.role, msg.content, false, attachment);
+            }
+        } else {
+            document.getElementById('bob-welcome').classList.remove('hidden');
+            messagesDiv.classList.remove('active');
+            this.renderStarters();
+        }
+
+        this.renderHistorySidebar();
+        this.renderHistoryDropdown();
     }
 
     /** Re-sample suggestions on open, but never mid-conversation. */
@@ -498,24 +699,19 @@ class BOBChatPanel {
             this.state = 'closed';
             this.updateExpandButton();
         }, 300);
-        
-        // Clear local state (but keep database history)
-        this.clearMessages();
-        
-        // Clear server-side session history (not database)
-        try {
-            await fetch('/api/ai-chat/clear', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
-        } catch (error) {
-            console.error('Error clearing chat history:', error);
-        }
+
+        // Sticky: keep the live thread + server session history. New Chat clears.
+        this.persistStickyConversation();
     }
     
-    clearMessages() {
+    clearMessages({ keepConversationId = false } = {}) {
         this.messages = [];
-        this.currentConversationId = null;
+        if (!keepConversationId) {
+            this.currentConversationId = null;
+            try {
+                sessionStorage.removeItem(BOB_ACTIVE_CONV_KEY);
+            } catch (e) { /* ignore */ }
+        }
         document.getElementById('bob-messages').innerHTML = '';
         document.getElementById('bob-messages').classList.remove('active');
         document.getElementById('bob-welcome').classList.remove('hidden');
@@ -994,17 +1190,24 @@ class BOBChatPanel {
         document.getElementById('bob-welcome').classList.add('hidden');
         document.getElementById('bob-messages').classList.add('active');
         
-        // Create conversation if none exists
+        // Create conversation if none exists (bind to transaction when on a deal page)
         if (!this.currentConversationId) {
             try {
-                const convResponse = await fetch('/api/ai-chat/conversations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                if (convResponse.ok) {
-                    const conv = await convResponse.json();
-                    this.currentConversationId = conv.id;
-                    this.conversations.unshift(conv);
+                const pageEntity = this.resolvePageEntity();
+                if (pageEntity.entityType === 'transaction' && pageEntity.entityId) {
+                    await this.ensurePageConversation({ seedBriefing: false });
+                } else {
+                    const convResponse = await fetch('/api/ai-chat/conversations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                    });
+                    if (convResponse.ok) {
+                        const conv = await convResponse.json();
+                        this.currentConversationId = conv.id;
+                        this.conversations.unshift(conv);
+                        this.persistStickyConversation();
+                    }
                 }
             } catch (error) {
                 console.error('Error creating conversation:', error);
@@ -1095,13 +1298,18 @@ class BOBChatPanel {
                 }
             }
             
+            const pageEntity = this.resolvePageEntity();
+
             const response = await fetch('/api/ai-chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: message,
-                    pageContent: document.body.innerText.substring(0, 3000),
+                    // Untrusted garnish only — server hydrates entity from entityType/entityId.
+                    pageContent: document.body.innerText.substring(0, 1500),
                     currentUrl: window.location.href,
+                    entityType: pageEntity.entityType,
+                    entityId: pageEntity.entityId,
                     clearHistory: false,
                     attachmentRef: attachmentRef,
                     conversationId: this.currentConversationId,
@@ -1653,26 +1861,26 @@ class BOBChatPanel {
     
     async startNewChat() {
         try {
-            // Create new conversation on server
+            // Explicit New Chat stays unbound so History keeps the deal setup chat.
             const response = await fetch('/api/ai-chat/conversations', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
             });
             
             if (!response.ok) throw new Error('Failed to create conversation');
             
             const conversation = await response.json();
-            this.currentConversationId = conversation.id;
-            
-            // Clear UI
+
+            // Clear UI first, then set the new id (old bug cleared the id).
             this.clearMessages();
+            this.currentConversationId = conversation.id;
+            this.persistStickyConversation();
             
-            // Add to conversations list and re-render
             this.conversations.unshift(conversation);
             this.renderHistorySidebar();
             this.renderHistoryDropdown();
             
-            // Focus textarea
             document.getElementById('bob-textarea').focus();
             
         } catch (error) {
@@ -1686,47 +1894,12 @@ class BOBChatPanel {
             if (!response.ok) throw new Error('Failed to load conversation');
             
             const conversation = await response.json();
-            this.currentConversationId = conversationId;
-            
-            // Clear current messages
-            this.messages = [];
-            const messagesDiv = document.getElementById('bob-messages');
-            messagesDiv.innerHTML = '';
-            
-            // Show messages area
-            document.getElementById('bob-welcome').classList.add('hidden');
-            messagesDiv.classList.add('active');
-            
-            // Render messages with attachments
-            if (conversation.messages && conversation.messages.length > 0) {
-                for (const msg of conversation.messages) {
-                    // Build attachment object if present
-                    let attachment = null;
-                    if (msg.image_data) {
-                        attachment = { imageData: msg.image_data };
-                    }
-                    if (msg.file_url) {
-                        attachment = attachment || {};
-                        attachment.file = {
-                            url: msg.file_url,
-                            name: msg.file_name,
-                            type: msg.file_type,
-                            size: msg.file_size
-                        };
-                    }
-                    this.addMessage(msg.role, msg.content, false, attachment);
-                }
-            }
-            
-            // Update sidebar/dropdown to show active state
-            this.renderHistorySidebar();
-            this.renderHistoryDropdown();
-            
-            // Focus textarea
+            await this.applyConversationPayload(conversation);
             document.getElementById('bob-textarea').focus();
             
         } catch (error) {
             console.error('Error loading conversation:', error);
+            throw error;
         }
     }
     

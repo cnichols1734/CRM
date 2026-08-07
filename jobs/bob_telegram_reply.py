@@ -20,6 +20,9 @@ def process_telegram_message_job(
     voice_file_id: str | None = None,
     voice_duration_seconds: int | None = None,
     photo_file_id: str | None = None,
+    document_file_id: str | None = None,
+    document_filename: str | None = None,
+    document_mime_type: str | None = None,
 ) -> None:
     from app import app
     from jobs.base import set_job_org_context
@@ -36,6 +39,9 @@ def process_telegram_message_job(
                 voice_file_id=voice_file_id,
                 voice_duration_seconds=voice_duration_seconds,
                 photo_file_id=photo_file_id,
+                document_file_id=document_file_id,
+                document_filename=document_filename,
+                document_mime_type=document_mime_type,
             )
         except Exception:
             logger.exception(

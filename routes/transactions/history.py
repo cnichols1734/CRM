@@ -4,11 +4,19 @@ Transaction audit history routes.
 """
 
 from flask import request, jsonify, render_template, abort
-from flask_login import login_required, current_user
-from models import db, Transaction, TransactionDocument, AuditEvent
+from flask_login import login_required
+from models import TransactionDocument, AuditEvent
 from services import audit_service
+from services.transaction_auth import CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
+
+
+def _require_tx(transaction_id, capability=CAP_VIEW):
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
 
 
 # =============================================================================
@@ -23,10 +31,7 @@ def transaction_history(id):
     Get the audit history for a transaction.
     Returns a paginated list of all events related to this transaction.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
+    _require_tx(id, CAP_VIEW)
 
     # Get pagination params
     page = request.args.get('page', 1, type=int)
@@ -65,10 +70,7 @@ def view_transaction_history(id):
     """
     Render the transaction history page.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
+    transaction = _require_tx(id, CAP_VIEW)
 
     return render_template(
         'transactions/history.html',
@@ -83,10 +85,7 @@ def document_history(id, doc_id):
     """
     Get the audit history for a specific document.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    transaction = _require_tx(id, CAP_VIEW)
 
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 

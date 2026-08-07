@@ -64,6 +64,10 @@ EXPECTED_CRON_SERVICES = (
     'Retention Analytics Cron',
     'Daily Health Check Cron',
     'Health Alert Cron',
+    'Transaction Reminders Cron',
+    'Notification Outbox Cron',
+    'Portfolio Monitor Cron',
+    'Weekly Portfolio Report Cron',
 )
 
 ALERT_STATE_KEY = os.environ.get(

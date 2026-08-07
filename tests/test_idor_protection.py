@@ -283,7 +283,10 @@ class TestTransactionSigningIDOR:
         with app.test_client() as client:
             login(client, 'user_a')
             resp = client.get(f"/transactions/{seed_data['tx_b']}/documents/preview-all")
-            assert resp.status_code == 404, f"Cross-org preview-all should fail, got {resp.status_code}"
+            # Cross-org must be indistinguishable from not-found (no 403 leak).
+            assert resp.status_code == 404, (
+                f"Cross-org preview-all should 404, got {resp.status_code}"
+            )
 
 
 class TestTransactionParticipantsIDOR:

@@ -7,9 +7,18 @@ from flask import request, jsonify, render_template, redirect, url_for, flash, a
 from flask_login import login_required, current_user
 from models import db, Transaction, TransactionDocument, DocumentSignature
 from services import audit_service
+from services.transaction_auth import CAP_EDIT, CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
-from .decorators import transactions_required
+from .decorators import transactions_required, document_generation_required
 from .helpers import build_prefill_data
+
+
+def _require_tx(transaction_id, capability=CAP_EDIT):
+    """Load + authorize a transaction; abort 403/404 on failure."""
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
 
 
 # =============================================================================
@@ -21,11 +30,8 @@ from .helpers import build_prefill_data
 @transactions_required
 def add_document(id):
     """Add a document to a transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     try:
         template_slug = request.form.get('template_slug')
         template_name = request.form.get('template_name')
@@ -120,10 +126,7 @@ def add_custom_placeholder(id):
     """
     import uuid
 
-    transaction = Transaction.query.get_or_404(id)
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    transaction = _require_tx(id, CAP_EDIT)
 
     document_name = (request.form.get('document_name') or '').strip()
     if not document_name:
@@ -173,10 +176,7 @@ def add_custom_placeholder(id):
 @transactions_required
 def remove_document(id, doc_id):
     """Remove a document from a transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    transaction = _require_tx(id, CAP_EDIT)
 
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
 
@@ -201,11 +201,8 @@ def document_form(id, doc_id):
         DocumentLoader, DocumentType, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
-    
+    transaction = _require_tx(id, CAP_VIEW)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Get document definition from new system
@@ -361,11 +358,8 @@ def document_form(id, doc_id):
 @transactions_required
 def save_document_form(id, doc_id):
     """Save the document form data."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     try:
@@ -380,11 +374,16 @@ def save_document_form(id, doc_id):
                     field_data[key[6:]] = request.form.get(key)
         
         # Track changed fields for audit
-        old_fields = set(doc.field_data.keys()) if doc.field_data else set()
+        from services.document_extractor import field_provenance, visible_field_data
+
+        existing_provenance = field_provenance(doc.field_data)
+        old_fields = set(visible_field_data(doc.field_data))
         new_fields = set(field_data.keys())
         changed_fields = list(new_fields - old_fields) if old_fields != new_fields else list(new_fields)
 
-        # Save field data
+        # Save field data, keeping extraction provenance for the review viewer.
+        if existing_provenance:
+            field_data = {**field_data, '_meta': existing_provenance}
         doc.field_data = field_data
         doc.status = 'filled'
 
@@ -438,11 +437,8 @@ def fill_all_documents(id):
         DocumentLoader, DocumentType, FieldResolver, RoleBuilder, DocuSealClient
     )
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
-    
+    transaction = _require_tx(id, CAP_VIEW)
+
     # Get all loaded document definitions
     all_definitions = DocumentLoader.get_sorted()
     form_driven_slugs = [d.slug for d in all_definitions if d.is_form_driven]
@@ -483,10 +479,12 @@ def fill_all_documents(id):
     prefill_data = build_prefill_data(transaction, participants)
     
     # Merge in any existing field data from all documents
+    from services.document_extractor import visible_field_data
+
     for doc in documents:
         if doc.field_data:
             # Prefix document-specific fields with doc slug to avoid collisions
-            for key, value in doc.field_data.items():
+            for key, value in visible_field_data(doc.field_data).items():
                 # Store both prefixed (for doc-specific) and unprefixed (for shared fields)
                 prefill_data[f"{doc.template_slug}_{key}"] = value
                 # Also store unprefixed for shared fields
@@ -601,11 +599,8 @@ def save_all_documents(id):
     """
     from services.documents import DocumentLoader
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        abort(403)
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     # Get form-driven document slugs from new system
     all_definitions = DocumentLoader.get_sorted()
     form_driven_slugs = [d.slug for d in all_definitions if d.is_form_driven]
@@ -666,13 +661,11 @@ def upload_scanned_document(id, doc_id):
     signatures, and scanned the signed document.
     """
     from datetime import datetime
+    from services.intake_service import post_upload_processing
     from services.supabase_storage import upload_scanned_document as upload_scan
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be filled/generated to upload a scan
@@ -726,9 +719,13 @@ def upload_scanned_document(id, doc_id):
         # Update document record
         doc.signed_file_path = result['path']
         doc.signed_file_size = result['size']
+        doc.signed_original_filename = file.filename
         doc.signed_at = datetime.utcnow()
         doc.status = 'signed'
         doc.signing_method = 'physical'
+        doc.extraction_status = 'pending'
+        doc.extraction_error = None
+        doc.field_data = None
         
         # Log audit event
         audit_service.log_document_signed_physical(
@@ -739,6 +736,7 @@ def upload_scanned_document(id, doc_id):
         )
         
         db.session.commit()
+        post_upload_processing(doc)
         
         return jsonify({
             'success': True,
@@ -772,13 +770,11 @@ def upload_static_document(id, doc_id):
     to be included in the final package without any signatures.
     """
     from datetime import datetime
+    from services.intake_service import post_upload_processing
     from services.supabase_storage import upload_external_document as upload_static
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be a placeholder in pending status
@@ -830,9 +826,13 @@ def upload_static_document(id, doc_id):
         
         # Update document record
         doc.source_file_path = result['path']
+        doc.signed_original_filename = file.filename
         doc.document_source = 'static'
         doc.status = 'filled'
         doc.updated_at = datetime.utcnow()
+        doc.extraction_status = 'pending'
+        doc.extraction_error = None
+        doc.field_data = None
         
         # Log audit event
         audit_service.log_event(
@@ -851,6 +851,7 @@ def upload_static_document(id, doc_id):
         )
         
         db.session.commit()
+        post_upload_processing(doc)
         
         return jsonify({
             'success': True,
@@ -888,10 +889,7 @@ def fulfill_placeholder_document(id, doc_id):
     from services.supabase_storage import upload_external_document as upload_storage, delete_transaction_document as delete_storage
     from services.intake_service import post_upload_processing
 
-    transaction = Transaction.query.get_or_404(id)
-
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    transaction = _require_tx(id, CAP_EDIT)
 
     doc = TransactionDocument.query.get_or_404(doc_id)
 
@@ -957,11 +955,9 @@ def fulfill_placeholder_document(id, doc_id):
         doc.is_placeholder = False
         doc.updated_at = datetime.utcnow()
 
-        from services.document_extractor import EXTRACTION_SCHEMAS
-        if doc.template_slug in EXTRACTION_SCHEMAS:
-            doc.extraction_status = 'pending'
-            doc.extraction_error = None
-            doc.field_data = None
+        doc.extraction_status = 'pending'
+        doc.extraction_error = None
+        doc.field_data = None
 
         if is_replace and old_path:
             try:
@@ -1022,6 +1018,7 @@ def fulfill_placeholder_document(id, doc_id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/upload-for-signature', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def upload_placeholder_for_signature(id, doc_id):
     """
     Upload a PDF to a placeholder document and prepare it for e-signature.
@@ -1030,13 +1027,11 @@ def upload_placeholder_for_signature(id, doc_id):
     to the field editor for signature placement.
     """
     from datetime import datetime
+    from services.intake_service import post_upload_processing
     from services.supabase_storage import upload_external_document as upload_external
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be a placeholder in pending status
@@ -1088,10 +1083,14 @@ def upload_placeholder_for_signature(id, doc_id):
         
         # Update document record - convert placeholder to external
         doc.source_file_path = result['path']
+        doc.signed_original_filename = file.filename
         doc.document_source = 'external'
         doc.status = 'pending'  # Will become 'filled' after fields are placed
         doc.field_placements = []  # Initialize empty field placements
         doc.updated_at = datetime.utcnow()
+        doc.extraction_status = 'pending'
+        doc.extraction_error = None
+        doc.field_data = None
         
         # Log audit event
         audit_service.log_event(
@@ -1111,6 +1110,7 @@ def upload_placeholder_for_signature(id, doc_id):
         )
         
         db.session.commit()
+        post_upload_processing(doc)
         
         return jsonify({
             'success': True,
@@ -1147,13 +1147,11 @@ def upload_external_document(id):
     The agent will then use the field editor to place signature fields.
     """
     from datetime import datetime
+    from services.intake_service import post_upload_processing
     from services.supabase_storage import upload_external_document as upload_external
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     # Check if file was uploaded
     if 'file' not in request.files:
         return jsonify({'success': False, 'error': 'No file uploaded'}), 400
@@ -1209,7 +1207,9 @@ def upload_external_document(id):
             status='pending',  # Will become 'ready' after fields are placed
             document_source='external',
             source_file_path=result['path'],
-            field_placements=[]  # Will be populated in field editor
+            signed_original_filename=file.filename,
+            field_placements=[],  # Will be populated in field editor
+            extraction_status='pending',
         )
         
         db.session.add(doc)
@@ -1230,6 +1230,8 @@ def upload_external_document(id):
             source='app',
             actor_id=current_user.id
         )
+        db.session.commit()
+        post_upload_processing(doc)
         
         return jsonify({
             'success': True,
@@ -1257,112 +1259,233 @@ def upload_external_document(id):
 @transactions_required
 def upload_completed_document(id):
     """
-    Upload a completed document that doesn't require any signatures.
-    
-    This is used for documents like surveys, title commitments, appraisals,
-    or any document that should be included as-is without signing.
-    
-    Creates a new TransactionDocument with document_source='completed' and status='signed'.
+    Upload one or more completed PDFs that don't require signatures.
+
+    Accepts ``files`` (multi) or legacy ``file`` (single). Used for surveys,
+    disclosures, addenda, or any document to include as-is.
+
+    Optional form fields (backward compatible):
+    ``scope``, ``offer_id``, ``create_new_offer``, ``template_slug``.
+    When several files are uploaded with ``create_new_offer``, the first file
+    opens the offer and the rest attach to it. Prefer leaving ``template_slug``
+    blank so BOB identifies each PDF.
     """
-    from datetime import datetime
+    from services.intake_service import post_upload_processing
     from services.supabase_storage import upload_external_document as upload_storage
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
-    # Check if file was uploaded
-    if 'file' not in request.files:
+    from services.document_classification_confirm import build_routing_context_payload
+    from services.scoped_document_intake import (
+        ScopedIntakeError,
+        VALID_SCOPES,
+        attach_document_to_scope,
+        is_canonical_slug,
+    )
+
+    transaction = _require_tx(id, CAP_EDIT)
+
+    files = request.files.getlist('files') or request.files.getlist('file')
+    files = [f for f in files if f and f.filename]
+    if not files:
         return jsonify({'success': False, 'error': 'No file uploaded'}), 400
-    
-    file = request.files['file']
-    
-    if file.filename == '':
-        return jsonify({'success': False, 'error': 'No file selected'}), 400
-    
-    # Get document name from form
-    document_name = request.form.get('document_name', '').strip()
-    if not document_name:
-        # Use filename without extension as default name
-        document_name = file.filename.rsplit('.', 1)[0] if '.' in file.filename else file.filename
-    
-    # Validate file type (PDF only)
-    allowed_extensions = {'pdf'}
-    file_ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-    
-    if file_ext not in allowed_extensions:
+    if len(files) > 20:
         return jsonify({
             'success': False,
-            'error': 'Only PDF files are allowed'
+            'error': 'Upload up to 20 PDFs at a time.',
         }), 400
-    
-    # Read file data
-    file_data = file.read()
-    file_size = len(file_data)
-    
-    # Validate file size (max 25MB)
+
+    form_document_name = request.form.get('document_name', '').strip()
+    scope = (request.form.get('scope') or '').strip().lower() or None
+    template_slug = (request.form.get('template_slug') or 'completed').strip().lower()
+    if template_slug and not is_canonical_slug(template_slug):
+        return jsonify({
+            'success': False,
+            'error': 'Unsupported document type.',
+            'code': 'invalid_slug',
+        }), 400
+    offer_id_raw = request.form.get('offer_id')
+    offer_id = None
+    if offer_id_raw not in (None, '', '0'):
+        try:
+            offer_id = int(offer_id_raw)
+        except (TypeError, ValueError):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid offer.',
+                'code': 'invalid_offer',
+            }), 400
+    create_new_offer = str(
+        request.form.get('create_new_offer') or ''
+    ).strip().lower() in ('1', 'true', 'yes', 'on')
+
+    if scope and scope not in VALID_SCOPES:
+        return jsonify({
+            'success': False,
+            'error': 'Invalid document scope.',
+            'code': 'invalid_scope',
+        }), 400
+
     max_size = 25 * 1024 * 1024
-    if file_size > max_size:
-        return jsonify({
-            'success': False,
-            'error': 'File too large. Maximum size is 25MB.'
-        }), 400
-    
+    uploaded = []
+    last_scope_result = None
+
     try:
-        # Upload to Supabase
-        result = upload_storage(
-            transaction_id=transaction.id,
-            file_data=file_data,
-            original_filename=file.filename,
-            content_type='application/pdf'
-        )
-        
-        # Create TransactionDocument record - marked as signed/complete
-        doc = TransactionDocument(
-            organization_id=current_user.organization_id,
-            transaction_id=transaction.id,
-            template_slug='completed',  # Special slug for completed docs
-            template_name=document_name,
-            status='signed',  # Already complete - no signing needed
-            document_source='completed',
-            signed_file_path=result['path'],  # Store as signed file since it's ready
-            field_placements=[]
-        )
-        
-        db.session.add(doc)
+        for index, file in enumerate(files):
+            file_ext = (
+                file.filename.rsplit('.', 1)[1].lower()
+                if '.' in file.filename
+                else ''
+            )
+            if file_ext != 'pdf':
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': f'{file.filename}: only PDF files are allowed',
+                }), 400
+
+            file_data = file.read()
+            file_size = len(file_data)
+            if file_size > max_size:
+                db.session.rollback()
+                return jsonify({
+                    'success': False,
+                    'error': f'{file.filename}: file too large. Maximum size is 25MB.',
+                }), 400
+
+            # Multi-file: name each from its filename so HOA/MUD don't share one label.
+            if form_document_name and len(files) == 1:
+                document_name = form_document_name
+            else:
+                document_name = (
+                    file.filename.rsplit('.', 1)[0]
+                    if '.' in file.filename
+                    else file.filename
+                )
+
+            result = upload_storage(
+                transaction_id=transaction.id,
+                file_data=file_data,
+                original_filename=file.filename,
+                content_type='application/pdf',
+            )
+
+            # Multi-upload with a specific type still lets BOB retag via identity.
+            per_file_slug = template_slug or 'completed'
+            if len(files) > 1 and per_file_slug not in ('', 'completed'):
+                # Same explicit type on every file is almost always wrong for a
+                # mixed listing pack — default to identify-each.
+                per_file_slug = 'completed'
+
+            doc = TransactionDocument(
+                organization_id=current_user.organization_id,
+                transaction_id=transaction.id,
+                template_slug=per_file_slug or 'completed',
+                template_name=document_name,
+                status='signed',
+                document_source='completed',
+                signed_file_path=result['path'],
+                signed_file_size=file_size,
+                signed_original_filename=file.filename,
+                field_placements=[],
+                extraction_status='pending',
+                sent_by_id=current_user.id,
+            )
+            db.session.add(doc)
+            db.session.flush()
+
+            scope_result = None
+            if scope:
+                try:
+                    # First file may create the offer; later files attach to it.
+                    scope_result = attach_document_to_scope(
+                        transaction=transaction,
+                        document=doc,
+                        actor_id=current_user.id,
+                        scope=scope,
+                        offer_id=offer_id,
+                        create_new_offer=create_new_offer and index == 0 and offer_id is None,
+                        template_slug=per_file_slug,
+                        template_name=document_name,
+                    )
+                    if scope_result and scope_result.get('offer_id'):
+                        offer_id = scope_result['offer_id']
+                    last_scope_result = scope_result
+                except ScopedIntakeError as exc:
+                    db.session.rollback()
+                    return jsonify({
+                        'success': False,
+                        'error': str(exc),
+                        'code': exc.code,
+                    }), 400
+
+            audit_service.log_event(
+                event_type='document_uploaded_completed',
+                transaction_id=transaction.id,
+                document_id=doc.id,
+                description=f"Completed document uploaded: {document_name}",
+                event_data={
+                    'document_name': document_name,
+                    'original_filename': file.filename,
+                    'file_size': file_size,
+                    'storage_path': result['path'],
+                    'scope': scope,
+                    'offer_id': (scope_result or {}).get('offer_id'),
+                    'batch_index': index,
+                    'batch_count': len(files),
+                },
+                source='app',
+                actor_id=current_user.id,
+            )
+            uploaded.append(doc)
+
         db.session.commit()
-        
-        # Log audit event
-        audit_service.log_event(
-            event_type='document_uploaded_completed',
-            transaction_id=transaction.id,
-            document_id=doc.id,
-            description=f"Completed document uploaded: {document_name}",
-            event_data={
-                'document_name': document_name,
-                'original_filename': file.filename,
-                'file_size': file_size,
-                'storage_path': result['path']
-            },
-            source='app',
-            actor_id=current_user.id
-        )
-        
+        for doc in uploaded:
+            post_upload_processing(doc)
+
+        first = uploaded[0]
+        resolved_offer_id = (last_scope_result or {}).get('offer_id') or offer_id
+        resolved_scope = (last_scope_result or {}).get('scope') or scope
+        if resolved_scope == 'offer' and resolved_offer_id:
+            from services.offer_package_review import offer_package_review_url
+            review_url = offer_package_review_url(transaction.id, int(resolved_offer_id))
+            offer_review_url = review_url
+        else:
+            review_url = url_for(
+                'transactions.document_review_workspace',
+                id=transaction.id,
+                doc_id=first.id,
+            )
+            offer_review_url = None
+        count = len(uploaded)
         return jsonify({
             'success': True,
-            'message': 'Document uploaded successfully',
+            'message': (
+                'Document uploaded successfully'
+                if count == 1
+                else f'{count} documents uploaded successfully'
+            ),
             'document': {
-                'id': doc.id,
-                'name': doc.template_name,
-                'status': doc.status,
-                'source': doc.document_source
-            }
+                'id': first.id,
+                'name': first.template_name,
+                'status': first.status,
+                'source': first.document_source,
+                'template_slug': first.template_slug,
+            },
+            'document_id': first.id,
+            'document_ids': [d.id for d in uploaded],
+            'uploaded_count': count,
+            'review_url': review_url,
+            'status_url': review_url,
+            'offer_review_url': offer_review_url,
+            'scope': resolved_scope,
+            'offer_id': resolved_offer_id,
+            'routing_context': build_routing_context_payload(transaction),
         })
-        
-    except Exception as e:
+
+    except Exception:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': 'Could not upload document. Try again or contact support.',
+        }), 500
 
 
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/editor')
@@ -1374,12 +1497,8 @@ def document_field_editor(id, doc_id):
     
     Used for external documents and hybrid wet+esign flows.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        flash('Unauthorized access.', 'error')
-        return redirect(url_for('transactions.view_transaction', id=id))
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Get participants for the signer dropdown
@@ -1414,11 +1533,8 @@ def save_field_placements(id, doc_id):
     
     Called from the visual field editor when the user saves their work.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     try:
@@ -1455,6 +1571,7 @@ def save_field_placements(id, doc_id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/send-adhoc', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def send_adhoc_document(id, doc_id):
     """
     Send an external/hybrid document for signature via DocuSeal.
@@ -1467,11 +1584,8 @@ def send_adhoc_document(id, doc_id):
     from services.documents.docuseal_client import DocuSealClient
     from services.documents.types import Submitter
     
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Extract field placements data
@@ -1698,11 +1812,8 @@ def convert_to_hybrid(id, doc_id):
     This allows a document that was printed, wet-signed by one party, and scanned
     to be sent for e-signature to remaining parties.
     """
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Document must be wet-signed with a stored file

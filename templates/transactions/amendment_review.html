@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import badge %}
+
+{% macro format_term_value(key, value) -%}
+{%- if value is none or value == '' -%}
+—
+{%- else -%}
+{%- set money_keys = [
+    'option_fee', 'sales_price', 'offer_price', 'earnest_money',
+    'additional_earnest_money', 'seller_concessions_amount',
+    'financing_amount', 'cash_down_payment'
+] -%}
+{%- set date_keys = ['closing_date', 'effective_date'] -%}
+{%- if key in date_keys -%}
+{%- set raw = value|string -%}
+{%- if value is not string and value.isoformat is defined -%}
+{%- set raw = value.isoformat() -%}
+{%- endif -%}
+{%- set parts = raw[:10].split('-') -%}
+{%- if parts|length == 3 and parts[0]|length == 4 -%}
+{%- set months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] -%}
+{%- set mi = parts[1]|int -%}
+{%- if mi >= 1 and mi <= 12 -%}
+{{ months[mi - 1] }} {{ parts[2]|int }}, {{ parts[0] }}
+{%- else -%}
+{{ value }}
+{%- endif -%}
+{%- else -%}
+{{ value }}
+{%- endif -%}
+{%- elif key in money_keys -%}
+{%- set cleaned = (value|string)|replace('$', '')|replace(',', '')|trim -%}
+{%- set ns = namespace(ok=false, amount=0) -%}
+{%- if cleaned -%}
+{%- set ns.amount = cleaned|float -%}
+{%- set ns.ok = true -%}
+{%- endif -%}
+{%- if ns.ok -%}
+${{ '{:,.0f}'.format(ns.amount) if ns.amount == (ns.amount|int) else '{:,.2f}'.format(ns.amount) }}
+{%- else -%}
+{{ value }}
+{%- endif -%}
+{%- else -%}
+{{ value }}
+{%- endif -%}
+{%- endif -%}
+{%- endmacro %}
+
+{% block title %}{{ amendment_label }} · {{ transaction.street_address or 'Transaction' }} · Origen TechnolOG{% endblock %}
+
+{% block content %}
+{% set property_label = transaction.street_address or ('Transaction ' ~ transaction.id) %}
+{% set unchanged = diff|rejectattr('changed')|list %}
+{% set changed = diff|selectattr('changed')|list %}
+
+<div class="amendment-review-workspace flex h-full min-h-0 flex-col overflow-hidden bg-[color:var(--canvas)]"
+     data-controller="amendment-review"
+     data-amendment-review-pdf-url-value="{{ pdf_url or '' }}"
+     data-amendment-review-accept-url-value="{{ accept_url }}"
+     data-amendment-review-reject-url-value="{{ reject_url }}"
+     data-amendment-review-return-url-value="{{ return_url }}">
+
+    <header class="sticky top-0 z-20 shrink-0 border-b border-slate-200 bg-[color:var(--paper)] shadow-panel">
+        <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="min-w-0 flex items-start gap-3">
+                <a href="{{ return_url }}"
+                   class="crm-btn crm-btn-subtle crm-btn-sm shrink-0"
+                   data-action="amendment-review#goBack">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span class="hidden sm:inline">Back to {{ property_label }}</span>
+                    <span class="sm:hidden">Back</span>
+                </a>
+                <div class="min-w-0">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Amendment</p>
+                    <h1 class="mt-0.5 truncate text-base font-semibold text-slate-950">
+                        {{ amendment_label }}
+                        <span class="font-normal text-slate-400">·</span>
+                        <span class="font-medium text-slate-600">{{ property_label }}</span>
+                    </h1>
+                </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                {{ badge(status_label, status_tone) }}
+                {% if can_decide %}
+                <button type="button"
+                        class="crm-btn crm-btn-secondary"
+                        data-amendment-review-target="rejectBtn"
+                        data-action="amendment-review#reject">
+                    Reject amendment
+                </button>
+                <button type="button"
+                        class="crm-btn crm-btn-primary"
+                        data-amendment-review-target="applyBtn"
+                        data-action="amendment-review#accept"
+                        {% if changed_count == 0 %}disabled{% endif %}>
+                    Apply <span data-amendment-review-target="applyCount">{{ changed_count }}</span> changes
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        <div class="hidden border-t border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 sm:px-5"
+             data-amendment-review-target="errorBanner"
+             role="alert"></div>
+    </header>
+
+    <div class="drw-split flex min-h-0 flex-1 flex-col">
+        {# ===== PDF pane ===== #}
+        <section class="drw-pdf-pane relative flex min-h-0 min-w-0 flex-1 flex-col border-b border-slate-200 bg-slate-100"
+                 aria-label="Amendment PDF">
+            {% if pdf_url %}
+            <div class="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-[color:var(--paper)] px-3 py-2">
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="amendment-review#prevPage" aria-label="Previous page">
+                    <i class="fas fa-chevron-up" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="amendment-review#nextPage" aria-label="Next page">
+                    <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                </button>
+                <span class="text-xs font-medium tabular-nums text-slate-600">
+                    Page
+                    <span data-amendment-review-target="pageLabel">1</span>
+                    /
+                    <span data-amendment-review-target="pageTotal">–</span>
+                </span>
+                <span class="mx-1 h-4 w-px bg-slate-200" aria-hidden="true"></span>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="amendment-review#zoomOut" aria-label="Zoom out">
+                    <i class="fas fa-minus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="amendment-review#zoomIn" aria-label="Zoom in">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" data-action="amendment-review#fitWidth">Fit</button>
+            </div>
+
+            <div class="relative min-h-0 flex-1 overflow-auto"
+                 data-amendment-review-target="pdfPane">
+                <div class="flex flex-col items-center gap-2 py-16 text-sm text-slate-500"
+                     data-amendment-review-target="pdfLoading">
+                    <i class="fas fa-circle-notch fa-spin text-slate-400" aria-hidden="true"></i>
+                    <span>Loading PDF…</span>
+                </div>
+                <div class="flex flex-col items-center gap-3 px-4 py-4"
+                     data-amendment-review-target="pageStack"></div>
+                <div class="hidden flex-col items-center gap-3 px-4 py-16 text-center"
+                     data-amendment-review-target="pdfError">
+                    <p class="text-sm font-medium text-slate-800">Could not load this PDF in the viewer.</p>
+                </div>
+            </div>
+            {% else %}
+            <div class="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+                <p class="text-sm font-medium text-slate-800">No source document attached to this amendment.</p>
+                <p class="text-xs text-slate-500">Proposed terms below still reflect the extracted values.</p>
+            </div>
+            {% endif %}
+        </section>
+
+        {# ===== Changes pane ===== #}
+        <aside class="drw-review-pane flex w-full flex-col border-slate-200 bg-[color:var(--paper)]"
+               aria-label="Proposed amendment changes">
+            <div class="min-h-0 flex-1 overflow-y-auto"
+                 data-amendment-review-target="changesPane">
+                <div class="space-y-4 px-4 py-4 sm:px-5">
+                    <div>
+                        <p class="text-xs font-medium text-slate-600">Proposed changes</p>
+                        {% if changed_count %}
+                        <p class="mt-0.5 text-[11px] text-slate-500">{{ changed_count }} term{{ 's' if changed_count != 1 else '' }} differ from the accepted contract</p>
+                        {% endif %}
+                    </div>
+
+                    {% if not changed %}
+                    <p class="text-sm leading-6 text-slate-600">
+                        This amendment does not change any tracked contract terms.
+                    </p>
+                    {% else %}
+                    <div class="space-y-2">
+                        {% for entry in changed %}
+                        <article class="amr-row rounded-md px-3 py-3"
+                                 data-amendment-review-target="row"
+                                 data-term-key="{{ entry.key }}">
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox"
+                                       class="amr-check mt-0.5"
+                                       data-amendment-review-target="checkbox"
+                                       data-term-key="{{ entry.key }}"
+                                       data-action="change->amendment-review#toggleSelected"
+                                       checked>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block text-xs font-medium text-slate-600">{{ entry.label }}</span>
+                                    <span class="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                                        <span class="amr-current font-mono text-slate-500">{{ format_term_value(entry.key, entry.current) }}</span>
+                                        <span class="text-slate-400" aria-hidden="true">→</span>
+                                        <span class="amr-proposed font-mono font-medium text-slate-950">{{ format_term_value(entry.key, entry.proposed) }}</span>
+                                    </span>
+                                </span>
+                            </label>
+                        </article>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if unchanged %}
+                    <details class="amr-unchanged">
+                        <summary class="cursor-pointer text-xs font-medium text-slate-500 hover:text-slate-700">
+                            Unchanged terms ({{ unchanged|length }})
+                        </summary>
+                        <div class="mt-2 space-y-2">
+                            {% for entry in unchanged %}
+                            <div class="amr-row amr-row-muted rounded-md px-3 py-2.5">
+                                <p class="text-xs font-medium text-slate-500">{{ entry.label }}</p>
+                                <p class="mt-1 font-mono text-sm text-slate-600">
+                                    {{ format_term_value(entry.key, entry.proposed) }}
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </details>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="hidden min-h-0 flex-1 overflow-y-auto"
+                 data-amendment-review-target="resultPane">
+                <div class="flex h-full flex-col px-4 py-6 sm:px-5">
+                    <p class="text-[10.5px] font-medium uppercase tracking-[0.14em] text-slate-500">Applied</p>
+                    <h2 class="mt-1 text-lg font-semibold text-slate-950">Amendment accepted</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600"
+                       data-role="result-summary">
+                        Selected terms are now on the accepted contract.
+                    </p>
+
+                    <div class="mt-5 space-y-2" data-role="deadline-list"></div>
+
+                    <div class="mt-auto pt-8">
+                        <a href="{{ return_url }}" class="crm-btn crm-btn-primary">
+                            Back to transaction
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+
+{% if pdf_url %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+</script>
+{% endif %}
+<style>
+    .amendment-review-workspace .drw-page {
+        position: relative;
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        box-shadow: none;
+    }
+    .amendment-review-workspace .drw-page.is-pulsing::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: color-mix(in oklab, var(--accent) 22%, transparent);
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 900ms linear;
+    }
+    .amendment-review-workspace .drw-page.is-pulsing-fade::after {
+        opacity: 0;
+    }
+    .amendment-review-workspace .amr-row {
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+    }
+    .amendment-review-workspace .amr-row-muted {
+        background: var(--paper-2);
+    }
+    .amendment-review-workspace .amr-current {
+        text-decoration: line-through;
+        text-decoration-color: color-mix(in oklab, var(--ink-3, #94a3b8) 80%, transparent);
+    }
+    .amendment-review-workspace .amr-check {
+        accent-color: var(--accent);
+    }
+    .amendment-review-workspace .amr-deadline {
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-radius: 6px;
+        padding: 0.75rem 0.85rem;
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .amendment-review-workspace .drw-page.is-pulsing::after {
+            transition: none;
+        }
+    }
+    .amendment-review-workspace {
+        overflow: visible;
+    }
+    .amendment-review-workspace .drw-pdf-pane {
+        min-height: 420px;
+    }
+
+    @media (min-width: 900px) {
+        #mainContent:has(.amendment-review-workspace) {
+            overflow: hidden;
+        }
+        #mainContent:has(.amendment-review-workspace) .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+            padding: 0;
+            max-width: none;
+        }
+        .amendment-review-workspace {
+            overflow: hidden;
+        }
+        .amendment-review-workspace .drw-split {
+            flex-direction: row;
+        }
+        .amendment-review-workspace .drw-pdf-pane {
+            min-height: 0;
+            border-bottom: 0;
+            border-right: 1px solid var(--hairline);
+        }
+        .amendment-review-workspace .drw-review-pane {
+            width: 440px;
+            max-width: 38%;
+            flex-shrink: 0;
+        }
+    }
+</style>
+{% endblock %}

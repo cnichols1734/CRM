@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% from "components/ui.html" import page_header %}
+
+{% block title %}Identifying documents - Origen TechnolOG{% endblock %}
+
+{% block content %}
+<div class="crm-page">
+    <div class="crm-page__inner max-w-[720px]">
+        {% call page_header(
+            'Identifying your upload',
+            'Identifying each form in your upload.',
+            'Transactions'
+        ) %}
+            <a href="{{ url_for('transactions.bootstrap_inbox') }}" class="crm-btn crm-btn-secondary">
+                Back to inbox
+            </a>
+        {% endcall %}
+
+        <section class="crm-surface"
+                 aria-labelledby="batch-heading"
+                 id="bootstrap-batch"
+                 data-batch-id="{{ batch_id }}"
+                 data-status-url="{{ status_url }}"
+                 data-poll-ms="{{ poll_ms|int }}">
+            <div class="crm-surface-body p-5 sm:p-7">
+                <div class="flex items-start gap-3">
+                    <span class="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded bg-orange-50 text-orange-700" aria-hidden="true">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                    </span>
+                    <div>
+                        <h1 id="batch-heading" class="text-lg font-semibold text-slate-950">
+                            Working through <span id="batch-total">{{ total_count }}</span> PDFs
+                        </h1>
+                        <p id="batch-progress" class="mt-1 max-w-[60ch] text-sm leading-6 text-slate-600" aria-live="polite">
+                            <span id="batch-identified">{{ identified_count }}</span> of
+                            <span id="batch-total-copy">{{ total_count }}</span> identified.
+                        </p>
+                    </div>
+                </div>
+
+                <ul id="batch-item-list" class="mt-6 divide-y divide-slate-100 rounded-md border border-slate-200 bg-white">
+                    {% for item in items %}
+                    <li class="flex items-center justify-between gap-3 px-4 py-3"
+                        data-session-id="{{ item.id }}"
+                        data-phase="{{ item.phase }}">
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-slate-900" data-role="filename">{{ item.filename }}</p>
+                            <p class="mt-0.5 text-xs text-slate-500" data-role="label">{{ item.label }}</p>
+                        </div>
+                        <span class="shrink-0 text-xs font-medium
+                            {% if item.phase == 'identified' %}text-emerald-700
+                            {% elif item.phase == 'failed' %}text-red-700
+                            {% elif item.phase == 'reading' %}text-orange-700
+                            {% else %}text-slate-500{% endif %}"
+                              data-role="phase-label">
+                            {% if item.phase == 'failed' %}Failed
+                            {% elif item.phase == 'identified' %}Identified
+                            {% elif item.phase == 'reading' %}Reading…
+                            {% else %}Queued{% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+    </div>
+</div>
+<script>
+(function () {
+    var root = document.getElementById('bootstrap-batch');
+    if (!root) return;
+
+    var statusUrl = root.getAttribute('data-status-url');
+    var pollMs = parseInt(root.getAttribute('data-poll-ms') || '1500', 10);
+    if (!statusUrl || !(pollMs > 0)) return;
+
+    var phaseCopy = {
+        queued: 'Queued',
+        reading: 'Reading…',
+        identified: 'Identified',
+        failed: 'Failed'
+    };
+    var phaseClass = {
+        queued: 'shrink-0 text-xs font-medium text-slate-500',
+        reading: 'shrink-0 text-xs font-medium text-orange-700',
+        identified: 'shrink-0 text-xs font-medium text-emerald-700',
+        failed: 'shrink-0 text-xs font-medium text-red-700'
+    };
+
+    var timer = null;
+    var inflight = false;
+
+    function applyPayload(data) {
+        if (!data || !data.ok) return;
+
+        var identifiedEl = document.getElementById('batch-identified');
+        var totalEl = document.getElementById('batch-total');
+        var totalCopy = document.getElementById('batch-total-copy');
+        if (identifiedEl) identifiedEl.textContent = String(data.identified_count || 0);
+        if (totalEl) totalEl.textContent = String(data.total || 0);
+        if (totalCopy) totalCopy.textContent = String(data.total || 0);
+
+        (data.items || []).forEach(function (item) {
+            var row = root.querySelector('[data-session-id="' + item.id + '"]');
+            if (!row) return;
+            var prev = row.getAttribute('data-phase');
+            if (prev !== item.phase) {
+                row.setAttribute('data-phase', item.phase);
+                row.classList.add('bg-orange-50/40');
+                window.setTimeout(function () {
+                    row.classList.remove('bg-orange-50/40');
+                }, 700);
+            }
+            var label = row.querySelector('[data-role="label"]');
+            var phaseLabel = row.querySelector('[data-role="phase-label"]');
+            if (label && item.label) label.textContent = item.label;
+            if (phaseLabel) {
+                phaseLabel.textContent = phaseCopy[item.phase] || item.phase;
+                phaseLabel.className = phaseClass[item.phase] || phaseClass.queued;
+            }
+        });
+
+        if (data.ready && data.redirect_url) {
+            if (timer) window.clearInterval(timer);
+            window.location.href = data.redirect_url;
+        }
+    }
+
+    function poll() {
+        if (inflight) return;
+        inflight = true;
+        fetch(statusUrl, {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        })
+            .then(function (res) {
+                if (!res.ok) throw new Error('status ' + res.status);
+                return res.json();
+            })
+            .then(applyPayload)
+            .catch(function () { /* keep polling */ })
+            .finally(function () { inflight = false; });
+    }
+
+    poll();
+    timer = window.setInterval(poll, pollMs);
+})();
+</script>
+{% endblock %}
