@@ -35,7 +35,7 @@ supabase==2.31.0
 itsdangerous==2.2.0
 PyYAML==6.0.3
 jsonschema==4.26.0
-cryptography==49.0.0
+cryptography==50.0.0
 bleach==6.4.0
 
 # Image processing (for signature image resizing)
