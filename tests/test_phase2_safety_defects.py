@@ -678,7 +678,8 @@ def test_package_includes_unmatched_and_embedded(app, seed):
             actor_id=seed['owner_a'],
         )
         generic = _doc(seed, tx, slug='completed')
-        custom = _doc(seed, tx, slug='custom-abc123')
+        # Exact generic slug only — custom-* learned templates count as filed.
+        custom = _doc(seed, tx, slug='custom')
         extra = _doc(seed, tx, slug='sellers-disclosure')
 
         packages = build_document_packages(tx)

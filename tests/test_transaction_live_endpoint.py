@@ -12,8 +12,16 @@ def _clear_review_reports(seed):
 
 
 def _set_extraction_status(seed, status):
-    doc = db.session.get(TransactionDocument, seed['doc_a'])
-    doc.extraction_status = status
+    """Set extraction on every listing-agreement row — live uses the last match."""
+    docs = TransactionDocument.query.filter_by(
+        transaction_id=seed['tx_a'],
+        template_slug='listing-agreement',
+    ).all()
+    seed_doc = db.session.get(TransactionDocument, seed['doc_a'])
+    if seed_doc is not None and seed_doc not in docs:
+        docs.append(seed_doc)
+    for doc in docs:
+        doc.extraction_status = status
     db.session.commit()
 
 

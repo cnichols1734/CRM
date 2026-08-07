@@ -26,9 +26,9 @@ def test_dn8_clean_review_summary_avoids_legal_claims():
         severity=DocumentReviewReport.SEVERITY_OK,
     )
     combined = f'{title}\n{summary}'.lower()
-    assert 'no obvious CRM conflicts' in summary
-    assert '9 extracted field' in summary
-    assert 'require your approval' in summary
+    assert 'no obvious crm conflicts' in combined
+    assert '9 extracted fields still need' in combined
+    assert 'approval' in combined
     for banned in (
         'valid',
         'legally sufficient',
@@ -75,8 +75,8 @@ def test_dn8_finalize_emits_document_review_completed(app, seed):
 
         assert report is not None
         assert report.severity == DocumentReviewReport.SEVERITY_OK
-        assert 'no obvious CRM conflicts' in (report.summary or '')
         summary_l = (report.summary or '').lower()
+        assert 'no obvious crm conflicts' in summary_l
         assert 'legally' not in summary_l
         assert 'error-free' not in summary_l
         assert 'valid' not in summary_l

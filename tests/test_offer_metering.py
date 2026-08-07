@@ -43,6 +43,8 @@ def _offer(org_id, tx_id, user_id, **kwargs):
 
 
 def _cleanup_offers(org_id, tx_id):
+    from models import SellerOfferDocument
+
     offer_ids = [
         row.id
         for row in SellerOffer.query.filter_by(
@@ -51,6 +53,11 @@ def _cleanup_offers(org_id, tx_id):
         ).all()
     ]
     if offer_ids:
+        # SQLite test DB often has FK enforcement off — delete children explicitly
+        # so orphan seller_offer_documents cannot reattach when IDs are reused.
+        SellerOfferDocument.query.filter(
+            SellerOfferDocument.offer_id.in_(offer_ids),
+        ).delete(synchronize_session=False)
         SellerOfferVersion.query.filter(
             SellerOfferVersion.offer_id.in_(offer_ids),
         ).delete(synchronize_session=False)

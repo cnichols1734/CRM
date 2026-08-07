@@ -40,8 +40,13 @@ def test_extraction_skips_sync_when_auto_apply_disabled(app):
 
     source = open(extractor.__file__).read()
     assert 'EXTRACTION_AUTO_APPLY' in source
-    assert 'sync_offer_version_from_document' in source
     assert 'if auto_apply:' in source
+    # Offer/contract sync stays behind the auto-apply gate (defaults off).
+    assert 'sync_offer_thread_from_extraction' in source
+    assert 'sync_contract_from_document' in source
+    auto_apply_block = source.split('if auto_apply:', 1)[1].split('\n        #', 1)[0]
+    assert 'sync_offer_thread_from_extraction' in auto_apply_block
+    assert 'sync_contract_from_document' in auto_apply_block
 
 
 def test_transaction_auth_break_glass_and_creator():

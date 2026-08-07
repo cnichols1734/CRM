@@ -94,6 +94,15 @@ def _clear_pack_cache():
     DeadlineRulesService.clear_cache()
 
 
+@pytest.fixture(autouse=True)
+def _clear_seed_tx_requirements(app, seed):
+    """Accept/CTC tests leave requirements on session-scoped seed tx_a."""
+    with app.app_context():
+        _cleanup(seed['org_a'], seed['tx_a'])
+        _cleanup(seed['org_b'], seed['tx_b'])
+    yield
+
+
 class TestAttachDocument:
     def test_attach_creates_one_row_idempotent(self, app, seed):
         req_id = doc_id = None

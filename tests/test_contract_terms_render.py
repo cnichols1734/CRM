@@ -92,6 +92,17 @@ def test_seller_detail_shows_empty_state_without_a_listing_agreement(
     try:
         with app.app_context():
             previous = _set_contract_field_data(seed, {})
+            # Shared seed tx accumulates docs across earlier tests; any leftover
+            # listing-agreement row would skip the empty state branch. Never
+            # touch seed['doc_a'] (temporarily retagged above).
+            leftovers = TransactionDocument.query.filter(
+                TransactionDocument.transaction_id == seed['tx_a'],
+                TransactionDocument.template_slug == 'listing-agreement',
+                TransactionDocument.id != seed['doc_a'],
+            ).all()
+            for doc in leftovers:
+                db.session.delete(doc)
+            db.session.commit()
 
         response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
         assert response.status_code == 200

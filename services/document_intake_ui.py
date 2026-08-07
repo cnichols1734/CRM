@@ -450,7 +450,10 @@ def build_classification_form_options(
         kind in (KIND_ADDENDUM, KIND_DISCLOSURE, KIND_POF)
         and side == 'seller'
         and 'offer' in allowed
+        and 'contract' not in allowed
     ):
+        # Offer-only path (no controlling contract yet). If both offer and
+        # contract are open, leave suggested unset so the agent picks.
         suggested = 'offer'
     elif kind in (KIND_ADDENDUM, KIND_DISCLOSURE, KIND_POF) and len(allowed - {'other'}) == 1:
         suggested = next(iter(allowed - {'other'}))
@@ -463,7 +466,14 @@ def build_classification_form_options(
             field_data=field_data,
             linked_offer_id=linked_offer_id,
         )
-        if suggested_offer_id and suggested is None and 'offer' in allowed:
+        # Matching an offer should not force destination when contract/listing
+        # are also valid — keep the offer preselected in the picker only.
+        if (
+            suggested_offer_id
+            and suggested is None
+            and 'offer' in allowed
+            and len(allowed - {'other'}) == 1
+        ):
             suggested = 'offer'
 
     require_choice = suggested is None and len(scope_options) > 1

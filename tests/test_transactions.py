@@ -99,9 +99,21 @@ class TestTransactionDelete:
         from models import SellerCommissionTerms, Transaction, db
 
         with app.app_context():
+            # Dedicated tx — session seed tx_a accumulates VTC rows that block delete.
+            tx = Transaction(
+                organization_id=seed['org_a'],
+                created_by_id=seed['owner_a'],
+                transaction_type_id=seed['tx_type_a'],
+                street_address='Delete Commission St',
+                city='Austin',
+                state='TX',
+                status='active',
+            )
+            db.session.add(tx)
+            db.session.flush()
             terms = SellerCommissionTerms(
                 organization_id=seed['org_a'],
-                transaction_id=seed['tx_a'],
+                transaction_id=tx.id,
                 created_by_id=seed['owner_a'],
                 listing_commission_flat=Decimal('8000'),
                 coop_compensation_percent=Decimal('2'),
@@ -110,7 +122,7 @@ class TestTransactionDelete:
             db.session.add(terms)
             db.session.commit()
             terms_id = terms.id
-            tx_id = seed['tx_a']
+            tx_id = tx.id
 
         resp = owner_a_client.post(
             f'/transactions/{tx_id}/delete',

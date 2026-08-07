@@ -306,9 +306,10 @@ def test_not_applicable_lead_paint_placeholder_is_hidden(app, seed):
         assert all(r.get('document_id') != lead_id for r in rows)
         assert all(r.get('state') != 'not_applicable' for r in rows)
 
-        TransactionDocument.query.filter_by(transaction_id=tx_id).delete(
-            synchronize_session=False,
-        )
+        # Only remove rows this test created — seed is session-scoped.
+        TransactionDocument.query.filter(
+            TransactionDocument.id.in_([listing.id, lead_id]),
+        ).delete(synchronize_session=False)
         db.session.commit()
 
 

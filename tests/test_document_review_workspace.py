@@ -86,9 +86,10 @@ def test_workspace_route_renders_fields_and_findings(app, seed, owner_a_client):
             if report_id:
                 _cleanup_reports(seed, [report_id])
             doc = db.session.get(TransactionDocument, seed['doc_a'])
-            doc.field_data = original_field_data
-            doc.signed_original_filename = original_filename
-            db.session.commit()
+            if doc is not None:
+                doc.field_data = original_field_data
+                doc.signed_original_filename = original_filename
+                db.session.commit()
 
 
 def test_workspace_route_forbidden_for_other_org(app, seed, owner_b_client):

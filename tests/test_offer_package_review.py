@@ -20,7 +20,19 @@ from services.offer_package_review import (
 
 
 def _seller_tx(seed):
-    return Transaction.query.get(seed['tx_a'])
+    """Fresh seller tx — session seed tx_a accumulates offer/doc rows across tests."""
+    tx = Transaction(
+        organization_id=seed['org_a'],
+        created_by_id=seed['owner_a'],
+        transaction_type_id=seed['tx_type_a'],
+        street_address='Offer Package Review Ln',
+        city='Austin',
+        state='TX',
+        status='active',
+    )
+    db.session.add(tx)
+    db.session.flush()
+    return tx
 
 
 def _make_offer_with_docs(seed, tx, *, buyer_names='Jeffrey Rushing, Amy Rushing'):
