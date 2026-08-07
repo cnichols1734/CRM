@@ -6,11 +6,17 @@ Run with: python -m pytest tests/test_intake_service.py -v
 
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from services.intake_service import evaluate_document_rules, get_intake_schema
+from services.intake_service import (
+    build_intake_prefill,
+    compute_document_diff,
+    evaluate_document_rules,
+    get_intake_schema,
+)
 
 
 def slugs_for(schema, intake_data):
@@ -31,6 +37,88 @@ def test_buyer_schema_falls_back_when_ownership_status_is_present():
 
     assert schema is not None
     assert schema["transaction_type"] == "buyer"
+
+
+def test_bootstrap_prefills_only_contract_supported_buyer_answers():
+    schema = get_intake_schema('buyer')
+    transaction = SimpleNamespace(
+        intake_data={'referral_fee': False},
+        transaction_type=SimpleNamespace(name='buyer'),
+    )
+    session = SimpleNamespace(extracted_candidates={
+        'purchase_contract_type': {'value': 'condominium'},
+        'financing_type': {'value': 'conventional'},
+        'hoa_applicable': {'value': True},
+        'sale_of_other_property_contingency': {'value': False},
+        'temporary_lease_type': {'value': 'seller_temporary_lease'},
+    })
+
+    prefill, suggested = build_intake_prefill(
+        transaction, schema, bootstrap_session=session,
+    )
+
+    assert prefill['buyer_stage'] == 'under_contract'
+    assert prefill['purchase_type'] == 'condominium'
+    assert prefill['financing'] == 'third_party'
+    assert prefill['has_association'] == 'yes'
+    assert prefill['buyer_sale_contingency'] is False
+    assert prefill['temporary_lease'] == 'seller_temporary_lease'
+    assert prefill['referral_fee'] is False
+    assert 'special_district' not in prefill
+    assert set(suggested) >= {
+        'buyer_stage', 'purchase_type', 'financing', 'has_association',
+    }
+
+
+def test_uploaded_contract_satisfies_questionnaire_contract_slot_without_duplicate():
+    schema = get_intake_schema('buyer')
+    uploaded_contract = SimpleNamespace(
+        template_slug='purchase-contract',
+        template_name='Executed Purchase Contract',
+        status='signed',
+        is_placeholder=False,
+    )
+    diff = compute_document_diff(schema, {
+        'buyer_stage': 'under_contract',
+        'purchase_type': 'resale_one_to_four',
+        'financing': 'cash',
+        'built_before_1978': 'no',
+        'has_association': 'no',
+        'special_district': 'no',
+        'buyer_sale_contingency': False,
+        'temporary_lease': 'none',
+        'referral_fee': False,
+    }, {'purchase-contract': uploaded_contract})
+
+    assert 'one-to-four-family-contract' not in diff['to_add']
+    assert 'purchase-contract' not in diff['to_remove']
+    assert diff['satisfied_aliases'] == {
+        'one-to-four-family-contract': 'purchase-contract',
+    }
+
+
+def test_questionnaire_does_not_remove_documents_owned_by_other_workflows():
+    schema = get_intake_schema('seller', 'conventional')
+    title_commitment = SimpleNamespace(
+        template_slug='title-commitment',
+        template_name='Title Commitment',
+        status='pending',
+        is_placeholder=True,
+    )
+    diff = compute_document_diff(schema, {
+        'built_before_1978': False,
+        'has_hoa': False,
+        'special_districts': False,
+        'flood_hazard': False,
+        'has_septic': False,
+        'referral_fee': False,
+        'has_survey': 'no',
+    }, {'title-commitment': title_commitment})
+
+    assert 'title-commitment' not in diff['to_remove']
+    assert not any(
+        item['slug'] == 'title-commitment' for item in diff['safe_removals']
+    )
 
 
 def test_buyer_representation_stage_generates_core_documents_only():
@@ -277,3 +365,77 @@ def test_seller_short_sale_schema_generates_lender_approval_placeholders():
         "referral-agreement",
         "t47-affidavit",
     } <= slugs
+
+
+def test_seller_listing_special_provisions_prefills_hoa_and_survey_only():
+    """Harrington-style listing: HOA + survey are stated; unchecked addenda are not answers."""
+    from services.intake_service import _infer_from_special_provisions
+
+    hints = _infer_from_special_provisions(
+        'Seller to provide existing survey dated June 12, 2019, with T-47 Affidavit. '
+        'HOA: Westlake Highlands HOA; approx. $85/month.'
+    )
+    assert hints['has_hoa'] is True
+    assert hints['has_survey'] == 'yes'
+    assert 'built_before_1978' not in hints
+    assert 'flood_hazard' not in hints
+    assert 'special_districts' not in hints
+    assert 'has_septic' not in hints
+    assert 'referral_fee' not in hints
+
+    schema = get_intake_schema('seller', 'conventional')
+    listing = SimpleNamespace(
+        template_slug='listing-agreement',
+        field_data={
+            'has_hoa': 'yes',
+            'special_provisions': (
+                'Seller to provide existing survey dated June 12, 2019, with T-47 Affidavit. '
+                'HOA: Westlake Highlands HOA; approx. $85/month.'
+            ),
+            # Unchecked addenda must never become No answers.
+            'built_before_1978': None,
+            'flood_hazard': None,
+        },
+    )
+    transaction = SimpleNamespace(
+        id=1,
+        organization_id=1,
+        intake_data={},
+        transaction_type=SimpleNamespace(name='seller'),
+        documents=[listing],
+    )
+    prefill, suggested = build_intake_prefill(transaction, schema, bootstrap_session=None)
+    assert prefill['has_hoa'] is True
+    assert prefill['has_survey'] == 'yes'
+    assert 'has_hoa' in suggested and 'has_survey' in suggested
+    assert 'built_before_1978' not in prefill
+    assert 'flood_hazard' not in prefill
+    assert 'special_districts' not in prefill
+    assert 'has_septic' not in prefill
+    assert 'referral_fee' not in prefill
+
+
+def test_seller_prefills_from_bootstrap_candidates_when_present():
+    schema = get_intake_schema('seller', 'conventional')
+    transaction = SimpleNamespace(
+        id=2,
+        organization_id=1,
+        intake_data={},
+        transaction_type=SimpleNamespace(name='seller'),
+        documents=[],
+    )
+    session = SimpleNamespace(
+        extracted_candidates={
+            'has_hoa': {'value': 'yes'},
+            'has_existing_survey': {'value': 'yes'},
+            'built_before_1978': {'value': False},
+        },
+        classification={},
+    )
+    prefill, suggested = build_intake_prefill(
+        transaction, schema, bootstrap_session=session,
+    )
+    assert prefill['has_hoa'] is True
+    assert prefill['has_survey'] == 'yes'
+    assert prefill['built_before_1978'] is False
+    assert set(suggested) >= {'has_hoa', 'has_survey', 'built_before_1978'}

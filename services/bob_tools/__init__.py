@@ -10,6 +10,7 @@ from services.bob_tools.context import (
     RISK_READ,
     AttachmentTurnContext,
     BobContext,
+    PageEntityContext,
     ToolResult,
 )
 from services.bob_tools.registry import (
@@ -19,12 +20,14 @@ from services.bob_tools.registry import (
     dispatch,
     openai_tool_schemas,
     reject_action,
+    select_tools,
     undo_action,
 )
 
 __all__ = [
     'BobContext',
     'AttachmentTurnContext',
+    'PageEntityContext',
     'ToolResult',
     'RISK_READ',
     'RISK_LOW_WRITE',
@@ -36,4 +39,5 @@ __all__ = [
     'reject_action',
     'undo_action',
     'openai_tool_schemas',
+    'select_tools',
 ]

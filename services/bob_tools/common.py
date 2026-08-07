@@ -307,6 +307,7 @@ def task_summary(task: Task, ctx: BobContext) -> dict:
             f'{contact.first_name} {contact.last_name}'.strip()
             if contact else None
         ),
+        'transaction_id': task.transaction_id,
         'description': truncate(task.description),
         'assigned_to_you': task.assigned_to_id == ctx.user_id,
     }

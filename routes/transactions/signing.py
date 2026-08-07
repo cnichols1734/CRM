@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 from models import db, Transaction, TransactionDocument, DocumentSignature
 from services import audit_service
 from . import transactions_bp
-from .decorators import transactions_required
+from .decorators import transactions_required, document_generation_required
 
 
 # =============================================================================
@@ -19,6 +19,7 @@ from .decorators import transactions_required
 @transactions_bp.route('/<int:id>/documents/preview-all')
 @login_required
 @transactions_required
+@document_generation_required
 def preview_all_documents(id):
     """
     Preview page showing actual filled PDFs for all documents before sending.
@@ -255,6 +256,7 @@ def preview_all_documents(id):
 @transactions_bp.route('/<int:id>/documents/send-all', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def send_all_for_signature(id):
     """
     Send all filled documents as ONE envelope using DocuSeal's merge templates API.
@@ -680,6 +682,7 @@ def send_all_for_signature(id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/preview')
 @login_required
 @transactions_required
+@document_generation_required
 def document_preview(id, doc_id):
     """
     Preview a filled document before sending for signature.
@@ -771,6 +774,7 @@ def document_preview(id, doc_id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/send', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def send_for_signature(id, doc_id):
     """Send a document for e-signature via DocuSeal."""
     from services.documents import (
@@ -896,12 +900,12 @@ def send_for_signature(id, doc_id):
 def check_signature_status(id, doc_id):
     """Check the signature status of a document."""
     from services.docuseal_service import get_submission, DOCUSEAL_MOCK_MODE
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+    from services.transaction_auth import CAP_VIEW, get_transaction_for_user
+
+    transaction, decision = get_transaction_for_user(id, capability=CAP_VIEW)
+    if not transaction:
+        abort(403 if decision.reason != 'not_found' else 404)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.docuseal_submission_id:
@@ -949,6 +953,7 @@ def check_signature_status(id, doc_id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/void', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def void_document(id, doc_id):
     """
     Void a sent document and reset it to 'filled' status so it can be re-sent.
@@ -996,6 +1001,7 @@ def void_document(id, doc_id):
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/resend', methods=['POST'])
 @login_required
 @transactions_required
+@document_generation_required
 def resend_signature_request(id, doc_id):
     """
     Resend signature request emails to submitters who haven't signed yet.

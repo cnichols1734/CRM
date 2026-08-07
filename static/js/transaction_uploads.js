@@ -7,21 +7,38 @@
 // SCROLL POSITION PERSISTENCE
 // =============================================================================
 
-const DOCUMENTS_SECTION_ID = 'transaction-documents-card';
+function defaultDocumentsSectionId() {
+    if (document.getElementById('listing-documents')) return 'listing-documents';
+    if (document.getElementById('seller-workspace')) return 'seller-workspace';
+    return 'transaction-documents-card';
+}
 
 function reloadPreservingScroll(targetId) {
     // Set the hash on the current URL, then reload.
     // The browser reloads the full page from the server and then scrolls
     // to the hash element natively — no JS timing issues.
-    const target = targetId || DOCUMENTS_SECTION_ID;
+    const target = targetId || defaultDocumentsSectionId();
     history.replaceState(null, '', '#' + target);
     window.location.reload();
+}
+
+function signalDocumentReviewStarted(documentId) {
+    window.dispatchEvent(new CustomEvent('transaction-document-uploaded', {
+        detail: { documentId: documentId || null },
+    }));
 }
 
 // After the reload, clean the hash from the URL so it doesn't persist.
 window.addEventListener('load', function () {
     const hash = window.location.hash;
-    if (hash === '#' + DOCUMENTS_SECTION_ID || hash.startsWith('#transaction-document-')) {
+    const documentsHash = '#' + defaultDocumentsSectionId();
+    if (
+        hash === documentsHash
+        || hash === '#transaction-documents-card'
+        || hash === '#listing-documents'
+        || hash === '#seller-workspace'
+        || hash.startsWith('#transaction-document-')
+    ) {
         history.replaceState(null, '', window.location.pathname + window.location.search);
     }
 });
@@ -341,6 +358,7 @@ if (uploadForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Scanned document uploaded successfully!', 'success');
+                    signalDocumentReviewStarted(currentUploadDocId);
                     closeUploadScanModal();
                     reloadPreservingScroll(`transaction-document-${currentUploadDocId}`);
                 } else {
@@ -498,6 +516,7 @@ if (esignForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Document uploaded! Redirecting to field editor...', 'success');
+                    signalDocumentReviewStarted(currentSignatureDocId);
                     closeAddDocumentModal();
                     // Redirect to field editor
                     if (data.redirect_url) {
@@ -557,35 +576,43 @@ function resetCompletedForm() {
 }
 
 function handleCompletedFileSelect(input) {
-    const file = input.files[0];
-    if (!file) return;
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
 
-    // Validate file type
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-        showCompletedError('Please select a PDF file.');
-        return;
-    }
-
-    // Validate file size (25MB max)
     const maxSize = 25 * 1024 * 1024;
-    if (file.size > maxSize) {
-        showCompletedError('File too large. Maximum size is 25MB.');
+    if (files.length > 20) {
+        showCompletedError('Upload up to 20 PDFs at a time.');
         return;
     }
+    for (const file of files) {
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            showCompletedError(`${file.name}: please select a PDF file.`);
+            return;
+        }
+        if (file.size > maxSize) {
+            showCompletedError(`${file.name}: file too large. Maximum size is 25MB.`);
+            return;
+        }
+    }
 
-    // Show selected file info
     document.getElementById('completedDropContent').classList.add('hidden');
     document.getElementById('completedFileInfo').classList.remove('hidden');
-    document.getElementById('completedFileName').textContent = file.name;
-    document.getElementById('completedFileSize').textContent = formatFileSize(file.size);
+    if (files.length === 1) {
+        document.getElementById('completedFileName').textContent = files[0].name;
+        document.getElementById('completedFileSize').textContent = formatFileSize(files[0].size);
+    } else {
+        document.getElementById('completedFileName').textContent = `${files.length} PDFs selected`;
+        document.getElementById('completedFileSize').textContent = files
+            .map((f) => f.name)
+            .slice(0, 4)
+            .join(', ') + (files.length > 4 ? '…' : '');
+    }
     document.getElementById('completedError').classList.add('hidden');
     document.getElementById('uploadCompletedBtn').disabled = false;
 
-    // Auto-fill document name if empty
     const docNameInput = document.getElementById('completedDocName');
-    if (!docNameInput.value.trim()) {
-        const nameWithoutExt = file.name.replace(/\.pdf$/i, '');
-        docNameInput.value = nameWithoutExt;
+    if (files.length === 1 && docNameInput && !docNameInput.value.trim()) {
+        docNameInput.value = files[0].name.replace(/\.pdf$/i, '');
     }
 }
 
@@ -628,17 +655,19 @@ if (completedForm) {
         e.preventDefault();
 
         const fileInput = document.getElementById('completedFileInput');
-        const file = fileInput.files[0];
-        if (!file) {
-            showCompletedError('Please select a file first.');
+        const files = Array.from(fileInput.files || []);
+        if (!files.length) {
+            showCompletedError('Please select at least one file first.');
             return;
         }
 
         const documentName = document.getElementById('completedDocName').value.trim();
 
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('document_name', documentName);
+        files.forEach((file) => formData.append('files', file));
+        if (documentName && files.length === 1) {
+            formData.append('document_name', documentName);
+        }
 
         // Show progress
         document.getElementById('completedProgress').classList.remove('hidden');
@@ -659,7 +688,14 @@ if (completedForm) {
             if (xhr.status === 200) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
-                    showToast('Document uploaded successfully!', 'success');
+                    const count = data.uploaded_count || 1;
+                    showToast(
+                        count === 1
+                            ? 'Document uploaded successfully!'
+                            : `${count} documents uploaded successfully!`,
+                        'success',
+                    );
+                    signalDocumentReviewStarted(data.document?.id);
                     closeAddDocumentModal();
                     reloadPreservingScroll();
                 } else {
@@ -811,6 +847,7 @@ if (staticForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Document uploaded successfully!', 'success');
+                    signalDocumentReviewStarted(currentStaticDocId);
                     closeUploadStaticModal();
                     reloadPreservingScroll(`transaction-document-${currentStaticDocId}`);
                 } else {
@@ -962,6 +999,7 @@ if (signatureForm) {
                 const data = JSON.parse(xhr.responseText);
                 if (data.success) {
                     showToast('Document uploaded! Redirecting to field editor...', 'success');
+                    signalDocumentReviewStarted(currentSignatureDocId);
                     closeUploadForSignatureModal();
                     // Redirect to field editor
                     if (data.redirect_url) {
@@ -1130,6 +1168,7 @@ if (fulfillForm) {
                     showToast('Document uploaded successfully!', 'success');
                     const uploadedDocId = currentFulfillDocId;
                     const uploadedDoc = data.document || {};
+                    signalDocumentReviewStarted(uploadedDocId);
                     const isListingAgreement = uploadedDoc.template_slug === 'listing-agreement';
                     closeFulfillPlaceholderModal();
                     if (isListingAgreement && document.getElementById('listing-info-card')) {
@@ -1242,9 +1281,9 @@ if (addPlaceholderForm) {
                     if (data.listing_info) {
                         renderListingInfo(contentEl, data.listing_info);
                     } else if (data.extraction_status === 'failed') {
-                        renderStatusMessage(contentEl, 'bg-red-50', 'fas fa-exclamation-triangle text-red-400', 'Data extraction failed. Try re-uploading the document.');
+                        renderStatusMessage(contentEl, 'bg-red-50', 'fas fa-exclamation-triangle text-red-400', 'BOB could not finish reviewing this PDF. The file is saved; check Document review or enter the terms manually.');
                     } else {
-                        renderStatusMessage(contentEl, 'bg-amber-50', 'fas fa-exclamation-triangle text-amber-400', 'Could not extract listing data from this document. Try re-uploading a clearer copy.');
+                        renderStatusMessage(contentEl, 'bg-amber-50', 'fas fa-exclamation-triangle text-amber-400', 'BOB could not confirm listing terms from this PDF. Check Document review or enter the terms manually.');
                     }
                 } else if (polls >= MAX_POLLS) {
                     clearInterval(timer);
@@ -1295,6 +1334,7 @@ if (addPlaceholderForm) {
 
         var price = info.list_price || '\u2014';
         wrapper.appendChild(makeRow('List Price', price, 'text-emerald-600 font-semibold'));
+        wrapper.appendChild(makeRow('Go-live Date', info.go_live_date));
         wrapper.appendChild(makeRow('Listing Start Date', info.listing_start_date));
         wrapper.appendChild(makeRow('Listing Expiration Date', info.listing_end_date));
 

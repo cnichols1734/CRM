@@ -3,17 +3,75 @@
 Document download and print routes.
 """
 
+import logging
+import re
 from datetime import datetime
-from flask import jsonify
+
+from flask import Response, abort, jsonify
 from flask_login import login_required, current_user
-from models import db, Transaction, TransactionDocument
+from models import db, TransactionDocument
+from services.transaction_auth import CAP_VIEW, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
+
+logger = logging.getLogger(__name__)
+
+
+def _require_tx(transaction_id, capability=CAP_VIEW):
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
+
+
+def _safe_inline_filename(name: str) -> str:
+    safe = (name or 'document.pdf').strip()
+    safe = safe.replace('"', '').replace("'", '')
+    safe = safe.replace('\n', '').replace('\r', '')
+    safe = re.sub(r'[/\\]', '_', safe)
+    if not safe.lower().endswith('.pdf'):
+        safe = f'{safe}.pdf'
+    return safe or 'document.pdf'
 
 
 # =============================================================================
 # DOCUMENT DOWNLOAD
 # =============================================================================
+
+@transactions_bp.route('/<int:id>/documents/<int:doc_id>/pdf')
+@login_required
+@transactions_required
+def view_document_pdf(id, doc_id):
+    """Stream a stored PDF inline for PDF.js (avoids Supabase CORS in the browser)."""
+    from services.supabase_storage import download_document
+
+    transaction = _require_tx(id, CAP_VIEW)
+    doc = TransactionDocument.query.filter_by(
+        id=doc_id, transaction_id=transaction.id,
+    ).first_or_404()
+
+    path = doc.source_file_path or doc.signed_file_path
+    if not path:
+        abort(404)
+
+    try:
+        pdf_bytes = download_document(path)
+    except Exception:
+        logger.exception(
+            'view_document_pdf failed tx=%s doc=%s path=%s', id, doc_id, path,
+        )
+        abort(502)
+
+    filename = _safe_inline_filename(doc.review_filename)
+    return Response(
+        pdf_bytes,
+        mimetype='application/pdf',
+        headers={
+            'Content-Disposition': f'inline; filename="{filename}"',
+            'Cache-Control': 'private, max-age=300',
+        },
+    )
+
 
 @transactions_bp.route('/<int:id>/documents/<int:doc_id>/download')
 @login_required
@@ -26,12 +84,9 @@ def download_signed_document(id, doc_id):
     """
     from services.docuseal_service import get_signed_document_urls, DOCUSEAL_MOCK_MODE
     from services.supabase_storage import get_transaction_document_url
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_VIEW)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if doc.status != 'signed':
@@ -79,12 +134,9 @@ def view_stored_signed_document(id, doc_id):
     Returns a direct URL for embedding/viewing in browser.
     """
     from services.supabase_storage import get_transaction_document_url, format_file_size
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_VIEW)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.signed_file_path:
@@ -120,12 +172,9 @@ def view_static_document(id, doc_id):
     Returns a direct URL for embedding/viewing in browser.
     """
     from services.supabase_storage import get_transaction_document_url, format_file_size
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_VIEW)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     if not doc.source_file_path:
@@ -166,12 +215,9 @@ def get_all_documents_print_pdf(id):
         DocumentLoader, FieldResolver, RoleBuilder, DocuSealClient
     )
     from services.documents.types import Submitter
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_VIEW)
+
     # Check if in mock mode
     if DocuSealClient.is_mock_mode():
         return jsonify({
@@ -411,12 +457,9 @@ def get_document_print_pdf(id, doc_id):
     Works for documents in 'filled', 'generated', or 'sent' status.
     """
     from services.documents.docuseal_client import DocuSealClient
-    
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-    
+
+    transaction = _require_tx(id, CAP_VIEW)
+
     doc = TransactionDocument.query.filter_by(id=doc_id, transaction_id=transaction.id).first_or_404()
     
     # Check if document has been filled

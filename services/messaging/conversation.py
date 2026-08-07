@@ -99,8 +99,11 @@ def handle_inbound_message(
     voice_file_id: Optional[str] = None,
     voice_duration_seconds: Optional[int] = None,
     photo_file_id: Optional[str] = None,
+    document_file_id: Optional[str] = None,
+    document_filename: Optional[str] = None,
+    document_mime_type: Optional[str] = None,
 ) -> None:
-    """Process a text, voice, or photo message from a linked agent."""
+    """Process a text, voice, photo, or PDF message from a linked agent."""
     channel = _load_channel(channel_id, org_id)
     if channel is None:
         return
@@ -116,6 +119,18 @@ def handle_inbound_message(
     transport = get_transport()
     from_voice = False
     working_text = (text or '').strip()
+
+    if document_file_id:
+        _handle_pdf_document_message(
+            channel=channel,
+            user=user,
+            transport=transport,
+            document_file_id=document_file_id,
+            filename=document_filename or 'telegram.pdf',
+            mime_type=document_mime_type or 'application/pdf',
+            caption=working_text,
+        )
+        return
 
     if photo_file_id:
         _handle_photo_message(
@@ -274,7 +289,7 @@ def handle_callback_query(
 
     verb, action_id_str = match.group(1), match.group(2)
     action_id = int(action_id_str)
-    ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
+    ctx = _bob_context_for_channel(user, channel)
 
     # Never trust the callback payload for identity — confirm_action already
     # scopes by user_id + organization_id, but we also refuse early if the
@@ -383,6 +398,16 @@ def handle_callback_query(
 # Tool loop + reply rendering
 # ---------------------------------------------------------------------------
 
+def _bob_context_for_channel(user: User, channel: AgentMessagingChannel) -> BobContext:
+    """Build Telegram BobContext with durable selected_transaction_id."""
+    return BobContext.from_user(
+        user,
+        surface=SURFACE,
+        timezone=_user_tz(user),
+        selected_transaction_id=getattr(channel, 'selected_transaction_id', None),
+    )
+
+
 def _run_and_reply(
     *,
     channel: AgentMessagingChannel,
@@ -391,13 +416,14 @@ def _run_and_reply(
     user_text: str,
     transport: Any,
 ) -> None:
-    ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
+    ctx = _bob_context_for_channel(user, channel)
     with show_typing(transport, channel.chat_id):
         reply_text, pending, undoable, disambiguation, record_urls = _run_tool_loop(
             user=user,
             ctx=ctx,
             conversation=conversation,
             user_text=user_text,
+            channel=channel,
         )
 
     reply_text = _append_record_links(reply_text, record_urls)
@@ -447,16 +473,24 @@ def _run_tool_loop(
     ctx: BobContext,
     conversation: ChatConversation,
     user_text: str,
+    channel: Optional[AgentMessagingChannel] = None,
 ) -> tuple[str, Optional[dict], Optional[int], Optional[list[dict]], list[str]]:
     """Returns reply, pending, undoable id, disambiguation contacts, record urls."""
     messages = _history_messages(conversation)
     messages.append({'role': 'user', 'content': user_text})
 
     first_name = user.first_name or 'there'
+    selected_note = ''
+    if ctx.selected_transaction_id:
+        selected_note = (
+            f"\nSelected transaction_id for this chat: {ctx.selected_transaction_id}."
+            " Use it for status/deadline questions unless the agent picks another."
+        )
     system = (
         TELEGRAM_SYSTEM_PROMPT
         + f"\n\nAgent first name (use rarely, per Name usage rules): {first_name}."
         + f"\nToday (agent local): {ctx.today().isoformat()}."
+        + selected_note
     )
 
     pending: Optional[dict] = None
@@ -468,7 +502,7 @@ def _run_tool_loop(
     collector = ActionCollector()
 
     def execute_tool(name: str, args: dict) -> tuple[dict, dict]:
-        nonlocal pending, undoable_action_id, disambiguation
+        nonlocal pending, undoable_action_id, disambiguation, ctx
         result = bob_dispatch(
             name, args, ctx, conversation_id=conversation.id,
             collector=collector,
@@ -502,14 +536,28 @@ def _run_tool_loop(
             else:
                 disambiguation = None
 
+        # Durable transaction disambiguation for Telegram status questions.
+        if name == 'select_transaction_context' and result.ok and channel is not None:
+            selected_id = (result.data or {}).get('selected_transaction_id')
+            if selected_id:
+                channel.selected_transaction_id = int(selected_id)
+                db.session.commit()
+                ctx = BobContext.from_user(
+                    user,
+                    surface=SURFACE,
+                    timezone=_user_tz(user),
+                    selected_transaction_id=int(selected_id),
+                )
+
         return result.for_model(), result.for_client()
 
     try:
         for event, payload in run_tool_conversation(
             system_prompt=system,
             messages=messages,
-            tools=openai_tool_schemas(),
+            tools=openai_tool_schemas(ctx),
             execute_tool=execute_tool,
+            safety_identifier=f'org:{ctx.organization_id}:user:{ctx.user_id}',
         ):
             if event == 'text':
                 text_parts.append(payload)
@@ -646,6 +694,90 @@ def _starter_options() -> list[ChoiceOption]:
     ]
 
 
+def _handle_pdf_document_message(
+    *,
+    channel: AgentMessagingChannel,
+    user: User,
+    transport: Any,
+    document_file_id: str,
+    filename: str,
+    mime_type: str,
+    caption: str,
+) -> None:
+    """Route a PDF into bootstrap/document-review after transaction selection."""
+    from models import Transaction
+    from services.messaging.telegram_documents import (
+        TelegramDocumentError,
+        download_telegram_document,
+        format_intake_reply,
+        process_telegram_pdf_for_transaction,
+    )
+
+    try:
+        _bump_daily_count(channel)
+    except RateLimitExceeded as exc:
+        transport.send_text(channel.chat_id, f"{exc.message}\n\n--BOB")
+        return
+
+    conversation = _get_or_create_conversation(user)
+    user_line = caption.strip() if caption.strip() else f'[pdf:{filename}]'
+    _persist_message(conversation, 'user', user_line)
+
+    selected_id = getattr(channel, 'selected_transaction_id', None)
+    if not selected_id:
+        body = _ensure_bob_signoff(
+            "Select a transaction first (search + select_transaction_context), "
+            "then send the PDF. I won't attach deal docs without a selected file."
+        )
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    tx = Transaction.query.filter_by(
+        id=selected_id,
+        organization_id=channel.organization_id,
+    ).first()
+    if tx is None:
+        body = _ensure_bob_signoff(
+            "The selected transaction is gone. Search and select again, then resend the PDF."
+        )
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    try:
+        with show_typing(transport, channel.chat_id):
+            pdf_bytes = download_telegram_document(transport, document_file_id)
+            session = process_telegram_pdf_for_transaction(
+                user=user,
+                transaction=tx,
+                file_bytes=pdf_bytes,
+                filename=filename,
+                mime_type=mime_type,
+                run_extraction=True,
+            )
+            body = format_intake_reply(session, tx)
+    except TelegramDocumentError as exc:
+        body = _ensure_bob_signoff(exc.message)
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+    except Exception:
+        logger.exception(
+            'Telegram PDF intake crashed channel=%s tx=%s',
+            channel.id, selected_id,
+        )
+        body = _ensure_bob_signoff(
+            "Couldn't process that PDF. Try again, or upload it in the CRM bootstrap inbox."
+        )
+        transport.send_text(channel.chat_id, body)
+        _persist_message(conversation, 'assistant', body)
+        return
+
+    transport.send_text(channel.chat_id, body)
+    _persist_message(conversation, 'assistant', body)
+
+
 def _handle_photo_message(
     *,
     channel: AgentMessagingChannel,
@@ -665,7 +797,7 @@ def _handle_photo_message(
     user_line = caption.strip() if caption.strip() else '[photo]'
     _persist_message(conversation, 'user', user_line)
 
-    ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
+    ctx = _bob_context_for_channel(user, channel)
     try:
         with show_typing(transport, channel.chat_id):
             image_bytes = download_telegram_photo(transport, photo_file_id)
@@ -789,7 +921,7 @@ def _help_text(user: User) -> str:
 
 
 def _handle_undo_command(channel, user, transport) -> None:
-    ctx = BobContext.from_user(user, surface=SURFACE, timezone=_user_tz(user))
+    ctx = _bob_context_for_channel(user, channel)
     action = (
         BobAction.query.filter_by(
             user_id=user.id,

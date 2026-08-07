@@ -34,6 +34,15 @@ def get_intake_schema(transaction_type: str, ownership_status: str = None) -> di
         with open(schema_path, 'r') as f:
             return json.load(f)
 
+    # Contract bootstrap may create a seller file before ownership details are
+    # known. Conventional is the safe questionnaire default; the agent can
+    # change ownership type later without losing the reviewed contract.
+    if transaction_type == 'seller' and not ownership_status:
+        conventional_path = SCHEMAS_DIR / 'seller_conventional.json'
+        if conventional_path.exists():
+            with open(conventional_path, 'r') as f:
+                return json.load(f)
+
     return None
 
 
@@ -135,12 +144,313 @@ def get_question_labels(schema: dict) -> dict:
     return labels
 
 
+def _candidate_value(candidates: dict, *keys):
+    """Return the first concrete bootstrap candidate value for the supplied keys."""
+    for key in keys:
+        raw = (candidates or {}).get(key)
+        value = raw.get('value') if isinstance(raw, dict) and 'value' in raw else raw
+        if value not in (None, '', [], {}):
+            return value
+    return None
+
+
+def _normalized_boolean(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return None
+    normalized = str(value).strip().lower()
+    if normalized in ('true', 'yes', '1', 'present', 'applies'):
+        return True
+    if normalized in ('false', 'no', '0', 'absent', 'does_not_apply'):
+        return False
+    return None
+
+
+def _schema_option_values(schema: dict) -> dict[str, set]:
+    options = {}
+    for section in schema.get('sections', []):
+        for question in section.get('questions', []):
+            options[question['id']] = {
+                item.get('value') for item in question.get('options', [])
+            }
+    return options
+
+
+def seller_intake_handoff_url(transaction, document=None) -> str | None:
+    """URL for the seller questionnaire when a doc approval should hand off to it.
+
+    Returns the intake questionnaire URL only when this is a seller-side
+    transaction whose questionnaire has not been answered yet and the approved
+    document is (or contains) a listing agreement. Otherwise returns None so
+    callers fall back to the transaction detail page.
+    """
+    from flask import url_for
+
+    if transaction is None:
+        return None
+    side = (getattr(transaction.transaction_type, 'name', '') or '').lower()
+    if side != 'seller':
+        return None
+    if transaction.intake_data:
+        return None
+
+    is_listing_doc = False
+    if document is not None:
+        slug = (getattr(document, 'template_slug', '') or '').strip().lower().replace('_', '-')
+        if slug == 'listing-agreement':
+            is_listing_doc = True
+        else:
+            field_data = getattr(document, 'field_data', None)
+            if isinstance(field_data, dict):
+                identity = field_data.get('_document_identity') or {}
+                if (identity.get('kind') or '') == 'listing_agreement':
+                    is_listing_doc = True
+    if not is_listing_doc:
+        return None
+
+    return url_for(
+        'transactions.intake_questionnaire',
+        id=transaction.id,
+        source='document_review',
+    )
+
+
+def _evidence_pool(transaction, bootstrap_session=None) -> dict:
+    """Flatten extracted fields from bootstrap + filed transaction documents.
+
+    Later sources only fill gaps — they never overwrite an earlier concrete value.
+    """
+    pool: dict = {}
+
+    def absorb(source: dict | None):
+        if not isinstance(source, dict):
+            return
+        for key, raw in source.items():
+            if str(key).startswith('_'):
+                continue
+            value = raw.get('value') if isinstance(raw, dict) and 'value' in raw else raw
+            if value in (None, '', [], {}):
+                continue
+            if pool.get(key) in (None, '', [], {}):
+                pool[key] = value
+
+    if bootstrap_session is not None:
+        absorb(getattr(bootstrap_session, 'extracted_candidates', None) or {})
+        absorb((getattr(bootstrap_session, 'classification', None) or {}))
+
+    docs = list(getattr(transaction, 'documents', None) or [])
+    if not docs and getattr(transaction, 'id', None):
+        try:
+            from models import TransactionDocument
+            docs = TransactionDocument.query.filter_by(
+                transaction_id=transaction.id,
+                organization_id=transaction.organization_id,
+            ).all()
+        except Exception:
+            docs = []
+
+    # Prefer listing agreement / disclosures that answer property facts.
+    slug_rank = {
+        'listing-agreement': 0,
+        'sellers-disclosure': 1,
+        'lead-paint': 2,
+    }
+    docs = sorted(
+        docs,
+        key=lambda d: slug_rank.get(
+            (getattr(d, 'template_slug', None) or '').strip().lower().replace('_', '-'),
+            50,
+        ),
+    )
+    for doc in docs:
+        absorb(getattr(doc, 'field_data', None) or {})
+
+    return pool
+
+
+def _infer_from_special_provisions(text: str) -> dict:
+    """Deterministic property-fact hints from listing Special Provisions text."""
+    import re
+
+    hints = {}
+    blob = re.sub(r'\s+', ' ', str(text or '')).strip()
+    if not blob:
+        return hints
+    lower = blob.lower()
+
+    if re.search(
+        r'\bhoa\b|\bpoa\b|owners[\'’]?\s+association|property\s+owners',
+        lower,
+    ):
+        hints['has_hoa'] = True
+
+    if re.search(
+        r'existing\s+survey|survey\s+dated|provide(?:s|d)?\s+(?:an?\s+)?(?:existing\s+)?survey|'
+        r't-?47(?:\.1)?',
+        lower,
+    ):
+        hints['has_survey'] = 'yes'
+    elif re.search(r'no\s+survey|survey\s+not\s+available|without\s+a\s+survey', lower):
+        hints['has_survey'] = 'no'
+
+    if re.search(
+        r'\bmud\b|public\s+improvement\s+district|\bpid\b|special\s+tax(?:ing)?\s+district',
+        lower,
+    ):
+        hints['special_districts'] = True
+
+    if re.search(r'flood\s+hazard|flood\s+zone|sfha|fema\s+flood', lower):
+        hints['flood_hazard'] = True
+
+    if re.search(r'\bseptic\b|on-?site\s+sewer|on-?site\s+sewage', lower):
+        hints['has_septic'] = True
+
+    if re.search(r'referral\s+fee|referral\s+agreement', lower):
+        hints['referral_fee'] = True
+
+    return hints
+
+
+def build_intake_prefill(transaction, schema: dict, bootstrap_session=None) -> tuple[dict, list[str]]:
+    """Merge saved answers with conservative suggestions from reviewed docs.
+
+    Saved agent answers always win. Suggestions are returned for display only and
+    are not persisted until the agent saves the questionnaire.
+
+    Only facts the document actually states are suggested. Unchecked addenda
+    checkboxes on a listing agreement are never treated as "No".
+    """
+    merged = dict(transaction.intake_data or {})
+    pool = _evidence_pool(transaction, bootstrap_session=bootstrap_session)
+    if not pool and not bootstrap_session:
+        return merged, []
+
+    options = _schema_option_values(schema)
+    suggestions = {}
+    side = (getattr(transaction.transaction_type, 'name', '') or '').lower()
+
+    if side == 'buyer':
+        suggestions['buyer_stage'] = 'under_contract'
+
+        contract_type = str(
+            pool.get('purchase_contract_type')
+            or pool.get('contract_type')
+            or pool.get('document_type')
+            or ''
+        ).strip().lower().replace('-', '_').replace(' ', '_')
+        contract_aliases = {
+            'resale_one_to_four': 'resale_one_to_four',
+            'one_to_four_family': 'resale_one_to_four',
+            'one_to_four_family_residential_contract': 'resale_one_to_four',
+            'residential_contract': 'resale_one_to_four',
+            'condominium': 'condominium',
+            'condominium_contract': 'condominium',
+            'new_construction_complete': 'new_construction_complete',
+            'new_home_completed': 'new_construction_complete',
+            'new_construction_incomplete': 'new_construction_incomplete',
+            'new_home_incomplete': 'new_construction_incomplete',
+            'farm_and_ranch': 'farm_and_ranch',
+            'farm_and_ranch_contract': 'farm_and_ranch',
+            'other': 'not_sure',
+            'unknown': 'not_sure',
+        }
+        if contract_type in contract_aliases:
+            suggestions['purchase_type'] = contract_aliases[contract_type]
+
+        financing = str(pool.get('financing_type') or '').strip().lower()
+        if financing == 'cash':
+            suggestions['financing'] = 'cash'
+        elif financing in ('conventional', 'fha', 'va', 'usda', 'third_party'):
+            suggestions['financing'] = 'third_party'
+        elif financing in ('seller_financing', 'assumption', 'other'):
+            suggestions['financing'] = 'assumption_seller_financing_other'
+        elif financing == 'unknown':
+            suggestions['financing'] = 'not_sure'
+
+        for candidate_key, question_id in (
+            ('built_before_1978', 'built_before_1978'),
+            ('hoa_applicable', 'has_association'),
+            ('has_hoa', 'has_association'),
+        ):
+            value = _normalized_boolean(pool.get(candidate_key))
+            if value is not None and question_id not in suggestions:
+                suggestions[question_id] = 'yes' if value else 'no'
+
+        contingency = _normalized_boolean(pool.get('sale_of_other_property_contingency'))
+        if contingency is not None:
+            suggestions['buyer_sale_contingency'] = contingency
+
+        lease_type = str(pool.get('temporary_lease_type') or '').strip().lower()
+        lease_aliases = {
+            'buyer_temporary_lease': 'buyer_temporary_lease',
+            'seller_temporary_lease': 'seller_temporary_lease',
+            'none': 'none',
+            'unknown': 'not_sure',
+        }
+        if lease_type in lease_aliases:
+            suggestions['temporary_lease'] = lease_aliases[lease_type]
+
+    elif side == 'seller':
+        # Explicit extracted fields first.
+        for candidate_key, question_id in (
+            ('built_before_1978', 'built_before_1978'),
+            ('has_hoa', 'has_hoa'),
+            ('hoa_applicable', 'has_hoa'),
+            ('special_districts', 'special_districts'),
+            ('flood_hazard', 'flood_hazard'),
+            ('has_septic', 'has_septic'),
+            ('referral_fee', 'referral_fee'),
+        ):
+            value = _normalized_boolean(pool.get(candidate_key))
+            if value is not None and question_id not in suggestions:
+                suggestions[question_id] = value
+
+        survey = _normalized_boolean(pool.get('has_existing_survey'))
+        if survey is True:
+            suggestions['has_survey'] = 'yes'
+        elif survey is False:
+            suggestions['has_survey'] = 'no'
+        else:
+            survey_text = str(
+                pool.get('survey_choice')
+                or pool.get('survey_furnished_by')
+                or ''
+            ).strip().lower()
+            if survey_text:
+                if any(word in survey_text for word in ('existing', 'furnished', 'attached', 'yes')):
+                    suggestions['has_survey'] = 'yes'
+                elif any(word in survey_text for word in ('new survey', 'no survey', 'not available')):
+                    suggestions['has_survey'] = 'no'
+
+        # Special Provisions often carries HOA name + survey language when 2E
+        # checkboxes did not extract cleanly.
+        for key, value in _infer_from_special_provisions(
+            pool.get('special_provisions') or '',
+        ).items():
+            if key not in suggestions:
+                suggestions[key] = value
+
+    suggested_fields = []
+    for field_id, value in suggestions.items():
+        if field_id in merged and merged[field_id] not in (None, ''):
+            continue
+        allowed = options.get(field_id)
+        if allowed and value not in allowed:
+            continue
+        merged[field_id] = value
+        suggested_fields.append(field_id)
+
+    return merged, suggested_fields
+
+
 def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) -> dict:
     """
     Evaluate document rules and compute add/remove/keep diff against existing docs.
 
-    Manually added placeholder docs (slugs starting with 'custom-') are excluded
-    from the diff so they survive questionnaire re-sync.
+    Only document slots declared by this questionnaire are managed. Uploaded
+    contracts, custom files, and documents owned by other workflows survive a
+    questionnaire re-sync.
 
     Args:
         schema: The intake schema with document_rules
@@ -156,12 +466,44 @@ def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) 
     required_docs_by_slug = {doc['slug']: doc for doc in required_docs}
     required_slugs = set(required_docs_by_slug.keys())
 
-    # Exclude manually-added custom placeholders from diffing
-    managed_slugs = {slug for slug in existing_docs if not slug.startswith('custom-')}
+    schema_managed_slugs = {
+        rule.get('slug') for rule in schema.get('document_rules', [])
+        if rule.get('slug')
+    }
+    managed_slugs = set(existing_docs) & schema_managed_slugs
 
     to_keep = managed_slugs & required_slugs
     to_remove = managed_slugs - required_slugs
     to_add = required_slugs - managed_slugs
+
+    # A reviewed, uploaded contract already attached by bootstrap satisfies the
+    # questionnaire's contract slot even when its exact form family was unknown
+    # during extraction. Never add a duplicate placeholder or delete that file.
+    contract_slugs = {
+        'seller-accepted-contract',
+        'one-to-four-family-contract',
+        'condominium-contract',
+        'new-home-completed-construction-contract',
+        'new-home-incomplete-construction-contract',
+        'farm-and-ranch-contract',
+        'purchase-contract',
+    }
+    required_contracts = required_slugs & contract_slugs
+    fulfilled_contracts = [
+        (slug, doc) for slug, doc in existing_docs.items()
+        if slug in contract_slugs
+        and not getattr(doc, 'is_placeholder', False)
+        and getattr(doc, 'status', None) in ('filled', 'generated', 'sent', 'signed')
+    ]
+    satisfied_aliases = {}
+    if required_contracts and fulfilled_contracts:
+        actual_slug, _actual_doc = fulfilled_contracts[0]
+        for required_slug in required_contracts:
+            if required_slug == actual_slug:
+                continue
+            satisfied_aliases[required_slug] = actual_slug
+            to_add.discard(required_slug)
+        to_remove.discard(actual_slug)
 
     blocked_removals = []
     safe_removals = []
@@ -188,6 +530,7 @@ def compute_document_diff(schema: dict, intake_data: dict, existing_docs: dict) 
         'to_keep': to_keep,
         'blocked_removals': blocked_removals,
         'safe_removals': safe_removals,
+        'satisfied_aliases': satisfied_aliases,
     }
 
 
@@ -200,13 +543,92 @@ def post_upload_processing(doc):
     """
     import logging
     import os
-    from services.document_extractor import EXTRACTION_SCHEMAS
+    from services.document_privacy import (
+        apply_sensitivity_to_document,
+        may_use_in_llm,
+    )
 
     doc_id = doc.id
     org_id = doc.organization_id
-    template_slug = doc.template_slug
 
-    if template_slug not in EXTRACTION_SCHEMAS:
+    # Bind uploaded docs to matching pack requirements via evidence.
+    # Non-fatal: evidence attach must never fail the upload itself.
+    # All documents.py upload paths (fulfill, upload-static, upload-scan,
+    # upload-for-signature, upload-external, upload-completed) funnel here,
+    # as do offers/seller_contracts uploads — one hook covers every transition
+    # from placeholder/empty to having a real file.
+    try:
+        from services.requirement_evidence import auto_attach_for_document
+        from models import db as _db
+
+        actor_id = None
+        try:
+            from flask_login import current_user
+            if getattr(current_user, 'is_authenticated', False):
+                actor_id = current_user.id
+        except Exception:
+            actor_id = None
+
+        auto_attach_for_document(doc, actor_id=actor_id)
+
+        # If this upload was classified at upload time and an open placeholder
+        # exists for the same slug, the upload takes the placeholder's slot.
+        from services.checklist_service import absorb_matching_placeholder
+        absorb_matching_placeholder(doc, actor_id=actor_id)
+
+        _db.session.commit()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            'Failed to auto-attach requirement evidence for doc %s', doc_id,
+        )
+        try:
+            from models import db as _db
+            _db.session.rollback()
+        except Exception:
+            pass
+
+    # Phase 3: stamp sensitivity from document type / transaction side.
+    try:
+        side = None
+        if getattr(doc, 'transaction_id', None):
+            from models import Transaction
+            tx = Transaction.query.get(doc.transaction_id)
+            if tx and getattr(tx, 'transaction_type', None):
+                side = (tx.transaction_type.name or '').lower()
+        apply_sensitivity_to_document(document=doc, transaction_side=side)
+        from models import db
+        doc.extraction_status = 'pending'
+        doc.extraction_error = None
+        doc.field_data = None
+        db.session.flush()
+    except Exception:
+        logging.getLogger(__name__).exception(
+            'Failed to apply sensitivity for doc %s', doc_id,
+        )
+
+    if not may_use_in_llm(doc):
+        logging.getLogger(__name__).info(
+            'Skipping extraction enqueue for doc %s (privacy)',
+            doc_id,
+        )
+        from models import db
+        doc.extraction_status = 'failed'
+        doc.extraction_error = 'BOB review skipped because this document is restricted by privacy controls.'
+        db.session.commit()
+        try:
+            from services.document_review import finalize_document_review
+            finalize_document_review(
+                document_id=doc_id,
+                org_id=org_id,
+                manual_review_reason=(
+                    'BOB did not send this restricted document to an AI model. '
+                    'Review the original file manually.'
+                ),
+            )
+        except Exception:
+            logging.getLogger(__name__).exception(
+                'Failed to create manual-review report for doc %s', doc_id,
+            )
         return
 
     logger = logging.getLogger(__name__)
@@ -278,4 +700,3 @@ def post_upload_processing(doc):
                 "extraction_status may remain pending for manual retry.",
                 exc_info=True,
             )
-

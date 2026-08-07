@@ -191,6 +191,29 @@ def create_app():
     
     app.jinja_env.filters['timeago'] = timeago
 
+    def us_date(value):
+        """Render a date (or ISO YYYY-MM-DD string) as MM/DD/YYYY for display.
+
+        Non-date values pass through unchanged so the filter is safe on
+        mixed-type extracted field values.
+        """
+        import re as _re
+        from datetime import date as _date, datetime as _datetime
+
+        if value is None or value == '':
+            return value
+        if isinstance(value, (_datetime, _date)):
+            return value.strftime('%m/%d/%Y')
+        if isinstance(value, str):
+            text = value.strip()
+            match = _re.match(r'^(\d{4})-(\d{2})-(\d{2})(?:[T ].*)?$', text)
+            if match:
+                year, month, day = match.groups()
+                return f'{month}/{day}/{year}'
+        return value
+
+    app.jinja_env.filters['us_date'] = us_date
+
     # Context processor to make feature flags available in templates
     @app.context_processor
     def inject_feature_flags():

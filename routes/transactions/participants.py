@@ -5,11 +5,19 @@ Transaction participant management routes.
 
 from flask import request, jsonify, abort
 from flask_login import login_required, current_user
-from models import db, Transaction, TransactionParticipant, Contact, PartnerContact, PartnerOrganization
+from models import db, TransactionParticipant, Contact, PartnerContact, PartnerOrganization
 from services import audit_service
 from services.partners import build_partner_participant
+from services.transaction_auth import CAP_EDIT, get_transaction_for_user
 from . import transactions_bp
 from .decorators import transactions_required
+
+
+def _require_tx(transaction_id, capability=CAP_EDIT):
+    tx, decision = get_transaction_for_user(transaction_id, capability=capability)
+    if not tx:
+        abort(403 if decision.reason != 'not_found' else 404)
+    return tx
 
 
 # =============================================================================
@@ -21,11 +29,8 @@ from .decorators import transactions_required
 @transactions_required
 def add_participant(id):
     """Add a participant to a transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-    
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
-        abort(403)
-    
+    transaction = _require_tx(id, CAP_EDIT)
+
     try:
         role = request.form.get('role')
         contact_id = request.form.get('contact_id')
@@ -115,10 +120,7 @@ def add_participant(id):
 @transactions_required
 def remove_participant(id, participant_id):
     """Remove a participant from a transaction."""
-    transaction = Transaction.query.filter_by(id=id, organization_id=current_user.organization_id).first_or_404()
-
-    if transaction.created_by_id != current_user.id and current_user.org_role not in ('admin', 'owner'):
-        abort(403)
+    transaction = _require_tx(id, CAP_EDIT)
 
     participant = TransactionParticipant.query.filter_by(
         id=participant_id, transaction_id=transaction.id

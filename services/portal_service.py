@@ -17,6 +17,8 @@ from datetime import datetime, date
 logger = logging.getLogger(__name__)
 
 SELLER_ROLES = {'seller', 'co_seller'}
+BUYER_ROLES = {'buyer', 'co_buyer'}
+CLIENT_PORTAL_ROLES = SELLER_ROLES | BUYER_ROLES
 
 # The seller's journey, in order. Each stage maps to data we already store.
 STAGE_DEFS = [
@@ -29,6 +31,13 @@ STAGE_DEFS = [
     ('closed', 'Sold', 'fa-champagne-glasses'),
 ]
 
+BUYER_STAGE_DEFS = [
+    ('showing', 'Searching & touring', 'fa-magnifying-glass'),
+    ('under_contract', 'Under contract', 'fa-handshake'),
+    ('closing', 'Closing', 'fa-key'),
+    ('closed', 'Purchased', 'fa-house-circle-check'),
+]
+
 # The big editorial sentence shown for the current stage.
 STAGE_STATEMENTS = {
     'preparing': 'Getting your home ready',
@@ -38,6 +47,7 @@ STAGE_STATEMENTS = {
     'under_contract': 'Under contract',
     'closing': 'Headed to the closing table',
     'closed': 'Sold',
+    'showing': 'Looking at homes',
 }
 
 ACTIVE_OFFER_STATUSES = {'new', 'reviewing', 'needs_review', 'countered'}
@@ -101,41 +111,135 @@ def build_portal_context(access):
     """Build the full client-safe view model from a ClientPortalAccess row."""
     tx = access.transaction
     participant = access.participant
+    role = (getattr(participant, 'role', None) or '').lower()
+    is_buyer = role in BUYER_ROLES
 
     profile = getattr(tx, 'seller_listing_profile', None)
 
-    seller_first = _participant_first_name(participant)
+    client_first = _participant_first_name(participant)
 
     ctx = {
         'access': access,
         'transaction': tx,
         'participant': participant,
-        'seller_first_name': seller_first,
+        'portal_role': 'buyer' if is_buyer else 'seller',
+        'seller_first_name': client_first,  # template compat
+        'client_first_name': client_first,
         'property': _property_block(tx),
         'agent': _agent_block(tx),
-        'headline': _headline_block(tx, profile),
+        'headline': _headline_block(tx, profile, is_buyer=is_buyer),
         'updated_label': _updated_label(tx),
     }
 
-    stages, current_index = _build_stages(tx, profile)
+    if is_buyer:
+        stages, current_index = _build_buyer_stages(tx)
+        default_statement = 'Under contract'
+    else:
+        stages, current_index = _build_stages(tx, profile)
+        default_statement = 'Live on the market'
+
     ctx['stages'] = stages
     ctx['current_stage_index'] = current_index
     ctx['current_stage'] = stages[current_index] if stages else None
     ctx['headline_statement'] = STAGE_STATEMENTS.get(
-        stages[current_index]['key'] if stages else 'active', 'Live on the market')
+        stages[current_index]['key'] if stages else ('under_contract' if is_buyer else 'active'),
+        default_statement,
+    )
     # Fraction of the journey complete, for the progress rail fill.
     last = max(len(stages) - 1, 1)
     ctx['progress_pct'] = round(current_index / last * 100)
 
-    ctx['showings'] = _showings_block(tx)
-    ctx['offers'] = _offers_block(tx)
+    # Seller-only marketing surfaces stay empty for buyers (no other-party PII).
+    ctx['showings'] = [] if is_buyer else _showings_block(tx)
+    ctx['offers'] = [] if is_buyer else _offers_block(tx)
     ctx['milestones'] = _milestones_block(tx)
+    ctx['requirements'] = client_safe_requirement_summaries(tx)
     ctx['documents'] = _documents_block(tx, participant)
-    ctx['price_changes'] = _price_changes_block(tx)
-    ctx['net_proceeds'] = _net_proceeds_block(tx)
+    ctx['price_changes'] = [] if is_buyer else _price_changes_block(tx)
+    ctx['net_proceeds'] = None if is_buyer else _net_proceeds_block(tx)
     ctx['updates'] = _updates_block(tx, participant)
 
     return ctx
+
+
+# --------------------------------------------------------------------------
+# client-safe requirement summaries (control tower → portal)
+# --------------------------------------------------------------------------
+
+_INTERNAL_REQUIREMENT_MARKERS = (
+    'commission',
+    'cda',
+    'internal',
+    'brokerage fee',
+    'agent note',
+    'internal note',
+)
+
+
+def client_safe_requirement_summaries(transaction) -> list[dict]:
+    """Return portal-safe requirement rows for a transaction.
+
+    Excludes commission / internal-ops items. Never includes assignee ids,
+    risk levels, source links, or free-text internal notes.
+    """
+    items: list[dict] = []
+    try:
+        from models import TransactionRequirement
+        rows = (
+            TransactionRequirement.query.filter_by(
+                transaction_id=transaction.id,
+                organization_id=transaction.organization_id,
+            )
+            .order_by(TransactionRequirement.due_at.asc())
+            .all()
+        )
+    except Exception:
+        rows = []
+        try:
+            rows = list(getattr(transaction, 'requirements', []) or [])
+        except Exception:
+            rows = []
+
+    today = date.today()
+    for req in rows:
+        title = (getattr(req, 'title', None) or '').strip()
+        key = (getattr(req, 'requirement_key', None) or '').strip().lower()
+        hay = f'{title} {key}'.lower()
+        if any(marker in hay for marker in _INTERNAL_REQUIREMENT_MARKERS):
+            continue
+        work_status = (getattr(req, 'work_status', None) or 'pending').lower()
+        if work_status in ('superseded', 'cancelled'):
+            continue
+        due = _as_date(getattr(req, 'due_at', None))
+        timing = (getattr(req, 'timing_state', None) or '').lower()
+        done = work_status == 'completed'
+        na = work_status == 'not_applicable'
+        if not timing:
+            if done:
+                timing = 'completed'
+            elif na:
+                timing = 'not_applicable'
+            elif due is None:
+                timing = 'no_deadline'
+            else:
+                delta = (due - today).days
+                if delta < 0:
+                    timing = 'overdue'
+                elif delta <= 5:
+                    timing = 'due_soon'
+                else:
+                    timing = 'on_time'
+        items.append({
+            'title': title or key.replace('_', ' ').title() or 'Requirement',
+            'work_status': work_status,
+            'timing_state': timing,
+            'due': _full_day(getattr(req, 'due_at', None)),
+            'due_short': _day(getattr(req, 'due_at', None)),
+            'done': done,
+            'not_applicable': na,
+            'responsible_party': getattr(req, 'responsible_party_label', None),
+        })
+    return items
 
 
 def _participant_first_name(participant):
@@ -183,15 +287,15 @@ def _agent_block(tx):
     }
 
 
-def _headline_block(tx, profile):
+def _headline_block(tx, profile, *, is_buyer=False):
     list_price = None
-    if profile and profile.current_list_price:
+    if profile and profile.current_list_price and not is_buyer:
         list_price = profile.current_list_price
-    original_price = profile.original_list_price if profile else None
+    original_price = profile.original_list_price if (profile and not is_buyer) else None
 
     # Days on market: prefer go_live_date, else listing start, else first-active.
     dom_start = None
-    if profile and profile.go_live_date:
+    if profile and profile.go_live_date and not is_buyer:
         dom_start = _as_date(profile.go_live_date)
     days_on_market = None
     if dom_start and tx.status in ('active', 'under_contract', 'closed'):
@@ -203,13 +307,21 @@ def _headline_block(tx, profile):
         'original_price': _money(original_price) if original_price else None,
         'price_reduced': bool(original_price and list_price and float(original_price) > float(list_price)),
         'days_on_market': days_on_market,
-        'mls_number': profile.mls_number if profile else None,
+        'mls_number': None if is_buyer else (profile.mls_number if profile else None),
         'status': tx.status,
-        'status_label': _status_label(tx.status),
+        'status_label': _status_label(tx.status, is_buyer=is_buyer),
+        'expected_close': _full_day(getattr(tx, 'expected_close_date', None)),
     }
 
 
-def _status_label(status):
+def _status_label(status, *, is_buyer=False):
+    if is_buyer:
+        return {
+            'showing': 'Touring homes',
+            'under_contract': 'Under contract',
+            'closed': 'Closed',
+            'cancelled': 'Cancelled',
+        }.get(status, (status or '').replace('_', ' ').title())
     return {
         'preparing_to_list': 'Preparing to list',
         'active': 'Active on the market',
@@ -229,6 +341,29 @@ def _updated_label(tx):
 # --------------------------------------------------------------------------
 # pizza tracker
 # --------------------------------------------------------------------------
+
+def _build_buyer_stages(tx):
+    """Buyer journey stages — no seller marketing / offer board."""
+    status = tx.status
+    primary_contract = _primary_contract(tx)
+    if status == 'closed':
+        current = 3
+    elif status == 'under_contract':
+        current = 2 if _in_closing_window(primary_contract) else 1
+    else:
+        current = 0
+
+    stages = []
+    for i, (key, label, icon) in enumerate(BUYER_STAGE_DEFS):
+        if i < current:
+            state = 'done'
+        elif i == current:
+            state = 'current'
+        else:
+            state = 'upcoming'
+        stages.append({'key': key, 'label': label, 'icon': icon, 'state': state})
+    return stages, current
+
 
 def _build_stages(tx, profile):
     status = tx.status

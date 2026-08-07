@@ -1,0 +1,557 @@
+                        {% set offers_panel_hidden = offer_side == 'seller' and (default_seller_tab is not defined or default_seller_tab != 'offers') %}
+                        <div id="seller-panel-offers" class="{% if offer_side == 'seller' %}seller-tab-panel{% if offers_panel_hidden %} hidden{% endif %} space-y-4{% else %}space-y-4{% endif %}">
+                            <div class="rounded-md border border-slate-200">
+                                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-slate-900">{{ offer_labels.panel_title }}</h3>
+                                        <p class="text-xs text-slate-500">{{ offer_labels.panel_subtitle }}</p>
+                                        {# Count what is listed. Metering counts only active threads,
+                                           so the two differ once an offer is withdrawn or replaced. #}
+                                        <p class="mt-1 text-xs text-slate-500">
+                                            {{ seller_offers|length }} offer{% if seller_offers|length != 1 %}s{% endif %} logged
+                                            {%- if offer_metering and offer_metering['over_limit'] %}.
+                                            Your plan includes {{ offer_metering['included'] }} active offers;
+                                            {{ offer_metering['overage_count'] }} beyond that may bill at
+                                            ${{ '{:,.0f}'.format(offer_metering['overage_fee_each']) }} each
+                                            (estimated ${{ '{:,.0f}'.format(offer_metering['overage_total']) }}).
+                                            {%- endif %}
+                                        </p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        {# Compare is seller-only: its net sheet is seller proceeds. #}
+                                        {% if offer_side == 'seller' and active_seller_offers and active_seller_offers|length >= 2 %}
+                                        <a href="{{ url_for('transactions.compare_offers_view', id=transaction.id) }}"
+                                           class="crm-btn crm-btn-secondary">
+                                            <i class="fas fa-columns text-xs" aria-hidden="true"></i>
+                                            Compare offers
+                                        </a>
+                                        {% endif %}
+                                        <button type="button" class="crm-btn crm-btn-primary" onclick="showSellerNewOfferModal()">
+                                            <i class="fas fa-plus text-xs"></i>
+                                            {{ offer_labels.add_label }}
+                                        </button>
+                                    </div>
+                                </div>
+                                {% if seller_offers %}
+                                <div class="crm-table-wrap rounded-none border-0">
+                                    <table class="crm-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{{ offer_labels.counterparty_label }}</th>
+                                                <th>Offer</th>
+                                                <th>Deadline</th>
+                                                <th>Docs</th>
+                                                <th>Status</th>
+                                                <th class="text-right">Work</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for offer in seller_offers %}
+                                            {% set urgency = offer_urgency(offer) %}
+                                            {% set extraction_state = seller_offer_extraction_status.get(offer.id) if seller_offer_extraction_status else None %}
+                                            {% set offer_versions = seller_offer_versions_by_offer.get(offer.id, []) %}
+                                            {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
+                                            {% set legacy_documents = offer_versions|selectattr('document')|list %}
+                                            {% set offer_document_count = package_documents|length if package_documents else legacy_documents|length %}
+                                            <tr class="group cursor-pointer hover:bg-slate-50" data-seller-offer-row="{{ offer.id }}" onclick="openSellerOfferModal({{ offer.id }})">
+                                                <td>
+                                                    <div class="font-medium text-slate-900" data-seller-offer-buyer>{{ offer.buyer_names or ('Unnamed ' ~ offer_labels.counterparty_label|lower) }}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-agent>{{ offer.buyer_agent_name or 'No agent yet' }}{% if offer.buyer_agent_brokerage %} · {{ offer.buyer_agent_brokerage }}{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="font-semibold text-slate-900" data-seller-offer-price>{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}Price TBD{% endif %}</div>
+                                                    <div class="text-xs text-slate-500" data-seller-offer-financing>{{ offer.financing_type or 'Financing TBD' }}</div>
+                                                </td>
+                                                <td>
+                                                    <div data-seller-offer-deadline-label class="{% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% else %}text-slate-600{% endif %}">
+                                                        {{ urgency.label }}
+                                                    </div>
+                                                    {# The label above already says "No deadline" when there is none. #}
+                                                    <div class="text-xs text-slate-500" data-seller-offer-deadline-at>{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% endif %}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="text-slate-700" data-seller-offer-doc-count>{{ offer_document_count }} document{% if offer_document_count != 1 %}s{% endif %}</div>
+                                                    {% if extraction_state and extraction_state != 'complete' %}
+                                                    <div class="text-xs {% if extraction_state == 'failed' %}text-red-600{% else %}text-sky-600{% endif %}" data-seller-offer-extraction-status>
+                                                        <i class="fas {% if extraction_state == 'failed' %}fa-exclamation-circle{% else %}fa-spinner fa-spin{% endif %} mr-0.5 text-[10px]"></i>
+                                                        {{ extraction_state|replace('_', ' ') }}
+                                                    </div>
+                                                    {% else %}
+                                                    <div class="text-xs text-slate-500" data-seller-offer-extraction-status>{{ offer_versions|length }} version{% if offer_versions|length != 1 %}s{% endif %}</div>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700" data-seller-offer-status>
+                                                        {{ status_label(offer_side, offer.status) }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-right">
+                                                    <div class="inline-flex flex-wrap items-center justify-end gap-1.5">
+                                                        {% set review_ns = namespace(url=none) %}
+                                                        {% if document_packages and document_packages.offer_packages %}
+                                                            {% for op in document_packages.offer_packages if op.scope_id == offer.id and op.review_url %}
+                                                                {% set review_ns.url = op.review_url %}
+                                                            {% endfor %}
+                                                        {% endif %}
+                                                        {% if review_ns.url %}
+                                                        <a href="{{ review_ns.url }}"
+                                                           class="crm-btn crm-btn-accent px-2.5 py-1.5 text-xs"
+                                                           onclick="event.stopPropagation()">
+                                                            Review
+                                                        </a>
+                                                        {% endif %}
+                                                        <button type="button" class="crm-btn crm-btn-secondary px-2.5 py-1.5 text-xs" onclick="event.stopPropagation(); openSellerOfferModal({{ offer.id }})">
+                                                            Open
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="px-4 py-10 text-center">
+                                    <div class="mx-auto mb-2 inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-400">
+                                        <i class="fas fa-handshake"></i>
+                                    </div>
+                                    <p class="text-sm text-slate-500">{{ offer_labels.empty_state }}</p>
+                                    <p class="mt-1 text-xs text-slate-400">Log terms first or start from a PDF.</p>
+                                    <button type="button" class="crm-btn crm-btn-primary mt-4" onclick="showSellerNewOfferModal()">{{ offer_labels.add_label }}</button>
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div id="sellerNewOfferModal" class="fixed inset-0 z-50 hidden">
+                                <button type="button" class="absolute inset-0 bg-slate-900/60" onclick="closeSellerNewOfferModal()" aria-label="Close"></button>
+                                <div class="absolute inset-3 flex min-h-0 flex-col overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-slate-200/70 md:inset-auto md:left-1/2 md:top-1/2 md:max-h-[90vh] md:w-[min(760px,94vw)] md:-translate-x-1/2 md:-translate-y-1/2">
+                                    <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-4">
+                                        <div class="min-w-0">
+                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">New offer</p>
+                                            <h3 class="mt-1 text-lg font-semibold leading-snug text-slate-950">Log details or start from a PDF</h3>
+                                        </div>
+                                        <button type="button" class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700" onclick="closeSellerNewOfferModal()" aria-label="Close">
+                                            <i class="fas fa-times text-sm"></i>
+                                        </button>
+                                    </div>
+                                    <div class="min-h-0 flex-1 overflow-y-auto">
+                                        <form id="sellerOfferForm" class="px-6 pb-6 pt-5">
+                                            <div class="mb-4 flex items-center gap-2">
+                                                <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">1</span>
+                                                <h4 class="text-sm font-semibold text-slate-900">Offer details</h4>
+                                                <span class="text-xs text-slate-400">All fields optional</span>
+                                            </div>
+                                            <div class="grid grid-cols-1 gap-x-4 gap-y-3.5 sm:grid-cols-2">
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">{{ offer_labels.counterparty_label }} name(s)</span>
+                                                    <input name="buyer_names" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">{{ offer_labels.counterparty_agent_label }}</span>
+                                                    <input name="buyer_agent_name" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Brokerage</span>
+                                                    <input name="buyer_agent_brokerage" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Response deadline</span>
+                                                    <input type="datetime-local" name="response_deadline_at" class="crm-input mt-1">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Offer price</span>
+                                                    <input name="terms_data[offer_price]" class="crm-input mt-1" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Financing</span>
+                                                    <input name="terms_data[financing_type]" class="crm-input mt-1" placeholder="Conventional, FHA, cash">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Earnest money</span>
+                                                    <input name="terms_data[earnest_money]" class="crm-input mt-1" placeholder="$">
+                                                </label>
+                                                <label class="block">
+                                                    <span class="text-xs font-medium text-slate-600">Option days</span>
+                                                    <input name="terms_data[option_period_days]" class="crm-input mt-1" placeholder="Days">
+                                                </label>
+                                            </div>
+                                        </form>
+
+                                        <div class="px-6">
+                                            <div class="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                                                <span class="h-px flex-1 bg-slate-200"></span>
+                                                <span>or upload PDFs</span>
+                                                <span class="h-px flex-1 bg-slate-200"></span>
+                                            </div>
+                                        </div>
+
+                                        <form class="seller-offer-upload-form px-6 pb-6 pt-5" enctype="multipart/form-data">
+                                            <div class="mb-3 flex items-start justify-between gap-3">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600">2</span>
+                                                    <h4 class="text-sm font-semibold text-slate-900">Start from PDFs</h4>
+                                                </div>
+                                                <button class="crm-btn crm-btn-primary px-3 py-1.5 text-xs" type="submit">
+                                                    <i class="fas fa-bolt text-[10px]"></i>
+                                                    Upload &amp; extract
+                                                </button>
+                                            </div>
+                                            <p class="mb-3 text-xs text-slate-500">Drop the contract and supporting documents together. We'll detect each type and extract terms.</p>
+                                            <label class="seller-offer-dropzone group flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-4 py-3.5 transition hover:border-slate-400 hover:bg-slate-50">
+                                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-white text-rose-600 ring-1 ring-slate-200">
+                                                    <i class="fas fa-file-pdf text-base"></i>
+                                                </span>
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="seller-offer-dropzone-title block text-sm font-medium text-slate-900">Choose PDFs to attach</span>
+                                                    <span class="seller-offer-dropzone-hint mt-0.5 block text-xs text-slate-500">Multiple PDFs allowed. Types are inferred from filename.</span>
+                                                </span>
+                                                <span class="hidden shrink-0 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 group-hover:border-slate-300 group-hover:text-slate-800 sm:inline-block">Browse</span>
+                                                <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
+                                            </label>
+                                            <div class="seller-offer-file-list mt-3 hidden space-y-2"></div>
+                                        </form>
+                                    </div>
+                                    <div class="flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-6 py-3">
+                                        <button type="button" class="crm-btn crm-btn-secondary" onclick="closeSellerNewOfferModal()">Cancel</button>
+                                        <button class="crm-btn crm-btn-primary" type="submit" form="sellerOfferForm">Save offer</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% for offer in seller_offers %}
+                            {% set urgency = offer_urgency(offer) %}
+                            {% set offer_versions = seller_offer_versions_by_offer.get(offer.id, []) %}
+                            {% set package_documents = seller_offer_documents_by_offer.get(offer.id, []) %}
+                            {% set activities = seller_offer_activities_by_offer.get(offer.id, []) %}
+                            {% set offer_addenda = offer.terms_summary.get('addenda', {}) if offer.terms_summary else {} %}
+                            {% set raw_offer_financing_addendum = offer_addenda.get('third_party_financing_addendum', {}) if offer_addenda is mapping else {} %}
+                            {% set offer_financing_addendum = raw_offer_financing_addendum if raw_offer_financing_addendum is mapping else {} %}
+                            {% set review_url = url_for('transactions.offer_package_review', id=transaction.id, offer_id=offer.id) %}
+                            <div id="sellerOfferModal-{{ offer.id }}" data-seller-offer-modal class="offer-command hidden" role="dialog" aria-modal="true" aria-labelledby="offer-command-title-{{ offer.id }}">
+                                <button type="button" class="offer-command__backdrop" onclick="closeSellerOfferModal({{ offer.id }})" aria-label="Close offer"></button>
+                                <div class="offer-command__panel">
+                                    <header class="offer-command__header">
+                                        <div class="min-w-0">
+                                            <p class="crm-eyebrow">Offer</p>
+                                            <h3 id="offer-command-title-{{ offer.id }}" class="mt-1 truncate text-lg font-semibold tracking-tight text-slate-950">
+                                                {{ offer.buyer_names or offer.buyer_agent_name or 'Unnamed offer' }}
+                                            </h3>
+                                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                                <span class="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                                                    {{ status_label(offer_side, offer.status) }}
+                                                </span>
+                                                <span class="text-xs {% if urgency.state in ['critical', 'strong_warning', 'expired'] %}font-medium text-red-700{% elif urgency.state == 'warning' %}font-medium text-orange-700{% else %}text-slate-500{% endif %}">
+                                                    {{ urgency.label }}{% if offer.response_deadline_at %} · {{ offer.response_deadline_at.strftime('%b %d, %I:%M %p') }}{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <a href="{{ review_url }}" class="crm-btn crm-btn-accent">Review package</a>
+                                            {% if offer_side == 'seller' and offer.status in ['new', 'reviewing', 'needs_review', 'countered'] %}
+                                            <button type="button" class="crm-btn crm-btn-secondary" onclick="acceptSellerOffer({{ offer.id }}, 'backup')">{{ offer_labels.accept_backup_label }}</button>
+                                            <button type="button" class="crm-btn crm-btn-primary" onclick="acceptSellerOffer({{ offer.id }}, 'primary')">{{ offer_labels.accept_primary_label }}</button>
+                                            {% endif %}
+                                            <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" onclick="closeSellerOfferModal({{ offer.id }})" aria-label="Close">
+                                                <i class="fas fa-times" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    </header>
+
+                                    <div class="offer-command__body">
+                                        <div class="offer-command__grid">
+                                            <div class="space-y-3.5">
+                                                <form class="seller-offer-update-form crm-surface" data-offer-id="{{ offer.id }}">
+                                                    <div class="crm-surface-header">
+                                                        <div>
+                                                            <h4 class="text-sm font-semibold text-slate-950">Terms</h4>
+                                                            <p class="mt-0.5 text-xs text-slate-500">Edit and save the current offer terms.</p>
+                                                        </div>
+                                                        <button class="crm-btn crm-btn-primary" type="submit">Save</button>
+                                                    </div>
+                                                    <div class="crm-surface-body space-y-5">
+                                                        <div>
+                                                            <p class="text-[10.5px] font-medium uppercase tracking-[0.12em] text-slate-500">Parties</p>
+                                                            <div class="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">{{ offer_labels.counterparty_label }} name(s)</span>
+                                                                    <input name="buyer_names" class="crm-input" value="{{ offer.buyer_names or '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Status</span>
+                                                                    <select name="status" class="crm-select">
+                                                                        {% for value in ['new', 'reviewing', 'needs_review', 'countered', 'accepted_primary', 'accepted_backup', 'declined', 'withdrawn', 'expired'] %}
+                                                                        <option value="{{ value }}" {% if offer.status == value %}selected{% endif %}>{{ status_label(offer_side, value) }}</option>
+                                                                        {% endfor %}
+                                                                    </select>
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">{{ offer_labels.counterparty_agent_label }}</span>
+                                                                    <input name="buyer_agent_name" class="crm-input" value="{{ offer.buyer_agent_name or '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Brokerage</span>
+                                                                    <input name="buyer_agent_brokerage" class="crm-input" value="{{ offer.buyer_agent_brokerage or '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Agent email</span>
+                                                                    <input name="buyer_agent_email" type="email" class="crm-input" value="{{ offer.buyer_agent_email or '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Agent phone</span>
+                                                                    <input name="buyer_agent_phone" class="crm-input" value="{{ offer.buyer_agent_phone or '' }}">
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-[10.5px] font-medium uppercase tracking-[0.12em] text-slate-500">Money &amp; dates</p>
+                                                            <div class="mt-2.5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Offer price</span>
+                                                                    <input name="terms_data[offer_price]" class="crm-input" value="{{ offer.offer_price if offer.offer_price is not none else '' }}" placeholder="440000">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Closing date</span>
+                                                                    <input type="date" name="terms_data[proposed_close_date]" class="crm-input" value="{% if offer.proposed_close_date %}{{ offer.proposed_close_date.strftime('%Y-%m-%d') }}{% endif %}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Earnest</span>
+                                                                    <input name="terms_data[earnest_money]" class="crm-input" value="{{ offer.earnest_money if offer.earnest_money is not none else '' }}" placeholder="4400">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Option days</span>
+                                                                    <input name="terms_data[option_period_days]" class="crm-input" value="{{ offer.option_period_days if offer.option_period_days is not none else '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Financing</span>
+                                                                    <input name="terms_data[financing_type]" class="crm-input" value="{{ offer.financing_type or '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Financing amount</span>
+                                                                    <input name="terms_data[financing_amount]" class="crm-input" value="{{ offer.financing_amount if offer.financing_amount is not none else '' }}" placeholder="352000">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Cash portion</span>
+                                                                    <input name="terms_data[cash_down_payment]" class="crm-input" value="{{ offer.cash_down_payment if offer.cash_down_payment is not none else '' }}" placeholder="88000">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Seller concessions</span>
+                                                                    <input name="terms_data[seller_concessions_amount]" class="crm-input" value="{{ offer.seller_concessions_amount if offer.seller_concessions_amount is not none else '' }}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Response deadline</span>
+                                                                    <input type="datetime-local" name="response_deadline_at" class="crm-input" value="{% if offer.response_deadline_at %}{{ offer.response_deadline_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Residential service contract</span>
+                                                                    <input name="terms_data[residential_service_contract]" class="crm-input" value="{{ offer.residential_service_contract or '' }}" placeholder="900">
+                                                                </label>
+                                                                <label class="block md:col-span-2">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">Survey furnished by</span>
+                                                                    <input name="terms_data[survey_furnished_by]" class="crm-input" value="{{ offer.survey_furnished_by or '' }}" placeholder="Seller existing survey…">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">{% if offer_side == 'seller' %}Buyer agent commission %{% else %}Cooperating commission %{% endif %}</span>
+                                                                    <input name="terms_data[buyer_agent_commission_percent]" class="crm-input" value="{{ offer.buyer_agent_commission_percent if offer.buyer_agent_commission_percent is not none else '' }}" placeholder="3">
+                                                                </label>
+                                                                <label class="block">
+                                                                    <span class="mb-1 block text-xs font-medium text-slate-700">{% if offer_side == 'seller' %}Buyer agent commission flat{% else %}Cooperating commission flat{% endif %}</span>
+                                                                    <input name="terms_data[buyer_agent_commission_flat]" class="crm-input" value="{{ offer.buyer_agent_commission_flat if offer.buyer_agent_commission_flat is not none else '' }}" placeholder="0">
+                                                                </label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </form>
+
+                                                <section class="crm-surface" aria-labelledby="offer-docs-heading-{{ offer.id }}">
+                                                    <div class="crm-surface-header">
+                                                        <div>
+                                                            <h4 id="offer-docs-heading-{{ offer.id }}" class="text-sm font-semibold text-slate-950">Documents</h4>
+                                                            <p class="mt-0.5 text-xs text-slate-500">{{ package_documents|length if package_documents else offer_versions|length }} in this package</p>
+                                                        </div>
+                                                    </div>
+                                                    <div class="crm-surface-body !pt-3">
+                                                        <form class="seller-offer-upload-form" enctype="multipart/form-data">
+                                                            <input type="hidden" name="offer_id" value="{{ offer.id }}">
+                                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                                <label class="seller-offer-dropzone group flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2.5 transition hover:border-slate-400 hover:bg-slate-100">
+                                                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white text-slate-500 ring-1 ring-slate-200">
+                                                                        <i class="fas fa-file-pdf text-sm" aria-hidden="true"></i>
+                                                                    </span>
+                                                                    <span class="min-w-0">
+                                                                        <span class="seller-offer-dropzone-title block text-sm font-medium text-slate-900">Add PDFs</span>
+                                                                        <span class="seller-offer-dropzone-hint text-xs text-slate-500">Browse or drop files</span>
+                                                                    </span>
+                                                                    <input type="file" name="files" accept="application/pdf" class="seller-offer-file-input sr-only" multiple required>
+                                                                </label>
+                                                                <button class="crm-btn crm-btn-primary shrink-0" type="submit">Upload</button>
+                                                            </div>
+                                                            <div class="seller-offer-file-list mt-2 hidden space-y-2"></div>
+                                                        </form>
+                                                    </div>
+                                                    <div class="overflow-hidden border-t border-slate-200">
+                                                        {% if package_documents %}
+                                                        {% set parent_doc_ids_with_children = [] %}
+                                                        {% for offer_document in package_documents %}
+                                                            {% set doc = offer_document.document %}
+                                                            {% if doc and doc.parent_document_id and doc.parent_document_id not in parent_doc_ids_with_children %}
+                                                                {% set _ = parent_doc_ids_with_children.append(doc.parent_document_id) %}
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                        {% for offer_document in package_documents %}
+                                                        {% set doc = offer_document.document %}
+                                                        {% set is_split_child = doc and doc.parent_document_id %}
+                                                        {% set is_original_packet = doc and (doc.id in parent_doc_ids_with_children) %}
+                                                        <div class="offer-command__doc{% if is_split_child %} pl-5{% endif %}">
+                                                            <div class="min-w-0">
+                                                                <div class="flex flex-wrap items-center gap-2">
+                                                                    <span class="text-sm font-semibold text-slate-950">{{ offer_document.display_name }}</span>
+                                                                    {% if offer_document.is_primary_terms_document and offer.current_version_id == offer_document.offer_version_id %}
+                                                                    <span class="rounded-md bg-orange-50 px-1.5 py-0.5 text-[10.5px] font-medium text-orange-800">Current terms</span>
+                                                                    {% endif %}
+                                                                    {% if doc and doc.extraction_status == 'complete' %}
+                                                                    <span class="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10.5px] font-medium text-emerald-800">Extracted</span>
+                                                                    {% elif doc and doc.extraction_status in ('pending', 'processing') %}
+                                                                    <span class="rounded-md bg-sky-50 px-1.5 py-0.5 text-[10.5px] font-medium text-sky-800">Extracting</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <p class="mt-1 truncate text-xs text-slate-500">
+                                                                    {{ offer_document.document_type|replace('_', ' ')|title }}
+                                                                    {% if doc and (doc.signed_original_filename or doc.template_name) %}
+                                                                    · {{ doc.signed_original_filename or doc.template_name }}
+                                                                    {% endif %}
+                                                                    {% if is_split_child and doc.page_start and doc.page_end %}
+                                                                    · p. {{ doc.page_start }}–{{ doc.page_end }}
+                                                                    {% elif is_original_packet %}
+                                                                    · Original upload
+                                                                    {% endif %}
+                                                                </p>
+                                                            </div>
+                                                            {% if doc and doc.signed_file_path %}
+                                                            <div class="flex flex-wrap justify-end gap-1.5">
+                                                                <button type="button" class="crm-btn crm-btn-secondary crm-btn-sm" onclick="viewStoredDocument({{ doc.id }})">View</button>
+                                                                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" onclick="downloadDocument({{ doc.id }})">Download</button>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endfor %}
+                                                        {% elif offer_versions %}
+                                                        {% for version in offer_versions %}
+                                                        <div class="offer-command__doc">
+                                                            <div class="min-w-0">
+                                                                <div class="flex flex-wrap items-center gap-2">
+                                                                    <span class="text-sm font-semibold text-slate-950">Version {{ version.version_number }} · {{ version.direction|replace('_', ' ')|title }}</span>
+                                                                    {% if offer.current_version_id == version.id %}
+                                                                    <span class="rounded-md bg-orange-50 px-1.5 py-0.5 text-[10.5px] font-medium text-orange-800">Current terms</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <p class="mt-1 truncate text-xs text-slate-500">
+                                                                    {% if version.document %}
+                                                                    {{ version.document.signed_original_filename or version.document.template_name }}
+                                                                    {% else %}
+                                                                    Manual / verbal
+                                                                    {% endif %}
+                                                                    {% if version.submitted_at %} · {{ version.submitted_at.strftime('%b %d, %Y') }}{% endif %}
+                                                                </p>
+                                                            </div>
+                                                            {% if version.document and version.document.signed_file_path %}
+                                                            <div class="flex flex-wrap justify-end gap-1.5">
+                                                                <button type="button" class="crm-btn crm-btn-secondary crm-btn-sm" onclick="viewStoredDocument({{ version.document.id }})">View</button>
+                                                                <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" onclick="downloadDocument({{ version.document.id }})">Download</button>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% endfor %}
+                                                        {% else %}
+                                                        <p class="px-4 py-5 text-sm text-slate-500">No documents yet. Upload a PDF to start the package.</p>
+                                                        {% endif %}
+                                                    </div>
+                                                </section>
+                                            </div>
+
+                                            <aside class="space-y-3.5 xl:sticky xl:top-0">
+                                                <section class="crm-surface">
+                                                    <div class="crm-surface-header !py-3">
+                                                        <h4 class="text-sm font-semibold text-slate-950">Snapshot</h4>
+                                                        <button type="button" class="crm-btn crm-btn-subtle crm-btn-sm" onclick="expireSellerOffer({{ offer.id }})">Check expiration</button>
+                                                    </div>
+                                                    <div class="crm-surface-body !py-2">
+                                                        <dl class="offer-command__snapshot">
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Price</dt>
+                                                                <dd>{% if offer.offer_price %}${{ "{:,.0f}".format(offer.offer_price) }}{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Financing</dt>
+                                                                <dd>{{ offer.financing_type or '—' }}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Close</dt>
+                                                                <dd>{% if offer.proposed_close_date %}{{ offer.proposed_close_date.strftime('%b %d, %Y') }}{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Option</dt>
+                                                                <dd>{% if offer.option_period_days %}{{ offer.option_period_days }} days{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Cash</dt>
+                                                                <dd>{% if offer.cash_down_payment %}${{ "{:,.0f}".format(offer.cash_down_payment) }}{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row">
+                                                                <dt>Loan</dt>
+                                                                <dd>{% if offer.financing_amount %}${{ "{:,.0f}".format(offer.financing_amount) }}{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row offer-command__snapshot-row--full">
+                                                                <dt>Seller concessions</dt>
+                                                                <dd>{% if offer.seller_concessions_amount %}${{ "{:,.0f}".format(offer.seller_concessions_amount) }}{% else %}—{% endif %}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row offer-command__snapshot-row--full">
+                                                                <dt>RSC</dt>
+                                                                <dd>{{ offer.residential_service_contract or '—' }}</dd>
+                                                            </div>
+                                                            <div class="offer-command__snapshot-row offer-command__snapshot-row--full">
+                                                                <dt>Commission</dt>
+                                                                <dd>
+                                                                    {% if offer.buyer_agent_commission_percent %}{{ offer.buyer_agent_commission_percent }}%{% endif %}
+                                                                    {% if offer.buyer_agent_commission_flat %}{% if offer.buyer_agent_commission_percent %} · {% endif %}${{ "{:,.0f}".format(offer.buyer_agent_commission_flat) }}{% endif %}
+                                                                    {% if not offer.buyer_agent_commission_percent and not offer.buyer_agent_commission_flat %}—{% endif %}
+                                                                </dd>
+                                                            </div>
+                                                        </dl>
+                                                    </div>
+                                                </section>
+
+                                                <section class="crm-surface">
+                                                    <div class="crm-surface-header !py-3">
+                                                        <h4 class="text-sm font-semibold text-slate-950">Activity</h4>
+                                                    </div>
+                                                    <div class="crm-surface-body">
+                                                        {% if activities %}
+                                                        <div class="offer-command__activity">
+                                                            {% for activity in activities[:12] %}
+                                                            <div class="offer-command__activity-item">
+                                                                <p>{{ activity.label }}</p>
+                                                                <time datetime="{{ activity.created_at.isoformat() if activity.created_at else '' }}">{{ activity.created_at.strftime('%b %d, %I:%M %p') }}</time>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                        {% else %}
+                                                        <p class="text-sm text-slate-500">No activity yet.</p>
+                                                        {% endif %}
+                                                    </div>
+                                                </section>
+                                            </aside>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+
+                        {% if document_packages and offer_side in ('seller', 'buyer') %}
+                        <div class="mt-4">
+                            {% set package_mode = 'offers' %}
+                            {% set show_unfiled = false %}
+                            {% include 'transactions/_document_packages_workspace.html' %}
+                        </div>
+                        {% endif %}
+                        </div>
+

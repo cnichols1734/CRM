@@ -525,6 +525,76 @@ def send_email(integration, to_emails: List[str], subject: str, body_html: str,
         }
 
 
+def create_draft(integration, to_emails: List[str], subject: str, body_html: str,
+                 cc_emails: List[str] = None) -> Dict:
+    """
+    Create a Gmail draft (never sends).
+
+    Requires Gmail compose/modify scope on the connected account. Used by the
+    transaction communication outbox so approved client emails stay draft-only
+    until the agent sends from Gmail.
+
+    Returns:
+        Dict with success, draft_id, message_id, thread_id, error
+    """
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    if not to_emails:
+        return {
+            'success': False,
+            'draft_id': None,
+            'message_id': None,
+            'thread_id': None,
+            'error': 'At least one recipient is required for a draft.',
+        }
+
+    try:
+        service = _get_gmail_service(integration)
+
+        message = MIMEMultipart('alternative')
+        message['To'] = ', '.join(to_emails)
+        if cc_emails:
+            message['Cc'] = ', '.join(cc_emails)
+        message['Subject'] = subject or ''
+        message.attach(MIMEText(body_html or '', 'html'))
+
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        draft = service.users().drafts().create(
+            userId='me',
+            body={'message': {'raw': raw_message}},
+        ).execute()
+
+        draft_message = draft.get('message') or {}
+        return {
+            'success': True,
+            'draft_id': draft.get('id'),
+            'message_id': draft_message.get('id'),
+            'thread_id': draft_message.get('threadId'),
+            'error': None,
+        }
+    except HttpError as e:
+        error_msg = f'Gmail API error: {e.resp.status} - {e.reason}'
+        logger.error('Failed to create Gmail draft: %s', error_msg)
+        return {
+            'success': False,
+            'draft_id': None,
+            'message_id': None,
+            'thread_id': None,
+            'error': error_msg,
+            'needs_reauth': e.resp.status in (401, 403),
+        }
+    except Exception as e:
+        logger.exception('Failed to create Gmail draft')
+        return {
+            'success': False,
+            'draft_id': None,
+            'message_id': None,
+            'thread_id': None,
+            'error': str(e),
+        }
+
+
 def _strip_html_tags(html: str) -> str:
     """Strip HTML tags and return plain text for snippets."""
     import re

@@ -2,6 +2,26 @@ import io
 from unittest.mock import patch
 
 
+def _clear_seed_tx_contracts(seed):
+    """Session-scoped seed tx_a retains accepted contracts across tests — wipe them."""
+    from models import SellerAcceptedContract, SellerContractDocument, db
+
+    existing_ids = [
+        c.id for c in SellerAcceptedContract.query.filter_by(
+            transaction_id=seed['tx_a'],
+        ).all()
+    ]
+    if not existing_ids:
+        return
+    SellerContractDocument.query.filter(
+        SellerContractDocument.accepted_contract_id.in_(existing_ids),
+    ).delete(synchronize_session=False)
+    SellerAcceptedContract.query.filter(
+        SellerAcceptedContract.id.in_(existing_ids),
+    ).delete(synchronize_session=False)
+    db.session.commit()
+
+
 def test_offer_document_type_inference():
     from services.seller_workflow import infer_offer_document_type, infer_offer_document_type_from_text
 
@@ -205,82 +225,112 @@ def test_listing_documents_exclude_offer_and_contract_documents(owner_a_client, 
         User,
     )
 
-    with app.app_context():
-        owner = User.query.filter_by(username='owner_a').first()
-        offer = SellerOffer(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            created_by_id=owner.id,
-            buyer_names='Hidden Offer Buyer',
-            status='needs_review',
-        )
-        db.session.add(offer)
-        db.session.flush()
+    created = {}
+    try:
+        with app.app_context():
+            owner = User.query.filter_by(username='owner_a').first()
+            offer = SellerOffer(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                created_by_id=owner.id,
+                buyer_names='Hidden Offer Buyer',
+                status='needs_review',
+            )
+            db.session.add(offer)
+            db.session.flush()
 
-        offer_doc = TransactionDocument(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            template_slug='seller-offer-contract',
-            template_name='Offer Contract Hidden From Listing',
-            status='signed',
-            signed_file_path='test/offer.pdf',
-        )
-        contract_doc = TransactionDocument(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            template_slug='seller-accepted-contract',
-            template_name='Executed Contract Hidden From Listing',
-            status='signed',
-            signed_file_path='test/contract.pdf',
-        )
-        db.session.add_all([offer_doc, contract_doc])
-        db.session.flush()
+            offer_doc = TransactionDocument(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                template_slug='seller-offer-contract',
+                template_name='Offer Contract Hidden From Listing',
+                status='signed',
+                signed_file_path='test/offer.pdf',
+            )
+            contract_doc = TransactionDocument(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                template_slug='seller-accepted-contract',
+                template_name='Executed Contract Hidden From Listing',
+                status='signed',
+                signed_file_path='test/contract.pdf',
+            )
+            db.session.add_all([offer_doc, contract_doc])
+            db.session.flush()
 
-        db.session.add(SellerOfferDocument(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            offer_id=offer.id,
-            transaction_document_id=offer_doc.id,
-            created_by_id=owner.id,
-            document_type='buyer_offer',
-            display_name='Offer Contract Hidden From Listing',
-            is_primary_terms_document=True,
-        ))
+            db.session.add(SellerOfferDocument(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                offer_id=offer.id,
+                transaction_document_id=offer_doc.id,
+                created_by_id=owner.id,
+                document_type='buyer_offer',
+                display_name='Offer Contract Hidden From Listing',
+                is_primary_terms_document=True,
+            ))
 
-        contract = SellerAcceptedContract(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            offer_id=offer.id,
-            created_by_id=owner.id,
-            position='primary',
-            status='active',
-        )
-        db.session.add(contract)
-        db.session.flush()
+            contract = SellerAcceptedContract(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                offer_id=offer.id,
+                created_by_id=owner.id,
+                position='primary',
+                status='active',
+            )
+            db.session.add(contract)
+            db.session.flush()
 
-        db.session.add(SellerContractDocument(
-            organization_id=seed['org_a'],
-            transaction_id=seed['tx_a'],
-            accepted_contract_id=contract.id,
-            transaction_document_id=contract_doc.id,
-            created_by_id=owner.id,
-            document_type='final_acceptance',
-            display_name='Executed Contract Hidden From Listing',
-            is_primary_contract_document=True,
-        ))
-        db.session.commit()
+            db.session.add(SellerContractDocument(
+                organization_id=seed['org_a'],
+                transaction_id=seed['tx_a'],
+                accepted_contract_id=contract.id,
+                transaction_document_id=contract_doc.id,
+                created_by_id=owner.id,
+                document_type='final_acceptance',
+                display_name='Executed Contract Hidden From Listing',
+                is_primary_contract_document=True,
+            ))
+            db.session.commit()
+            created = {
+                'offer_id': offer.id,
+                'contract_id': contract.id,
+                'doc_ids': [offer_doc.id, contract_doc.id],
+            }
 
-    response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
-    assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    start = html.index('Listing Documents')
-    end = html.index('</section>', start)
-    listing_section = html[start:end]
+        response = owner_a_client.get(f'/transactions/{seed["tx_a"]}')
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        # Seller workspace Listing tab hosts listing_package (legacy "Listing Documents"
+        # header is gone when document_packages is on).
+        start = html.index('id="listing-documents"')
+        end = html.index('id="seller-panel-offers"', start)
+        listing_section = html[start:end]
 
-    assert 'Listing Agreement' in listing_section
-    assert 'Offer Contract Hidden From Listing' not in listing_section
-    assert 'Executed Contract Hidden From Listing' not in listing_section
-
+        assert 'Listing package' in listing_section
+        assert 'Listing Agreement' in listing_section
+        assert 'Offer Contract Hidden From Listing' not in listing_section
+        assert 'Executed Contract Hidden From Listing' not in listing_section
+    finally:
+        with app.app_context():
+            if created.get('contract_id'):
+                SellerContractDocument.query.filter_by(
+                    accepted_contract_id=created['contract_id'],
+                ).delete(synchronize_session=False)
+                SellerAcceptedContract.query.filter_by(
+                    id=created['contract_id'],
+                ).delete(synchronize_session=False)
+            if created.get('offer_id'):
+                SellerOfferDocument.query.filter_by(
+                    offer_id=created['offer_id'],
+                ).delete(synchronize_session=False)
+                SellerOffer.query.filter_by(id=created['offer_id']).delete(
+                    synchronize_session=False,
+                )
+            if created.get('doc_ids'):
+                TransactionDocument.query.filter(
+                    TransactionDocument.id.in_(created['doc_ids']),
+                ).delete(synchronize_session=False)
+            db.session.commit()
 
 def test_accept_offer_keeps_supporting_data_without_contract_documents(owner_a_client, app, db, seed):
     from models import (
@@ -294,6 +344,8 @@ def test_accept_offer_keeps_supporting_data_without_contract_documents(owner_a_c
     )
 
     with app.app_context():
+        _clear_seed_tx_contracts(seed)
+
         owner = User.query.filter_by(username='owner_a').first()
         survey_choice = (
             "Seller's existing survey with affidavit or declaration; "
@@ -411,8 +463,27 @@ def test_accept_offer_keeps_supporting_data_without_contract_documents(owner_a_c
         assert 'offer_package_documents' not in contract.extra_data
         assert 'supporting_document_ids' not in contract.extra_data
         assert 'primary_document_ids' not in contract.extra_data
-        assert SellerContractDocument.query.filter_by(accepted_contract_id=contract.id).count() == 0
-
+        # Accept links the primary offer contract PDF only — supporting package
+        # docs stay on the offer; their extracted terms live in frozen_terms.
+        contract_links = SellerContractDocument.query.filter_by(
+            accepted_contract_id=contract.id,
+        ).all()
+        assert len(contract_links) == 1
+        assert contract_links[0].is_primary_contract_document is True
+        linked_doc = db.session.get(
+            TransactionDocument, contract_links[0].transaction_document_id,
+        )
+        assert linked_doc.template_slug == 'seller-offer-contract'
+        supporting_slugs = {
+            d.template_slug
+            for d in TransactionDocument.query.join(
+                SellerOfferDocument,
+                SellerOfferDocument.transaction_document_id == TransactionDocument.id,
+            ).filter(SellerOfferDocument.offer_id == offer_id).all()
+            if d.template_slug != 'seller-offer-contract'
+        }
+        linked_slugs = {linked_doc.template_slug}
+        assert supporting_slugs.isdisjoint(linked_slugs)
 
 def test_primary_combined_package_extraction_populates_offer_terms(app, db, seed):
     from models import SellerOffer, SellerOfferDocument, SellerOfferVersion, TransactionDocument, User
@@ -498,9 +569,9 @@ def test_primary_combined_package_extraction_populates_offer_terms(app, db, seed
         assert offer.offer_price == 260000
         assert offer.cash_down_payment == 26000
         assert offer.financing_amount == 234000
-        assert offer.financing_type == 'conventional'
+        assert offer.financing_type == 'Conventional'
         assert offer.financing_contingency is True
-        assert offer.hoa_resale_certificate_payer == 'seller'
+        assert offer.hoa_resale_certificate_payer == 'Seller'
         assert offer.terms_summary['supporting_documents']['third_party_financing']['buyer_approval_days'] == '12'
         assert offer.terms_summary['supporting_documents']['hoa_addendum']['association_name'] == 'Travis Park Home Owners Association'
 
@@ -509,6 +580,7 @@ def test_accept_offer_waits_for_pending_extraction(owner_a_client, app, db, seed
     from models import SellerOffer, SellerOfferDocument, SellerOfferVersion, TransactionDocument, User
 
     with app.app_context():
+        _clear_seed_tx_contracts(seed)
         owner = User.query.filter_by(username='owner_a').first()
         offer = SellerOffer(
             organization_id=seed['org_a'],
@@ -573,6 +645,7 @@ def test_contract_execution_date_update_recalculates_financing_deadline(owner_a_
     from models import SellerAcceptedContract, SellerOffer, SellerOfferVersion, User
 
     with app.app_context():
+        _clear_seed_tx_contracts(seed)
         owner = User.query.filter_by(username='owner_a').first()
         offer = SellerOffer(
             organization_id=seed['org_a'],
@@ -636,6 +709,7 @@ def test_accept_offer_handles_free_form_addendum_text(owner_a_client, app, db, s
     from models import SellerAcceptedContract, SellerOffer, SellerOfferVersion, User
 
     with app.app_context():
+        _clear_seed_tx_contracts(seed)
         owner = User.query.filter_by(username='owner_a').first()
         offer = SellerOffer(
             organization_id=seed['org_a'],

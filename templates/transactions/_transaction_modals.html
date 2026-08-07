@@ -1,0 +1,752 @@
+{# ====================================================================
+   MODALS
+   ==================================================================== #}
+
+{# ----- Delete confirmation modal ----- #}
+<div id="deleteModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeDeleteModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-md md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Delete transaction?</h3>
+            <button type="button" onclick="closeDeleteModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <div class="flex-1 overflow-y-auto px-5 py-5">
+            <div class="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-md bg-red-50 text-red-600">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <p class="text-sm text-slate-600">Are you sure you want to delete:</p>
+            <p class="mt-1 text-sm font-semibold text-slate-900">{{ transaction.street_address }}</p>
+            <p class="mt-3 text-xs text-red-600">
+                <i class="fas fa-warning mr-1"></i>
+                This will permanently delete all documents, participants, and signatures.
+            </p>
+        </div>
+        <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+            <button type="button" onclick="closeDeleteModal()" class="crm-btn crm-btn-secondary">
+                Cancel
+            </button>
+            <form action="{{ url_for('transactions.delete_transaction', id=transaction.id) }}" method="POST">
+                <button type="submit" class="crm-btn crm-btn-danger">
+                    <i class="fas fa-trash-alt text-xs"></i>
+                    Delete
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ----- Add participant modal ----- #}
+<div id="addParticipantModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeParticipantModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Add participant</h3>
+            <button type="button" onclick="closeParticipantModal()"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="addParticipantForm" class="flex flex-1 flex-col overflow-hidden">
+            <input type="hidden" name="contact_id" id="participantContactId">
+            <input type="hidden" name="partner_organization_id" id="participantPartnerOrganizationId">
+            <input type="hidden" name="partner_contact_id" id="participantPartnerContactId">
+            <div class="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">
+                        Role <span class="text-red-500">*</span>
+                    </label>
+                    <select name="role" id="participantRole" required class="crm-select">
+                        <option value="">Select role…</option>
+                        <option value="seller">Seller</option>
+                        <option value="co_seller">Co-Seller</option>
+                        <option value="buyer">Buyer</option>
+                        <option value="co_buyer">Co-Buyer</option>
+                        <option value="listing_agent">Listing Agent</option>
+                        <option value="buyers_agent">Buyer's Agent</option>
+                        <option value="title_company">Title Company</option>
+                        <option value="lender">Lender</option>
+                        <option value="transaction_coordinator">Transaction Coordinator</option>
+                    </select>
+                </div>
+
+                <div id="participantSearchWrap" class="hidden">
+                    <div class="mb-1.5 flex items-center justify-between">
+                        <label class="text-xs font-medium text-slate-600">
+                            <span id="participantSearchLabel">Search</span> <span class="text-red-500">*</span>
+                        </label>
+                        <button type="button" id="participantSwitchSource"
+                                onclick="switchParticipantSource()"
+                                class="text-xs text-orange-600 hover:text-orange-700 hover:underline"></button>
+                    </div>
+                    <div class="relative">
+                        <input type="text" id="participantContactSearch"
+                               placeholder="Type to search…"
+                               autocomplete="off"
+                               class="crm-input pl-9">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400"></i>
+                    </div>
+                    <div id="participantSearchResults"
+                         class="mt-1 hidden max-h-60 overflow-y-auto rounded-md border border-slate-200 bg-white shadow-md"></div>
+                </div>
+
+                <div id="selectedContactPreview" class="hidden">
+                    <div class="rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-3">
+                                <div id="selectedContactInitials"
+                                     class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-orange-500 text-sm font-semibold text-white"></div>
+                                <div>
+                                    <div class="text-sm font-semibold text-slate-900" id="selectedContactName"></div>
+                                    <div class="text-xs text-slate-500" id="selectedContactCompany"></div>
+                                    <div class="text-xs text-slate-400" id="selectedContactEmail"></div>
+                                    <div class="text-xs text-slate-400" id="selectedContactPhone"></div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="clearSelectedContact()"
+                                    class="inline-flex h-7 w-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-red-600">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="participantCreateHint" class="hidden border-t border-slate-100 pt-3 text-center">
+                    <p class="mb-1 text-xs text-slate-500" id="participantCreateHintText"></p>
+                    <a id="participantCreateLink" href="#" class="inline-flex items-center gap-1 text-sm font-medium text-orange-600 hover:text-orange-700">
+                        <i class="fas fa-plus text-xs"></i>
+                        <span id="participantCreateLinkText"></span>
+                    </a>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeParticipantModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" id="addParticipantBtn"
+                        class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    Add participant
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if document_workflow_mode != 'placeholder_upload_only' %}
+{# ----- Unified add document modal ----- #}
+<div id="addDocumentModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddDocumentModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+
+        {# Picker view #}
+        <div id="pickerView" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <h3 class="text-base font-semibold text-slate-900">Add document</h3>
+                <button onclick="closeAddDocumentModal()" type="button"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+            <div class="flex-1 space-y-2 overflow-y-auto px-5 py-5">
+                <button onclick="showPickerView('template')" type="button"
+                        class="group w-full rounded-md border border-slate-200 p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-semibold text-slate-900">From template</div>
+                            <div class="text-xs text-slate-500">Select from your document library</div>
+                        </div>
+                        <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                    </div>
+                </button>
+
+                <button onclick="showPickerView('upload-esign')" type="button"
+                        class="group w-full rounded-md border border-slate-200 p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                            <i class="fas fa-file-signature"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-semibold text-slate-900">Upload for e-sign</div>
+                            <div class="text-xs text-slate-500">Upload a PDF and add signature fields</div>
+                        </div>
+                        <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                    </div>
+                </button>
+
+                <button onclick="showPickerView('upload-completed')" type="button"
+                        class="group w-full rounded-md border border-slate-200 p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50">
+                    <div class="flex items-center gap-3">
+                        <div class="inline-flex h-10 w-10 items-center justify-center rounded-md bg-slate-100 text-slate-600">
+                            <i class="fas fa-file-upload"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-sm font-semibold text-slate-900">Upload completed</div>
+                            <div class="text-xs text-slate-500">Upload a document that doesn't require signatures</div>
+                        </div>
+                        <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        {# Template view #}
+        <div id="templateView" class="hidden flex-1 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <button onclick="showPickerView('picker')" type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                        <i class="fas fa-arrow-left text-sm"></i>
+                    </button>
+                    <h3 class="text-base font-semibold text-slate-900">From template</h3>
+                </div>
+                <button onclick="closeAddDocumentModal()" type="button"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+            <form id="addDocumentForm" class="flex flex-1 flex-col overflow-hidden">
+                <div class="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">
+                            Select document <span class="text-red-500">*</span>
+                        </label>
+                        <select name="template_slug" required id="docTemplateSelect" class="crm-select">
+                            <option value="">Choose a document...</option>
+                            <optgroup label="Listing Documents">
+                                <option value="listing-agreement" data-name="Residential Real Estate Listing Agreement">Listing Agreement</option>
+                                <option value="iabs" data-name="Information About Brokerage Services">IABS</option>
+                                <option value="sellers-disclosure" data-name="Seller's Disclosure Notice">Seller's Disclosure Notice</option>
+                            </optgroup>
+                            <optgroup label="Addenda">
+                                <option value="lead-paint" data-name="Addendum for Seller's Disclosure of Information on Lead-Based Paint">Lead-Based Paint Addendum</option>
+                                <option value="hoa-addendum" data-name="Addendum for Property Subject to Mandatory Membership in Owners' Association">HOA Addendum</option>
+                                <option value="flood-hazard" data-name="Information About Special Flood Hazard Areas">Flood Hazard Info</option>
+                                <option value="water-district" data-name="Information About On-Site Sewer Facility">On-Site Sewer Facility</option>
+                                <option value="t47-affidavit" data-name="T-47.1 Residential Real Property Affidavit">T-47.1 Affidavit</option>
+                            </optgroup>
+                            <optgroup label="Other Documents">
+                                <option value="wire-fraud-warning" data-name="Wire Fraud Warning">Wire Fraud Warning</option>
+                                <option value="seller-net-proceeds" data-name="Seller's Estimated Net Proceeds">Seller's Estimated Net Proceeds</option>
+                                <option value="referral-agreement" data-name="Referral Agreement">Referral Agreement</option>
+                                <option value="custom" data-name="">Custom Document</option>
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div id="customDocNameField" class="hidden">
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">
+                            Document name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="custom_name" class="crm-input" placeholder="Enter document name">
+                    </div>
+
+                    <div>
+                        <label class="mb-1.5 block text-xs font-medium text-slate-600">Reason for adding (optional)</label>
+                        <input type="text" name="reason" class="crm-input" placeholder="e.g., Client requested">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                    <button type="button" onclick="showPickerView('picker')" class="crm-btn crm-btn-secondary">
+                        Back
+                    </button>
+                    <button type="submit" class="crm-btn crm-btn-primary">
+                        Add document
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {# Upload for e-sign view #}
+        <div id="uploadEsignView" class="hidden flex-1 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <button onclick="showPickerView('picker')" type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                        <i class="fas fa-arrow-left text-sm"></i>
+                    </button>
+                    <h3 class="text-base font-semibold text-slate-900">Upload for e-sign</h3>
+                </div>
+                <button onclick="closeAddDocumentModal()" type="button"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+            <form id="uploadEsignForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+                <div class="flex-1 overflow-y-auto px-5 py-5">
+                    <div class="mb-4">
+                        <label for="esignDocName" class="mb-1.5 block text-xs font-medium text-slate-600">Document name</label>
+                        <input type="text" id="esignDocName" name="document_name" class="crm-input"
+                               placeholder="e.g., 1-4 Family Residential Contract">
+                    </div>
+
+                    <div id="esignDropZone"
+                         class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                         onclick="document.getElementById('esignFileInput').click()">
+                        <div id="esignDropContent">
+                            <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                            <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                            <p class="mt-1 text-xs text-slate-400">or click to browse</p>
+                        </div>
+                        <div id="esignFileInfo" class="hidden">
+                            <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                            <p id="esignFileName" class="text-sm font-medium text-slate-700"></p>
+                            <p id="esignFileSize" class="mt-1 text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+                    <input type="file" id="esignFileInput" name="file" accept=".pdf" class="hidden" onchange="handleEsignFileSelect(this)">
+
+                    <div id="esignProgress" class="mb-4 hidden">
+                        <div class="mb-2 flex items-center justify-between text-sm">
+                            <span class="text-slate-600">Uploading...</span>
+                            <span id="esignPercent" class="font-medium text-orange-600">0%</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div id="esignProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div id="esignError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                        <p id="esignErrorText" class="text-sm text-red-600"></p>
+                    </div>
+
+                    <p class="text-xs text-slate-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        After upload, you'll place signature fields on the document.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                    <button type="button" onclick="showPickerView('picker')" class="crm-btn crm-btn-secondary">
+                        Back
+                    </button>
+                    <button type="submit" id="uploadEsignBtn" disabled
+                            class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload text-xs"></i>
+                        Upload &amp; edit
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        {# Upload completed view #}
+        <div id="uploadCompletedView" class="hidden flex-1 flex-col overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div class="flex items-center gap-2">
+                    <button onclick="showPickerView('picker')" type="button"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                        <i class="fas fa-arrow-left text-sm"></i>
+                    </button>
+                    <h3 class="text-base font-semibold text-slate-900">Upload completed</h3>
+                </div>
+                <button onclick="closeAddDocumentModal()" type="button"
+                        class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+            <form id="uploadCompletedForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+                <div class="flex-1 overflow-y-auto px-5 py-5">
+                    <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                        <p class="text-sm text-slate-700">
+                            <i class="fas fa-info-circle mr-1 text-slate-400"></i>
+                            This document will be included in your package as-is, without requiring any signatures.
+                        </p>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="completedDocName" class="mb-1.5 block text-xs font-medium text-slate-600">Document name</label>
+                        <input type="text" id="completedDocName" name="document_name" class="crm-input"
+                               placeholder="e.g., Survey, Title Commitment">
+                    </div>
+
+                    <div id="completedDropZone"
+                         class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                         onclick="document.getElementById('completedFileInput').click()">
+                        <div id="completedDropContent">
+                            <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                            <p class="text-sm font-medium text-slate-600">Drop PDFs here</p>
+                            <p class="mt-1 text-xs text-slate-400">one or more · or click to browse</p>
+                        </div>
+                        <div id="completedFileInfo" class="hidden">
+                            <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                            <p id="completedFileName" class="text-sm font-medium text-slate-700"></p>
+                            <p id="completedFileSize" class="mt-1 text-xs text-slate-400"></p>
+                        </div>
+                    </div>
+                    <input type="file" id="completedFileInput" name="files" accept=".pdf,application/pdf" multiple class="hidden" onchange="handleCompletedFileSelect(this)">
+
+                    <div id="completedProgress" class="mb-4 hidden">
+                        <div class="mb-2 flex items-center justify-between text-sm">
+                            <span class="text-slate-600">Uploading...</span>
+                            <span id="completedPercent" class="font-medium text-orange-600">0%</span>
+                        </div>
+                        <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                            <div id="completedProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div id="completedError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                        <p id="completedErrorText" class="text-sm text-red-600"></p>
+                    </div>
+
+                    <p class="text-xs text-slate-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Only PDF files are accepted. Maximum file size: 25MB.
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                    <button type="button" onclick="showPickerView('picker')" class="crm-btn crm-btn-secondary">
+                        Back
+                    </button>
+                    <button type="submit" id="uploadCompletedBtn" disabled
+                            class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-upload text-xs"></i>
+                        Upload
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# ----- Upload scanned document modal ----- #}
+<div id="uploadScanModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadScanModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Upload signed scan</h3>
+                <p id="uploadDocName" class="text-xs text-slate-500"></p>
+            </div>
+            <button onclick="closeUploadScanModal()" type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="uploadScanForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+            <input type="hidden" id="uploadDocId" name="doc_id" value="">
+            <div class="flex-1 overflow-y-auto px-5 py-5">
+                <div id="dropZone"
+                     class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                     onclick="document.getElementById('scanFileInput').click()">
+                    <div id="dropZoneContent">
+                        <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your scanned PDF here</p>
+                        <p class="mt-1 text-xs text-slate-400">or click to browse</p>
+                    </div>
+                    <div id="selectedFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                        <p id="selectedFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="selectedFileSize" class="mt-1 text-xs text-slate-400"></p>
+                    </div>
+                </div>
+                <input type="file" id="scanFileInput" name="file" accept=".pdf" class="hidden" onchange="handleFileSelect(this)">
+
+                <div id="uploadProgress" class="mb-4 hidden">
+                    <div class="mb-2 flex items-center justify-between text-sm">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="uploadPercent" class="font-medium text-orange-600">0%</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div id="uploadProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="uploadError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                    <p id="uploadErrorText" class="text-sm text-red-600"></p>
+                </div>
+
+                <p class="text-xs text-slate-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeUploadScanModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" id="uploadScanBtn" disabled
+                        class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-upload text-xs"></i>
+                    Upload
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ----- Upload static document modal ----- #}
+<div id="uploadStaticModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadStaticModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Upload document</h3>
+                <p id="staticDocName" class="text-xs text-slate-500"></p>
+            </div>
+            <button onclick="closeUploadStaticModal()" type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="uploadStaticForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+            <input type="hidden" id="staticDocId" name="doc_id" value="">
+            <div class="flex-1 overflow-y-auto px-5 py-5">
+                <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-sm text-slate-700">
+                        <i class="fas fa-info-circle mr-1 text-slate-400"></i>
+                        This document will be included in your package as-is, without requiring any signatures.
+                    </p>
+                </div>
+
+                <div id="staticDropZone"
+                     class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                     onclick="document.getElementById('staticFileInput').click()">
+                    <div id="staticDropContent">
+                        <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="mt-1 text-xs text-slate-400">or click to browse</p>
+                    </div>
+                    <div id="staticFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                        <p id="staticFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="staticFileSize" class="mt-1 text-xs text-slate-400"></p>
+                    </div>
+                </div>
+                <input type="file" id="staticFileInput" name="file" accept=".pdf" class="hidden" onchange="handleStaticFileSelect(this)">
+
+                <div id="staticProgress" class="mb-4 hidden">
+                    <div class="mb-2 flex items-center justify-between text-sm">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="staticPercent" class="font-medium text-orange-600">0%</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div id="staticProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="staticError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                    <p id="staticErrorText" class="text-sm text-red-600"></p>
+                </div>
+
+                <p class="text-xs text-slate-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeUploadStaticModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" id="uploadStaticBtn" disabled
+                        class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-upload text-xs"></i>
+                    Upload
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ----- Upload for signature modal ----- #}
+<div id="uploadForSignatureModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeUploadForSignatureModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Upload &amp; prep for signature</h3>
+                <p id="signatureDocName" class="text-xs text-slate-500"></p>
+            </div>
+            <button onclick="closeUploadForSignatureModal()" type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="uploadForSignatureForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+            <input type="hidden" id="signatureDocId" name="doc_id" value="">
+            <div class="flex-1 overflow-y-auto px-5 py-5">
+                <div class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-sm text-slate-700">
+                        <i class="fas fa-info-circle mr-1 text-slate-400"></i>
+                        After uploading, you'll place signature fields on the document for e-signature.
+                    </p>
+                </div>
+
+                <div id="signatureDropZone"
+                     class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                     onclick="document.getElementById('signatureFileInput').click()">
+                    <div id="signatureDropContent">
+                        <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="mt-1 text-xs text-slate-400">or click to browse</p>
+                    </div>
+                    <div id="signatureFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                        <p id="signatureFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="signatureFileSize" class="mt-1 text-xs text-slate-400"></p>
+                    </div>
+                </div>
+                <input type="file" id="signatureFileInput" name="file" accept=".pdf" class="hidden" onchange="handleSignatureFileSelect(this)">
+
+                <div id="signatureProgress" class="mb-4 hidden">
+                    <div class="mb-2 flex items-center justify-between text-sm">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="signaturePercent" class="font-medium text-orange-600">0%</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div id="signatureProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="signatureError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                    <p id="signatureErrorText" class="text-sm text-red-600"></p>
+                </div>
+
+                <p class="text-xs text-slate-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeUploadForSignatureModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" id="uploadForSignatureBtn" disabled
+                        class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-upload text-xs"></i>
+                    Upload &amp; continue
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{# ----- Fulfill placeholder modal ----- #}
+<div id="fulfillPlaceholderModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeFulfillPlaceholderModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+                <h3 class="text-base font-semibold text-slate-900">Upload completed document</h3>
+                <p id="fulfillDocName" class="text-xs text-slate-500"></p>
+            </div>
+            <button onclick="closeFulfillPlaceholderModal()" type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="fulfillPlaceholderForm" enctype="multipart/form-data" class="flex flex-1 flex-col overflow-hidden">
+            <input type="hidden" id="fulfillDocId" name="doc_id" value="">
+            <div class="flex-1 overflow-y-auto px-5 py-5">
+                <div id="fulfillInfoBanner" class="mb-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-sm text-slate-700">
+                        <i class="fas fa-info-circle mr-1 text-slate-400"></i>
+                        Upload the signed document from ZipForms. It will be stored and marked as complete.
+                    </p>
+                </div>
+
+                <div id="fulfillReplaceBanner" class="mb-4 hidden rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-sm font-medium text-amber-800">
+                        <i class="fas fa-exclamation-triangle mr-1"></i>
+                        This document already has an uploaded file.
+                    </p>
+                    <p class="mt-1 text-sm text-amber-700">
+                        Uploading a new file will <strong>permanently delete</strong> the existing document and replace it with the new one. This cannot be undone.
+                    </p>
+                </div>
+
+                <div id="fulfillDropZone"
+                     class="mb-4 cursor-pointer rounded-md border-2 border-dashed border-slate-200 p-8 text-center transition-colors hover:border-orange-400 hover:bg-orange-50/30"
+                     onclick="document.getElementById('fulfillFileInput').click()">
+                    <div id="fulfillDropContent">
+                        <i class="fas fa-cloud-upload-alt mb-2 text-3xl text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">Drop your PDF here</p>
+                        <p class="mt-1 text-xs text-slate-400">or click to browse</p>
+                    </div>
+                    <div id="fulfillFileInfo" class="hidden">
+                        <i class="fas fa-file-pdf mb-2 text-3xl text-red-500"></i>
+                        <p id="fulfillFileName" class="text-sm font-medium text-slate-700"></p>
+                        <p id="fulfillFileSize" class="mt-1 text-xs text-slate-400"></p>
+                    </div>
+                </div>
+                <input type="file" id="fulfillFileInput" name="file" accept=".pdf" class="hidden" onchange="handleFulfillFileSelect(this)">
+
+                <div id="fulfillProgress" class="mb-4 hidden">
+                    <div class="mb-2 flex items-center justify-between text-sm">
+                        <span class="text-slate-600">Uploading...</span>
+                        <span id="fulfillPercent" class="font-medium text-orange-600">0%</span>
+                    </div>
+                    <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div id="fulfillProgressBar" class="h-full rounded-full bg-orange-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <div id="fulfillError" class="mb-4 hidden rounded-md border border-red-200 bg-red-50 p-3">
+                    <p id="fulfillErrorText" class="text-sm text-red-600"></p>
+                </div>
+
+                <p class="text-xs text-slate-500">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Only PDF files are accepted. Maximum file size: 25MB.
+                </p>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeFulfillPlaceholderModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" id="fulfillUploadBtn" disabled
+                        class="crm-btn crm-btn-primary disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fas fa-upload text-xs"></i>
+                    Upload
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ----- Add custom placeholder modal ----- #}
+<div id="addPlaceholderModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-slate-900/50" onclick="closeAddPlaceholderModal()"></div>
+    <div class="absolute inset-4 flex max-h-[85vh] flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg md:inset-auto md:left-1/2 md:top-1/2 md:w-full md:max-w-lg md:-translate-x-1/2 md:-translate-y-1/2">
+        <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <h3 class="text-base font-semibold text-slate-900">Add document placeholder</h3>
+            <button onclick="closeAddPlaceholderModal()" type="button"
+                    class="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">
+                <i class="fas fa-times text-sm"></i>
+            </button>
+        </div>
+        <form id="addPlaceholderForm" class="flex flex-1 flex-col overflow-hidden">
+            <div class="flex-1 overflow-y-auto px-5 py-5">
+                <div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-sm text-amber-800">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        This creates a placeholder for a document you will prepare and upload later.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="mb-1.5 block text-xs font-medium text-slate-600">
+                        Document name <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="placeholderDocName" name="document_name" required
+                           class="crm-input"
+                           placeholder="e.g., Amendment to Contract">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 border-t border-slate-200 px-5 py-4">
+                <button type="button" onclick="closeAddPlaceholderModal()" class="crm-btn crm-btn-secondary">
+                    Cancel
+                </button>
+                <button type="submit" class="crm-btn crm-btn-primary">
+                    Add placeholder
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+

@@ -1,0 +1,131 @@
+{
+  "pack_key": "listing",
+  "version": "v1",
+  "name": "Listing Preparation",
+  "description": "Seller listing prep / MLS / showing readiness as human-attested outcomes (no MLS write API)",
+  "applies_to": {
+    "sides": ["seller"],
+    "statuses": ["preparing_to_list", "active"]
+  },
+  "phases": [
+    {
+      "phase_key": "prep",
+      "name": "Listing Prep",
+      "description": "Photos, disclosures, and listing inputs"
+    },
+    {
+      "phase_key": "marketing",
+      "name": "Marketing & Showings",
+      "description": "Go-live and showing coordination"
+    },
+    {
+      "phase_key": "offers",
+      "name": "Offers",
+      "description": "Offer intake readiness"
+    }
+  ],
+  "requirements": {
+    "listing_agreement": {
+      "phase": "prep",
+      "title": "Listing Agreement Signed",
+      "description": "Executed listing agreement on file (upload/attestation)",
+      "deadline_rule": {
+        "anchor": "listing_start",
+        "offset_days": 0,
+        "unit": "calendar"
+      },
+      "responsibility": "agent",
+      "required": true,
+      "evidence_types": ["document", "attestation"],
+      "document_slug": "listing-agreement"
+    },
+    "seller_disclosures": {
+      "phase": "prep",
+      "title": "Seller Disclosures Complete",
+      "description": "Seller disclosure packet completed and ready for buyers",
+      "deadline_rule": {
+        "anchor": "listing_start",
+        "offset_days": 3,
+        "unit": "business"
+      },
+      "responsibility": "seller",
+      "required": true,
+      "evidence_types": ["document", "attestation"],
+      "document_slug": "sellers-disclosure"
+    },
+    "photos_ready": {
+      "phase": "prep",
+      "title": "Photos Ready",
+      "description": "Marketing photos delivered and approved",
+      "deadline_rule": {
+        "anchor": "listing_start",
+        "offset_days": 5,
+        "unit": "business"
+      },
+      "responsibility": "agent",
+      "required": true,
+      "evidence_types": ["document", "attestation", "note"]
+    },
+    "mls_input_attested": {
+      "phase": "prep",
+      "title": "MLS Listing Input Attested",
+      "description": "MLS fields entered/verified by human (no MLS write from CRM)",
+      "deadline_rule": {
+        "anchor": "listing_start",
+        "offset_days": 7,
+        "unit": "business"
+      },
+      "responsibility": "agent",
+      "required": true,
+      "evidence_types": ["attestation", "screenshot"]
+    },
+    "signage_lockbox": {
+      "phase": "marketing",
+      "title": "Signage / Lockbox Installed",
+      "description": "Yard sign and lockbox confirmed on property",
+      "deadline_rule": {
+        "anchor": "go_live_date",
+        "offset_days": 0,
+        "unit": "calendar"
+      },
+      "responsibility": "agent",
+      "required": false,
+      "evidence_types": ["attestation", "note"]
+    },
+    "showing_instructions": {
+      "phase": "marketing",
+      "title": "Showing Instructions Set",
+      "description": "Showing service / instructions published for buyer agents",
+      "deadline_rule": {
+        "anchor": "go_live_date",
+        "offset_days": 0,
+        "unit": "calendar"
+      },
+      "responsibility": "agent",
+      "required": true,
+      "evidence_types": ["attestation", "note"]
+    },
+    "offer_intake_ready": {
+      "phase": "offers",
+      "title": "Offer Intake Ready",
+      "description": "Offer submission path and review checklist ready",
+      "deadline_rule": {
+        "anchor": "go_live_date",
+        "offset_days": 1,
+        "unit": "business"
+      },
+      "responsibility": "agent",
+      "required": false,
+      "evidence_types": ["attestation"]
+    }
+  },
+  "business_day_rules": {
+    "excluded_days": ["saturday", "sunday"],
+    "holidays": [
+      "2026-01-01",
+      "2026-07-04",
+      "2026-11-26",
+      "2026-12-25"
+    ]
+  }
+}

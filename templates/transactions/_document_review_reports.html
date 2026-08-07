@@ -1,0 +1,122 @@
+<section id="document-review-report-list" class="border-t border-slate-200" aria-live="polite">
+    <div class="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/70 px-5 py-4 sm:px-6">
+        <div>
+            <h3 class="text-sm font-semibold text-slate-950">Document review</h3>
+            <p class="mt-1 text-xs leading-5 text-slate-500">
+                Confirm the file and type, then review findings.
+            </p>
+        </div>
+        {% if document_review_reports %}
+        <span class="shrink-0 text-xs font-medium text-slate-500">
+            {{ document_review_reports|length }} open
+        </span>
+        {% endif %}
+    </div>
+
+    <div id="document-review-report-items" class="divide-y divide-slate-200">
+        {% if document_review_reports %}
+            {% for report in document_review_reports %}
+            {% set review_doc = report.document %}
+            <article class="scroll-mt-24 px-5 py-5 sm:px-6"
+                     id="review-report-{{ report.id }}"
+                     data-review-report-id="{{ report.id }}"
+                     data-document-id="{{ report.document_id or '' }}">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div class="flex min-w-0 items-start gap-3">
+                        <span class="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-slate-500" aria-hidden="true">
+                            <i class="fas fa-file-pdf text-sm"></i>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">File</p>
+                            <h4 class="mt-0.5 break-words text-base font-semibold leading-6 text-slate-950">
+                                {{ review_doc.review_filename if review_doc else 'Uploaded document' }}
+                            </h4>
+                            <dl class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs leading-5 text-slate-500">
+                                <div class="flex min-w-0 gap-1">
+                                    <dt>Document type:</dt>
+                                    <dd class="font-medium text-slate-700">{{ review_doc.review_document_type if review_doc else 'Uploaded document' }}</dd>
+                                </div>
+                                {% if review_doc and review_doc.review_form_label %}
+                                <div class="flex min-w-0 gap-1">
+                                    <dt>Form:</dt>
+                                    <dd class="font-medium text-slate-700">{{ review_doc.review_form_label }}</dd>
+                                </div>
+                                {% endif %}
+                                {% if report.transaction %}
+                                <div class="flex min-w-0 gap-1">
+                                    <dt>Transaction:</dt>
+                                    <dd class="font-medium text-slate-700">{{ report.transaction.street_address or ('Transaction ' ~ report.transaction_id) }}</dd>
+                                </div>
+                                {% endif %}
+                            </dl>
+                        </div>
+                    </div>
+
+                    <span class="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide
+                        {% if report.severity == 'critical' %}border-red-200 bg-red-50 text-red-700
+                        {% elif report.severity == 'attention' %}border-amber-200 bg-amber-50 text-amber-800
+                        {% else %}border-slate-200 bg-slate-50 text-slate-600{% endif %}">
+                        <span class="h-1.5 w-1.5 rounded-full {% if report.severity == 'critical' %}bg-red-500{% elif report.severity == 'attention' %}bg-amber-500{% else %}bg-slate-400{% endif %}"></span>
+                        {% if report.severity == 'critical' %}Critical check{% elif report.severity == 'attention' %}Needs review{% else %}Reviewed{% endif %}
+                    </span>
+                </div>
+
+                <div class="mt-4 max-w-4xl lg:pl-12">
+                    {% if report.findings %}
+                    <p class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-500">Findings</p>
+                    <ul class="mt-2 space-y-2.5">
+                        {% for finding in report.findings[:12] %}
+                        <li class="flex items-start gap-2.5 text-sm leading-6 text-slate-700">
+                            <i class="fas fa-circle-exclamation mt-1.5 shrink-0 text-[11px] {% if finding.severity == 'critical' %}text-red-600{% else %}text-amber-600{% endif %}" aria-hidden="true"></i>
+                            <span>{{ finding.message }}</span>
+                            {% if finding.page %}
+                            <span class="mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">Page {{ finding.page }}</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-sm leading-6 text-slate-700">{{ report.summary }}</p>
+                    {% endif %}
+
+                    <div class="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p class="text-xs leading-5 text-slate-500">
+                            {% if report.field_count %}
+                            {{ report.field_count }} extracted field{{ 's' if report.field_count != 1 else '' }} waiting for your review.
+                            {% else %}
+                            No transaction changes applied.
+                            {% endif %}
+                            {% if report.created_at %}
+                            <span class="whitespace-nowrap">Checked {{ report.created_at.strftime('%b %d at %I:%M %p') }}</span>
+                            {% endif %}
+                        </p>
+                        <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center">
+                            <button type="button"
+                                    class="crm-btn crm-btn-secondary min-h-10 justify-center"
+                                    onclick="markDocumentReviewResolved({{ report.id }}, this)">
+                                Mark reviewed
+                            </button>
+                            {% if report.document_id and report.transaction_id %}
+                            <a href="{{ url_for('transactions.document_review_workspace', id=report.transaction_id, doc_id=report.document_id) }}"
+                               class="crm-btn crm-btn-primary min-h-10 justify-center">
+                                Open review
+                            </a>
+                            {% elif report.field_count %}
+                            <button type="button"
+                                    class="crm-btn crm-btn-primary min-h-10 justify-center"
+                                    onclick="openReviewAndApply()">
+                                Review extracted fields
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </article>
+            {% endfor %}
+        {% else %}
+            <p class="px-5 py-6 text-sm text-slate-500 sm:px-6">
+                No open document findings for this transaction.
+            </p>
+        {% endif %}
+    </div>
+</section>

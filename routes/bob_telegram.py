@@ -141,6 +141,7 @@ def _handle_message_update(message: dict, update_id: str) -> None:
     voice_file_id = voice.get('file_id') if isinstance(voice, dict) else None
     voice_duration = voice.get('duration') if isinstance(voice, dict) else None
     photo_file_id = _largest_photo_file_id(message)
+    pdf_meta = _pdf_document_meta(message)
     if external_id is None or chat_id is None:
         return
 
@@ -165,12 +166,12 @@ def _handle_message_update(message: dict, update_id: str) -> None:
         )
         return
 
-    if not text_body and not voice_file_id and not photo_file_id:
+    if not text_body and not voice_file_id and not photo_file_id and not pdf_meta:
         get_transport().send_text(
             channel.chat_id,
-            "I can take a text message, a voice note, or a photo of a "
-            "business card / email / contact screenshot. "
-            "Stickers and other files aren't supported yet.\n\n--BOB",
+            "I can take a text message, a voice note, a photo of a "
+            "business card / email / contact screenshot, or a PDF after "
+            "you've selected a transaction.\n\n--BOB",
         )
         return
 
@@ -184,6 +185,9 @@ def _handle_message_update(message: dict, update_id: str) -> None:
             int(voice_duration) if voice_duration is not None else None
         ),
         photo_file_id=photo_file_id,
+        document_file_id=pdf_meta['file_id'] if pdf_meta else None,
+        document_filename=pdf_meta.get('filename') if pdf_meta else None,
+        document_mime_type=pdf_meta.get('mime_type') if pdf_meta else None,
     )
 
 
@@ -280,6 +284,30 @@ def _annotate_update(update_id: str, channel: AgentMessagingChannel) -> None:
         db.session.commit()
     except Exception:
         db.session.rollback()
+
+
+def _pdf_document_meta(message: dict) -> dict | None:
+    """Return file_id/filename/mime for a PDF document attachment, else None."""
+    document = message.get('document') or {}
+    if not isinstance(document, dict) or not document.get('file_id'):
+        return None
+    mime = (document.get('mime_type') or '').lower()
+    name = document.get('file_name') or ''
+    # Prefer explicit PDF mime; also accept .pdf filename when mime is generic.
+    is_pdf = (
+        mime in ('application/pdf', 'application/x-pdf')
+        or str(name).lower().endswith('.pdf')
+    )
+    if not is_pdf:
+        return None
+    # Images sent as documents are handled by photo path instead.
+    if mime.startswith('image/'):
+        return None
+    return {
+        'file_id': str(document['file_id']),
+        'filename': str(name or 'telegram.pdf'),
+        'mime_type': mime or 'application/pdf',
+    }
 
 
 def _largest_photo_file_id(message: dict) -> str | None:

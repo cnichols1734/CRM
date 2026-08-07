@@ -92,6 +92,49 @@ class TestTransactionDelete:
         resp = owner_a_client.post(f'/transactions/{seed["tx_b"]}/delete')
         assert resp.status_code == 404
 
+    def test_delete_with_seller_commission_terms(self, app, seed, owner_a_client):
+        """Commission terms must be purged — not nullified — on SQLite delete."""
+        from decimal import Decimal
+
+        from models import SellerCommissionTerms, Transaction, db
+
+        with app.app_context():
+            # Dedicated tx — session seed tx_a accumulates VTC rows that block delete.
+            tx = Transaction(
+                organization_id=seed['org_a'],
+                created_by_id=seed['owner_a'],
+                transaction_type_id=seed['tx_type_a'],
+                street_address='Delete Commission St',
+                city='Austin',
+                state='TX',
+                status='active',
+            )
+            db.session.add(tx)
+            db.session.flush()
+            terms = SellerCommissionTerms(
+                organization_id=seed['org_a'],
+                transaction_id=tx.id,
+                created_by_id=seed['owner_a'],
+                listing_commission_flat=Decimal('8000'),
+                coop_compensation_percent=Decimal('2'),
+                source='listing_agreement_extraction',
+            )
+            db.session.add(terms)
+            db.session.commit()
+            terms_id = terms.id
+            tx_id = tx.id
+
+        resp = owner_a_client.post(
+            f'/transactions/{tx_id}/delete',
+            follow_redirects=False,
+        )
+        assert resp.status_code in (302, 303)
+        assert b'Error deleting transaction' not in (resp.data or b'')
+
+        with app.app_context():
+            assert Transaction.query.get(tx_id) is None
+            assert SellerCommissionTerms.query.get(terms_id) is None
+
 
 class TestTransactionStatusAPI:
     """Status update API."""

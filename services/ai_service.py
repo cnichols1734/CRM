@@ -525,15 +525,14 @@ def stream_chat_response(
     yield "Sorry, I encountered an error. Please try again."
 
 
-# Ordinary tool loops keep the existing Chat Completions transcript format.
-# Turns with native file inputs use the Responses API because it can ingest
-# PDFs directly while preserving function-call output items between rounds.
+# All BOB tool loops use the Responses API (file and non-file turns).
+# Chat Completions cannot pair GPT-5.6 function tools with reasoning effort.
 MAX_TOOL_ROUNDS = 5
 
-# Chat Completions will not accept function tools from a GPT-5.6 model with any
-# reasoning effort above 'none'. This is the cost of staying on Chat Completions
-# for the tool loop; see _tool_round_with_fallback.
-TOOL_REASONING_EFFORT = "none"
+# Default reasoning effort for ordinary CRM/Telegram tool turns.
+# Document/file review uses a higher effort (see run_tool_conversation).
+TOOL_REASONING_EFFORT = "low"
+TOOL_REASONING_EFFORT_FILES = "medium"
 
 
 def run_tool_conversation(
@@ -545,8 +544,10 @@ def run_tool_conversation(
     api_key: str = None,
     temperature: float = 0.3,
     input_files: list[dict] | None = None,
+    reasoning_effort: str | None = None,
+    safety_identifier: str | None = None,
 ):
-    """Run a tool-calling conversation, yielding (event, payload) tuples.
+    """Run a tool-calling conversation via the Responses API.
 
     Events, in the order a caller will see them:
 
@@ -554,6 +555,7 @@ def run_tool_conversation(
         ('tool_result', {'name', 'result'})     that tool returned
         ('text', str)                           a chunk of the final answer
         ('messages', list)                      full transcript incl. tool turns
+        ('telemetry', dict)                     model/usage/trace for OBS-1
         ('error', str)                          fatal; no answer was produced
 
     ``execute_tool(name, arguments)`` must return a ``(model_payload, meta)``
@@ -563,98 +565,36 @@ def run_tool_conversation(
 
     Args:
         messages: Prior turns as OpenAI message dicts (no system message).
-        tools: OpenAI function-tool schemas.
-        max_rounds: Cap on tool rounds before the loop is cut off, so a model
-            that keeps calling tools cannot spin indefinitely.
-        input_files: Optional trusted file payloads. When present, the turn
-            uses the Responses API so PDFs are read as complete documents.
+        tools: OpenAI function-tool schemas (Completions nested shape OK;
+            flattened for Responses internally).
+        max_rounds: Cap on tool rounds before the loop is cut off.
+        input_files: Optional trusted file payloads (PDFs as complete docs).
+        reasoning_effort: Override Responses reasoning effort for this turn.
+        safety_identifier: Privacy-preserving end-user identifier for OpenAI.
+        temperature: Retained for API compatibility; Responses path ignores it.
     """
+    del temperature  # Responses tool loop does not use Completions temperature.
     key = api_key or Config.OPENAI_API_KEY
     if not key:
         yield ('error', 'Sorry, the AI service is not configured. Please try again later.')
         return
 
     client = openai.OpenAI(api_key=key)
-    if input_files:
-        yield from _run_responses_tool_conversation(
-            client=client,
-            system_prompt=system_prompt,
-            messages=messages,
-            tools=tools,
-            execute_tool=execute_tool,
-            input_files=input_files,
-            max_rounds=max_rounds,
-        )
-        return
-
-    convo = [{"role": "system", "content": system_prompt}] + list(messages)
-
-    for round_index in range(max_rounds):
-        is_final_round = round_index == max_rounds - 1
-
-        completion = _tool_round_with_fallback(
-            client=client,
-            messages=convo,
-            tools=tools,
-            temperature=temperature,
-            # On the last permitted round, drop the tools so the model is
-            # forced to answer instead of requesting another call we would
-            # have to refuse.
-            allow_tools=not is_final_round,
-        )
-        if completion is None:
-            yield ('error', 'Sorry, I encountered an error. Please try again.')
-            return
-
-        message = completion.choices[0].message
-        tool_calls = getattr(message, 'tool_calls', None)
-
-        if not tool_calls:
-            text = message.content or ''
-            convo.append({"role": "assistant", "content": text})
-            for chunk in _chunk_text(text):
-                yield ('text', chunk)
-            yield ('messages', convo[1:])
-            return
-
-        convo.append({
-            "role": "assistant",
-            "content": message.content or None,
-            "tool_calls": [
-                {
-                    "id": call.id,
-                    "type": "function",
-                    "function": {
-                        "name": call.function.name,
-                        "arguments": call.function.arguments or '{}',
-                    },
-                }
-                for call in tool_calls
-            ],
-        })
-
-        for call in tool_calls:
-            name = call.function.name
-            arguments = _parse_tool_arguments(call.function.arguments)
-            yield ('tool_start', {'name': name, 'arguments': arguments})
-
-            payload, meta = execute_tool(name, arguments)
-            yield ('tool_result', {'name': name, 'result': meta})
-
-            convo.append({
-                "role": "tool",
-                "tool_call_id": call.id,
-                "content": json.dumps(payload, default=str),
-            })
-
-    # Ran out of rounds without a text answer. Say so rather than leaving the
-    # agent staring at tool chips with no reply.
-    yield ('text', (
-        'I got partway through that but ran out of steps before I could wrap up. '
-        'Anything already confirmed above did go through. Ask me again and I '
-        'will pick it up from here.\n\n--BOB'
-    ))
-    yield ('messages', convo[1:])
+    files = list(input_files or [])
+    effort = reasoning_effort or (
+        TOOL_REASONING_EFFORT_FILES if files else TOOL_REASONING_EFFORT
+    )
+    yield from _run_responses_tool_conversation(
+        client=client,
+        system_prompt=system_prompt,
+        messages=messages,
+        tools=tools,
+        execute_tool=execute_tool,
+        input_files=files,
+        max_rounds=max_rounds,
+        reasoning_effort=effort,
+        safety_identifier=safety_identifier,
+    )
 
 
 def _run_responses_tool_conversation(
@@ -666,14 +606,16 @@ def _run_responses_tool_conversation(
     execute_tool,
     input_files: list[dict],
     max_rounds: int,
+    reasoning_effort: str = TOOL_REASONING_EFFORT,
+    safety_identifier: str | None = None,
 ):
-    """Responses API tool loop for turns containing native file inputs.
-
-    The Responses API can read PDFs as files, including their selectable text
-    and rendered pages. Chat Completions cannot accept PDF content directly.
-    """
+    """Unified Responses API tool loop for CRM and Telegram turns."""
     input_items = _responses_input_items(messages, input_files)
     response_tools = _responses_tool_schemas(tools)
+    transcript = list(messages)
+    last_model = None
+    last_usage = None
+    last_response_id = None
 
     for round_index in range(max_rounds):
         is_final_round = round_index == max_rounds - 1
@@ -683,10 +625,16 @@ def _run_responses_tool_conversation(
             input_items=input_items,
             tools=response_tools,
             allow_tools=not is_final_round,
+            reasoning_effort=reasoning_effort,
+            safety_identifier=safety_identifier,
         )
         if response is None:
             yield ('error', 'Sorry, I encountered an error. Please try again.')
             return
+
+        last_model = getattr(response, 'model', None) or last_model
+        last_usage = getattr(response, 'usage', None) or last_usage
+        last_response_id = getattr(response, 'id', None) or last_response_id
 
         output_items = list(getattr(response, 'output', None) or [])
         input_items.extend(output_items)
@@ -697,12 +645,34 @@ def _run_responses_tool_conversation(
 
         if not tool_calls:
             text = getattr(response, 'output_text', None) or ''
-            transcript = list(messages)
             transcript.append({'role': 'assistant', 'content': text})
             for chunk in _chunk_text(text):
                 yield ('text', chunk)
+            yield ('telemetry', {
+                'model': last_model,
+                'response_trace_id': last_response_id,
+                'usage': _usage_to_dict(last_usage),
+                'reasoning_effort': reasoning_effort,
+            })
             yield ('messages', transcript)
             return
+
+        # Mirror Completions-style transcript rows so callers keep tool turns.
+        transcript.append({
+            'role': 'assistant',
+            'content': None,
+            'tool_calls': [
+                {
+                    'id': call.call_id,
+                    'type': 'function',
+                    'function': {
+                        'name': call.name,
+                        'arguments': call.arguments or '{}',
+                    },
+                }
+                for call in tool_calls
+            ],
+        })
 
         for call in tool_calls:
             name = call.name
@@ -711,10 +681,17 @@ def _run_responses_tool_conversation(
 
             payload, meta = execute_tool(name, arguments)
             yield ('tool_result', {'name': name, 'result': meta})
+            output_text = json.dumps(payload, default=str)
+            transcript.append({
+                'role': 'tool',
+                'tool_call_id': call.call_id,
+                'name': name,
+                'content': output_text,
+            })
             input_items.append({
                 'type': 'function_call_output',
                 'call_id': call.call_id,
-                'output': json.dumps(payload, default=str),
+                'output': output_text,
             })
 
     yield ('text', (
@@ -722,7 +699,25 @@ def _run_responses_tool_conversation(
         'Anything already confirmed above did go through. Ask me again and I '
         'will pick it up from here.\n\n--BOB'
     ))
-    yield ('messages', list(messages))
+    yield ('telemetry', {
+        'model': last_model,
+        'response_trace_id': last_response_id,
+        'usage': _usage_to_dict(last_usage),
+        'reasoning_effort': reasoning_effort,
+    })
+    yield ('messages', transcript)
+
+
+def _usage_to_dict(usage) -> dict | None:
+    if usage is None:
+        return None
+    if isinstance(usage, dict):
+        return usage
+    return {
+        'input_tokens': getattr(usage, 'input_tokens', None),
+        'output_tokens': getattr(usage, 'output_tokens', None),
+        'total_tokens': getattr(usage, 'total_tokens', None),
+    }
 
 
 def _responses_input_items(messages: list, input_files: list[dict]) -> list:
@@ -795,6 +790,8 @@ def _responses_tool_round_with_fallback(
     input_items: list,
     tools: list,
     allow_tools: bool,
+    reasoning_effort: str = TOOL_REASONING_EFFORT,
+    safety_identifier: str | None = None,
 ):
     """One Responses API round, walking the standard model fallback chain."""
     for i, model in enumerate(MODEL_CHAIN):
@@ -803,16 +800,19 @@ def _responses_tool_round_with_fallback(
                 'model': model,
                 'instructions': system_prompt,
                 'input': input_items,
-                'reasoning': {'effort': 'medium'},
+                'reasoning': {'effort': reasoning_effort},
             }
             if allow_tools and tools:
                 kwargs['tools'] = tools
                 kwargs['tool_choice'] = 'auto'
+            if safety_identifier:
+                kwargs['safety_identifier'] = safety_identifier
 
             logger.info(
                 f"[{i+1}/{len(MODEL_CHAIN)}] Responses tool round: "
                 f"attempting {model} "
-                f"(tools={'on' if allow_tools and tools else 'off'})"
+                f"(tools={'on' if allow_tools and tools else 'off'}, "
+                f"effort={reasoning_effort})"
             )
             return client.responses.create(**kwargs)
 

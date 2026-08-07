@@ -45,6 +45,20 @@ class Config:
     # OpenAI configuration
     OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
+    # Document extraction must not auto-apply extracted fields to canonical
+    # seller contracts / milestones. Human-approved proposals apply later.
+    EXTRACTION_AUTO_APPLY = (
+        os.getenv('EXTRACTION_AUTO_APPLY', 'false').lower() == 'true'
+    )
+
+    # Phase 3 narrow autonomy thresholds (only with org flags on).
+    BOB_VTC_AUTONOMY_CONFIDENCE_MAX = float(
+        os.getenv('BOB_VTC_AUTONOMY_CONFIDENCE_MAX', '0.85')
+    )
+    BOB_VTC_AUTONOMY_RISK_MAX = os.getenv(
+        'BOB_VTC_AUTONOMY_RISK_MAX', 'low'
+    ).lower()
+
     # SendGrid configuration
     SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 
