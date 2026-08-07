@@ -1544,7 +1544,11 @@ class SellerContractDocument(db.Model):
     accepted_contract = db.relationship(
         'SellerAcceptedContract',
         foreign_keys=[accepted_contract_id],
-        backref=db.backref('contract_documents', lazy='dynamic'),
+        backref=db.backref(
+            'contract_documents',
+            lazy='dynamic',
+            cascade='all, delete-orphan',
+        ),
     )
     document = db.relationship('TransactionDocument', foreign_keys=[transaction_document_id])
     created_by = db.relationship('User', foreign_keys=[created_by_id])
