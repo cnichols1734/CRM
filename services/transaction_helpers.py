@@ -729,3 +729,181 @@ def build_contract_terms(transaction, accepted_contract=None, documents=None):
     data['_sources'] = sources
     data['_completeness'] = _compute_contract_completeness(data)
     return data
+
+
+def purge_transaction_dependent_rows(transaction_id: int) -> None:
+    """Bulk-delete dependent rows before removing a transaction.
+
+    Several VTC tables use NOT NULL FKs. SQLAlchemy's default relationship
+    behavior nullifies those FKs on parent delete, which fails on Postgres.
+    Call this before ``db.session.delete(transaction)``.
+    """
+    from models import (
+        CommunicationDeliveryAttempt,
+        DocumentExtractionRun,
+        DocumentReviewReport,
+        ExtractedField,
+        NotificationDelivery,
+        NotificationEvent,
+        SellerAcceptedContract,
+        SellerClosingSummary,
+        SellerCommissionTerms,
+        SellerContractAmendment,
+        SellerContractAmendmentVersion,
+        SellerContractDocument,
+        SellerContractMilestone,
+        SellerContractTermination,
+        SellerOffer,
+        SellerOfferActivity,
+        SellerOfferDocument,
+        SellerOfferVersion,
+        TransactionAssignment,
+        TransactionChangeProposal,
+        TransactionCommunication,
+        TransactionRequirement,
+        TransactionRequirementDependency,
+        TransactionRequirementEvent,
+        TransactionRequirementEvidence,
+        db,
+    )
+
+    def _ids(model):
+        return [
+            row[0]
+            for row in db.session.query(model.id).filter_by(
+                transaction_id=transaction_id,
+            ).all()
+        ]
+
+    # --- Notifications / reviews / proposals / comms / extraction ---
+    event_ids = [
+        row[0]
+        for row in db.session.query(NotificationEvent.id).filter_by(
+            related_transaction_id=transaction_id,
+        ).all()
+    ]
+    if event_ids:
+        NotificationDelivery.query.filter(
+            NotificationDelivery.event_id.in_(event_ids),
+        ).delete(synchronize_session=False)
+        NotificationEvent.query.filter(
+            NotificationEvent.id.in_(event_ids),
+        ).delete(synchronize_session=False)
+
+    DocumentReviewReport.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    TransactionChangeProposal.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+
+    comm_ids = _ids(TransactionCommunication)
+    if comm_ids:
+        CommunicationDeliveryAttempt.query.filter(
+            CommunicationDeliveryAttempt.communication_id.in_(comm_ids),
+        ).delete(synchronize_session=False)
+        TransactionCommunication.query.filter(
+            TransactionCommunication.id.in_(comm_ids),
+        ).delete(synchronize_session=False)
+
+    run_ids = _ids(DocumentExtractionRun)
+    if run_ids:
+        ExtractedField.query.filter(
+            ExtractedField.extraction_run_id.in_(run_ids),
+        ).delete(synchronize_session=False)
+        DocumentExtractionRun.query.filter(
+            DocumentExtractionRun.id.in_(run_ids),
+        ).delete(synchronize_session=False)
+
+    SellerCommissionTerms.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+
+    # --- Requirements (evidence/events before parent) ---
+    req_ids = _ids(TransactionRequirement)
+    if req_ids:
+        TransactionRequirementEvidence.query.filter(
+            TransactionRequirementEvidence.requirement_id.in_(req_ids),
+        ).delete(synchronize_session=False)
+        TransactionRequirementEvent.query.filter(
+            TransactionRequirementEvent.requirement_id.in_(req_ids),
+        ).delete(synchronize_session=False)
+        TransactionRequirementDependency.query.filter(
+            db.or_(
+                TransactionRequirementDependency.requirement_id.in_(req_ids),
+                TransactionRequirementDependency.blocks_requirement_id.in_(req_ids),
+            ),
+        ).delete(synchronize_session=False)
+        # Clear milestone FK before milestones go away.
+        TransactionRequirement.query.filter(
+            TransactionRequirement.id.in_(req_ids),
+        ).update(
+            {TransactionRequirement.source_milestone_id: None},
+            synchronize_session=False,
+        )
+        TransactionRequirement.query.filter(
+            TransactionRequirement.id.in_(req_ids),
+        ).delete(synchronize_session=False)
+
+    # --- Controlling contract package (NOT NULL accepted_contract_id) ---
+    SellerContractDocument.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerClosingSummary.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerContractTermination.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerContractAmendmentVersion.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerContractAmendment.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerContractMilestone.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+
+    # --- Offers (break version pointers, then children, then parents) ---
+    offer_ids = _ids(SellerOffer)
+    if offer_ids:
+        SellerOffer.query.filter(
+            SellerOffer.id.in_(offer_ids),
+        ).update(
+            {
+                SellerOffer.current_version_id: None,
+                SellerOffer.accepted_version_id: None,
+                SellerOffer.replacement_offer_id: None,
+            },
+            synchronize_session=False,
+        )
+    SellerAcceptedContract.query.filter_by(
+        transaction_id=transaction_id,
+    ).update(
+        {
+            SellerAcceptedContract.offer_id: None,
+            SellerAcceptedContract.accepted_version_id: None,
+        },
+        synchronize_session=False,
+    )
+    SellerOfferDocument.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerOfferActivity.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerOfferVersion.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    SellerAcceptedContract.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)
+    if offer_ids:
+        SellerOffer.query.filter(
+            SellerOffer.id.in_(offer_ids),
+        ).delete(synchronize_session=False)
+
+    TransactionAssignment.query.filter_by(
+        transaction_id=transaction_id,
+    ).delete(synchronize_session=False)

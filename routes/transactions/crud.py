@@ -1201,63 +1201,16 @@ def delete_transaction(id):
         # Log deletion before actually deleting
         audit_service.log_transaction_deleted(transaction_id, address)
 
-        # BOB VTC rows use NOT NULL FKs. SQLite often skips DB ON DELETE CASCADE,
-        # and ORM nullify-on-delete then raises IntegrityError. Purge first.
-        from models import (
-            CommunicationDeliveryAttempt,
-            DocumentExtractionRun,
-            DocumentReviewReport,
-            ExtractedField,
-            SellerCommissionTerms,
-            TransactionChangeProposal,
-            TransactionCommunication,
-        )
+        # BOB VTC rows use NOT NULL FKs. ORM nullify-on-delete raises
+        # NotNullViolation on Postgres (seller_contract_documents etc.).
+        from services.transaction_helpers import purge_transaction_dependent_rows
 
-        SellerCommissionTerms.query.filter_by(
-            transaction_id=transaction_id,
-        ).delete(synchronize_session=False)
+        purge_transaction_dependent_rows(transaction_id)
 
-        review_q = DocumentReviewReport.query.filter_by(transaction_id=transaction_id)
-        review_q.delete(synchronize_session=False)
-
-        proposal_q = TransactionChangeProposal.query.filter_by(transaction_id=transaction_id)
-        proposal_q.delete(synchronize_session=False)
-
-        comm_ids = [
-            row[0] for row in
-            db.session.query(TransactionCommunication.id)
-            .filter_by(transaction_id=transaction_id)
-            .all()
-        ]
-        if comm_ids:
-            CommunicationDeliveryAttempt.query.filter(
-                CommunicationDeliveryAttempt.communication_id.in_(comm_ids)
-            ).delete(synchronize_session=False)
-            TransactionCommunication.query.filter(
-                TransactionCommunication.id.in_(comm_ids)
-            ).delete(synchronize_session=False)
-
-        run_ids = [
-            row[0] for row in
-            db.session.query(DocumentExtractionRun.id)
-            .filter_by(transaction_id=transaction_id)
-            .all()
-        ]
-        if run_ids:
-            ExtractedField.query.filter(
-                ExtractedField.extraction_run_id.in_(run_ids)
-            ).delete(synchronize_session=False)
-            DocumentExtractionRun.query.filter(
-                DocumentExtractionRun.id.in_(run_ids)
-            ).delete(synchronize_session=False)
-
-        # Delete the transaction - cascade will handle:
-        # - TransactionParticipants (cascade='all, delete-orphan')
-        # - TransactionDocuments (cascade='all, delete-orphan')
-        #   - DocumentSignatures (cascade='all, delete-orphan' via TransactionDocument)
+        # Remaining ORM cascades: participants, documents/signatures,
+        # listing profile, showings, price changes.
         db.session.delete(transaction)
         db.session.commit()
-
         flash(f'Transaction for "{address}" has been deleted.', 'success')
         return redirect(url_for('transactions.list_transactions'))
         
