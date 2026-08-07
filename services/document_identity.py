@@ -1134,6 +1134,55 @@ def apply_ai_package_authority(
         # keyword hits into "detected in package".
         if base.kind == KIND_LISTING_AGREEMENT and base.confidence >= HIGH_CONFIDENCE:
             extras['embedded_components'] = []
+
+        # Extraction often returns a top-level document_type without
+        # detected_documents (tests and thin AI payloads). Prefer that over a
+        # weak/ambiguous regex identity so approve isn't blocked on stubs.
+        doc_type = (
+            str(
+                data.get('document_type')
+                or data.get('document_classification')
+                or ''
+            ).strip().lower()
+        )
+        type_meta = _AI_SEGMENT_TO_IDENTITY.get(doc_type) if doc_type else None
+        weak_base = (
+            base.kind in (KIND_UNKNOWN, KIND_OTHER, '')
+            or base.ambiguous
+            or base.confidence < HIGH_CONFIDENCE
+        )
+        if type_meta and weak_base:
+            extras['package_authority'] = 'ai_document_type'
+            return DocumentIdentity(
+                kind=type_meta['kind'],
+                template_slug=type_meta.get('template_slug') or base.template_slug,
+                form_number=type_meta.get('form_number') or base.form_number,
+                label=type_meta.get('label') or base.label,
+                confidence=max(base.confidence, 0.9),
+                matched_signals=tuple(
+                    dict.fromkeys(
+                        list(base.matched_signals) + ['authority:ai_document_type', f'type:{doc_type}']
+                    )
+                ),
+                execution_state=base.execution_state,
+                possible_scopes=tuple(type_meta.get('scopes') or base.possible_scopes),
+                purchase_contract_type=(
+                    type_meta.get('purchase_contract_type')
+                    or base.purchase_contract_type
+                ),
+                addendum_key=type_meta.get('addendum_key') or base.addendum_key,
+                offer_document_type=(
+                    base.offer_document_type
+                    or (
+                        'buyer_offer'
+                        if type_meta['kind'] == KIND_PURCHASE_CONTRACT
+                        else None
+                    )
+                ),
+                ambiguous=False,
+                extras=extras,
+            )
+
         extras['package_authority'] = 'regex_pending_ai'
         return DocumentIdentity(
             kind=base.kind,
