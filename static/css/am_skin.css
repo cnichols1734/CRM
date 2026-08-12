@@ -1006,6 +1006,12 @@ html.am-skin {
   --focus: rgba(250, 88, 106, 0.28);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
 }
+html.am-skin[data-theme="dark"] {
+  --brand-orange: #fa586a;
+}
+html.am-skin[data-theme="light"] {
+  --brand-orange: #fa243c;
+}
 
 /* ── Orange Tailwind utilities → Apple accent ─────────────── */
 html.am-skin .text-orange-400,
@@ -1318,11 +1324,33 @@ html.am-skin #planContent li {
 
 /* ── Auth pages ───────────────────────────────────────────── */
 html.am-skin .login-page,
-html.am-skin .register-page {
+html.am-skin .register-page,
+html.am-skin .register-panel {
   font-family: var(--font-sans) !important;
   background: var(--canvas) !important;
   background-image: none !important;
   color: var(--ink) !important;
+}
+/* Pin marketing/auth red utilities to the same accent as the app */
+html.am-skin .text-red-400,
+html.am-skin .text-red-500,
+html.am-skin .text-red-600,
+html.am-skin .text-red-700,
+html.am-skin .hover\:text-red-500:hover,
+html.am-skin .hover\:text-red-600:hover,
+html.am-skin .hover\:text-red-700:hover {
+  color: var(--accent-ink) !important;
+}
+html.am-skin .border-red-500,
+html.am-skin .border-red-600 {
+  border-color: var(--accent) !important;
+}
+html.am-skin .from-red-400 { --tw-gradient-from: #ff6b7a var(--tw-gradient-from-position) !important; }
+html.am-skin .to-rose-400 { --tw-gradient-to: #fa586a var(--tw-gradient-to-position) !important; }
+html.am-skin .from-red-500\/20 { --tw-gradient-from: rgb(250 36 60 / 0.2) var(--tw-gradient-from-position) !important; }
+html.am-skin .from-rose-500\/10 { --tw-gradient-from: rgb(250 88 106 / 0.1) var(--tw-gradient-from-position) !important; }
+html.am-skin .toc-link:hover {
+  color: var(--accent-ink) !important;
 }
 html.am-skin .login-page .card,
 html.am-skin .register-page .premium-card,

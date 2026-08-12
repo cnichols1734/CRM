@@ -12,7 +12,7 @@
         transition: all 0.2s ease;
     }
     .toc-link:hover {
-        color: #f97316;
+        color: #fa243c;
         padding-left: 8px;
     }
 </style>
@@ -37,7 +37,7 @@
                 <h2 class="text-2xl font-bold mb-4">Quick Navigation</h2>
                 <div class="grid md:grid-cols-2 gap-4 text-sm">
                     <div>
-                        <h3 class="font-semibold text-orange-400 mb-2">Terms of Service</h3>
+                        <h3 class="font-semibold text-red-400 mb-2">Terms of Service</h3>
                         <ul class="space-y-2 text-slate-300">
                             <li><a href="#tos-acceptance" class="toc-link block">1. Acceptance of Terms</a></li>
                             <li><a href="#tos-service" class="toc-link block">2. Service Description</a></li>
@@ -50,7 +50,7 @@
                         </ul>
                     </div>
                     <div>
-                        <h3 class="font-semibold text-orange-400 mb-2">Privacy Policy</h3>
+                        <h3 class="font-semibold text-red-400 mb-2">Privacy Policy</h3>
                         <ul class="space-y-2 text-slate-300">
                             <li><a href="#privacy-intro" class="toc-link block">1. Introduction</a></li>
                             <li><a href="#privacy-collection" class="toc-link block">2. Information We Collect</a></li>
@@ -70,7 +70,7 @@
                 
                 <!-- ========== TERMS OF SERVICE ========== -->
                 <section class="mb-16">
-                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-orange-500">Terms of Service</h2>
+                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-red-500">Terms of Service</h2>
                     
                     <!-- Section 1 -->
                     <div id="tos-acceptance" class="legal-section mb-8">
@@ -220,7 +220,7 @@
 
                 <!-- ========== PRIVACY POLICY ========== -->
                 <section>
-                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-orange-500">Privacy Policy</h2>
+                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-red-500">Privacy Policy</h2>
                     
                     <!-- Section 1 -->
                     <div id="privacy-intro" class="legal-section mb-8">
@@ -406,8 +406,8 @@
                     <h3 class="text-2xl font-bold text-slate-900 mb-4">Contact Us</h3>
                     <p class="text-slate-700 mb-4">If you have questions about these Terms of Service or Privacy Policy, or wish to exercise your privacy rights, please contact us:</p>
                     <div class="space-y-2 text-slate-700">
-                        <p><strong>Email:</strong> <a href="mailto:info@origentechnolog.com" class="text-orange-600 hover:text-orange-700">info@origentechnolog.com</a></p>
-                        <p><strong>Website:</strong> <a href="{{ url_for('main.landing') }}" class="text-orange-600 hover:text-orange-700">{{ request.host }}</a></p>
+                        <p><strong>Email:</strong> <a href="mailto:info@origentechnolog.com" class="text-red-600 hover:text-red-700">info@origentechnolog.com</a></p>
+                        <p><strong>Website:</strong> <a href="{{ url_for('main.landing') }}" class="text-red-600 hover:text-red-700">{{ request.host }}</a></p>
                         <p class="text-sm text-slate-500 mt-4">We will respond to your inquiry within 30 days.</p>
                     </div>
                 </div>
@@ -416,7 +416,7 @@
 
         <!-- Back to Top -->
         <div class="text-center mt-8">
-            <a href="#" class="inline-flex items-center text-slate-600 hover:text-orange-600 transition-colors">
+            <a href="#" class="inline-flex items-center text-slate-600 hover:text-red-600 transition-colors">
                 <i class="fas fa-arrow-up mr-2"></i>
                 Back to Top
             </a>
