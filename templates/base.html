@@ -412,28 +412,32 @@
             font-size: 0.75rem;
         }
 
-        /* Search results dropdown */
+        /* Search results dropdown — portaled to <body> (see search script) so
+           backdrop-filter isn't trapped inside the glass topbar. */
         .crm-search-results {
-            position: absolute;
-            top: calc(100% + 0.35rem);
+            position: fixed;
+            top: 0;
             left: 0;
-            right: 0;
-            min-width: 22rem;
+            right: auto;
+            width: min(22rem, calc(100vw - 1rem));
+            min-width: 0;
             max-height: min(32rem, calc(100vh - 5rem));
             overflow-y: auto;
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 0.625rem;
             box-shadow: 0 14px 40px -12px rgba(15, 23, 42, 0.25), 0 4px 14px -6px rgba(15, 23, 42, 0.12);
-            z-index: 60;
+            z-index: 100;
             padding: 0.35rem 0;
             opacity: 0;
             transform: translateY(-2px);
             transition: opacity 0.12s ease, transform 0.12s ease;
+            pointer-events: none;
         }
         .crm-search-results[data-open="true"] {
             opacity: 1;
             transform: translateY(0);
+            pointer-events: auto;
         }
         .crm-search-group {
             padding: 0.2rem 0;
@@ -1566,8 +1570,11 @@
         .crm-surface, .crm-kpi, .crm-mi__kpi {
             box-shadow: none !important;
         }
-        /* Re-enable subtle shadow on dropdowns/popovers/modals only */
-        .crm-user-dropdown, .crm-search-results, .crm-notification-popover,
+        /* Re-enable shadow on dropdowns/popovers/modals only.
+           Prefer liquid-glass shadow when am-skin tokens are present. */
+        .crm-user-dropdown, .crm-search-results, .crm-notification-popover {
+            box-shadow: var(--am-glass-shadow, 0 14px 40px -12px oklch(0% 0 0 / 0.18)) !important;
+        }
         .modal-box, [role="dialog"] {
             box-shadow: 0 14px 40px -12px oklch(0% 0 0 / 0.18), 0 4px 14px -6px oklch(0% 0 0 / 0.08) !important;
         }
@@ -2879,6 +2886,12 @@
             var panel = document.getElementById('crmGlobalSearchResults');
             if (!input || !panel) return;
 
+            /* Portal to body — nested backdrop-filter inside the glass topbar
+               cannot sample page content (notifications + profile menu already do this). */
+            if (panel.parentNode !== document.body) {
+                document.body.appendChild(panel);
+            }
+
             var debounceTimer = null;
             var activeController = null;
             var lastQuery = '';
@@ -2901,9 +2914,25 @@
                 return safe.replace(new RegExp('(' + escaped + ')', 'ig'), '<mark>$1</mark>');
             }
 
+            function positionPanel() {
+                var r = input.getBoundingClientRect();
+                var gap = 6;
+                var width = Math.max(r.width, Math.min(352, window.innerWidth - 16));
+                var left = Math.round(r.left);
+                left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+                panel.style.top = Math.round(r.bottom + gap) + 'px';
+                panel.style.left = left + 'px';
+                panel.style.width = width + 'px';
+                panel.style.right = 'auto';
+            }
+
             function openPanel() {
+                positionPanel();
                 panel.hidden = false;
-                requestAnimationFrame(function () { panel.setAttribute('data-open', 'true'); });
+                requestAnimationFrame(function () {
+                    positionPanel();
+                    panel.setAttribute('data-open', 'true');
+                });
                 input.setAttribute('aria-expanded', 'true');
             }
             function closePanel() {
@@ -3015,6 +3044,13 @@
             document.addEventListener('click', function (e) {
                 if (!panel.contains(e.target) && e.target !== input) closePanel();
             });
+
+            window.addEventListener('resize', function () {
+                if (panel.hasAttribute('data-open')) positionPanel();
+            });
+            window.addEventListener('scroll', function () {
+                if (panel.hasAttribute('data-open')) positionPanel();
+            }, true);
         })();
     </script>
 

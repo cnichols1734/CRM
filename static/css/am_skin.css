@@ -639,8 +639,9 @@ html.am-skin [class*="empty-state"] {
 }
 
 /* Floating chrome — same liquid glass as the topbar / sidebar.
-   Notifications are portaled to <body> so this blur can sample the page
-   (nested under the glass topbar, backdrop-filter is a no-op). */
+   User menu, notifications, and global search are portaled to <body>
+   so this blur can sample the page (nested under the glass topbar,
+   backdrop-filter is a no-op and the panel looks fully transparent). */
 html.am-skin .crm-user-dropdown,
 html.am-skin .crm-search-results,
 html.am-skin .crm-notification-popover {
@@ -652,6 +653,7 @@ html.am-skin .crm-notification-popover {
   color: var(--ink) !important;
   backdrop-filter: var(--am-glass-blur) !important;
   -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  isolation: isolate;
 }
 
 /* Keep glass readable: translucent hovers, hairline dividers */
