@@ -1006,6 +1006,12 @@ html.am-skin {
   --focus: rgba(250, 88, 106, 0.28);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
 }
+html.am-skin[data-theme="dark"] {
+  --brand-orange: #fa586a;
+}
+html.am-skin[data-theme="light"] {
+  --brand-orange: #fa243c;
+}
 
 /* ── Orange Tailwind utilities → Apple accent ─────────────── */
 html.am-skin .text-orange-400,
@@ -1318,11 +1324,33 @@ html.am-skin #planContent li {
 
 /* ── Auth pages ───────────────────────────────────────────── */
 html.am-skin .login-page,
-html.am-skin .register-page {
+html.am-skin .register-page,
+html.am-skin .register-panel {
   font-family: var(--font-sans) !important;
   background: var(--canvas) !important;
   background-image: none !important;
   color: var(--ink) !important;
+}
+/* Pin marketing/auth red utilities to the same accent as the app */
+html.am-skin .text-red-400,
+html.am-skin .text-red-500,
+html.am-skin .text-red-600,
+html.am-skin .text-red-700,
+html.am-skin .hover\:text-red-500:hover,
+html.am-skin .hover\:text-red-600:hover,
+html.am-skin .hover\:text-red-700:hover {
+  color: var(--accent-ink) !important;
+}
+html.am-skin .border-red-500,
+html.am-skin .border-red-600 {
+  border-color: var(--accent) !important;
+}
+html.am-skin .from-red-400 { --tw-gradient-from: #ff6b7a var(--tw-gradient-from-position) !important; }
+html.am-skin .to-rose-400 { --tw-gradient-to: #fa586a var(--tw-gradient-to-position) !important; }
+html.am-skin .from-red-500\/20 { --tw-gradient-from: rgb(250 36 60 / 0.2) var(--tw-gradient-from-position) !important; }
+html.am-skin .from-rose-500\/10 { --tw-gradient-from: rgb(250 88 106 / 0.1) var(--tw-gradient-from-position) !important; }
+html.am-skin .toc-link:hover {
+  color: var(--accent-ink) !important;
 }
 html.am-skin .login-page .card,
 html.am-skin .register-page .premium-card,
@@ -1332,23 +1360,76 @@ html.am-skin .card {
   box-shadow: none !important;
   border-radius: 18px !important;
 }
+/* Soft left rail — paper-2, never pure black (was crushing contrast) */
 html.am-skin .login-page .left,
 html.am-skin .register-page .left {
-  background: #000000 !important;
-  background-image: none !important;
-}
-html.am-skin[data-theme="light"] .login-page .left,
-html.am-skin[data-theme="light"] .register-page .left {
-  background: #1c1c1e !important;
+  background-color: var(--paper-2) !important;
+  background-image: radial-gradient(ellipse at 0% 0%, var(--accent-soft) 0%, transparent 55%) !important;
+  color: var(--ink) !important;
+  border-right: 0.5px solid var(--hairline) !important;
 }
 html.am-skin .login-page .left::before,
 html.am-skin .register-page .left::before {
   background: var(--accent) !important;
   background-image: none !important;
 }
+html.am-skin .login-page .left-muted,
+html.am-skin .register-page .left-muted {
+  color: var(--ink-3) !important;
+}
+html.am-skin .login-page .left-title,
+html.am-skin .login-page .left .font-semibold,
+html.am-skin .login-page .left .font-extrabold {
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .left-chip {
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent) !important;
+}
+html.am-skin .login-page .left-icon {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--accent) !important;
+}
+html.am-skin .login-page .input,
+html.am-skin .login-page .icon-btn {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px var(--accent-soft) !important;
+}
+html.am-skin .login-page .btn {
+  background: var(--am-key-bg) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+html.am-skin .login-page .btn:hover {
+  background: var(--am-key-pressed) !important;
+}
+html.am-skin .login-page .kicker,
+html.am-skin .login-page .subtitle,
+html.am-skin .login-page .label,
+html.am-skin .login-page .title {
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .subtitle,
+html.am-skin .login-page .kicker {
+  color: var(--ink-3) !important;
+}
 html.am-skin .login-page a,
 html.am-skin .register-page a {
   color: var(--accent-ink) !important;
+}
+@media (max-width: 1024px) {
+  html.am-skin .login-page .left,
+  html.am-skin .register-page .left {
+    border-right: none !important;
+    border-bottom: 0.5px solid var(--hairline) !important;
+  }
 }
 
 /* ── Shared CRM primitives polish ─────────────────────────── */

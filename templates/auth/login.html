@@ -3,55 +3,57 @@
 
 {% block content %}
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
   :root{
-    --brand-navy: #2d3e50;
-    --brand-navy-2: #1a2634;
-    --brand-orange: #f97316;
-
-    --bg: #f8fafc;
+    --brand-orange: #fa243c;
+    --bg: #f4f4f4;
     --panel: #ffffff;
-    --text: #0f172a;
-    --muted: #64748b;
-    --border: #e2e8f0;
-    --shadow: 0 16px 40px rgba(15, 23, 42, 0.10);
-
-    --focus: rgba(45, 62, 80, 0.18);
+    --panel-soft: #f0f0f0;
+    --text: rgba(0, 0, 0, 0.88);
+    --muted: rgba(0, 0, 0, 0.56);
+    --border: rgba(0, 0, 0, 0.10);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+    --focus: rgba(250, 36, 60, 0.18);
+    --accent-soft: rgba(214, 0, 23, 0.1);
   }
 
   .login-page{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background:
-      radial-gradient(1100px 550px at 10% 0%, rgba(249,115,22,.06), transparent 60%),
-      radial-gradient(900px 520px at 100% 40%, rgba(45,62,80,.07), transparent 55%),
-      var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
   }
 
-  .shell{ width: 100%; max-width: 940px; }
+  .shell{ width: 100%; max-width: 920px; }
 
   .card{
     background: var(--panel);
-    border: 1px solid rgba(15, 23, 42, 0.07);
+    border: 1px solid var(--border);
     box-shadow: var(--shadow);
     border-radius: 18px;
     overflow: hidden;
   }
 
-  /* Left panel */
+  /* Left panel — soft surface, same ink as the form (no black cave) */
   .left{
-    background: linear-gradient(180deg, var(--brand-navy) 0%, var(--brand-navy-2) 100%);
-    color: rgba(255,255,255,.92);
+    background:
+      radial-gradient(ellipse at 0% 0%, rgba(250, 36, 60, 0.07) 0%, transparent 55%),
+      var(--panel-soft);
+    color: var(--text);
     position: relative;
+    border-right: 1px solid var(--border);
   }
   .left::before{
     content:'';
     position:absolute;
     top:0; left:0; right:0;
-    height: 3px;
-    background: linear-gradient(90deg, var(--brand-orange), rgba(249,115,22,.55));
+    height: 2px;
+    background: var(--brand-orange);
   }
-  .left-muted{ color: rgba(255,255,255,.74); }
+  .left-muted{ color: var(--muted); }
+  .left-title{
+    color: var(--text);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
   .left-chip{
     display:inline-flex;
     align-items:center;
@@ -60,8 +62,9 @@
     font-weight: 700;
     padding: 6px 10px;
     border-radius: 9999px;
-    background: rgba(255,255,255,.10);
-    border: 1px solid rgba(255,255,255,.14);
+    background: var(--accent-soft);
+    color: var(--brand-orange);
+    border: 1px solid rgba(250, 36, 60, 0.16);
   }
   .left-bullet{
     display:flex;
@@ -71,23 +74,25 @@
   .left-icon{
     width: 34px;
     height: 34px;
-    border-radius: 12px;
-    background: rgba(255,255,255,.10);
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
     display:flex;
     align-items:center;
     justify-content:center;
     flex-shrink:0;
+    color: var(--brand-orange);
   }
 
   /* Form */
-  .kicker{ font-size: 13px; font-weight: 700; color: #334155; }
+  .kicker{ font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
   .title{ font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
   .subtitle{ font-size: 14px; color: var(--muted); }
 
   .label{
     font-size: 13px;
     font-weight: 600;
-    color: #334155;
+    color: var(--text);
     margin-bottom: 6px;
     display: block;
   }
@@ -96,17 +101,17 @@
     height: 46px;
     border-radius: 12px;
     border: 1px solid var(--border);
-    background: #fff;
+    background: var(--panel);
     padding: 0 14px;
     font-size: 15px;
     width: 100%;
     color: var(--text);
     transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
   }
-  .input::placeholder{ color: #94a3b8; }
+  .input::placeholder{ color: rgba(0,0,0,0.35); }
   .input:focus{
     outline: none;
-    border-color: rgba(45,62,80,.55);
+    border-color: var(--brand-orange);
     box-shadow: 0 0 0 4px var(--focus);
   }
 
@@ -116,50 +121,49 @@
     font-size: 13px;
     text-decoration: none;
   }
-  .hint-link:hover{ color: #334155; }
+  .hint-link:hover{ color: var(--brand-orange); }
 
   .btn{
     height: 46px;
     border-radius: 12px;
     width: 100%;
-    background: var(--brand-navy);
+    background: #d60017;
     color: #fff;
     font-weight: 700;
     font-size: 15px;
-    transition: transform .08s ease, box-shadow .18s ease, background .18s ease;
+    transition: background .15s ease, box-shadow .18s ease;
   }
   .btn:hover{
-    background: #243243;
-    box-shadow: 0 10px 18px rgba(45,62,80,.22);
+    background: #b00014;
+    box-shadow: 0 8px 20px rgba(214, 0, 23, 0.28);
   }
-  .btn:active{ transform: translateY(1px); }
+  .btn:active{ background: #980012; }
 
-  .divider{ height: 1px; background: rgba(15, 23, 42, 0.08); }
+  .divider{ height: 1px; background: var(--border); }
 
   .icon-btn{
     border: 1px solid var(--border);
-    background: #fff;
+    background: var(--panel);
     height: 46px;
     width: 46px;
     border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #64748b;
+    color: var(--muted);
     transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
   .icon-btn:hover{
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #334155;
+    background: var(--panel-soft);
+    border-color: rgba(0,0,0,0.16);
+    color: var(--text);
   }
 
-  /* Status banners (tight, professional) */
   .banner{
     border-radius: 14px;
     padding: 14px 16px;
-    border: 1px solid rgba(15,23,42,.10);
-    background: #fff;
+    border: 1px solid var(--border);
+    background: var(--panel);
   }
   .banner-warning{
     background: #fffbeb;
@@ -170,51 +174,49 @@
     border-color: #f87171;
   }
   .banner-neutral{
-    background: #f1f5f9;
-    border-color: #cbd5e1;
+    background: var(--panel-soft);
+    border-color: var(--border);
   }
   .banner-title{
     font-weight: 800;
-    color: #0f172a;
+    color: var(--text);
     margin-bottom: 2px;
   }
   .banner-text{
-    color: #334155;
+    color: var(--muted);
     font-size: 13px;
   }
 
-  /* small footer links */
   .footer-link{
     font-size: 13px;
     font-weight: 600;
-    color: #475569;
+    color: var(--brand-orange);
     text-decoration: none;
   }
-  .footer-link:hover{ color: var(--brand-navy); }
+  .footer-link:hover{ text-decoration: underline; text-underline-offset: 3px; }
 
-  /* Support link (under button) */
   .support-row{
     margin-top: 10px;
     font-size: 13px;
-    color: #64748b;
+    color: var(--muted);
     display: flex;
     justify-content: center;
     gap: 6px;
   }
   .support-action{
-    color: var(--brand-navy);
+    color: var(--brand-orange);
     font-weight: 700;
     text-decoration: none;
   }
   .support-action:hover{
-    color: #1f2d3d;
     text-decoration: underline;
     text-underline-offset: 3px;
   }
 
   @media (max-width: 1024px){
     .left{
-      border-bottom: 1px solid rgba(255,255,255,.10);
+      border-right: none;
+      border-bottom: 1px solid var(--border);
     }
   }
 </style>
@@ -307,26 +309,20 @@
     <div class="card">
       <div class="grid grid-cols-1 lg:grid-cols-2">
 
-        <!-- Left: Product context (not salesy) -->
+        <!-- Left: Product context -->
         <div class="left p-8 lg:p-10 flex flex-col justify-between">
           <div>
             <div class="flex items-center gap-3">
-              <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=164, height=36) }}
-              </div>
-              <div>
-                <div class="text-lg font-extrabold tracking-tight">Origen TechnolOG</div>
-                <div class="text-sm left-muted">Client management for real estate teams</div>
-              </div>
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9', width=164, height=36) }}
             </div>
 
             <div class="mt-8">
               <div class="left-chip">
-                <i class="fas fa-lock" style="color: rgba(249,115,22,.95)"></i>
+                <i class="fas fa-lock"></i>
                 Secure sign-in
               </div>
 
-              <h1 class="mt-4 text-2xl lg:text-3xl font-extrabold leading-tight tracking-tight">
+              <h1 class="left-title mt-4 text-2xl lg:text-3xl leading-tight">
                 Sign in to continue.
               </h1>
 
@@ -338,7 +334,7 @@
             <div class="mt-8 space-y-4">
               <div class="left-bullet">
                 <div class="left-icon">
-                  <i class="fas fa-address-book" style="color: rgba(249,115,22,.95)"></i>
+                  <i class="fas fa-address-book"></i>
                 </div>
                 <div>
                   <div class="font-semibold text-sm">Contacts & groups</div>
@@ -348,7 +344,7 @@
 
               <div class="left-bullet">
                 <div class="left-icon">
-                  <i class="fas fa-tasks" style="color: rgba(249,115,22,.95)"></i>
+                  <i class="fas fa-tasks"></i>
                 </div>
                 <div>
                   <div class="font-semibold text-sm">Tasks & reminders</div>
@@ -358,7 +354,7 @@
 
               <div class="left-bullet">
                 <div class="left-icon">
-                  <i class="fas fa-calendar-check" style="color: rgba(249,115,22,.95)"></i>
+                  <i class="fas fa-calendar-check"></i>
                 </div>
                 <div>
                   <div class="font-semibold text-sm">Google integration</div>
@@ -369,7 +365,7 @@
           </div>
 
           <div class="mt-10 text-xs left-muted flex items-center gap-2">
-            <i class="fas fa-shield-alt" style="color: rgba(16,185,129,.95)"></i>
+            <i class="fas fa-shield-alt" style="color: #248a3d"></i>
             256-bit SSL encryption · Your data stays private
           </div>
         </div>
