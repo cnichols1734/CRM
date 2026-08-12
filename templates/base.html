@@ -1,21 +1,20 @@
 <!-- templates/base.html -->
 {% from "components/ui.html" import brand_logo %}
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Origen TechnolOG{% endblock %}</title>
     <!-- Theme guard: applies stored theme before any paint to avoid FOUC.
-         Default is Light. We deliberately don't follow the OS color scheme so
-         dark mode is opt-in via the toggle. Users who have explicitly chosen
-         a theme keep their choice (persisted in localStorage as 'crm-theme'). -->
+         Default is Dark. We deliberately don't follow the OS color scheme.
+         Toggle choice is persisted in localStorage as 'crm-theme'. -->
     <script>
         (function () {
             try {
-                var stored = localStorage.getItem('crm-theme') || 'light';
-                document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
+                var stored = localStorage.getItem('crm-theme') || 'dark';
+                document.documentElement.dataset.theme = stored === 'light' ? 'light' : 'dark';
                 /* APPLE MUSIC SKIN TEST — remove this line to revert shell/contacts look */
                 document.documentElement.classList.add('am-skin');
             } catch (e) { /* ignore */ }
