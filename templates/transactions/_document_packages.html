@@ -24,17 +24,20 @@
     'applicable': ('Expected', 'neutral'),
 } %}
 
+{% if omit_header %}
+{# Nested under an outer package (e.g. offer details) — list only, no second card chrome. #}
+<div data-package-key="{{ pkg_key }}">
+{% else %}
 <section class="crm-document-package{% if is_unfiled %} crm-document-package--unfiled{% endif %}"
          data-package-key="{{ pkg_key }}"
-         {% if not omit_header %}aria-labelledby="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}"{% endif %}>
-    {% if not omit_header %}
+         aria-labelledby="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}">
     <div class="crm-document-package__header{% if is_unfiled %} crm-document-package__header--unfiled{% endif %}">
         <div class="min-w-0">
-            <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="text-sm font-semibold text-slate-950">{{ pkg_label }}</h3>
+            <h3 id="pkg-heading-{{ pkg_key }}-{{ package.scope_id or 'tx' }}" class="text-sm font-semibold" style="color: var(--ink);">{{ pkg_label }}</h3>
             {% if is_unfiled %}
-            <p class="mt-0.5 text-xs text-amber-800">Uploaded PDFs waiting for a package destination.</p>
+            <p class="mt-0.5 text-xs" style="color: var(--warn);">Uploaded PDFs waiting for a package destination.</p>
             {% elif package.status %}
-            <p class="mt-0.5 text-xs text-slate-500">{{ package.status|replace('_', ' ')|title }}</p>
+            <p class="mt-0.5 text-xs" style="color: var(--ink-3);">{{ package.status|replace('_', ' ')|title }}</p>
             {% endif %}
         </div>
         <button type="button"
@@ -47,7 +50,7 @@
             Upload document
         </button>
     </div>
-    {% endif %}
+{% endif %}
 
     {% if rows %}
     <ul class="crm-document-package__list" role="list">
@@ -70,10 +73,10 @@
             <div class="crm-document-row__main">
                 <div class="min-w-0">
                     <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-sm font-semibold text-slate-950">
+                        <p class="text-sm font-semibold" style="color: var(--ink);">
                             {{ row.label or row.template_name or 'Document' }}
                             {% if row.form_number %}
-                            <span class="font-medium text-slate-500">· {{ row.form_number }}</span>
+                            <span class="font-medium" style="color: var(--ink-3);">· {{ row.form_number }}</span>
                             {% endif %}
                         </p>
                         {{ badge(badge_label, badge_tone) }}
@@ -86,7 +89,7 @@
                 </div>
                 <div class="crm-document-row__actions">
                     {% if state == 'not_applicable' %}
-                    <span class="text-xs text-slate-400">—</span>
+                    <span class="text-xs" style="color: var(--ink-4);">—</span>
                     {% elif state == 'detected_in_package' and row.review_url %}
                     <a href="{{ row.review_url }}" class="crm-btn crm-btn-secondary crm-btn-sm min-h-11">Open parent PDF</a>
                     {% elif state == 'needs_classification' %}
@@ -132,6 +135,10 @@
         {% endfor %}
     </ul>
     {% else %}
-    <p class="px-4 py-5 text-sm text-slate-500">No documents in this package yet.</p>
+    <p class="px-4 py-5 text-sm" style="color: var(--ink-3);">No documents in this package yet.</p>
     {% endif %}
+{% if omit_header %}
+</div>
+{% else %}
 </section>
+{% endif %}

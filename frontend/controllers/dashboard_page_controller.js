@@ -464,12 +464,12 @@ export default class extends Controller {
     const tok = (name, fallback) => (root.getPropertyValue(name).trim() || fallback);
     // Prefer ink/accent tokens so the donut adapts to theme automatically.
     return [
-      tok("--accent",  "#c1623f"),
-      tok("--ink",     "#1d2026"),
-      tok("--ink-3",   "#7a7572"),
-      tok("--ink-4",   "#a39e9b"),
-      tok("--ink-5",   "#c9c5c1"),
-      tok("--paper-3", "#ebe7e2"),
+      tok("--accent",  "#fa586a"),
+      tok("--ink",     "#1d1d1f"),
+      tok("--ink-3",   "rgba(0,0,0,0.56)"),
+      tok("--ink-4",   "rgba(0,0,0,0.4)"),
+      tok("--ink-5",   "rgba(0,0,0,0.28)"),
+      tok("--paper-3", "#e5e5ea"),
     ];
   }
 }

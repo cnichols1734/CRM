@@ -158,7 +158,7 @@ def test_baselined_user_does_not_see_activation_prompts(app, client, seed):
         })
         dashboard = client.get('/dashboard?friction=1')
         assert dashboard.status_code == 200
-        assert b'What stopped you from finishing setup?' not in dashboard.data
+        assert b'What got in the way of setup?' not in dashboard.data
         assert b'Give this relationship a next date.' not in dashboard.data
         assert b'How do you want to start?' not in dashboard.data
     finally:

@@ -1,0 +1,1777 @@
+/* ============================================================
+   APPLE MUSIC SKIN — TEST LAYER
+   ------------------------------------------------------------
+   Remaps CRM design tokens + shells the chrome to match the
+   Apple Music web player (music.apple.com/us/new).
+
+   REVERT: remove the am_skin.css <link> and the `am-skin` class
+   from the FOUC script in templates/base.html.
+   ============================================================ */
+
+/* ── Tokens: dark (default when am-skin + dark theme) ─────── */
+html.am-skin[data-theme="dark"] {
+  --canvas: #1f1f1f;
+  --paper: #2c2c2e;
+  --paper-2: #3a3a3c;
+  --paper-3: #48484a;
+
+  --ink: hsla(0, 0%, 100%, 0.92);
+  --ink-2: hsla(0, 0%, 100%, 0.8);
+  --ink-3: hsla(0, 0%, 100%, 0.64);
+  --ink-4: hsla(0, 0%, 100%, 0.4);
+  --ink-5: hsla(0, 0%, 100%, 0.28);
+
+  --hairline: hsla(0, 0%, 100%, 0.1);
+  --hairline-strong: hsla(0, 0%, 100%, 0.16);
+
+  --accent: #fa586a;
+  --accent-ink: #fa586a;
+  --accent-soft: rgba(250, 88, 106, 0.16);
+  --accent-line: #fa586a;
+  --accent-on: #ffffff;
+
+  --positive: #32d74b;
+  --positive-soft: rgba(50, 215, 75, 0.16);
+  --warn: #ff9f0a;
+  --warn-soft: rgba(255, 159, 10, 0.16);
+  --info: #0a84ff;
+  --info-soft: rgba(10, 132, 255, 0.16);
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.16);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
+    "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-sans);
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --crm-shell: #000000;
+  --crm-shell-muted: #1c1c1e;
+  --crm-page: var(--canvas);
+  --crm-panel: var(--paper);
+  --crm-border: var(--hairline);
+  --crm-text: var(--ink);
+  --crm-muted: var(--ink-3);
+  --crm-accent: var(--accent);
+
+  --am-key-bg: #d60017;
+  --am-key-pressed: #b00;
+  --am-control-bg: #2c2c2e;
+  /* Liquid glass — lighter fill + deeper blur than stock AM */
+  --am-glass: rgba(28, 28, 30, 0.42);
+  --am-glass-border: rgba(255, 255, 255, 0.22);
+  --am-glass-shadow: rgba(0, 0, 0, 0.28) 0px 12px 48px 0px;
+  --am-glass-blur: saturate(2.4) blur(28px);
+}
+
+/* ── Tokens: light ──────────────────────────────────────────
+   Mirror dark-mode layering with true-neutral grays (no cool
+   #f2f2f7 / #f5f5f7 blue cast). Shell sits a step darker than
+   the main canvas; white paper cards lift off the canvas the
+   same way charcoal paper lifts off black in dark mode. */
+html.am-skin[data-theme="light"] {
+  /* Achromatic stack — shell → canvas → paper, same lift as dark */
+  --canvas: #f4f4f4;
+  --paper: #ffffff;
+  --paper-2: #f0f0f0;
+  --paper-3: #e4e4e4;
+
+  --ink: rgba(0, 0, 0, 0.88);
+  --ink-2: rgba(0, 0, 0, 0.72);
+  --ink-3: rgba(0, 0, 0, 0.56);
+  --ink-4: rgba(0, 0, 0, 0.4);
+  --ink-5: rgba(0, 0, 0, 0.28);
+
+  --hairline: rgba(0, 0, 0, 0.10);
+  --hairline-strong: rgba(0, 0, 0, 0.16);
+
+  --accent: #fa243c;
+  --accent-ink: #d60017;
+  --accent-soft: rgba(214, 0, 23, 0.1);
+  --accent-line: #fa243c;
+  --accent-on: #ffffff;
+
+  --positive: #248a3d;
+  --positive-soft: rgba(36, 138, 61, 0.12);
+  --warn: #c93400;
+  --warn-soft: rgba(201, 52, 0, 0.1);
+  --info: #0040dd;
+  --info-soft: rgba(0, 64, 221, 0.1);
+  --danger: #d70015;
+  --danger-soft: rgba(215, 0, 21, 0.1);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
+    "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-sans);
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --crm-shell: #e0e0e0;
+  --crm-shell-muted: #d6d6d6;
+  --crm-page: var(--canvas);
+  --crm-panel: var(--paper);
+  --crm-border: var(--hairline);
+  --crm-text: var(--ink);
+  --crm-muted: var(--ink-3);
+  --crm-accent: var(--accent);
+
+  --am-key-bg: #d60017;
+  --am-key-pressed: #b00;
+  --am-control-bg: #ebebeb;
+  /* Light glass — airier fill, same deep blur */
+  --am-glass: rgba(255, 255, 255, 0.48);
+  --am-glass-border: rgba(0, 0, 0, 0.08);
+  --am-glass-shadow: rgba(0, 0, 0, 0.12) 0px 12px 48px 0px;
+  --am-glass-blur: saturate(2.4) blur(28px);
+}
+
+/* ── Global type + selection ──────────────────────────────── */
+html.am-skin body {
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0;
+}
+html.am-skin ::selection {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* ── Shell chrome — Apple Music liquid glass ────────────────
+   Recipe from music.apple.com/us/new nav:
+     background: rgba(38, 38, 40, 0.6)
+     backdrop-filter: saturate(2.2) blur(16px)
+     border: 0.5px solid rgba(255,255,255,0.2)
+     border-radius: 20px
+     box-shadow: 0 10px 40px rgba(0,0,0,0.2)
+   Content scrolls full-bleed UNDER the glass chrome. */
+html.am-skin body.crm-shell {
+  background: #000000 !important;
+  position: relative;
+}
+html.am-skin[data-theme="light"] body.crm-shell {
+  background: #e0e0e0 !important;
+}
+
+/* Topbar: out of document flow so main fills the viewport and
+   scrolls underneath; glass samples that scrolling content. */
+html.am-skin header.crm-topbar {
+  position: absolute !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 60;
+  height: 3.5rem;
+  background: var(--am-glass) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  border-bottom: 0.5px solid var(--am-glass-border) !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+}
+html.am-skin header.crm-topbar .crm-brand-logo-wrap,
+html.am-skin header.md\:hidden .crm-brand-logo-wrap {
+  --crm-brand-logo-h: 1.75rem;
+}
+html.am-skin .crm-brand-logo {
+  height: var(--crm-brand-logo-h) !important;
+  max-height: var(--crm-brand-logo-h) !important;
+  width: auto !important;
+}
+html.am-skin[data-theme="dark"] header.crm-topbar {
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+/* Keep Tailwind `hidden md:flex` — only glassify when visible */
+@media (min-width: 768px) {
+  html.am-skin header.crm-topbar {
+    display: flex !important;
+  }
+}
+
+/* Mobile top bar — same glass */
+html.am-skin header.md\:hidden,
+html.am-skin header.bg-slate-950 {
+  background: var(--am-glass) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  border-bottom: 0.5px solid var(--am-glass-border) !important;
+  position: relative;
+  z-index: 60;
+}
+
+html.am-skin .crm-sidebar {
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+/* Sidebar: exact AM floating glass panel over scrolling content */
+@media (min-width: 768px) {
+  html.am-skin body.crm-shell > .flex.flex-1 {
+    /* Header is absolute; this row owns the full viewport. */
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  html.am-skin aside#sidebar.crm-sidebar {
+    position: absolute !important;
+    left: 0;
+    top: calc(3.5rem + 4px);
+    bottom: 8px;
+    width: var(--sidebar-width) !important;
+    margin: 0 0 0 8px !important;
+    height: auto !important;
+    z-index: 55;
+    background: var(--am-glass) !important;
+    backdrop-filter: var(--am-glass-blur) !important;
+    -webkit-backdrop-filter: var(--am-glass-blur) !important;
+    border: 0.5px solid var(--am-glass-border) !important;
+    border-radius: 20px !important;
+    box-shadow: var(--am-glass-shadow) !important;
+    overflow: hidden;
+  }
+
+  /* Main is full-bleed (left:0). Readable content is inset via
+     padding so heroes / cards can still peek through the glass. */
+  html.am-skin main#mainContent {
+    position: absolute !important;
+    inset: 0 !important;
+    margin-left: 0 !important;
+    border-top-left-radius: 0 !important;
+    border-radius: 0 !important;
+    z-index: 1;
+    background: var(--canvas) !important;
+    color: var(--ink) !important;
+  }
+
+  html.am-skin .content-wrapper {
+    background: var(--canvas) !important;
+    padding-top: 3.5rem;
+    padding-left: calc(var(--sidebar-width) + 8px);
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 767px) {
+  html.am-skin main#mainContent {
+    background: var(--canvas) !important;
+    color: var(--ink) !important;
+    border-top-left-radius: 0 !important;
+  }
+  html.am-skin .content-wrapper {
+    background: var(--canvas) !important;
+  }
+}
+
+/* Nav links — Apple Music selected state */
+html.am-skin .crm-nav-link {
+  border-radius: 8px !important;
+  color: hsla(0, 0%, 100%, 0.72) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+html.am-skin[data-theme="light"] .crm-nav-link {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+html.am-skin .crm-nav-link i {
+  color: inherit !important;
+}
+html.am-skin .crm-nav-link:hover {
+  background: hsla(0, 0%, 100%, 0.06) !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-nav-link:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+html.am-skin .crm-nav-link.is-active {
+  background: rgba(250, 88, 106, 0.16) !important;
+  color: #fa586a !important;
+}
+html.am-skin .crm-nav-link.is-active i {
+  color: #fa586a !important;
+}
+
+html.am-skin .crm-nav-badge {
+  background: rgba(250, 88, 106, 0.18) !important;
+  color: #fa586a !important;
+}
+html.am-skin .crm-nav-link--new::after {
+  background: #fa586a !important;
+}
+
+html.am-skin .crm-sidebar-toggle {
+  border-radius: 8px !important;
+  color: hsla(0, 0%, 100%, 0.64) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-toggle {
+  color: rgba(0, 0, 0, 0.56) !important;
+}
+html.am-skin .crm-sidebar-toggle:hover {
+  background: hsla(0, 0%, 100%, 0.08) !important;
+  color: #fa586a !important;
+}
+
+html.am-skin .crm-sidebar-avatar {
+  background: #2c2c2e !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-avatar {
+  background: #dcdcdc !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+html.am-skin .crm-sidebar-footer {
+  border-top-color: hsla(0, 0%, 100%, 0.1) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-footer {
+  border-top-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Topbar utility search — Apple control */
+html.am-skin .crm-utility-search input {
+  background: var(--am-control-bg) !important;
+  background-color: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-utility-search input::placeholder {
+  color: var(--ink-4) !important;
+}
+html.am-skin .crm-utility-search input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+}
+html.am-skin .crm-utility-search .search-icon {
+  color: var(--ink-4) !important;
+}
+
+html.am-skin .crm-utility-btn,
+html.am-skin .crm-theme-btn {
+  border-radius: 1000px !important;
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-utility-btn:hover,
+html.am-skin .crm-theme-btn:hover {
+  color: var(--accent) !important;
+}
+
+/* NProgress → Apple key red */
+html.am-skin #nprogress .bar {
+  background: #fa586a !important;
+  box-shadow: 0 0 8px rgba(250, 88, 106, 0.5) !important;
+}
+html.am-skin #nprogress .peg {
+  box-shadow: 0 0 14px rgba(250, 88, 106, 0.5) !important;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+html.am-skin .crm-btn {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  height: 32px;
+  padding-inline: 14px;
+  border-width: 0 !important;
+}
+html.am-skin .crm-btn-primary,
+html.am-skin .crm-btn-accent {
+  background: var(--am-key-bg) !important;
+  color: #fff !important;
+  border-color: var(--am-key-bg) !important;
+}
+html.am-skin .crm-btn-primary:hover,
+html.am-skin .crm-btn-accent:hover {
+  background: var(--am-key-pressed) !important;
+}
+html.am-skin .crm-btn-secondary,
+html.am-skin .crm-btn-subtle {
+  background: var(--am-control-bg) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-btn-secondary:hover,
+html.am-skin .crm-btn-subtle:hover {
+  color: var(--accent) !important;
+}
+
+/* Friction survey — choice tiles must lift off paper in both themes */
+html.am-skin .crm-friction__choice {
+  height: auto !important;
+  min-height: 3rem !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--hairline) !important;
+  background: var(--paper-2) !important;
+  color: var(--ink) !important;
+  padding: 0.75rem 0.9rem !important;
+  font-weight: 550 !important;
+}
+html.am-skin .crm-friction__choice:hover {
+  background: var(--accent-soft) !important;
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--hairline)) !important;
+  color: var(--accent-ink) !important;
+}
+
+/* ── Surfaces / panels / tables ───────────────────────────── */
+html.am-skin .crm-page {
+  background: var(--canvas) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page-title {
+  font-size: 34px !important;
+  font-weight: 700 !important;
+  line-height: 40px !important;
+  letter-spacing: 0.01em !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page-title em {
+  color: var(--ink-3) !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
+}
+html.am-skin .crm-page-description,
+html.am-skin .crm-section-description {
+  color: var(--ink-3) !important;
+  font-size: 13px !important;
+}
+html.am-skin .crm-eyebrow,
+html.am-skin .crm-section-kicker {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--ink-3) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+html.am-skin .crm-section-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+
+html.am-skin .crm-surface,
+html.am-skin .crm-table-wrap {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+/* Light mode: slightly stronger card edge so white-on-gray reads clearly */
+html.am-skin[data-theme="light"] .crm-surface,
+html.am-skin[data-theme="light"] .crm-table-wrap {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.am-skin .crm-surface-header {
+  border-bottom: 0.5px solid var(--hairline) !important;
+  background: transparent !important;
+}
+
+html.am-skin .crm-table th {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--ink-3) !important;
+  border-bottom: 0.5px solid var(--hairline) !important;
+  background: transparent !important;
+}
+html.am-skin .crm-table td {
+  border-bottom: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+}
+html.am-skin .crm-table tbody tr:hover {
+  background: hsla(0, 0%, 100%, 0.04) !important;
+}
+html.am-skin[data-theme="light"] .crm-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+html.am-skin .crm-table tbody tr.is-selected,
+html.am-skin .crm-table tbody tr.selected,
+html.am-skin tr[data-contacts-page-target="row"].is-selected {
+  background: rgba(250, 88, 106, 0.1) !important;
+}
+html.am-skin .crm-table-link {
+  color: var(--ink) !important;
+  font-weight: 500 !important;
+}
+
+/* Inputs — beat warm paper shells */
+html.am-skin input.crm-input,
+html.am-skin input.crm-search,
+html.am-skin select.crm-select,
+html.am-skin textarea.crm-textarea,
+html.am-skin .crm-input,
+html.am-skin .crm-select,
+html.am-skin .crm-textarea,
+html.am-skin .crm-search {
+  background: var(--am-control-bg) !important;
+  background-color: var(--am-control-bg) !important;
+  color: var(--ink) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+html.am-skin textarea.crm-textarea,
+html.am-skin .crm-textarea {
+  border-radius: 10px !important;
+}
+html.am-skin input.crm-input:focus,
+html.am-skin input.crm-search:focus,
+html.am-skin select.crm-select:focus,
+html.am-skin textarea.crm-textarea:focus,
+html.am-skin .crm-input:focus,
+html.am-skin .crm-select:focus,
+html.am-skin .crm-textarea:focus,
+html.am-skin .crm-search:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+}
+html.am-skin input::placeholder,
+html.am-skin textarea::placeholder {
+  color: var(--ink-4) !important;
+}
+
+/* Segmented control */
+html.am-skin .crm-segment {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  padding: 2px !important;
+}
+html.am-skin .crm-segment__item {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-segment__item.is-active {
+  background: var(--paper) !important;
+  color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+/* Badges / avatars */
+html.am-skin .crm-badge,
+html.am-skin [class*="badge"] {
+  border-radius: 1000px !important;
+}
+html.am-skin .crm-avatar {
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #fa586a 0%, #d60017 100%) !important;
+  color: #fff !important;
+}
+
+/* Contacts preview rail — one card only (.crm-rail__inner).
+   Outer .crm-rail is just a sticky gutter; .crm-rail__panel is content.
+   Absolute glass topbar is 3.5rem — keep sticky top below it. */
+html.am-skin .crm-rail {
+  --crm-rail-sticky-top: calc(3.5rem + 0.75rem);
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding-left: 16px !important;
+  top: var(--crm-rail-sticky-top) !important;
+  z-index: 40; /* under topbar (60), above table */
+}
+html.am-skin .crm-rail__panel {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-rail__inner {
+  max-height: calc(100vh - 3.5rem - 1.5rem) !important;
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow:
+    0 18px 44px -22px rgba(0, 0, 0, 0.18),
+    0 4px 14px -8px rgba(0, 0, 0, 0.08) !important;
+}
+html.am-skin[data-theme="light"] .crm-rail__inner {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 12px 28px -16px rgba(0, 0, 0, 0.14),
+    0 2px 8px -4px rgba(0, 0, 0, 0.06) !important;
+}
+html.am-skin[data-theme="dark"] .crm-rail__inner {
+  border: 0.5px solid hsla(0, 0%, 100%, 0.1) !important;
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.70),
+    0 6px 18px -10px rgba(0, 0, 0, 0.45) !important;
+}
+html.am-skin .crm-rail__name {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-rail__close {
+  border-radius: 50% !important;
+  background: var(--am-control-bg) !important;
+  color: var(--ink-3) !important;
+  border: none !important;
+}
+
+/* Toolbar */
+html.am-skin .crm-toolbar {
+  gap: 8px;
+}
+html.am-skin .crm-toolbar .crm-btn.is-active {
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
+}
+
+/* Empty states */
+html.am-skin .crm-empty,
+html.am-skin [class*="empty-state"] {
+  color: var(--ink-3);
+}
+
+/* Floating chrome — same liquid glass as the topbar / sidebar.
+   Notifications are portaled to <body> so this blur can sample the page
+   (nested under the glass topbar, backdrop-filter is a no-op). */
+html.am-skin .crm-user-dropdown,
+html.am-skin .crm-search-results,
+html.am-skin .crm-notification-popover {
+  background: var(--am-glass) !important;
+  background-color: var(--am-glass) !important;
+  border: 0.5px solid var(--am-glass-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--am-glass-shadow) !important;
+  color: var(--ink) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+}
+
+/* Keep glass readable: translucent hovers, hairline dividers */
+html.am-skin .crm-notification-popover .crm-notif-header,
+html.am-skin .crm-notification-popover .crm-notif-footer {
+  background: transparent !important;
+  border-color: var(--am-glass-border) !important;
+}
+html.am-skin .crm-notification-popover .crm-notif-item {
+  border-bottom-color: var(--am-glass-border) !important;
+}
+html.am-skin .crm-notification-popover .crm-notif-item:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
+}
+html.am-skin .crm-notification-popover .crm-notif-item.is-unread {
+  background: var(--accent-soft) !important;
+}
+html.am-skin .crm-notification-popover .crm-notif-footer:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent) !important;
+}
+
+html.am-skin .crm-user-dropdown .border-b,
+html.am-skin .crm-user-dropdown .border-t,
+html.am-skin .crm-user-dropdown .border-gray-200 {
+  border-color: var(--am-glass-border) !important;
+}
+html.am-skin .crm-user-dropdown a:hover,
+html.am-skin .crm-user-dropdown .hover\:bg-gray-50:hover,
+html.am-skin .crm-user-dropdown .hover\:bg-orange-50:hover,
+html.am-skin .crm-user-dropdown .hover\:bg-red-50:hover {
+  background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
+}
+html.am-skin .crm-user-dropdown .bg-blue-50,
+html.am-skin .crm-user-dropdown .bg-white {
+  background: color-mix(in srgb, var(--ink) 6%, transparent) !important;
+}
+html.am-skin .crm-search-results .crm-search-item:hover,
+html.am-skin .crm-search-results .crm-search-item.is-active {
+  background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
+}
+
+/* Flash toasts */
+html.am-skin .toast-message {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+}
+
+/* Mobile header on light skin — keep glass, not solid canvas */
+html.am-skin[data-theme="light"] header.bg-slate-950,
+html.am-skin[data-theme="light"] header.text-white.bg-slate-950 {
+  background: var(--am-glass) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  color: var(--ink) !important;
+  border-bottom: 0.5px solid var(--am-glass-border) !important;
+}
+
+/* Contacts create form legacy “premium” → Apple */
+html.am-skin .premium-input {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+html.am-skin .premium-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+  background: var(--am-control-bg) !important;
+}
+html.am-skin .premium-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .premium-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Kill warm orange gradient page wrappers on create contact */
+html.am-skin .bg-gradient-to-br.from-slate-50 {
+  background: var(--canvas) !important;
+}
+
+/* Checkbox accent */
+html.am-skin input[type="checkbox"],
+html.am-skin input[type="radio"] {
+  accent-color: var(--accent) !important;
+}
+
+/* Serif display headings → SF Pro bold */
+html.am-skin .crm-serif,
+html.am-skin .crm-avatar-serif {
+  font-family: var(--font-sans) !important;
+  font-weight: 700 !important;
+}
+
+/* Contacts list / detail density polish */
+html.am-skin .crm-contacts-layout {
+  gap: 16px;
+}
+html.am-skin .crm-filter-grid label,
+html.am-skin .crm-page label {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-page .text-slate-900,
+html.am-skin .crm-page .text-slate-800,
+html.am-skin .crm-page .font-semibold.text-slate-900 {
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page .text-slate-700,
+html.am-skin .crm-page .text-slate-600 {
+  color: var(--ink-2) !important;
+}
+html.am-skin .crm-page .text-slate-500,
+html.am-skin .crm-page .text-slate-400 {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-page .border-slate-200,
+html.am-skin .crm-page .border-slate-100,
+html.am-skin .crm-page .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--hairline) !important;
+}
+html.am-skin .crm-page .bg-slate-50,
+html.am-skin .crm-page .bg-slate-100,
+html.am-skin .crm-page .hover\:bg-slate-100:hover {
+  background: var(--paper-2) !important;
+}
+html.am-skin .crm-page a:hover {
+  color: var(--accent) !important;
+}
+
+/* Mobile slide-over nav */
+html.am-skin #mobileNavMenu {
+  background: #1c1c1e !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] #mobileNavMenu {
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+/* Group checkbox chips on create form */
+html.am-skin .groups-section label:has(input:checked) {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent-line) !important;
+  color: var(--accent-ink) !important;
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+
+html.am-skin .crm-kpi {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+html.am-skin[data-theme="light"] .crm-kpi {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.am-skin .crm-kpi__label {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-kpi__value {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-kpi__rail-kicker {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-spark-chart__line { stroke: var(--accent) !important; }
+html.am-skin .crm-spark-chart__grad-top { stop-color: var(--accent) !important; stop-opacity: 0.28; }
+html.am-skin .crm-spark-chart__grad-bot { stop-color: var(--accent) !important; stop-opacity: 0; }
+html.am-skin .crm-spark-chart__dot {
+  background: var(--accent) !important;
+  box-shadow: 0 0 0 1.5px var(--paper) !important;
+}
+
+html.am-skin .crm-magic-banner {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+}
+html.am-skin[data-theme="light"] .crm-magic-banner {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.am-skin .crm-magic-banner::before {
+  width: 3px !important;
+  background: var(--accent) !important;
+}
+html.am-skin .crm-magic-banner__glyph {
+  border-radius: 8px !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent) !important;
+}
+html.am-skin .crm-magic-banner__addr {
+  border-radius: 1000px !important;
+  border-style: solid !important;
+  background: var(--am-control-bg) !important;
+}
+
+html.am-skin .crm-board {
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  background: var(--paper-2) !important;
+}
+html.am-skin .crm-board-column {
+  border-color: var(--hairline) !important;
+  background: transparent !important;
+}
+html.am-skin .crm-deal-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-deal-card:hover {
+  border-color: var(--accent) !important;
+}
+html.am-skin .crm-list-item {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+}
+html.am-skin .crm-list-item:hover {
+  border-color: var(--accent-line) !important;
+}
+
+html.am-skin .crm-mi__kpi {
+  background: var(--paper-2) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+}
+html.am-skin .crm-mi__kpi:hover {
+  border-color: var(--accent-line) !important;
+}
+html.am-skin .crm-mi__toggle {
+  border-radius: 1000px !important;
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink-3) !important;
+}
+
+/* Dashboard activation / path cards */
+html.am-skin .crm-page .border-orange-300,
+html.am-skin .crm-page .border-orange-500,
+html.am-skin .crm-page .peer-checked\:border-orange-500:checked + span,
+html.am-skin .crm-page .peer-checked\:border-orange-500:is(:checked) ~ span {
+  border-color: var(--accent) !important;
+}
+html.am-skin .crm-page .bg-orange-50,
+html.am-skin .crm-page .bg-orange-100,
+html.am-skin .crm-page .hover\:bg-orange-100:hover,
+html.am-skin .crm-page .peer-checked\:bg-orange-50:checked + span {
+  background: var(--accent-soft) !important;
+}
+html.am-skin .crm-page .bg-orange-500,
+html.am-skin .crm-page .bg-orange-600,
+html.am-skin .crm-page .text-orange-500,
+html.am-skin .crm-page .text-orange-600,
+html.am-skin .crm-page .text-orange-800,
+html.am-skin .crm-page .peer-checked\:text-orange-800:checked + span {
+  color: var(--accent-ink) !important;
+}
+html.am-skin .crm-page .bg-orange-500,
+html.am-skin .crm-page .bg-orange-600 {
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+html.am-skin .crm-page input[type="checkbox"] {
+  accent-color: var(--accent) !important;
+}
+
+/* KPI bar fills used in macros */
+html.am-skin .am-bar-accent { background: var(--accent) !important; }
+html.am-skin .am-bar-ink { background: var(--ink-3) !important; }
+html.am-skin .am-bar-info { background: var(--info) !important; }
+html.am-skin .am-bar-track { background: var(--paper-2) !important; }
+
+/* Todo items rendered into the dashboard list */
+html.am-skin .todo-item {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+}
+html.am-skin .todo-item .todo-text {
+  color: var(--ink) !important;
+}
+html.am-skin .todo-item .todo-text:hover {
+  background: var(--paper-2) !important;
+}
+html.am-skin .todo-item .todo-checkbox {
+  accent-color: var(--accent) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .todo-item .todo-edit-input {
+  background: var(--am-control-bg) !important;
+  border-color: var(--accent) !important;
+  color: var(--ink) !important;
+  border-radius: 8px !important;
+}
+html.am-skin .todo-item .delete-todo:hover {
+  background: var(--danger-soft) !important;
+  color: var(--danger) !important;
+}
+
+/* Dashboard page utility text */
+html.am-skin .crm-page .text-slate-950,
+html.am-skin .crm-page .text-slate-900 {
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page code {
+  background: var(--am-control-bg) !important;
+  color: var(--ink-2) !important;
+  border-color: var(--hairline) !important;
+}
+
+/* ============================================================
+   GLOBAL APP REMAP — every base.html page
+   Lift utility + island overrides off .crm-page so reports,
+   transactions wizards, auth, admin, action plan, etc. inherit.
+   ============================================================ */
+
+/* Auth / legacy brand tokens (beat :root in page <style>) */
+html.am-skin {
+  --brand-orange: #fa243c;
+  --brand-navy: #1c1c1e;
+  --brand-navy-2: #000000;
+  --bg: var(--canvas);
+  --panel: var(--paper);
+  --text: var(--ink);
+  --muted: var(--ink-3);
+  --border: var(--hairline);
+  --focus: rgba(250, 88, 106, 0.28);
+  --shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+}
+
+/* ── Orange Tailwind utilities → Apple accent ─────────────── */
+html.am-skin .text-orange-400,
+html.am-skin .text-orange-500,
+html.am-skin .text-orange-600,
+html.am-skin .text-orange-700,
+html.am-skin .text-orange-800,
+html.am-skin .hover\:text-orange-500:hover,
+html.am-skin .hover\:text-orange-600:hover,
+html.am-skin .hover\:text-orange-700:hover {
+  color: var(--accent-ink) !important;
+}
+html.am-skin .bg-orange-50,
+html.am-skin .bg-orange-100,
+html.am-skin .bg-orange-200,
+html.am-skin .hover\:bg-orange-50:hover,
+html.am-skin .hover\:bg-orange-100:hover,
+html.am-skin .hover\:bg-orange-200:hover {
+  background-color: var(--accent-soft) !important;
+}
+html.am-skin .bg-orange-400,
+html.am-skin .bg-orange-500,
+html.am-skin .bg-orange-600,
+html.am-skin .bg-orange-700,
+html.am-skin .hover\:bg-orange-500:hover,
+html.am-skin .hover\:bg-orange-600:hover,
+html.am-skin .hover\:bg-orange-700:hover {
+  background-color: var(--am-key-bg) !important;
+  color: #fff !important;
+}
+html.am-skin .border-orange-200,
+html.am-skin .border-orange-300,
+html.am-skin .border-orange-400,
+html.am-skin .border-orange-500,
+html.am-skin .border-orange-600,
+html.am-skin .hover\:border-orange-300:hover,
+html.am-skin .hover\:border-orange-400:hover,
+html.am-skin .hover\:border-orange-500:hover {
+  border-color: var(--accent-line) !important;
+}
+html.am-skin .ring-orange-500,
+html.am-skin .focus\:ring-orange-500:focus,
+html.am-skin .focus\:border-orange-500:focus,
+html.am-skin .focus\:border-orange-400:focus {
+  --tw-ring-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+html.am-skin .from-orange-400,
+html.am-skin .from-orange-500,
+html.am-skin .from-orange-600 {
+  --tw-gradient-from: var(--am-key-bg) var(--tw-gradient-from-position) !important;
+  --tw-gradient-to: rgb(214 0 23 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
+}
+html.am-skin .via-orange-500 {
+  --tw-gradient-to: rgb(214 0 23 / 0) var(--tw-gradient-to-position) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--am-key-bg) var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
+}
+html.am-skin .to-orange-50,
+html.am-skin .to-orange-100,
+html.am-skin .to-orange-500,
+html.am-skin .to-orange-600,
+html.am-skin .to-orange-700,
+html.am-skin .to-amber-500 {
+  --tw-gradient-to: var(--am-key-bg) var(--tw-gradient-to-position) !important;
+}
+html.am-skin .hover\:from-orange-600:hover {
+  --tw-gradient-from: var(--am-key-pressed) var(--tw-gradient-from-position) !important;
+}
+html.am-skin .hover\:to-orange-700:hover {
+  --tw-gradient-to: var(--am-key-pressed) var(--tw-gradient-to-position) !important;
+}
+html.am-skin .shadow-orange-100,
+html.am-skin .shadow-orange-200,
+html.am-skin .shadow-orange-500\/20,
+html.am-skin .shadow-orange-500\/30 {
+  --tw-shadow-color: rgba(214, 0, 23, 0.18) !important;
+}
+
+/* Flatten warm page wrappers → canvas */
+html.am-skin .bg-gradient-to-br.from-slate-50,
+html.am-skin .bg-gradient-to-br.from-slate-50\/50,
+html.am-skin .bg-gradient-to-r.from-slate-50,
+html.am-skin .min-h-screen.bg-gradient-to-br,
+html.am-skin .min-h-full.bg-gradient-to-br,
+html.am-skin [class*="bg-gradient-to-br"][class*="from-slate-50"],
+html.am-skin [class*="bg-gradient-to-br"][class*="to-orange-50"],
+html.am-skin [class*="bg-gradient-to-br"][class*="to-violet-50"] {
+  background: var(--canvas) !important;
+  background-image: none !important;
+}
+
+/* Orange / navy CTA gradients → solid Apple key red */
+html.am-skin .bg-gradient-to-br.from-orange-500,
+html.am-skin .bg-gradient-to-r.from-orange-500,
+html.am-skin .bg-gradient-to-br.from-orange-600,
+html.am-skin .bg-gradient-to-r.from-orange-600,
+html.am-skin [class*="bg-gradient-"][class*="from-orange-500"],
+html.am-skin [class*="bg-gradient-"][class*="from-orange-600"] {
+  background: var(--am-key-bg) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+/* ── Slate utilities (global, not only .crm-page) ──────────── */
+html.am-skin main#mainContent .text-slate-950,
+html.am-skin main#mainContent .text-slate-900,
+html.am-skin main#mainContent .text-slate-800,
+html.am-skin .content-wrapper .text-slate-950,
+html.am-skin .content-wrapper .text-slate-900,
+html.am-skin .content-wrapper .text-slate-800 {
+  color: var(--ink) !important;
+}
+html.am-skin main#mainContent .text-slate-700,
+html.am-skin main#mainContent .text-slate-600,
+html.am-skin .content-wrapper .text-slate-700,
+html.am-skin .content-wrapper .text-slate-600 {
+  color: var(--ink-2) !important;
+}
+html.am-skin main#mainContent .text-slate-500,
+html.am-skin main#mainContent .text-slate-400,
+html.am-skin main#mainContent .text-slate-300,
+html.am-skin .content-wrapper .text-slate-500,
+html.am-skin .content-wrapper .text-slate-400 {
+  color: var(--ink-3) !important;
+}
+html.am-skin main#mainContent .bg-white,
+html.am-skin .content-wrapper .bg-white {
+  background-color: var(--paper) !important;
+}
+html.am-skin main#mainContent .bg-slate-50,
+html.am-skin main#mainContent .bg-slate-100,
+html.am-skin main#mainContent .hover\:bg-slate-50:hover,
+html.am-skin main#mainContent .hover\:bg-slate-100:hover,
+html.am-skin .content-wrapper .bg-slate-50,
+html.am-skin .content-wrapper .bg-slate-100 {
+  background-color: var(--paper-2) !important;
+}
+html.am-skin main#mainContent .border-slate-100,
+html.am-skin main#mainContent .border-slate-200,
+html.am-skin main#mainContent .border-slate-300,
+html.am-skin main#mainContent .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.am-skin main#mainContent .divide-slate-200 > :not([hidden]) ~ :not([hidden]),
+html.am-skin .content-wrapper .border-slate-100,
+html.am-skin .content-wrapper .border-slate-200,
+html.am-skin .content-wrapper .border-slate-300 {
+  border-color: var(--hairline) !important;
+}
+
+/* Generic focus rings on non-crm inputs */
+html.am-skin main#mainContent input:focus,
+html.am-skin main#mainContent select:focus,
+html.am-skin main#mainContent textarea:focus,
+html.am-skin .content-wrapper input:focus,
+html.am-skin .content-wrapper select:focus,
+html.am-skin .content-wrapper textarea:focus {
+  outline: none;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+}
+
+/* ── Premium form islands (auth, docs, action plan, tax) ─── */
+html.am-skin .premium-input,
+html.am-skin .premium-select,
+html.am-skin .premium-textarea {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+html.am-skin .premium-input:hover,
+html.am-skin .premium-select:hover,
+html.am-skin .premium-textarea:hover {
+  border-color: var(--hairline-strong) !important;
+}
+html.am-skin .premium-input:focus,
+html.am-skin .premium-select:focus,
+html.am-skin .premium-textarea:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+  background: var(--am-control-bg) !important;
+}
+html.am-skin .premium-radio-card {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: var(--ink) !important;
+}
+html.am-skin .premium-radio-card:hover {
+  border-color: var(--accent-line) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .premium-radio-card:has(:checked),
+html.am-skin .premium-radio-card.has-\[\:checked\]\:border-orange-500:has(:checked) {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .premium-btn {
+  border-radius: 1000px !important;
+  background: var(--am-key-bg) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .premium-btn::before {
+  display: none !important;
+}
+html.am-skin .premium-btn:hover {
+  background: var(--am-key-pressed) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+/* Secondary premium buttons that carry slate utilities keep muted look */
+html.am-skin .premium-btn.bg-slate-100,
+html.am-skin .premium-btn.text-slate-600,
+html.am-skin .premium-btn.text-slate-700 {
+  background: var(--am-control-bg) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .accent-line {
+  background: var(--accent) !important;
+  background-image: none !important;
+  animation: none !important;
+}
+html.am-skin .form-section {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  border-radius: 14px !important;
+}
+html.am-skin .form-section:hover,
+html.am-skin .form-section.active {
+  border-left-color: var(--accent) !important;
+  border-color: var(--hairline) !important;
+  box-shadow: none !important;
+}
+html.am-skin .form-label {
+  color: var(--ink-2) !important;
+}
+
+/* ── Action Plan island ───────────────────────────────────── */
+html.am-skin .plan-toc {
+  background: var(--paper-2) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+}
+html.am-skin .plan-toc-title { color: var(--ink-3) !important; }
+html.am-skin .plan-toc-link {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink-2) !important;
+  border-radius: 1000px !important;
+}
+html.am-skin .plan-toc-link:hover {
+  background: var(--am-key-bg) !important;
+  color: #fff !important;
+  border-color: var(--am-key-bg) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .plan-section,
+html.am-skin .pillar-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+html.am-skin .plan-section:hover,
+html.am-skin .pillar-card:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .pillar-card.pillar-1,
+html.am-skin .plan-subsection.pillar-1-sub {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  background-image: none !important;
+}
+html.am-skin .pillar-1 .pillar-card-number,
+html.am-skin .section-monthly .plan-section-icon,
+html.am-skin #planContent ol li::before {
+  background: var(--am-key-bg) !important;
+  background-image: none !important;
+}
+html.am-skin #planContent h1 {
+  background: none !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  color: var(--ink) !important;
+}
+html.am-skin #planContent h2 {
+  background: var(--paper-2) !important;
+  background-image: none !important;
+  color: var(--ink) !important;
+  border-left-color: var(--accent) !important;
+}
+html.am-skin #planContent p { color: var(--ink-3) !important; }
+html.am-skin #planContent strong { color: var(--ink) !important; }
+html.am-skin #planContent li {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink-2) !important;
+}
+
+/* ── Auth pages ───────────────────────────────────────────── */
+html.am-skin .login-page,
+html.am-skin .register-page {
+  font-family: var(--font-sans) !important;
+  background: var(--canvas) !important;
+  background-image: none !important;
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .card,
+html.am-skin .register-page .premium-card,
+html.am-skin .card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  box-shadow: none !important;
+  border-radius: 18px !important;
+}
+html.am-skin .login-page .left,
+html.am-skin .register-page .left {
+  background: #000000 !important;
+  background-image: none !important;
+}
+html.am-skin[data-theme="light"] .login-page .left,
+html.am-skin[data-theme="light"] .register-page .left {
+  background: #1c1c1e !important;
+}
+html.am-skin .login-page .left::before,
+html.am-skin .register-page .left::before {
+  background: var(--accent) !important;
+  background-image: none !important;
+}
+html.am-skin .login-page a,
+html.am-skin .register-page a {
+  color: var(--accent-ink) !important;
+}
+
+/* ── Shared CRM primitives polish ─────────────────────────── */
+html.am-skin .crm-pill-tabs {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+}
+html.am-skin .crm-pill-tab.is-active {
+  background: var(--paper) !important;
+  color: var(--accent) !important;
+}
+html.am-skin .crm-notice,
+html.am-skin .crm-setting-row,
+html.am-skin .crm-checklist-row,
+html.am-skin .crm-group-row,
+html.am-skin .crm-link-tile,
+html.am-skin .crm-stat,
+html.am-skin .crm-feature-row {
+  border-color: var(--hairline) !important;
+}
+html.am-skin .crm-meter__fill {
+  background: var(--accent) !important;
+}
+html.am-skin .crm-modal__panel {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35) !important;
+}
+html.am-skin .crm-btn-ghost {
+  color: var(--ink-2) !important;
+}
+html.am-skin .crm-btn-ghost:hover {
+  color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+}
+html.am-skin .crm-btn-danger,
+html.am-skin .crm-btn-critical {
+  border-radius: 1000px !important;
+}
+
+/* Briefing */
+html.am-skin [class*="crm-briefing"] {
+  border-color: var(--hairline);
+  color: var(--ink);
+}
+html.am-skin .crm-briefing-card,
+html.am-skin [class*="crm-briefing-card"] {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+}
+
+/* Document / transaction workspace accents */
+html.am-skin .crm-document-card,
+html.am-skin .crm-document-package,
+html.am-skin details.crm-document-package,
+html.am-skin .crm-document-upload-hub__panel,
+html.am-skin .crm-inspector,
+html.am-skin .crm-timeline {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-document-package__header,
+html.am-skin details.crm-document-package > summary.crm-document-package__header,
+html.am-skin .crm-document-upload-hub__header,
+html.am-skin .crm-document-upload-hub__footer {
+  background: transparent !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-document-package__list > li + li,
+html.am-skin .crm-document-row + .crm-document-row {
+  border-color: var(--hairline) !important;
+}
+html.am-skin .crm-document-row__reason {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-document-identity-card {
+  background: var(--paper-2) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .crm-document-package--unfiled {
+  background: var(--warn-soft) !important;
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--hairline)) !important;
+}
+/* Offer packages sit under the offers table — keep the whole island on tokens */
+html.am-skin #seller-panel-offers .crm-document-packages .crm-document-package,
+html.am-skin #seller-panel-offers .crm-document-packages details.crm-document-package {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+
+/* Offer command modal + new-offer dialog */
+html.am-skin .offer-command__panel {
+  background: var(--canvas) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .offer-command__header,
+html.am-skin .offer-command__doc {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin #sellerNewOfferModal > .bg-white,
+html.am-skin [id^="sellerOfferModal-"] .bg-white,
+html.am-skin .seller-offer-dropzone {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .seller-offer-dropzone {
+  background: var(--paper-2) !important;
+}
+
+/* Platform admin / reports tables without crm-table */
+html.am-skin main#mainContent table thead th {
+  color: var(--ink-3) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin main#mainContent table tbody td {
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+
+/* has-[:checked] orange peer patterns (Tailwind) */
+html.am-skin .has-\[\:checked\]\:border-orange-500:has(:checked),
+html.am-skin .has-\[\:checked\]\:border-orange-500:has(:checked) {
+  border-color: var(--accent) !important;
+}
+html.am-skin .has-\[\:checked\]\:bg-orange-50:has(:checked) {
+  background-color: var(--accent-soft) !important;
+}
+html.am-skin label.premium-radio-card:has(input:checked) {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+}
+
+/* Intake questionnaire pills */
+html.am-skin .toggle-card,
+html.am-skin .option-pill {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink-2) !important;
+  border-radius: 1000px !important;
+}
+html.am-skin .toggle-card:hover,
+html.am-skin .option-pill:hover {
+  background: var(--paper-2) !important;
+  border-color: var(--hairline-strong) !important;
+}
+html.am-skin .option-pill.selected {
+  border-color: var(--accent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
+}
+html.am-skin .toggle-input:focus-visible + .toggle-card,
+html.am-skin .option-input:focus-visible + .option-pill {
+  outline-color: var(--accent) !important;
+}
+
+/* Register auth panel */
+html.am-skin .register-panel {
+  background: var(--canvas) !important;
+  font-family: var(--font-sans) !important;
+}
+html.am-skin .register-panel .accent-line {
+  background: var(--accent) !important;
+  background-image: none !important;
+}
+
+/* Tax protest / reports “premium-table” */
+html.am-skin .premium-table,
+html.am-skin table.premium-table {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .premium-table th {
+  background: var(--paper-2) !important;
+  color: var(--ink-3) !important;
+}
+
+/* Kill leftover orange hex in common doc-form CSS islands */
+html.am-skin .premium-input:focus,
+html.am-skin .premium-select:focus,
+html.am-skin .premium-textarea:focus,
+html.am-skin input[type="checkbox"],
+html.am-skin input[type="radio"] {
+  accent-color: var(--accent) !important;
+}
+html.am-skin .form-section.active,
+html.am-skin .form-section:hover {
+  border-left-color: var(--accent) !important;
+}
+
+/* Empty-state slate leftovers */
+html.am-skin .crm-empty h3,
+html.am-skin .crm-empty .text-slate-900 {
+  color: var(--ink) !important;
+}
+html.am-skin .crm-empty p,
+html.am-skin .crm-empty .text-slate-500 {
+  color: var(--ink-3) !important;
+}
+
+/* Reports / tax protest leftovers */
+html.am-skin .report-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+html.am-skin .report-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: var(--accent-line) !important;
+}
+html.am-skin .focus\:ring-orange-500\/40:focus {
+  --tw-ring-color: rgba(250, 88, 106, 0.4) !important;
+}
+html.am-skin .hover\:bg-orange-50\/50:hover {
+  background-color: var(--accent-soft) !important;
+}
+html.am-skin [class*="from-orange-50"][class*="to-amber-50"],
+html.am-skin [class*="from-orange-50"] {
+  background: var(--accent-soft) !important;
+  background-image: none !important;
+}
+html.am-skin [class*="from-slate-800"][class*="to-slate-900"],
+html.am-skin .bg-gradient-to-br.from-slate-800 {
+  background: #1c1c1e !important;
+  background-image: none !important;
+}
+html.am-skin .to-amber-500 {
+  --tw-gradient-to: var(--am-key-bg) var(--tw-gradient-to-position) !important;
+}
+html.am-skin .shadow-orange-500\/25,
+html.am-skin .shadow-lg.shadow-orange-500\/25 {
+  --tw-shadow-color: rgba(214, 0, 23, 0.2) !important;
+  box-shadow: none !important;
+}
+
+/* Soften Tailwind elevation soup inside the app shell */
+html.am-skin main#mainContent .shadow-sm,
+html.am-skin main#mainContent .shadow,
+html.am-skin main#mainContent .shadow-md,
+html.am-skin main#mainContent .shadow-lg,
+html.am-skin main#mainContent .shadow-xl,
+html.am-skin main#mainContent .shadow-2xl {
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   PLATFORM ADMIN — light-locked CSS island → skin tokens
+   ============================================================ */
+html.am-skin .admin-card,
+html.am-skin .stat-card,
+html.am-skin .aggregate-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+}
+html.am-skin .admin-card:hover,
+html.am-skin .stat-card:hover,
+html.am-skin .aggregate-card:hover {
+  border-color: var(--hairline-strong) !important;
+  box-shadow: none !important;
+}
+
+/* Platform hero bands (Origen / totals) — theme-aware, no blue/pastel islands */
+html.am-skin .admin-hero {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 16px !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+html.am-skin[data-theme="dark"] .admin-hero {
+  background: #2c2c2e !important;
+}
+html.am-skin[data-theme="light"] .admin-hero {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+html.am-skin .admin-hero__icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--am-control-bg) !important;
+  flex-shrink: 0;
+}
+html.am-skin .admin-hero__stat {
+  background: var(--paper-2) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 12px !important;
+}
+html.am-skin[data-theme="dark"] .admin-hero__stat {
+  background: #3a3a3c !important;
+}
+html.am-skin[data-theme="light"] .admin-hero__stat {
+  background: #f0f0f0 !important;
+}
+html.am-skin .section-header {
+  background: var(--paper-2) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .admin-table {
+  color: var(--ink) !important;
+}
+html.am-skin .admin-table thead,
+html.am-skin .admin-table thead th {
+  background: var(--paper-2) !important;
+  background-image: none !important;
+  color: var(--ink-3) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .admin-table tbody,
+html.am-skin .admin-table tbody.bg-white {
+  background: var(--paper) !important;
+}
+html.am-skin .admin-table tbody tr:hover {
+  background: var(--accent-soft) !important;
+}
+html.am-skin .admin-table td,
+html.am-skin .admin-table th {
+  border-color: var(--hairline) !important;
+  color: inherit;
+}
+html.am-skin .admin-select,
+html.am-skin select.admin-select,
+html.am-skin textarea.admin-select {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+html.am-skin .admin-select:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+}
+html.am-skin .btn-admin-primary {
+  background: var(--am-key-bg) !important;
+  background-image: none !important;
+  color: #fff !important;
+  border-radius: 1000px !important;
+  box-shadow: none !important;
+}
+html.am-skin .btn-admin-primary:hover {
+  background: var(--am-key-pressed) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+html.am-skin .btn-admin-secondary {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+  border-radius: 1000px !important;
+}
+html.am-skin .btn-admin-secondary:hover {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent-line) !important;
+  color: var(--accent-ink) !important;
+}
+html.am-skin .btn-admin-success,
+html.am-skin .btn-admin-danger {
+  border-radius: 1000px !important;
+  box-shadow: none !important;
+  background-image: none !important;
+}
+html.am-skin .btn-admin-success {
+  background: var(--positive) !important;
+  color: #fff !important;
+}
+html.am-skin .btn-admin-danger {
+  background: var(--danger) !important;
+  color: #fff !important;
+}
+
+/* Hardcoded #fafafa footers / headers in platform templates */
+html.am-skin [style*="background: #fafafa"],
+html.am-skin [style*="background:#fafafa"] {
+  background: var(--paper-2) !important;
+}
+html.am-skin .page-fade-in {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--ink) !important;
+}
+
+/* Platform modals */
+html.am-skin #suspendModal > .bg-white,
+html.am-skin #deleteModal > .bg-white,
+html.am-skin #rejectModal > .bg-white,
+html.am-skin [id$="Modal"] > .bg-white,
+html.am-skin .fixed .bg-white.max-w-md {
+  background: var(--paper) !important;
+  color: var(--ink) !important;
+  border: 0.5px solid var(--hairline) !important;
+}
+
+/* Status pills that stay chalk-white in dark */
+html.am-skin .page-fade-in .bg-slate-100,
+html.am-skin .admin-card .bg-slate-100,
+html.am-skin .admin-table .bg-slate-100 {
+  background: var(--paper-2) !important;
+  color: var(--ink-2) !important;
+}
+html.am-skin .page-fade-in .bg-slate-50,
+html.am-skin .admin-card .bg-slate-50 {
+  background: var(--paper-2) !important;
+}
+html.am-skin .audit-mobile-card {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  box-shadow: none !important;
+}

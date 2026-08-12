@@ -252,6 +252,109 @@
 
   .crm-surface-body { @apply px-5 py-5; }
 
+  /* ── Friction survey (dashboard activation feedback) ─────── */
+  .crm-friction {
+    overflow: hidden;
+  }
+  .crm-friction__header {
+    padding: 1.25rem 1.25rem 1rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+  @media (min-width: 640px) {
+    .crm-friction__header {
+      padding: 1.35rem 1.75rem 1.1rem;
+    }
+  }
+  .crm-friction__title {
+    margin: 0.35rem 0 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--ink);
+  }
+  .crm-friction__help {
+    margin: 0.35rem 0 0;
+    max-width: 36rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--ink-3);
+  }
+  .crm-friction__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem 1.25rem;
+  }
+  @media (min-width: 640px) {
+    .crm-friction__grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.625rem;
+      padding: 1.1rem 1.75rem 1.5rem;
+    }
+  }
+  @media (min-width: 1100px) {
+    .crm-friction__grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .crm-friction__choice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-height: 3rem;
+    width: 100%;
+    padding: 0.75rem 0.9rem;
+    text-align: left;
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius);
+    background: var(--paper-2);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    cursor: pointer;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease;
+  }
+  .crm-friction__choice:hover {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--hairline));
+    color: var(--accent-ink);
+  }
+  .crm-friction__choice:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .crm-friction__choice-label {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .crm-friction__choice-icon {
+    flex-shrink: 0;
+    font-size: 0.65rem;
+    opacity: 0.45;
+    transition: opacity 120ms ease, transform 120ms ease;
+  }
+  .crm-friction__choice:hover .crm-friction__choice-icon {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .crm-friction__choice,
+    .crm-friction__choice-icon {
+      transition: none;
+    }
+    .crm-friction__choice:hover .crm-friction__choice-icon {
+      transform: none;
+    }
+  }
+
   /* ── Buttons ─────────────────────────────────────────────── */
   .crm-btn {
     display: inline-flex;
@@ -441,6 +544,32 @@
   }
   @media (min-width: 768px) {
     .crm-search { max-width: 22rem; }
+  }
+
+  /* Toolbar — search + actions stay on one row */
+  .crm-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+  .crm-toolbar__search {
+    position: relative;
+    flex: 1 1 12rem;
+    min-width: 0;
+    max-width: 22rem;
+  }
+  .crm-toolbar__search .crm-search {
+    max-width: none;
+  }
+  .crm-toolbar .crm-btn {
+    flex-shrink: 0;
+  }
+  .crm-toolbar .crm-btn.is-active {
+    background: var(--accent-soft);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--hairline));
+    color: var(--accent-ink);
   }
 
   /* ── Inputs ──────────────────────────────────────────────── */
@@ -640,35 +769,41 @@
      column with its own border-radius and shadow so it reads as a
      floating popover rather than a flush right-side panel.
 
-     Easing: cubic-bezier(.32, .72, 0, 1) is the iOS "anchor" curve --
-     smooth deceleration with a substantial mid-section so the motion
-     reads as deliberate rather than instant. */
+     Motion: Apple-style asymmetric curves — open springs in (ease-out,
+     no bounce), close settles faster. Card + grid share the same timing. */
   .crm-contacts-layout {
+    --crm-rail-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --crm-rail-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --crm-rail-open-ms: 620ms;
+    --crm-rail-close-ms: 380ms;
     grid-template-columns: minmax(0, 1fr) 0fr;
     gap: 0;
     align-items: start;
-    transition: grid-template-columns 540ms cubic-bezier(.32, .72, 0, 1);
+    transition: grid-template-columns var(--crm-rail-close-ms) var(--crm-rail-ease-in);
   }
   .crm-contacts-layout.is-open {
     /* Column hosts a 16px gap from the table + the card itself. */
     grid-template-columns: minmax(0, 1fr) 412px;
+    transition: grid-template-columns var(--crm-rail-open-ms) var(--crm-rail-ease-out);
   }
   /* Lets the table cell actually shrink instead of forcing the grid wider. */
   .crm-contacts-layout__table { min-width: 0; }
 
   .crm-rail {
+    --crm-rail-sticky-top: 1.5rem;
     overflow: hidden;
     padding-left: 16px; /* gap between table and floating card */
     pointer-events: none;
     position: sticky;
-    top: 24px;
+    top: var(--crm-rail-sticky-top);
     align-self: start;
+    z-index: 10; /* above table rows, below chrome */
   }
   .crm-contacts-layout.is-open .crm-rail { pointer-events: auto; }
 
   .crm-rail__inner {
     min-height: 320px;
-    max-height: calc(100vh - 72px);
+    max-height: calc(100vh - var(--crm-rail-sticky-top) - 1.5rem);
     overflow-y: auto;
     padding: 18px 20px 22px;
     background: var(--paper);
@@ -678,17 +813,23 @@
       0 18px 44px -22px rgba(15, 23, 42, 0.20),
       0 4px 14px -8px rgba(15, 23, 42, 0.10);
     opacity: 0;
-    transform: translateX(36px) scale(0.94);
-    transform-origin: top left;
+    transform: translate3d(20px, 8px, 0) scale(0.96);
+    transform-origin: top right;
+    /* Closed / exit timing (when .is-open is removed) */
     transition:
-      transform 560ms cubic-bezier(.32, .72, 0, 1),
-      opacity 380ms cubic-bezier(.32, .72, 0, 1) 80ms,
-      box-shadow 280ms ease;
+      transform var(--crm-rail-close-ms, 380ms) var(--crm-rail-ease-in, cubic-bezier(0.4, 0, 1, 1)),
+      opacity 260ms var(--crm-rail-ease-in, cubic-bezier(0.4, 0, 1, 1)),
+      box-shadow 260ms ease;
     will-change: transform, opacity;
   }
   .crm-contacts-layout.is-open .crm-rail__inner {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translate3d(0, 0, 0) scale(1);
+    /* Open / enter spring (ease-out, no overshoot) */
+    transition:
+      transform var(--crm-rail-open-ms, 620ms) var(--crm-rail-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      opacity 340ms var(--crm-rail-ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      box-shadow 400ms ease;
   }
   /* Dark mode: lift the shadow a hair so the card reads as floating
      against the dark canvas without competing with the surface tone. */
@@ -698,21 +839,20 @@
       0 6px 18px -10px rgba(0, 0, 0, 0.45);
   }
 
-  /* Inner content (panel, skeleton, error fallback) gets a fresh
-     fade-up each time it's injected. Triggers automatically on every
-     new child in the rail body, so warm swaps cross-fade without any
-     extra JS bookkeeping. */
+  /* Inner content fades up just after the card settles — same spring. */
   .crm-rail__inner > * {
-    animation: crm-rail-content-in 320ms cubic-bezier(.32, .72, 0, 1) both;
+    animation: crm-rail-content-in 480ms var(--crm-rail-ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 40ms both;
   }
   .crm-rail__inner > .is-leaving {
     animation: none;
     opacity: 0;
-    transform: translateY(-2px);
-    transition: opacity 160ms ease, transform 160ms ease;
+    transform: translateY(4px) scale(0.985);
+    transition:
+      opacity 180ms var(--crm-rail-ease-in, cubic-bezier(0.4, 0, 1, 1)),
+      transform 180ms var(--crm-rail-ease-in, cubic-bezier(0.4, 0, 1, 1));
   }
   @keyframes crm-rail-content-in {
-    0% { opacity: 0; transform: translateY(6px); }
+    0% { opacity: 0; transform: translateY(12px); }
     100% { opacity: 1; transform: translateY(0); }
   }
 
@@ -870,13 +1010,16 @@
 
   @media (prefers-reduced-motion: reduce) {
     .crm-contacts-layout,
+    .crm-contacts-layout.is-open,
     .crm-rail,
     .crm-rail__inner,
+    .crm-contacts-layout.is-open .crm-rail__inner,
+    .crm-rail__inner > *,
     .crm-rail__skeleton-line {
-      transition: none;
-      animation: none;
+      transition: none !important;
+      animation: none !important;
     }
-    .crm-rail__inner { transform: none; }
+    .crm-rail__inner { transform: none; opacity: 1; }
   }
 
   /* ── Tables ──────────────────────────────────────────────── */
@@ -2781,34 +2924,67 @@
 
 /* Document packages + upload hub (VTC document-first workspace) */
 .crm-document-package {
-  @apply rounded-md border border-slate-200 bg-white;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
 }
 .crm-document-package--unfiled {
-  @apply border-amber-200 bg-amber-50/40;
+  border-color: color-mix(in srgb, var(--warn) 35%, var(--hairline));
+  background: var(--warn-soft);
 }
 .crm-document-package__header {
-  @apply flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--hairline);
+  background: transparent;
 }
 .crm-document-package__header--unfiled {
-  @apply border-amber-100 bg-amber-50/80;
+  border-bottom-color: color-mix(in srgb, var(--warn) 25%, var(--hairline));
+  background: color-mix(in srgb, var(--warn-soft) 70%, transparent);
 }
 .crm-document-package__list {
-  @apply divide-y divide-slate-100;
+  display: flex;
+  flex-direction: column;
+}
+.crm-document-package__list > li + li,
+.crm-document-package__list > .crm-document-row + .crm-document-row {
+  border-top: 1px solid var(--hairline);
 }
 .crm-document-row {
-  @apply px-4 py-2.5;
+  padding: 0.625rem 1rem;
 }
 .crm-document-row__main {
-  @apply flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+@media (min-width: 640px) {
+  .crm-document-row__main {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 .crm-document-row__reason {
-  @apply mt-1 text-xs leading-5 text-slate-500;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  color: var(--ink-3);
 }
 .crm-document-row__actions {
-  @apply flex flex-wrap items-center gap-2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 .crm-document-row__actions .crm-btn {
-  @apply min-h-11;
+  min-height: 2.75rem;
 }
 .crm-document-upload-hub {
   border: none;
@@ -2817,22 +2993,41 @@
   max-width: calc(100vw - 2rem);
 }
 .crm-document-upload-hub::backdrop {
-  background: rgb(15 23 42 / 0.45);
+  background: rgb(0 0 0 / 0.45);
 }
 .crm-document-upload-hub__panel {
-  @apply w-full max-w-lg rounded-md border border-slate-200 bg-white shadow-panel;
+  width: 100%;
+  max-width: 32rem;
+  border-radius: var(--radius-lg, 14px);
+  border: 1px solid var(--hairline);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 18px 44px -22px rgba(0, 0, 0, 0.35);
 }
 .crm-document-upload-hub__header {
-  @apply flex items-start justify-between gap-3 border-b border-slate-100 px-4 py-4;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--hairline);
 }
 .crm-document-upload-hub__body {
-  @apply px-4 py-4;
+  padding: 1rem;
 }
 .crm-document-upload-hub__footer {
-  @apply flex flex-wrap justify-end gap-2 border-t border-slate-100 px-4 py-3;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--hairline);
 }
 .crm-document-identity-card {
-  @apply rounded-md border border-slate-200 bg-slate-50 p-4;
+  border-radius: var(--radius, 8px);
+  border: 1px solid var(--hairline);
+  background: var(--paper-2);
+  padding: 1rem;
 }
 
 /* Pin review-page chrome: header + sidebar stay put; panes scroll inside */
