@@ -1,0 +1,625 @@
+/* ============================================================
+   APPLE MUSIC SKIN — TEST LAYER
+   ------------------------------------------------------------
+   Remaps CRM design tokens + shells the chrome to match the
+   Apple Music web player (music.apple.com/us/new).
+
+   REVERT: remove the am_skin.css <link> and the `am-skin` class
+   from the FOUC script in templates/base.html.
+   ============================================================ */
+
+/* ── Tokens: dark (default when am-skin + dark theme) ─────── */
+html.am-skin[data-theme="dark"] {
+  --canvas: #1f1f1f;
+  --paper: #2c2c2e;
+  --paper-2: #3a3a3c;
+  --paper-3: #48484a;
+
+  --ink: hsla(0, 0%, 100%, 0.92);
+  --ink-2: hsla(0, 0%, 100%, 0.8);
+  --ink-3: hsla(0, 0%, 100%, 0.64);
+  --ink-4: hsla(0, 0%, 100%, 0.4);
+  --ink-5: hsla(0, 0%, 100%, 0.28);
+
+  --hairline: hsla(0, 0%, 100%, 0.1);
+  --hairline-strong: hsla(0, 0%, 100%, 0.16);
+
+  --accent: #fa586a;
+  --accent-ink: #fa586a;
+  --accent-soft: rgba(250, 88, 106, 0.16);
+  --accent-line: #fa586a;
+  --accent-on: #ffffff;
+
+  --positive: #32d74b;
+  --positive-soft: rgba(50, 215, 75, 0.16);
+  --warn: #ff9f0a;
+  --warn-soft: rgba(255, 159, 10, 0.16);
+  --info: #0a84ff;
+  --info-soft: rgba(10, 132, 255, 0.16);
+  --danger: #ff453a;
+  --danger-soft: rgba(255, 69, 58, 0.16);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
+    "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-sans);
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --crm-shell: #000000;
+  --crm-shell-muted: #1c1c1e;
+  --crm-page: var(--canvas);
+  --crm-panel: var(--paper);
+  --crm-border: var(--hairline);
+  --crm-text: var(--ink);
+  --crm-muted: var(--ink-3);
+  --crm-accent: var(--accent);
+
+  --am-key-bg: #d60017;
+  --am-key-pressed: #b00;
+  --am-control-bg: #2c2c2e;
+  --am-glass: rgba(38, 38, 40, 0.72);
+}
+
+/* ── Tokens: light ──────────────────────────────────────────
+   Mirror dark-mode lift: page sits on Apple grouped gray,
+   cards stay pure white so sections read clearly. */
+html.am-skin[data-theme="light"] {
+  --canvas: #f2f2f7;
+  --paper: #ffffff;
+  --paper-2: #f2f2f7;
+  --paper-3: #e5e5ea;
+
+  --ink: rgba(0, 0, 0, 0.88);
+  --ink-2: rgba(0, 0, 0, 0.72);
+  --ink-3: rgba(0, 0, 0, 0.56);
+  --ink-4: rgba(0, 0, 0, 0.4);
+  --ink-5: rgba(0, 0, 0, 0.28);
+
+  --hairline: rgba(0, 0, 0, 0.12);
+  --hairline-strong: rgba(0, 0, 0, 0.18);
+
+  --accent: #fa243c;
+  --accent-ink: #d60017;
+  --accent-soft: rgba(214, 0, 23, 0.1);
+  --accent-line: #fa243c;
+  --accent-on: #ffffff;
+
+  --positive: #248a3d;
+  --positive-soft: rgba(36, 138, 61, 0.12);
+  --warn: #c93400;
+  --warn-soft: rgba(201, 52, 0, 0.1);
+  --info: #0040dd;
+  --info-soft: rgba(0, 64, 221, 0.1);
+  --danger: #d70015;
+  --danger-soft: rgba(215, 0, 21, 0.1);
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro", "SF Pro Text",
+    "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-serif: var(--font-sans);
+
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 14px;
+
+  --crm-shell: #f5f5f7;
+  --crm-shell-muted: #e8e8ed;
+  --crm-page: var(--canvas);
+  --crm-panel: var(--paper);
+  --crm-border: var(--hairline);
+  --crm-text: var(--ink);
+  --crm-muted: var(--ink-3);
+  --crm-accent: var(--accent);
+
+  --am-key-bg: #d60017;
+  --am-key-pressed: #b00;
+  --am-control-bg: #f2f2f7;
+  --am-glass: rgba(250, 250, 250, 0.85);
+}
+
+/* ── Global type + selection ──────────────────────────────── */
+html.am-skin body {
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0;
+}
+html.am-skin ::selection {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* ── Shell chrome ─────────────────────────────────────────── */
+html.am-skin body.crm-shell {
+  background: #000000 !important;
+}
+html.am-skin[data-theme="light"] body.crm-shell {
+  background: #f5f5f7 !important;
+}
+
+html.am-skin header.crm-topbar {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+
+html.am-skin .crm-sidebar {
+  background: transparent !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar {
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+html.am-skin main#mainContent {
+  background: var(--canvas) !important;
+  color: var(--ink) !important;
+  border-top-left-radius: 20px !important;
+}
+html.am-skin .content-wrapper {
+  background: var(--canvas) !important;
+}
+
+/* Nav links — Apple Music selected state */
+html.am-skin .crm-nav-link {
+  border-radius: 8px !important;
+  color: hsla(0, 0%, 100%, 0.72) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+html.am-skin[data-theme="light"] .crm-nav-link {
+  color: rgba(0, 0, 0, 0.72) !important;
+}
+html.am-skin .crm-nav-link i {
+  color: inherit !important;
+}
+html.am-skin .crm-nav-link:hover {
+  background: hsla(0, 0%, 100%, 0.06) !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-nav-link:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+html.am-skin .crm-nav-link.is-active {
+  background: rgba(250, 88, 106, 0.16) !important;
+  color: #fa586a !important;
+}
+html.am-skin .crm-nav-link.is-active i {
+  color: #fa586a !important;
+}
+
+html.am-skin .crm-nav-badge {
+  background: rgba(250, 88, 106, 0.18) !important;
+  color: #fa586a !important;
+}
+html.am-skin .crm-nav-link--new::after {
+  background: #fa586a !important;
+}
+
+html.am-skin .crm-sidebar-toggle {
+  border-radius: 8px !important;
+  color: hsla(0, 0%, 100%, 0.64) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-toggle {
+  color: rgba(0, 0, 0, 0.56) !important;
+}
+html.am-skin .crm-sidebar-toggle:hover {
+  background: hsla(0, 0%, 100%, 0.08) !important;
+  color: #fa586a !important;
+}
+
+html.am-skin .crm-sidebar-avatar {
+  background: #2c2c2e !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-avatar {
+  background: #e5e5ea !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+html.am-skin .crm-sidebar-footer {
+  border-top-color: hsla(0, 0%, 100%, 0.1) !important;
+}
+html.am-skin[data-theme="light"] .crm-sidebar-footer {
+  border-top-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Topbar utility search — Apple control */
+html.am-skin .crm-utility-search input {
+  background: var(--am-control-bg) !important;
+  background-color: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-utility-search input::placeholder {
+  color: var(--ink-4) !important;
+}
+html.am-skin .crm-utility-search input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+}
+html.am-skin .crm-utility-search .search-icon {
+  color: var(--ink-4) !important;
+}
+
+html.am-skin .crm-utility-btn,
+html.am-skin .crm-theme-btn {
+  border-radius: 1000px !important;
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-utility-btn:hover,
+html.am-skin .crm-theme-btn:hover {
+  color: var(--accent) !important;
+}
+
+/* NProgress → Apple key red */
+html.am-skin #nprogress .bar {
+  background: #fa586a !important;
+  box-shadow: 0 0 8px rgba(250, 88, 106, 0.5) !important;
+}
+html.am-skin #nprogress .peg {
+  box-shadow: 0 0 14px rgba(250, 88, 106, 0.5) !important;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+html.am-skin .crm-btn {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  height: 32px;
+  padding-inline: 14px;
+  border-width: 0 !important;
+}
+html.am-skin .crm-btn-primary,
+html.am-skin .crm-btn-accent {
+  background: var(--am-key-bg) !important;
+  color: #fff !important;
+  border-color: var(--am-key-bg) !important;
+}
+html.am-skin .crm-btn-primary:hover,
+html.am-skin .crm-btn-accent:hover {
+  background: var(--am-key-pressed) !important;
+}
+html.am-skin .crm-btn-secondary,
+html.am-skin .crm-btn-subtle {
+  background: var(--am-control-bg) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-btn-secondary:hover,
+html.am-skin .crm-btn-subtle:hover {
+  color: var(--accent) !important;
+}
+
+/* ── Surfaces / panels / tables ───────────────────────────── */
+html.am-skin .crm-page {
+  background: var(--canvas) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page-title {
+  font-size: 34px !important;
+  font-weight: 700 !important;
+  line-height: 40px !important;
+  letter-spacing: 0.01em !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page-title em {
+  color: var(--ink-3) !important;
+  font-style: normal !important;
+  font-weight: 700 !important;
+}
+html.am-skin .crm-page-description,
+html.am-skin .crm-section-description {
+  color: var(--ink-3) !important;
+  font-size: 13px !important;
+}
+html.am-skin .crm-eyebrow,
+html.am-skin .crm-section-kicker {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--ink-3) !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+}
+html.am-skin .crm-section-title {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+
+html.am-skin .crm-surface,
+html.am-skin .crm-table-wrap {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+}
+/* Light mode: slightly stronger card edge so white-on-gray reads clearly */
+html.am-skin[data-theme="light"] .crm-surface,
+html.am-skin[data-theme="light"] .crm-table-wrap {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+html.am-skin .crm-surface-header {
+  border-bottom: 0.5px solid var(--hairline) !important;
+  background: transparent !important;
+}
+
+html.am-skin .crm-table th {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: var(--ink-3) !important;
+  border-bottom: 0.5px solid var(--hairline) !important;
+  background: transparent !important;
+}
+html.am-skin .crm-table td {
+  border-bottom: 0.5px solid var(--hairline) !important;
+  color: var(--ink) !important;
+  font-size: 13px !important;
+}
+html.am-skin .crm-table tbody tr:hover {
+  background: hsla(0, 0%, 100%, 0.04) !important;
+}
+html.am-skin[data-theme="light"] .crm-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03) !important;
+}
+html.am-skin .crm-table tbody tr.is-selected,
+html.am-skin .crm-table tbody tr.selected,
+html.am-skin tr[data-contacts-page-target="row"].is-selected {
+  background: rgba(250, 88, 106, 0.1) !important;
+}
+html.am-skin .crm-table-link {
+  color: var(--ink) !important;
+  font-weight: 500 !important;
+}
+
+/* Inputs — beat warm paper shells */
+html.am-skin input.crm-input,
+html.am-skin input.crm-search,
+html.am-skin select.crm-select,
+html.am-skin textarea.crm-textarea,
+html.am-skin .crm-input,
+html.am-skin .crm-select,
+html.am-skin .crm-textarea,
+html.am-skin .crm-search {
+  background: var(--am-control-bg) !important;
+  background-color: var(--am-control-bg) !important;
+  color: var(--ink) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+html.am-skin textarea.crm-textarea,
+html.am-skin .crm-textarea {
+  border-radius: 10px !important;
+}
+html.am-skin input.crm-input:focus,
+html.am-skin input.crm-search:focus,
+html.am-skin select.crm-select:focus,
+html.am-skin textarea.crm-textarea:focus,
+html.am-skin .crm-input:focus,
+html.am-skin .crm-select:focus,
+html.am-skin .crm-textarea:focus,
+html.am-skin .crm-search:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+}
+html.am-skin input::placeholder,
+html.am-skin textarea::placeholder {
+  color: var(--ink-4) !important;
+}
+
+/* Segmented control */
+html.am-skin .crm-segment {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 1000px !important;
+  padding: 2px !important;
+}
+html.am-skin .crm-segment__item {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-segment__item.is-active {
+  background: var(--paper) !important;
+  color: var(--accent) !important;
+  box-shadow: none !important;
+}
+
+/* Badges / avatars */
+html.am-skin .crm-badge,
+html.am-skin [class*="badge"] {
+  border-radius: 1000px !important;
+}
+html.am-skin .crm-avatar {
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #fa586a 0%, #d60017 100%) !important;
+  color: #fff !important;
+}
+
+/* Contacts preview rail — one card only (.crm-rail__inner).
+   Outer .crm-rail is just a sticky gutter; .crm-rail__panel is content. */
+html.am-skin .crm-rail {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding-left: 16px !important;
+}
+html.am-skin .crm-rail__panel {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-rail__inner {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow:
+    0 18px 44px -22px rgba(0, 0, 0, 0.18),
+    0 4px 14px -8px rgba(0, 0, 0, 0.08) !important;
+}
+html.am-skin[data-theme="light"] .crm-rail__inner {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow:
+    0 12px 28px -16px rgba(0, 0, 0, 0.14),
+    0 2px 8px -4px rgba(0, 0, 0, 0.06) !important;
+}
+html.am-skin[data-theme="dark"] .crm-rail__inner {
+  border: 0.5px solid hsla(0, 0%, 100%, 0.1) !important;
+  box-shadow:
+    0 24px 60px -28px rgba(0, 0, 0, 0.70),
+    0 6px 18px -10px rgba(0, 0, 0, 0.45) !important;
+}
+html.am-skin .crm-rail__name {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--ink) !important;
+}
+html.am-skin .crm-rail__close {
+  border-radius: 50% !important;
+  background: var(--am-control-bg) !important;
+  color: var(--ink-3) !important;
+  border: none !important;
+}
+
+/* Toolbar */
+html.am-skin .crm-toolbar {
+  gap: 10px;
+}
+
+/* Empty states */
+html.am-skin .crm-empty,
+html.am-skin [class*="empty-state"] {
+  color: var(--ink-3);
+}
+
+/* Modals / dropdowns */
+html.am-skin .crm-user-dropdown,
+html.am-skin .crm-search-results,
+html.am-skin .crm-notification-popover {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35) !important;
+  color: var(--ink) !important;
+  backdrop-filter: saturate(2.2) blur(20px);
+  -webkit-backdrop-filter: saturate(2.2) blur(20px);
+}
+
+/* Flash toasts */
+html.am-skin .toast-message {
+  border-radius: 1000px !important;
+  font-size: 13px !important;
+}
+
+/* Mobile header on light skin */
+html.am-skin[data-theme="light"] header.bg-slate-950,
+html.am-skin[data-theme="light"] header.text-white.bg-slate-950 {
+  background: var(--canvas) !important;
+  color: var(--ink) !important;
+  border-bottom: 0.5px solid var(--hairline) !important;
+}
+
+/* Contacts create form legacy “premium” → Apple */
+html.am-skin .premium-input {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 10px !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+}
+html.am-skin .premium-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+  background: var(--am-control-bg) !important;
+}
+html.am-skin .premium-card {
+  background: var(--paper) !important;
+  border: 0.5px solid var(--hairline) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+html.am-skin .premium-card:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Kill warm orange gradient page wrappers on create contact */
+html.am-skin .bg-gradient-to-br.from-slate-50 {
+  background: var(--canvas) !important;
+}
+
+/* Checkbox accent */
+html.am-skin input[type="checkbox"],
+html.am-skin input[type="radio"] {
+  accent-color: var(--accent) !important;
+}
+
+/* Serif display headings → SF Pro bold */
+html.am-skin .crm-serif,
+html.am-skin .crm-avatar-serif {
+  font-family: var(--font-sans) !important;
+  font-weight: 700 !important;
+}
+
+/* Contacts list / detail density polish */
+html.am-skin .crm-contacts-layout {
+  gap: 16px;
+}
+html.am-skin .crm-filter-grid label,
+html.am-skin .crm-page label {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-page .text-slate-900,
+html.am-skin .crm-page .text-slate-800,
+html.am-skin .crm-page .font-semibold.text-slate-900 {
+  color: var(--ink) !important;
+}
+html.am-skin .crm-page .text-slate-700,
+html.am-skin .crm-page .text-slate-600 {
+  color: var(--ink-2) !important;
+}
+html.am-skin .crm-page .text-slate-500,
+html.am-skin .crm-page .text-slate-400 {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-page .border-slate-200,
+html.am-skin .crm-page .border-slate-100,
+html.am-skin .crm-page .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--hairline) !important;
+}
+html.am-skin .crm-page .bg-slate-50,
+html.am-skin .crm-page .bg-slate-100,
+html.am-skin .crm-page .hover\:bg-slate-100:hover {
+  background: var(--paper-2) !important;
+}
+html.am-skin .crm-page a:hover {
+  color: var(--accent) !important;
+}
+
+/* Mobile slide-over nav */
+html.am-skin #mobileNavMenu {
+  background: #1c1c1e !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin[data-theme="light"] #mobileNavMenu {
+  background: #ffffff !important;
+  color: rgba(0, 0, 0, 0.88) !important;
+}
+
+/* Group checkbox chips on create form */
+html.am-skin .groups-section label:has(input:checked) {
+  background: var(--accent-soft) !important;
+  border-color: var(--accent-line) !important;
+  color: var(--accent-ink) !important;
+}

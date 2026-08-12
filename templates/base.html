@@ -15,6 +15,8 @@
             try {
                 var stored = localStorage.getItem('crm-theme') || 'light';
                 document.documentElement.dataset.theme = stored === 'dark' ? 'dark' : 'light';
+                /* APPLE MUSIC SKIN TEST — remove this line to revert shell/contacts look */
+                document.documentElement.classList.add('am-skin');
             } catch (e) { /* ignore */ }
         })();
     </script>
@@ -28,6 +30,8 @@
 
     <!-- Critical CSS: app bundle loaded synchronously (contains Tailwind utilities for layout) -->
     <link rel="stylesheet" href="{{ url_for('static', filename='dist/app.css') }}">
+    <!-- APPLE MUSIC SKIN TEST — remove this link to revert -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/am_skin.css') }}">
 
     <!-- Non-critical CSS: loaded async via media swap to avoid render-blocking -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" media="print" onload="this.media='all'">
