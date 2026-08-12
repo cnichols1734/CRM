@@ -32,10 +32,23 @@ updates:
       interval: "weekly"
       day: "monday"
     open-pull-requests-limit: 2
+    # Tailwind v4 / Vite 8+ need a deliberate migration (PostCSS plugin split, etc).
+    # Keep Dependabot on patch/minor only for the frontend build toolchain.
+    ignore:
+      - dependency-name: "tailwindcss"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@tailwindcss/*"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-dependencies:
         patterns:
           - "*"
+        exclude-patterns:
+          - "tailwindcss"
+          - "vite"
+          - "@tailwindcss/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
