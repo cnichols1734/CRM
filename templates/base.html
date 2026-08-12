@@ -1693,6 +1693,9 @@
             --bob-navy: var(--ink) !important;
             --bob-navy-dark: var(--ink) !important;
             --bob-gradient: var(--accent) !important;
+            --bob-chip-bg: var(--paper) !important;
+            --bob-code-bg: var(--paper-3) !important;
+            --bob-code-fg: var(--ink) !important;
             background: var(--paper) !important;
             color: var(--ink) !important;
             border-left-color: var(--hairline) !important;
@@ -1807,6 +1810,94 @@
             color: var(--ink) !important;
             border: 1px solid var(--hairline) !important;
             background-image: none !important;
+        }
+        /* Inline markdown — code chips were hard-coded light slate (white-out in dark) */
+        .bob-message.assistant code {
+            background: var(--paper-3) !important;
+            color: var(--ink) !important;
+        }
+        .bob-message.assistant pre {
+            background: var(--canvas) !important;
+            color: var(--ink) !important;
+            border: 1px solid var(--hairline) !important;
+        }
+        .bob-message.assistant pre code {
+            background: transparent !important;
+            color: inherit !important;
+        }
+        .bob-message.assistant strong {
+            color: var(--ink) !important;
+        }
+        .bob-message.assistant blockquote {
+            background: var(--paper) !important;
+            border-left-color: var(--accent) !important;
+            color: var(--ink-2) !important;
+        }
+
+        /* Tool activity chips (“what B.O.B. is doing”) */
+        .bob-tool-chip {
+            background: var(--paper) !important;
+            border-color: var(--hairline) !important;
+            color: var(--ink-2) !important;
+        }
+        .bob-tool-chip.done,
+        .bob-tool-chip.running {
+            color: var(--ink) !important;
+        }
+        .bob-tool-chip.done i {
+            color: var(--positive, #248a3d) !important;
+        }
+        .bob-tool-chip.waiting {
+            background: var(--accent-soft) !important;
+            border-color: color-mix(in srgb, var(--accent) 35%, var(--hairline)) !important;
+            color: var(--ink) !important;
+        }
+        .bob-tool-chip.waiting i {
+            color: var(--accent-ink) !important;
+        }
+        .bob-tool-chip.failed {
+            background: var(--danger-soft) !important;
+            border-color: color-mix(in srgb, var(--danger) 35%, var(--hairline)) !important;
+            color: var(--danger) !important;
+        }
+        .bob-tool-chip.undone {
+            color: var(--ink-3) !important;
+        }
+        .bob-tool-chip-spinner {
+            border-color: var(--hairline) !important;
+            border-top-color: var(--accent) !important;
+        }
+        .bob-tool-chip-undo {
+            color: var(--accent-ink) !important;
+        }
+
+        /* Approval cards */
+        .bob-confirm-card {
+            background: var(--paper) !important;
+            border-color: var(--accent-line) !important;
+            color: var(--ink) !important;
+            box-shadow: none !important;
+        }
+        .bob-confirm-card.destructive {
+            border-color: color-mix(in srgb, var(--danger) 45%, var(--hairline)) !important;
+        }
+        .bob-confirm-header,
+        .bob-confirm-to {
+            color: var(--ink) !important;
+        }
+        .bob-confirm-cancel {
+            background: var(--paper-2) !important;
+            border-color: var(--hairline) !important;
+            color: var(--ink-2) !important;
+        }
+        .bob-confirm-cancel:hover:not(:disabled) {
+            background: var(--paper-3) !important;
+            color: var(--ink) !important;
+        }
+        .bob-confirm-approve {
+            background: var(--am-key-bg, var(--accent)) !important;
+            border-color: var(--am-key-bg, var(--accent)) !important;
+            color: #fff !important;
         }
 
         /* Starter prompts — flat hairline rows */
