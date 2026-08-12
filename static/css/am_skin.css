@@ -1360,23 +1360,76 @@ html.am-skin .card {
   box-shadow: none !important;
   border-radius: 18px !important;
 }
+/* Soft left rail — paper-2, never pure black (was crushing contrast) */
 html.am-skin .login-page .left,
 html.am-skin .register-page .left {
-  background: #000000 !important;
-  background-image: none !important;
-}
-html.am-skin[data-theme="light"] .login-page .left,
-html.am-skin[data-theme="light"] .register-page .left {
-  background: #1c1c1e !important;
+  background-color: var(--paper-2) !important;
+  background-image: radial-gradient(ellipse at 0% 0%, var(--accent-soft) 0%, transparent 55%) !important;
+  color: var(--ink) !important;
+  border-right: 0.5px solid var(--hairline) !important;
 }
 html.am-skin .login-page .left::before,
 html.am-skin .register-page .left::before {
   background: var(--accent) !important;
   background-image: none !important;
 }
+html.am-skin .login-page .left-muted,
+html.am-skin .register-page .left-muted {
+  color: var(--ink-3) !important;
+}
+html.am-skin .login-page .left-title,
+html.am-skin .login-page .left .font-semibold,
+html.am-skin .login-page .left .font-extrabold {
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .left-chip {
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent) !important;
+}
+html.am-skin .login-page .left-icon {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--accent) !important;
+}
+html.am-skin .login-page .input,
+html.am-skin .login-page .icon-btn {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 4px var(--accent-soft) !important;
+}
+html.am-skin .login-page .btn {
+  background: var(--am-key-bg) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+html.am-skin .login-page .btn:hover {
+  background: var(--am-key-pressed) !important;
+}
+html.am-skin .login-page .kicker,
+html.am-skin .login-page .subtitle,
+html.am-skin .login-page .label,
+html.am-skin .login-page .title {
+  color: var(--ink) !important;
+}
+html.am-skin .login-page .subtitle,
+html.am-skin .login-page .kicker {
+  color: var(--ink-3) !important;
+}
 html.am-skin .login-page a,
 html.am-skin .register-page a {
   color: var(--accent-ink) !important;
+}
+@media (max-width: 1024px) {
+  html.am-skin .login-page .left,
+  html.am-skin .register-page .left {
+    border-right: none !important;
+    border-bottom: 0.5px solid var(--hairline) !important;
+  }
 }
 
 /* ── Shared CRM primitives polish ─────────────────────────── */
