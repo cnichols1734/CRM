@@ -468,7 +468,10 @@ class TodoManager {
         // Add empty state if no items
         if (itemCount === 0) {
             const emptyState = document.createElement('li');
-            emptyState.className = 'empty-state text-center py-8 text-gray-500 italic bg-gray-50/50 rounded-lg';
+            emptyState.className = 'empty-state text-center py-8 text-sm italic rounded-md border border-dashed';
+            emptyState.style.color = 'var(--ink-4)';
+            emptyState.style.borderColor = 'var(--hairline)';
+            emptyState.style.background = 'var(--paper-2)';
             emptyState.textContent = message;
             list.appendChild(emptyState);
         }
