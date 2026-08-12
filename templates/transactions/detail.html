@@ -129,75 +129,75 @@
      data-bob-entity-type="transaction"
      data-bob-entity-id="{{ transaction.id }}">
 
-    {# ===== Sticky top nav bar ===== #}
-    <div class="sticky top-0 z-40 border-b border-slate-200 bg-white">
-        <div class="mx-auto max-w-[1600px] px-4 sm:px-6">
-            <div class="flex min-h-12 items-center justify-between gap-3 py-2">
-                {% if ref == 'contact' and contact_id_arg %}
-                <a href="{{ url_for('contacts.view_contact', contact_id=contact_id_arg) }}"
-                   class="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950">
-                    <i class="fas fa-arrow-left text-xs"></i>
-                    <span class="hidden sm:inline">Back to contact</span>
-                </a>
-                {% else %}
-                <a href="{{ url_for('transactions.list_transactions') }}"
-                   class="inline-flex min-h-9 items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950">
-                    <i class="fas fa-arrow-left text-xs"></i>
-                    <span class="hidden sm:inline">Transactions</span>
-                </a>
-                {% endif %}
-                <div class="flex items-center gap-2">
-                    {% if document_review_attention or pending_change_proposals %}
-                    <button type="button" class="crm-btn crm-btn-accent"
-                            onclick="document.getElementById('bob-review-details').open = true; document.getElementById('document-review-inbox').scrollIntoView({behavior: 'smooth'});">
-                        {% if document_review_attention %}Review finding{% else %}Review suggestion{% endif %}
-                    </button>
-                    {% elif document_packages %}
-                    <button type="button"
-                            class="crm-btn crm-btn-accent min-h-11"
-                            data-action="document-upload-hub#open"
-                            data-document-upload-hub-scope-param="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else 'other' }}"
-                            data-document-upload-hub-slug-param="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
-                            data-document-upload-hub-label-param="{{ 'Listing agreement' if tx_type_name == 'seller' and not has_listing_agreement else 'Document' }}"
-                            data-listing-cta-scope="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
-                            data-listing-cta-slug="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}">
-                        {% if tx_type_name == 'seller' and not has_listing_agreement %}
-                        Upload listing agreement
-                        {% else %}
-                        Upload document
-                        {% endif %}
-                    </button>
+    <div class="crm-page__inner max-w-[1600px]">
+        {# Back link + actions — in-flow like contacts, not a sticky chrome bar #}
+        <div class="mb-4 flex items-center justify-between gap-3">
+            {% if ref == 'contact' and contact_id_arg %}
+            <a href="{{ url_for('contacts.view_contact', contact_id=contact_id_arg) }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Contact
+            </a>
+            {% else %}
+            <a href="{{ url_for('transactions.list_transactions') }}"
+               class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Transactions
+            </a>
+            {% endif %}
+            <div class="flex items-center gap-2">
+                {% if document_review_attention or pending_change_proposals %}
+                <button type="button" class="crm-btn crm-btn-accent"
+                        onclick="document.getElementById('bob-review-details').open = true; document.getElementById('document-review-inbox').scrollIntoView({behavior: 'smooth'});">
+                    {% if document_review_attention %}Review finding{% else %}Review suggestion{% endif %}
+                </button>
+                {% elif document_packages %}
+                <button type="button"
+                        class="crm-btn crm-btn-accent"
+                        data-action="document-upload-hub#open"
+                        data-document-upload-hub-scope-param="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else 'other' }}"
+                        data-document-upload-hub-slug-param="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
+                        data-document-upload-hub-label-param="{{ 'Listing agreement' if tx_type_name == 'seller' and not has_listing_agreement else 'Document' }}"
+                        data-listing-cta-scope="{{ 'listing' if tx_type_name == 'seller' and not has_listing_agreement else '' }}"
+                        data-listing-cta-slug="{{ 'listing-agreement' if tx_type_name == 'seller' and not has_listing_agreement else '' }}">
+                    {% if tx_type_name == 'seller' and not has_listing_agreement %}
+                    Upload listing agreement
                     {% else %}
-                    <button type="button" class="crm-btn crm-btn-accent" onclick="showAddDocumentPicker()">
-                        Upload document
-                    </button>
+                    Upload document
                     {% endif %}
-                    <details class="relative" data-detail-actions>
-                        <summary class="crm-btn crm-btn-secondary min-h-9 cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden" aria-label="More transaction actions">
-                            <span class="hidden sm:inline">More</span>
-                            <i class="fas fa-ellipsis-h text-xs text-slate-500" aria-hidden="true"></i>
-                        </summary>
-                        <div class="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-md border border-slate-200 bg-white py-1 shadow-lg">
-                            <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
-                               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-950">
-                                <i class="fas fa-history w-4 text-xs text-slate-400"></i> History
-                            </a>
-                            <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}"
-                               class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 hover:text-slate-950">
-                                <i class="fas fa-pencil-alt w-4 text-xs text-slate-400"></i> Edit transaction
-                            </a>
-                            <button onclick="confirmDelete()" type="button"
-                                    class="flex w-full items-center gap-2 border-t border-slate-100 px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50">
-                                <i class="fas fa-trash-alt w-4 text-xs"></i> Delete transaction
-                            </button>
-                        </div>
-                    </details>
-                </div>
+                </button>
+                {% else %}
+                <button type="button" class="crm-btn crm-btn-accent" onclick="showAddDocumentPicker()">
+                    Upload document
+                </button>
+                {% endif %}
+                <details class="relative" data-detail-actions>
+                    <summary class="crm-btn crm-btn-secondary cursor-pointer list-none px-3 [&::-webkit-details-marker]:hidden" aria-label="More transaction actions">
+                        <span class="hidden sm:inline">More</span>
+                        <i class="fas fa-ellipsis-h text-xs" aria-hidden="true"></i>
+                    </summary>
+                    <div class="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-[10px] border py-1"
+                         style="border-color: var(--hairline); background: var(--paper);">
+                        <a href="{{ url_for('transactions.view_transaction_history', id=transaction.id) }}"
+                           class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--paper-2)]"
+                           style="color: var(--ink-2);">
+                            <i class="fas fa-history w-4 text-xs" style="color: var(--ink-4);"></i> History
+                        </a>
+                        <a href="{{ url_for('transactions.edit_transaction', id=transaction.id) }}"
+                           class="flex items-center gap-2 px-3 py-2 text-sm hover:bg-[var(--paper-2)]"
+                           style="color: var(--ink-2);">
+                            <i class="fas fa-pencil-alt w-4 text-xs" style="color: var(--ink-4);"></i> Edit transaction
+                        </a>
+                        <button onclick="confirmDelete()" type="button"
+                                class="flex w-full items-center gap-2 border-t px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+                                style="border-color: var(--hairline);">
+                            <i class="fas fa-trash-alt w-4 text-xs"></i> Delete transaction
+                        </button>
+                    </div>
+                </details>
             </div>
         </div>
-    </div>
 
-    <div class="crm-page__inner max-w-[1600px]">
         {# ===== Header block ===== #}
         <header class="mb-6 border-b border-slate-200 pb-5">
             <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">

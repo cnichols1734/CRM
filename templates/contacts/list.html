@@ -34,8 +34,8 @@
             </a>
         {% endcall %}
 
-        <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div class="flex flex-wrap items-center gap-3">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex min-w-0 flex-wrap items-center gap-3">
                 {% if current_user.role == 'admin' %}
                 <div class="crm-segment">
                     <a href="{{ url_for('main.contacts', view='my') }}"
@@ -53,8 +53,8 @@
                 {{ badge('Search: ' ~ request.args.get('q'), 'accent') }}
                 {% endif %}
             </div>
-            <div class="crm-toolbar lg:w-auto">
-                <div class="relative">
+            <div class="crm-toolbar w-full sm:w-auto sm:justify-end">
+                <div class="crm-toolbar__search">
                     <input type="search"
                            value="{{ request.args.get('q', '') }}"
                            placeholder="Search name, email, phone..."
@@ -63,15 +63,17 @@
                            data-action="input->contacts-page#queueSearch">
                     <button type="button"
                             class="absolute right-3 top-1/2 hidden -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            style="color: var(--ink-4);"
                             data-contacts-page-target="clearSearchButton"
                             data-action="contacts-page#clearSearch">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
                 <button type="button"
-                        class="crm-btn crm-btn-subtle"
-                        data-action="contacts-page#toggleFilters">
-                    <i class="fas fa-sliders-h text-xs"></i>
+                        class="crm-btn crm-btn-subtle{% if has_filters %} is-active{% endif %}"
+                        data-action="contacts-page#toggleFilters"
+                        aria-expanded="{{ 'true' if has_filters else 'false' }}">
+                    <i class="fas fa-sliders-h text-xs" aria-hidden="true"></i>
                     Filters
                 </button>
                 {% if current_sort != 'name' or current_dir != 'asc' %}

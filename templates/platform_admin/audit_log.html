@@ -3,15 +3,15 @@
 {% block head_scripts %}
 <style>
     :root {
-        --brand-navy: #2d3e50;
-        --brand-orange: #f97316;
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        --brand-navy: #1c1c1e;
+        --brand-orange: var(--accent, #fa243c);
+        --bg: var(--canvas, #f4f4f4);
+        --panel: var(--paper, #ffffff);
+        --text: var(--ink, #0f172a);
+        --muted: var(--ink-3, #64748b);
+        --border: var(--hairline, #e2e8f0);
+        --shadow-sm: none;
+        --shadow: none;
     }
 
     @keyframes fadeIn {
@@ -31,11 +31,11 @@
     }
 
     .admin-table thead {
-        background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+        background: var(--paper-2, #f0f0f0);
     }
 
     .admin-table thead th {
-        color: #475569;
+        color: var(--ink-3, #475569);
         font-weight: 600;
         letter-spacing: 0.03em;
         border-bottom: 2px solid var(--border);
@@ -46,7 +46,7 @@
     }
 
     .admin-table tbody tr:hover {
-        background-color: #fff7ed;
+        background-color: var(--accent-soft, #fff7ed);
     }
 
     .icon-tile {
@@ -57,18 +57,18 @@
     }
 
     .btn-admin-secondary {
-        background: #f8fafc;
+        background: var(--am-control-bg, #f0f0f0);
         border: 1px solid var(--border);
-        color: #64748b;
+        color: var(--ink-3, #64748b);
         font-weight: 500;
         border-radius: 10px;
         transition: all 0.2s ease;
     }
 
     .btn-admin-secondary:hover {
-        background: #fff7ed;
-        border-color: #fed7aa;
-        color: #ea580c;
+        background: var(--accent-soft, #fff7ed);
+        border-color: var(--accent-line, #fed7aa);
+        color: var(--accent-ink, #ea580c);
     }
 
     /* Mobile card layout */
@@ -87,7 +87,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-fade-in max-w-6xl mx-auto p-4 md:p-6" style="background: radial-gradient(ellipse at top, rgba(45,62,80,0.03), transparent 70%);">
+<div class="page-fade-in max-w-6xl mx-auto p-4 md:p-6">
     <div class="mb-8">
         <a href="{{ url_for('platform.dashboard') }}" class="text-slate-400 hover:text-orange-500 transition-colors text-sm inline-flex items-center">
             <i class="fas fa-arrow-left mr-1.5"></i> Back to Dashboard
@@ -116,7 +116,7 @@
                         <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Details</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-slate-100">
+                <tbody class="divide-y divide-slate-100" style="background: var(--paper);">
                     {% for log in logs.items %}
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
@@ -160,7 +160,7 @@
         </div>
 
         {% if logs.pages > 1 %}
-        <div class="px-6 py-4 border-t border-slate-100" style="background: #fafafa; border-radius: 0 0 16px 16px;">
+        <div class="px-6 py-4 border-t border-slate-100" style="background: var(--paper-2); border-radius: 0 0 16px 16px;">
             <nav class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-slate-500">

@@ -2,23 +2,24 @@
 {% from "components/ui.html" import page_header, section_header, avatar, badge, empty_state %}
 
 {% macro kpi_breakdown(rows, tone='blue', empty='No data yet') -%}
-{% set fill_class = 'bg-orange-500' if tone == 'orange' else ('bg-slate-500' if tone == 'slate' else 'bg-sky-500') %}
+{% set fill_class = 'am-bar-accent' if tone == 'orange' else ('am-bar-ink' if tone == 'slate' else 'am-bar-info') %}
 {% if rows %}
 <div class="min-w-[8.5rem] max-w-[10rem] flex-1 space-y-2">
     {% for row in rows %}
     <div>
         <div class="mb-1 flex items-center justify-between gap-3 text-[11px] leading-none">
-            <span class="max-w-[6.5rem] truncate text-slate-500" title="{{ row.label }}">{{ row.label }}</span>
-            <span class="shrink-0 font-semibold text-slate-700">{{ row.value }}</span>
+            <span class="max-w-[6.5rem] truncate" style="color: var(--ink-3);" title="{{ row.label }}">{{ row.label }}</span>
+            <span class="shrink-0 font-semibold" style="color: var(--ink-2);">{{ row.value }}</span>
         </div>
-        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
+        <div class="h-1.5 overflow-hidden rounded-full am-bar-track">
             <div class="h-full rounded-full {{ fill_class }}" style="width: {{ row.percent }}%"></div>
         </div>
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="min-w-[8.5rem] rounded-md border border-dashed border-slate-200 px-3 py-4 text-center text-xs text-slate-400">
+<div class="min-w-[8.5rem] rounded-[10px] border border-dashed px-3 py-4 text-center text-xs"
+     style="border-color: var(--hairline); color: var(--ink-4);">
     {{ empty }}
 </div>
 {% endif %}
@@ -342,25 +343,27 @@
                     {% endfor %}
                 </div>
 
-                <div class="mt-6 rounded-md border border-slate-200 bg-white p-4">
+                <div class="mt-6 rounded-[12px] border p-4"
+                     style="border-color: var(--hairline); background: var(--paper);">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <div class="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Trend</div>
-                            <div class="mt-0.5 text-sm font-semibold text-slate-900">Median asking price &amp; active listings</div>
+                            <div class="text-xs font-semibold" style="color: var(--ink-3);">Trend</div>
+                            <div class="mt-0.5 text-sm font-semibold" style="color: var(--ink);">Median asking price &amp; active listings</div>
                         </div>
-                        <div class="flex flex-wrap items-center gap-4 text-xs text-slate-500">
+                        <div class="flex flex-wrap items-center gap-4 text-xs" style="color: var(--ink-3);">
                             <span class="inline-flex items-center gap-1.5">
-                                <span class="h-2 w-2 rounded-full bg-orange-500"></span>
+                                <span class="h-2 w-2 rounded-full" style="background: var(--accent);"></span>
                                 Median asking price
                             </span>
                             <span class="inline-flex items-center gap-1.5">
-                                <span class="h-2 w-2 rounded-full bg-slate-400"></span>
+                                <span class="h-2 w-2 rounded-full" style="background: var(--ink-4);"></span>
                                 Active listings
                             </span>
-                            <span class="hidden h-3 w-px bg-slate-200 sm:inline-block"></span>
-                            <span class="inline-flex items-center gap-1.5 text-slate-500">
+                            <span class="hidden h-3 w-px sm:inline-block" style="background: var(--hairline);"></span>
+                            <span class="inline-flex items-center gap-1.5">
                                 New listings this month:
-                                <span class="font-semibold text-slate-900 tabular-nums"
+                                <span class="font-semibold tabular-nums"
+                                      style="color: var(--ink);"
                                       data-market-insights-target="newListings">—</span>
                             </span>
                         </div>
@@ -379,35 +382,43 @@
         {% endif %}
 
         {% if show_friction and activation_state.mode != 'complete' %}
-        <section class="crm-surface mb-6"
+        <section class="crm-surface crm-friction mb-6"
                  data-analytics-surface="activation"
                  data-analytics-component="friction_survey"
                  data-analytics-impression="friction_survey">
-            <div class="crm-surface-body">
-                <div class="max-w-2xl">
-                    <div class="crm-section-kicker">One quick question</div>
-                    <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">What stopped you from finishing setup?</h2>
-                    <form action="{{ url_for('main.activation_friction') }}" method="post" class="mt-4 flex flex-wrap gap-2">
-                        {% for value, label in [
-                            ('no_time', 'I ran out of time'),
-                            ('unclear_value', 'I wasn’t sure what I’d get'),
-                            ('import_problem', 'My contacts were hard to import'),
-                            ('too_much_setup', 'It felt like too much setup'),
-                            ('technical_problem', 'Something technical went wrong'),
-                            ('login_problem', 'I had trouble logging back in'),
-                            ('missing_feature', 'A feature I needed was missing'),
-                            ('other', 'Something else')
-                        ] %}
-                        <button type="submit" name="reason" value="{{ value }}"
-                                class="crm-btn crm-btn-secondary"
-                                data-analytics-surface="activation"
-                                data-analytics-component="friction_survey"
-                                data-analytics-action="click"
-                                data-analytics-target="friction_{{ value }}">{{ label }}</button>
-                        {% endfor %}
-                    </form>
+            <div class="crm-friction__header">
+                <div class="min-w-0">
+                    <div class="crm-section-kicker">Quick feedback</div>
+                    <h2 class="crm-friction__title">What got in the way of setup?</h2>
+                    <p class="crm-friction__help">Pick one. Helps us fix the rough spots.</p>
                 </div>
             </div>
+            <form action="{{ url_for('main.activation_friction') }}"
+                  method="post"
+                  class="crm-friction__grid">
+                {% for value, label in [
+                    ('no_time', 'I ran out of time'),
+                    ('unclear_value', "I wasn’t sure what I’d get"),
+                    ('import_problem', 'My contacts were hard to import'),
+                    ('too_much_setup', 'It felt like too much setup'),
+                    ('technical_problem', 'Something technical went wrong'),
+                    ('login_problem', 'I had trouble logging back in'),
+                    ('missing_feature', 'A feature I needed was missing'),
+                    ('other', 'Something else')
+                ] %}
+                <button type="submit"
+                        name="reason"
+                        value="{{ value }}"
+                        class="crm-friction__choice"
+                        data-analytics-surface="activation"
+                        data-analytics-component="friction_survey"
+                        data-analytics-action="click"
+                        data-analytics-target="friction_{{ value }}">
+                    <span class="crm-friction__choice-label">{{ label }}</span>
+                    <i class="fas fa-arrow-right crm-friction__choice-icon" aria-hidden="true"></i>
+                </button>
+                {% endfor %}
+            </form>
         </section>
         {% endif %}
 
@@ -425,7 +436,8 @@
                 <h3 class="text-base font-semibold text-slate-950">How do you want to start?</h3>
                 <div class="mt-4 grid gap-3 lg:grid-cols-[1.35fr_1fr_1fr]">
                     <button type="button"
-                            class="group rounded-md border border-orange-300 bg-orange-50 p-4 text-left transition-colors hover:border-orange-500 hover:bg-orange-100"
+                            class="group rounded-[10px] border p-4 text-left transition-colors"
+                            style="border-color: var(--accent-line); background: var(--accent-soft);"
                             data-action="dashboard-page#selectContactPath"
                             data-analytics-surface="activation"
                             data-analytics-component="path_chooser"
@@ -434,37 +446,39 @@
                             data-analytics-path="manual"
                             data-analytics-impression="path_chooser">
                         <span class="flex items-center justify-between gap-4">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-md bg-orange-600 text-white"><i class="fas fa-user-plus text-sm"></i></span>
-                            <i class="fas fa-arrow-right text-xs text-orange-600 transition-transform group-hover:translate-x-0.5"></i>
+                            <span class="flex h-9 w-9 items-center justify-center rounded-full text-white" style="background: var(--am-key-bg, #d60017);"><i class="fas fa-user-plus text-sm"></i></span>
+                            <i class="fas fa-arrow-right text-xs transition-transform group-hover:translate-x-0.5" style="color: var(--accent);"></i>
                         </span>
-                        <span class="mt-4 block text-sm font-semibold text-slate-950">Add someone I need to follow up with</span>
-                        <span class="mt-1 block text-xs leading-5 text-slate-600">Name them, then pick the day.</span>
+                        <span class="mt-4 block text-sm font-semibold" style="color: var(--ink);">Add someone I need to follow up with</span>
+                        <span class="mt-1 block text-xs leading-5" style="color: var(--ink-3);">Name them, then pick the day.</span>
                     </button>
 
                     <a href="{{ url_for('main.contacts', import='1') }}"
-                       class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
+                       class="rounded-[10px] border p-4 text-left transition-colors"
+                       style="border-color: var(--hairline); background: var(--paper);"
                        data-action="click->dashboard-page#recordImportPath"
                        data-analytics-surface="activation"
                        data-analytics-component="path_chooser"
                        data-analytics-action="click"
                        data-analytics-target="path_csv_import"
                        data-analytics-path="csv_import">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-file-import text-sm"></i></span>
-                        <span class="mt-4 block text-sm font-semibold text-slate-950">Import my contacts</span>
-                        <span class="mt-1 block text-xs leading-5 text-slate-500">Bring over a CSV list.</span>
+                        <span class="flex h-9 w-9 items-center justify-center rounded-full" style="background: var(--am-control-bg); color: var(--ink-2);"><i class="fas fa-file-import text-sm"></i></span>
+                        <span class="mt-4 block text-sm font-semibold" style="color: var(--ink);">Import my contacts</span>
+                        <span class="mt-1 block text-xs leading-5" style="color: var(--ink-3);">Bring over a CSV list.</span>
                     </a>
 
                     <button type="button"
-                            class="rounded-md border border-slate-200 p-4 text-left transition-colors hover:border-slate-400 hover:bg-slate-50"
+                            class="rounded-[10px] border p-4 text-left transition-colors"
+                            style="border-color: var(--hairline); background: var(--paper);"
                             data-action="dashboard-page#selectInboxPath"
                             data-analytics-surface="activation"
                             data-analytics-component="path_chooser"
                             data-analytics-action="click"
                             data-analytics-target="path_magic_inbox"
                             data-analytics-path="magic_inbox">
-                        <span class="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700"><i class="fas fa-paper-plane text-sm"></i></span>
-                        <span class="mt-4 block text-sm font-semibold text-slate-950">Forward a lead or business card</span>
-                        <span class="mt-1 block text-xs leading-5 text-slate-500">Use your private inbox.</span>
+                        <span class="flex h-9 w-9 items-center justify-center rounded-full" style="background: var(--am-control-bg); color: var(--ink-2);"><i class="fas fa-paper-plane text-sm"></i></span>
+                        <span class="mt-4 block text-sm font-semibold" style="color: var(--ink);">Forward a lead or business card</span>
+                        <span class="mt-1 block text-xs leading-5" style="color: var(--ink-3);">Use your private inbox.</span>
                     </button>
                 </div>
             </div>
@@ -507,7 +521,8 @@
                             {% for value, label in [('today', 'Today'), ('tomorrow', 'Tomorrow'), ('week', 'In one week'), ('custom', 'Pick a date')] %}
                             <label class="cursor-pointer">
                                 <input type="radio" name="follow_up" value="{{ value }}" class="peer sr-only" {% if value == 'tomorrow' %}checked{% endif %} data-action="dashboard-page#toggleCustomDate">
-                                <span class="flex min-h-11 items-center justify-center rounded-md border border-slate-200 px-3 py-2 text-center text-sm font-medium text-slate-700 transition-colors peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-800">{{ label }}</span>
+                                <span class="flex min-h-11 items-center justify-center rounded-full border px-3 py-2 text-center text-sm font-medium transition-colors peer-checked:border-[var(--accent)] peer-checked:bg-[var(--accent-soft)] peer-checked:text-[var(--accent-ink)]"
+                                      style="border-color: var(--hairline); color: var(--ink-2);">{{ label }}</span>
                             </label>
                             {% endfor %}
                         </div>
@@ -584,7 +599,8 @@
                     {% set days_until_due = (task.due_date.date() - now.date()).days %}
                     <div class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                         <input type="checkbox"
-                               class="h-5 w-5 shrink-0 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                               class="h-5 w-5 shrink-0 rounded"
+                               style="accent-color: var(--accent); border-color: var(--hairline);"
                                data-action="change->dashboard-page#updateTaskStatus"
                                data-task-id="{{ task.id }}">
                         <div class="min-w-0 flex-1">
@@ -731,7 +747,8 @@
                         <div class="crm-list-item">
                             <div class="flex items-start gap-3">
                                 <input type="checkbox"
-                                       class="mt-1 h-4 w-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                                       class="mt-1 h-4 w-4 rounded"
+                                       style="accent-color: var(--accent); border-color: var(--hairline);"
                                        data-action="change->dashboard-page#updateTaskStatus"
                                        data-task-id="{{ task.id }}"
                                        {% if task.status == 'completed' %}checked{% endif %}
@@ -897,25 +914,25 @@
 </div>
 
 <template id="todoItemTemplate">
-    <li class="todo-item group rounded-md border border-slate-200 bg-white">
+    <li class="todo-item group">
         <div class="flex items-center justify-between gap-4 px-4 py-3">
             <div class="flex min-w-0 flex-1 items-center gap-3">
                 <div class="relative">
-                    <input type="checkbox" class="todo-checkbox h-5 w-5 rounded border-2 border-slate-300 text-orange-500 focus:ring-0 focus:outline-none cursor-pointer">
+                    <input type="checkbox" class="todo-checkbox h-5 w-5 rounded cursor-pointer focus:ring-0 focus:outline-none">
                     <span class="check-icon pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 text-white transition-transform duration-200">
                         <i class="fas fa-check text-[10px]"></i>
                     </span>
                 </div>
                 <div class="relative flex-1">
-                    <p class="todo-text cursor-pointer rounded px-3 py-2 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50"></p>
+                    <p class="todo-text cursor-pointer rounded px-3 py-2 text-sm font-medium transition-colors"></p>
                     <div class="todo-edit-container absolute inset-0 hidden items-center">
                         <input type="text"
-                               class="todo-edit-input block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-900 focus:border-orange-500 focus:ring-0 focus:outline-none"
+                               class="todo-edit-input block w-full px-3 py-1.5 text-sm font-medium focus:ring-0 focus:outline-none"
                                placeholder="Edit to do...">
                     </div>
                 </div>
             </div>
-            <button class="delete-todo rounded p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500">
+            <button class="delete-todo rounded p-2 transition-colors" style="color: var(--ink-4);">
                 <i class="fas fa-trash"></i>
             </button>
         </div>

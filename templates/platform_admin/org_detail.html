@@ -3,15 +3,15 @@
 {% block head_scripts %}
 <style>
     :root {
-        --brand-navy: #2d3e50;
-        --brand-orange: #f97316;
-        --bg: #f8fafc;
-        --panel: #ffffff;
-        --text: #0f172a;
-        --muted: #64748b;
-        --border: #e2e8f0;
-        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06);
-        --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        --brand-navy: #1c1c1e;
+        --brand-orange: var(--accent, #fa243c);
+        --bg: var(--canvas, #f4f4f4);
+        --panel: var(--paper, #ffffff);
+        --text: var(--ink, #0f172a);
+        --muted: var(--ink-3, #64748b);
+        --border: var(--hairline, #e2e8f0);
+        --shadow-sm: none;
+        --shadow: none;
     }
 
     @keyframes fadeIn {
@@ -380,7 +380,7 @@
             </div>
 
             <!-- Org Info -->
-            <div class="admin-card p-6" style="background: linear-gradient(135deg, #fafafa, #f1f5f9);">
+            <div class="admin-card p-6" style="background: var(--paper-2);">
                 <h3 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-3">Organization Info</h3>
                 <div class="space-y-3 text-sm">
                     <div class="flex items-start gap-2">

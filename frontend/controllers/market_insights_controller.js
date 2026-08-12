@@ -1,8 +1,18 @@
 import { Controller } from "@hotwired/stimulus";
 
-const ACCENT = "#f97316";
-const SLATE_400 = "#94a3b8";
-const SLATE_500 = "#64748b";
+function _tok(name, fallback) {
+  if (typeof document === "undefined") return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
+function chartPalette() {
+  return {
+    accent: _tok("--accent", "#fa586a"),
+    muted: _tok("--ink-4", "#94a3b8"),
+    axis: _tok("--ink-3", "#64748b"),
+    grid: _tok("--hairline", "#e2e8f0"),
+  };
+}
 
 const USD = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -343,6 +353,7 @@ export default class extends Controller {
       return;
     }
 
+    const palette = chartPalette();
     const opts = {
       chart: {
         type: "area",
@@ -351,7 +362,7 @@ export default class extends Controller {
         animations: { enabled: true, easing: "easeinout", speed: 600 }
       },
       stroke: { curve: "smooth", width: 2 },
-      colors: [ACCENT],
+      colors: [palette.accent],
       fill: {
         type: "gradient",
         gradient: { shadeIntensity: 0.6, opacityFrom: 0.45, opacityTo: 0.05, stops: [0, 100] }
@@ -394,6 +405,7 @@ export default class extends Controller {
       .filter((h) => h.total_listings != null)
       .map((h) => ({ x: this._monthToTimestamp(h.month), y: Number(h.total_listings) }));
 
+    const palette = chartPalette();
     const opts = {
       chart: {
         type: "line",
@@ -404,7 +416,7 @@ export default class extends Controller {
           "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif",
         animations: { enabled: true, easing: "easeinout", speed: 700 }
       },
-      colors: [ACCENT, SLATE_400],
+      colors: [palette.accent, palette.muted],
       stroke: { curve: "smooth", width: [3, 2], dashArray: [0, 4] },
       fill: {
         type: ["gradient", "solid"],
@@ -414,14 +426,14 @@ export default class extends Controller {
       dataLabels: { enabled: false },
       markers: { size: 0, strokeWidth: 0, hover: { size: 5 } },
       grid: {
-        borderColor: "#e2e8f0",
+        borderColor: palette.grid,
         strokeDashArray: 4,
         padding: { top: 0, right: 8, bottom: 0, left: 8 }
       },
       xaxis: {
         type: "datetime",
         labels: {
-          style: { colors: SLATE_500, fontSize: "11px" },
+          style: { colors: palette.axis, fontSize: "11px" },
           datetimeFormatter: { year: "yyyy", month: "MMM", day: "MMM dd" }
         },
         axisBorder: { show: false },
@@ -432,7 +444,7 @@ export default class extends Controller {
         {
           seriesName: "Median asking price",
           labels: {
-            style: { colors: SLATE_500, fontSize: "11px" },
+            style: { colors: palette.axis, fontSize: "11px" },
             formatter: (v) => (v == null ? "" : COMPACT_USD.format(v))
           }
         },
@@ -440,7 +452,7 @@ export default class extends Controller {
           seriesName: "Active listings",
           opposite: true,
           labels: {
-            style: { colors: SLATE_500, fontSize: "11px" },
+            style: { colors: palette.axis, fontSize: "11px" },
             formatter: (v) => (v == null ? "" : INT.format(Math.round(v)))
           }
         }

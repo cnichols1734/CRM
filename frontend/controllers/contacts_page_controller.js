@@ -103,11 +103,11 @@ export default class extends Controller {
     }
 
     // Clear the body after the slide-out finishes so the next cold open
-    // starts from a clean state. Matches the 540ms grid transition.
+    // starts from a clean state. Matches --crm-rail-close-ms (~380ms).
     if (this.previewClearTimer) window.clearTimeout(this.previewClearTimer);
     this.previewClearTimer = window.setTimeout(() => {
       if (this.hasPreviewBodyTarget) this.previewBodyTarget.innerHTML = "";
-    }, 600);
+    }, 420);
   }
 
   handleKeydown(event) {
@@ -205,7 +205,7 @@ export default class extends Controller {
       const current = this.previewBodyTarget.firstElementChild;
       if (current) {
         current.classList.add("is-leaving");
-        await this.wait(160);
+        await this.wait(200);
       }
     }
 

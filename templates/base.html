@@ -1,4 +1,5 @@
 <!-- templates/base.html -->
+{% from "components/ui.html" import brand_logo %}
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
 
@@ -138,6 +139,37 @@
         .crm-header-logo {
             flex-shrink: 0;
         }
+        /* Theme-aware stacked wordmark — modest height for the 56px topbar. */
+        .crm-brand-logo-wrap {
+            --crm-brand-logo-h: 2rem;
+            display: inline-flex;
+            align-items: center;
+            line-height: 0;
+        }
+        .crm-brand-logo {
+            display: block;
+            height: var(--crm-brand-logo-h);
+            width: auto;
+            max-height: var(--crm-brand-logo-h);
+            object-fit: contain;
+        }
+        .crm-brand-logo--dark { display: none; }
+        html[data-theme="dark"] .crm-brand-logo--light { display: none; }
+        html[data-theme="dark"] .crm-brand-logo--dark { display: block; }
+        /* Surfaces that stay dark regardless of theme (e.g. login hero) */
+        .crm-brand-logo-wrap--on-dark .crm-brand-logo--light { display: none; }
+        .crm-brand-logo-wrap--on-dark .crm-brand-logo--dark { display: block; }
+        header.md\:hidden .crm-brand-logo-wrap {
+            --crm-brand-logo-h: 1.75rem;
+        }
+        .crm-brand-logo-wrap--h7 { --crm-brand-logo-h: 1.75rem; }
+        .crm-brand-logo-wrap--h8 { --crm-brand-logo-h: 2rem; }
+        .crm-brand-logo-wrap--h9 { --crm-brand-logo-h: 2.25rem; }
+        .crm-brand-logo-wrap--h12 { --crm-brand-logo-h: 3rem; }
+        .crm-brand-logo-wrap--h14 { --crm-brand-logo-h: 3.5rem; }
+        .crm-brand-logo-wrap--h20 { --crm-brand-logo-h: 5rem; }
+        .crm-brand-logo-wrap--h24 { --crm-brand-logo-h: 6rem; }
+        .crm-brand-logo-wrap--h28 { --crm-brand-logo-h: 7rem; }
 
         /* Sidebar toggle row: anchored at a fixed left offset so the hamburger
            icon sits in the same x-position as the nav-link icons below it and
@@ -572,18 +604,20 @@
             box-shadow: 0 0 0 2px #0f172a;
         }
 
-        /* Popover shell */
+        /* Popover shell — portaled to <body> (see notification script) so
+           backdrop-filter isn't trapped inside the glass topbar. */
         .crm-notification-popover {
-            position: absolute;
-            top: calc(100% + 0.35rem);
+            position: fixed;
+            top: 0;
             right: 0;
             width: 23rem;
+            max-width: calc(100vw - 1rem);
             background: #ffffff;
             border: 1px solid #e2e8f0;
             border-radius: 0.625rem;
             box-shadow: 0 12px 36px -8px rgba(15,23,42,.22),
                         0 4px 14px -4px rgba(15,23,42,.08);
-            z-index: 70;
+            z-index: 100;
             opacity: 0;
             transform: translateY(-4px);
             pointer-events: none;
@@ -2101,8 +2135,7 @@
     <!-- Top Header - Hidden on Mobile -->
     <header class="crm-topbar text-white h-14 items-center justify-between hidden md:flex">
         <div class="crm-header-logo pl-4 pr-6 flex items-center h-full">
-            <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
-                class="block h-14 w-auto object-contain" width="151" height="56" />
+            {{ brand_logo(size_class='crm-brand-logo-wrap--h8', width=146, height=32) }}
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex items-center gap-2 pr-4">
@@ -2179,8 +2212,7 @@
                 <i class="fas fa-bars text-xl"></i>
             </button>
             {% endif %}
-            <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG"
-                class="block h-10 w-auto object-contain" width="108" height="40" />
+            {{ brand_logo(size_class='crm-brand-logo-wrap--h7', width=128, height=28) }}
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}
@@ -2681,7 +2713,7 @@
 
                 <!-- Dropdown (moved to document.body on load — base.js) -->
                 <div id="userDropdown"
-                     class="crm-user-dropdown hidden bg-white rounded-md shadow-xl border border-slate-200 transition-opacity duration-200 opacity-0 max-h-[70vh] overflow-y-auto">
+                     class="crm-user-dropdown hidden rounded-md border border-slate-200 transition-opacity duration-200 opacity-0 max-h-[70vh] overflow-y-auto">
                     <!-- User Info Section -->
                     <div class="p-4 border-b border-gray-200">
                         <div class="flex items-center space-x-3">
@@ -3000,6 +3032,23 @@
             var lastUnreadCount = null;
             if (!wrap || !btn || !pop) return;
 
+            /* Portal to body — nested backdrop-filter inside the glass topbar
+               cannot sample page content (profile menu already does this). */
+            if (pop.parentNode !== document.body) {
+                document.body.appendChild(pop);
+            }
+
+            function positionPopover() {
+                var r = btn.getBoundingClientRect();
+                var gap = 8;
+                var width = Math.min(pop.offsetWidth || 368, window.innerWidth - 16);
+                var left = Math.round(r.right - width);
+                left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
+                pop.style.top = Math.round(r.bottom + gap) + 'px';
+                pop.style.left = left + 'px';
+                pop.style.right = 'auto';
+            }
+
             /* ── popover open / close ── */
             var hideTimer = null;
             function clearHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
@@ -3011,12 +3060,19 @@
             }
             function show() {
                 clearHide();
+                positionPopover();
                 pop.setAttribute('aria-hidden', 'false');
                 btn.setAttribute('aria-expanded', 'true');
                 requestAnimationFrame(function () {
-                    requestAnimationFrame(function () { pop.classList.add('is-open'); });
+                    requestAnimationFrame(function () {
+                        positionPopover();
+                        pop.classList.add('is-open');
+                    });
                 });
                 load();
+            }
+            function inChrome(el) {
+                return !!(el && (wrap.contains(el) || pop.contains(el)));
             }
             btn.addEventListener('click', function (e) {
                 e.stopPropagation();
@@ -3024,14 +3080,30 @@
             });
             wrap.addEventListener('mouseout', function (e) {
                 if (!pop.classList.contains('is-open')) return;
-                if (e.relatedTarget && wrap.contains(e.relatedTarget)) return;
+                if (inChrome(e.relatedTarget)) return;
                 clearHide(); hideTimer = setTimeout(hide, 2500);
             });
             wrap.addEventListener('mouseover', function () {
                 if (pop.classList.contains('is-open')) clearHide();
             });
-            document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) hide(); });
+            pop.addEventListener('mouseout', function (e) {
+                if (!pop.classList.contains('is-open')) return;
+                if (inChrome(e.relatedTarget)) return;
+                clearHide(); hideTimer = setTimeout(hide, 2500);
+            });
+            pop.addEventListener('mouseover', function () {
+                if (pop.classList.contains('is-open')) clearHide();
+            });
+            document.addEventListener('click', function (e) {
+                if (!inChrome(e.target)) hide();
+            });
             document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+            window.addEventListener('resize', function () {
+                if (pop.classList.contains('is-open')) positionPopover();
+            });
+            window.addEventListener('scroll', function () {
+                if (pop.classList.contains('is-open')) positionPopover();
+            }, true);
 
             /* ── helpers ── */
             function setBadge(n) {

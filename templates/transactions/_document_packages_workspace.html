@@ -40,9 +40,9 @@
                 {% include 'transactions/_document_packages.html' %}
             {% endwith %}
         {% else %}
-        <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
-            <p class="text-sm font-semibold text-slate-900">No controlling contract yet</p>
-            <p class="mt-1 text-sm text-slate-600">Amendments become available after a controlling contract is established.</p>
+        <div class="rounded-[14px] border px-4 py-4" style="border-color: var(--hairline); background: var(--paper-2);">
+            <p class="text-sm font-semibold" style="color: var(--ink);">No controlling contract yet</p>
+            <p class="mt-1 text-sm" style="color: var(--ink-3);">Amendments become available after a controlling contract is established.</p>
         </div>
         {% endif %}
 
@@ -63,14 +63,14 @@
         {% if amendment_rows %}
         <section class="crm-document-package" aria-labelledby="amendments-heading-{{ package_mode }}">
             <div class="crm-document-package__header">
-                <h3 id="amendments-heading-{{ package_mode }}" class="text-sm font-semibold text-slate-950">Amendments</h3>
+                <h3 id="amendments-heading-{{ package_mode }}" class="text-sm font-semibold" style="color: var(--ink);">Amendments</h3>
             </div>
             <ul class="crm-document-package__list" role="list">
                 {% for row in amendment_rows %}
                 <li class="crm-document-row">
                     <div class="crm-document-row__main">
                         <div class="min-w-0">
-                            <p class="text-sm font-semibold text-slate-950">{{ row.label }}</p>
+                            <p class="text-sm font-semibold" style="color: var(--ink);">{{ row.label }}</p>
                             <p class="crm-document-row__reason">
                                 {{ (row.status or '')|replace('_', ' ')|title }}
                                 {% if row.direction %} · {{ row.direction|replace('_', ' ')|title }}{% endif %}
@@ -91,21 +91,22 @@
         {% if offer_pkgs %}
             {% for offer_pkg in offer_pkgs %}
             <details class="crm-document-package group" {% if loop.first %}open{% endif %}>
-                <summary class="crm-document-package__header cursor-pointer list-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500">
+                <summary class="crm-document-package__header cursor-pointer list-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
                     <div class="min-w-0">
-                        <h3 class="text-sm font-semibold text-slate-950">{{ offer_pkg.label }}</h3>
-                        <p class="mt-0.5 text-xs text-slate-500">
+                        <h3 class="text-sm font-semibold" style="color: var(--ink);">{{ offer_pkg.label }}</h3>
+                        <p class="mt-0.5 text-xs" style="color: var(--ink-3);">
                             {{ (offer_pkg.status or '')|replace('_', ' ')|title }}
                             {% if offer_pkg.offer_price %} · ${{ '{:,.0f}'.format(offer_pkg.offer_price) }}{% endif %}
                             {% if offer_pkg.document_count %} · {{ offer_pkg.document_count }} document{% if offer_pkg.document_count != 1 %}s{% endif %}{% endif %}
                         </p>
                     </div>
-                    <i class="fas fa-chevron-down text-xs text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true"></i>
+                    <i class="fas fa-chevron-down text-xs transition-transform group-open:rotate-180" style="color: var(--ink-4);" aria-hidden="true"></i>
                 </summary>
-                <div class="border-t border-slate-100">
+                <div style="border-top: 1px solid var(--hairline);">
                     {% if offer_pkg.review_url %}
-                    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/70 px-4 py-3">
-                        <p class="text-xs text-slate-600">
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                         style="border-bottom: 1px solid var(--hairline); background: var(--paper-2);">
+                        <p class="text-xs" style="color: var(--ink-3);">
                             {% if offer_pkg.has_review_findings %}
                             Bob has notes on this offer package.
                             {% else %}
@@ -134,9 +135,9 @@
             </details>
             {% endfor %}
         {% else %}
-        <div class="rounded-md border border-slate-200 bg-slate-50 px-4 py-4">
-            <p class="text-sm font-semibold text-slate-900">No offers yet</p>
-            <p class="mt-1 text-sm text-slate-600">
+        <div class="rounded-[14px] border px-4 py-4" style="border-color: var(--hairline); background: var(--paper-2);">
+            <p class="text-sm font-semibold" style="color: var(--ink);">No offers yet</p>
+            <p class="mt-1 text-sm" style="color: var(--ink-3);">
                 {% if side == 'buyer' %}
                 Log an offer you submitted, or upload the purchase contract PDF.
                 {% else %}
