@@ -514,7 +514,8 @@
 }
 
 .bob-message.assistant code {
-    background: #f1f5f9;
+    background: var(--bob-code-bg, #f1f5f9);
+    color: var(--bob-code-fg, inherit);
     padding: 0.2em 0.4em;
     border-radius: 4px;
     font-family: ui-monospace, monospace;
@@ -592,7 +593,7 @@
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    background: #f8fafc;
+    background: var(--bob-chip-bg, #f8fafc);
     border: 1px solid var(--bob-border);
     border-radius: 8px;
     font-size: 12px;
