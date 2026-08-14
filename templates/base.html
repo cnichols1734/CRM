@@ -1944,10 +1944,22 @@
             border-color: var(--ink-4) !important;
             box-shadow: 0 0 0 3px var(--accent-soft) !important;
         }
+        .bob-input-row {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        .bob-toolbar {
+            flex-shrink: 0 !important;
+        }
         .bob-textarea {
             background: transparent !important;
             color: var(--ink) !important;
             border: none !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            resize: none !important;
         }
         .bob-textarea::placeholder { color: var(--ink-4) !important; }
         .bob-tool-btn {
