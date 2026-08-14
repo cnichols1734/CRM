@@ -123,13 +123,7 @@ class ActivityTimelineManager {
         // Update filter button states
         if (this.filterContainer) {
             this.filterContainer.querySelectorAll('[data-filter]').forEach(btn => {
-                if (btn.dataset.filter === filter) {
-                    btn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
-                    btn.classList.add('bg-slate-800', 'text-white');
-                } else {
-                    btn.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
-                    btn.classList.remove('bg-slate-800', 'text-white');
-                }
+                btn.classList.toggle('is-active', btn.dataset.filter === filter);
             });
         }
 
@@ -203,7 +197,7 @@ class ActivityTimelineManager {
      */
     renderActivity(activity) {
         const div = document.createElement('div');
-        div.className = 'timeline-item p-3 hover:bg-slate-50 transition-colors';
+        div.className = 'timeline-item p-3 transition-colors';
         div.dataset.activityId = activity.id;
 
         const iconColor = this.getIconColor(activity.color);
@@ -220,12 +214,12 @@ class ActivityTimelineManager {
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-sm font-medium text-slate-800 truncate">${this.escapeHtml(activity.title)}</span>
+                            <span class="text-sm font-medium truncate" style="color: var(--ink);">${this.escapeHtml(activity.title)}</span>
                             ${metadata}
                         </div>
-                        <span class="text-xs text-slate-400 whitespace-nowrap">${formattedDate}</span>
+                        <span class="text-xs whitespace-nowrap" style="color: var(--ink-4);">${formattedDate}</span>
                     </div>
-                    ${activity.description ? `<p class="mt-0.5 text-sm text-slate-500 line-clamp-2">${this.escapeHtml(activity.description)}</p>` : ''}
+                    ${activity.description ? `<p class="mt-0.5 text-sm line-clamp-2" style="color: var(--ink-3);">${this.escapeHtml(activity.description)}</p>` : ''}
                     ${actions}
                 </div>
             </div>
@@ -405,7 +399,7 @@ class ActivityTimelineManager {
             loadingEl.className = 'timeline-loading flex items-center justify-center py-8';
             loadingEl.innerHTML = `
                 <div class="animate-spin rounded-full h-6 w-6 border-2 border-orange-500 border-t-transparent mr-2"></div>
-                <span class="text-sm text-slate-500">Loading activities...</span>
+                <span class="text-sm" style="color: var(--ink-3);">Loading activities...</span>
             `;
             this.container.appendChild(loadingEl);
         }
@@ -431,13 +425,10 @@ class ActivityTimelineManager {
         let emptyEl = this.container.querySelector('.timeline-empty');
         if (!emptyEl) {
             emptyEl = document.createElement('div');
-            emptyEl.className = 'timeline-empty px-4 py-8 text-center';
+            emptyEl.className = 'timeline-empty crm-panel-empty';
             emptyEl.innerHTML = `
-                <div class="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
-                    <i class="fas fa-stream text-slate-400 text-xl"></i>
-                </div>
-                <p class="text-slate-500 text-sm">No activities yet</p>
-                <p class="text-slate-400 text-xs mt-1">Activities will appear here as you interact with this contact</p>
+                <p>No activities yet</p>
+                <p class="crm-panel-empty__hint">Activities show up as you work this contact.</p>
             `;
             this.container.appendChild(emptyEl);
         }

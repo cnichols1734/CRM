@@ -13,8 +13,7 @@
         </div>
 
         <a href="{% if return_transaction_id %}{{ url_for('transactions.view_transaction', id=return_transaction_id) }}{% else %}{{ url_for('main.contacts') }}{% endif %}"
-           class="mb-5 inline-flex items-center gap-1.5 text-sm font-semibold"
-           style="color: var(--accent-ink);">
+           class="crm-back mb-5">
             <i class="fas fa-chevron-left text-xs"></i>
             Back
         </a>

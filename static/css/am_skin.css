@@ -632,10 +632,70 @@ html.am-skin .crm-toolbar .crm-btn.is-active {
   color: var(--accent-ink) !important;
 }
 
-/* Empty states */
+/* Empty states — quieter icon, no card-in-card inside surfaces */
 html.am-skin .crm-empty,
 html.am-skin [class*="empty-state"] {
   color: var(--ink-3);
+}
+html.am-skin .crm-empty-icon {
+  border-radius: 50% !important;
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--hairline) !important;
+  color: var(--ink-4) !important;
+}
+html.am-skin .crm-empty__title,
+html.am-skin .crm-empty h3 {
+  color: var(--ink) !important;
+  font-weight: 600 !important;
+}
+html.am-skin .crm-empty__copy,
+html.am-skin .crm-empty p {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-surface .crm-empty,
+html.am-skin .crm-surface-body > .crm-empty {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+html.am-skin .crm-panel-empty {
+  color: var(--ink-4) !important;
+}
+html.am-skin .crm-field-label {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-back {
+  color: var(--ink-3) !important;
+}
+html.am-skin .crm-back:hover {
+  color: var(--ink) !important;
+}
+
+/* Contact activity filters — chip language, not slate pills */
+html.am-skin .timeline-filter-btn {
+  border-radius: 1000px !important;
+  border: 0.5px solid var(--hairline) !important;
+  background: var(--am-control-bg) !important;
+  color: var(--ink-3) !important;
+}
+html.am-skin .timeline-filter-btn.is-active {
+  background: var(--paper) !important;
+  color: var(--accent) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .timeline-item:hover {
+  background: var(--paper-2) !important;
+}
+html.am-skin .group-edit-label {
+  border-color: var(--hairline) !important;
+  background: var(--am-control-bg) !important;
+  color: var(--ink-2) !important;
+}
+html.am-skin .group-edit-label.is-checked,
+html.am-skin .group-edit-label.is-removed {
+  border-color: var(--accent-line) !important;
+  background: var(--accent-soft) !important;
+  color: var(--accent-ink) !important;
 }
 
 /* Floating chrome — same liquid glass as the topbar / sidebar.
@@ -826,11 +886,13 @@ html.am-skin .crm-page .text-slate-400 {
 }
 html.am-skin .crm-page .border-slate-200,
 html.am-skin .crm-page .border-slate-100,
-html.am-skin .crm-page .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+html.am-skin .crm-page .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html.am-skin .crm-page .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--hairline) !important;
 }
 html.am-skin .crm-page .bg-slate-50,
 html.am-skin .crm-page .bg-slate-100,
+html.am-skin .crm-page .hover\:bg-slate-50:hover,
 html.am-skin .crm-page .hover\:bg-slate-100:hover {
   background: var(--paper-2) !important;
 }

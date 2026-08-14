@@ -104,7 +104,7 @@
         {% endcall %}
 
         {% if current_user.role == 'admin' %}
-        <div class="mb-4">
+        <div class="mb-5">
             <div class="crm-segment">
                 <a href="{{ url_for('main.dashboard', view='my') }}"
                    class="crm-segment__item {% if not show_all %}is-active{% endif %}">
@@ -241,10 +241,10 @@
                 <div class="crm-mi__header-row">
                     <div class="min-w-0">
                         {{ section_header('Market Insights', 'Active residential listings (Single Family, Condo, Townhouse). Refreshed weekly.', 'Market') }}
-                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500"
+                        <div class="mt-2 flex flex-wrap items-center gap-2 text-xs crm-muted"
                              data-market-insights-target="metaRow">
                             <span class="crm-mi__collapsed-hint">
-                                <i class="fas fa-chart-line text-slate-400 mr-1"></i>
+                                <i class="fas fa-chart-line crm-faint mr-1"></i>
                                 Hidden by default. Open to load the latest local market stats.
                             </span>
                             <span class="hidden" data-market-insights-target="asOfWrap">
@@ -423,17 +423,17 @@
         {% endif %}
 
         {% if is_first_run %}
-        <section class="crm-surface mb-6 overflow-hidden" data-dashboard-page-target="activationWorkspace">
-            <div class="border-b border-slate-200 px-5 py-6 sm:px-8">
+        <section class="crm-surface mb-5 overflow-hidden" data-dashboard-page-target="activationWorkspace">
+            <div class="px-5 py-6 sm:px-8" style="border-bottom: 0.5px solid var(--hairline);">
                 <div class="max-w-2xl">
                     <div class="crm-section-kicker">Your first follow-up</div>
-                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Put one real relationship on the calendar.</h2>
-                    <p class="mt-2 max-w-xl text-sm leading-6 text-slate-500">Choose how your contacts live today. We’ll get one person and one next action ready before you leave this page.</p>
+                    <h2 class="mt-2 text-2xl font-semibold tracking-tight" style="color: var(--ink);">Put one real relationship on the calendar.</h2>
+                    <p class="mt-2 max-w-xl text-sm leading-6" style="color: var(--ink-3);">Choose how your contacts live today. We’ll get one person and one next action ready before you leave this page.</p>
                 </div>
             </div>
 
             <div class="crm-surface-body" data-dashboard-page-target="pathChooser">
-                <h3 class="text-base font-semibold text-slate-950">How do you want to start?</h3>
+                <h3 class="text-base font-semibold" style="color: var(--ink);">How do you want to start?</h3>
                 <div class="mt-4 grid gap-3 lg:grid-cols-[1.35fr_1fr_1fr]">
                     <button type="button"
                             class="group rounded-[10px] border p-4 text-left transition-colors"
@@ -484,26 +484,26 @@
             </div>
 
             <div class="hidden p-5 sm:p-8" data-dashboard-page-target="contactPath">
-                <button type="button" class="mb-5 text-xs font-medium text-slate-500 hover:text-slate-900" data-action="dashboard-page#resetActivationPath">
-                    <i class="fas fa-arrow-left mr-1"></i> Choose another way
+                <button type="button" class="crm-back mb-5" data-action="dashboard-page#resetActivationPath">
+                    <i class="fas fa-arrow-left text-xs"></i> Choose another way
                 </button>
                 <form id="activation-contact-form" autocomplete="off" data-action="submit->dashboard-page#createActivation">
                     <div data-dashboard-page-target="contactStep">
                         <div class="max-w-xl">
                             <div class="crm-section-kicker">Step 1 of 2</div>
-                            <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">Who needs your attention?</h3>
-                            <p class="mt-1 text-sm text-slate-500">A name is enough. Add whichever contact detail you use most.</p>
+                            <h3 class="mt-2 text-xl font-semibold tracking-tight" style="color: var(--ink);">Who needs your attention?</h3>
+                            <p class="mt-1 text-sm" style="color: var(--ink-3);">A name is enough. Add whichever contact detail you use most.</p>
                             <div class="mt-5 grid gap-3 sm:grid-cols-2">
                                 <label class="sm:col-span-2">
-                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Name</span>
+                                    <span class="crm-field-label">Name</span>
                                     <input id="activation-name" name="name" type="text" required class="crm-input w-full" placeholder="Jordan Lee" data-dashboard-page-target="activationName">
                                 </label>
                                 <label>
-                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Phone <span class="text-slate-400">(optional)</span></span>
+                                    <span class="crm-field-label">Phone <span class="crm-faint">(optional)</span></span>
                                     <input id="activation-phone" name="phone" type="tel" inputmode="tel" class="crm-input w-full" placeholder="(555) 555-0123">
                                 </label>
                                 <label>
-                                    <span class="mb-1.5 block text-xs font-medium text-slate-700">Email <span class="text-slate-400">(optional)</span></span>
+                                    <span class="crm-field-label">Email <span class="crm-faint">(optional)</span></span>
                                     <input name="email" type="email" class="crm-input w-full" placeholder="jordan@example.com">
                                 </label>
                             </div>
@@ -515,8 +515,8 @@
 
                     <div class="hidden max-w-xl" data-dashboard-page-target="followUpStep">
                         <div class="crm-section-kicker">Step 2 of 2</div>
-                        <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">When should you follow up?</h3>
-                        <p class="mt-1 text-sm text-slate-500">We’ll put the task on your dashboard.</p>
+                        <h3 class="mt-2 text-xl font-semibold tracking-tight" style="color: var(--ink);">When should you follow up?</h3>
+                        <p class="mt-1 text-sm" style="color: var(--ink-3);">We’ll put the task on your dashboard.</p>
                         <div class="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
                             {% for value, label in [('today', 'Today'), ('tomorrow', 'Tomorrow'), ('week', 'In one week'), ('custom', 'Pick a date')] %}
                             <label class="cursor-pointer">
@@ -527,7 +527,7 @@
                             {% endfor %}
                         </div>
                         <label class="mt-3 hidden" data-dashboard-page-target="customDateWrap">
-                            <span class="mb-1.5 block text-xs font-medium text-slate-700">Follow-up date</span>
+                            <span class="crm-field-label">Follow-up date</span>
                             <input name="follow_up_date" type="date" class="crm-input w-full">
                         </label>
                         <div class="mt-5 flex flex-wrap items-center gap-3">
@@ -542,20 +542,20 @@
             </div>
 
             <div class="hidden p-5 sm:p-8" data-dashboard-page-target="inboxPath">
-                <button type="button" class="mb-5 text-xs font-medium text-slate-500 hover:text-slate-900" data-action="dashboard-page#resetActivationPath">
-                    <i class="fas fa-arrow-left mr-1"></i> Choose another way
+                <button type="button" class="crm-back mb-5" data-action="dashboard-page#resetActivationPath">
+                    <i class="fas fa-arrow-left text-xs"></i> Choose another way
                 </button>
                 <div class="max-w-2xl">
                     <div class="crm-section-kicker">Magic Inbox</div>
-                    <h3 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">Forward the lead. We’ll build the contact.</h3>
+                    <h3 class="mt-2 text-xl font-semibold tracking-tight" style="color: var(--ink);">Forward the lead. We’ll build the contact.</h3>
                     {% if current_user.inbox_address %}
-                    <p class="mt-2 text-sm text-slate-500">Send a lead email, business card photo, or contact details to:</p>
+                    <p class="mt-2 text-sm" style="color: var(--ink-3);">Send a lead email, business card photo, or contact details to:</p>
                     <div class="mt-5 flex flex-col gap-2 sm:flex-row">
-                        <code class="min-w-0 flex-1 overflow-x-auto rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">{{ current_user.inbox_address }}</code>
+                        <code class="min-w-0 flex-1 overflow-x-auto rounded-[10px] border px-4 py-3 text-sm font-semibold" style="border-color: var(--hairline); background: var(--paper-2); color: var(--ink);">{{ current_user.inbox_address }}</code>
                         <button type="button" class="crm-btn crm-btn-secondary" data-action="dashboard-page#copyInboxAddress" data-address="{{ current_user.inbox_address }}">Copy address</button>
                     </div>
                     {% else %}
-                    <p class="mt-2 text-sm text-slate-500">Your private inbox is still being prepared. Add a contact here for now, and we’ll keep working on it.</p>
+                    <p class="mt-2 text-sm" style="color: var(--ink-3);">Your private inbox is still being prepared. Add a contact here for now, and we’ll keep working on it.</p>
                     <button type="button" class="crm-btn crm-btn-primary mt-5" data-action="dashboard-page#selectContactPath">Add someone instead</button>
                     {% endif %}
                 </div>
@@ -565,14 +565,14 @@
         </section>
         {% else %}
         {% if show_activation_onboarding and activation_state.mode == 'follow_up' %}
-        <section class="crm-surface mb-6 overflow-hidden">
-            <div class="border-b border-slate-200 px-5 py-5 sm:px-7">
+        <section class="crm-surface mb-5 overflow-hidden">
+            <div class="px-5 py-5 sm:px-7" style="border-bottom: 0.5px solid var(--hairline);">
                 <div class="crm-section-kicker">One step left</div>
-                <h2 class="mt-2 text-xl font-semibold tracking-tight text-slate-950">Give this relationship a next date.</h2>
-                <p class="mt-1 text-sm text-slate-500">{{ activation_state.contact.first_name }} {{ activation_state.contact.last_name }} is saved. Schedule the follow-up that brings them back to your dashboard.</p>
+                <h2 class="mt-2 text-xl font-semibold tracking-tight" style="color: var(--ink);">Give this relationship a next date.</h2>
+                <p class="mt-1 text-sm" style="color: var(--ink-3);">{{ activation_state.contact.first_name }} {{ activation_state.contact.last_name }} is saved. Schedule the follow-up that brings them back to your dashboard.</p>
             </div>
             <div class="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-7">
-                <p class="text-sm text-slate-500">A contact without a next action is easy to forget.</p>
+                <p class="text-sm" style="color: var(--ink-3);">A contact without a next action is easy to forget.</p>
                 <a href="{{ url_for('tasks.create_task', contact_id=activation_state.contact.id, return_to='contact') }}"
                    class="crm-btn crm-btn-primary"
                    data-analytics-surface="activation"
@@ -585,12 +585,12 @@
         </section>
         {% endif %}
 
-        <section class="crm-surface mb-6">
+        <section class="crm-surface mb-5">
             <div class="crm-surface-header">
                 <div>
                     {{ section_header('Today', 'Work the next relationship, then move on.', 'Next actions') }}
                 </div>
-                <a href="{{ url_for('tasks.tasks') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">All tasks</a>
+                <a href="{{ url_for('tasks.tasks') }}" class="crm-back">All tasks</a>
             </div>
             <div class="crm-surface-body">
                 {% if upcoming_tasks %}
@@ -604,10 +604,10 @@
                                data-action="change->dashboard-page#updateTaskStatus"
                                data-task-id="{{ task.id }}">
                         <div class="min-w-0 flex-1">
-                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="block truncate text-sm font-semibold text-slate-900">{{ task.subject }}</a>
-                            <div class="mt-1 text-xs text-slate-500">
+                            <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-table-link block truncate">{{ task.subject }}</a>
+                            <div class="mt-1 text-xs" style="color: var(--ink-3);">
                                 {% if task.contact %}{{ task.contact.first_name }} {{ task.contact.last_name }} · {% endif %}
-                                {% if days_until_due < 0 %}<span class="font-medium text-amber-700">Overdue</span>{% elif days_until_due == 0 %}<span class="font-medium text-amber-700">Due today</span>{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }} days{% endif %}
+                                {% if days_until_due < 0 %}<span class="font-medium" style="color: var(--warn);">Overdue</span>{% elif days_until_due == 0 %}<span class="font-medium" style="color: var(--warn);">Due today</span>{% elif days_until_due == 1 %}Due tomorrow{% else %}Due in {{ days_until_due }} days{% endif %}
                             </div>
                         </div>
                         <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard" class="crm-btn crm-btn-secondary">Open</a>
@@ -616,14 +616,14 @@
                 </div>
                 {% else %}
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p class="text-sm text-slate-500">Nothing is due yet. Add a follow-up while the conversation is fresh.</p>
+                    <p class="text-sm" style="color: var(--ink-3);">Nothing is due yet. Add a follow-up while the conversation is fresh.</p>
                     <a href="{{ url_for('tasks.create_task') }}" class="crm-btn crm-btn-primary">Schedule follow-up</a>
                 </div>
                 {% endif %}
             </div>
         </section>
 
-        <div class="crm-kpi-grid mb-6">
+        <div class="crm-kpi-grid mb-5">
             <div class="crm-kpi">
                 <div class="crm-kpi__main">
                     <div class="crm-kpi__label">
@@ -661,7 +661,7 @@
         {% endif %}
 
         {% if show_transactions %}
-        <section class="crm-surface mb-6">
+        <section class="crm-surface mb-5">
             <div class="crm-surface-header">
                 <div>
                     {{ section_header('Transaction Pipeline', '', 'Pipeline', '$' ~ "{:,.0f}".format(pipeline_value) ~ ' open') }}
@@ -683,24 +683,24 @@
                     <div class="crm-board-column">
                         <div class="crm-board-column__header">
                             <div class="min-w-0">
-                                <span class="text-sm font-semibold text-slate-900">{{ column.label }}</span>
-                                <p class="mt-0.5 truncate text-[11px] text-slate-500" title="{{ column.description }}">{{ column.description }}</p>
+                                <span class="text-sm font-semibold" style="color: var(--ink);">{{ column.label }}</span>
+                                <p class="mt-0.5 truncate text-[11px]" style="color: var(--ink-3);" title="{{ column.description }}">{{ column.description }}</p>
                             </div>
                             {{ badge(column.count|string, column.tone) }}
                         </div>
                         <div class="crm-board-column__body">
                             {% for tx in column.transactions %}
                             <a href="{{ url_for('transactions.view_transaction', id=tx.id) }}" class="crm-deal-card block">
-                                <div class="text-sm font-semibold text-slate-900">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
-                                <div class="mt-2 text-sm text-slate-500">{{ tx.client_name }}</div>
-                                <div class="mt-2 truncate text-[11px] font-medium uppercase tracking-wide text-slate-400">{{ tx.type }}</div>
-                                <div class="mt-3 flex items-center justify-between gap-3 text-xs text-slate-500">
+                                <div class="text-sm font-semibold" style="color: var(--ink);">{{ tx.address[:38] }}{% if tx.address|length > 38 %}...{% endif %}</div>
+                                <div class="mt-2 text-sm" style="color: var(--ink-3);">{{ tx.client_name }}</div>
+                                <div class="mt-2 truncate text-[11px] font-medium uppercase tracking-wide" style="color: var(--ink-4);">{{ tx.type }}</div>
+                                <div class="mt-3 flex items-center justify-between gap-3 text-xs" style="color: var(--ink-3);">
                                     <span class="truncate">{{ tx.status_label }}</span>
-                                    <span class="font-semibold text-slate-700">${{ "{:,.0f}".format(tx.commission) }}</span>
+                                    <span class="font-semibold" style="color: var(--ink-2);">${{ "{:,.0f}".format(tx.commission) }}</span>
                                 </div>
                             </a>
                             {% else %}
-                            <div class="rounded-md border border-dashed border-slate-200 px-4 py-6 text-center text-sm text-slate-400">No transactions</div>
+                            <div class="crm-panel-empty" style="border: 0.5px dashed var(--hairline); border-radius: var(--radius);">No transactions</div>
                             {% endfor %}
                         </div>
                     </div>
@@ -716,7 +716,7 @@
         </section>
         {% endif %}
 
-        <div class="mb-6 grid gap-4 xl:grid-cols-2">
+        <div class="mb-5 grid gap-4 xl:grid-cols-2">
             <section class="crm-surface">
                 <div class="crm-surface-header">
                     <div>
@@ -734,7 +734,7 @@
                             </button>
                             {% endfor %}
                         </div>
-                        <a href="{{ url_for('tasks.tasks') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">View all tasks</a>
+                        <a href="{{ url_for('tasks.tasks') }}" class="crm-back">View all tasks</a>
                     </div>
                 </div>
                 <div class="crm-surface-body">
@@ -758,7 +758,7 @@
                                        class="crm-table-link block truncate">
                                         {{ task.subject }}
                                     </a>
-                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                    <div class="mt-2 flex flex-wrap items-center gap-2 text-xs crm-muted">
                                         {{ badge(task.task_type.name) }}
                                         {% if days_until_due < 0 %}
                                         {{ badge('Overdue ' ~ (days_until_due|abs) ~ 'd', 'warning') }}
@@ -771,7 +771,7 @@
                                         {% endif %}
                                         {% if task.contact %}
                                         <a href="{{ url_for('contacts.view_contact', contact_id=task.contact.id) }}"
-                                           class="text-xs font-medium text-slate-600 hover:text-slate-900">
+                                           class="text-xs font-medium crm-back">
                                             {{ task.contact.first_name }} {{ task.contact.last_name }}
                                         </a>
                                         {% endif %}
@@ -779,7 +779,7 @@
                                 </div>
                             </div>
                             <a href="{{ url_for('tasks.view_task', task_id=task.id) }}?ref=dashboard"
-                               class="text-slate-400 hover:text-slate-700">
+                               class="crm-faint hover:opacity-80">
                                 <i class="fas fa-chevron-right text-xs"></i>
                             </a>
                         </div>
@@ -798,7 +798,7 @@
                     <div>
                         {{ section_header("Personal To-Do List", "", "To Do") }}
                     </div>
-                    <a href="{{ url_for('user_todo.user_todo') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Open full list</a>
+                    <a href="{{ url_for('user_todo.user_todo') }}" class="crm-back">Open full list</a>
                 </div>
                 <div class="crm-surface-body">
                     <div class="mb-4 flex flex-col gap-3 sm:flex-row">
@@ -851,7 +851,7 @@
                     <div>
                         {{ section_header('Top Contacts by Commission', '', 'Contacts') }}
                     </div>
-                    <a href="{{ url_for('main.contacts') }}" class="text-sm font-medium text-slate-600 hover:text-slate-900">Open contacts</a>
+                    <a href="{{ url_for('main.contacts') }}" class="crm-back">Open contacts</a>
                 </div>
                 <div class="crm-surface-body">
                     {% if top_contacts %}
@@ -897,7 +897,7 @@
                                     </td>
                                     <td>{{ contact.last_contact_date.strftime('%b %d, %Y') if contact.last_contact_date else 'Never' }}</td>
                                     <td>{{ contact.email or '--' }}</td>
-                                    <td class="text-right font-semibold text-slate-900">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</td>
+                                    <td class="text-right font-semibold" style="color: var(--ink);">${{ "{:,.0f}".format(contact.potential_commission or 0) }}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

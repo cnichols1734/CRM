@@ -707,6 +707,22 @@
     font-size: 11.5px;
     color: var(--ink-2);
   }
+  button.crm-chip {
+    cursor: pointer;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 500;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .crm-chip.is-active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .crm-chip .filter-count {
+    opacity: 0.65;
+    font-variant-numeric: tabular-nums;
+  }
   .crm-chip.dot::before {
     content: "";
     width: 6px;
@@ -1629,6 +1645,14 @@
     padding: 32px 24px;
     color: var(--ink-3);
   }
+  /* Nested inside a surface: drop the second card so the empty sits on paper. */
+  .crm-surface .crm-empty,
+  .crm-surface-body > .crm-empty {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 20px 8px;
+  }
   .crm-empty-center {
     display: flex;
     flex-direction: column;
@@ -1639,26 +1663,105 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: 48px;
-    width: 48px;
-    border-radius: var(--radius);
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
     background: var(--paper-2);
-    color: var(--ink-3);
+    color: var(--ink-4);
     border: 1px solid var(--hairline);
+    font-size: 13px;
   }
-  .crm-empty h3 {
+  .crm-empty h3,
+  .crm-empty__title {
     margin-top: 12px;
     font-family: var(--font-serif);
     font-weight: 600;
-    font-size: 16px;
+    font-size: 15px;
     letter-spacing: -0.018em;
     color: var(--ink);
   }
-  .crm-empty p {
+  .crm-empty p,
+  .crm-empty__copy {
     margin-top: 6px;
     font-size: 13px;
+    line-height: 1.5;
     color: var(--ink-3);
     max-width: 38ch;
+  }
+  .crm-empty__actions {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* Quiet inline empty for rails / sidebar panels — no icon circus. */
+  .crm-panel-empty {
+    padding: 1.75rem 1.25rem;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ink-4);
+  }
+  .crm-panel-empty p { margin: 0; }
+  .crm-panel-empty__hint {
+    margin-top: 0.25rem;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--ink-4);
+  }
+  .crm-panel-empty .crm-btn { margin-top: 0.75rem; }
+
+  .crm-field-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink-3);
+  }
+
+  .crm-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-3);
+    transition: color 120ms ease;
+  }
+  .crm-back:hover { color: var(--ink); }
+
+  .crm-rule {
+    border-color: var(--hairline);
+  }
+
+  .crm-muted { color: var(--ink-3); }
+  .crm-faint { color: var(--ink-4); }
+
+  .group-edit-label {
+    border: 1px solid var(--hairline);
+    background: var(--paper-2);
+    color: var(--ink-2);
+  }
+  .group-edit-label.is-checked {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .group-edit-label.is-removed {
+    border-style: dashed;
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    opacity: 0.72;
+  }
+
+  .timeline-item:hover {
+    background: var(--paper-2);
   }
 
   /* ── Sidebar shell helpers ───────────────────────────────── */
