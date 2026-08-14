@@ -24,10 +24,10 @@ html.am-skin[data-theme="dark"] {
   --hairline: hsla(0, 0%, 100%, 0.1);
   --hairline-strong: hsla(0, 0%, 100%, 0.16);
 
-  --accent: #fa586a;
-  --accent-ink: #fa586a;
-  --accent-soft: rgba(250, 88, 106, 0.16);
-  --accent-line: #fa586a;
+  --accent: #fb923c;
+  --accent-ink: #fb923c;
+  --accent-soft: rgba(249, 115, 22, 0.16);
+  --accent-line: #fb923c;
   --accent-on: #ffffff;
 
   --positive: #32d74b;
@@ -56,8 +56,8 @@ html.am-skin[data-theme="dark"] {
   --crm-muted: var(--ink-3);
   --crm-accent: var(--accent);
 
-  --am-key-bg: #d60017;
-  --am-key-pressed: #b00;
+  --am-key-bg: #f97316;
+  --am-key-pressed: #ea580c;
   --am-control-bg: #2c2c2e;
   /* Liquid glass — lighter fill + deeper blur than stock AM */
   --am-glass: rgba(28, 28, 30, 0.42);
@@ -87,10 +87,10 @@ html.am-skin[data-theme="light"] {
   --hairline: rgba(0, 0, 0, 0.10);
   --hairline-strong: rgba(0, 0, 0, 0.16);
 
-  --accent: #fa243c;
-  --accent-ink: #d60017;
-  --accent-soft: rgba(214, 0, 23, 0.1);
-  --accent-line: #fa243c;
+  --accent: #f97316;
+  --accent-ink: #ea580c;
+  --accent-soft: rgba(249, 115, 22, 0.1);
+  --accent-line: #f97316;
   --accent-on: #ffffff;
 
   --positive: #248a3d;
@@ -119,8 +119,8 @@ html.am-skin[data-theme="light"] {
   --crm-muted: var(--ink-3);
   --crm-accent: var(--accent);
 
-  --am-key-bg: #d60017;
-  --am-key-pressed: #b00;
+  --am-key-bg: #ea580c;
+  --am-key-pressed: #c2410c;
   --am-control-bg: #ebebeb;
   /* Light glass — airier fill, same deep blur */
   --am-glass: rgba(255, 255, 255, 0.48);
@@ -291,19 +291,19 @@ html.am-skin[data-theme="light"] .crm-nav-link:hover {
   color: rgba(0, 0, 0, 0.88) !important;
 }
 html.am-skin .crm-nav-link.is-active {
-  background: rgba(250, 88, 106, 0.16) !important;
-  color: #fa586a !important;
+  background: rgba(249, 115, 22, 0.16) !important;
+  color: #fb923c !important;
 }
 html.am-skin .crm-nav-link.is-active i {
-  color: #fa586a !important;
+  color: #fb923c !important;
 }
 
 html.am-skin .crm-nav-badge {
-  background: rgba(250, 88, 106, 0.18) !important;
-  color: #fa586a !important;
+  background: rgba(249, 115, 22, 0.18) !important;
+  color: #fb923c !important;
 }
 html.am-skin .crm-nav-link--new::after {
-  background: #fa586a !important;
+  background: #fb923c !important;
 }
 
 html.am-skin .crm-sidebar-toggle {
@@ -315,7 +315,7 @@ html.am-skin[data-theme="light"] .crm-sidebar-toggle {
 }
 html.am-skin .crm-sidebar-toggle:hover {
   background: hsla(0, 0%, 100%, 0.08) !important;
-  color: #fa586a !important;
+  color: #fb923c !important;
 }
 
 html.am-skin .crm-sidebar-avatar {
@@ -349,7 +349,7 @@ html.am-skin .crm-utility-search input::placeholder {
 }
 html.am-skin .crm-utility-search input:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.35) !important;
 }
 html.am-skin .crm-utility-search .search-icon {
   color: var(--ink-4) !important;
@@ -369,11 +369,11 @@ html.am-skin .crm-theme-btn:hover {
 
 /* NProgress → Apple key red */
 html.am-skin #nprogress .bar {
-  background: #fa586a !important;
-  box-shadow: 0 0 8px rgba(250, 88, 106, 0.5) !important;
+  background: #fb923c !important;
+  box-shadow: 0 0 8px rgba(249, 115, 22, 0.5) !important;
 }
 html.am-skin #nprogress .peg {
-  box-shadow: 0 0 14px rgba(250, 88, 106, 0.5) !important;
+  box-shadow: 0 0 14px rgba(249, 115, 22, 0.5) !important;
 }
 
 /* ── Buttons ──────────────────────────────────────────────── */
@@ -497,7 +497,7 @@ html.am-skin[data-theme="light"] .crm-table tbody tr:hover {
 html.am-skin .crm-table tbody tr.is-selected,
 html.am-skin .crm-table tbody tr.selected,
 html.am-skin tr[data-contacts-page-target="row"].is-selected {
-  background: rgba(250, 88, 106, 0.1) !important;
+  background: rgba(249, 115, 22, 0.1) !important;
 }
 html.am-skin .crm-table-link {
   color: var(--ink) !important;
@@ -534,7 +534,7 @@ html.am-skin .crm-select:focus,
 html.am-skin .crm-textarea:focus,
 html.am-skin .crm-search:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.35) !important;
 }
 html.am-skin input::placeholder,
 html.am-skin textarea::placeholder {
@@ -567,7 +567,7 @@ html.am-skin [class*="badge"] {
 }
 html.am-skin .crm-avatar {
   border-radius: 50% !important;
-  background: linear-gradient(135deg, #fa586a 0%, #d60017 100%) !important;
+  background: linear-gradient(135deg, #fb923c 0%, #ea580c 100%) !important;
   color: #fff !important;
 }
 
@@ -721,7 +721,7 @@ html.am-skin .premium-input {
 }
 html.am-skin .premium-input:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.35) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.35) !important;
   background: var(--am-control-bg) !important;
 }
 html.am-skin .premium-card {
@@ -997,7 +997,7 @@ html.am-skin .crm-page code {
 
 /* Auth / legacy brand tokens (beat :root in page <style>) */
 html.am-skin {
-  --brand-orange: #fa243c;
+  --brand-orange: #f97316;
   --brand-navy: #1c1c1e;
   --brand-navy-2: #000000;
   --bg: var(--canvas);
@@ -1005,14 +1005,14 @@ html.am-skin {
   --text: var(--ink);
   --muted: var(--ink-3);
   --border: var(--hairline);
-  --focus: rgba(250, 88, 106, 0.28);
+  --focus: rgba(249, 115, 22, 0.28);
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
 }
 html.am-skin[data-theme="dark"] {
-  --brand-orange: #fa586a;
+  --brand-orange: #fb923c;
 }
 html.am-skin[data-theme="light"] {
-  --brand-orange: #fa243c;
+  --brand-orange: #f97316;
 }
 
 /* ── Orange Tailwind utilities → Apple accent ─────────────── */
@@ -1090,7 +1090,7 @@ html.am-skin .shadow-orange-100,
 html.am-skin .shadow-orange-200,
 html.am-skin .shadow-orange-500\/20,
 html.am-skin .shadow-orange-500\/30 {
-  --tw-shadow-color: rgba(214, 0, 23, 0.18) !important;
+  --tw-shadow-color: rgba(234, 88, 12, 0.18) !important;
 }
 
 /* Flatten warm page wrappers → canvas */
@@ -1173,7 +1173,7 @@ html.am-skin .content-wrapper select:focus,
 html.am-skin .content-wrapper textarea:focus {
   outline: none;
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28) !important;
 }
 
 /* ── Premium form islands (auth, docs, action plan, tax) ─── */
@@ -1195,7 +1195,7 @@ html.am-skin .premium-input:focus,
 html.am-skin .premium-select:focus,
 html.am-skin .premium-textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28) !important;
   background: var(--am-control-bg) !important;
 }
 html.am-skin .premium-radio-card {
@@ -1333,24 +1333,7 @@ html.am-skin .register-panel {
   background-image: none !important;
   color: var(--ink) !important;
 }
-/* Pin marketing/auth red utilities to the same accent as the app */
-html.am-skin .text-red-400,
-html.am-skin .text-red-500,
-html.am-skin .text-red-600,
-html.am-skin .text-red-700,
-html.am-skin .hover\:text-red-500:hover,
-html.am-skin .hover\:text-red-600:hover,
-html.am-skin .hover\:text-red-700:hover {
-  color: var(--accent-ink) !important;
-}
-html.am-skin .border-red-500,
-html.am-skin .border-red-600 {
-  border-color: var(--accent) !important;
-}
-html.am-skin .from-red-400 { --tw-gradient-from: #ff6b7a var(--tw-gradient-from-position) !important; }
-html.am-skin .to-rose-400 { --tw-gradient-to: #fa586a var(--tw-gradient-to-position) !important; }
-html.am-skin .from-red-500\/20 { --tw-gradient-from: rgb(250 36 60 / 0.2) var(--tw-gradient-from-position) !important; }
-html.am-skin .from-rose-500\/10 { --tw-gradient-from: rgb(250 88 106 / 0.1) var(--tw-gradient-from-position) !important; }
+/* Auth/marketing brand accents use orange utilities + --accent tokens */
 html.am-skin .toc-link:hover {
   color: var(--accent-ink) !important;
 }
@@ -1653,7 +1636,7 @@ html.am-skin .report-card:hover {
   border-color: var(--accent-line) !important;
 }
 html.am-skin .focus\:ring-orange-500\/40:focus {
-  --tw-ring-color: rgba(250, 88, 106, 0.4) !important;
+  --tw-ring-color: rgba(249, 115, 22, 0.4) !important;
 }
 html.am-skin .hover\:bg-orange-50\/50:hover {
   background-color: var(--accent-soft) !important;
@@ -1673,7 +1656,7 @@ html.am-skin .to-amber-500 {
 }
 html.am-skin .shadow-orange-500\/25,
 html.am-skin .shadow-lg.shadow-orange-500\/25 {
-  --tw-shadow-color: rgba(214, 0, 23, 0.2) !important;
+  --tw-shadow-color: rgba(234, 88, 12, 0.2) !important;
   box-shadow: none !important;
 }
 
@@ -1780,7 +1763,7 @@ html.am-skin textarea.admin-select {
 }
 html.am-skin .admin-select:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(250, 88, 106, 0.28) !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28) !important;
 }
 html.am-skin .btn-admin-primary {
   background: var(--am-key-bg) !important;

@@ -168,7 +168,7 @@
     /* Accent line */
     .accent-line {
         height: 4px;
-        background: linear-gradient(90deg, #fa243c, #ff6b7a, #fa243c);
+        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
         background-size: 200% 100%;
         animation: shimmer 3s linear infinite;
     }
@@ -207,7 +207,7 @@
         color: #64748b;
     }
     .benefit-badge i {
-        color: #fa243c;
+        color: #f97316;
         margin-right: 6px;
     }
     
@@ -238,8 +238,8 @@
         <div class="absolute inset-0 hero-pattern"></div>
         
         <!-- Gradient overlays -->
-        <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-red-500/20 to-transparent rounded-full blur-3xl"></div>
-        <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-rose-500/10 to-transparent rounded-full blur-3xl"></div>
+        <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-500/20 to-transparent rounded-full blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-full blur-3xl"></div>
         
         <!-- Content -->
         <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
@@ -253,7 +253,7 @@
                 
                 <h1 class="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
                     Grow Your Real Estate<br>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-rose-400">Business Today</span>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">Business Today</span>
                 </h1>
                 
                 <p class="text-xl text-slate-300 leading-relaxed max-w-lg">
@@ -335,11 +335,11 @@
                     
                     <!-- Benefits -->
                     <div class="flex items-center justify-center gap-6 mb-8 text-sm text-slate-500">
-                        <span class="flex items-center"><i class="fas fa-check text-red-500 mr-2"></i>Unlimited Contacts</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Unlimited Contacts</span>
                         <span class="text-slate-300">·</span>
-                        <span class="flex items-center"><i class="fas fa-check text-red-500 mr-2"></i>Instant Access</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Instant Access</span>
                         <span class="text-slate-300">·</span>
-                        <span class="flex items-center"><i class="fas fa-check text-red-500 mr-2"></i>Secure</span>
+                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Secure</span>
                     </div>
                     
                     <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4"
@@ -441,7 +441,7 @@
             <div class="text-center mt-8">
             <p class="text-slate-600">
                 Already have an account?
-                    <a href="{{ url_for('auth.login') }}" class="font-semibold text-[#2d3e50] hover:text-red-600 transition-colors ml-1">
+                    <a href="{{ url_for('auth.login') }}" class="font-semibold text-[#2d3e50] hover:text-orange-600 transition-colors ml-1">
                         Sign in <i class="fas fa-arrow-right text-xs ml-1"></i>
                 </a>
             </p>
