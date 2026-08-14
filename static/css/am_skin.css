@@ -656,6 +656,55 @@ html.am-skin .crm-notification-popover {
   isolation: isolate;
 }
 
+/* B.O.B. assistant — same liquid glass as the topbar / sidebar.
+   The panel is portaled to <body>, so the blur samples the page.
+   Inner chrome stays transparent; nested dropdowns do not get their
+   own backdrop-filter (that reads as empty glass). */
+html.am-skin .bob-panel,
+html.am-skin .bob-panel.modal {
+  --bob-panel-bg: transparent;
+  background: var(--am-glass) !important;
+  background-color: var(--am-glass) !important;
+  backdrop-filter: var(--am-glass-blur) !important;
+  -webkit-backdrop-filter: var(--am-glass-blur) !important;
+  border-left: 0.5px solid var(--am-glass-border) !important;
+  box-shadow: var(--am-glass-shadow) !important;
+  color: var(--ink) !important;
+}
+html.am-skin .bob-panel.modal {
+  border: 0.5px solid var(--am-glass-border) !important;
+}
+html.am-skin .bob-header,
+html.am-skin .bob-content,
+html.am-skin .bob-welcome,
+html.am-skin .bob-messages,
+html.am-skin .bob-input-area,
+html.am-skin .bob-main-area,
+html.am-skin .bob-history-sidebar,
+html.am-skin .bob-history-list,
+html.am-skin .bob-history-dropdown-header,
+html.am-skin .bob-panel.modal .bob-header,
+html.am-skin .bob-panel.modal .bob-content,
+html.am-skin .bob-panel.modal .bob-welcome,
+html.am-skin .bob-panel.modal .bob-messages,
+html.am-skin .bob-panel.modal .bob-input-area {
+  background: transparent !important;
+  background-image: none !important;
+}
+html.am-skin .bob-header {
+  border-bottom-color: var(--am-glass-border) !important;
+}
+html.am-skin .bob-input-area {
+  border-top-color: var(--am-glass-border) !important;
+}
+html.am-skin .bob-history-sidebar {
+  border-right-color: var(--am-glass-border) !important;
+}
+html.am-skin .bob-input-container {
+  background: var(--am-control-bg) !important;
+  border: 0.5px solid var(--am-glass-border) !important;
+}
+
 /* Keep glass readable: translucent hovers, hairline dividers */
 html.am-skin .crm-notification-popover .crm-notif-header,
 html.am-skin .crm-notification-popover .crm-notif-footer {

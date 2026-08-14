@@ -1029,10 +1029,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
 }
 
 .bob-textarea {
-    flex: 1;
+    /* Textareas keep an intrinsic cols=20 width; flex-grow alone will not
+       fill a row unless the used width is taken over by the flex item. */
+    flex: 1 1 0%;
+    min-width: 0;
+    width: 100%;
     border: none;
     background: transparent;
     resize: none;
@@ -1053,6 +1058,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
 }
 
 .bob-tool-btn {

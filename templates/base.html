@@ -1682,8 +1682,8 @@
            The widget ships its own ai_chat.css that uses gradient text and an
            orange send button. We replace ALL of it with token-driven flat styles. */
         .bob-panel {
-            --bob-panel-bg: var(--paper) !important;
-            --bob-border: var(--hairline) !important;
+            --bob-panel-bg: transparent !important;
+            --bob-border: var(--am-glass-border, var(--hairline)) !important;
             --bob-text: var(--ink) !important;
             --bob-muted: var(--ink-3) !important;
             --bob-orange: var(--accent) !important;
@@ -1696,16 +1696,20 @@
             --bob-chip-bg: var(--paper) !important;
             --bob-code-bg: var(--paper-3) !important;
             --bob-code-fg: var(--ink) !important;
-            background: var(--paper) !important;
+            background: var(--am-glass, var(--paper)) !important;
+            background-color: var(--am-glass, var(--paper)) !important;
+            backdrop-filter: var(--am-glass-blur, none) !important;
+            -webkit-backdrop-filter: var(--am-glass-blur, none) !important;
             color: var(--ink) !important;
-            border-left-color: var(--hairline) !important;
+            border-left-color: var(--am-glass-border, var(--hairline)) !important;
+            box-shadow: var(--am-glass-shadow, -4px 0 24px rgba(15, 23, 42, 0.08)) !important;
         }
         .bob-overlay { background: oklch(0% 0 0 / 0.4) !important; }
 
         /* Header — kill the gradient brand text */
         .bob-header,
         .bob-header * { color: var(--ink); }
-        .bob-header { background: var(--paper) !important; border-bottom-color: var(--hairline) !important; }
+        .bob-header { background: transparent !important; border-bottom-color: var(--am-glass-border, var(--hairline)) !important; }
         .bob-header-title {
             background: transparent !important;
             background-image: none !important;
@@ -1752,7 +1756,7 @@
         }
 
         /* Welcome state — kill the giant orange "B.O.B." */
-        .bob-welcome { background: var(--paper) !important; }
+        .bob-welcome { background: transparent !important; }
         .bob-logo {
             background: var(--paper-2) !important;
             background-image: none !important;
@@ -1795,8 +1799,13 @@
         }
 
         /* Messages list — flat canvas */
+        .bob-content,
+        .bob-main-area {
+            background: transparent !important;
+            background-image: none !important;
+        }
         .bob-messages {
-            background: var(--paper) !important;
+            background: transparent !important;
             background-image: none !important;
         }
         .bob-message.user {
@@ -1932,22 +1941,34 @@
 
         /* Input area + send button — ink primary */
         .bob-input-area {
-            background: var(--paper) !important;
-            border-top-color: var(--hairline) !important;
+            background: transparent !important;
+            border-top-color: var(--am-glass-border, var(--hairline)) !important;
         }
         .bob-input-container {
-            background: var(--paper-2) !important;
-            border: 1px solid var(--hairline) !important;
+            background: var(--am-control-bg, var(--paper-2)) !important;
+            border: 0.5px solid var(--am-glass-border, var(--hairline)) !important;
             border-radius: var(--radius-lg) !important;
         }
         .bob-input-container:focus-within {
             border-color: var(--ink-4) !important;
             box-shadow: 0 0 0 3px var(--accent-soft) !important;
         }
+        .bob-input-row {
+            display: flex !important;
+            align-items: center !important;
+            width: 100% !important;
+        }
+        .bob-toolbar {
+            flex-shrink: 0 !important;
+        }
         .bob-textarea {
             background: transparent !important;
             color: var(--ink) !important;
             border: none !important;
+            flex: 1 1 0% !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            resize: none !important;
         }
         .bob-textarea::placeholder { color: var(--ink-4) !important; }
         .bob-tool-btn {
@@ -1981,8 +2002,8 @@
 
         /* History sidebar */
         .bob-history-sidebar {
-            background: var(--paper-2) !important;
-            border-right-color: var(--hairline) !important;
+            background: transparent !important;
+            border-right-color: var(--am-glass-border, var(--hairline)) !important;
         }
         .bob-history-header { border-bottom-color: var(--hairline) !important; }
         .bob-new-chat-btn,
