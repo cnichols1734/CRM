@@ -7,7 +7,7 @@ function _tok(name, fallback) {
 
 function chartPalette() {
   return {
-    accent: _tok("--accent", "#fa586a"),
+    accent: _tok("--accent", "#f97316"),
     muted: _tok("--ink-4", "#94a3b8"),
     axis: _tok("--ink-3", "#64748b"),
     grid: _tok("--hairline", "#e2e8f0"),
