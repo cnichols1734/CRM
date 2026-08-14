@@ -41,19 +41,19 @@
     <div class="crm-rail__actions">
         {% if contact.email %}
         <a href="mailto:{{ contact.email }}" class="crm-btn crm-btn-secondary">
-            <i class="fas fa-envelope text-xs text-slate-400"></i>
+            <i class="fas fa-envelope text-xs"></i>
             Email
         </a>
         {% endif %}
         {% if contact.phone %}
         <a href="tel:{{ contact.phone }}" class="crm-btn crm-btn-secondary">
-            <i class="fas fa-phone text-xs text-slate-400"></i>
+            <i class="fas fa-phone text-xs"></i>
             Call
         </a>
         {% endif %}
         <a href="{{ url_for('tasks.create_task') }}?contact_id={{ contact.id }}"
            class="crm-btn crm-btn-secondary">
-            <i class="fas fa-plus text-xs text-slate-400"></i>
+            <i class="fas fa-plus text-xs"></i>
             New task
         </a>
     </div>

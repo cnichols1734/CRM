@@ -110,7 +110,7 @@
                 <div class="crm-filter-grid">
                     {% if current_user.role == 'admin' and show_all %}
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Contact owner</label>
+                        <label class="crm-field-label">Contact owner</label>
                         <select name="owners" class="crm-select">
                             <option value="">All owners</option>
                             {% for owner in all_owners %}
@@ -123,7 +123,7 @@
                     {% endif %}
 
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Group</label>
+                        <label class="crm-field-label">Group</label>
                         <select name="groups" class="crm-select">
                             <option value="">All groups</option>
                             {% for group in all_groups %}
@@ -136,7 +136,7 @@
                     </div>
 
                     <div>
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Commission range</label>
+                        <label class="crm-field-label">Commission range</label>
                         <select name="commission" class="crm-select">
                             <option value="">All ranges</option>
                             <option value="0-5000" {% if request.args.get('commission') == '0-5000' %}selected{% endif %}>$0 to $5,000</option>
@@ -146,7 +146,7 @@
                     </div>
 
                     <div class="{% if current_user.role == 'admin' and show_all %}md:col-span-3{% else %}md:col-span-3{% endif %}">
-                        <label class="mb-2 block text-sm font-medium text-slate-700">Zip codes</label>
+                        <label class="crm-field-label">Zip codes</label>
                         <input type="text"
                                name="zips"
                                value="{{ request.args.get('zips', '') }}"
@@ -156,7 +156,7 @@
                 </div>
 
                 {% if has_filters %}
-                <div class="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-5">
+                <div class="mt-5 flex flex-wrap items-center gap-2 pt-5" style="border-top: 0.5px solid var(--hairline);">
                     {% if request.args.get('owners') %}
                     {{ badge('Owner #' ~ request.args.get('owners')) }}
                     {% endif %}
@@ -235,13 +235,13 @@
         {% if contacts %}
         <div class="md:hidden space-y-3">
             {% for contact in contacts %}
-            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="crm-surface block p-4 transition-colors hover:border-slate-300">
+            <a href="{{ url_for('contacts.view_contact', contact_id=contact.id) }}" class="crm-surface block p-4 transition-colors">
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-start gap-3">
                         {{ avatar(contact.first_name[0] ~ contact.last_name[0]) }}
                         <div class="min-w-0">
-                            <div class="truncate text-sm font-semibold text-slate-900">{{ contact.first_name }} {{ contact.last_name }}</div>
-                            <div class="mt-1 truncate text-sm text-slate-500">{{ contact.email or contact.phone or 'No email or phone on file' }}</div>
+                            <div class="truncate text-sm font-semibold" style="color: var(--ink);">{{ contact.first_name }} {{ contact.last_name }}</div>
+                            <div class="mt-1 truncate text-sm" style="color: var(--ink-3);">{{ contact.email or contact.phone or 'No email or phone on file' }}</div>
                             <div class="mt-3 flex flex-wrap items-center gap-2">
                                 {% if contact.groups %}
                                 {{ badge(contact.groups[0].name) }}
@@ -252,7 +252,7 @@
                             </div>
                         </div>
                     </div>
-                    <i class="fas fa-chevron-right text-xs text-slate-400"></i>
+                    <i class="fas fa-chevron-right text-xs crm-faint"></i>
                 </div>
             </a>
             {% endfor %}
@@ -271,7 +271,7 @@
                                     data-column="owner"
                                     data-action="contacts-page#sort">
                                 <span>Owner</span>
-                                <i class="fas fa-sort{% if current_sort == 'owner' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} {% if current_sort == 'owner' %}text-slate-700{% else %}text-slate-400{% endif %}"></i>
+                                <i class="fas fa-sort{% if current_sort == 'owner' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'owner' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>
                         {% endif %}
@@ -281,7 +281,7 @@
                                     data-column="name"
                                     data-action="contacts-page#sort">
                                 <span>Name</span>
-                                <i class="fas fa-sort{% if current_sort == 'name' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} {% if current_sort == 'name' %}text-slate-700{% else %}text-slate-400{% endif %}"></i>
+                                <i class="fas fa-sort{% if current_sort == 'name' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'name' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>
                         <th>Contact Info</th>
@@ -293,7 +293,7 @@
                                     data-column="last_contact_date"
                                     data-action="contacts-page#sort">
                                 <span>Last Contact</span>
-                                <i class="fas fa-sort{% if current_sort == 'last_contact_date' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} {% if current_sort == 'last_contact_date' %}text-slate-700{% else %}text-slate-400{% endif %}"></i>
+                                <i class="fas fa-sort{% if current_sort == 'last_contact_date' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'last_contact_date' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>
                         <th class="text-right">
@@ -302,7 +302,7 @@
                                     data-column="potential_commission"
                                     data-action="contacts-page#sort">
                                 <span>Commission</span>
-                                <i class="fas fa-sort{% if current_sort == 'potential_commission' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %} {% if current_sort == 'potential_commission' %}text-slate-700{% else %}text-slate-400{% endif %}"></i>
+                                <i class="fas fa-sort{% if current_sort == 'potential_commission' %}{% if current_dir == 'asc' %}-up{% else %}-down{% endif %}{% endif %}" style="color: {% if current_sort == 'potential_commission' %}var(--ink-2){% else %}var(--ink-4){% endif %};"></i>
                             </button>
                         </th>
                     </tr>
@@ -326,14 +326,14 @@
                                 {{ avatar(contact.first_name[0] ~ contact.last_name[0]) }}
                                 <div class="min-w-0">
                                     <div class="crm-table-link truncate">{{ contact.first_name }} {{ contact.last_name }}</div>
-                                    <div class="mt-1 text-xs text-slate-500">{{ contact.created_at.strftime('%b %d, %Y') }}</div>
+                                    <div class="mt-1 text-xs" style="color: var(--ink-3);">{{ contact.created_at.strftime('%b %d, %Y') }}</div>
                                 </div>
                             </div>
                         </td>
                         <td>
                             <div class="min-w-[220px]">
-                                <div class="truncate text-slate-700">{{ contact.email or '--' }}</div>
-                                <div class="mt-1 truncate text-xs text-slate-500">{{ contact.phone or 'No phone on file' }}</div>
+                                <div class="truncate" style="color: var(--ink-2);">{{ contact.email or '--' }}</div>
+                                <div class="mt-1 truncate text-xs" style="color: var(--ink-3);">{{ contact.phone or 'No phone on file' }}</div>
                             </div>
                         </td>
                         <td>
@@ -344,7 +344,7 @@
                                 {{ badge('+' ~ (contact.groups|length - 1), 'accent') }}
                                 {% endif %}
                                 {% else %}
-                                <span class="text-slate-400">--</span>
+                                <span class="crm-faint">--</span>
                                 {% endif %}
                             </div>
                         </td>
@@ -359,14 +359,14 @@
                             {% if contact.last_contact_date %}
                             {{ contact.last_contact_date.strftime('%b %d, %Y') }}
                             {% else %}
-                            <span class="text-slate-400">Never</span>
+                            <span class="crm-faint">Never</span>
                             {% endif %}
                         </td>
-                        <td class="text-right font-semibold text-slate-900">
+                        <td class="text-right font-semibold" style="color: var(--ink);">
                             {% if contact.potential_commission is not none %}
                             ${{ "{:,.0f}".format(contact.potential_commission|float) }}
                             {% else %}
-                            <span class="font-medium text-slate-400">$0</span>
+                            <span class="font-medium crm-faint">$0</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -398,8 +398,8 @@
         {% endcall %}
         {% if current_user.inbox_address %}
         <div class="mt-3 flex flex-col items-center text-center">
-            <p class="text-xs text-slate-500">Your private address:</p>
-            <code class="mt-1 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-700">
+            <p class="text-xs crm-muted">Your private address:</p>
+            <code class="mt-1 inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-xs" style="border-color: var(--hairline); background: var(--paper-2); color: var(--ink-2);">
                 {{ current_user.inbox_address }}
             </code>
         </div>
@@ -428,7 +428,7 @@
                     </a>
                     {% endif %}
                     {% else %}
-                    <span class="px-2 text-sm text-slate-400">...</span>
+                    <span class="px-2 text-sm crm-faint">...</span>
                     {% endif %}
                     {% endfor %}
                 </div>
@@ -442,7 +442,7 @@
                 {% endif %}
             </div>
 
-            <div class="flex items-center gap-2 text-sm text-slate-500">
+            <div class="flex items-center gap-2 text-sm crm-muted">
                 <span id="rowsPerPageLabel">Rows per page</span>
                 <select class="crm-select w-auto"
                         aria-labelledby="rowsPerPageLabel"

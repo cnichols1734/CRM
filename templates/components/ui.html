@@ -73,10 +73,10 @@
     <div class="crm-empty-icon">
         <i class="fas {{ icon }}"></i>
     </div>
-    <h3 class="mt-3 text-sm font-semibold text-slate-900">{{ title }}</h3>
-    <p class="mt-1 max-w-md text-sm text-slate-500">{{ description }}</p>
+    <h3 class="crm-empty__title">{{ title }}</h3>
+    <p class="crm-empty__copy">{{ description }}</p>
     {% if caller %}
-    <div class="mt-3 flex flex-wrap items-center justify-center gap-3">
+    <div class="crm-empty__actions">
         {{ caller() }}
     </div>
     {% endif %}
