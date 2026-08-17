@@ -45,15 +45,20 @@ def _desired(org, **changes):
 
 
 class TestOverrideStorage:
+    def test_bob_telegram_defaults_on_for_every_tier(self):
+        for tier in ('free', 'pro', 'enterprise'):
+            assert TIER_FEATURES[tier]['BOB_TELEGRAM'] is True
+            assert tier_default_for('BOB_TELEGRAM', tier) is True
+
     def test_enabling_a_feature_off_by_default_stores_an_override(self, app, org):
         with app.app_context():
-            assert tier_default_for('BOB_TELEGRAM', org.subscription_tier) is False
+            assert tier_default_for('BOB_VTC_PILOT', org.subscription_tier) is False
 
-            flags = set_org_feature_overrides(org, _desired(org, BOB_TELEGRAM=True))
+            flags = set_org_feature_overrides(org, _desired(org, BOB_VTC_PILOT=True))
             db.session.commit()
 
-            assert flags['BOB_TELEGRAM'] is True
-            assert org_has_feature('BOB_TELEGRAM', org) is True
+            assert flags['BOB_VTC_PILOT'] is True
+            assert org_has_feature('BOB_VTC_PILOT', org) is True
 
     def test_values_matching_the_tier_default_are_not_stored(self, app, org):
         with app.app_context():
@@ -65,15 +70,15 @@ class TestOverrideStorage:
 
     def test_turning_an_override_back_to_default_removes_it(self, app, org):
         with app.app_context():
-            set_org_feature_overrides(org, _desired(org, BOB_TELEGRAM=True))
+            set_org_feature_overrides(org, _desired(org, BOB_VTC_PILOT=True))
             db.session.commit()
-            assert 'BOB_TELEGRAM' in org.feature_flags
+            assert 'BOB_VTC_PILOT' in org.feature_flags
 
-            set_org_feature_overrides(org, _desired(org, BOB_TELEGRAM=False))
+            set_org_feature_overrides(org, _desired(org, BOB_VTC_PILOT=False))
             db.session.commit()
 
-            assert 'BOB_TELEGRAM' not in org.feature_flags
-            assert org_has_feature('BOB_TELEGRAM', org) is False
+            assert 'BOB_VTC_PILOT' not in org.feature_flags
+            assert org_has_feature('BOB_VTC_PILOT', org) is False
 
     def test_inherited_features_follow_a_tier_change(self, app, org):
         """The point of not storing matches: tier upgrades still land."""
@@ -135,12 +140,12 @@ class TestDescribeOrgFeatures:
     def test_marks_overrides_and_killswitches(self, app, org):
         killswitched = next(iter(GLOBAL_FEATURE_OVERRIDES))
         with app.app_context():
-            set_org_feature_overrides(org, _desired(org, BOB_TELEGRAM=True))
+            set_org_feature_overrides(org, _desired(org, BOB_VTC_PILOT=True))
             db.session.commit()
 
             rows = {row['name']: row for row in describe_org_features(org)}
 
-            assert rows['BOB_TELEGRAM']['overridden'] is True
-            assert rows['BOB_TELEGRAM']['enabled'] is True
+            assert rows['BOB_VTC_PILOT']['overridden'] is True
+            assert rows['BOB_VTC_PILOT']['enabled'] is True
             assert rows['TRANSACTIONS']['overridden'] is False
             assert rows[killswitched]['locked'] is True

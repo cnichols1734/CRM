@@ -27,9 +27,9 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': False,
         'AI_ACTION_PLAN': False,
         'AI_TASK_SUGGESTIONS': False,
-        # Telegram is a POC channel — off by default, enable per-org via
-        # Organization.feature_flags JSON override.
-        'BOB_TELEGRAM': False,
+        # B.O.B. on Telegram is on for every tier. Per-org override in
+        # Organization.feature_flags can still turn it off.
+        'BOB_TELEGRAM': True,
         'BOB_VTC_PILOT': False,
         'BOB_VTC_PRIVACY_CONTROLS': False,
         'BOB_VTC_NARROW_AUTONOMY': False,
@@ -49,7 +49,7 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
-        'BOB_TELEGRAM': False,
+        'BOB_TELEGRAM': True,
         'BOB_VTC_PILOT': False,
         'BOB_VTC_PRIVACY_CONTROLS': False,
         'BOB_VTC_NARROW_AUTONOMY': False,
@@ -69,7 +69,7 @@ TIER_FEATURES = {
         'AI_DAILY_TODO': True,
         'AI_ACTION_PLAN': True,
         'AI_TASK_SUGGESTIONS': True,
-        'BOB_TELEGRAM': False,
+        'BOB_TELEGRAM': True,
         'BOB_VTC_PILOT': False,
         'BOB_VTC_PRIVACY_CONTROLS': False,
         'BOB_VTC_NARROW_AUTONOMY': False,

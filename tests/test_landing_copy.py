@@ -1,6 +1,8 @@
 """Guard public landing and register copy against leftover marketing slop."""
+import re
 from pathlib import Path
 
+from feature_flags import TIER_FEATURES
 from tier_config.tier_limits import get_tier_defaults
 
 
@@ -8,7 +10,20 @@ ROOT = Path(__file__).resolve().parents[1]
 LANDING = (ROOT / "templates" / "landing.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
 TERMS = (ROOT / "templates" / "auth" / "terms_privacy.html").read_text()
+FREE_CRM = (ROOT / "templates" / "free_real_estate_crm.html").read_text()
+LLMS = (ROOT / "static" / "llms.txt").read_text()
 FREE_LIMITS = get_tier_defaults("free")
+
+_COMMENT = re.compile(r"<!--.*?-->", re.S)
+_SCRIPT = re.compile(r"<script\b[^>]*>.*?</script>", re.S | re.I)
+_STYLE = re.compile(r"<style\b[^>]*>.*?</style>", re.S | re.I)
+
+
+def _visible_public_copy(html: str) -> str:
+    html = _COMMENT.sub("", html)
+    html = _SCRIPT.sub("", html)
+    html = _STYLE.sub("", html)
+    return html
 
 BANNED_LEFTOVERS = (
     "Trusted by real estate professionals",
@@ -50,7 +65,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. On the free plan you get 25 messages a day for drafts and questions about your work.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, complete a task, or log a call. It can add a note or put someone in a group. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
     ),
 )
 
@@ -147,6 +162,79 @@ class TestLandingLeftoverCopy:
         assert "never be a paid" not in LANDING.lower()
         assert "Extra features later will be paid" in LANDING
 
+    def test_no_ai_word_in_visible_landing_or_register_copy(self):
+        for source in (LANDING, REGISTER, FREE_CRM):
+            visible = _visible_public_copy(source)
+            assert re.search(r"\bAI\b", visible) is None
+        assert re.search(r"\bAI\b", LLMS) is None
+        assert "AI assistant" not in LLMS
+
+    def test_keeps_home_title_and_meta(self):
+        assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in LANDING
+        assert 'title="Free Real Estate CRM | Origen TechnolOG"' in LANDING
+        assert 'description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes."' in LANDING
+
+    def test_public_limits_do_not_contradict_home(self):
+        for source in (LANDING, REGISTER, FREE_CRM, LLMS):
+            assert "10,000 contacts" in source
+            assert "25 messages a day" in source or "25 B.O.B. messages a day" in source
+            assert "Unlimited contacts" not in source
+        assert "One user" in LANDING or "1 user" in LANDING
+        assert "one user" in FREE_CRM
+        assert "One user" in LLMS
+
+    def test_bob_is_a_headline_feature_with_real_tools(self):
+        assert "Talk to B.O.B." in LANDING
+        assert "Ask how many clients are in a ZIP or city." in LANDING
+        assert "add a contact, complete a task, or log a call" in LANDING
+        assert "Changing an email waits for Confirm (15 minutes)." in LANDING
+        assert "25 messages a day" in LANDING
+        assert "25/day free" in LANDING
+        assert "AI-Powered B.O.B." not in LANDING
+        assert "B.O.B. AI Assistant" not in LANDING
+        assert "Unlimited AI + daily todo" not in LANDING
+        assert "AI chat assistant" not in LANDING
+        assert "Unlimited B.O.B. AI chat" not in LANDING
+        assert "AI daily todo" not in LANDING
+        assert "drafts and questions about your work" not in LANDING
+        assert "Business Optimization Buddy" not in LANDING
+
+    def test_telegram_is_mentioned_with_official_logo(self):
+        assert "B.O.B. on Telegram" in LANDING
+        assert "Message B.O.B. on Telegram after you scan a QR from your profile." in LANDING
+        assert 'fill="#229ED9"' in LANDING
+        assert 'viewBox="0 0 240 240"' in LANDING
+        assert "<circle cx=\"120\" cy=\"120\" r=\"120\" fill=\"#229ED9\"/>" in LANDING
+        assert "fa-comment" not in LANDING
+        assert "fa-comments" not in LANDING
+
+    def test_telegram_does_not_claim_the_web_25_cap(self):
+        for source in (LANDING, REGISTER):
+            lower = source.lower()
+            assert "same 25-message daily cap" not in lower
+            assert "same daily cap" not in lower
+            assert "same 25" not in lower
+            assert "shares your 25" not in lower
+            assert "100 messages" not in lower
+            assert "500 messages" not in lower
+            assert "100/user" not in lower
+            assert "500/org" not in lower
+            assert "unlimited extra" not in lower
+
+    def test_bob_telegram_flag_is_on_for_every_tier(self):
+        for tier in ("free", "pro", "enterprise"):
+            assert TIER_FEATURES[tier]["BOB_TELEGRAM"] is True
+
+    def test_bob_faq_mentions_crm_work_and_telegram(self):
+        question, answer = FAQ_ITEMS[4]
+        assert question == "What is B.O.B.?"
+        assert "25 messages a day" in answer
+        assert "Telegram" in answer
+        assert "ZIP" in answer
+        assert "Confirm (15 minutes)" in answer
+        assert "in the CRM or on Telegram" not in answer
+        assert "AI" not in answer
+
 
 class TestRegisterLeftoverCopy:
     def test_keeps_register_h1(self):
@@ -169,6 +257,14 @@ class TestRegisterLeftoverCopy:
         assert "unlimited contacts" not in REGISTER
         assert "Unlimited Contacts" not in REGISTER
         assert "Up to 10,000 contacts" in REGISTER
+
+    def test_register_describes_bob_with_real_facts(self):
+        assert "Talk to B.O.B." in REGISTER
+        assert "25 messages a day in the CRM" in REGISTER
+        assert "Telegram after a QR from your profile" in REGISTER
+        assert "add a contact" in REGISTER
+        assert "in the CRM or on Telegram" not in REGISTER
+        assert "Unlimited contacts" not in REGISTER
 
 
 class TestTermsPrivacyLayout:
