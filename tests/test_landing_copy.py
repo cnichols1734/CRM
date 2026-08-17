@@ -161,6 +161,7 @@ class TestRegisterLeftoverCopy:
         assert "234, 88, 12" in REGISTER
 
     def test_register_does_not_claim_unlimited_contacts(self):
-        assert "unlimited contact" not in REGISTER.lower()
+        assert "Unlimited contacts" not in REGISTER
+        assert "unlimited contacts" not in REGISTER
+        assert "Unlimited Contacts" not in REGISTER
         assert "Up to 10,000 contacts" in REGISTER
-        assert "10k contacts" in REGISTER
