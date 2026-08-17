@@ -1,10 +1,13 @@
 """Guard public landing and register copy against leftover marketing slop."""
 from pathlib import Path
 
+from tier_config.tier_limits import get_tier_defaults
+
 
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = (ROOT / "templates" / "landing.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
+FREE_LIMITS = get_tier_defaults("free")
 
 BANNED_LEFTOVERS = (
     "Trusted by real estate professionals",
@@ -15,13 +18,39 @@ BANNED_LEFTOVERS = (
     "Join real estate professionals who are closing more deals",
 )
 
-FAQ_QUESTIONS = (
+DELETED_FAQ = (
     "Is the free tier actually free?",
     "Will you charge me later for what I get today?",
     "How long to set up?",
     "What do I get on free?",
     "Is this Follow Up Boss or HubSpot?",
     "Is this origentech.com or Origin CRM?",
+    "Straight answers. No pitch.",
+    "Questions people ask",
+    "Origen TechnolOG (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM.",
+)
+
+FAQ_ITEMS = (
+    (
+        "What does the free plan include?",
+        "One user, up to 10,000 contacts, tasks, and a dashboard. You can send email through Gmail and sync tasks to Google Calendar. B.O.B. is included, with 25 messages a day.",
+    ),
+    (
+        "Do I need a credit card?",
+        "No. You can start without one. What's on the free plan stays free. Extra features later will be paid. Nothing paid is for sale today.",
+    ),
+    (
+        "How long does it take to get started?",
+        "Setup takes about two minutes.",
+    ),
+    (
+        "Is this built for real estate agents?",
+        "Yes. Contacts, follow-ups, and tasks are set up the way agents actually work, not as a generic CRM.",
+    ),
+    (
+        "What is B.O.B.?",
+        "B.O.B. is the built-in assistant. On the free plan you get 25 messages a day for drafts and questions about your work.",
+    ),
 )
 
 
@@ -60,13 +89,35 @@ class TestLandingLeftoverCopy:
 
     def test_keeps_visible_faq_and_matching_json_ld(self):
         assert '"@type": "FAQPage"' in LANDING
-        for question in FAQ_QUESTIONS:
-            assert LANDING.count(question) >= 2
+        assert LANDING.count("<summary>") == 5
+        assert LANDING.count('"@type": "Question"') == 5
+        for question, answer in FAQ_ITEMS:
+            assert LANDING.count(question) == 2
+            assert LANDING.count(answer) == 2
             assert f"<summary>{question}</summary>" in LANDING
+            assert f'<p class="faq-answer">{answer}</p>' in LANDING
             assert f'"name": "{question}"' in LANDING
+            assert f'"text": "{answer}"' in LANDING
 
-    def test_keeps_disambiguation_and_foundation_title(self):
-        assert "Origen TechnolOG (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM." in LANDING
+    def test_old_faq_copy_is_gone(self):
+        for phrase in DELETED_FAQ:
+            assert phrase not in LANDING
+
+    def test_faq_facts_match_product_limits(self):
+        assert FREE_LIMITS["max_users"] == 1
+        assert FREE_LIMITS["max_contacts"] == 10000
+        assert FREE_LIMITS["daily_ai_chat_messages"] == 25
+        include_answer = FAQ_ITEMS[0][1]
+        bob_answer = FAQ_ITEMS[4][1]
+        assert "One user" in include_answer
+        assert "10,000 contacts" in include_answer
+        assert "25 messages a day" in include_answer
+        assert "25 messages a day" in bob_answer
+        assert "10 messages a day" not in include_answer
+        assert "10 messages a day" not in bob_answer
+        assert "unlimited contacts" not in include_answer.lower()
+
+    def test_keeps_foundation_title(self):
         assert "Free Real Estate CRM | Origen TechnolOG" in LANDING
 
     def test_does_not_claim_there_will_never_be_a_paid_plan(self):
