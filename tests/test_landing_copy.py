@@ -39,7 +39,7 @@ class TestLandingLeftoverCopy:
         assert "What's on the free tier" in LANDING
         assert "Ready to try it?" in LANDING
         assert "Create an account when you're ready. No card." in LANDING
-        assert "Set due dates and get email reminders for follow-up tasks." in LANDING
+        assert "Set a due date and a reminder. The follow-up stays on your list." in LANDING
         assert "Contacts and follow-up tasks in one CRM" not in LANDING
 
     def test_no_em_dashes_in_public_copy(self):
