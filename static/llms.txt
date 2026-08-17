@@ -17,3 +17,4 @@ Origen TechnolOG is a free CRM for real estate agents. Use it to organize contac
 - https://www.origentechnolog.com/register
 - https://www.origentechnolog.com/login
 - https://www.origentechnolog.com/terms-privacy
+- https://www.origentechnolog.com/free-real-estate-crm
