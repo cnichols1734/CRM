@@ -1,0 +1,19 @@
+# Origen TechnolOG
+
+Free real estate CRM for agents. No credit card. Set up in about 2 minutes.
+
+Origen TechnolOG is a free CRM for real estate agents. Use it to organize contacts, manage tasks, and keep follow-ups from slipping. There is no paid plan for sale.
+
+## Facts
+
+- Free. No credit card.
+- Setup takes about 2 minutes.
+- Contact management, task reminders, and Google email/calendar integration are on the free tier.
+- B.O.B. is an included AI assistant with a free daily message limit.
+
+## Public pages
+
+- https://www.origentechnolog.com/
+- https://www.origentechnolog.com/register
+- https://www.origentechnolog.com/login
+- https://www.origentechnolog.com/terms-privacy

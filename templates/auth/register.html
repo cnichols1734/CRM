@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import brand_logo %}
+{% from "components/seo_meta.html" import public_seo %}
+
+{% block title %}Create a free account | Origen TechnolOG{% endblock %}
+{% block seo_head %}
+{{ public_seo(
+    title="Create a free account | Origen TechnolOG",
+    description="Sign up for Origen TechnolOG. Free real estate CRM. No credit card.",
+    canonical="https://www.origentechnolog.com/register"
+) }}
+{% endblock %}
 
 {% block content %}
 <style>

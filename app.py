@@ -22,7 +22,7 @@ try:
 except ImportError:  # pragma: no cover - psutil is installed in production
     psutil = None
 
-from flask import Flask, render_template, session, redirect, url_for, flash, request, g
+from flask import Flask, render_template, session, redirect, url_for, flash, request, g, send_from_directory
 from flask.logging import default_handler
 from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
@@ -266,6 +266,21 @@ def create_app():
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
+
+    # Serve crawler files at the site root without adding page routes.
+    _PUBLIC_CRAWLER_FILES = {
+        '/robots.txt': 'robots.txt',
+        '/sitemap.xml': 'sitemap.xml',
+        '/llms.txt': 'llms.txt',
+    }
+
+    @app.before_request
+    def serve_public_crawler_files():
+        if request.method not in ('GET', 'HEAD'):
+            return
+        filename = _PUBLIC_CRAWLER_FILES.get(request.path)
+        if filename:
+            return send_from_directory(app.static_folder, filename)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

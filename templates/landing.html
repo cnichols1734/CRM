@@ -1,10 +1,53 @@
+{% from "components/seo_meta.html" import public_seo %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Origen TechnolOG - The Real Estate Client Management System</title>
-    <meta name="description" content="Manage contacts, close more deals, and scale your real estate business with Origen TechnolOG. AI-powered tools, transaction management, and team collaboration.">
+    <title>Free Real Estate CRM | Origen TechnolOG</title>
+    {{ public_seo(
+        title="Free Real Estate CRM | Origen TechnolOG",
+        description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
+        canonical="https://www.origentechnolog.com/"
+    ) }}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://www.origentechnolog.com/#organization",
+          "name": "Origen TechnolOG",
+          "url": "https://www.origentechnolog.com/",
+          "logo": "https://www.origentechnolog.com/static/images/logo_og_dark.png"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://www.origentechnolog.com/#website",
+          "name": "Origen TechnolOG",
+          "url": "https://www.origentechnolog.com/",
+          "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
+          "publisher": { "@id": "https://www.origentechnolog.com/#organization" }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://www.origentechnolog.com/#software",
+          "name": "Origen TechnolOG",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "isAccessibleForFree": true,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
+          "url": "https://www.origentechnolog.com/",
+          "publisher": { "@id": "https://www.origentechnolog.com/#organization" }
+        }
+      ]
+    }
+    </script>
     
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">

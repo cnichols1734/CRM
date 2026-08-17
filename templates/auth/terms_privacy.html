@@ -1,4 +1,14 @@
 {% extends "base.html" %}
+{% from "components/seo_meta.html" import public_seo %}
+
+{% block title %}Terms and Privacy | Origen TechnolOG{% endblock %}
+{% block seo_head %}
+{{ public_seo(
+    title="Terms and Privacy | Origen TechnolOG",
+    description="Terms of use and privacy policy for Origen TechnolOG.",
+    canonical="https://www.origentechnolog.com/terms-privacy"
+) }}
+{% endblock %}
 
 {% block content %}
 <style>
