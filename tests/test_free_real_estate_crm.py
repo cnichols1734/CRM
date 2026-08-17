@@ -81,6 +81,10 @@ def _sitemap_paths():
     return paths
 
 
+def _app_base_url(app):
+    return (app.config.get("APP_BASE_URL") or "https://www.origentechnolog.com").rstrip("/")
+
+
 def _visible_copy(html):
     html = re.sub(r"<script\b[^>]*>.*?</script>", " ", html, flags=re.I | re.S)
     html = re.sub(r"<style\b[^>]*>.*?</style>", " ", html, flags=re.I | re.S)
@@ -117,29 +121,33 @@ class TestFreeRealEstateCrmRoute:
 
 
 class TestFreeRealEstateCrmSeo:
-    def test_unique_title_canonical_and_og(self, client):
+    def test_unique_title_canonical_and_og(self, app, client):
         page = client.get(PAGE_PATH).get_data(as_text=True)
         home = client.get("/").get_data(as_text=True)
+        base = _app_base_url(app)
+        page_url = f"{base}{PAGE_PATH}"
+        home_url = f"{base}/"
 
         assert f"<title>{TITLE}</title>" in page
-        assert 'rel="canonical" href="https://www.origentechnolog.com/free-real-estate-crm"' in page
+        assert f'rel="canonical" href="{page_url}"' in page
         assert 'property="og:title" content="Free real estate CRM | Origen TechnolOG"' in page
-        assert 'property="og:url" content="https://www.origentechnolog.com/free-real-estate-crm"' in page
+        assert f'property="og:url" content="{page_url}"' in page
         assert 'property="og:description" content="Built for agents, by agents. The free tier stays free. No card. About two minutes."' in page
 
         assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in home
-        assert 'rel="canonical" href="https://www.origentechnolog.com/"' in home
+        assert f'rel="canonical" href="{home_url}"' in home
         assert page.count("<title>") == 1
-        assert 'rel="canonical" href="https://www.origentechnolog.com/"' not in page
+        assert f'rel="canonical" href="{home_url}"' not in page
         assert TITLE not in home
 
-    def test_software_application_json_ld_price_is_zero(self, client):
+    def test_software_application_json_ld_price_is_zero(self, app, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
+        base = _app_base_url(app)
         assert '"@type": "SoftwareApplication"' in html
         assert '"price": "0"' in html
         assert '"priceCurrency": "USD"' in html
         assert '"isAccessibleForFree": true' in html
-        assert '"url": "https://www.origentechnolog.com/free-real-estate-crm"' in html
+        assert f'"url": "{base}{PAGE_PATH}"' in html
 
 
 class TestFreeRealEstateCrmCopy:
