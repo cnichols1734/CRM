@@ -1,6 +1,8 @@
 """Guard public landing and register copy against leftover marketing slop."""
+import re
 from pathlib import Path
 
+from feature_flags import TIER_FEATURES
 from tier_config.tier_limits import get_tier_defaults
 
 
@@ -9,6 +11,17 @@ LANDING = (ROOT / "templates" / "landing.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
 TERMS = (ROOT / "templates" / "auth" / "terms_privacy.html").read_text()
 FREE_LIMITS = get_tier_defaults("free")
+
+_COMMENT = re.compile(r"<!--.*?-->", re.S)
+_SCRIPT = re.compile(r"<script\b[^>]*>.*?</script>", re.S | re.I)
+_STYLE = re.compile(r"<style\b[^>]*>.*?</style>", re.S | re.I)
+
+
+def _visible_public_copy(html: str) -> str:
+    html = _COMMENT.sub("", html)
+    html = _SCRIPT.sub("", html)
+    html = _STYLE.sub("", html)
+    return html
 
 BANNED_LEFTOVERS = (
     "Trusted by real estate professionals",
@@ -50,7 +63,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. On the free plan you get 25 messages a day for drafts and questions about your work.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP, or tell it to add a contact. Changing an email waits for your OK. You get 25 messages a day on the free plan, in the CRM or on Telegram after you scan a QR from your profile.",
     ),
 )
 
@@ -147,6 +160,42 @@ class TestLandingLeftoverCopy:
         assert "never be a paid" not in LANDING.lower()
         assert "Extra features later will be paid" in LANDING
 
+    def test_no_ai_word_in_visible_landing_or_register_copy(self):
+        for source in (LANDING, REGISTER):
+            visible = _visible_public_copy(source)
+            assert re.search(r"\bAI\b", visible) is None
+
+    def test_bob_is_a_headline_feature_with_real_tools(self):
+        assert "Talk to B.O.B." in LANDING
+        assert "Ask how many clients are in a ZIP." in LANDING
+        assert "add a contact or change an email" in LANDING
+        assert "Risky changes wait for a yes." in LANDING
+        assert "25 messages a day" in LANDING
+        assert "25/day free" in LANDING
+        assert "AI-Powered B.O.B." not in LANDING
+        assert "Business Optimization Buddy" not in LANDING
+
+    def test_telegram_is_mentioned_with_official_logo(self):
+        assert "B.O.B. on Telegram" in LANDING
+        assert "Scan a QR from your profile" in LANDING
+        assert 'fill="#229ED9"' in LANDING
+        assert 'viewBox="0 0 240 240"' in LANDING
+        assert "<circle cx=\"120\" cy=\"120\" r=\"120\" fill=\"#229ED9\"/>" in LANDING
+        assert "fa-comment" not in LANDING
+        assert "fa-comments" not in LANDING
+
+    def test_bob_telegram_flag_is_on_for_every_tier(self):
+        for tier in ("free", "pro", "enterprise"):
+            assert TIER_FEATURES[tier]["BOB_TELEGRAM"] is True
+
+    def test_bob_faq_mentions_crm_work_and_telegram(self):
+        question, answer = FAQ_ITEMS[4]
+        assert question == "What is B.O.B.?"
+        assert "25 messages a day" in answer
+        assert "Telegram" in answer
+        assert "ZIP" in answer
+        assert "AI" not in answer
+
 
 class TestRegisterLeftoverCopy:
     def test_keeps_register_h1(self):
@@ -169,6 +218,13 @@ class TestRegisterLeftoverCopy:
         assert "unlimited contacts" not in REGISTER
         assert "Unlimited Contacts" not in REGISTER
         assert "Up to 10,000 contacts" in REGISTER
+
+    def test_register_describes_bob_with_real_facts(self):
+        assert "Talk to B.O.B." in REGISTER
+        assert "25 messages a day" in REGISTER
+        assert "Telegram" in REGISTER
+        assert "add a contact" in REGISTER
+        assert "Unlimited contacts" not in REGISTER
 
 
 class TestTermsPrivacyLayout:
