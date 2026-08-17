@@ -114,6 +114,17 @@ class TestFreeRealEstateCrmRoute:
             assert blocked not in paths
         assert "/dashboard" not in paths
 
+    def test_llms_txt_lists_the_page(self, client):
+        resp = client.get("/llms.txt")
+        assert resp.status_code == 200
+        text = resp.get_data(as_text=True)
+        assert "https://www.origentechnolog.com/free-real-estate-crm" in text
+        for blocked in BLOCKED_SEO_PATHS:
+            assert f"https://www.origentechnolog.com{blocked}" not in text
+        assert "https://www.origentechnolog.com/dashboard" not in text
+        assert "—" not in text
+        assert "Unlimited contacts" not in text
+
     def test_blocked_marketing_urls_are_not_built(self, client):
         for path in BLOCKED_SEO_PATHS:
             resp = client.get(path)
