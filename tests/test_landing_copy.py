@@ -63,7 +63,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP, or tell it to add a contact. Changing an email waits for your OK. You get 25 messages a day on the free plan, in the CRM or on Telegram after you scan a QR from your profile.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP. Tell it to add a contact, complete a task, or log a call. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
     ),
 )
 
@@ -167,22 +167,41 @@ class TestLandingLeftoverCopy:
 
     def test_bob_is_a_headline_feature_with_real_tools(self):
         assert "Talk to B.O.B." in LANDING
-        assert "Ask how many clients are in a ZIP." in LANDING
-        assert "add a contact or change an email" in LANDING
-        assert "Risky changes wait for a yes." in LANDING
+        assert "Ask how many clients are in a ZIP or city." in LANDING
+        assert "add a contact, complete a task, or log a call" in LANDING
+        assert "Changing an email waits for Confirm (15 minutes)." in LANDING
         assert "25 messages a day" in LANDING
         assert "25/day free" in LANDING
         assert "AI-Powered B.O.B." not in LANDING
+        assert "B.O.B. AI Assistant" not in LANDING
+        assert "Unlimited AI + daily todo" not in LANDING
+        assert "AI chat assistant" not in LANDING
+        assert "Unlimited B.O.B. AI chat" not in LANDING
+        assert "AI daily todo" not in LANDING
+        assert "drafts and questions about your work" not in LANDING
         assert "Business Optimization Buddy" not in LANDING
 
     def test_telegram_is_mentioned_with_official_logo(self):
         assert "B.O.B. on Telegram" in LANDING
-        assert "Scan a QR from your profile" in LANDING
+        assert "Message B.O.B. on Telegram after you scan a QR from your profile." in LANDING
         assert 'fill="#229ED9"' in LANDING
         assert 'viewBox="0 0 240 240"' in LANDING
         assert "<circle cx=\"120\" cy=\"120\" r=\"120\" fill=\"#229ED9\"/>" in LANDING
         assert "fa-comment" not in LANDING
         assert "fa-comments" not in LANDING
+
+    def test_telegram_does_not_claim_the_web_25_cap(self):
+        for source in (LANDING, REGISTER):
+            lower = source.lower()
+            assert "same 25-message daily cap" not in lower
+            assert "same daily cap" not in lower
+            assert "same 25" not in lower
+            assert "shares your 25" not in lower
+            assert "100 messages" not in lower
+            assert "500 messages" not in lower
+            assert "100/user" not in lower
+            assert "500/org" not in lower
+            assert "unlimited extra" not in lower
 
     def test_bob_telegram_flag_is_on_for_every_tier(self):
         for tier in ("free", "pro", "enterprise"):
@@ -194,6 +213,8 @@ class TestLandingLeftoverCopy:
         assert "25 messages a day" in answer
         assert "Telegram" in answer
         assert "ZIP" in answer
+        assert "Confirm (15 minutes)" in answer
+        assert "in the CRM or on Telegram" not in answer
         assert "AI" not in answer
 
 
@@ -221,9 +242,10 @@ class TestRegisterLeftoverCopy:
 
     def test_register_describes_bob_with_real_facts(self):
         assert "Talk to B.O.B." in REGISTER
-        assert "25 messages a day" in REGISTER
-        assert "Telegram" in REGISTER
+        assert "25 messages a day in the CRM" in REGISTER
+        assert "Telegram after a QR from your profile" in REGISTER
         assert "add a contact" in REGISTER
+        assert "in the CRM or on Telegram" not in REGISTER
         assert "Unlimited contacts" not in REGISTER
 
 
