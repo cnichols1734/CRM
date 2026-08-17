@@ -65,7 +65,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, complete a task, or log a call. It can add a note or put someone in a group. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, change an email, complete a task, or log a call. It can add a note or put someone in a group. You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
     ),
 )
 
@@ -179,6 +179,10 @@ class TestLandingLeftoverCopy:
             assert "10,000 contacts" in source
             assert "25 messages a day" in source or "25 B.O.B. messages a day" in source
             assert "Unlimited contacts" not in source
+            assert "Changing an email waits for Confirm (15 minutes)." not in source
+            assert "Confirm (15 minutes)" not in source
+            assert "waits for a yes" not in source
+            assert "until you say yes" not in source
         assert "One user" in LANDING or "1 user" in LANDING
         assert "one user" in FREE_CRM
         assert "One user" in LLMS
@@ -186,8 +190,12 @@ class TestLandingLeftoverCopy:
     def test_bob_is_a_headline_feature_with_real_tools(self):
         assert "Talk to B.O.B." in LANDING
         assert "Ask how many clients are in a ZIP or city." in LANDING
-        assert "add a contact, complete a task, or log a call" in LANDING
-        assert "Changing an email waits for Confirm (15 minutes)." in LANDING
+        assert "add a contact, change an email, complete a task, or log a call" in LANDING
+        assert "change an email" in LANDING
+        assert "Changing an email waits for Confirm (15 minutes)." not in LANDING
+        assert "Confirm (15 minutes)" not in LANDING
+        assert "waits for a yes" not in LANDING
+        assert "until you say yes" not in LANDING
         assert "25 messages a day" in LANDING
         assert "25/day free" in LANDING
         assert "AI-Powered B.O.B." not in LANDING
@@ -231,7 +239,11 @@ class TestLandingLeftoverCopy:
         assert "25 messages a day" in answer
         assert "Telegram" in answer
         assert "ZIP" in answer
-        assert "Confirm (15 minutes)" in answer
+        assert "change an email" in answer
+        assert "Confirm (15 minutes)" not in answer
+        assert "waits for Confirm" not in answer
+        assert "waits for a yes" not in answer
+        assert "until you say yes" not in answer
         assert "in the CRM or on Telegram" not in answer
         assert "AI" not in answer
 

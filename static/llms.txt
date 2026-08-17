@@ -10,7 +10,7 @@ Origen TechnolOG is a free CRM for real estate agents. Use it to organize contac
 - Setup takes about 2 minutes.
 - One user, up to 10,000 contacts.
 - Contact management, task reminders, and Google email/calendar integration are on the free tier.
-- B.O.B. is the built-in assistant. Ask how many clients are in a ZIP. Tell it to add a contact, complete a task, or log a call. Changing an email waits for Confirm (15 minutes). 25 messages a day on the free plan.
+- B.O.B. is the built-in assistant. Ask how many clients are in a ZIP. Tell it to add a contact, change an email, complete a task, or log a call. 25 messages a day on the free plan.
 - Message B.O.B. on Telegram after you scan a QR from your profile.
 
 ## Public pages
