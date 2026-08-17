@@ -12,80 +12,212 @@
 
 {% block content %}
 <style>
-    .legal-container {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  :root{
+    --brand-orange: #f97316;
+    --bg: #f4f4f4;
+    --panel: #ffffff;
+    --panel-soft: #f0f0f0;
+    --text: rgba(0, 0, 0, 0.88);
+    --muted: rgba(0, 0, 0, 0.56);
+    --border: rgba(0, 0, 0, 0.10);
+  }
+
+  .legal-page{
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .legal-shell{ width: 100%; max-width: 1080px; margin: 0 auto; }
+
+  .legal-kicker{
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .legal-title{
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .legal-meta{ font-size: 14px; color: var(--muted); }
+
+  .legal-home{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .legal-home:hover{ color: var(--brand-orange); }
+
+  .legal-layout{
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  @media (min-width: 960px){
+    .legal-layout{
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 3rem;
+      align-items: start;
     }
-    .legal-section {
-        scroll-margin-top: 100px;
-    }
-    .toc-link {
-        transition: all 0.2s ease;
-    }
-    .toc-link:hover {
-        color: #f97316;
-        padding-left: 8px;
-    }
+  }
+
+  .legal-toc{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.1rem 1.15rem;
+  }
+  @media (min-width: 960px){
+    .legal-toc{ position: sticky; top: 1.25rem; }
+  }
+  .legal-toc h2{
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.85rem;
+  }
+  .legal-toc h3{
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--brand-orange);
+    margin: 0.85rem 0 0.4rem;
+  }
+  .legal-toc h3:first-of-type{ margin-top: 0; }
+  .legal-toc ol{
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .legal-toc a{
+    display: block;
+    padding: 0.28rem 0;
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .legal-toc a:hover{ color: var(--brand-orange); }
+
+  .legal-doc{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.75rem 1.5rem 2rem;
+  }
+  @media (min-width: 768px){
+    .legal-doc{ padding: 2.25rem 2.5rem 2.5rem; }
+  }
+
+  .legal-h2{
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin: 0 0 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .legal-h3{
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 0 0 0.75rem;
+  }
+  .legal-section{ scroll-margin-top: 1.25rem; margin-bottom: 2rem; }
+  .legal-copy{
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--text);
+  }
+  .legal-copy p{ margin: 0 0 0.75rem; }
+  .legal-copy ul{ margin: 0 0 0.75rem; padding-left: 1.25rem; }
+  .legal-copy li{ margin: 0.35rem 0; }
+  .legal-copy strong{ font-weight: 650; }
+
+  .legal-callout{
+    margin-top: 2.5rem;
+    padding: 1.25rem 1.35rem;
+    background: var(--panel-soft);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .legal-callout h3{ margin-bottom: 0.5rem; }
+  .legal-callout a{ color: var(--brand-orange); font-weight: 600; text-decoration: none; }
+  .legal-callout a:hover{ text-decoration: underline; text-underline-offset: 2px; }
+
+  .legal-top{
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 1.5rem;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .legal-top:hover{ color: var(--brand-orange); }
 </style>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-16">
-    <div class="max-w-5xl mx-auto px-6 legal-container">
-        <!-- Header -->
-        <div class="text-center mb-12">
-            <a href="{{ url_for('main.landing') }}" class="inline-flex items-center text-slate-600 hover:text-slate-900 mb-6 transition-colors">
-                <i class="fas fa-arrow-left mr-2"></i>
-                Back to Home
-            </a>
-            <h1 class="text-4xl md:text-5xl font-bold text-slate-900 mb-4">Terms of Service & Privacy Policy</h1>
-            <p class="text-lg text-slate-600">Origen TechnolOG</p>
-            <p class="text-sm text-slate-500 mt-2">Last Updated: January 19, 2026</p>
-        </div>
+<div class="legal-page min-h-screen px-4 py-10 md:py-14">
+  <div class="legal-shell">
+    <header class="mb-8">
+      <a href="{{ url_for('main.landing') }}" class="legal-home">
+        <i class="fas fa-arrow-left mr-1"></i> Back to home
+      </a>
+      <p class="legal-kicker mt-5">Origen TechnolOG</p>
+      <h1 class="legal-title mt-1">Terms of Service &amp; Privacy Policy</h1>
+      <p class="legal-meta mt-2">Last updated January 19, 2026</p>
+    </header>
 
-        <!-- Main Content Card -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <!-- Table of Contents -->
-            <div class="bg-slate-900 text-white p-8">
-                <h2 class="text-2xl font-bold mb-4">Quick Navigation</h2>
-                <div class="grid md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                        <h3 class="font-semibold text-orange-400 mb-2">Terms of Service</h3>
-                        <ul class="space-y-2 text-slate-300">
-                            <li><a href="#tos-acceptance" class="toc-link block">1. Acceptance of Terms</a></li>
-                            <li><a href="#tos-service" class="toc-link block">2. Service Description</a></li>
-                            <li><a href="#tos-account" class="toc-link block">3. Account Registration</a></li>
-                            <li><a href="#tos-acceptable-use" class="toc-link block">4. Acceptable Use</a></li>
-                            <li><a href="#tos-subscription" class="toc-link block">5. Subscription & Payment</a></li>
-                            <li><a href="#tos-data" class="toc-link block">6. Your Data</a></li>
-                            <li><a href="#tos-termination" class="toc-link block">7. Termination</a></li>
-                            <li><a href="#tos-liability" class="toc-link block">8. Limitation of Liability</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-orange-400 mb-2">Privacy Policy</h3>
-                        <ul class="space-y-2 text-slate-300">
-                            <li><a href="#privacy-intro" class="toc-link block">1. Introduction</a></li>
-                            <li><a href="#privacy-collection" class="toc-link block">2. Information We Collect</a></li>
-                            <li><a href="#privacy-usage" class="toc-link block">3. How We Use Information</a></li>
-                            <li><a href="#privacy-sharing" class="toc-link block">4. Information Sharing</a></li>
-                            <li><a href="#privacy-security" class="toc-link block">5. Data Security</a></li>
-                            <li><a href="#privacy-rights" class="toc-link block">6. Your Rights</a></li>
-                            <li><a href="#privacy-cookies" class="toc-link block">7. Cookies & Tracking</a></li>
-                            <li><a href="#privacy-changes" class="toc-link block">8. Policy Changes</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+    <div class="legal-layout">
+      <nav class="legal-toc" aria-label="Page sections">
+        <h2>On this page</h2>
+        <h3>Terms of Service</h3>
+        <ol>
+          <li><a href="#tos-acceptance">1. Acceptance of Terms</a></li>
+          <li><a href="#tos-service">2. Service Description</a></li>
+          <li><a href="#tos-account">3. Account Registration</a></li>
+          <li><a href="#tos-acceptable-use">4. Acceptable Use</a></li>
+          <li><a href="#tos-subscription">5. Subscription &amp; Payment</a></li>
+          <li><a href="#tos-data">6. Your Data</a></li>
+          <li><a href="#tos-termination">7. Termination</a></li>
+          <li><a href="#tos-liability">8. Limitation of Liability</a></li>
+          <li><a href="#tos-governing">9. Governing Law</a></li>
+          <li><a href="#tos-general">10. General Provisions</a></li>
+        </ol>
+        <h3>Privacy Policy</h3>
+        <ol>
+          <li><a href="#privacy-intro">1. Introduction</a></li>
+          <li><a href="#privacy-collection">2. Information We Collect</a></li>
+          <li><a href="#privacy-usage">3. How We Use Information</a></li>
+          <li><a href="#privacy-sharing">4. Information Sharing</a></li>
+          <li><a href="#privacy-security">5. Data Security</a></li>
+          <li><a href="#privacy-rights">6. Your Rights</a></li>
+          <li><a href="#privacy-cookies">7. Cookies &amp; Tracking</a></li>
+          <li><a href="#privacy-children">8. Children's Privacy</a></li>
+          <li><a href="#privacy-transfers">9. International Transfers</a></li>
+          <li><a href="#privacy-retention">10. Data Retention</a></li>
+          <li><a href="#privacy-updates">11. Policy Changes</a></li>
+        </ol>
+      </nav>
 
-            <!-- Legal Content -->
-            <div class="p-8 md:p-12">
-                
+      <article class="legal-doc">
+ 
                 <!-- ========== TERMS OF SERVICE ========== -->
                 <section class="mb-16">
-                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-orange-500">Terms of Service</h2>
+                    <h2 class="legal-h2">Terms of Service</h2>
                     
                     <!-- Section 1 -->
                     <div id="tos-acceptance" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">1. Acceptance of Terms</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">1. Acceptance of Terms</h3>
+                        <div class="legal-copy">
                             <p>By accessing or using Origen TechnolOG ("the Service"), you agree to be bound by these Terms of Service ("Terms"). If you disagree with any part of these terms, you may not access the Service.</p>
                             <p>These Terms apply to all users of the Service, including without limitation users who are browsers, vendors, customers, merchants, and/or contributors of content.</p>
                         </div>
@@ -93,8 +225,8 @@
 
                     <!-- Section 2 -->
                     <div id="tos-service" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">2. Service Description</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">2. Service Description</h3>
+                        <div class="legal-copy">
                             <p>Origen TechnolOG is a cloud-based Customer Relationship Management (CRM) system designed for real estate professionals. The Service provides tools for contact management, task tracking, transaction management, document generation, and related business operations.</p>
                             <p>We reserve the right to modify, suspend, or discontinue the Service (or any part thereof) at any time with or without notice. We will not be liable to you or any third party for any modification, suspension, or discontinuance of the Service.</p>
                         </div>
@@ -102,8 +234,8 @@
 
                     <!-- Section 3 -->
                     <div id="tos-account" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">3. Account Registration and Security</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">3. Account Registration and Security</h3>
+                        <div class="legal-copy">
                             <p><strong>Registration Requirements:</strong></p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li>You must provide accurate, complete, and current information during registration</li>
@@ -119,8 +251,8 @@
 
                     <!-- Section 4 -->
                     <div id="tos-acceptable-use" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">4. Acceptable Use Policy</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">4. Acceptable Use Policy</h3>
+                        <div class="legal-copy">
                             <p>You agree not to use the Service to:</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li>Violate any laws, regulations, or third-party rights</li>
@@ -140,8 +272,8 @@
 
                     <!-- Section 5 -->
                     <div id="tos-subscription" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">5. Subscription and Payment Terms</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">5. Subscription and Payment Terms</h3>
+                        <div class="legal-copy">
                             <p><strong>Free Tier:</strong> We offer a free tier with limited features as described on our website. We reserve the right to modify free tier features at any time.</p>
                             <p><strong>Paid Subscriptions:</strong> When paid subscription tiers become available:</p>
                             <ul class="list-disc pl-6 space-y-2">
@@ -158,8 +290,8 @@
 
                     <!-- Section 6 -->
                     <div id="tos-data" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">6. Your Data and Intellectual Property</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">6. Your Data and Intellectual Property</h3>
+                        <div class="legal-copy">
                             <p><strong>Your Content:</strong> You retain all rights to the data, contacts, documents, and other content you upload to the Service ("Your Data"). You grant us a limited license to use, store, and process Your Data solely to provide the Service to you.</p>
                             <p><strong>Data Responsibility:</strong> You are solely responsible for:</p>
                             <ul class="list-disc pl-6 space-y-2">
@@ -175,8 +307,8 @@
 
                     <!-- Section 7 -->
                     <div id="tos-termination" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">7. Termination</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">7. Termination</h3>
+                        <div class="legal-copy">
                             <p><strong>By You:</strong> You may terminate your account at any time by contacting us or using the account cancellation feature. Termination takes effect at the end of your current billing period.</p>
                             <p><strong>By Us:</strong> We may suspend or terminate your account immediately if:</p>
                             <ul class="list-disc pl-6 space-y-2">
@@ -191,8 +323,8 @@
 
                     <!-- Section 8 -->
                     <div id="tos-liability" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">8. Disclaimers and Limitation of Liability</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">8. Disclaimers and Limitation of Liability</h3>
+                        <div class="legal-copy">
                             <p><strong>Disclaimer of Warranties:</strong> THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.</p>
                             <p>We do not warrant that:</p>
                             <ul class="list-disc pl-6 space-y-2">
@@ -208,17 +340,17 @@
                     </div>
 
                     <!-- Additional Sections -->
-                    <div class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">9. Governing Law and Dispute Resolution</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="tos-governing" class="legal-section mb-8">
+                        <h3 class="legal-h3">9. Governing Law and Dispute Resolution</h3>
+                        <div class="legal-copy">
                             <p>These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to its conflict of law provisions.</p>
                             <p>Any disputes arising out of or relating to these Terms or the Service shall first be attempted to be resolved through good-faith negotiation. If negotiation fails, disputes shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association.</p>
                         </div>
                     </div>
 
-                    <div class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">10. General Provisions</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="tos-general" class="legal-section mb-8">
+                        <h3 class="legal-h3">10. General Provisions</h3>
+                        <div class="legal-copy">
                             <p><strong>Entire Agreement:</strong> These Terms constitute the entire agreement between you and Origen TechnolOG regarding the Service.</p>
                             <p><strong>Modifications:</strong> We may modify these Terms at any time by posting the revised Terms on our website. Your continued use of the Service after such changes constitutes acceptance of the new Terms.</p>
                             <p><strong>Severability:</strong> If any provision of these Terms is found to be unenforceable, the remaining provisions will remain in full force and effect.</p>
@@ -230,12 +362,12 @@
 
                 <!-- ========== PRIVACY POLICY ========== -->
                 <section>
-                    <h2 class="text-3xl font-bold text-slate-900 mb-8 pb-4 border-b-4 border-orange-500">Privacy Policy</h2>
+                    <h2 class="legal-h2">Privacy Policy</h2>
                     
                     <!-- Section 1 -->
                     <div id="privacy-intro" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">1. Introduction</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">1. Introduction</h3>
+                        <div class="legal-copy">
                             <p>Origen TechnolOG ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Service.</p>
                             <p>By using the Service, you consent to the data practices described in this Privacy Policy. If you do not agree with this Privacy Policy, please do not use the Service.</p>
                         </div>
@@ -243,8 +375,8 @@
 
                     <!-- Section 2 -->
                     <div id="privacy-collection" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">2. Information We Collect</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">2. Information We Collect</h3>
+                        <div class="legal-copy">
                             <p><strong>Information You Provide:</strong></p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li><strong>Account Information:</strong> Name, email address, phone number, company name, license number, username, and password</li>
@@ -267,8 +399,8 @@
 
                     <!-- Section 3 -->
                     <div id="privacy-usage" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">3. How We Use Your Information</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">3. How We Use Your Information</h3>
+                        <div class="legal-copy">
                             <p>We use the information we collect to:</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li><strong>Provide the Service:</strong> Create and manage your account, process transactions, and deliver requested features</li>
@@ -284,8 +416,8 @@
 
                     <!-- Section 4 -->
                     <div id="privacy-sharing" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">4. How We Share Your Information</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">4. How We Share Your Information</h3>
+                        <div class="legal-copy">
                             <p><strong>We do NOT sell your personal information.</strong> We may share information in the following circumstances:</p>
                             
                             <p><strong>Within Your Organization:</strong> Information is shared with other users in your organization as necessary to provide the Service (e.g., team members can see shared contacts).</p>
@@ -310,8 +442,8 @@
 
                     <!-- Section 5 -->
                     <div id="privacy-security" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">5. Data Security</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">5. Data Security</h3>
+                        <div class="legal-copy">
                             <p>We implement industry-standard security measures to protect your information:</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li><strong>Encryption:</strong> All data transmitted to and from the Service is encrypted using 256-bit SSL/TLS</li>
@@ -327,8 +459,8 @@
 
                     <!-- Section 6 -->
                     <div id="privacy-rights" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">6. Your Privacy Rights</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">6. Your Privacy Rights</h3>
+                        <div class="legal-copy">
                             <p>Depending on your location, you may have the following rights:</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li><strong>Access:</strong> Request a copy of the personal information we hold about you</li>
@@ -350,8 +482,8 @@
 
                     <!-- Section 7 -->
                     <div id="privacy-cookies" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">7. Cookies and Tracking Technologies</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                        <h3 class="legal-h3">7. Cookies and Tracking Technologies</h3>
+                        <div class="legal-copy">
                             <p>We use cookies and similar tracking technologies to enhance your experience:</p>
                             
                             <p><strong>Types of Cookies:</strong></p>
@@ -369,24 +501,24 @@
                     </div>
 
                     <!-- Section 8 -->
-                    <div id="privacy-changes" class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">8. Children's Privacy</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="privacy-children" class="legal-section mb-8">
+                        <h3 class="legal-h3">8. Children's Privacy</h3>
+                        <div class="legal-copy">
                             <p>The Service is not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If you believe we have collected information from a child, please contact us immediately, and we will delete it.</p>
                         </div>
                     </div>
 
-                    <div class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">9. International Data Transfers</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="privacy-transfers" class="legal-section mb-8">
+                        <h3 class="legal-h3">9. International Data Transfers</h3>
+                        <div class="legal-copy">
                             <p>Your information may be transferred to and processed in countries other than your country of residence. These countries may have data protection laws different from your jurisdiction. By using the Service, you consent to such transfers.</p>
                             <p>When transferring data internationally, we implement appropriate safeguards such as Standard Contractual Clauses and ensure service providers comply with applicable data protection laws.</p>
                         </div>
                     </div>
 
-                    <div class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">10. Data Retention</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="privacy-retention" class="legal-section mb-8">
+                        <h3 class="legal-h3">10. Data Retention</h3>
+                        <div class="legal-copy">
                             <p>We retain your information for as long as necessary to provide the Service and fulfill the purposes described in this Privacy Policy, unless a longer retention period is required by law.</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li><strong>Active Accounts:</strong> Information retained while your account is active</li>
@@ -397,9 +529,9 @@
                         </div>
                     </div>
 
-                    <div class="legal-section mb-8">
-                        <h3 class="text-xl font-bold text-slate-800 mb-4">11. Changes to This Privacy Policy</h3>
-                        <div class="prose prose-slate max-w-none text-slate-700 space-y-3">
+                    <div id="privacy-updates" class="legal-section mb-8">
+                        <h3 class="legal-h3">11. Changes to This Privacy Policy</h3>
+                        <div class="legal-copy">
                             <p>We may update this Privacy Policy from time to time. We will notify you of material changes by:</p>
                             <ul class="list-disc pl-6 space-y-2">
                                 <li>Posting the updated policy on this page with a new "Last Updated" date</li>
@@ -411,26 +543,21 @@
                     </div>
                 </section>
 
-                <!-- Contact Information -->
-                <div class="mt-16 p-8 bg-slate-50 rounded-xl border-2 border-slate-200">
-                    <h3 class="text-2xl font-bold text-slate-900 mb-4">Contact Us</h3>
-                    <p class="text-slate-700 mb-4">If you have questions about these Terms of Service or Privacy Policy, or wish to exercise your privacy rights, please contact us:</p>
-                    <div class="space-y-2 text-slate-700">
-                        <p><strong>Email:</strong> <a href="mailto:info@origentechnolog.com" class="text-orange-600 hover:text-orange-700">info@origentechnolog.com</a></p>
-                        <p><strong>Website:</strong> <a href="{{ url_for('main.landing') }}" class="text-orange-600 hover:text-orange-700">{{ request.host }}</a></p>
-                        <p class="text-sm text-slate-500 mt-4">We will respond to your inquiry within 30 days.</p>
+                <div class="legal-callout">
+                    <h3 class="legal-h3">Contact us</h3>
+                    <div class="legal-copy">
+                        <p>If you have questions about these Terms of Service or Privacy Policy, or wish to exercise your privacy rights, please contact us:</p>
+                        <p><strong>Email:</strong> <a href="mailto:info@origentechnolog.com">info@origentechnolog.com</a></p>
+                        <p><strong>Website:</strong> <a href="{{ url_for('main.landing') }}">{{ request.host }}</a></p>
+                        <p class="legal-meta" style="margin-bottom:0">We will respond within 30 days.</p>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Back to Top -->
-        <div class="text-center mt-8">
-            <a href="#" class="inline-flex items-center text-slate-600 hover:text-orange-600 transition-colors">
-                <i class="fas fa-arrow-up mr-2"></i>
-                Back to Top
-            </a>
-        </div>
+      </article>
     </div>
+
+    <a href="#" class="legal-top">
+      <i class="fas fa-arrow-up"></i> Back to top
+    </a>
+  </div>
 </div>
 {% endblock %}

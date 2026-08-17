@@ -5,13 +5,6 @@
 {% block content %}
 <div class="crm-page">
     <div class="crm-page__inner max-w-3xl">
-        <div id="toast-message" class="fixed top-4 left-1/2 z-50 hidden -translate-x-1/2 opacity-0 transition-opacity duration-300">
-            <div class="rounded-full border px-4 py-3 text-sm shadow-lg" style="background: var(--danger-soft); border-color: var(--hairline); color: var(--danger);">
-                <p class="font-semibold">Error</p>
-                <p>Please select at least one group.</p>
-            </div>
-        </div>
-
         <a href="{% if return_transaction_id %}{{ url_for('transactions.view_transaction', id=return_transaction_id) }}{% else %}{{ url_for('main.contacts') }}{% endif %}"
            class="crm-back mb-5">
             <i class="fas fa-chevron-left text-xs"></i>

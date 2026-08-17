@@ -1087,16 +1087,10 @@
         }
     }
     
-    // Toast notification
     function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `fixed top-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-4 rounded-xl shadow-2xl text-white font-medium ${type === 'success' ? 'bg-teal-500' : 'bg-red-500'}`;
-        toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${message}`;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.remove();
-        }, 3000);
+        if (typeof window.showCrmToast === 'function') {
+            return window.showCrmToast(message, type);
+        }
     }
 </script>
 {% endblock %}

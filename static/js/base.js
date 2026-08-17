@@ -67,27 +67,23 @@
     }
     
     function showSessionExpiredToast() {
-        // Remove any existing session expired toasts
-        const existingToast = document.getElementById('session-expired-toast');
-        if (existingToast) {
-            existingToast.remove();
+        if (typeof window.showCrmToast === 'function') {
+            window.showCrmToast('Your session has expired. Redirecting to login...', 'warning', {
+                duration: 4000
+            });
+            return;
         }
-        
-        // Create toast notification
+        const existingToast = document.getElementById('session-expired-toast');
+        if (existingToast) existingToast.remove();
         const toast = document.createElement('div');
         toast.id = 'session-expired-toast';
-        toast.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 z-[9999] bg-amber-100 text-amber-800 px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3';
-        toast.innerHTML = `
-            <i class="fas fa-clock text-amber-600"></i>
-            <span class="font-medium">Your session has expired. Redirecting to login...</span>
-        `;
-        
+        toast.className = 'crm-toast crm-toast--warning is-in';
+        toast.textContent = 'Your session has expired. Redirecting to login...';
         document.body.appendChild(toast);
     }
 })();
 
 document.addEventListener('DOMContentLoaded', function() {
-    const flashMessages = document.querySelectorAll('.toast-message');
     const userIcon = document.getElementById('userIcon');
     const userDropdown = document.getElementById('userDropdown');
     const sidebar = document.getElementById('sidebar');
@@ -208,16 +204,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (sidebarToggle) {
         sidebarToggle.addEventListener('click', toggleSidebar);
     }
-
-    // Flash message auto-dismiss
-    flashMessages.forEach(function(message) {
-        setTimeout(function() {
-            message.classList.add('fade-out');
-            setTimeout(function() {
-                message.remove();
-            }, 500);
-        }, 4000);
-    });
 
     /** Position the user menu as fixed so it spans the sidebar + main area and is not clipped by sidebar overflow. */
     function positionUserDropdown() {

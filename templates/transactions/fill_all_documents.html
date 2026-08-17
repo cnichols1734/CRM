@@ -1614,26 +1614,9 @@
     // =============================================================================
 
     function showToast(message, type = 'info') {
-        const toast = document.getElementById('toast');
-        const icon = document.getElementById('toastIcon');
-        document.getElementById('toastMessage').textContent = message;
-
-        toast.classList.remove('toast-warning');
-        icon.className = 'fas flex-shrink-0 text-lg';
-        if (type === 'success') {
-            icon.classList.add('fa-check-circle', 'text-green-500');
-        } else if (type === 'error') {
-            icon.classList.add('fa-exclamation-circle', 'text-red-500');
-        } else if (type === 'warning') {
-            icon.classList.add('fa-exclamation-triangle', 'text-amber-600');
-            toast.classList.add('toast-warning');
-        } else {
-            icon.classList.add('fa-info-circle', 'text-blue-500');
+        if (typeof window.showCrmToast === 'function') {
+            return window.showCrmToast(message, type);
         }
-
-        toast.classList.remove('hidden');
-        const duration = type === 'warning' ? 6000 : 4000;
-        setTimeout(() => toast.classList.add('hidden'), duration);
     }
 
     function toggleCheckbox(element) {

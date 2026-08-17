@@ -13,461 +13,319 @@
 
 {% block content %}
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
+  :root{
+    --brand-orange: #f97316;
+    --bg: #f4f4f4;
+    --panel: #ffffff;
+    --panel-soft: #f0f0f0;
+    --text: rgba(0, 0, 0, 0.88);
+    --muted: rgba(0, 0, 0, 0.56);
+    --border: rgba(0, 0, 0, 0.10);
+    --shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+    --focus: rgba(249, 115, 22, 0.18);
+    --accent-soft: rgba(249, 115, 22, 0.1);
+  }
+
+  .register-page{
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .shell{ width: 100%; max-width: 920px; }
+
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .left{
+    background:
+      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.07) 0%, transparent 55%),
+      var(--panel-soft);
+    color: var(--text);
+    position: relative;
+    border-right: 1px solid var(--border);
+  }
+  .left::before{
+    content:'';
+    position:absolute;
+    top:0; left:0; right:0;
+    height: 2px;
+    background: var(--brand-orange);
+  }
+  .left-muted{ color: var(--muted); }
+  .left-title{
+    color: var(--text);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .left-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:.5rem;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 9999px;
+    background: var(--accent-soft);
+    color: var(--brand-orange);
+    border: 1px solid rgba(249, 115, 22, 0.16);
+  }
+  .left-bullet{
+    display:flex;
+    gap:.75rem;
+    align-items:flex-start;
+  }
+  .left-icon{
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    color: var(--brand-orange);
+  }
+
+  .kicker{ font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .title{ font-size: 24px; font-weight: 800; color: var(--text); letter-spacing: -0.02em; }
+  .subtitle{ font-size: 14px; color: var(--muted); }
+
+  .label{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .input{
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    padding: 0 14px;
+    font-size: 15px;
+    width: 100%;
+    color: var(--text);
+    transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .input::placeholder{ color: rgba(0,0,0,0.35); }
+  .input:focus{
+    outline: none;
+    border-color: var(--brand-orange);
+    box-shadow: 0 0 0 4px var(--focus);
+  }
+  .input:-webkit-autofill,
+  .input:-webkit-autofill:hover,
+  .input:-webkit-autofill:focus{
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--text);
+    box-shadow: 0 0 0 1000px var(--panel) inset;
+    transition: background-color 9999s ease-out;
+  }
+
+  .btn{
+    height: 46px;
+    border-radius: 12px;
+    width: 100%;
+    background: #ea580c;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    transition: background .15s ease, box-shadow .18s ease;
+  }
+  .btn:hover{
+    background: #c2410c;
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
+  }
+  .btn:active{ background: #980012; }
+
+  .divider{ height: 1px; background: var(--border); }
+
+  .footer-link{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--brand-orange);
+    text-decoration: none;
+  }
+  .footer-link:hover{ text-decoration: underline; text-underline-offset: 3px; }
+
+  .legal{
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+  .legal a{
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .home-link{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .home-link:hover{ color: var(--brand-orange); }
+
+  @media (max-width: 1024px){
+    .left{
+      border-right: none;
+      border-bottom: 1px solid var(--border);
     }
-    @keyframes fadeInLeft {
-        from { opacity: 0; transform: translateX(-20px); }
-        to { opacity: 1; transform: translateX(0); }
-    }
-    @keyframes float {
-        0%, 100% { transform: translateY(0px); }
-        50% { transform: translateY(-8px); }
-    }
-    @keyframes shimmer {
-        0% { background-position: -1000px 0; }
-        100% { background-position: 1000px 0; }
-    }
-    @keyframes pulse-soft {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.8; }
-    }
-    
-    .register-panel {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-    .animate-fade-in-left { animation: fadeInLeft 0.6s ease-out forwards; }
-    .delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .delay-2 { animation-delay: 0.2s; opacity: 0; }
-    .delay-3 { animation-delay: 0.3s; opacity: 0; }
-    .delay-4 { animation-delay: 0.4s; opacity: 0; }
-    
-    /* Geometric background patterns */
-    .hero-pattern {
-        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    }
-    
-    .feature-card {
-        transition: all 0.3s ease;
-    }
-    .feature-card:hover {
-        transform: translateY(-2px);
-    }
-    
-    /* Right panel background */
-    .right-bg {
-        background: 
-            radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 100% 100%, rgba(45, 62, 80, 0.04) 0%, transparent 50%),
-            linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-    
-    /* Premium card */
-    .premium-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 8px 16px rgba(0, 0, 0, 0.04),
-            0 24px 48px rgba(0, 0, 0, 0.06);
-        transition: all 0.3s ease;
-    }
-    .premium-card:hover {
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 12px 24px rgba(0, 0, 0, 0.06),
-            0 32px 64px rgba(0, 0, 0, 0.08);
-    }
-    
-    /* Input styling */
-    .input-group {
-        position: relative;
-    }
-    .input-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-        transition: color 0.2s ease;
-        pointer-events: none;
-        font-size: 14px;
-    }
-    .premium-input {
-        padding-left: 42px;
-        height: 52px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-    }
-    .premium-input:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-    }
-    .premium-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    .premium-input:focus + .input-icon,
-    .input-group:focus-within .input-icon {
-        color: #2d3e50;
-    }
-    
-    /* Simple input (no icon) */
-    .simple-input {
-        height: 52px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-        padding: 0 16px;
-    }
-    .simple-input:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-    }
-    .simple-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    
-    /* Premium button */
-    .premium-btn {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
-        transition: all 0.3s ease;
-    }
-    .premium-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s ease;
-    }
-    .premium-btn:hover::before {
-        left: 100%;
-    }
-    .premium-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
-    }
-    
-    /* Accent line */
-    .accent-line {
-        height: 4px;
-        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
-        background-size: 200% 100%;
-        animation: shimmer 3s linear infinite;
-    }
-    
-    /* Floating orbs */
-    .orb {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(40px);
-        animation: pulse-soft 4s ease-in-out infinite;
-    }
-    .orb-1 {
-        width: 200px;
-        height: 200px;
-        background: rgba(234, 88, 12, 0.15);
-        top: -50px;
-        right: -50px;
-    }
-    .orb-2 {
-        width: 150px;
-        height: 150px;
-        background: rgba(45, 62, 80, 0.1);
-        bottom: -30px;
-        left: -30px;
-        animation-delay: 2s;
-    }
-    
-    /* Benefits badges */
-    .benefit-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0;
-        background: transparent;
-        font-size: 13px;
-        font-weight: 500;
-        color: #64748b;
-    }
-    .benefit-badge i {
-        color: #f97316;
-        margin-right: 6px;
-    }
-    
-    /* Divider with text */
-    .divider-text {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        color: #94a3b8;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        font-weight: 600;
-    }
-    .divider-text::before,
-    .divider-text::after {
-        content: '';
-        flex: 1;
-        height: 1px;
-        background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
-    }
+  }
 </style>
 
-<div class="min-h-screen flex register-panel">
-    <!-- Left Panel - Hero/Benefits Section -->
-    <div class="hidden lg:flex lg:w-[45%] xl:w-1/2 bg-gradient-to-br from-[#2d3e50] via-[#1a2634] to-[#0f1419] relative overflow-hidden">
-        <!-- Background pattern -->
-        <div class="absolute inset-0 hero-pattern"></div>
-        
-        <!-- Gradient overlays -->
-        <div class="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-orange-500/20 to-transparent rounded-full blur-3xl"></div>
-        <div class="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-tr from-amber-500/10 to-transparent rounded-full blur-3xl"></div>
-        
-        <!-- Content -->
-        <div class="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
-        <!-- Logo and Header -->
-            <div class="animate-fade-in-left">
-                <div class="flex items-center space-x-4 mb-16">
-                    <a href="{{ url_for('main.landing') }}" class="flex items-center" aria-label="Back to home">
-                        <div class="w-14 h-14 bg-gradient-to-br from-[#3d4d63] to-[#2d3e50] rounded-xl flex items-center justify-center shadow-xl border border-white/10">
-                            {{ brand_logo(size_class='crm-brand-logo-wrap--h12 crm-brand-logo-wrap--on-dark', width=219, height=48) }}
-                        </div>
-                    </a>
-                </div>
-                
-                <h1 class="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-                    Create your account.
-                </h1>
-                
-                <p class="text-xl text-slate-300 leading-relaxed max-w-lg">
-                    No credit card. The free tier stays free. You can be in within a couple of minutes. Up to 10,000 contacts, in an all-in-one CRM for agents.
-                </p>
-            </div>
-            
-            <!-- Feature Cards -->
-            <div class="space-y-4 my-12 animate-fade-in-left delay-2">
-                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-address-book text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-white font-semibold text-lg">Smart Contact Management</h3>
-                        <p class="text-slate-400 text-sm mt-1">Up to 10,000 contacts with groups, notes, and activity tracking</p>
-                    </div>
-                </div>
-                
-                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-tasks text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-white font-semibold text-lg">Task & Follow-up System</h3>
-                        <p class="text-slate-400 text-sm mt-1">Due dates and email reminders for follow-up tasks</p>
-                    </div>
-                </div>
-                
-                <div class="feature-card flex items-start space-x-4 bg-white/5 backdrop-blur-sm rounded-xl p-5 border border-white/10">
-                    <div class="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                        <i class="fas fa-chart-line text-white text-lg"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-white font-semibold text-lg">Performance Dashboard</h3>
-                        <p class="text-slate-400 text-sm mt-1">Track your pipeline, activities, and growth with real-time analytics</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Trust indicators -->
-            <div class="animate-fade-in-left delay-4">
-                <div class="flex items-center space-x-6 text-slate-400 text-sm">
-                    <span class="flex items-center"><i class="fas fa-shield-alt text-emerald-400 mr-2"></i> Secure & Private</span>
-                    <span class="flex items-center"><i class="fas fa-clock text-blue-400 mr-2"></i> Quick Setup</span>
-                    <span class="flex items-center"><i class="fas fa-headset text-purple-400 mr-2"></i> Support Included</span>
-                </div>
-            </div>
-        </div>
+<div class="min-h-screen register-page flex items-center justify-center px-4 py-12">
+  <div class="shell">
+    <div class="mb-4">
+      <a href="{{ url_for('main.landing') }}" class="home-link">Back to home</a>
     </div>
-    
-    <!-- Right Panel - Registration Form -->
-    <div class="w-full lg:w-[55%] xl:w-1/2 right-bg flex items-center justify-center px-6 py-10 lg:px-10 xl:px-16 relative overflow-hidden">
-        <!-- Floating orbs -->
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
-        
-        <div class="w-full max-w-[520px] relative z-10 animate-fade-in-up">
-            <div class="hidden lg:block mb-4">
-                <a href="{{ url_for('main.landing') }}" class="text-sm font-medium text-slate-600 hover:text-orange-600">Back to home</a>
+
+    <div class="card">
+      <div class="grid grid-cols-1 lg:grid-cols-2">
+
+        <div class="left p-8 lg:p-10 flex flex-col justify-between">
+          <div>
+            <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="Origen TechnolOG home">
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9', width=164, height=36) }}
+            </a>
+
+            <div class="mt-8">
+              <div class="left-chip">Free to start</div>
+              <p class="left-title mt-4 text-2xl lg:text-3xl leading-tight">
+                A couple of minutes, then you're in.
+              </p>
+              <p class="mt-3 text-sm lg:text-[15px] left-muted leading-relaxed">
+                No credit card. The free tier stays free. Up to 10,000 contacts, in a CRM built for agents.
+              </p>
             </div>
-            <!-- Mobile logo -->
-            <div class="lg:hidden text-center mb-8">
-                <div class="flex justify-center mb-4">
-                    <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="Back to home">
-                        <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-lg">
-                            {{ brand_logo(size_class='crm-brand-logo-wrap--h14 crm-brand-logo-wrap--on-dark', width=255, height=56) }}
-                        </div>
-                    </a>
+
+            <div class="mt-8 space-y-4">
+              <div class="left-bullet">
+                <div class="left-icon"><i class="fas fa-address-book"></i></div>
+                <div>
+                  <div class="font-semibold text-sm">Contacts and groups</div>
+                  <div class="text-xs left-muted">Notes and activity on each person, up to 10,000 contacts.</div>
                 </div>
-                <a href="{{ url_for('main.landing') }}" class="text-sm font-medium text-slate-600 hover:text-orange-600">Back to home</a>
+              </div>
+              <div class="left-bullet">
+                <div class="left-icon"><i class="fas fa-tasks"></i></div>
+                <div>
+                  <div class="font-semibold text-sm">Tasks and reminders</div>
+                  <div class="text-xs left-muted">Due dates and email reminders for follow-up.</div>
+                </div>
+              </div>
+              <div class="left-bullet">
+                <div class="left-icon"><i class="fas fa-chart-line"></i></div>
+                <div>
+                  <div class="font-semibold text-sm">Dashboard</div>
+                  <div class="text-xs left-muted">Pipeline and activity without a second tool.</div>
+                </div>
+              </div>
             </div>
-            
-            <!-- Form Card -->
-            <div class="premium-card rounded-2xl overflow-hidden">
-                <!-- Accent line at top -->
-                <div class="accent-line"></div>
-                
-                <div class="p-8 lg:p-10">
-                    <!-- Header -->
-                    <div class="text-center mb-8">
-                        <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Create your account.</h2>
-                        <p class="text-slate-500">No credit card. The free tier stays free. You can be in within a couple of minutes.</p>
-                    </div>
-                    
-                    <!-- Benefits -->
-                    <div class="flex items-center justify-center gap-6 mb-8 text-sm text-slate-500">
-                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Up to 10,000 contacts</span>
-                        <span class="text-slate-300">·</span>
-                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Instant Access</span>
-                        <span class="text-slate-300">·</span>
-                        <span class="flex items-center"><i class="fas fa-check text-orange-500 mr-2"></i>Secure</span>
-                    </div>
-                    
-                    <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4"
-                          data-analytics-form="registration"
-                          data-validation-categories="{{ form.errors.keys()|join(',') }}">
-                        {{ form.hidden_tag() }}
-                        
-                        <!-- Honeypot field - invisible to humans, bots will fill it -->
-                        <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
-                            <label for="referral_code">Leave this field empty</label>
-                            <input type="text" name="referral_code" id="referral_code" tabindex="-1" autocomplete="off" value="">
-                        </div>
-                        
-                        <!-- Organization Name -->
-                        <div class="input-group">
-                            <input type="text" name="company_name" required
-                                class="premium-input block w-full text-slate-900 placeholder-slate-400"
-                                placeholder="Your brokerage or team name" />
-                            <i class="input-icon fas fa-building"></i>
-                        </div>
-                        
-                        <div class="divider-text my-6">
-                            <span>Your Details</span>
-                        </div>
-                        
-                        <!-- Name Fields -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                {{ form.first_name(class="simple-input block w-full text-slate-900 placeholder-slate-400", placeholder="First name") }}
-                                {% if form.first_name.errors %}
-                                    {% for error in form.first_name.errors %}
-                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                            <div>
-                                {{ form.last_name(class="simple-input block w-full text-slate-900 placeholder-slate-400", placeholder="Last name") }}
-                                {% if form.last_name.errors %}
-                                    {% for error in form.last_name.errors %}
-                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
+          </div>
 
-                        <!-- Email -->
-                        <div class="input-group">
-                            {{ form.email(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Work email") }}
-                            <i class="input-icon fas fa-envelope"></i>
-                            {% if form.email.errors %}
-                                {% for error in form.email.errors %}
-                                    <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-
-                        <!-- Password Fields -->
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="input-group">
-                                {{ form.password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Password") }}
-                                <i class="input-icon fas fa-lock"></i>
-                                {% if form.password.errors %}
-                                    {% for error in form.password.errors %}
-                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                            <div class="input-group">
-                                {{ form.confirm_password(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Confirm password") }}
-                                <i class="input-icon fas fa-lock"></i>
-                                {% if form.confirm_password.errors %}
-                                    {% for error in form.confirm_password.errors %}
-                                        <p class="text-red-500 text-xs mt-1">{{ error }}</p>
-                                    {% endfor %}
-                                {% endif %}
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <div class="pt-4">
-                            <button type="submit" class="premium-btn w-full h-14 rounded-xl text-base font-semibold text-white">
-                                <span class="relative z-10 flex items-center justify-center">
-                                    Create My Account
-                                    <i class="fas fa-arrow-right ml-2"></i>
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                    
-                    <!-- Footer text -->
-                    <p class="text-center text-xs text-slate-400 mt-6">
-                        By creating an account, you agree to our 
-                        <a href="{{ url_for('auth.terms_privacy') }}" target="_blank" class="text-slate-600 hover:text-slate-900 font-medium underline">Terms & Privacy Policy</a>
-                    </p>
-            </div>
+          <div class="mt-10 text-xs left-muted flex items-center gap-2">
+            <i class="fas fa-shield-alt" style="color: #248a3d"></i>
+            256-bit SSL encryption · Your data stays private
+          </div>
         </div>
 
-            <!-- Sign in link -->
-            <div class="text-center mt-8">
-            <p class="text-slate-600">
-                Already have an account?
-                    <a href="{{ url_for('auth.login') }}" class="font-semibold text-[#2d3e50] hover:text-orange-600 transition-colors ml-1">
-                        Sign in <i class="fas fa-arrow-right text-xs ml-1"></i>
-                </a>
+        <div class="p-8 lg:p-10">
+          <div class="mb-7">
+            <div class="kicker">Account</div>
+            <h1 class="title mt-1">Create your account.</h1>
+            <p class="subtitle mt-1">Brokerage, your name, email, and a password.</p>
+          </div>
+
+          <form method="POST" action="{{ url_for('auth.register') }}" class="space-y-4"
+                data-analytics-form="registration"
+                data-validation-categories="{{ form.errors.keys()|join(',') }}">
+            {{ form.hidden_tag() }}
+
+            <div style="position: absolute; left: -9999px; top: -9999px;" aria-hidden="true">
+              <label for="referral_code">Leave this field empty</label>
+              <input type="text" name="referral_code" id="referral_code" tabindex="-1" autocomplete="off" value="">
+            </div>
+
+            <div>
+              <label class="label" for="company_name">Brokerage or team</label>
+              <input type="text" name="company_name" id="company_name" required
+                     class="input" placeholder="Acme Realty" autocomplete="organization">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="label" for="{{ form.first_name.id }}">First name</label>
+                {{ form.first_name(class="input", placeholder="First", autocomplete="given-name") }}
+                {% for error in form.first_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+              </div>
+              <div>
+                <label class="label" for="{{ form.last_name.id }}">Last name</label>
+                {{ form.last_name(class="input", placeholder="Last", autocomplete="family-name") }}
+                {% for error in form.last_name.errors %}
+                  <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div>
+              <label class="label" for="{{ form.email.id }}">Email</label>
+              {{ form.email(class="input", placeholder="you@brokerage.com", autocomplete="email") }}
+              {% for error in form.email.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
+
+            <div>
+              <label class="label" for="{{ form.password.id }}">Password</label>
+              {{ form.password(class="input", placeholder="••••••••", autocomplete="new-password") }}
+              {% for error in form.password.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
+
+            <div>
+              <label class="label" for="{{ form.confirm_password.id }}">Confirm password</label>
+              {{ form.confirm_password(class="input", placeholder="Repeat password", autocomplete="new-password") }}
+              {% for error in form.confirm_password.errors %}
+                <p class="text-red-600 text-xs mt-1">{{ error }}</p>
+              {% endfor %}
+            </div>
+
+            <div class="pt-2">
+              <button type="submit" class="btn">
+                Create account <i class="fas fa-arrow-right ml-2"></i>
+              </button>
+              <p class="legal mt-4">
+                By creating an account, you agree to our
+                <a href="{{ url_for('auth.terms_privacy') }}" target="_blank" rel="noopener">Terms &amp; Privacy Policy</a>
+              </p>
+            </div>
+
+            <div class="divider my-6"></div>
+
+            <p class="text-sm" style="color: var(--muted);">
+              Already have an account?
+              <a href="{{ url_for('auth.login') }}" class="footer-link ml-1">Sign in</a>
             </p>
-            </div>
-            
-            <!-- Trust badge -->
-            <div class="text-center mt-6">
-                <div class="inline-flex items-center text-xs text-slate-400">
-                    <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>
-                    256-bit SSL encryption · Your data stays private
-                </div>
-            </div>
+          </form>
         </div>
+
+      </div>
     </div>
+  </div>
 </div>
 {% endblock %}

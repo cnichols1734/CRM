@@ -379,24 +379,9 @@
     }
     
     function showToast(message, type) {
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-24 right-6 px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 ${
-            type === 'success' ? 'bg-green-600 text-white' : 
-            type === 'error' ? 'bg-red-600 text-white' : 
-            'bg-slate-800 text-white'
-        }`;
-        toast.innerHTML = `
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        `;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(20px)';
-            toast.style.transition = 'all 0.3s ease-out';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        if (typeof window.showCrmToast === 'function') {
+            return window.showCrmToast(message, type);
+        }
     }
     
     function printDocument() {
