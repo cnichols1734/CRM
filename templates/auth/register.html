@@ -256,18 +256,19 @@
         <!-- Logo and Header -->
             <div class="animate-fade-in-left">
                 <div class="flex items-center space-x-4 mb-16">
-                    <div class="w-14 h-14 bg-gradient-to-br from-[#3d4d63] to-[#2d3e50] rounded-xl flex items-center justify-center shadow-xl border border-white/10">
-                        {{ brand_logo(size_class='crm-brand-logo-wrap--h12 crm-brand-logo-wrap--on-dark', width=219, height=48) }}
-                    </div>
+                    <a href="{{ url_for('main.landing') }}" class="flex items-center" aria-label="Back to home">
+                        <div class="w-14 h-14 bg-gradient-to-br from-[#3d4d63] to-[#2d3e50] rounded-xl flex items-center justify-center shadow-xl border border-white/10">
+                            {{ brand_logo(size_class='crm-brand-logo-wrap--h12 crm-brand-logo-wrap--on-dark', width=219, height=48) }}
+                        </div>
+                    </a>
                 </div>
                 
                 <h1 class="text-4xl xl:text-5xl font-bold text-white leading-tight mb-6">
-                    Grow Your Real Estate<br>
-                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-amber-400">Business Today</span>
+                    Create your account.
                 </h1>
                 
                 <p class="text-xl text-slate-300 leading-relaxed max-w-lg">
-                    The all-in-one CRM built for real estate agents. Manage contacts, close more deals, and scale your business.
+                    No credit card. The free tier stays free. You can be in within a couple of minutes. Unlimited contacts, in an all-in-one CRM for agents.
                 </p>
             </div>
             
@@ -322,13 +323,19 @@
         <div class="orb orb-2"></div>
         
         <div class="w-full max-w-[520px] relative z-10 animate-fade-in-up">
+            <div class="hidden lg:block mb-4">
+                <a href="{{ url_for('main.landing') }}" class="text-sm font-medium text-slate-600 hover:text-orange-600">Back to home</a>
+            </div>
             <!-- Mobile logo -->
             <div class="lg:hidden text-center mb-8">
                 <div class="flex justify-center mb-4">
-                    <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-lg">
-                        {{ brand_logo(size_class='crm-brand-logo-wrap--h14 crm-brand-logo-wrap--on-dark', width=255, height=56) }}
-                    </div>
+                    <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="Back to home">
+                        <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-lg">
+                            {{ brand_logo(size_class='crm-brand-logo-wrap--h14 crm-brand-logo-wrap--on-dark', width=255, height=56) }}
+                        </div>
+                    </a>
                 </div>
+                <a href="{{ url_for('main.landing') }}" class="text-sm font-medium text-slate-600 hover:text-orange-600">Back to home</a>
             </div>
             
             <!-- Form Card -->
@@ -339,8 +346,8 @@
                 <div class="p-8 lg:p-10">
                     <!-- Header -->
                     <div class="text-center mb-8">
-                        <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Get Started Free</h2>
-                        <p class="text-slate-500">Create your account and start using it right away</p>
+                        <h2 class="text-3xl font-extrabold text-slate-900 mb-2 tracking-tight">Create your account.</h2>
+                        <p class="text-slate-500">No credit card. The free tier stays free. You can be in within a couple of minutes.</p>
                     </div>
                     
                     <!-- Benefits -->
