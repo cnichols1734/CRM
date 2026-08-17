@@ -229,6 +229,7 @@ def create_app():
             can_access_reports=can_access_reports,
             can_access_transactions=can_access_transactions,
             show_customize_groups_new_badge=show_customize_groups_new_badge,
+            app_base_url=(app.config.get('APP_BASE_URL') or 'https://www.origentechnolog.com').rstrip('/'),
         )
 
     # Initialize Flask-Mail
@@ -267,20 +268,17 @@ def create_app():
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
 
-    # Serve crawler files at the site root without adding page routes.
-    _PUBLIC_CRAWLER_FILES = {
-        '/robots.txt': 'robots.txt',
-        '/sitemap.xml': 'sitemap.xml',
-        '/llms.txt': 'llms.txt',
-    }
+    @app.route('/robots.txt')
+    def robots_txt():
+        return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
 
-    @app.before_request
-    def serve_public_crawler_files():
-        if request.method not in ('GET', 'HEAD'):
-            return
-        filename = _PUBLIC_CRAWLER_FILES.get(request.path)
-        if filename:
-            return send_from_directory(app.static_folder, filename)
+    @app.route('/sitemap.xml')
+    def sitemap_xml():
+        return send_from_directory(app.static_folder, 'sitemap.xml', mimetype='application/xml')
+
+    @app.route('/llms.txt')
+    def llms_txt():
+        return send_from_directory(app.static_folder, 'llms.txt', mimetype='text/plain')
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

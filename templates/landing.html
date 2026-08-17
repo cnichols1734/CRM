@@ -8,7 +8,7 @@
     {{ public_seo(
         title="Free Real Estate CRM | Origen TechnolOG",
         description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
-        canonical="https://www.origentechnolog.com/"
+        canonical=app_base_url ~ "/"
     ) }}
     <script type="application/ld+json">
     {
@@ -16,22 +16,22 @@
       "@graph": [
         {
           "@type": "Organization",
-          "@id": "https://www.origentechnolog.com/#organization",
+          "@id": "{{ app_base_url }}/#organization",
           "name": "Origen TechnolOG",
-          "url": "https://www.origentechnolog.com/",
-          "logo": "https://www.origentechnolog.com/static/images/logo_og_dark.png"
+          "url": "{{ app_base_url }}/",
+          "logo": "{{ app_base_url }}/static/images/logo_og_dark.png"
         },
         {
           "@type": "WebSite",
-          "@id": "https://www.origentechnolog.com/#website",
+          "@id": "{{ app_base_url }}/#website",
           "name": "Origen TechnolOG",
-          "url": "https://www.origentechnolog.com/",
+          "url": "{{ app_base_url }}/",
           "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
-          "publisher": { "@id": "https://www.origentechnolog.com/#organization" }
+          "publisher": { "@id": "{{ app_base_url }}/#organization" }
         },
         {
           "@type": "SoftwareApplication",
-          "@id": "https://www.origentechnolog.com/#software",
+          "@id": "{{ app_base_url }}/#software",
           "name": "Origen TechnolOG",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
@@ -42,8 +42,8 @@
             "priceCurrency": "USD"
           },
           "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
-          "url": "https://www.origentechnolog.com/",
-          "publisher": { "@id": "https://www.origentechnolog.com/#organization" }
+          "url": "{{ app_base_url }}/",
+          "publisher": { "@id": "{{ app_base_url }}/#organization" }
         }
       ]
     }
