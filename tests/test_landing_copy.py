@@ -44,6 +44,8 @@ DELETED_FAQ = (
     "Straight answers. No pitch.",
     "Questions people ask",
     "Origen TechnolOG (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM.",
+    "What is B.O.B.?",
+    "B.O.B. is the built-in assistant.",
 )
 
 FAQ_ITEMS = (
@@ -64,10 +66,26 @@ FAQ_ITEMS = (
         "Yes. Contacts, follow-ups, and tasks are set up the way agents actually work, not as a generic CRM.",
     ),
     (
-        "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, change an email, complete a task, or log a call. It can add a note or put someone in a group. You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+        "What can B.O.B. do?",
+        "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
     ),
 )
+
+
+def _faq_paragraphs(answer):
+    return tuple(part for part in answer.split("\n\n") if part)
+
+
+def _json_ld_answer(answer):
+    return "\\n\\n".join(_faq_paragraphs(answer))
+
+
+def _copy_without_bob_faq(html):
+    question, answer = FAQ_ITEMS[4]
+    stripped = html.replace(question, "")
+    for para in _faq_paragraphs(answer):
+        stripped = stripped.replace(para, "")
+    return stripped
 
 
 class TestLandingLeftoverCopy:
@@ -109,11 +127,12 @@ class TestLandingLeftoverCopy:
         assert LANDING.count('"@type": "Question"') == 5
         for question, answer in FAQ_ITEMS:
             assert LANDING.count(question) == 2
-            assert LANDING.count(answer) == 2
             assert f"<summary>{question}</summary>" in LANDING
-            assert f'<p class="faq-answer">{answer}</p>' in LANDING
             assert f'"name": "{question}"' in LANDING
-            assert f'"text": "{answer}"' in LANDING
+            assert f'"text": "{_json_ld_answer(answer)}"' in LANDING
+            for para in _faq_paragraphs(answer):
+                assert LANDING.count(para) == 2
+                assert f'<p class="faq-answer">{para}</p>' in LANDING
 
     def test_old_faq_copy_is_gone(self):
         for phrase in DELETED_FAQ:
@@ -162,10 +181,11 @@ class TestLandingLeftoverCopy:
         assert "never be a paid" not in LANDING.lower()
         assert "Extra features later will be paid" in LANDING
 
-    def test_no_ai_word_in_visible_landing_or_register_copy(self):
-        for source in (LANDING, REGISTER, FREE_CRM):
-            visible = _visible_public_copy(source)
+    def test_no_ai_word_outside_bob_faq(self):
+        for source in (LANDING, FREE_CRM):
+            visible = _visible_public_copy(_copy_without_bob_faq(source))
             assert re.search(r"\bAI\b", visible) is None
+        assert re.search(r"\bAI\b", _visible_public_copy(REGISTER)) is None
         assert re.search(r"\bAI\b", LLMS) is None
         assert "AI assistant" not in LLMS
 
@@ -235,17 +255,19 @@ class TestLandingLeftoverCopy:
 
     def test_bob_faq_mentions_crm_work_and_telegram(self):
         question, answer = FAQ_ITEMS[4]
-        assert question == "What is B.O.B.?"
+        assert question == "What can B.O.B. do?"
+        assert "AI assistant" in answer
+        assert "If you can do it in Origen" in answer
         assert "25 messages a day" in answer
         assert "Telegram" in answer
-        assert "ZIP" in answer
-        assert "change an email" in answer
+        assert "from your profile" in answer
+        assert "ZIP" not in answer
+        assert "change an email" not in answer
         assert "Confirm (15 minutes)" not in answer
         assert "waits for Confirm" not in answer
         assert "waits for a yes" not in answer
         assert "until you say yes" not in answer
         assert "in the CRM or on Telegram" not in answer
-        assert "AI" not in answer
 
 
 class TestRegisterLeftoverCopy:

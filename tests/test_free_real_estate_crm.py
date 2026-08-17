@@ -63,10 +63,28 @@ FAQ_ITEMS = (
         "No. Paid features come later. Nothing paid is for sale today.",
     ),
     (
-        "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, change an email, complete a task, or log a call. It can add a note or put someone in a group. You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+        "What can B.O.B. do?",
+        "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
     ),
 )
+
+
+def _faq_paragraphs(answer):
+    return tuple(part for part in answer.split("\n\n") if part)
+
+
+def _json_ld_answer(answer):
+    return "\\n\\n".join(_faq_paragraphs(answer))
+
+
+def _copy_without_bob_faq(html):
+    question, answer = FAQ_ITEMS[3]
+    stripped = html.replace(question, "")
+    for para in _faq_paragraphs(answer):
+        stripped = stripped.replace(para, "")
+    return stripped
+
+
 FAKE_SEO_QUESTIONS = (
     "origentech",
     "Is this HubSpot",
@@ -222,11 +240,12 @@ class TestFreeRealEstateCrmCopy:
         assert PAGE.count('"@type": "Question"') == 4
         for question, answer in FAQ_ITEMS:
             assert PAGE.count(question) == 2
-            assert PAGE.count(answer) == 2
             assert f"<summary>{question}</summary>" in PAGE
-            assert f'<p class="faq-answer">{answer}</p>' in PAGE
             assert f'"name": "{question}"' in PAGE
-            assert f'"text": "{answer}"' in PAGE
+            assert f'"text": "{_json_ld_answer(answer)}"' in PAGE
+            for para in _faq_paragraphs(answer):
+                assert PAGE.count(para) == 2
+                assert f'<p class="faq-answer">{para}</p>' in PAGE
         include_answer = FAQ_ITEMS[0][1]
         assert "One user" in include_answer
         assert "10,000 contacts" in include_answer
@@ -236,22 +255,31 @@ class TestFreeRealEstateCrmCopy:
         for phrase in FAKE_SEO_QUESTIONS:
             assert phrase.lower() not in PAGE.lower()
 
-    def test_no_ai_word_in_visible_copy(self):
-        assert re.search(r"\bAI\b", _visible_copy(PAGE)) is None
-        assert re.search(r"\bAI\b", PAGE) is None
+    def test_no_ai_word_outside_bob_faq(self):
+        visible = _visible_copy(_copy_without_bob_faq(PAGE))
+        assert re.search(r"\bAI\b", visible) is None
+        assert re.search(r"\bAI\b", _copy_without_bob_faq(PAGE)) is None
 
-    def test_bob_faq_matches_home_card(self):
+    def test_bob_faq_is_verbatim_and_card_stays(self):
         question, answer = FAQ_ITEMS[3]
-        assert question == "What is B.O.B.?"
-        assert answer in PAGE
-        assert answer in LANDING
+        assert question == "What can B.O.B. do?"
+        assert "AI assistant" in answer
+        assert "If you can do it in Origen" in answer
+        assert "The free plan includes 25 messages a day" in answer
+        assert "Telegram" in answer
+        assert "from your profile" in answer
+        for para in _faq_paragraphs(answer):
+            assert f'<p class="faq-answer">{para}</p>' in PAGE
+            assert f'<p class="faq-answer">{para}</p>' in LANDING
         assert "add a contact, change an email, or complete a task" in PAGE
-        assert "change an email" in answer
+        assert "change an email" not in answer
+        assert "ZIP" not in answer
+        assert "What is B.O.B.?" not in PAGE
+        assert "B.O.B. is the built-in assistant." not in PAGE
         assert "Confirm (15 minutes)" not in PAGE
         assert "Confirm (15 minutes)" not in answer
         assert "waits for Confirm" not in answer
         assert "waits for a yes" not in answer
         assert "until you say yes" not in answer
-        assert "25 messages a day on the free plan" in answer
         assert "in the CRM or on Telegram" not in answer
         assert "same 25" not in PAGE.lower()
