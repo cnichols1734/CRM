@@ -22,7 +22,7 @@ try:
 except ImportError:  # pragma: no cover - psutil is installed in production
     psutil = None
 
-from flask import Flask, render_template, session, redirect, url_for, flash, request, g
+from flask import Flask, render_template, session, redirect, url_for, flash, request, g, send_from_directory
 from flask.logging import default_handler
 from flask_login import LoginManager, current_user, logout_user
 from flask_mail import Mail
@@ -229,6 +229,7 @@ def create_app():
             can_access_reports=can_access_reports,
             can_access_transactions=can_access_transactions,
             show_customize_groups_new_badge=show_customize_groups_new_badge,
+            app_base_url=(app.config.get('APP_BASE_URL') or 'https://www.origentechnolog.com').rstrip('/'),
         )
 
     # Initialize Flask-Mail
@@ -266,6 +267,18 @@ def create_app():
     app.register_blueprint(groups_bp)
     app.register_blueprint(analytics_webhooks_bp)
     app.register_blueprint(bob_telegram_bp)
+
+    @app.route('/robots.txt')
+    def robots_txt():
+        return send_from_directory(app.static_folder, 'robots.txt', mimetype='text/plain')
+
+    @app.route('/sitemap.xml')
+    def sitemap_xml():
+        return send_from_directory(app.static_folder, 'sitemap.xml', mimetype='application/xml')
+
+    @app.route('/llms.txt')
+    def llms_txt():
+        return send_from_directory(app.static_folder, 'llms.txt', mimetype='text/plain')
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

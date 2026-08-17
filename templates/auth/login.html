@@ -1,5 +1,15 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import brand_logo %}
+{% from "components/seo_meta.html" import public_seo %}
+
+{% block title %}Log in | Origen TechnolOG{% endblock %}
+{% block seo_head %}
+{{ public_seo(
+    title="Log in | Origen TechnolOG",
+    description="Log in to your free Origen TechnolOG real estate CRM.",
+    canonical=app_base_url ~ "/login"
+) }}
+{% endblock %}
 
 {% block content %}
 <style>
