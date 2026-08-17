@@ -15,10 +15,10 @@ pytz==2026.3.post1
 email-validator==2.2.0
 
 # External APIs / HTTP
-openai==2.53.0
+openai==3.0.0
 sendgrid==6.12.5
 requests==2.34.2
-posthog==7.38.3
+posthog==7.39.0
 
 # Google Gmail Integration
 google-auth==2.56.3
