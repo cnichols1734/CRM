@@ -37,6 +37,10 @@ class TestPublicRoutes:
         resp = client.get('/terms-privacy')
         assert resp.status_code == 200
 
+    def test_free_real_estate_crm(self, client, seed):
+        resp = client.get('/free-real-estate-crm')
+        assert resp.status_code == 200
+
     def test_reset_password_page(self, client, seed):
         resp = client.get('/reset_password')
         assert resp.status_code in (200, 302)

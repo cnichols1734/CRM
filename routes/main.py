@@ -431,6 +431,12 @@ def landing():
     return render_template('landing.html', current_year=datetime.now().year)
 
 
+@main_bp.route('/free-real-estate-crm')
+def free_real_estate_crm():
+    """Public page for the free real estate CRM offer. Always 200, even if logged in."""
+    return render_template('free_real_estate_crm.html', current_year=datetime.now().year)
+
+
 # =============================================================================
 # CONTACTS LIST (Authenticated)
 # =============================================================================
