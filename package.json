@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@hotwired/stimulus": "^3.2.2",
-    "posthog-js": "^1.414.0"
+    "posthog-js": "^1.417.0"
   },
   "devDependencies": {
     "autoprefixer": "^10.5.4",
