@@ -10,6 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 LANDING = (ROOT / "templates" / "landing.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
 TERMS = (ROOT / "templates" / "auth" / "terms_privacy.html").read_text()
+FREE_CRM = (ROOT / "templates" / "free_real_estate_crm.html").read_text()
+LLMS = (ROOT / "static" / "llms.txt").read_text()
 FREE_LIMITS = get_tier_defaults("free")
 
 _COMMENT = re.compile(r"<!--.*?-->", re.S)
@@ -63,7 +65,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP. Tell it to add a contact, complete a task, or log a call. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, complete a task, or log a call. It can add a note or put someone in a group. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
     ),
 )
 
@@ -161,9 +163,25 @@ class TestLandingLeftoverCopy:
         assert "Extra features later will be paid" in LANDING
 
     def test_no_ai_word_in_visible_landing_or_register_copy(self):
-        for source in (LANDING, REGISTER):
+        for source in (LANDING, REGISTER, FREE_CRM):
             visible = _visible_public_copy(source)
             assert re.search(r"\bAI\b", visible) is None
+        assert re.search(r"\bAI\b", LLMS) is None
+        assert "AI assistant" not in LLMS
+
+    def test_keeps_home_title_and_meta(self):
+        assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in LANDING
+        assert 'title="Free Real Estate CRM | Origen TechnolOG"' in LANDING
+        assert 'description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes."' in LANDING
+
+    def test_public_limits_do_not_contradict_home(self):
+        for source in (LANDING, REGISTER, FREE_CRM, LLMS):
+            assert "10,000 contacts" in source
+            assert "25 messages a day" in source or "25 B.O.B. messages a day" in source
+            assert "Unlimited contacts" not in source
+        assert "One user" in LANDING or "1 user" in LANDING
+        assert "one user" in FREE_CRM
+        assert "One user" in LLMS
 
     def test_bob_is_a_headline_feature_with_real_tools(self):
         assert "Talk to B.O.B." in LANDING

@@ -62,6 +62,10 @@ FAQ_ITEMS = (
         "Can I buy Pro today?",
         "No. Paid features come later. Nothing paid is for sale today.",
     ),
+    (
+        "What is B.O.B.?",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, complete a task, or log a call. It can add a note or put someone in a group. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+    ),
 )
 FAKE_SEO_QUESTIONS = (
     "origentech",
@@ -124,6 +128,10 @@ class TestFreeRealEstateCrmRoute:
         assert "https://www.origentechnolog.com/dashboard" not in text
         assert "—" not in text
         assert "Unlimited contacts" not in text
+        assert "AI" not in text
+        assert "AI assistant" not in text
+        assert "One user, up to 10,000 contacts." in text
+        assert "25 messages a day on the free plan." in text
 
     def test_blocked_marketing_urls_are_not_built(self, client):
         for path in BLOCKED_SEO_PATHS:
@@ -207,8 +215,8 @@ class TestFreeRealEstateCrmCopy:
 
     def test_faq_matches_json_ld_and_repo_limits(self):
         assert '"@type": "FAQPage"' in PAGE
-        assert PAGE.count("<summary>") == 3
-        assert PAGE.count('"@type": "Question"') == 3
+        assert PAGE.count("<summary>") == 4
+        assert PAGE.count('"@type": "Question"') == 4
         for question, answer in FAQ_ITEMS:
             assert PAGE.count(question) == 2
             assert PAGE.count(answer) == 2
@@ -224,3 +232,17 @@ class TestFreeRealEstateCrmCopy:
     def test_no_fake_seo_questions(self):
         for phrase in FAKE_SEO_QUESTIONS:
             assert phrase.lower() not in PAGE.lower()
+
+    def test_no_ai_word_in_visible_copy(self):
+        assert re.search(r"\bAI\b", _visible_copy(PAGE)) is None
+        assert re.search(r"\bAI\b", PAGE) is None
+
+    def test_bob_faq_matches_home_card(self):
+        question, answer = FAQ_ITEMS[3]
+        assert question == "What is B.O.B.?"
+        assert answer in PAGE
+        assert answer in LANDING
+        assert "Confirm (15 minutes)" in answer
+        assert "25 messages a day on the free plan" in answer
+        assert "in the CRM or on Telegram" not in answer
+        assert "same 25" not in PAGE.lower()
