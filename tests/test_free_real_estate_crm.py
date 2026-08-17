@@ -64,7 +64,7 @@ FAQ_ITEMS = (
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, complete a task, or log a call. It can add a note or put someone in a group. Changing an email waits for Confirm (15 minutes). You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
+        "B.O.B. is the built-in assistant. Ask how many clients are in a ZIP or city. Tell it to add a contact, change an email, complete a task, or log a call. It can add a note or put someone in a group. You get 25 messages a day on the free plan. Message B.O.B. on Telegram after you scan a QR from your profile.",
     ),
 )
 FAKE_SEO_QUESTIONS = (
@@ -132,6 +132,9 @@ class TestFreeRealEstateCrmRoute:
         assert "AI assistant" not in text
         assert "One user, up to 10,000 contacts." in text
         assert "25 messages a day on the free plan." in text
+        assert "change an email" in text
+        assert "Changing an email waits for Confirm (15 minutes)." not in text
+        assert "Confirm (15 minutes)" not in text
 
     def test_blocked_marketing_urls_are_not_built(self, client):
         for path in BLOCKED_SEO_PATHS:
@@ -242,7 +245,13 @@ class TestFreeRealEstateCrmCopy:
         assert question == "What is B.O.B.?"
         assert answer in PAGE
         assert answer in LANDING
-        assert "Confirm (15 minutes)" in answer
+        assert "add a contact, change an email, or complete a task" in PAGE
+        assert "change an email" in answer
+        assert "Confirm (15 minutes)" not in PAGE
+        assert "Confirm (15 minutes)" not in answer
+        assert "waits for Confirm" not in answer
+        assert "waits for a yes" not in answer
+        assert "until you say yes" not in answer
         assert "25 messages a day on the free plan" in answer
         assert "in the CRM or on Telegram" not in answer
         assert "same 25" not in PAGE.lower()
