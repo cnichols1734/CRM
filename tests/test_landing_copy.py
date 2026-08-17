@@ -128,6 +128,17 @@ class TestLandingLeftoverCopy:
         assert "25/day free" in LANDING
         assert "25 messages/day included free" in LANDING
 
+    def test_free_pricing_card_matches_product_limits(self):
+        start = LANDING.index("<!-- Free Plan -->")
+        end = LANDING.index("<!-- Pro Plan -->")
+        card = LANDING[start:end]
+        assert "1 user account" in card
+        assert "Up to 10,000 contacts" in card
+        assert "25 messages/day included free" in card
+        assert "Unlimited contacts" not in card
+        assert "10 messages" not in card
+        assert "10/day" not in card
+
     def test_keeps_foundation_title(self):
         assert "Free Real Estate CRM | Origen TechnolOG" in LANDING
 
