@@ -44,6 +44,60 @@
           "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
           "url": "{{ app_base_url }}/",
           "publisher": { "@id": "{{ app_base_url }}/#organization" }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "{{ app_base_url }}/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Is the free tier actually free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. It stays free. You do not need a card to start."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Will you charge me later for what I get today?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. What is free now stays free. Extra features later will be paid. Nothing paid is for sale today."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How long to set up?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "The site says about two minutes."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What do I get on free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "You get one user, unlimited contacts, tasks, a dashboard, Gmail send, Google Calendar task sync, and B.O.B. with 10 messages a day."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is this Follow Up Boss or HubSpot?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Those are paid or generic. This is a real estate CRM. Free tier, no card."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is this origentech.com or Origin CRM?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. This is Origen TechnolOG at origentechnolog.com. It is not Origen Tech, Origen-Tech, or Origin CRM."
+              }
+            }
+          ]
         }
       ]
     }
@@ -239,6 +293,57 @@
         .mobile-menu.open {
             transform: translateX(0);
         }
+
+        /* FAQ. Apple Music list: hairlines, system type, orange open state */
+        .landing-faq {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .landing-faq details {
+            border-bottom: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq details:first-of-type {
+            border-top: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.15rem 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #102a43;
+        }
+        .landing-faq summary::-webkit-details-marker {
+            display: none;
+        }
+        .landing-faq summary::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-right: 1.5px solid #627d98;
+            border-bottom: 1.5px solid #627d98;
+            transform: rotate(45deg);
+            margin-top: -4px;
+        }
+        .landing-faq details[open] summary {
+            color: #ea580c;
+        }
+        .landing-faq details[open] summary::after {
+            border-color: #f97316;
+            transform: rotate(225deg);
+            margin-top: 4px;
+        }
+        .landing-faq .faq-answer {
+            padding: 0 0 1.15rem;
+            color: #486581;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 
@@ -312,23 +417,15 @@
                 
                 <!-- Hero Content -->
                 <div class="text-center lg:text-left">
-                    <div class="animate-fade-in-up">
-                        <span class="inline-flex items-center gap-2 px-4 py-2 bg-accent-100 text-accent-700 rounded-full text-sm font-semibold mb-6">
-                            <i class="fas fa-bolt"></i>
-                            Built for Real Estate Professionals
-                        </span>
-                    </div>
-                    
-                    <h1 class="animate-fade-in-up delay-100 text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 leading-tight mb-6" style="opacity: 0;">
-                        The CRM that helps you
-                        <span class="text-accent-500">close more deals</span>
+                    <h1 class="animate-fade-in-up text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 leading-tight mb-6">
+                        Your clients and follow-ups, <span class="text-accent-500">in one place.</span>
                     </h1>
                     
-                    <p class="animate-fade-in-up delay-200 text-lg sm:text-xl text-brand-600 mb-8 max-w-xl mx-auto lg:mx-0" style="opacity: 0;">
-                        Organize your contacts, manage tasks, and stay on top of every opportunity—completely free. Built specifically for real estate agents.
+                    <p class="animate-fade-in-up delay-100 text-lg sm:text-xl text-brand-600 mb-8 max-w-xl mx-auto lg:mx-0">
+                        Built for real estate agents, by real estate agents. The free tier stays free. No credit card. Most people are in within a couple of minutes.
                     </p>
                     
-                    <div class="animate-fade-in-up delay-300 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start" style="opacity: 0;">
+                    <div class="animate-fade-in-up delay-200 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                         <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
                             Start Free
                             <i class="fas fa-arrow-right"></i>
@@ -340,18 +437,18 @@
                     </div>
                     
                     <!-- Trust indicators -->
-                    <div class="animate-fade-in-up delay-400 mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-brand-500" style="opacity: 0;">
+                    <div class="animate-fade-in-up delay-300 mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-6 text-sm text-brand-500">
                         <span class="flex items-center gap-2">
                             <i class="fas fa-check-circle text-green-500"></i>
-                            No credit card required
+                            The free tier stays free
                         </span>
                         <span class="flex items-center gap-2">
                             <i class="fas fa-check-circle text-green-500"></i>
-                            Setup in 2 minutes
+                            No credit card
                         </span>
                         <span class="flex items-center gap-2">
                             <i class="fas fa-check-circle text-green-500"></i>
-                            Cancel anytime
+                            A couple of minutes to get in
                         </span>
                     </div>
                 </div>
@@ -486,7 +583,7 @@
                     Great businesses don't just happen
                 </h2>
                 <p class="text-lg text-brand-600 max-w-2xl mx-auto">
-                    Start with powerful free tools today—contact management and task automation are yours at no cost. Pro features are on the way.
+                    Contact management and task automation are on the free tier. Pro features are on the way.
                 </p>
             </div>
             
@@ -623,7 +720,7 @@
                     </div>
                     <h3 class="text-xl font-bold text-brand-900 mb-3">AI-Powered B.O.B.</h3>
                     <p class="text-brand-600 mb-4">
-                        Meet B.O.B., your Business Optimization Buddy. Get real estate advice, email drafts, and smart suggestions—free.
+                        Meet B.O.B., your Business Optimization Buddy. Ask for real estate advice, email drafts, and suggestions. You get 10 messages a day on the free tier.
                     </p>
                     <ul class="space-y-2 text-sm text-brand-600">
                         <li class="flex items-center gap-2">
@@ -649,7 +746,7 @@
                     </div>
                     <h3 class="text-xl font-bold text-brand-900 mb-3">Document Generation</h3>
                     <p class="text-brand-600 mb-4">
-                        Generate listing agreements, disclosures, and more with auto-filled data. Collect e-signatures seamlessly.
+                        Generate listing agreements, disclosures, and more with auto-filled data. Then send them out for e-signature.
                     </p>
                     <ul class="space-y-2 text-sm text-brand-600">
                         <li class="flex items-center gap-2">
@@ -684,7 +781,7 @@
                     Get started in minutes
                 </h2>
                 <p class="text-lg text-brand-600 max-w-2xl mx-auto">
-                    Three simple steps to transform how you manage your real estate business.
+                    Add your contacts, set the follow-ups, and keep notes as you go.
                 </p>
             </div>
             
@@ -995,6 +1092,44 @@
     </section>
     
     
+    <!-- ========== FAQ ========== -->
+    <section id="faq" class="bg-[#f4f4f4] py-20 md:py-28">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-10">
+                <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-3">Questions people ask</h2>
+                <p class="text-brand-600">Straight answers. No pitch.</p>
+            </div>
+            <div class="landing-faq">
+                <details>
+                    <summary>Is the free tier actually free?</summary>
+                    <p class="faq-answer">Yes. It stays free. You do not need a card to start.</p>
+                </details>
+                <details>
+                    <summary>Will you charge me later for what I get today?</summary>
+                    <p class="faq-answer">No. What is free now stays free. Extra features later will be paid. Nothing paid is for sale today.</p>
+                </details>
+                <details>
+                    <summary>How long to set up?</summary>
+                    <p class="faq-answer">The site says about two minutes.</p>
+                </details>
+                <details>
+                    <summary>What do I get on free?</summary>
+                    <p class="faq-answer">You get one user, unlimited contacts, tasks, a dashboard, Gmail send, Google Calendar task sync, and B.O.B. with 10 messages a day.</p>
+                </details>
+                <details>
+                    <summary>Is this Follow Up Boss or HubSpot?</summary>
+                    <p class="faq-answer">No. Those are paid or generic. This is a real estate CRM. Free tier, no card.</p>
+                </details>
+                <details>
+                    <summary>Is this origentech.com or Origin CRM?</summary>
+                    <p class="faq-answer">No. This is Origen TechnolOG at origentechnolog.com. It is not Origen Tech, Origen-Tech, or Origin CRM.</p>
+                </details>
+            </div>
+            <p class="mt-10 text-sm text-brand-500">Origen TechnolOG (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM.</p>
+        </div>
+    </section>
+    
+    
     <!-- ========== FINAL CTA SECTION ========== -->
     <section class="bg-gradient-to-br from-accent-500 via-accent-600 to-accent-700 py-20 md:py-28 relative overflow-hidden">
         <!-- Background pattern -->
@@ -1031,7 +1166,7 @@
             <div class="flex flex-col md:flex-row items-center justify-between gap-6">
                 <!-- Logo -->
                 <div class="flex items-center">
-                    {# Footer sits on a dark band — use the light-on-dark mark. #}
+                    {# Footer sits on a dark band. Use the light-on-dark mark. #}
                     <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
                 </div>
                 
