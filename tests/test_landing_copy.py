@@ -117,6 +117,17 @@ class TestLandingLeftoverCopy:
         assert "10 messages a day" not in bob_answer
         assert "unlimited contacts" not in include_answer.lower()
 
+    def test_landing_does_not_claim_old_free_limits(self):
+        assert "Unlimited contacts" not in LANDING
+        assert "unlimited contacts" not in LANDING
+        assert "10 messages a day" not in LANDING
+        assert "10 messages/day" not in LANDING
+        assert "10/day free" not in LANDING
+        assert "Up to 10,000 contacts" in LANDING
+        assert "25 messages a day" in LANDING
+        assert "25/day free" in LANDING
+        assert "25 messages/day included free" in LANDING
+
     def test_keeps_foundation_title(self):
         assert "Free Real Estate CRM | Origen TechnolOG" in LANDING
 
