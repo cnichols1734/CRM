@@ -837,27 +837,9 @@ window.emailModal = (function() {
     
     // Show toast notification
     function showToast(message, type = 'success') {
-        const toast = document.createElement('div');
-        toast.className = `fixed bottom-4 right-4 z-[400] px-6 py-3 rounded-xl shadow-lg text-white font-medium transform translate-y-full opacity-0 transition-all duration-300 ${
-            type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        }`;
-        toast.innerHTML = `
-            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>
-            ${message}
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Animate in
-        setTimeout(() => {
-            toast.classList.remove('translate-y-full', 'opacity-0');
-        }, 10);
-        
-        // Animate out and remove
-        setTimeout(() => {
-            toast.classList.add('translate-y-full', 'opacity-0');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+        if (typeof window.showCrmToast === 'function') {
+            return window.showCrmToast(message, type);
+        }
     }
     
     // Initialize event listeners

@@ -500,23 +500,9 @@ function confirmAndGenerate() {
 }
 
 function showToast(message, type = 'info') {
-    const toast = document.getElementById('toast');
-    const icon = document.getElementById('toastIcon');
-    document.getElementById('toastMessage').textContent = message;
-
-    icon.className = 'fas';
-    if (type === 'success') {
-        icon.classList.add('fa-check-circle', 'text-emerald-400');
-    } else if (type === 'error') {
-        icon.classList.add('fa-exclamation-circle', 'text-red-400');
-    } else if (type === 'warning') {
-        icon.classList.add('fa-exclamation-triangle', 'text-amber-400');
-    } else {
-        icon.classList.add('fa-info-circle', 'text-sky-400');
+    if (typeof window.showCrmToast === 'function') {
+        return window.showCrmToast(message, type);
     }
-
-    toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 4000);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

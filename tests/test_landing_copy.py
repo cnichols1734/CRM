@@ -7,6 +7,7 @@ from tier_config.tier_limits import get_tier_defaults
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = (ROOT / "templates" / "landing.html").read_text()
 REGISTER = (ROOT / "templates" / "auth" / "register.html").read_text()
+TERMS = (ROOT / "templates" / "auth" / "terms_privacy.html").read_text()
 FREE_LIMITS = get_tier_defaults("free")
 
 BANNED_LEFTOVERS = (
@@ -156,12 +157,25 @@ class TestRegisterLeftoverCopy:
         assert "250, 36, 60" not in REGISTER
         assert "@keyframes glow" not in REGISTER
 
-    def test_register_orbs_use_brand_orange(self):
-        assert "249, 115, 22" in REGISTER
-        assert "234, 88, 12" in REGISTER
+    def test_register_decorative_orbs_are_gone(self):
+        assert ".orb" not in REGISTER
+        assert "@keyframes pulse-soft" not in REGISTER
+        assert "@keyframes shimmer" not in REGISTER
+        assert "font-family: 'Inter'" not in REGISTER
+        assert "premium-card" not in REGISTER
 
     def test_register_does_not_claim_unlimited_contacts(self):
         assert "Unlimited contacts" not in REGISTER
         assert "unlimited contacts" not in REGISTER
         assert "Unlimited Contacts" not in REGISTER
         assert "Up to 10,000 contacts" in REGISTER
+
+
+class TestTermsPrivacyLayout:
+    def test_does_not_use_invertible_tailwind_surfaces(self):
+        assert "bg-slate-900" not in TERMS
+        assert "text-white" not in TERMS
+        assert "toc-link" not in TERMS
+        assert "Quick Navigation" not in TERMS
+        assert "legal-page" in TERMS
+        assert "On this page" in TERMS

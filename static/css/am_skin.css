@@ -209,6 +209,27 @@ html.am-skin[data-theme="light"] .crm-sidebar {
   color: rgba(0, 0, 0, 0.88) !important;
 }
 
+/* Public auth: drop glass chrome so login/register are a plain working surface. */
+html.am-skin body.crm-auth-page {
+  background: #f4f4f4 !important;
+}
+html.am-skin body.crm-auth-page > header,
+html.am-skin body.crm-auth-page aside#sidebar.crm-sidebar {
+  display: none !important;
+}
+@media (min-width: 768px) {
+  html.am-skin body.crm-auth-page main#mainContent {
+    position: relative !important;
+    inset: auto !important;
+    background: #f4f4f4 !important;
+  }
+  html.am-skin body.crm-auth-page .content-wrapper {
+    padding-top: 0 !important;
+    padding-left: 0 !important;
+    background: #f4f4f4 !important;
+  }
+}
+
 /* Sidebar: exact AM floating glass panel over scrolling content */
 @media (min-width: 768px) {
   html.am-skin body.crm-shell > .flex.flex-1 {
@@ -804,11 +825,6 @@ html.am-skin .crm-search-results .crm-search-item.is-active {
   background: color-mix(in srgb, var(--ink) 8%, transparent) !important;
 }
 
-/* Flash toasts */
-html.am-skin .toast-message {
-  border-radius: 1000px !important;
-  font-size: 13px !important;
-}
 
 /* Mobile header on light skin — keep glass, not solid canvas */
 html.am-skin[data-theme="light"] header.bg-slate-950,
@@ -1438,19 +1454,14 @@ html.am-skin #planContent li {
 /* ── Auth pages ───────────────────────────────────────────── */
 html.am-skin .login-page,
 html.am-skin .register-page,
-html.am-skin .register-panel {
+html.am-skin .legal-page {
   font-family: var(--font-sans) !important;
   background: var(--canvas) !important;
   background-image: none !important;
   color: var(--ink) !important;
 }
-/* Auth/marketing brand accents use orange utilities + --accent tokens */
-html.am-skin .toc-link:hover {
-  color: var(--accent-ink) !important;
-}
 html.am-skin .login-page .card,
-html.am-skin .register-page .premium-card,
-html.am-skin .card {
+html.am-skin .register-page .card {
   background: var(--paper) !important;
   border: 0.5px solid var(--hairline) !important;
   box-shadow: none !important;
@@ -1475,50 +1486,102 @@ html.am-skin .register-page .left-muted {
 }
 html.am-skin .login-page .left-title,
 html.am-skin .login-page .left .font-semibold,
-html.am-skin .login-page .left .font-extrabold {
+html.am-skin .login-page .left .font-extrabold,
+html.am-skin .register-page .left-title,
+html.am-skin .register-page .left .font-semibold {
   color: var(--ink) !important;
 }
-html.am-skin .login-page .left-chip {
+html.am-skin .login-page .left-chip,
+html.am-skin .register-page .left-chip {
   background: var(--accent-soft) !important;
   color: var(--accent-ink) !important;
   border-color: color-mix(in srgb, var(--accent) 28%, transparent) !important;
 }
-html.am-skin .login-page .left-icon {
+html.am-skin .login-page .left-icon,
+html.am-skin .register-page .left-icon {
   background: var(--paper) !important;
   border-color: var(--hairline) !important;
   color: var(--accent) !important;
 }
 html.am-skin .login-page .input,
-html.am-skin .login-page .icon-btn {
+html.am-skin .login-page .icon-btn,
+html.am-skin .register-page .input {
   background: var(--paper) !important;
   border-color: var(--hairline) !important;
   color: var(--ink) !important;
 }
-html.am-skin .login-page .input:focus {
+html.am-skin .login-page .input:focus,
+html.am-skin .register-page .input:focus {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 4px var(--accent-soft) !important;
 }
-html.am-skin .login-page .btn {
+html.am-skin .login-page .btn,
+html.am-skin .register-page .btn {
   background: var(--am-key-bg) !important;
   color: #fff !important;
   box-shadow: none !important;
 }
-html.am-skin .login-page .btn:hover {
+html.am-skin .login-page .btn:hover,
+html.am-skin .register-page .btn:hover {
   background: var(--am-key-pressed) !important;
 }
 html.am-skin .login-page .kicker,
 html.am-skin .login-page .subtitle,
 html.am-skin .login-page .label,
-html.am-skin .login-page .title {
+html.am-skin .login-page .title,
+html.am-skin .register-page .kicker,
+html.am-skin .register-page .subtitle,
+html.am-skin .register-page .label,
+html.am-skin .register-page .title,
+html.am-skin .register-page .legal {
   color: var(--ink) !important;
 }
 html.am-skin .login-page .subtitle,
-html.am-skin .login-page .kicker {
+html.am-skin .login-page .kicker,
+html.am-skin .register-page .subtitle,
+html.am-skin .register-page .kicker,
+html.am-skin .register-page .legal {
   color: var(--ink-3) !important;
 }
 html.am-skin .login-page a,
 html.am-skin .register-page a {
   color: var(--accent-ink) !important;
+}
+
+html.am-skin .legal-page .legal-toc,
+html.am-skin .legal-page .legal-doc {
+  background: var(--paper) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .legal-page .legal-title,
+html.am-skin .legal-page .legal-h2,
+html.am-skin .legal-page .legal-h3,
+html.am-skin .legal-page .legal-toc a {
+  color: var(--ink) !important;
+}
+html.am-skin .legal-page .legal-copy {
+  color: var(--ink-2) !important;
+}
+html.am-skin .legal-page .legal-kicker,
+html.am-skin .legal-page .legal-meta,
+html.am-skin .legal-page .legal-home,
+html.am-skin .legal-page .legal-top,
+html.am-skin .legal-page .legal-toc h2 {
+  color: var(--ink-3) !important;
+}
+html.am-skin .legal-page .legal-toc h3,
+html.am-skin .legal-page .legal-toc a:hover,
+html.am-skin .legal-page .legal-home:hover,
+html.am-skin .legal-page .legal-top:hover,
+html.am-skin .legal-page .legal-callout a {
+  color: var(--accent-ink) !important;
+}
+html.am-skin .legal-page .legal-callout {
+  background: var(--paper-2) !important;
+  border-color: var(--hairline) !important;
+}
+html.am-skin .legal-page .legal-h2 {
+  border-bottom-color: var(--hairline) !important;
 }
 @media (max-width: 1024px) {
   html.am-skin .login-page .left,

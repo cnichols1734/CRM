@@ -38,6 +38,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/crm_toast.css') }}">
     <noscript>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css">
         <link rel="stylesheet" href="{{ url_for('static', filename='vendor/nprogress/nprogress.min.css') }}">
@@ -100,6 +101,29 @@
            one continuous dark panel with no dividing line. */
         body.crm-shell {
             background: linear-gradient(180deg, #0e1729 0%, #0a111f 60%, #070d18 100%);
+        }
+
+        /* Public auth pages: no app chrome. Login/register are their own layout. */
+        body.crm-auth-page {
+            background: #f4f4f4 !important;
+            overflow: auto;
+        }
+        body.crm-auth-page > header,
+        body.crm-auth-page aside#sidebar {
+            display: none !important;
+        }
+        body.crm-auth-page > .flex.flex-1 {
+            overflow: visible;
+        }
+        body.crm-auth-page main#mainContent {
+            margin-left: 0 !important;
+            border-radius: 0 !important;
+            background: #f4f4f4 !important;
+        }
+        body.crm-auth-page .content-wrapper {
+            padding: 0 !important;
+            min-height: 100%;
+            background: #f4f4f4 !important;
         }
 
         /* Top header: transparent (sits on the shared shell gradient) */
@@ -857,14 +881,6 @@
 
         .crm-sparkline--orange {
             color: var(--accent);
-        }
-
-        .toast-message {
-            transition: opacity 0.5s ease-out;
-        }
-
-        .toast-message.fade-out {
-            opacity: 0;
         }
 
         /* Add sidebar specific styles */
@@ -2249,7 +2265,7 @@
     {% block head_scripts %}{% endblock %}
 </head>
 
-<body class="crm-shell h-screen flex flex-col">
+<body class="crm-shell h-screen flex flex-col{% if request.endpoint in ('auth.login', 'auth.register', 'auth.reset_request', 'auth.reset_password', 'auth.accept_invite', 'auth.complete_invite', 'auth.terms_privacy', 'auth.registration_status') %} crm-auth-page{% endif %}">
 
     <!-- Top Header - Hidden on Mobile -->
     <header class="crm-topbar text-white h-14 items-center justify-between hidden md:flex">
@@ -2612,28 +2628,6 @@
     </div>
     {% endif %}
 
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <!-- Full-width container with flex + justify-center to center messages -->
-    <div class="fixed top-4 w-full flex justify-center z-50">
-        <div>
-            {% for category, message in messages %}
-            <div class="toast-message mb-4 p-4 rounded-md
-                        {% if category == 'error' %}
-                            bg-red-100 text-red-700
-                        {% else %}
-                            bg-green-100 text-green-700
-                        {% endif %}
-                    ">
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-    {% endwith %}
-
     <div class="flex flex-1 overflow-hidden relative">
         <!-- Sidebar - Hidden on Mobile -->
         <aside id="sidebar"
@@ -2933,7 +2927,37 @@
     <!-- Contact Us Modal - Available on all pages -->
     {% include 'modals/contact_us_modal.html' %}
 
-    <!-- Base JS: sidebar, flash messages, user dropdown, tooltips, mobile menu -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% set toast_types = {
+        'error': 'error', 'danger': 'error',
+        'warning': 'warning', 'warn': 'warning',
+        'info': 'info',
+        'success': 'success', 'message': 'success'
+    } %}
+    {% set toast_icons = {
+        'success': 'fa-check',
+        'error': 'fa-exclamation',
+        'warning': 'fa-exclamation',
+        'info': 'fa-info'
+    } %}
+    <div id="crm-toast-region" class="crm-toast-region" role="region" aria-label="Notifications" aria-live="polite">
+        {% if messages %}
+            {% for category, message in messages %}
+                {% set toast_type = toast_types.get(category, 'success') %}
+        <div class="crm-toast crm-toast--{{ toast_type }} is-in" role="{{ 'alert' if toast_type == 'error' else 'status' }}">
+            <span class="crm-toast__icon" aria-hidden="true"><i class="fas {{ toast_icons.get(toast_type, 'fa-check') }}"></i></span>
+            <p class="crm-toast__message">{{ message }}</p>
+            <button type="button" class="crm-toast__close" aria-label="Dismiss">
+                <i class="fas fa-times" aria-hidden="true"></i>
+            </button>
+        </div>
+            {% endfor %}
+        {% endif %}
+    </div>
+    {% endwith %}
+
+    <!-- Toasts, then base JS: sidebar, user dropdown, tooltips, mobile menu -->
+    <script src="{{ url_for('static', filename='js/crm_toast.js') }}"></script>
     <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
     <!-- Expandable sidebar: toggle + hover tooltips when collapsed -->
