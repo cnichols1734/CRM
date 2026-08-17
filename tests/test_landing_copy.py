@@ -159,3 +159,8 @@ class TestRegisterLeftoverCopy:
     def test_register_orbs_use_brand_orange(self):
         assert "249, 115, 22" in REGISTER
         assert "234, 88, 12" in REGISTER
+
+    def test_register_does_not_claim_unlimited_contacts(self):
+        assert "unlimited contact" not in REGISTER.lower()
+        assert "Up to 10,000 contacts" in REGISTER
+        assert "10k contacts" in REGISTER
