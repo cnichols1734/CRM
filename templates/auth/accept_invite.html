@@ -24,19 +24,19 @@
           <div>
             <label class="auth-label">Email</label>
             <input type="email" value="{{ invite.email }}" disabled
-                   class="auth-input">
+                   class="auth-input crm-input">
           </div>
 
           <div>
             <label class="auth-label" for="inviteUsername">Username</label>
             <input id="inviteUsername" type="text" name="username" required
-                   class="auth-input" placeholder="Pick a unique username" autocomplete="username">
+                   class="auth-input crm-input" placeholder="Pick a unique username" autocomplete="username">
           </div>
 
           <div>
             <label class="auth-label" for="invitePassword">Password</label>
             <input id="invitePassword" type="password" name="password" required minlength="8"
-                   class="auth-input" placeholder="Create a secure password" autocomplete="new-password">
+                   class="auth-input crm-input" placeholder="Create a secure password" autocomplete="new-password">
             <div class="mt-2">
               <div class="h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.12);">
                 <div id="passwordStrengthBar" class="h-2 w-1/4 bg-rose-400" style="transition: width .3s ease, background-color .3s ease;"></div>
@@ -49,12 +49,12 @@
             <div>
               <label class="auth-label" for="inviteFirstName">First name</label>
               <input id="inviteFirstName" type="text" name="first_name" required
-                     class="auth-input" placeholder="First name" autocomplete="given-name">
+                     class="auth-input crm-input" placeholder="First name" autocomplete="given-name">
             </div>
             <div>
               <label class="auth-label" for="inviteLastName">Last name</label>
               <input id="inviteLastName" type="text" name="last_name" required
-                     class="auth-input" placeholder="Last name" autocomplete="family-name">
+                     class="auth-input crm-input" placeholder="Last name" autocomplete="family-name">
             </div>
           </div>
 
@@ -62,12 +62,12 @@
             <div>
               <label class="auth-label" for="invitePhone">Phone (optional)</label>
               <input id="invitePhone" type="tel" name="phone"
-                     class="auth-input" placeholder="(555) 123-4567" autocomplete="tel">
+                     class="auth-input crm-input" placeholder="(555) 123-4567" autocomplete="tel">
             </div>
             <div>
               <label class="auth-label" for="inviteLicense">License # (optional)</label>
               <input id="inviteLicense" type="text" name="license_number"
-                     class="auth-input" placeholder="Real estate license">
+                     class="auth-input crm-input" placeholder="Real estate license">
             </div>
           </div>
 

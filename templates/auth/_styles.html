@@ -92,9 +92,17 @@
     text-decoration: none;
   }
   .auth-back:hover { color: #ea580c; }
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: hsla(0, 0%, 100%, 0.92);
+    caret-color: hsla(0, 0%, 100%, 0.92);
+    box-shadow: 0 0 0 1000px #3a3a3c inset;
+    transition: background-color 9999s ease-out;
+  }
   .auth-ssl {
     font-size: 12px;
-    color: rgba(0, 0, 0, 0.48);
+    color: rgba(0, 0, 0, 0.56);
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;

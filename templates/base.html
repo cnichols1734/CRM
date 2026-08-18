@@ -127,6 +127,29 @@
             min-height: 100%;
             background: #f4f4f4 !important;
         }
+        /* Auth forms: beat the global dark-theme input shell. */
+        body.crm-auth-page .login-page input.input,
+        body.crm-auth-page .register-page input.input {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            color: rgba(0, 0, 0, 0.88) !important;
+            border-color: rgba(0, 0, 0, 0.10) !important;
+            caret-color: rgba(0, 0, 0, 0.88);
+        }
+        body.crm-auth-page .login-page input.input::placeholder,
+        body.crm-auth-page .register-page input.input::placeholder {
+            color: rgba(0, 0, 0, 0.35) !important;
+        }
+        body.crm-auth-page .auth-card input.auth-input {
+            background: #3a3a3c !important;
+            background-color: #3a3a3c !important;
+            color: hsla(0, 0%, 100%, 0.92) !important;
+            border-color: rgba(255, 255, 255, 0.12) !important;
+            caret-color: hsla(0, 0%, 100%, 0.92);
+        }
+        body.crm-auth-page .auth-card input.auth-input::placeholder {
+            color: hsla(0, 0%, 100%, 0.36) !important;
+        }
 
         /* Top header: transparent (sits on the shared shell gradient) */
         header.crm-topbar {

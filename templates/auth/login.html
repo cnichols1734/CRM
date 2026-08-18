@@ -124,6 +124,14 @@
     border-color: var(--brand-orange);
     box-shadow: 0 0 0 4px var(--focus);
   }
+  .input:-webkit-autofill,
+  .input:-webkit-autofill:hover,
+  .input:-webkit-autofill:focus{
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--text);
+    box-shadow: 0 0 0 1000px var(--panel) inset;
+    transition: background-color 9999s ease-out;
+  }
 
   .hint-link{
     color: var(--muted);
@@ -390,7 +398,7 @@
             <!-- Username -->
             <div>
               <label class="label" for="{{ form.username.id }}">Email or username</label>
-              {{ form.username(class="input", placeholder="you@company.com") }}
+              {{ form.username(class="input crm-input", placeholder="you@company.com", autocomplete="username") }}
               {% if form.username.errors %}
                 {% for error in form.username.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
@@ -407,7 +415,7 @@
 
               <div class="flex gap-2">
                 <div class="flex-1">
-                  {{ form.password(class="input", placeholder="••••••••") }}
+                  {{ form.password(class="input crm-input", placeholder="••••••••", autocomplete="current-password") }}
                 </div>
                 <button type="button" class="icon-btn" id="togglePassword" aria-label="Show password">
                   <i class="fas fa-eye"></i>
