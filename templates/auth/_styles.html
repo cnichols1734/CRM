@@ -1,0 +1,122 @@
+{# Shared public-auth family: light canvas, dark glass cards, orange CTAs. #}
+<style>
+  .auth-family {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: #f4f4f4;
+    color: rgba(0, 0, 0, 0.88);
+  }
+  .auth-family-shell { width: 100%; max-width: 420px; }
+  .auth-family-shell--wide { max-width: 640px; }
+
+  .auth-card {
+    background: #2c2c2e;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+    border-radius: 18px;
+    overflow: hidden;
+    position: relative;
+    color: hsla(0, 0%, 100%, 0.92);
+  }
+  .auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: #f97316;
+  }
+  .auth-kicker {
+    font-size: 12px;
+    font-weight: 700;
+    color: hsla(0, 0%, 100%, 0.56);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .auth-title {
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: hsla(0, 0%, 100%, 0.92);
+  }
+  .auth-subtitle {
+    font-size: 14px;
+    color: hsla(0, 0%, 100%, 0.56);
+  }
+  .auth-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: hsla(0, 0%, 100%, 0.92);
+    margin-bottom: 6px;
+    display: block;
+  }
+  .auth-input {
+    height: 46px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #3a3a3c;
+    padding: 0 14px;
+    font-size: 15px;
+    width: 100%;
+    color: hsla(0, 0%, 100%, 0.92);
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .auth-input::placeholder { color: hsla(0, 0%, 100%, 0.36); }
+  .auth-input:focus {
+    outline: none;
+    border-color: #f97316;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18);
+  }
+  .auth-input:disabled,
+  .auth-input[readonly] {
+    opacity: 0.72;
+    cursor: not-allowed;
+  }
+  .auth-btn {
+    height: 46px;
+    border-radius: 12px;
+    width: 100%;
+    background: #ea580c;
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    transition: background .15s ease, box-shadow .18s ease;
+  }
+  .auth-btn:hover {
+    background: #c2410c;
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
+  }
+  .auth-btn:active { background: #9a3412; }
+  .auth-back {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(0, 0, 0, 0.56);
+    text-decoration: none;
+  }
+  .auth-back:hover { color: #ea580c; }
+  .auth-input:-webkit-autofill,
+  .auth-input:-webkit-autofill:hover,
+  .auth-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: hsla(0, 0%, 100%, 0.92);
+    caret-color: hsla(0, 0%, 100%, 0.92);
+    box-shadow: 0 0 0 1000px #3a3a3c inset;
+    transition: background-color 9999s ease-out;
+  }
+  .auth-ssl {
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.56);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .auth-ssl i { color: #248a3d; }
+  .auth-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    border-radius: 12px;
+    border: 1px solid rgba(249, 115, 22, 0.28);
+    background: rgba(249, 115, 22, 0.12);
+    color: #fdba74;
+    font-size: 13px;
+    padding: 0.75rem 0.9rem;
+  }
+</style>

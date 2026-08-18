@@ -57,6 +57,11 @@ class TestPublicRoutes:
         resp = client.get('/reset_password')
         assert resp.status_code in (200, 302)
 
+    def test_registration_status_redirects(self, client, seed):
+        resp = client.get('/registration-status')
+        assert resp.status_code in (301, 302)
+        assert '/register' in resp.headers.get('Location', '')
+
 
 class TestAuthenticatedPageLoads:
     """Verify authenticated pages load without 500 errors."""

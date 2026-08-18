@@ -44,11 +44,11 @@
 
   .left{
     background:
-      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.07) 0%, transparent 55%),
-      var(--panel-soft);
-    color: var(--text);
+      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 55%),
+      #2c2c2e;
+    color: hsla(0, 0%, 100%, 0.92);
     position: relative;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
   }
   .left::before{
     content:'';
@@ -57,9 +57,9 @@
     height: 2px;
     background: var(--brand-orange);
   }
-  .left-muted{ color: var(--muted); }
+  .left-muted{ color: hsla(0, 0%, 100%, 0.56); }
   .left-title{
-    color: var(--text);
+    color: hsla(0, 0%, 100%, 0.92);
     font-weight: 800;
     letter-spacing: -0.02em;
   }
@@ -71,9 +71,9 @@
     font-weight: 700;
     padding: 6px 10px;
     border-radius: 9999px;
-    background: var(--accent-soft);
-    color: var(--brand-orange);
-    border: 1px solid rgba(249, 115, 22, 0.16);
+    background: rgba(249, 115, 22, 0.16);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.28);
   }
   .left-bullet{
     display:flex;
@@ -84,8 +84,8 @@
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
+    background: #3a3a3c;
+    border: 1px solid rgba(255, 255, 255, 0.10);
     display:flex;
     align-items:center;
     justify-content:center;
@@ -145,7 +145,7 @@
     background: #c2410c;
     box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
   }
-  .btn:active{ background: #980012; }
+  .btn:active{ background: #9a3412; }
 
   .divider{ height: 1px; background: var(--border); }
 
@@ -197,7 +197,7 @@
         <div class="left p-8 lg:p-10 flex flex-col justify-between">
           <div>
             <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
-              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-light', width=192, height=36) }}
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
             </a>
 
             <div class="mt-8">
@@ -268,20 +268,20 @@
             <div>
               <label class="label" for="company_name">Brokerage or team</label>
               <input type="text" name="company_name" id="company_name" required
-                     class="input" placeholder="Acme Realty" autocomplete="organization">
+                     class="input crm-input" placeholder="Acme Realty" autocomplete="organization">
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="label" for="{{ form.first_name.id }}">First name</label>
-                {{ form.first_name(class="input", placeholder="First", autocomplete="given-name") }}
+                {{ form.first_name(class="input crm-input", placeholder="First", autocomplete="given-name") }}
                 {% for error in form.first_name.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
               </div>
               <div>
                 <label class="label" for="{{ form.last_name.id }}">Last name</label>
-                {{ form.last_name(class="input", placeholder="Last", autocomplete="family-name") }}
+                {{ form.last_name(class="input crm-input", placeholder="Last", autocomplete="family-name") }}
                 {% for error in form.last_name.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
                 {% endfor %}
@@ -290,7 +290,7 @@
 
             <div>
               <label class="label" for="{{ form.email.id }}">Email</label>
-              {{ form.email(class="input", placeholder="you@brokerage.com", autocomplete="email") }}
+              {{ form.email(class="input crm-input", placeholder="you@brokerage.com", autocomplete="email") }}
               {% for error in form.email.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}
@@ -298,7 +298,7 @@
 
             <div>
               <label class="label" for="{{ form.password.id }}">Password</label>
-              {{ form.password(class="input", placeholder="••••••••", autocomplete="new-password") }}
+              {{ form.password(class="input crm-input", placeholder="••••••••", autocomplete="new-password") }}
               {% for error in form.password.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}
@@ -306,7 +306,7 @@
 
             <div>
               <label class="label" for="{{ form.confirm_password.id }}">Confirm password</label>
-              {{ form.confirm_password(class="input", placeholder="Repeat password", autocomplete="new-password") }}
+              {{ form.confirm_password(class="input crm-input", placeholder="Repeat password", autocomplete="new-password") }}
               {% for error in form.confirm_password.errors %}
                 <p class="text-red-600 text-xs mt-1">{{ error }}</p>
               {% endfor %}

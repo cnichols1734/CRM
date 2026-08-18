@@ -42,14 +42,14 @@
     overflow: hidden;
   }
 
-  /* Left panel — soft surface, same ink as the form (no black cave) */
+  /* Left rail stays dark so the dark-mode mark has contrast. */
   .left{
     background:
-      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.07) 0%, transparent 55%),
-      var(--panel-soft);
-    color: var(--text);
+      radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 55%),
+      #2c2c2e;
+    color: hsla(0, 0%, 100%, 0.92);
     position: relative;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
   }
   .left::before{
     content:'';
@@ -58,9 +58,9 @@
     height: 2px;
     background: var(--brand-orange);
   }
-  .left-muted{ color: var(--muted); }
+  .left-muted{ color: hsla(0, 0%, 100%, 0.56); }
   .left-title{
-    color: var(--text);
+    color: hsla(0, 0%, 100%, 0.92);
     font-weight: 800;
     letter-spacing: -0.02em;
   }
@@ -72,9 +72,9 @@
     font-weight: 700;
     padding: 6px 10px;
     border-radius: 9999px;
-    background: var(--accent-soft);
-    color: var(--brand-orange);
-    border: 1px solid rgba(249, 115, 22, 0.16);
+    background: rgba(249, 115, 22, 0.16);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.28);
   }
   .left-bullet{
     display:flex;
@@ -85,8 +85,8 @@
     width: 34px;
     height: 34px;
     border-radius: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
+    background: #3a3a3c;
+    border: 1px solid rgba(255, 255, 255, 0.10);
     display:flex;
     align-items:center;
     justify-content:center;
@@ -124,6 +124,14 @@
     border-color: var(--brand-orange);
     box-shadow: 0 0 0 4px var(--focus);
   }
+  .input:-webkit-autofill,
+  .input:-webkit-autofill:hover,
+  .input:-webkit-autofill:focus{
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--text);
+    box-shadow: 0 0 0 1000px var(--panel) inset;
+    transition: background-color 9999s ease-out;
+  }
 
   .hint-link{
     color: var(--muted);
@@ -147,7 +155,7 @@
     background: #c2410c;
     box-shadow: 0 8px 20px rgba(234, 88, 12, 0.28);
   }
-  .btn:active{ background: #980012; }
+  .btn:active{ background: #9a3412; }
 
   .divider{ height: 1px; background: var(--border); }
 
@@ -247,12 +255,7 @@
               <div class="banner-text">
                 <strong>{{ org_name }}</strong> is being reviewed. We’ll notify you at {{ user_email }}.
               </div>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <a href="{{ url_for('auth.registration_status') }}?email={{ user_email }}"
-                   class="inline-flex items-center text-sm font-semibold px-3 py-1.5 rounded-lg"
-                   style="background:#fde68a;color:#92400e;">
-                  <i class="fas fa-search mr-2"></i>View Status
-                </a>
+              <div class="mt-3">
                 <span class="inline-flex items-center text-sm" style="color:#92400e;">
                   <i class="fas fa-clock mr-1.5"></i>~24 hours
                 </span>
@@ -323,7 +326,7 @@
         <div class="left p-8 lg:p-10 flex flex-col justify-between">
           <div>
             <div class="flex items-center gap-3">
-              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-light', width=192, height=36) }}
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
             </div>
 
             <div class="mt-8">
@@ -395,7 +398,7 @@
             <!-- Username -->
             <div>
               <label class="label" for="{{ form.username.id }}">Email or username</label>
-              {{ form.username(class="input", placeholder="you@company.com") }}
+              {{ form.username(class="input crm-input", placeholder="you@company.com", autocomplete="username") }}
               {% if form.username.errors %}
                 {% for error in form.username.errors %}
                   <p class="text-red-600 text-xs mt-1">{{ error }}</p>
@@ -412,7 +415,7 @@
 
               <div class="flex gap-2">
                 <div class="flex-1">
-                  {{ form.password(class="input", placeholder="••••••••") }}
+                  {{ form.password(class="input crm-input", placeholder="••••••••", autocomplete="current-password") }}
                 </div>
                 <button type="button" class="icon-btn" id="togglePassword" aria-label="Show password">
                   <i class="fas fa-eye"></i>
@@ -448,12 +451,6 @@
               <div class="text-sm text-slate-600">
                 Don’t have an account?
                 <a href="{{ url_for('auth.register') }}" class="footer-link ml-1">Create an account</a>
-              </div>
-
-              <div class="text-sm">
-                <a href="{{ url_for('auth.registration_status') }}" class="hint-link">
-                  <i class="fas fa-question-circle mr-1"></i>Check registration status
-                </a>
               </div>
             </div>
           </form>
