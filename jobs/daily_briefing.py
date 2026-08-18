@@ -119,7 +119,7 @@ def _maybe_telegram_briefing_nudge(user, content: dict) -> None:
         if get_active_channel(user.id) is None:
             return
         base = (os.environ.get('APP_BASE_URL')
-                or 'https://www.origentechnolog.com').rstrip('/')
+                or 'https://agentflow.origentechnolog.com').rstrip('/')
         notify_daily_briefing(
             user,
             content,

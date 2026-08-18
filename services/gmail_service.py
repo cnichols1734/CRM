@@ -39,7 +39,6 @@ GMAIL_SCOPES = [
 
 # OAuth redirect URIs
 REDIRECT_URI_LOCAL = 'http://127.0.0.1:5011/integrations/gmail/callback'
-REDIRECT_URI_PROD = 'https://www.origentechnolog.com/integrations/gmail/callback'
 
 # HTML sanitization for email body display and signature
 ALLOWED_TAGS = ['p', 'br', 'b', 'i', 'strong', 'em', 'a', 'ul', 'ol', 'li', 'blockquote', 'div', 'span', 'img']
@@ -52,7 +51,7 @@ ALLOWED_ATTRS = {
 def _get_redirect_uri() -> str:
     """Get the appropriate redirect URI based on environment."""
     if Config.FLASK_ENV == 'production':
-        return REDIRECT_URI_PROD
+        return f"{Config.APP_BASE_URL.rstrip('/')}/integrations/gmail/callback"
     return REDIRECT_URI_LOCAL
 
 

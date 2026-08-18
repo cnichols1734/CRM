@@ -1,6 +1,12 @@
 import os
 from datetime import date, timedelta
 
+DEFAULT_APP_BASE_URL = 'https://agentflow.origentechnolog.com'
+LEGACY_PUBLIC_HOSTS = frozenset({
+    'www.origentechnolog.com',
+    'origentechnolog.com',
+})
+
 
 class Config:
     # Environment
@@ -80,7 +86,7 @@ class Config:
         'SENDGRID_EVENT_WEBHOOK_VERIFICATION_KEY'
     )
     APP_BASE_URL = os.getenv(
-        'APP_BASE_URL', 'https://www.origentechnolog.com'
+        'APP_BASE_URL', DEFAULT_APP_BASE_URL
     ).rstrip('/')
 
     # Redis / RQ task queue

@@ -96,7 +96,7 @@ if __name__ == "__main__":
     # Template variables
     template_vars = {
         "org_name": ORG_NAME,
-        "login_url": "https://app.origentechnolog.com/login",
+        "login_url": "https://agentflow.origentechnolog.com/login",
         "current_year": str(datetime.now().year)
     }
     

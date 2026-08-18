@@ -169,13 +169,13 @@ def _sitemap_paths():
     locs = [el.text or "" for el in tree.getroot().findall("sm:url/sm:loc", SITEMAP_NS)]
     paths = []
     for loc in locs:
-        path = loc.replace("https://www.origentechnolog.com", "", 1) or "/"
+        path = loc.replace("https://agentflow.origentechnolog.com", "", 1) or "/"
         paths.append(path)
     return paths
 
 
 def _app_base_url(app):
-    return (app.config.get("APP_BASE_URL") or "https://www.origentechnolog.com").rstrip("/")
+    return (app.config.get("APP_BASE_URL") or "https://agentflow.origentechnolog.com").rstrip("/")
 
 
 def _visible_copy(html):
@@ -217,13 +217,13 @@ class TestKvcoreAlternativeRoute:
         resp = client.get("/llms.txt")
         assert resp.status_code == 200
         text = resp.get_data(as_text=True)
-        assert "https://www.origentechnolog.com/kvcore-alternative" in text
-        assert "https://www.origentechnolog.com/kvcore-alternative" in LLMS.read_text()
-        assert "https://www.origentechnolog.com/boldtrail-alternative" not in text
-        assert "https://www.origentechnolog.com/boomtown-alternative" not in text
+        assert "https://agentflow.origentechnolog.com/kvcore-alternative" in text
+        assert "https://agentflow.origentechnolog.com/kvcore-alternative" in LLMS.read_text()
+        assert "https://agentflow.origentechnolog.com/boldtrail-alternative" not in text
+        assert "https://agentflow.origentechnolog.com/boomtown-alternative" not in text
         for blocked in BLOCKED_SEO_PATHS:
-            assert f"https://www.origentechnolog.com{blocked}" not in text
-        assert "https://www.origentechnolog.com/dashboard" not in text
+            assert f"https://agentflow.origentechnolog.com{blocked}" not in text
+        assert "https://agentflow.origentechnolog.com/dashboard" not in text
         assert "—" not in text
 
     def test_blocked_marketing_urls_are_not_built(self, client):

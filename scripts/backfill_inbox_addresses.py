@@ -14,17 +14,17 @@ Usage:
 
     # Provision + send the announcement to every user that just got one.
     python3 scripts/backfill_inbox_addresses.py --commit --send-welcome \
-        --base-url https://www.origentechnolog.com
+        --base-url https://agentflow.origentechnolog.com
 
     # Re-send the announcement to users who already had an address
     # (useful for a one-off relaunch email — pair with --commit).
     python3 scripts/backfill_inbox_addresses.py --commit --send-welcome \
-        --include-existing --base-url https://www.origentechnolog.com
+        --include-existing --base-url https://agentflow.origentechnolog.com
 
     # Send a one-user test without touching anyone else.
     python3 scripts/backfill_inbox_addresses.py --commit --send-welcome \
         --include-existing --email chrisnichols17@gmail.com \
-        --base-url https://www.origentechnolog.com
+        --base-url https://agentflow.origentechnolog.com
 
 Safety:
 - The provisioning loop commits per user, so a single bad row does not
@@ -112,7 +112,7 @@ def main() -> int:
                              'Useful for production smoke tests.')
     parser.add_argument('--base-url', default=_default_base_url(),
                         help='Public app URL used for email links, e.g. '
-                             'https://www.origentechnolog.com. Required when '
+                             'https://agentflow.origentechnolog.com. Required when '
                              'sending welcome emails unless APP_BASE_URL, '
                              'PUBLIC_APP_URL, BASE_URL, or '
                              'RAILWAY_PUBLIC_DOMAIN is set.')

@@ -18,6 +18,7 @@ _TEST_DB = 'sqlite:////tmp/test_integration.db'
 os.environ['DATABASE_URL'] = _TEST_DB
 os.environ.setdefault('SECRET_KEY', 'test-secret-key')
 os.environ.setdefault('FLASK_ENV', 'testing')
+os.environ['APP_BASE_URL'] = 'https://agentflow.origentechnolog.com'
 
 from app import create_app
 from models import (

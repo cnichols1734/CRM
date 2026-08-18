@@ -30,6 +30,7 @@ from flask_migrate import Migrate
 from flask_compress import Compress
 from sqlalchemy import text
 from models import db, User
+from config import DEFAULT_APP_BASE_URL, LEGACY_PUBLIC_HOSTS
 from routes.main import main_bp
 from routes.auth import auth_bp
 from routes.tasks import tasks_bp
@@ -229,7 +230,7 @@ def create_app():
             can_access_reports=can_access_reports,
             can_access_transactions=can_access_transactions,
             show_customize_groups_new_badge=show_customize_groups_new_badge,
-            app_base_url=(app.config.get('APP_BASE_URL') or 'https://www.origentechnolog.com').rstrip('/'),
+            app_base_url=(app.config.get('APP_BASE_URL') or DEFAULT_APP_BASE_URL).rstrip('/'),
         )
 
     # Initialize Flask-Mail
@@ -279,6 +280,26 @@ def create_app():
     @app.route('/llms.txt')
     def llms_txt():
         return send_from_directory(app.static_folder, 'llms.txt', mimetype='text/plain')
+
+    @app.before_request
+    def redirect_legacy_public_hosts():
+        """Send www and apex GET traffic to the AgentFlow host.
+
+        Leave POST requests alone so inbound webhooks still registered on the
+        old hostname continue to land.
+        """
+        if request.method not in ('GET', 'HEAD'):
+            return None
+        if request.path.startswith('/webhooks/'):
+            return None
+        host = (request.host or '').split(':', 1)[0].lower()
+        if host not in LEGACY_PUBLIC_HOSTS:
+            return None
+        base = (app.config.get('APP_BASE_URL') or DEFAULT_APP_BASE_URL).rstrip('/')
+        target = f'{base}{request.path}'
+        if request.query_string:
+            target = f'{target}?{request.query_string.decode("latin-1")}'
+        return redirect(target, code=301)
 
     # =========================================================================
     # MULTI-TENANT RLS CONTEXT

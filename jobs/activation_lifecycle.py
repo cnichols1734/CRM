@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 
 APP_BASE_URL = os.environ.get(
-    'APP_BASE_URL', 'https://www.origentechnolog.com'
+    'APP_BASE_URL', 'https://agentflow.origentechnolog.com'
 ).rstrip('/')
 
 
