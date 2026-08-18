@@ -114,7 +114,7 @@ TABLE_ROWS = (
     ("Free plan", "No, 14-day free trial", "Yes"),
     ("Credit card", "Not published", "No"),
     ("Contacts", "Not published", "Up to 10,000 on free"),
-    ("Users", "N/A", "1"),
+    ("Free-plan users", "N/A", "1"),
     ("Calendar", "Team-friendly calendar", "Google Calendar task sync"),
     ("Calling & texting", "WiseText paid add-on", "Not included"),
     ("Shared team logins", "Up to 5 on one login", "1 user"),
