@@ -205,8 +205,9 @@ class TestAuthPagesRender:
         assert b'Forgot Password' in resp.data
         assert b'crm-brand-logo-wrap--on-dark' in resp.data
         assert b'logo_agentflow_dark.png' in resp.data
-        assert b'family=Inter' not in resp.data
+        assert b'auth-card' in resp.data
         assert b'w-16 h-16 bg-gradient-to-br' not in resp.data
+        assert b'reset-panel' not in resp.data
 
     def test_reset_password_invalid_token_still_renders_request(self, client, seed):
         resp = client.get('/reset_password/invalidtoken123', follow_redirects=True)
