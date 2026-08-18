@@ -7,7 +7,7 @@ Public surface:
   email's "Undo" link.
 - ``GET  /inbox`` — the user's Magic Inbox home page.
 - ``GET  /inbox/vcard`` — downloadable .vcf so the user can save the
-  address as "Origen Inbox" on their phone.
+  address as "AgentFlow Inbox" on their phone.
 - ``POST /inbox/dismiss-onboarding`` — hide the dashboard onboarding card.
 - ``POST /inbox/rotate`` — re-issue the user's token suffix.
 
@@ -354,13 +354,13 @@ def _qr_svg_markup(payload: str) -> Markup:
 
 
 # ---------------------------------------------------------------------------
-# vCard download — "Save Origen Inbox to your phone contacts"
+# vCard download — "Save AgentFlow Inbox to your phone contacts"
 # ---------------------------------------------------------------------------
 
 @inbound_bp.route('/inbox/vcard')
 @login_required
 def download_vcard():
-    """Return a .vcf file with the user's inbox address as 'Origen Inbox'."""
+    """Return a .vcf file with the user's inbox address as 'AgentFlow Inbox'."""
     ensure_inbox_for(current_user)
     address = current_user.inbox_address
     if not address:
@@ -373,7 +373,7 @@ def download_vcard():
         BytesIO(vcf.encode('utf-8')),
         mimetype='text/vcard',
         as_attachment=True,
-        download_name='origen-inbox.vcf',
+        download_name='agentflow-inbox.vcf',
     )
 
 
@@ -398,7 +398,7 @@ def public_vcard(token):
         BytesIO(vcf.encode('utf-8')),
         mimetype='text/vcard',
         as_attachment=True,
-        download_name='origen-inbox.vcf',
+        download_name='agentflow-inbox.vcf',
     )
 
 
@@ -407,10 +407,10 @@ def _inbox_vcard(address: str) -> str:
     return (
         'BEGIN:VCARD\r\n'
         'VERSION:3.0\r\n'
-        'PRODID:-//OrigenTechnolOG//Magic Inbox//EN\r\n'
-        'N:Inbox;Origen;;;\r\n'
-        'FN:Origen Inbox\r\n'
-        'ORG:Origen TechnolOG\r\n'
+        'PRODID:-//AgentFlow//Magic Inbox//EN\r\n'
+        'N:Inbox;AgentFlow;;;\r\n'
+        'FN:AgentFlow Inbox\r\n'
+        'ORG:AgentFlow\r\n'
         f'EMAIL;TYPE=INTERNET;TYPE=PREF:{address}\r\n'
         'NOTE:Forward emails or share photos to this contact and they '
         'land in your CRM automatically.\r\n'

@@ -22,7 +22,7 @@ Read `documentation/skill.md`. Use it for humanizing and tightening prose, not f
 
 ## Project Overview
 
-Flask-based multi-tenant CRM (Origen TechnolOG) for real estate agents. Single Python service, server-rendered with Jinja2 templates and vanilla JavaScript with a progressive Stimulus/Tailwind frontend rewrite.
+Flask-based multi-tenant CRM (AgentFlow) for real estate agents. Single Python service, server-rendered with Jinja2 templates and vanilla JavaScript with a progressive Stimulus/Tailwind frontend rewrite.
 
 **Stack**: Flask 3.1, SQLAlchemy, Supabase PostgreSQL, SQLite for local fallback, Gunicorn, Railway hosting, Tailwind CSS 3.x, Vite, Stimulus.
 

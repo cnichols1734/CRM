@@ -3,7 +3,7 @@
 
 {# Money/date helpers are injected from the route as format_money / format_date. #}
 
-{% block title %}Compare offers · {{ transaction.street_address or 'Transaction' }} · Origen TechnolOG{% endblock %}
+{% block title %}Compare offers · {{ transaction.street_address or 'Transaction' }} · AgentFlow{% endblock %}
 
 {% block content %}
 {% set property_label = transaction.street_address or ('Transaction ' ~ transaction.id) %}
@@ -331,7 +331,7 @@
                 <p class="text-sm font-medium text-slate-900">Highest and best recorded</p>
                 <p class="mt-2 text-sm leading-6 text-slate-600"
                    data-offer-compare-target="hbConfirmText">
-                    The CRM saved the deadline and which offers are included. Send the request to the buyer agents yourself — nothing was sent from Origen.
+                    The CRM saved the deadline and which offers are included. Send the request to the buyer agents yourself — nothing was sent from AgentFlow.
                 </p>
                 <button type="button"
                         class="crm-btn crm-btn-primary mt-5"

@@ -110,7 +110,7 @@ export default class extends Controller {
         this.hbConfirmTextTarget.textContent =
           `The CRM saved a highest-and-best deadline of ${when} ` +
           `for ${count} offer${count === 1 ? "" : "s"}. ` +
-          "Send the request to the buyer agents yourself — nothing was sent from Origen.";
+          "Send the request to the buyer agents yourself — nothing was sent from AgentFlow.";
       }
     } catch (_err) {
       this.showError("Could not record highest and best. Nothing was saved.");

@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Real Estate CRM | Origen TechnolOG</title>
+    <title>Free Real Estate CRM | AgentFlow</title>
     {{ public_seo(
-        title="Free Real Estate CRM | Origen TechnolOG",
+        title="Free Real Estate CRM | AgentFlow",
         description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
         canonical=app_base_url ~ "/"
     ) }}
@@ -17,14 +17,14 @@
         {
           "@type": "Organization",
           "@id": "{{ app_base_url }}/#organization",
-          "name": "Origen TechnolOG",
+          "name": "AgentFlow",
           "url": "{{ app_base_url }}/",
-          "logo": "{{ app_base_url }}/static/images/logo_og_dark.png"
+          "logo": "{{ app_base_url }}/static/images/logo_agentflow_dark.png"
         },
         {
           "@type": "WebSite",
           "@id": "{{ app_base_url }}/#website",
-          "name": "Origen TechnolOG",
+          "name": "AgentFlow",
           "url": "{{ app_base_url }}/",
           "description": "Free real estate CRM for agents. No credit card. Set up in about 2 minutes.",
           "publisher": { "@id": "{{ app_base_url }}/#organization" }
@@ -32,7 +32,7 @@
         {
           "@type": "SoftwareApplication",
           "@id": "{{ app_base_url }}/#software",
-          "name": "Origen TechnolOG",
+          "name": "AgentFlow",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
           "isAccessibleForFree": true,
@@ -86,7 +86,7 @@
               "name": "What can B.O.B. do?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile."
+                "text": "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in AgentFlow, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile."
               }
             }
           ]
@@ -97,6 +97,8 @@
     
     <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -347,7 +349,7 @@
             <div class="flex items-center justify-between h-16 md:h-20">
                 <!-- Logo -->
                 <a href="/" class="flex items-center">
-                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                    <img src="{{ url_for('static', filename='images/logo_agentflow_light.png') }}" alt="AgentFlow" class="h-8 md:h-10 w-auto object-contain" width="213" height="40" />
                 </a>
                 
                 <!-- Desktop Nav Links -->
@@ -1157,7 +1159,7 @@
                 </details>
                 <details>
                     <summary>What can B.O.B. do?</summary>
-                    <p class="faq-answer">B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.</p>
+                    <p class="faq-answer">B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in AgentFlow, you can ask B.O.B. to do it for you.</p>
                     <p class="faq-answer">The free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.</p>
                 </details>
             </div>
@@ -1205,7 +1207,7 @@
                 <!-- Logo -->
                 <div class="flex items-center">
                     {# Footer sits on a dark band. Use the light-on-dark mark. #}
-                    <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                    <img src="{{ url_for('static', filename='images/logo_agentflow_dark.png') }}" alt="AgentFlow" class="h-8 md:h-10 w-auto object-contain" width="213" height="40" />
                 </div>
                 
                 <!-- Links -->
@@ -1218,7 +1220,7 @@
                 
                 <!-- Copyright -->
                 <div class="text-brand-500 text-sm">
-                    &copy; {{ current_year }} Origen TechnolOG. All rights reserved.
+                    &copy; {{ current_year }} AgentFlow. All rights reserved.
                 </div>
             </div>
             

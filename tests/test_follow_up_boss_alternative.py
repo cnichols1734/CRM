@@ -14,19 +14,19 @@ LLMS = ROOT / "static" / "llms.txt"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/follow-up-boss-alternative"
-TITLE = "Follow Up Boss Alternative for Real Estate Agents | Origen"
+TITLE = "Follow Up Boss Alternative for Real Estate Agents | AgentFlow"
 H1 = "Looking for a Follow Up Boss alternative?"
 META = (
-    "Comparing Origen with Follow Up Boss? See pricing, features and where each CRM fits. "
-    "Origen includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
+    "Comparing AgentFlow with Follow Up Boss? See pricing, features and where each CRM fits. "
+    "AgentFlow includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
 )
-HOME_TITLE = "Free Real Estate CRM | Origen TechnolOG"
+HOME_TITLE = "Free Real Estate CRM | AgentFlow"
 HOME_H1_PART = "Your clients and follow-ups,"
 HOME_BOB_QUESTION = "What can B.O.B. do?"
 HOME_BOB_P1 = (
-    "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, "
+    "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, "
     "just tell B.O.B. what you need done. It can find and update contacts, manage tasks, "
-    "log activity, organize clients, and much more. If you can do it in Origen, you can "
+    "log activity, organize clients, and much more. If you can do it in AgentFlow, you can "
     "ask B.O.B. to do it for you."
 )
 HOME_BOB_P2 = (
@@ -78,20 +78,20 @@ FAQ_ITEMS = (
         "Follow Up Boss currently lists its Grow plan at $69 per user per month, or $58 per user per month when billed annually. It offers a 14-day free trial rather than a permanent free plan.",
     ),
     (
-        "Is Origen really free?",
-        "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
+        "Is AgentFlow really free?",
+        "Yes. AgentFlow has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
     ),
     (
-        "Is Origen a full replacement for Follow Up Boss?",
-        "That depends on what you use Follow Up Boss for. If you need its advanced lead routing, calling, texting, team management or large integration ecosystem, Origen doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, Origen may be a much simpler fit.",
+        "Is AgentFlow a full replacement for Follow Up Boss?",
+        "That depends on what you use Follow Up Boss for. If you need its advanced lead routing, calling, texting, team management or large integration ecosystem, AgentFlow doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, AgentFlow may be a much simpler fit.",
     ),
     (
-        "Can I try Origen without moving everything over?",
-        "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
+        "Can I try AgentFlow without moving everything over?",
+        "Yes. You can create a free account and try AgentFlow with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you.",
+        "B.O.B. is the AI assistant inside AgentFlow. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in AgentFlow, you can ask B.O.B. to do it for you.",
     ),
 )
 FAKE_SEO_QUESTIONS = (
@@ -102,7 +102,7 @@ FAKE_SEO_QUESTIONS = (
     "What can B.O.B. do?",
     "How much is Follow Up Boss?",
     "Does Follow Up Boss have a free plan?",
-    "What does Origen include?",
+    "What does AgentFlow include?",
     "Can I buy Pro today?",
 )
 TABLE_ROWS = (
@@ -119,22 +119,22 @@ TABLE_ROWS = (
     ("Large integration ecosystem", "Yes", "Not included"),
 )
 SECTION_HEADINGS = (
-    "Origen vs. Follow Up Boss",
+    "AgentFlow vs. Follow Up Boss",
     "The biggest difference is what you actually need",
     "Then there's B.O.B.",
     "When Follow Up Boss is probably the better fit",
-    "When Origen may be the better fit",
+    "When AgentFlow may be the better fit",
     "Common questions",
 )
 HERO_LINES = (
     "Follow Up Boss is a powerful CRM, especially for teams managing a large volume of leads. But not every agent needs everything it offers or wants another $69-per-user monthly subscription.",
-    "Origen gives individual real estate agents a simpler place to manage contacts, tasks, follow-ups and day-to-day CRM work, with a free plan you can keep using.",
+    "AgentFlow gives individual real estate agents a simpler place to manage contacts, tasks, follow-ups and day-to-day CRM work, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
 )
 DISCLAIMER = (
     "Follow Up Boss is a trademark of its owner. Zillow Group acquired it in 2023. "
-    "Origen is not affiliated with Follow Up Boss or Zillow Group, and they did not "
+    "AgentFlow is not affiliated with Follow Up Boss or Zillow Group, and they did not "
     "review or endorse this page. Prices and features here come from followupboss.com "
     "as of August 18, 2026."
 )
@@ -258,11 +258,12 @@ class TestFollowUpBossAlternativeCopy:
         assert H1 in PAGE
         assert META in PAGE
         assert "Start Free" in PAGE
-        assert "Try Origen Free" in PAGE
+        assert "Try AgentFlow Free" in PAGE
         assert "url_for('auth.register')" in PAGE
         assert "url_for('main.free_real_estate_crm')" not in PAGE
         assert "url_for('main.landing')" in PAGE
         assert "More on Origen is on" not in PAGE
+        assert "More on AgentFlow is on" not in PAGE
         assert "the free real estate CRM page" not in PAGE
         assert DISCLAIMER in PAGE
         assert PAGE.count(DISCLAIMER) == 1
@@ -307,14 +308,14 @@ class TestFollowUpBossAlternativeCopy:
 
     def test_does_not_claim_origen_has_unlimited_contacts(self):
         visible = _visible_copy(PAGE)
-        assert re.search(r"Origen[^.]*unlimited contacts", visible, flags=re.I) is None
-        assert "Origen publishes unlimited contacts" not in PAGE
-        assert "unlimited contacts on Origen" not in PAGE.lower()
+        assert re.search(r"AgentFlow[^.]*unlimited contacts", visible, flags=re.I) is None
+        assert "AgentFlow publishes unlimited contacts" not in PAGE
+        assert "unlimited contacts on AgentFlow" not in PAGE.lower()
 
     def test_cta_goes_to_register(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         assert re.search(r'href="/register"[^>]*>\s*Start Free', html) is not None
-        assert re.search(r'href="/register"[^>]*>\s*Try Origen Free', html) is not None
+        assert re.search(r'href="/register"[^>]*>\s*Try AgentFlow Free', html) is not None
 
     def test_no_em_dashes(self):
         assert "—" not in PAGE
@@ -349,7 +350,7 @@ class TestFollowUpBossAlternativeCopy:
         lowered = PAGE.lower()
         assert "we are not a replacement for follow up boss" not in lowered
         assert "we are not a replacement" not in lowered
-        assert "Is Origen a full replacement for Follow Up Boss?" in PAGE
+        assert "Is AgentFlow a full replacement for Follow Up Boss?" in PAGE
 
     def test_does_not_claim_built_by_agents(self):
         lowered = PAGE.lower()
@@ -407,6 +408,7 @@ class TestFollowUpBossAlternativeCopy:
         assert DISCLAIMER in visible
         assert visible.count(DISCLAIMER) == 1
         assert "More on Origen is on" not in visible
+        assert "More on AgentFlow is on" not in visible
         assert "30 leads" not in visible.lower()
         assert "—" not in visible
         assert "MFTB" not in PAGE

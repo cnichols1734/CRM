@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import section_header, avatar, badge, empty_state %}
 
-{% block title %}{{ transaction.street_address }} - Origen TechnolOG{% endblock %}
+{% block title %}{{ transaction.street_address }} - AgentFlow{% endblock %}
 
 {% block content %}
 {% set tx_type_name = transaction.transaction_type.name if transaction.transaction_type else 'seller' %}

@@ -2,11 +2,11 @@
 {% from "components/ui.html" import brand_logo %}
 {% from "components/seo_meta.html" import public_seo %}
 
-{% block title %}Create a free account | Origen TechnolOG{% endblock %}
+{% block title %}Create a free account | AgentFlow{% endblock %}
 {% block seo_head %}
 {{ public_seo(
-    title="Create a free account | Origen TechnolOG",
-    description="Sign up for Origen TechnolOG. Free real estate CRM. No credit card.",
+    title="Create a free account | AgentFlow",
+    description="Sign up for AgentFlow. Free real estate CRM. No credit card.",
     canonical=app_base_url ~ "/register"
 ) }}
 {% endblock %}
@@ -196,8 +196,8 @@
 
         <div class="left p-8 lg:p-10 flex flex-col justify-between">
           <div>
-            <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="Origen TechnolOG home">
-              {{ brand_logo(size_class='crm-brand-logo-wrap--h9', width=164, height=36) }}
+            <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
+              {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-light', width=192, height=36) }}
             </a>
 
             <div class="mt-8">

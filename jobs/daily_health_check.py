@@ -1,4 +1,4 @@
-"""Ops health check for Origen CRM.
+"""Ops health check for AgentFlow CRM.
 
 Two modes:
 - Digest (default): always emails the plain-English overview. Used by the
@@ -138,7 +138,7 @@ def check_app_health() -> CheckResult:
             name='Core app',
             ok=False,
             detail='The app health check did not respond normally.',
-            meaning='Users may not be able to use Origen right now.',
+            meaning='Users may not be able to use AgentFlow right now.',
             meta={'latency_ms': latency_ms, 'payload': payload},
         )
 
@@ -171,7 +171,7 @@ def check_app_health() -> CheckResult:
             + ', '.join(bad_externals) + '.'
         )
         meaning = (
-            'Origen itself is running. One helper service (like email) '
+            'AgentFlow itself is running. One helper service (like email) '
             'needs a look when you have a minute.'
         )
     elif warnings:
@@ -631,8 +631,8 @@ def _verdict_sentence(
 ) -> str:
     if kind == 'recovery' or status == 'OK':
         if kind == 'recovery':
-            return 'Origen is healthy again. Earlier warning/error has cleared.'
-        return 'Origen looks healthy. No action needed.'
+            return 'AgentFlow is healthy again. Earlier warning/error has cleared.'
+        return 'AgentFlow looks healthy. No action needed.'
     problems = [c for c in checks if not c.ok]
     warns = [c for c in checks if c.ok and c.warn]
     if problems:
@@ -739,7 +739,7 @@ def _render_digest_email(
 ) -> tuple[str, str]:
     status = overall_status(checks)
     headline, subject_verb, status_color = _status_copy(status)
-    subject = f'[Origen] {subject_verb} — {when_ct.strftime("%b %-d, %Y")}'
+    subject = f'[AgentFlow] {subject_verb} — {when_ct.strftime("%b %-d, %Y")}'
     verdict = _verdict_sentence(checks, status, kind='digest')
 
     cards = []
@@ -820,7 +820,7 @@ def _render_digest_email(
   <div style="max-width:640px;margin:0 auto;padding:28px 16px;">
     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:28px;">
       <p style="margin:0 0 6px;font-size:12px;font-weight:700;letter-spacing:1.2px;
-         text-transform:uppercase;color:#ea580c;">Origen morning check</p>
+         text-transform:uppercase;color:#ea580c;">AgentFlow morning check</p>
       <h1 style="margin:0 0 8px;font-size:26px;letter-spacing:-0.02em;">{_esc(headline)}</h1>
       <p style="margin:0 0 6px;color:#64748b;font-size:14px;">
         {when_ct.strftime('%A, %b %-d · %-I:%M %p %Z')}
@@ -849,7 +849,7 @@ def _render_digest_email(
       </p>
     </div>
     <p style="text-align:center;color:#94a3b8;font-size:12px;margin-top:16px;">
-      Twice-daily overview · Origen TechnolOG
+      Twice-daily overview · AgentFlow
     </p>
   </div>
 </body></html>"""
@@ -868,7 +868,7 @@ def _render_alert_email(
     stamp = when_ct.strftime('%b %-d · %-I:%M %p %Z')
 
     if kind == 'recovery':
-        subject = f'[Origen] Recovered — {affected} — {stamp}'
+        subject = f'[AgentFlow] Recovered — {affected} — {stamp}'
         eyebrow = 'Realtime alert · recovered'
         headline = 'Back to healthy'
         banner_bg = '#166534'
@@ -876,7 +876,7 @@ def _render_alert_email(
         panel_border = '#bbf7d0'
         panel_title = 'What cleared'
         intro = (
-            f'Origen looks healthy again as of {stamp}. '
+            f'AgentFlow looks healthy again as of {stamp}. '
             'The earlier warning or outage appears cleared.'
         )
         next_steps = [
@@ -886,7 +886,7 @@ def _render_alert_email(
         issues = checks  # show full healthy snapshot on recovery
     else:
         severity = 'ERROR' if status == 'FAIL' else 'WARNING'
-        subject = f'[Origen] {severity} — {affected} — {stamp}'
+        subject = f'[AgentFlow] {severity} — {affected} — {stamp}'
         eyebrow = f'Realtime alert · {severity.lower()}'
         headline = (
             'Something is broken'
@@ -1018,7 +1018,7 @@ def _render_alert_email(
       </p>
     </div>
     <p style="text-align:center;color:#64748b;font-size:12px;margin-top:16px;">
-      Realtime health alert · Origen TechnolOG
+      Realtime health alert · AgentFlow
     </p>
   </div>
 </body></html>"""
@@ -1091,7 +1091,7 @@ def demo_checks(scenario: str) -> list[CheckResult]:
                 name='Core app',
                 ok=False,
                 detail='The app health check did not respond normally.',
-                meaning='Users may not be able to use Origen right now.',
+                meaning='Users may not be able to use AgentFlow right now.',
             ),
             CheckResult(
                 name='Website',
@@ -1138,7 +1138,7 @@ def send_report(to_email: str, subject: str, html: str) -> bool:
     from sendgrid.helpers.mail import Email, Mail, To
 
     message = Mail(
-        from_email=Email(DEFAULT_FROM, 'Origen Health'),
+        from_email=Email(DEFAULT_FROM, 'AgentFlow Health'),
         to_emails=To(to_email),
         subject=subject,
         html_content=html,
@@ -1350,7 +1350,7 @@ def run_demo_alert(
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Origen health check')
+    parser = argparse.ArgumentParser(description='AgentFlow health check')
     parser.add_argument(
         '--dry-run',
         action='store_true',

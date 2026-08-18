@@ -46,7 +46,7 @@ ${{ '{:,.0f}'.format(ns.amount) if ns.amount == (ns.amount|int) else '{:,.2f}'.f
 {%- endif -%}
 {%- endmacro %}
 
-{% block title %}{{ amendment_label }} · {{ transaction.street_address or 'Transaction' }} · Origen TechnolOG{% endblock %}
+{% block title %}{{ amendment_label }} · {{ transaction.street_address or 'Transaction' }} · AgentFlow{% endblock %}
 
 {% block content %}
 {% set property_label = transaction.street_address or ('Transaction ' ~ transaction.id) %}
