@@ -56,12 +56,27 @@ WEBHOOK_SECRET = 'test-webhook-secret'
 
 @pytest.fixture(autouse=True)
 def _telegram_config(app):
+    previous = {
+        key: app.config.get(key)
+        for key in (
+            'TELEGRAM_BOT_TOKEN',
+            'TELEGRAM_BOT_USERNAME',
+            'TELEGRAM_WEBHOOK_SECRET',
+            'TELEGRAM_WEBHOOK_PATH',
+            'APP_BASE_URL',
+        )
+    }
     app.config['TELEGRAM_BOT_TOKEN'] = '123456:TESTTOKEN'
     app.config['TELEGRAM_BOT_USERNAME'] = 'BobTestBot'
     app.config['TELEGRAM_WEBHOOK_SECRET'] = WEBHOOK_SECRET
     app.config['TELEGRAM_WEBHOOK_PATH'] = WEBHOOK_PATH
     app.config['APP_BASE_URL'] = 'https://example.test'
     yield
+    for key, value in previous.items():
+        if value is None:
+            app.config.pop(key, None)
+        else:
+            app.config[key] = value
 
 
 @pytest.fixture(autouse=True)
