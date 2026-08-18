@@ -130,6 +130,12 @@ HERO_LINES = (
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
 )
+DISCLAIMER = (
+    "Follow Up Boss is a trademark of its owner. Zillow Group acquired it in 2023. "
+    "Origen is not affiliated with Follow Up Boss or Zillow Group, and they did not "
+    "review or endorse this page. Prices and features here come from followupboss.com "
+    "as of August 18, 2026."
+)
 
 
 def _faq_paragraphs(answer):
@@ -256,6 +262,8 @@ class TestFollowUpBossAlternativeCopy:
         assert "url_for('main.landing')" in PAGE
         assert "More on Origen is on" not in PAGE
         assert "the free real estate CRM page" not in PAGE
+        assert DISCLAIMER in PAGE
+        assert PAGE.count(DISCLAIMER) == 1
 
     def test_h1_is_the_human_line(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -391,6 +399,21 @@ class TestFollowUpBossAlternativeCopy:
         assert "30 leads" not in lowered
         assert "less than 30" not in lowered
         assert "we do not publish a lead count" not in lowered
+
+    def test_footer_disclaimer_is_the_only_added_legal_line(self):
+        visible = _visible_copy(PAGE)
+        assert DISCLAIMER in visible
+        assert visible.count(DISCLAIMER) == 1
+        assert "More on Origen is on" not in visible
+        assert "30 leads" not in visible.lower()
+        assert "—" not in visible
+        assert "MFTB" not in PAGE
+        assert "Holdco" not in PAGE
+        assert "lawyer" not in visible.lower()
+        assert "/pricing" not in PAGE
+        lowered = visible.lower()
+        for phrase in BANNED_SLOP:
+            assert phrase not in lowered
 
     def test_no_banned_slop(self):
         lowered = _visible_copy(PAGE).lower()
