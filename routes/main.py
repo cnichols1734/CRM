@@ -437,6 +437,12 @@ def free_real_estate_crm():
     return render_template('free_real_estate_crm.html', current_year=datetime.now().year)
 
 
+@main_bp.route('/follow-up-boss-alternative')
+def follow_up_boss_alternative():
+    """Public Follow Up Boss alternative page. Always 200, even if logged in."""
+    return render_template('follow_up_boss_alternative.html', current_year=datetime.now().year)
+
+
 # =============================================================================
 # CONTACTS LIST (Authenticated)
 # =============================================================================

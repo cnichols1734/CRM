@@ -1,0 +1,420 @@
+{% from "components/seo_meta.html" import public_seo %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Follow Up Boss alternative | Origen TechnolOG</title>
+    {{ public_seo(
+        title="Follow Up Boss alternative | Origen TechnolOG",
+        description="Follow Up Boss Grow is $69 per user per month. Origen is a free real estate CRM. No card. About two minutes.",
+        canonical=app_base_url ~ "/follow-up-boss-alternative"
+    ) }}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "{{ app_base_url }}/#organization",
+          "name": "Origen TechnolOG",
+          "url": "{{ app_base_url }}/",
+          "logo": "{{ app_base_url }}/static/images/logo_og_dark.png"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "{{ app_base_url }}/follow-up-boss-alternative#software",
+          "name": "Origen TechnolOG",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "isAccessibleForFree": true,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "Follow Up Boss Grow is $69 per user per month. Origen is a free real estate CRM. No card. About two minutes.",
+          "url": "{{ app_base_url }}/follow-up-boss-alternative",
+          "publisher": { "@id": "{{ app_base_url }}/#organization" }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "{{ app_base_url }}/follow-up-boss-alternative#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How much is Follow Up Boss?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Grow is $69 per user per month on followupboss.com/pricing. Pro is $499 a month for 10 users. Calling on Grow is $39 per user."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does Follow Up Boss have a free plan?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. They offer a 14-day trial. Full access, no credit card required for those 14 days."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What does Origen include?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "One user, up to 10,000 contacts, tasks, and a dashboard. You can send email through Gmail and sync tasks to Google Calendar. B.O.B. is included, with 25 messages a day."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I buy Pro today?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No. Paid features come later. Nothing paid is for sale today."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#243b53',
+                            900: '#102a43',
+                        },
+                        accent: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-bg {
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(ellipse at 20% 0%, rgba(249, 115, 22, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(36, 59, 83, 0.06) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334e68' fill-opacity='0.03'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .nav-blur {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -8px rgba(249, 115, 22, 0.4);
+        }
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        .landing-faq {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .landing-faq details {
+            border-bottom: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq details:first-of-type {
+            border-top: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.15rem 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #102a43;
+        }
+        .landing-faq summary::-webkit-details-marker {
+            display: none;
+        }
+        .landing-faq summary::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-right: 1.5px solid #627d98;
+            border-bottom: 1.5px solid #627d98;
+            transform: rotate(45deg);
+            margin-top: -4px;
+        }
+        .landing-faq details[open] summary {
+            color: #ea580c;
+        }
+        .landing-faq details[open] summary::after {
+            border-color: #f97316;
+            transform: rotate(225deg);
+            margin-top: 4px;
+        }
+        .landing-faq .faq-answer {
+            padding: 0 0 1.15rem;
+            color: #486581;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-brand-800">
+
+    <nav class="fixed top-0 left-0 right-0 z-50 nav-blur bg-white/90 border-b border-brand-100/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 md:h-20">
+                <a href="{{ url_for('main.landing') }}" class="flex items-center">
+                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                </a>
+
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="{{ url_for('main.landing') }}#features" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">Features</a>
+                    <a href="{{ url_for('main.landing') }}#how-it-works" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">How It Works</a>
+                    <a href="{{ url_for('main.landing') }}#pricing" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">Pricing</a>
+                </div>
+
+                <div class="hidden md:flex items-center gap-4">
+                    <a href="{{ url_for('auth.login') }}" class="text-brand-700 hover:text-brand-900 font-semibold transition-colors">
+                        Log In
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                        Start Free
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </a>
+                </div>
+
+                <button id="mobileMenuBtn" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobileMenuOverlay" class="fixed inset-0 bg-black/50 z-40 md:hidden opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+        <div id="mobileMenu" class="mobile-menu fixed top-0 right-0 w-80 h-screen md:hidden z-50" style="background-color: #ffffff;">
+            <div class="p-6 h-full bg-white">
+                <button id="closeMobileMenu" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+
+                <div class="mt-12 space-y-6">
+                    <a href="{{ url_for('main.landing') }}#features" class="block text-lg font-medium text-brand-700 hover:text-accent-500">Features</a>
+                    <a href="{{ url_for('main.landing') }}#how-it-works" class="block text-lg font-medium text-brand-700 hover:text-accent-500">How It Works</a>
+                    <a href="{{ url_for('main.landing') }}#pricing" class="block text-lg font-medium text-brand-700 hover:text-accent-500">Pricing</a>
+
+                    <hr class="border-brand-100">
+
+                    <a href="{{ url_for('auth.login') }}" class="block text-lg font-semibold text-brand-800">Log In</a>
+                    <a href="{{ url_for('auth.register') }}" class="block w-full text-center px-6 py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                        Start Free
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-bg pt-24 md:pt-32 pb-16 md:pb-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 leading-tight mb-6">
+                    A Follow Up Boss alternative you can start tonight.
+                </h1>
+                <p class="text-lg sm:text-xl text-brand-600 mb-8">
+                    Follow Up Boss Grow is $69 per user per month on their pricing page. There is no free plan. You get a 14-day trial with full access and no credit card. After that they charge. Origen is $0 to start, no credit card, and the free plan stays free. One user, up to 10,000 contacts, 25 B.O.B. messages a day.
+                </p>
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                    Start Free
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-white py-16 md:py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl space-y-10">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">Price and limits</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-brand-700">
+                            <thead>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-900"> </th>
+                                    <th class="py-3 pr-4 font-semibold text-brand-900">Follow Up Boss</th>
+                                    <th class="py-3 font-semibold text-brand-900">Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody class="align-top">
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Price</th>
+                                    <td class="py-3 pr-4">Grow is $69 per user per month ($58 billed annually)</td>
+                                    <td class="py-3">$0</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Free plan</th>
+                                    <td class="py-3 pr-4">No. They offer a 14-day trial.</td>
+                                    <td class="py-3">Yes</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Card</th>
+                                    <td class="py-3 pr-4">The trial has no card. Then they charge.</td>
+                                    <td class="py-3">No card. The free plan stays free.</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Contacts</th>
+                                    <td class="py-3 pr-4">Unlimited (their pricing)</td>
+                                    <td class="py-3">Up to 10,000</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Users</th>
+                                    <td class="py-3 pr-4">Per seat</td>
+                                    <td class="py-3">1</td>
+                                </tr>
+                                <tr>
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Fit</th>
+                                    <td class="py-3 pr-4">Their FAQ says they are not for anyone who "Generates less than 30 leads per month."</td>
+                                    <td class="py-3">We do not publish a lead count.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <p class="text-lg text-brand-600 leading-relaxed">
+                    Follow Up Boss publishes unlimited contacts, lead sources, and team plans. They also sell Calling and Action Plans. We do not have those, and we are not a replacement for them.
+                </p>
+                <p class="text-lg text-brand-600 leading-relaxed">
+                    Built for real estate agents, by real estate agents. Free is the product. Paid features come later. Nothing paid is for sale today.
+                </p>
+                <p class="text-lg text-brand-600 leading-relaxed">
+                    More on Origen is on <a href="{{ url_for('main.free_real_estate_crm') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">the free real estate CRM page</a>. Or start from the <a href="{{ url_for('main.landing') }}" class="text-brand-800 underline underline-offset-2 hover:text-accent-600">homepage</a>.
+                </p>
+
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                    Start Free
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="bg-[#f4f4f4] py-16 md:py-20">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-10">Common questions</h2>
+            <div class="landing-faq">
+                <details>
+                    <summary>How much is Follow Up Boss?</summary>
+                    <p class="faq-answer">Grow is $69 per user per month on followupboss.com/pricing. Pro is $499 a month for 10 users. Calling on Grow is $39 per user.</p>
+                </details>
+                <details>
+                    <summary>Does Follow Up Boss have a free plan?</summary>
+                    <p class="faq-answer">No. They offer a 14-day trial. Full access, no credit card required for those 14 days.</p>
+                </details>
+                <details>
+                    <summary>What does Origen include?</summary>
+                    <p class="faq-answer">One user, up to 10,000 contacts, tasks, and a dashboard. You can send email through Gmail and sync tasks to Google Calendar. B.O.B. is included, with 25 messages a day.</p>
+                </details>
+                <details>
+                    <summary>Can I buy Pro today?</summary>
+                    <p class="faq-answer">No. Paid features come later. Nothing paid is for sale today.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-brand-900 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center">
+                    <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                </div>
+
+                <div class="flex items-center gap-6 text-brand-400 text-sm">
+                    <a href="{{ url_for('auth.login') }}" class="hover:text-white transition-colors">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="hover:text-white transition-colors">Register</a>
+                    <a href="{{ url_for('auth.terms_privacy') }}" class="hover:text-white transition-colors">Terms & Privacy</a>
+                    <a href="#" onclick="openContactUsModal('landing'); return false;" class="hover:text-white transition-colors">Contact</a>
+                </div>
+
+                <div class="text-brand-500 text-sm">
+                    &copy; {{ current_year }} Origen TechnolOG. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const closeMobileMenu = document.getElementById('closeMobileMenu');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+
+        function openMobileMenu() {
+            mobileMenu.classList.add('open');
+            mobileMenuOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            mobileMenuOverlay.classList.add('opacity-100');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenuFn() {
+            mobileMenu.classList.remove('open');
+            mobileMenuOverlay.classList.add('opacity-0', 'pointer-events-none');
+            mobileMenuOverlay.classList.remove('opacity-100');
+            document.body.style.overflow = '';
+        }
+
+        mobileMenuBtn.addEventListener('click', openMobileMenu);
+        closeMobileMenu.addEventListener('click', closeMobileMenuFn);
+        mobileMenuOverlay.addEventListener('click', closeMobileMenuFn);
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', closeMobileMenuFn);
+        });
+    </script>
+
+    {% include 'modals/contact_us_modal.html' %}
+
+</body>
+</html>
