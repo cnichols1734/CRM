@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import badge, empty_state %}
 
-{% block title %}Document review · {{ document.review_filename }} · Origen TechnolOG{% endblock %}
+{% block title %}Document review · {{ document.review_filename }} · AgentFlow{% endblock %}
 
 {% block content %}
 {% set severity = report.severity if report else 'ok' %}

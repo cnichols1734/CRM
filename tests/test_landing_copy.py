@@ -44,6 +44,7 @@ DELETED_FAQ = (
     "Straight answers. No pitch.",
     "Questions people ask",
     "Origen TechnolOG (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM.",
+    "AgentFlow (origentechnolog.com) is not Origen Tech, Origen-Tech, or Origin CRM.",
     "What is B.O.B.?",
     "B.O.B. is the built-in assistant.",
 )
@@ -67,7 +68,7 @@ FAQ_ITEMS = (
     ),
     (
         "What can B.O.B. do?",
-        "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
+        "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in AgentFlow, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
     ),
 )
 
@@ -185,7 +186,7 @@ class TestLandingLeftoverCopy:
         assert "10/day" not in card
 
     def test_keeps_foundation_title(self):
-        assert "Free Real Estate CRM | Origen TechnolOG" in LANDING
+        assert "Free Real Estate CRM | AgentFlow" in LANDING
 
     def test_does_not_claim_there_will_never_be_a_paid_plan(self):
         assert "never be a paid" not in LANDING.lower()
@@ -200,8 +201,8 @@ class TestLandingLeftoverCopy:
         assert "AI assistant" not in LLMS
 
     def test_keeps_home_title_and_meta(self):
-        assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in LANDING
-        assert 'title="Free Real Estate CRM | Origen TechnolOG"' in LANDING
+        assert "<title>Free Real Estate CRM | AgentFlow</title>" in LANDING
+        assert 'title="Free Real Estate CRM | AgentFlow"' in LANDING
         assert 'description="Free real estate CRM for agents. No credit card. Set up in about 2 minutes."' in LANDING
 
     def test_public_limits_do_not_contradict_home(self):
@@ -267,7 +268,7 @@ class TestLandingLeftoverCopy:
         question, answer = FAQ_ITEMS[4]
         assert question == "What can B.O.B. do?"
         assert "AI assistant" in answer
-        assert "If you can do it in Origen" in answer
+        assert "If you can do it in AgentFlow" in answer
         assert "25 messages a day" in answer
         assert "Telegram" in answer
         assert "from your profile" in answer

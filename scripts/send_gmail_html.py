@@ -90,7 +90,7 @@ if __name__ == "__main__":
     ORG_NAME = "No Place Like Home Realty"
     
     # Email configuration
-    SUBJECT = "Welcome to Origen TechnolOG! Your organization has been approved"
+    SUBJECT = "Welcome to AgentFlow! Your organization has been approved"
     TEMPLATE_PATH = "email_templates/2_org_approved.html"
     
     # Template variables

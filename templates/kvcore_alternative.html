@@ -4,10 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kvCORE Alternative for Real Estate Agents | Origen</title>
+    <title>kvCORE Alternative for Real Estate Agents | AgentFlow</title>
     {{ public_seo(
-        title="kvCORE Alternative for Real Estate Agents | Origen",
-        description="kvCORE is now BoldTrail. See how Origen compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
+        title="kvCORE Alternative for Real Estate Agents | AgentFlow",
+        description="kvCORE is now BoldTrail. See how AgentFlow compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
         canonical=app_base_url ~ "/kvcore-alternative"
     ) }}
     <script type="application/ld+json">
@@ -17,14 +17,14 @@
         {
           "@type": "Organization",
           "@id": "{{ app_base_url }}/#organization",
-          "name": "Origen TechnolOG",
+          "name": "AgentFlow",
           "url": "{{ app_base_url }}/",
-          "logo": "{{ app_base_url }}/static/images/logo_og_dark.png"
+          "logo": "{{ app_base_url }}/static/images/logo_agentflow_dark.png"
         },
         {
           "@type": "SoftwareApplication",
           "@id": "{{ app_base_url }}/kvcore-alternative#software",
-          "name": "Origen TechnolOG",
+          "name": "AgentFlow",
           "applicationCategory": "BusinessApplication",
           "operatingSystem": "Web",
           "isAccessibleForFree": true,
@@ -33,7 +33,7 @@
             "price": "0",
             "priceCurrency": "USD"
           },
-          "description": "kvCORE is now BoldTrail. See how Origen compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
+          "description": "kvCORE is now BoldTrail. See how AgentFlow compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
           "url": "{{ app_base_url }}/kvcore-alternative",
           "publisher": { "@id": "{{ app_base_url }}/#organization" }
         },
@@ -59,10 +59,10 @@
             },
             {
               "@type": "Question",
-              "name": "Is Origen really free?",
+              "name": "Is AgentFlow really free?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day."
+                "text": "Yes. AgentFlow has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day."
               }
             },
             {
@@ -70,23 +70,23 @@
               "name": "What is B.O.B.?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you."
+                "text": "B.O.B. is the AI assistant inside AgentFlow. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in AgentFlow, you can ask B.O.B. to do it for you."
               }
             },
             {
               "@type": "Question",
-              "name": "Can I try Origen without moving everything over?",
+              "name": "Can I try AgentFlow without moving everything over?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you."
+                "text": "Yes. You can create a free account and try AgentFlow with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you."
               }
             },
             {
               "@type": "Question",
-              "name": "Is Origen a full replacement for kvCORE / BoldTrail?",
+              "name": "Is AgentFlow a full replacement for kvCORE / BoldTrail?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, Origen doesn't currently try to duplicate all of that."
+                "text": "That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, AgentFlow doesn't currently try to duplicate all of that."
               }
             }
           ]
@@ -96,6 +96,8 @@
     </script>
 
     <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -241,7 +243,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 md:h-20">
                 <a href="{{ url_for('main.landing') }}" class="flex items-center">
-                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                    <img src="{{ url_for('static', filename='images/logo_agentflow_light.png') }}" alt="AgentFlow" class="h-8 md:h-10 w-auto object-contain" width="213" height="40" />
                 </a>
 
                 <div class="hidden md:flex items-center gap-8">
@@ -299,7 +301,7 @@
                     kvCORE is now BoldTrail, from Inside Real Estate. It is a large real estate platform for agents, teams and brokerages. Pricing is quote-only. There is no published free plan. That is a real product, and it is built for a lot more than a solo agent's daily CRM work.
                 </p>
                 <p class="text-lg sm:text-xl text-brand-600 mb-6">
-                    Origen gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.
+                    AgentFlow gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.
                 </p>
                 <p class="text-base text-brand-600 mb-8">
                     No credit card required.
@@ -318,7 +320,7 @@
         <div class="px-4 sm:px-6 lg:px-8">
             <div class="max-w-3xl mx-auto space-y-16">
                 <div>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">Origen vs. kvCORE / BoldTrail</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">AgentFlow vs. kvCORE / BoldTrail</h2>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
                         These products aren't identical, and they shouldn't be presented as though they are.
                     </p>
@@ -326,7 +328,7 @@
                         BoldTrail is a large platform for agents, teams and brokerages. Official pages describe IDX, lead generation, recruiting and BackOffice as part of that ecosystem. Pricing is quote-only.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
-                        Origen is aimed at individual agents who want the core CRM work handled without starting with another monthly software bill.
+                        AgentFlow is aimed at individual agents who want the core CRM work handled without starting with another monthly software bill.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed">
                         Inside Real Estate acquired BoomTown in 2023 and official BoldTrail pages say BoomTown is being folded into BoldTrail.
@@ -345,7 +347,7 @@
                                 <tr class="border-b border-brand-200">
                                     <th class="font-semibold text-brand-900"> </th>
                                     <th class="font-semibold text-brand-900">BoldTrail</th>
-                                    <th class="font-semibold text-brand-900">Origen</th>
+                                    <th class="font-semibold text-brand-900">AgentFlow</th>
                                 </tr>
                             </thead>
                             <tbody class="align-top">
@@ -398,7 +400,7 @@
                         Their own writing says a brand-new solo agent who hasn't closed a first deal yet can find the full BoldTrail ecosystem a lot, and that a lighter, lower-cost CRM may make more sense.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
-                        Origen starts with the work you do every day: contacts, tasks, follow-ups and keeping track of what's happening with your clients.
+                        AgentFlow starts with the work you do every day: contacts, tasks, follow-ups and keeping track of what's happening with your clients.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed">
                         And you can start using it without a sales call or another monthly subscription.
@@ -408,7 +410,7 @@
                 <div>
                     <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">Then there's B.O.B.</h2>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
-                        B.O.B. is the AI assistant built into Origen.
+                        B.O.B. is the AI assistant built into AgentFlow.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
                         Instead of clicking through the CRM every time you want to get something done, tell B.O.B. what you need.
@@ -417,7 +419,7 @@
                         Find a client. Update a contact. Add a note. Complete a task. Log activity. Organize contacts. Ask questions about what's already in your CRM.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
-                        If you can do it in Origen, you can ask B.O.B. to do it for you.
+                        If you can do it in AgentFlow, you can ask B.O.B. to do it for you.
                     </p>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
                         The free plan includes 25 B.O.B. messages per day.
@@ -426,7 +428,7 @@
                         B.O.B. can also be connected to Telegram, so you don't always have to be sitting inside the CRM to use it.
                     </p>
                     <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
-                        Try Origen Free
+                        Try AgentFlow Free
                         <i class="fas fa-arrow-right"></i>
                     </a>
                 </div>
@@ -450,9 +452,9 @@
                 </div>
 
                 <div>
-                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">When Origen may be the better fit</h2>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">When AgentFlow may be the better fit</h2>
                     <p class="text-lg text-brand-600 leading-relaxed mb-4">
-                        Origen may make more sense if:
+                        AgentFlow may make more sense if:
                     </p>
                     <ul class="list-disc pl-5 space-y-2 text-lg text-brand-600 leading-relaxed mb-4">
                         <li>You're an individual real estate agent</li>
@@ -463,7 +465,7 @@
                         <li>You'd rather start simple and add more later</li>
                     </ul>
                     <p class="text-lg text-brand-600 leading-relaxed mb-8">
-                        You don't have to decide whether Origen can replace your current CRM before trying it. The free plan doesn't expire. Create an account, put a few contacts in it and see whether it fits the way you work.
+                        You don't have to decide whether AgentFlow can replace your current CRM before trying it. The free plan doesn't expire. Create an account, put a few contacts in it and see whether it fits the way you work.
                     </p>
                     <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
                         Start Free
@@ -487,22 +489,22 @@
                     <p class="faq-answer">BoldTrail is the current product. kvCORE is the earlier name.</p>
                 </details>
                 <details>
-                    <summary>Is Origen really free?</summary>
-                    <p class="faq-answer">Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.</p>
+                    <summary>Is AgentFlow really free?</summary>
+                    <p class="faq-answer">Yes. AgentFlow has a free plan, not just a free trial. You don't need a credit card to start.</p>
                     <p class="faq-answer">The current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.</p>
                 </details>
                 <details>
                     <summary>What is B.O.B.?</summary>
-                    <p class="faq-answer">B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.</p>
-                    <p class="faq-answer">If you can do something in Origen, you can ask B.O.B. to do it for you.</p>
+                    <p class="faq-answer">B.O.B. is the AI assistant inside AgentFlow. You can ask it questions about your CRM or tell it to do CRM work for you.</p>
+                    <p class="faq-answer">If you can do something in AgentFlow, you can ask B.O.B. to do it for you.</p>
                 </details>
                 <details>
-                    <summary>Can I try Origen without moving everything over?</summary>
-                    <p class="faq-answer">Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.</p>
+                    <summary>Can I try AgentFlow without moving everything over?</summary>
+                    <p class="faq-answer">Yes. You can create a free account and try AgentFlow with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.</p>
                 </details>
                 <details>
-                    <summary>Is Origen a full replacement for kvCORE / BoldTrail?</summary>
-                    <p class="faq-answer">That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, Origen doesn't currently try to duplicate all of that.</p>
+                    <summary>Is AgentFlow a full replacement for kvCORE / BoldTrail?</summary>
+                    <p class="faq-answer">That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, AgentFlow doesn't currently try to duplicate all of that.</p>
                 </details>
             </div>
         </div>
@@ -512,7 +514,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div class="flex items-center">
-                    <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                    <img src="{{ url_for('static', filename='images/logo_agentflow_dark.png') }}" alt="AgentFlow" class="h-8 md:h-10 w-auto object-contain" width="213" height="40" />
                 </div>
 
                 <div class="flex items-center gap-6 text-brand-400 text-sm">
@@ -523,11 +525,11 @@
                 </div>
 
                 <div class="text-brand-500 text-sm">
-                    &copy; {{ current_year }} Origen TechnolOG. All rights reserved.
+                    &copy; {{ current_year }} AgentFlow. All rights reserved.
                 </div>
             </div>
             <p class="mt-8 max-w-3xl mx-auto text-center text-xs leading-relaxed text-brand-500">
-                kvCORE and BoldTrail are trademarks of their owners. Origen TechnolOG is not affiliated. Facts from boldtrail.com as of 2026-08-18.
+                kvCORE and BoldTrail are trademarks of their owners. AgentFlow is not affiliated. Facts from boldtrail.com as of 2026-08-18.
             </p>
         </div>
     </footer>

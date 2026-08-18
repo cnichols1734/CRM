@@ -1258,7 +1258,7 @@ def churn_reason(token):
         },
         once=True,
     )
-    flash('Thanks — that helps us improve Origen.', 'success')
+    flash('Thanks — that helps us improve AgentFlow.', 'success')
     return redirect(url_for('auth.login'))
 
 

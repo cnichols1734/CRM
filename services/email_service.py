@@ -109,19 +109,19 @@ class EmailService:
         template_map = {
             'password_reset': {
                 'file': 'email_templates/1_password_reset.html',
-                'subject': 'Reset Your Password - Origen TechnolOG'
+                'subject': 'Reset Your Password - AgentFlow'
             },
             'org_approved': {
                 'file': 'email_templates/2_org_approved.html',
-                'subject': 'Welcome to Origen TechnolOG! Your organization has been approved'
+                'subject': 'Welcome to AgentFlow! Your organization has been approved'
             },
             'org_rejected': {
                 'file': 'email_templates/3_org_rejected.html',
-                'subject': 'Your organization application - Origen TechnolOG'
+                'subject': 'Your organization application - AgentFlow'
             },
             'team_invite': {
                 'file': 'email_templates/4_team_invitation.html',
-                'subject': "You've been invited to join {org_name} on Origen TechnolOG"
+                'subject': "You've been invited to join {org_name} on AgentFlow"
             },
             'contact_form': {
                 'file': 'email_templates/5_contact_form.html',

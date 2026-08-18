@@ -1,11 +1,11 @@
-{% macro brand_logo(size_class='', width=146, height=32, wrap_class='') -%}
+{% macro brand_logo(size_class='', width=171, height=32, wrap_class='') -%}
 {# Theme-aware wordmark: light asset on light, dark asset on dark. #}
 <span class="crm-brand-logo-wrap{% if wrap_class %} {{ wrap_class }}{% endif %}{% if size_class %} {{ size_class }}{% endif %}">
-    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}"
-         alt="Origen TechnolOG"
+    <img src="{{ url_for('static', filename='images/logo_agentflow_light.png') }}"
+         alt="AgentFlow"
          class="crm-brand-logo crm-brand-logo--light"
          width="{{ width }}" height="{{ height }}" />
-    <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}"
+    <img src="{{ url_for('static', filename='images/logo_agentflow_dark.png') }}"
          alt=""
          class="crm-brand-logo crm-brand-logo--dark"
          width="{{ width }}" height="{{ height }}"

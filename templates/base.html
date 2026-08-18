@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Origen TechnolOG{% endblock %}</title>
+    <title>{% block title %}AgentFlow{% endblock %}</title>
     {% block seo_head %}{% endblock %}
     <!-- Theme guard: applies stored theme before any paint to avoid FOUC.
          Default is Dark. We deliberately don't follow the OS color scheme.
@@ -23,6 +23,8 @@
     </script>
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='images/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
 
     <!-- Preconnect to CDN origins for faster resource fetching -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
@@ -183,6 +185,10 @@
         /* Surfaces that stay dark regardless of theme (e.g. login hero) */
         .crm-brand-logo-wrap--on-dark .crm-brand-logo--light { display: none; }
         .crm-brand-logo-wrap--on-dark .crm-brand-logo--dark { display: block; }
+        .crm-brand-logo-wrap--on-light .crm-brand-logo--light { display: block; }
+        .crm-brand-logo-wrap--on-light .crm-brand-logo--dark { display: none; }
+        html[data-theme="dark"] .crm-brand-logo-wrap--on-light .crm-brand-logo--light { display: block; }
+        html[data-theme="dark"] .crm-brand-logo-wrap--on-light .crm-brand-logo--dark { display: none; }
         header.md\:hidden .crm-brand-logo-wrap {
             --crm-brand-logo-h: 1.75rem;
         }
@@ -2270,7 +2276,7 @@
     <!-- Top Header - Hidden on Mobile -->
     <header class="crm-topbar text-white h-14 items-center justify-between hidden md:flex">
         <div class="crm-header-logo pl-4 pr-6 flex items-center h-full">
-            {{ brand_logo(size_class='crm-brand-logo-wrap--h8', width=146, height=32) }}
+            {{ brand_logo(size_class='crm-brand-logo-wrap--h8', width=171, height=32) }}
         </div>
         {% if current_user.is_authenticated %}
         <div class="flex items-center gap-2 pr-4">
@@ -2347,7 +2353,7 @@
                 <i class="fas fa-bars text-xl"></i>
             </button>
             {% endif %}
-            {{ brand_logo(size_class='crm-brand-logo-wrap--h7', width=128, height=28) }}
+            {{ brand_logo(size_class='crm-brand-logo-wrap--h7', width=149, height=28) }}
         </div>
         <div class="flex items-center space-x-3">
             {% if current_user.is_authenticated %}

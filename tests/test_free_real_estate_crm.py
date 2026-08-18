@@ -13,7 +13,7 @@ SITEMAP = ROOT / "static" / "sitemap.xml"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/free-real-estate-crm"
-TITLE = "Free real estate CRM | Origen TechnolOG"
+TITLE = "Free real estate CRM | AgentFlow"
 H1 = "A real estate CRM you can start tonight."
 LEAD = "Built for agents, by agents. The free tier stays free. No card. About two minutes."
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -67,7 +67,7 @@ FAQ_ITEMS = (
     ),
     (
         "What can B.O.B. do?",
-        "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
+        "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in AgentFlow, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
     ),
 )
 
@@ -173,11 +173,11 @@ class TestFreeRealEstateCrmSeo:
 
         assert f"<title>{TITLE}</title>" in page
         assert f'rel="canonical" href="{page_url}"' in page
-        assert 'property="og:title" content="Free real estate CRM | Origen TechnolOG"' in page
+        assert 'property="og:title" content="Free real estate CRM | AgentFlow"' in page
         assert f'property="og:url" content="{page_url}"' in page
         assert 'property="og:description" content="Built for agents, by agents. The free tier stays free. No card. About two minutes."' in page
 
-        assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in home
+        assert "<title>Free Real Estate CRM | AgentFlow</title>" in home
         assert f'rel="canonical" href="{home_url}"' in home
         assert page.count("<title>") == 1
         assert f'rel="canonical" href="{home_url}"' not in page
@@ -267,7 +267,7 @@ class TestFreeRealEstateCrmCopy:
         question, answer = FAQ_ITEMS[3]
         assert question == "What can B.O.B. do?"
         assert "AI assistant" in answer
-        assert "If you can do it in Origen" in answer
+        assert "If you can do it in AgentFlow" in answer
         assert "The free plan includes 25 messages a day" in answer
         assert "Telegram" in answer
         assert "from your profile" in answer

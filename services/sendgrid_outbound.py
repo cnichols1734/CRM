@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 DEFAULT_REPLY_FROM = 'info@origentechnolog.com'
-DEFAULT_REPLY_NAME = 'Origen Inbox'
+DEFAULT_REPLY_NAME = 'AgentFlow Inbox'
 UNDO_TOKEN_MAX_AGE = 24 * 3600  # 24h, per the plan
 DEFAULT_ACCOUNT_WELCOME_TEMPLATE_ID = 'd-8ca289d2b7fa4778a8c4b3d10992aab5'
 DEFAULT_WELCOME_TEMPLATE_ID = 'd-d89070c074554464a728867471e173e1'
@@ -547,7 +547,7 @@ def send_account_welcome(user) -> bool:
     except Exception:
         pass
 
-    subject = 'Your first follow-up in Origen'
+    subject = 'Your first follow-up in AgentFlow'
     inbox_note = ''
     if user.inbox_address:
         inbox_note = f"""
@@ -558,14 +558,14 @@ def send_account_welcome(user) -> bool:
         """
 
     html = _wrap_html(
-        title='Your first follow-up in Origen',
+        title='Your first follow-up in AgentFlow',
         body=f"""
             <h1 style="margin:0 0 12px;font-size:22px;color:#0f172a">
                 Add one person. Pick the next day.
             </h1>
             <p style="margin:0 0 16px;color:#475569;font-size:15px">
                 Your workspace is ready. Start with someone you already need to
-                call, email, or check in with. Origen will put the follow-up on
+                call, email, or check in with. AgentFlow will put the follow-up on
                 your dashboard before you leave the page.
             </p>
             <p style="margin:24px 0 0">
@@ -610,7 +610,7 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
             'First step',
             'Add one contact.',
             'Pick the follow-up day.',
-            'Someone you already need to call or email. Origen puts the next '
+            'Someone you already need to call or email. AgentFlow puts the next '
             'action on your dashboard.',
             'Your account is ready. Start with one real person. You can import '
             'the rest later.',
@@ -622,7 +622,7 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
             'Next step',
             'Contact is saved.',
             'Add a follow-up date.',
-            'Put a date on it so Origen can bring it back when you need it.',
+            'Put a date on it so AgentFlow can bring it back when you need it.',
             'You have a contact in. A dated follow-up is the next step.',
             'Schedule follow-up',
             'Once that date is set, setup is done.',
@@ -632,7 +632,7 @@ def send_activation_nudge(user, *, stage: str, action_url: str) -> bool:
             'Quick check',
             'Where did',
             'things stall?',
-            'Tap a reason below, or open Origen and finish your first follow-up.',
+            'Tap a reason below, or open AgentFlow and finish your first follow-up.',
             'If setup got messy, tell us what happened. Or jump back in and add '
             'a dated follow-up.',
             'Open my dashboard',
@@ -769,7 +769,7 @@ def send_inbox_welcome(user) -> bool:
                 Your Magic Inbox is ready.
             </h1>
             <p style="margin:0 0 16px;color:#475569;font-size:15px">
-                This is the fastest way to get contacts into Origen.
+                This is the fastest way to get contacts into AgentFlow.
                 Forward an email, business card photo, vCard, CSV, or messy
                 email signature to this private address:
             </p>
@@ -781,7 +781,7 @@ def send_inbox_welcome(user) -> bool:
                 </code>
             </p>
             <p style="margin:0 0 16px;color:#475569;font-size:15px">
-                Origen reads the details, creates the contact, and sends you a
+                AgentFlow reads the details, creates the contact, and sends you a
                 reply with a View link and an Undo link. No spreadsheet cleanup.
                 No copy and paste. No "I'll add it later."
             </p>
@@ -789,7 +789,7 @@ def send_inbox_welcome(user) -> bool:
                         border-radius:12px;background:#fff7ed;color:#7c2d12;
                         font-size:14px;line-height:1.5">
                 <strong>Do this now:</strong> save the address as
-                <strong>Origen Inbox</strong> in your phone. Next time someone
+                <strong>AgentFlow Inbox</strong> in your phone. Next time someone
                 hands you a card, take a picture and share it to that contact.
             </div>
             <p style="margin:0 0 16px;color:#475569;font-size:15px">
@@ -804,7 +804,7 @@ def send_inbox_welcome(user) -> bool:
             </ul>
             <p style="margin:24px 0 0">
                 <a class="btn-primary"
-                   href="{vcard_url}">Save Origen Inbox</a>
+                   href="{vcard_url}">Save AgentFlow Inbox</a>
                 <a class="btn-secondary" href="{inbox_url}">Open Magic Inbox</a>
             </p>
             <p style="margin:24px 0 0;font-size:12px;color:#94a3b8">
@@ -892,7 +892,7 @@ def _lifecycle_branded_html(
   <tr><td style="padding:22px 32px;background:#ffffff;border-bottom:1px solid #eef2f7;">
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
       <td style="font-family:'DM Sans',sans-serif;font-size:16px;font-weight:700;">
-        <span style="color:#102a43;">Origen Technol</span><span style="color:#f97316;">OG</span>
+        <span style="color:#102a43;">Agent</span><span style="color:#f97316;">Flow</span>
       </td>
       <td align="right" style="font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;color:#94a3b8;letter-spacing:1.2px;text-transform:uppercase;">Activation</td>
     </tr></table>
@@ -922,10 +922,10 @@ def _lifecycle_branded_html(
   </td></tr>
   <tr><td style="background:#f8fafc;border-top:1px solid #e8eff5;padding:28px 40px;text-align:center;">
     <p style="margin:0 0 6px 0;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;">
-      <span style="color:#334e68;">Origen Technol</span><span style="color:#f97316;">OG</span>
+      <span style="color:#334e68;">Agent</span><span style="color:#f97316;">Flow</span>
     </p>
     <p style="margin:0 0 14px 0;font-family:'DM Sans',sans-serif;font-size:12px;color:#829ab1;">The Real Estate CRM Built for Serious Agents</p>
-    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:11px;color:#9fb3c8;">&copy; {year} Origen TechnolOG. All rights reserved.</p>
+    <p style="margin:0;font-family:'DM Sans',sans-serif;font-size:11px;color:#9fb3c8;">&copy; {year} AgentFlow. All rights reserved.</p>
   </td></tr>
 </table>
 </td></tr></table>
@@ -956,7 +956,7 @@ def _wrap_html(title: str, body: str) -> str:
 <body>
   <div class="wrap">
     <div class="card">{body}</div>
-    <div class="footer">Origen TechnolOG · {domain} · &copy; {year}</div>
+    <div class="footer">AgentFlow · {domain} · &copy; {year}</div>
   </div>
 </body></html>"""
 

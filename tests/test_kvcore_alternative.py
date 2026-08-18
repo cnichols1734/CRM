@@ -15,19 +15,19 @@ LLMS = ROOT / "static" / "llms.txt"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/kvcore-alternative"
-TITLE = "kvCORE Alternative for Real Estate Agents | Origen"
+TITLE = "kvCORE Alternative for Real Estate Agents | AgentFlow"
 H1 = "Looking for a kvCORE alternative?"
 META = (
-    "kvCORE is now BoldTrail. See how Origen compares: a free plan with up to 10,000 contacts "
+    "kvCORE is now BoldTrail. See how AgentFlow compares: a free plan with up to 10,000 contacts "
     "and B.O.B., its built-in AI assistant."
 )
-HOME_TITLE = "Free Real Estate CRM | Origen TechnolOG"
+HOME_TITLE = "Free Real Estate CRM | AgentFlow"
 HOME_H1_PART = "Your clients and follow-ups,"
 HOME_BOB_QUESTION = "What can B.O.B. do?"
 HOME_BOB_P1 = (
-    "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, "
+    "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, "
     "just tell B.O.B. what you need done. It can find and update contacts, manage tasks, "
-    "log activity, organize clients, and much more. If you can do it in Origen, you can "
+    "log activity, organize clients, and much more. If you can do it in AgentFlow, you can "
     "ask B.O.B. to do it for you."
 )
 HOME_BOB_P2 = (
@@ -86,20 +86,20 @@ FAQ_ITEMS = (
         "BoldTrail is the current product. kvCORE is the earlier name.",
     ),
     (
-        "Is Origen really free?",
-        "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
+        "Is AgentFlow really free?",
+        "Yes. AgentFlow has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
     ),
     (
         "What is B.O.B.?",
-        "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you.",
+        "B.O.B. is the AI assistant inside AgentFlow. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in AgentFlow, you can ask B.O.B. to do it for you.",
     ),
     (
-        "Can I try Origen without moving everything over?",
-        "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
+        "Can I try AgentFlow without moving everything over?",
+        "Yes. You can create a free account and try AgentFlow with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
     ),
     (
-        "Is Origen a full replacement for kvCORE / BoldTrail?",
-        "That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, Origen doesn't currently try to duplicate all of that.",
+        "Is AgentFlow a full replacement for kvCORE / BoldTrail?",
+        "That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, AgentFlow doesn't currently try to duplicate all of that.",
     ),
 )
 FAKE_SEO_QUESTIONS = (
@@ -111,7 +111,7 @@ FAKE_SEO_QUESTIONS = (
     "How much is kvCORE?",
     "How much is BoldTrail?",
     "Does BoldTrail have a free plan?",
-    "What does Origen include?",
+    "What does AgentFlow include?",
     "Can I buy Pro today?",
 )
 TABLE_ROWS = (
@@ -124,21 +124,21 @@ TABLE_ROWS = (
     ("Calendar", "Not published", "Google Calendar task sync"),
 )
 SECTION_HEADINGS = (
-    "Origen vs. kvCORE / BoldTrail",
+    "AgentFlow vs. kvCORE / BoldTrail",
     "The biggest difference is what you actually need",
     "Then there's B.O.B.",
     "When BoldTrail is probably the better fit",
-    "When Origen may be the better fit",
+    "When AgentFlow may be the better fit",
     "Common questions",
 )
 HERO_LINES = (
     "kvCORE is now BoldTrail, from Inside Real Estate. It is a large real estate platform for agents, teams and brokerages. Pricing is quote-only. There is no published free plan. That is a real product, and it is built for a lot more than a solo agent's daily CRM work.",
-    "Origen gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.",
+    "AgentFlow gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
 )
 DISCLAIMER = (
-    "kvCORE and BoldTrail are trademarks of their owners. Origen TechnolOG is not affiliated. "
+    "kvCORE and BoldTrail are trademarks of their owners. AgentFlow is not affiliated. "
     "Facts from boldtrail.com as of 2026-08-18."
 )
 BOOMTOWN_LINE = (
@@ -147,10 +147,10 @@ BOOMTOWN_LINE = (
 )
 BOB_SECTION_LINES = (
     "Then there's B.O.B.",
-    "B.O.B. is the AI assistant built into Origen.",
+    "B.O.B. is the AI assistant built into AgentFlow.",
     "Instead of clicking through the CRM every time you want to get something done, tell B.O.B. what you need.",
     "Find a client. Update a contact. Add a note. Complete a task. Log activity. Organize contacts. Ask questions about what's already in your CRM.",
-    "If you can do it in Origen, you can ask B.O.B. to do it for you.",
+    "If you can do it in AgentFlow, you can ask B.O.B. to do it for you.",
     "The free plan includes 25 B.O.B. messages per day.",
     "B.O.B. can also be connected to Telegram, so you don't always have to be sitting inside the CRM to use it.",
 )
@@ -276,7 +276,7 @@ class TestKvcoreAlternativeCopy:
         assert H1 in PAGE
         assert META in PAGE
         assert "Start Free" in PAGE
-        assert "Try Origen Free" in PAGE
+        assert "Try AgentFlow Free" in PAGE
         assert "url_for('auth.register')" in PAGE
         assert "url_for('main.free_real_estate_crm')" not in PAGE
         assert "url_for('main.landing')" in PAGE
@@ -336,7 +336,7 @@ class TestKvcoreAlternativeCopy:
     def test_cta_goes_to_register(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         assert re.search(r'href="/register"[^>]*>\s*Start Free', html) is not None
-        assert re.search(r'href="/register"[^>]*>\s*Try Origen Free', html) is not None
+        assert re.search(r'href="/register"[^>]*>\s*Try AgentFlow Free', html) is not None
 
     def test_no_em_dashes(self):
         assert "—" not in PAGE

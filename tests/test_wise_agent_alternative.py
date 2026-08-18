@@ -15,19 +15,19 @@ LLMS = ROOT / "static" / "llms.txt"
 FREE_LIMITS = get_tier_defaults("free")
 
 PAGE_PATH = "/wise-agent-alternative"
-TITLE = "Wise Agent Alternative for Real Estate Agents | Origen"
+TITLE = "Wise Agent Alternative for Real Estate Agents | AgentFlow"
 H1 = "Looking for a Wise Agent alternative?"
 META = (
-    "Comparing Origen with Wise Agent? See pricing, features and where each CRM fits. "
-    "Origen includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
+    "Comparing AgentFlow with Wise Agent? See pricing, features and where each CRM fits. "
+    "AgentFlow includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
 )
-HOME_TITLE = "Free Real Estate CRM | Origen TechnolOG"
+HOME_TITLE = "Free Real Estate CRM | AgentFlow"
 HOME_H1_PART = "Your clients and follow-ups,"
 HOME_BOB_QUESTION = "What can B.O.B. do?"
 HOME_BOB_P1 = (
-    "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, "
+    "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, "
     "just tell B.O.B. what you need done. It can find and update contacts, manage tasks, "
-    "log activity, organize clients, and much more. If you can do it in Origen, you can "
+    "log activity, organize clients, and much more. If you can do it in AgentFlow, you can "
     "ask B.O.B. to do it for you."
 )
 HOME_BOB_P2 = (
@@ -79,19 +79,19 @@ BANNED_SLOP = (
 FAQ_ITEMS = (
     (
         "What is B.O.B.?",
-        "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you.",
+        "B.O.B. is the AI assistant inside AgentFlow. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in AgentFlow, you can ask B.O.B. to do it for you.",
     ),
     (
-        "Is Origen really free?",
-        "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
+        "Is AgentFlow really free?",
+        "Yes. AgentFlow has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
     ),
     (
-        "Can I try Origen without moving everything over?",
-        "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
+        "Can I try AgentFlow without moving everything over?",
+        "Yes. You can create a free account and try AgentFlow with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
     ),
     (
-        "Is Origen a full replacement for Wise Agent?",
-        "That depends. If you need paid team logins, WiseText, WiseSocial or the transaction and marketing tools on their pricing page, Origen doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, Origen may be a much simpler fit.",
+        "Is AgentFlow a full replacement for Wise Agent?",
+        "That depends. If you need paid team logins, WiseText, WiseSocial or the transaction and marketing tools on their pricing page, AgentFlow doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, AgentFlow may be a much simpler fit.",
     ),
     (
         "How much does Wise Agent cost?",
@@ -106,7 +106,7 @@ FAKE_SEO_QUESTIONS = (
     "What can B.O.B. do?",
     "How much is Wise Agent?",
     "Does Wise Agent have a free plan?",
-    "What does Origen include?",
+    "What does AgentFlow include?",
     "Can I buy Pro today?",
 )
 TABLE_ROWS = (
@@ -120,29 +120,29 @@ TABLE_ROWS = (
     ("Shared team logins", "Up to 5 on one login", "1 user"),
 )
 SECTION_HEADINGS = (
-    "Origen vs. Wise Agent",
+    "AgentFlow vs. Wise Agent",
     "The biggest difference is what you actually need",
     "Then there's B.O.B.",
     "When Wise Agent is probably the better fit",
-    "When Origen may be the better fit",
+    "When AgentFlow may be the better fit",
     "Common questions",
 )
 HERO_LINES = (
     "Wise Agent is a real estate CRM with published pricing and a 14-day trial. It starts at $49 a month on their pricing page. That is a real product, and a lot of agents use it. Not every agent wants another monthly bill to manage contacts, tasks and follow-ups.",
-    "Origen gives individual real estate agents a simpler place to do that work, with a free plan you can keep using.",
+    "AgentFlow gives individual real estate agents a simpler place to do that work, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
 )
 DISCLAIMER = (
-    "Wise Agent is a trademark of its owner. Origen TechnolOG is not affiliated. "
+    "Wise Agent is a trademark of its owner. AgentFlow is not affiliated. "
     "Facts from wiseagent.com/pricing as of 2026-08-18."
 )
 BOB_SECTION_LINES = (
     "Then there's B.O.B.",
-    "B.O.B. is the AI assistant built into Origen.",
+    "B.O.B. is the AI assistant built into AgentFlow.",
     "Instead of clicking through the CRM every time you want to get something done, tell B.O.B. what you need.",
     "Find a client. Update a contact. Add a note. Complete a task. Log activity. Organize contacts. Ask questions about what's already in your CRM.",
-    "If you can do it in Origen, you can ask B.O.B. to do it for you.",
+    "If you can do it in AgentFlow, you can ask B.O.B. to do it for you.",
     "The free plan includes 25 B.O.B. messages per day.",
     "B.O.B. can also be connected to Telegram, so you don't always have to be sitting inside the CRM to use it.",
 )
@@ -266,7 +266,7 @@ class TestWiseAgentAlternativeCopy:
         assert H1 in PAGE
         assert META in PAGE
         assert "Start Free" in PAGE
-        assert "Try Origen Free" in PAGE
+        assert "Try AgentFlow Free" in PAGE
         assert "url_for('auth.register')" in PAGE
         assert "url_for('main.free_real_estate_crm')" not in PAGE
         assert "url_for('main.landing')" in PAGE
@@ -334,7 +334,7 @@ class TestWiseAgentAlternativeCopy:
     def test_cta_goes_to_register(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         assert re.search(r'href="/register"[^>]*>\s*Start Free', html) is not None
-        assert re.search(r'href="/register"[^>]*>\s*Try Origen Free', html) is not None
+        assert re.search(r'href="/register"[^>]*>\s*Try AgentFlow Free', html) is not None
 
     def test_no_em_dashes(self):
         assert "—" not in PAGE

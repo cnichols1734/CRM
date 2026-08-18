@@ -156,7 +156,7 @@ def rotate_inbox_address(user: User, *, commit: bool = True) -> User:
     """Re-issue the token suffix while keeping the slug.
 
     Use sparingly — anyone who saved the old address (e.g. on their phone
-    as "Origen Inbox") will need the new one.
+    as "AgentFlow Inbox") will need the new one.
     """
     user.inbox_token = None
     user.inbox_address = None

@@ -223,7 +223,7 @@ def register():
             data={'source': 'self_serve', **acquisition},
             once=True,
         )
-        flash('Welcome to Origen. Your account is ready to use.', 'success')
+        flash('Welcome to AgentFlow. Your account is ready to use.', 'success')
         return redirect(url_for('main.dashboard'))
 
     return render_template('auth/register.html', form=form)

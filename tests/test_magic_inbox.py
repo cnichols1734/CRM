@@ -836,7 +836,7 @@ class TestInboxRoute:
 
         assert rv.status_code == 200
         assert captured['payload'].startswith('BEGIN:VCARD')
-        assert 'FN:Origen Inbox' in captured['payload']
+        assert 'FN:AgentFlow Inbox' in captured['payload']
         assert f'EMAIL;TYPE=INTERNET;TYPE=PREF:{address}' in captured['payload']
         assert not captured['payload'].startswith('mailto:')
 
@@ -848,7 +848,7 @@ class TestInboxRoute:
         assert rv.mimetype == 'text/vcard'
         body = rv.data.decode('utf-8')
         assert 'BEGIN:VCARD' in body
-        assert 'Origen Inbox' in body
+        assert 'AgentFlow Inbox' in body
 
     def test_public_vcard_download_from_signed_email_link(
             self, app, seed, client):
@@ -865,7 +865,7 @@ class TestInboxRoute:
         body = rv.data.decode('utf-8')
         assert 'BEGIN:VCARD' in body
         assert address in body
-        assert 'Origen Inbox' in body
+        assert 'AgentFlow Inbox' in body
 
     def test_dismiss_onboarding_persists(self, app, seed, owner_a_client):
         with app.app_context():
