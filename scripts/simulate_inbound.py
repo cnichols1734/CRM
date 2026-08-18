@@ -41,7 +41,7 @@ Usage:
 
     # Point at a deployed instance instead of localhost:
     python3 scripts/simulate_inbound.py text \\
-        --base-url https://app.origentechnolog.com
+        --base-url https://agentflow.origentechnolog.com
 
 The script reads ``SENDGRID_INBOUND_WEBHOOK_SECRET`` from the environment
 (or .env) and appends it as ``?secret=...`` so the webhook accepts the hit

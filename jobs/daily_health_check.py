@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 CT = pytz.timezone('America/Chicago')
 APP_BASE_URL = os.environ.get(
-    'APP_BASE_URL', 'https://www.origentechnolog.com'
+    'APP_BASE_URL', 'https://agentflow.origentechnolog.com'
 ).rstrip('/')
 DEFAULT_TO = os.environ.get('HEALTH_CHECK_TO', 'chrisnichols17@gmail.com')
 DEFAULT_FROM = os.environ.get('HEALTH_CHECK_FROM', 'info@origentechnolog.com')
