@@ -5,71 +5,91 @@
 
 {% block content %}
 <style>
-    .toggle-card {
+    /* Selection is driven by :checked so it survives theme overrides.
+       Tokens keep Yes/No readable in both light and dark. */
+    .question-item label:has(> .toggle-input),
+    .question-item label:has(> .option-input) {
+        position: relative;
+        color: inherit !important;
+    }
+
+    .question-item .toggle-input,
+    .question-item .option-input {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        opacity: 0;
+        cursor: pointer;
+    }
+
+    .toggle-card,
+    .option-pill {
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
         padding: 0.5rem 1.25rem;
         border-radius: 0.375rem;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
+        border: 1px solid var(--hairline);
+        background: var(--paper);
         font-size: 0.875rem;
-        color: #475569;
+        color: var(--ink-3);
         cursor: pointer;
         transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
     }
 
-    .toggle-card:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
+    .option-pill {
+        padding: 0.5rem 0.875rem;
+    }
+
+    .toggle-card:hover,
+    .option-pill:hover {
+        border-color: var(--ink-5);
+        background: var(--paper-2);
+        color: var(--ink-2);
     }
 
     .toggle-input:focus-visible + .toggle-card,
     .option-input:focus-visible + .option-pill {
-        outline: 2px solid #f97316;
+        outline: 2px solid var(--accent);
         outline-offset: 2px;
     }
 
+    .toggle-input:checked + .toggle-card[data-answer="yes"],
     .toggle-card.selected-yes {
-        border-color: #10b981;
-        background: #ecfdf5;
-        color: #065f46;
+        border-color: var(--positive) !important;
+        background: var(--positive-soft) !important;
+        color: var(--positive) !important;
+        box-shadow: 0 0 0 3px var(--positive-soft);
     }
 
-    .toggle-card.selected-yes .toggle-icon { color: #059669; }
+    .toggle-input:checked + .toggle-card[data-answer="yes"] .toggle-icon,
+    .toggle-card.selected-yes .toggle-icon {
+        color: var(--positive) !important;
+    }
 
+    .toggle-input:checked + .toggle-card[data-answer="no"],
     .toggle-card.selected-no {
-        border-color: #ef4444;
-        background: #fef2f2;
-        color: #991b1b;
+        border-color: var(--danger) !important;
+        background: var(--danger-soft) !important;
+        color: var(--danger) !important;
+        box-shadow: 0 0 0 3px var(--danger-soft);
     }
 
-    .toggle-card.selected-no .toggle-icon { color: #dc2626; }
-
-    .option-pill {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.5rem 0.875rem;
-        border-radius: 0.375rem;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
-        font-size: 0.875rem;
-        color: #475569;
-        cursor: pointer;
-        transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+    .toggle-input:checked + .toggle-card[data-answer="no"] .toggle-icon,
+    .toggle-card.selected-no .toggle-icon {
+        color: var(--danger) !important;
     }
 
-    .option-pill:hover {
-        border-color: #cbd5e1;
-        background: #f8fafc;
-    }
-
+    .option-input:checked + .option-pill,
     .option-pill.selected {
-        border-color: #f97316;
-        background: #fff7ed;
-        color: #c2410c;
+        border-color: var(--accent) !important;
+        background: var(--accent-soft) !important;
+        color: var(--accent-ink) !important;
         font-weight: 500;
+        box-shadow: 0 0 0 3px var(--accent-soft);
     }
 </style>
 
@@ -159,8 +179,8 @@
                                     <input type="radio" name="{{ question.id }}" value="true"
                                            class="sr-only toggle-input"
                                            {% if intake_data.get(question.id) == true %}checked{% endif %}>
-                                    <div class="toggle-card {% if intake_data.get(question.id) == true %}selected-yes{% endif %}">
-                                        <i class="fas fa-check toggle-icon text-xs text-slate-400"></i>
+                                    <div class="toggle-card {% if intake_data.get(question.id) == true %}selected-yes{% endif %}" data-answer="yes">
+                                        <i class="fas fa-check toggle-icon text-xs" aria-hidden="true"></i>
                                         <span class="toggle-text">Yes</span>
                                     </div>
                                 </label>
@@ -168,8 +188,8 @@
                                     <input type="radio" name="{{ question.id }}" value="false"
                                            class="sr-only toggle-input"
                                            {% if intake_data.get(question.id) == false %}checked{% endif %}>
-                                    <div class="toggle-card {% if intake_data.get(question.id) == false %}selected-no{% endif %}">
-                                        <i class="fas fa-times toggle-icon text-xs text-slate-400"></i>
+                                    <div class="toggle-card {% if intake_data.get(question.id) == false %}selected-no{% endif %}" data-answer="no">
+                                        <i class="fas fa-times toggle-icon text-xs" aria-hidden="true"></i>
                                         <span class="toggle-text">No</span>
                                     </div>
                                 </label>

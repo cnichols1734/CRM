@@ -6,6 +6,9 @@ history, intake, download, signing, and cross-org isolation.
 """
 import pytest
 from conftest import login
+from models import Contact, db
+from routes.transactions.api import format_contact_address
+from types import SimpleNamespace
 
 
 class TestTransactionList:
@@ -47,6 +50,9 @@ class TestTransactionCreate:
     def test_new_form_loads(self, owner_a_client, seed):
         resp = owner_a_client.get('/transactions/new')
         assert resp.status_code == 200
+        assert b'clientAddressSelect' in resp.data
+        assert b'Use a client address' in resp.data
+        assert b'streetAddressInput' in resp.data
 
     def test_create_transaction(self, owner_a_client, seed):
         resp = owner_a_client.post('/transactions/', data={
@@ -258,6 +264,41 @@ class TestTransactionContactSearch:
         resp = owner_a_client.get('/transactions/api/contacts/search?q=Jane')
         assert resp.status_code == 200
 
+    def test_search_contacts_includes_address(self, app, owner_a_client, seed):
+        with app.app_context():
+            contact = Contact.query.get(seed['contact_a'])
+            contact.street_address = '123 Main St'
+            contact.city = 'Austin'
+            contact.state = 'TX'
+            contact.zip_code = '78701'
+            db.session.commit()
+
+        resp = owner_a_client.get('/transactions/api/contacts/search?q=Jane')
+        assert resp.status_code == 200
+        payload = resp.get_json()
+        assert payload
+        match = next(item for item in payload if item['id'] == seed['contact_a'])
+        assert match['street_address'] == '123 Main St'
+        assert match['city'] == 'Austin'
+        assert match['state'] == 'TX'
+        assert match['zip_code'] == '78701'
+        assert match['full_address'] == '123 Main St, Austin, TX 78701'
+
+    def test_format_contact_address(self):
+        contact = SimpleNamespace(
+            street_address='6004 Lakeside Dr',
+            city='Austin',
+            state='TX',
+            zip_code='78746',
+        )
+        assert format_contact_address(contact) == '6004 Lakeside Dr, Austin, TX 78746'
+        assert format_contact_address(SimpleNamespace(
+            street_address='  10 Main  ', city='', state='', zip_code='',
+        )) == '10 Main'
+        assert format_contact_address(SimpleNamespace(
+            street_address='', city='', state='', zip_code='',
+        )) == ''
+
 
 class TestTransactionDocuments:
     """Document management within transactions."""
@@ -316,6 +357,12 @@ class TestTransactionIntake:
     def test_intake_loads(self, owner_a_client, seed):
         resp = owner_a_client.get(f'/transactions/{seed["tx_a"]}/intake')
         assert resp.status_code in (200, 302)
+        if resp.status_code == 200:
+            assert b'data-answer="yes"' in resp.data
+            assert b'data-answer="no"' in resp.data
+            assert b'.toggle-input:checked + .toggle-card[data-answer="yes"]' in resp.data
+            assert b'var(--positive-soft)' in resp.data
+            assert b'var(--danger-soft)' in resp.data
 
     def test_intake_cross_org_blocked(self, owner_a_client, seed):
         resp = owner_a_client.get(f'/transactions/{seed["tx_b"]}/intake')

@@ -36,6 +36,35 @@ def _require_tx(transaction_id, capability=CAP_VIEW):
     return tx
 
 
+def format_contact_address(contact):
+    """Build a single-line address from a contact's stored fields."""
+    street = (contact.street_address or '').strip()
+    city = (contact.city or '').strip()
+    state = (contact.state or '').strip()
+    zip_code = (contact.zip_code or '').strip()
+    city_state_zip = ', '.join(part for part in [city, ' '.join(part for part in [state, zip_code] if part)] if part)
+    if street and city_state_zip:
+        return f'{street}, {city_state_zip}'
+    return street or city_state_zip
+
+
+def contact_search_payload(contact):
+    """JSON payload for the transaction contact picker."""
+    return {
+        'id': contact.id,
+        'first_name': contact.first_name,
+        'last_name': contact.last_name,
+        'name': f'{contact.first_name} {contact.last_name}',
+        'email': contact.email,
+        'phone': contact.phone,
+        'street_address': contact.street_address or '',
+        'city': contact.city or '',
+        'state': contact.state or '',
+        'zip_code': contact.zip_code or '',
+        'full_address': format_contact_address(contact),
+    }
+
+
 # =============================================================================
 # API ENDPOINTS
 # =============================================================================
@@ -61,14 +90,7 @@ def search_contacts():
     
     contacts = contacts.order_by(Contact.last_name, Contact.first_name).limit(20).all()
     
-    return jsonify([{
-        'id': c.id,
-        'first_name': c.first_name,
-        'last_name': c.last_name,
-        'name': f'{c.first_name} {c.last_name}',
-        'email': c.email,
-        'phone': c.phone
-    } for c in contacts])
+    return jsonify([contact_search_payload(c) for c in contacts])
 
 
 @transactions_bp.route('/api/partners/search')
