@@ -132,25 +132,35 @@
                 </div>
                 <div class="crm-surface-body">
                     <div class="space-y-4">
+                        <div id="clientAddressPicker" class="hidden">
+                            <label for="clientAddressSelect" class="mb-2 block text-sm font-medium text-slate-700">
+                                Use a client address
+                            </label>
+                            <select id="clientAddressSelect" class="crm-input">
+                                <option value="">Choose a client address</option>
+                            </select>
+                            <p class="mt-1.5 text-xs text-slate-500">You can still type or edit the address below.</p>
+                        </div>
+
                         <div>
                             <label class="mb-2 block text-sm font-medium text-slate-700">
                                 Street address <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" name="street_address" required class="crm-input" placeholder="123 Main St">
+                            <input type="text" name="street_address" id="streetAddressInput" required class="crm-input" placeholder="123 Main St">
                         </div>
 
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
                             <div class="sm:col-span-2">
                                 <label class="mb-2 block text-sm font-medium text-slate-700">City</label>
-                                <input type="text" name="city" class="crm-input" placeholder="Austin">
+                                <input type="text" name="city" id="cityInput" class="crm-input" placeholder="Austin">
                             </div>
                             <div>
                                 <label class="mb-2 block text-sm font-medium text-slate-700">State</label>
-                                <input type="text" name="state" value="TX" class="crm-input">
+                                <input type="text" name="state" id="stateInput" value="TX" class="crm-input">
                             </div>
                             <div>
                                 <label class="mb-2 block text-sm font-medium text-slate-700">ZIP</label>
-                                <input type="text" name="zip_code" class="crm-input" placeholder="78701">
+                                <input type="text" name="zip_code" id="zipInput" class="crm-input" placeholder="78701">
                             </div>
                         </div>
 
@@ -210,7 +220,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const ownershipSection = document.getElementById('ownershipSection');
 
     let selectedContactIds = new Set();
+    const selectedContactData = new Map();
     let searchTimeout;
+    let applyingClientAddress = false;
+
+    const clientAddressPicker = document.getElementById('clientAddressPicker');
+    const clientAddressSelect = document.getElementById('clientAddressSelect');
+    const streetAddressInput = document.getElementById('streetAddressInput');
+    const cityInput = document.getElementById('cityInput');
+    const stateInput = document.getElementById('stateInput');
+    const zipInput = document.getElementById('zipInput');
 
     function getInitials(name) {
         const trimmed = (name || '').trim();
@@ -276,11 +295,63 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function formatContactAddress(contact) {
+        const street = (contact.street_address || '').trim();
+        const city = (contact.city || '').trim();
+        const state = (contact.state || '').trim();
+        const zip = (contact.zip_code || '').trim();
+        const cityStateZip = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+        if (street && cityStateZip) return street + ', ' + cityStateZip;
+        return street || cityStateZip || (contact.full_address || '').trim();
+    }
+
+    function contactHasAddress(contact) {
+        return Boolean((contact.street_address || '').trim());
+    }
+
+    function refreshClientAddressPicker() {
+        const previous = clientAddressSelect.value;
+        const contactsWithAddresses = Array.from(selectedContactData.values()).filter(contactHasAddress);
+
+        clientAddressSelect.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Choose a client address';
+        clientAddressSelect.appendChild(placeholder);
+
+        contactsWithAddresses.forEach(contact => {
+            const option = document.createElement('option');
+            option.value = String(contact.id);
+            option.textContent = (contact.name || 'Client') + ' \u2014 ' + formatContactAddress(contact);
+            clientAddressSelect.appendChild(option);
+        });
+
+        if (previous && contactsWithAddresses.some(contact => String(contact.id) === previous)) {
+            clientAddressSelect.value = previous;
+        }
+
+        clientAddressPicker.classList.toggle('hidden', contactsWithAddresses.length === 0);
+    }
+
+    function applyClientAddress(contactId) {
+        const contact = selectedContactData.get(Number(contactId));
+        if (!contact) return;
+
+        applyingClientAddress = true;
+        streetAddressInput.value = (contact.street_address || '').trim();
+        cityInput.value = (contact.city || '').trim();
+        stateInput.value = (contact.state || '').trim() || 'TX';
+        zipInput.value = (contact.zip_code || '').trim();
+        applyingClientAddress = false;
+    }
+
     function addContact(contact) {
         if (selectedContactIds.has(contact.id)) return;
 
         selectedContactIds.add(contact.id);
+        selectedContactData.set(contact.id, contact);
         noContactsMessage.classList.add('hidden');
+        refreshClientAddressPicker();
 
         const contactMeta = [contact.email, contact.phone].filter(Boolean).join(' \u00b7 ');
         const contactEl = document.createElement('div');
@@ -307,9 +378,27 @@ document.addEventListener('DOMContentLoaded', function() {
         id: {{ preselected_contact.id }},
         name: {{ (preselected_contact.first_name ~ ' ' ~ preselected_contact.last_name)|tojson }},
         email: {{ (preselected_contact.email or '')|tojson }},
-        phone: {{ (preselected_contact.phone or '')|tojson }}
+        phone: {{ (preselected_contact.phone or '')|tojson }},
+        street_address: {{ (preselected_contact.street_address or '')|tojson }},
+        city: {{ (preselected_contact.city or '')|tojson }},
+        state: {{ (preselected_contact.state or '')|tojson }},
+        zip_code: {{ (preselected_contact.zip_code or '')|tojson }}
     });
     {% endif %}
+
+    clientAddressSelect.addEventListener('change', function() {
+        if (this.value) {
+            applyClientAddress(this.value);
+        }
+    });
+
+    [streetAddressInput, cityInput, stateInput, zipInput].forEach(input => {
+        input.addEventListener('input', function() {
+            if (!applyingClientAddress) {
+                clientAddressSelect.value = '';
+            }
+        });
+    });
 
     selectedContacts.addEventListener('click', function(e) {
         const removeBtn = e.target.closest('.remove-contact');
@@ -317,7 +406,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const contactEl = removeBtn.closest('[data-contact-id]');
             const contactId = parseInt(contactEl.dataset.contactId, 10);
             selectedContactIds.delete(contactId);
+            selectedContactData.delete(contactId);
             contactEl.remove();
+            refreshClientAddressPicker();
 
             if (selectedContactIds.size === 0) {
                 noContactsMessage.classList.remove('hidden');
