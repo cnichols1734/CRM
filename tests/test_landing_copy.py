@@ -81,11 +81,15 @@ def _json_ld_answer(answer):
     return "\\n\\n".join(_faq_paragraphs(answer))
 
 
-def _copy_without_bob_faq(html):
+def _copy_without_bob_ai(html):
     question, answer = FAQ_ITEMS[4]
     stripped = html.replace(question, "")
     for para in _faq_paragraphs(answer):
         stripped = stripped.replace(para, "")
+    stripped = stripped.replace(
+        "B.O.B. is the AI assistant built into AgentFlow.",
+        "",
+    )
     return stripped
 
 
@@ -100,27 +104,32 @@ class TestLandingLeftoverCopy:
         assert "seamlessly" not in REGISTER.lower()
 
     def test_exact_replacements_are_present(self):
-        assert "What's on the free tier" in LANDING
-        assert "Ready to try it?" in LANDING
-        assert "Create an account when you're ready. No card." in LANDING
-        assert "Set a due date and a reminder. The follow-up stays on your list." in LANDING
+        assert "WHAT AGENTFLOW DOES" in LANDING
+        assert "Keep the client work together. Let B.O.B. handle the busywork." in LANDING
+        assert "See if AgentFlow fits the way you work." in LANDING
+        assert "You can start with the free plan, add a few contacts, and use the actual CRM before deciding anything." in LANDING
+        assert "Don't let the next step disappear" in LANDING
         assert "Contacts and follow-up tasks in one CRM" not in LANDING
+        assert "What's on the free tier" not in LANDING
+        assert "Ready to try it?" not in LANDING
+        assert "Create an account when you're ready. No card." not in LANDING
 
     def test_no_em_dashes_in_public_copy(self):
         assert "—" not in LANDING
         assert "—" not in REGISTER
 
     def test_keeps_homepage_h1(self):
-        assert "Your clients and follow-ups," in LANDING
-        assert "in one place." in LANDING
+        assert "Keep up with every client" in LANDING
+        assert "without living in your CRM." in LANDING
 
     def test_keeps_start_free_cta(self):
         assert "Start Free" in LANDING
 
-    def test_keeps_pro_coming_soon_and_pricing_tbd(self):
+    def test_keeps_pro_coming_later_without_a_buy_cta(self):
         assert "Pro" in LANDING
-        assert "Coming Soon" in LANDING
-        assert "Pricing TBD" in LANDING
+        assert "Coming later" in LANDING
+        assert "Pricing TBD" not in LANDING
+        assert "COMING SOON" not in LANDING
 
     def test_one_human_link_to_free_real_estate_crm(self):
         assert LANDING.count("url_for('main.free_real_estate_crm')") == 1
@@ -171,16 +180,16 @@ class TestLandingLeftoverCopy:
         assert "10/day free" not in LANDING
         assert "Up to 10,000 contacts" in LANDING
         assert "25 messages a day" in LANDING
-        assert "25/day free" in LANDING
-        assert "25 messages/day included free" in LANDING
+        assert "25/day free" not in LANDING
+        assert "25 messages/day included free" not in LANDING
 
     def test_free_pricing_card_matches_product_limits(self):
         start = LANDING.index("<!-- Free Plan -->")
         end = LANDING.index("<!-- Pro Plan -->")
         card = LANDING[start:end]
-        assert "1 user account" in card
+        assert "1 user" in card
         assert "Up to 10,000 contacts" in card
-        assert "25 messages/day included free" in card
+        assert "B.O.B. with 25 messages a day" in card
         assert "Unlimited contacts" not in card
         assert "10 messages" not in card
         assert "10/day" not in card
@@ -192,9 +201,9 @@ class TestLandingLeftoverCopy:
         assert "never be a paid" not in LANDING.lower()
         assert "Extra features later will be paid" in LANDING
 
-    def test_no_ai_word_outside_bob_faq(self):
+    def test_no_ai_word_outside_bob_copy(self):
         for source in (LANDING, FREE_CRM):
-            visible = _visible_public_copy(_copy_without_bob_faq(source))
+            visible = _visible_public_copy(_copy_without_bob_ai(source))
             assert re.search(r"\bAI\b", visible) is None
         assert re.search(r"\bAI\b", _visible_public_copy(REGISTER)) is None
         assert re.search(r"\bAI\b", LLMS) is None
@@ -219,16 +228,18 @@ class TestLandingLeftoverCopy:
         assert "One user" in LLMS
 
     def test_bob_is_a_headline_feature_with_real_tools(self):
-        assert "Talk to B.O.B." in LANDING
-        assert "Ask how many clients are in a ZIP or city." in LANDING
-        assert "add a contact, change an email, complete a task, or log a call" in LANDING
-        assert "change an email" in LANDING
+        assert "Tell B.O.B. what you need done" in LANDING
+        assert "B.O.B. is the AI assistant built into AgentFlow." in LANDING
+        assert "Takes actions inside the CRM" in LANDING
+        assert "If you can do it in AgentFlow, you can ask B.O.B. to do it for you." in LANDING
+        assert "Those are just examples." in LANDING
+        assert "Ask how many clients are in a ZIP or city." not in LANDING
         assert "Changing an email waits for Confirm (15 minutes)." not in LANDING
         assert "Confirm (15 minutes)" not in LANDING
         assert "waits for a yes" not in LANDING
         assert "until you say yes" not in LANDING
         assert "25 messages a day" in LANDING
-        assert "25/day free" in LANDING
+        assert "25/day free" not in LANDING
         assert "AI-Powered B.O.B." not in LANDING
         assert "B.O.B. AI Assistant" not in LANDING
         assert "Unlimited AI + daily todo" not in LANDING
@@ -238,9 +249,12 @@ class TestLandingLeftoverCopy:
         assert "drafts and questions about your work" not in LANDING
         assert "Business Optimization Buddy" not in LANDING
 
-    def test_telegram_is_mentioned_with_official_logo(self):
-        assert "B.O.B. on Telegram" in LANDING
-        assert "Message B.O.B. on Telegram after you scan a QR from your profile." in LANDING
+    def test_telegram_is_part_of_bob_not_a_separate_product(self):
+        assert "B.O.B. on Telegram" not in LANDING
+        assert "connect B.O.B. to Telegram" in LANDING
+        assert "B.O.B. through Telegram" in LANDING
+        assert "voice note" in LANDING
+        assert "business card" in LANDING
         assert 'fill="#229ED9"' in LANDING
         assert 'viewBox="0 0 240 240"' in LANDING
         assert "<circle cx=\"120\" cy=\"120\" r=\"120\" fill=\"#229ED9\"/>" in LANDING
@@ -279,6 +293,32 @@ class TestLandingLeftoverCopy:
         assert "waits for a yes" not in answer
         assert "until you say yes" not in answer
         assert "in the CRM or on Telegram" not in answer
+
+
+class TestLandingProductClaims:
+    def test_does_not_promise_document_generation_or_esign(self):
+        assert "Document Generation" not in LANDING
+        assert "listing agreements" not in LANDING.lower()
+        assert "auto-populated forms" not in LANDING.lower()
+        assert "E-signature collection" not in LANDING
+        assert "Integrated E-sign" not in LANDING
+        assert "Standard real estate forms" not in LANDING
+
+    def test_does_not_claim_contact_tags(self):
+        assert "groups, tags" not in LANDING.lower()
+        assert "Custom groups & tags" not in LANDING
+
+    def test_signup_cta_is_start_free(self):
+        assert LANDING.count("Start Free") >= 4
+        assert "Get Started Free" not in LANDING
+        assert "Start Your Free Account" not in LANDING
+
+    def test_does_not_call_tasks_automation(self):
+        assert "Task Automation" not in LANDING
+        assert "Google Integration" not in LANDING
+        assert "Contact Management" not in LANDING
+        assert "One-click OAuth" not in LANDING
+        assert "power users" not in LANDING.lower()
 
 
 class TestRegisterLeftoverCopy:

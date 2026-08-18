@@ -22,7 +22,7 @@ META = (
     "AgentFlow includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
 )
 HOME_TITLE = "Free Real Estate CRM | AgentFlow"
-HOME_H1_PART = "Your clients and follow-ups,"
+HOME_H1_PART = "Keep up with every client"
 HOME_BOB_QUESTION = "What can B.O.B. do?"
 HOME_BOB_P1 = (
     "B.O.B. is the AI assistant built into AgentFlow. Instead of clicking through the CRM, "
