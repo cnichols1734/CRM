@@ -45,6 +45,14 @@ class TestPublicRoutes:
         resp = client.get('/follow-up-boss-alternative')
         assert resp.status_code == 200
 
+    def test_wise_agent_alternative(self, client, seed):
+        resp = client.get('/wise-agent-alternative')
+        assert resp.status_code == 200
+
+    def test_kvcore_alternative(self, client, seed):
+        resp = client.get('/kvcore-alternative')
+        assert resp.status_code == 200
+
     def test_reset_password_page(self, client, seed):
         resp = client.get('/reset_password')
         assert resp.status_code in (200, 302)

@@ -1,4 +1,4 @@
-"""Public /follow-up-boss-alternative page: route, SEO, sitemap, and copy guards."""
+"""Public /wise-agent-alternative page: route, SEO, sitemap, and copy guards."""
 import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -7,17 +7,18 @@ from tier_config.tier_limits import get_tier_defaults
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = (ROOT / "templates" / "follow_up_boss_alternative.html").read_text()
+PAGE = (ROOT / "templates" / "wise_agent_alternative.html").read_text()
 LANDING = (ROOT / "templates" / "landing.html").read_text()
+FUB = (ROOT / "templates" / "follow_up_boss_alternative.html").read_text()
 SITEMAP = ROOT / "static" / "sitemap.xml"
 LLMS = ROOT / "static" / "llms.txt"
 FREE_LIMITS = get_tier_defaults("free")
 
-PAGE_PATH = "/follow-up-boss-alternative"
-TITLE = "Follow Up Boss Alternative for Real Estate Agents | Origen"
-H1 = "Looking for a Follow Up Boss alternative?"
+PAGE_PATH = "/wise-agent-alternative"
+TITLE = "Wise Agent Alternative for Real Estate Agents | Origen"
+H1 = "Looking for a Wise Agent alternative?"
 META = (
-    "Comparing Origen with Follow Up Boss? See pricing, features and where each CRM fits. "
+    "Comparing Origen with Wise Agent? See pricing, features and where each CRM fits. "
     "Origen includes a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant."
 )
 HOME_TITLE = "Free Real Estate CRM | Origen TechnolOG"
@@ -40,8 +41,8 @@ ALLOWED_SITEMAP_PATHS = {
     "/login",
     "/terms-privacy",
     "/free-real-estate-crm",
+    "/follow-up-boss-alternative",
     PAGE_PATH,
-    "/wise-agent-alternative",
     "/kvcore-alternative",
 }
 BLOCKED_SEO_PATHS = (
@@ -51,6 +52,9 @@ BLOCKED_SEO_PATHS = (
     "/help",
     "/features",
     "/contact",
+    "/boomtown-alternative",
+    "/boldtrail-alternative",
+    "/top-producer-alternative",
 )
 BANNED_SLOP = (
     "unlock",
@@ -74,24 +78,24 @@ BANNED_SLOP = (
 )
 FAQ_ITEMS = (
     (
-        "How much does Follow Up Boss cost?",
-        "Follow Up Boss currently lists its Grow plan at $69 per user per month, or $58 per user per month when billed annually. It offers a 14-day free trial rather than a permanent free plan.",
+        "What is B.O.B.?",
+        "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you.",
     ),
     (
         "Is Origen really free?",
         "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.",
     ),
     (
-        "Is Origen a full replacement for Follow Up Boss?",
-        "That depends on what you use Follow Up Boss for. If you need its advanced lead routing, calling, texting, team management or large integration ecosystem, Origen doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, Origen may be a much simpler fit.",
-    ),
-    (
         "Can I try Origen without moving everything over?",
         "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.",
     ),
     (
-        "What is B.O.B.?",
-        "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you.",
+        "Is Origen a full replacement for Wise Agent?",
+        "That depends. If you need paid team logins, WiseText, WiseSocial or the transaction and marketing tools on their pricing page, Origen doesn't currently try to duplicate all of that.\n\nIf what you need is a straightforward CRM for contacts, tasks, follow-ups and day-to-day client work, Origen may be a much simpler fit.",
+    ),
+    (
+        "How much does Wise Agent cost?",
+        "Their pricing page lists CRM at $49 a month, or $499 a year ($42 a month billed annually). There is a 14-day free trial. There is no published free plan.",
     ),
 )
 FAKE_SEO_QUESTIONS = (
@@ -100,43 +104,47 @@ FAKE_SEO_QUESTIONS = (
     "Is this Follow Up Boss or HubSpot",
     "Is this origentech.com or Origin CRM",
     "What can B.O.B. do?",
-    "How much is Follow Up Boss?",
-    "Does Follow Up Boss have a free plan?",
+    "How much is Wise Agent?",
+    "Does Wise Agent have a free plan?",
     "What does Origen include?",
     "Can I buy Pro today?",
 )
 TABLE_ROWS = (
-    ("Starting price", "$69/user/month on Grow", "Free"),
+    ("Starting price", "$49/month on CRM", "Free"),
     ("Free plan", "No, 14-day free trial", "Yes"),
-    ("Credit card to start", "No", "No"),
-    ("Contacts", "Unlimited", "Up to 10,000 on free"),
-    ("Free-plan users", "N/A", "1"),
-    ("Gmail", "Supported", "Send email through Gmail"),
-    ("Calendar", "Calendar and email sync", "Google Calendar task sync"),
-    ("AI", "FUB AI features", "B.O.B. AI assistant"),
-    ("Calling & texting", "Available, with Calling included on higher plans or added to Grow", "Not included"),
-    ("Advanced lead routing", "Yes", "Not included"),
-    ("Large integration ecosystem", "Yes", "Not included"),
+    ("Credit card", "Not published", "No"),
+    ("Contacts", "Not published", "Up to 10,000 on free"),
+    ("Users", "N/A", "1"),
+    ("Calendar", "Team-friendly calendar", "Google Calendar task sync"),
+    ("Calling & texting", "WiseText paid add-on", "Not included"),
+    ("Shared team logins", "Up to 5 on one login", "1 user"),
 )
 SECTION_HEADINGS = (
-    "Origen vs. Follow Up Boss",
+    "Origen vs. Wise Agent",
     "The biggest difference is what you actually need",
     "Then there's B.O.B.",
-    "When Follow Up Boss is probably the better fit",
+    "When Wise Agent is probably the better fit",
     "When Origen may be the better fit",
     "Common questions",
 )
 HERO_LINES = (
-    "Follow Up Boss is a powerful CRM, especially for teams managing a large volume of leads. But not every agent needs everything it offers or wants another $69-per-user monthly subscription.",
-    "Origen gives individual real estate agents a simpler place to manage contacts, tasks, follow-ups and day-to-day CRM work, with a free plan you can keep using.",
+    "Wise Agent is a real estate CRM with published pricing and a 14-day trial. It starts at $49 a month on their pricing page. That is a real product, and a lot of agents use it. Not every agent wants another monthly bill to manage contacts, tasks and follow-ups.",
+    "Origen gives individual real estate agents a simpler place to do that work, with a free plan you can keep using.",
     "No credit card required.",
     "Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day",
 )
 DISCLAIMER = (
-    "Follow Up Boss is a trademark of its owner. Zillow Group acquired it in 2023. "
-    "Origen is not affiliated with Follow Up Boss or Zillow Group, and they did not "
-    "review or endorse this page. Prices and features here come from followupboss.com "
-    "as of August 18, 2026."
+    "Wise Agent is a trademark of its owner. Origen TechnolOG is not affiliated. "
+    "Facts from wiseagent.com/pricing as of 2026-08-18."
+)
+BOB_SECTION_LINES = (
+    "Then there's B.O.B.",
+    "B.O.B. is the AI assistant built into Origen.",
+    "Instead of clicking through the CRM every time you want to get something done, tell B.O.B. what you need.",
+    "Find a client. Update a contact. Add a note. Complete a task. Log activity. Organize contacts. Ask questions about what's already in your CRM.",
+    "If you can do it in Origen, you can ask B.O.B. to do it for you.",
+    "The free plan includes 25 B.O.B. messages per day.",
+    "B.O.B. can also be connected to Telegram, so you don't always have to be sitting inside the CRM to use it.",
 )
 
 
@@ -175,7 +183,7 @@ def _body_copy(html):
     return _visible_copy(body)
 
 
-class TestFollowUpBossAlternativeRoute:
+class TestWiseAgentAlternativeRoute:
     def test_page_returns_200(self, client):
         resp = client.get(PAGE_PATH)
         assert resp.status_code == 200
@@ -201,8 +209,8 @@ class TestFollowUpBossAlternativeRoute:
         resp = client.get("/llms.txt")
         assert resp.status_code == 200
         text = resp.get_data(as_text=True)
-        assert "https://www.origentechnolog.com/follow-up-boss-alternative" in text
-        assert "https://www.origentechnolog.com/follow-up-boss-alternative" in LLMS.read_text()
+        assert "https://www.origentechnolog.com/wise-agent-alternative" in text
+        assert "https://www.origentechnolog.com/wise-agent-alternative" in LLMS.read_text()
         for blocked in BLOCKED_SEO_PATHS:
             assert f"https://www.origentechnolog.com{blocked}" not in text
         assert "https://www.origentechnolog.com/dashboard" not in text
@@ -214,7 +222,7 @@ class TestFollowUpBossAlternativeRoute:
             assert resp.status_code == 404, f"{path} should not be a public page"
 
 
-class TestFollowUpBossAlternativeSeo:
+class TestWiseAgentAlternativeSeo:
     def test_unique_title_canonical_and_og(self, app, client):
         page = client.get(PAGE_PATH).get_data(as_text=True)
         home = client.get("/").get_data(as_text=True)
@@ -252,7 +260,7 @@ class TestFollowUpBossAlternativeSeo:
         assert "noindex" not in html.lower()
 
 
-class TestFollowUpBossAlternativeCopy:
+class TestWiseAgentAlternativeCopy:
     def test_required_human_copy(self):
         assert f"<title>{TITLE}</title>" in PAGE
         assert H1 in PAGE
@@ -262,8 +270,6 @@ class TestFollowUpBossAlternativeCopy:
         assert "url_for('auth.register')" in PAGE
         assert "url_for('main.free_real_estate_crm')" not in PAGE
         assert "url_for('main.landing')" in PAGE
-        assert "More on Origen is on" not in PAGE
-        assert "the free real estate CRM page" not in PAGE
         assert DISCLAIMER in PAGE
         assert PAGE.count(DISCLAIMER) == 1
 
@@ -275,7 +281,7 @@ class TestFollowUpBossAlternativeCopy:
         h1 = re.sub(r"\s+", " ", h1).strip()
         assert h1 == H1
 
-    def test_hero_uses_his_lines(self):
+    def test_hero_uses_specified_lines(self):
         for line in HERO_LINES:
             assert line in PAGE
 
@@ -283,16 +289,36 @@ class TestFollowUpBossAlternativeCopy:
         for heading in SECTION_HEADINGS:
             assert heading in PAGE
 
-    def test_comparison_table_matches_his_rows(self, client):
+    def test_comparison_table_matches_specified_rows(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         visible = _visible_copy(html)
-        for label, fub, origen in TABLE_ROWS:
+        for label, other, origen in TABLE_ROWS:
             assert label in visible
-            assert fub in visible
+            assert other in visible
             assert origen in visible
             assert label in PAGE
-            assert fub in PAGE
+            assert other in PAGE
             assert origen in PAGE
+
+    def test_no_invented_wise_agent_contact_cap_or_ai_row(self):
+        visible = _visible_copy(PAGE)
+        assert re.search(r"Wise Agent[^.]*unlimited contacts", visible, flags=re.I) is None
+        assert "unlimited contacts" not in PAGE.lower()
+        assert ">AI<" not in PAGE
+        assert "<th" in PAGE
+        assert re.search(r">\s*AI\s*<", PAGE) is None
+        assert "FUB AI" not in PAGE
+        assert "Wise Agent AI" not in PAGE
+        assert "Wise Agent contact cap" not in PAGE
+        assert re.search(r"Contacts\s+Not published\s+Up to 10,000 on free", visible) is not None
+
+    def test_does_not_guess_wise_agent_credit_card(self):
+        visible = _visible_copy(PAGE)
+        assert re.search(r"Credit card\s+Not published\s+No", visible) is not None
+        lowered = PAGE.lower()
+        assert "trial requires a card" not in lowered
+        assert "trial requires a credit card" not in lowered
+        assert "need a credit card for the trial" not in lowered
 
     def test_limits_match_repo(self):
         assert FREE_LIMITS["max_users"] == 1
@@ -304,12 +330,6 @@ class TestFollowUpBossAlternativeCopy:
         assert "10,000 contacts" in visible
         assert "25 B.O.B. messages per day" in visible
         assert "Up to 10,000 on free" in visible
-
-    def test_does_not_claim_origen_has_unlimited_contacts(self):
-        visible = _visible_copy(PAGE)
-        assert re.search(r"Origen[^.]*unlimited contacts", visible, flags=re.I) is None
-        assert "Origen publishes unlimited contacts" not in PAGE
-        assert "unlimited contacts on Origen" not in PAGE.lower()
 
     def test_cta_goes_to_register(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -323,99 +343,52 @@ class TestFollowUpBossAlternativeCopy:
     def test_no_exclamation_in_visible_copy(self):
         assert "!" not in _visible_copy(PAGE)
 
-    def test_does_not_claim_never_paid_plan(self):
-        assert "never be a paid plan" not in PAGE.lower()
-        assert "never be a paid" not in PAGE.lower()
+    def test_bob_section_matches_fub_wording(self):
+        for line in BOB_SECTION_LINES:
+            assert line in PAGE
+            assert line in FUB
 
-    def test_does_not_claim_fub_trial_needs_a_card(self):
-        lowered = PAGE.lower()
-        assert "trial requires a card" not in lowered
-        assert "trial requires a credit card" not in lowered
-        assert "need a credit card for the trial" not in lowered
-        assert "credit card required for those 14 days" not in PAGE
-        assert "Then they charge." not in PAGE
-        assert "After that they charge" not in PAGE
-        visible = _visible_copy(PAGE)
-        assert "Credit card to start" in visible
-        assert re.search(r"Credit card to start\s+No\s+No", visible) is not None
-
-    def test_does_not_say_charges_you_after_14_days(self):
-        lowered = PAGE.lower()
-        assert "charges you after 14 days" not in lowered
-        assert "after that they charge" not in lowered
-        assert "14-day free trial rather than a permanent free plan" in PAGE
-
-    def test_does_not_say_we_are_not_a_replacement(self):
-        lowered = PAGE.lower()
-        assert "we are not a replacement for follow up boss" not in lowered
-        assert "we are not a replacement" not in lowered
-        assert "Is Origen a full replacement for Follow Up Boss?" in PAGE
-
-    def test_does_not_claim_built_by_agents(self):
-        lowered = PAGE.lower()
-        assert "built by real estate agents" not in lowered
-        assert "by real estate agents" not in lowered
-        assert "built for agents, by agents" not in lowered
-        assert "by agents" not in lowered
-
-    def test_does_not_claim_origen_calling_routing_or_integrations(self, client):
+    def test_does_not_claim_origen_calling_idx_routing_or_migration(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         visible = _visible_copy(html)
-        assert "Calling & texting" in visible
-        assert "Available, with Calling included on higher plans or added to Grow" in visible
-        assert "Advanced lead routing" in visible
-        assert "Large integration ecosystem" in visible
         assert re.search(
-            r"Calling & texting\s+Available, with Calling included on higher plans or added to Grow\s+Not included",
+            r"Calling & texting\s+WiseText paid add-on\s+Not included",
             visible,
         ) is not None
-        assert re.search(r"Advanced lead routing\s+Yes\s+Not included", visible) is not None
-        assert re.search(r"Large integration ecosystem\s+Yes\s+Not included", visible) is not None
         lowered = visible.lower()
         assert "origen includes calling" not in lowered
         assert "origen includes texting" not in lowered
         assert "origen calling" not in lowered
+        assert "lead routing" not in lowered
+        assert "idx" not in lowered
         assert "twilio" not in lowered
         assert "automated crm migration" not in lowered
-        assert "automated fub migration" not in lowered
-        assert "import from follow up boss" not in lowered
-
-    def test_does_not_imply_fub_lacks_ai(self):
-        visible = _visible_copy(PAGE)
-        assert "FUB AI features" in visible
-        assert "B.O.B. AI assistant" in visible
-        lowered = visible.lower()
-        assert "follow up boss does not have ai" not in lowered
-        assert "fub has no ai" not in lowered
-        assert "fub lacks ai" not in lowered
-        assert "without ai" not in lowered
+        assert "import from wise agent" not in lowered
 
     def test_alternative_phrase_is_not_stuffed(self):
         body = _body_copy(PAGE)
-        matches = re.findall(r"follow up boss alternative", body, flags=re.I)
+        matches = re.findall(r"wise agent alternative", body, flags=re.I)
         assert len(matches) <= 1
-        assert PAGE.lower().count("follow up boss alternative") <= 3
-
-    def test_no_thirty_leads_gotcha(self):
-        lowered = PAGE.lower()
-        assert "30 leads" not in lowered
-        assert "less than 30" not in lowered
-        assert "we do not publish a lead count" not in lowered
+        assert PAGE.lower().count("wise agent alternative") <= 3
 
     def test_footer_disclaimer_is_the_only_added_legal_line(self):
         visible = _visible_copy(PAGE)
         assert DISCLAIMER in visible
         assert visible.count(DISCLAIMER) == 1
-        assert "More on Origen is on" not in visible
-        assert "30 leads" not in visible.lower()
+        assert "BoomTown" not in PAGE
         assert "—" not in visible
-        assert "MFTB" not in PAGE
-        assert "Holdco" not in PAGE
-        assert "lawyer" not in visible.lower()
-        assert "/pricing" not in PAGE
+        assert 'href="/pricing"' not in PAGE
+        assert "url_for('main.pricing')" not in PAGE
         lowered = visible.lower()
         for phrase in BANNED_SLOP:
             assert phrase not in lowered
+
+    def test_no_invented_legal_entity_name(self):
+        lowered = PAGE.lower()
+        assert "wise agent llc" not in lowered
+        assert "wise agent, inc" not in lowered
+        assert "wiseagent inc" not in lowered
+        assert "holdco" not in lowered
 
     def test_no_banned_slop(self):
         lowered = _visible_copy(PAGE).lower()
@@ -443,15 +416,12 @@ class TestFollowUpBossAlternativeCopy:
         for phrase in FAKE_SEO_QUESTIONS:
             assert phrase.lower() not in PAGE.lower()
 
-    def test_no_confirm_ttl_or_forbidden_claims(self):
-        assert "Confirm (15 minutes)" not in PAGE
-        assert "waits for Confirm" not in PAGE
-        assert "MLS" not in PAGE
-        assert "transaction" not in PAGE.lower()
-        assert "DocuSeal" not in PAGE
-        assert "calendar sync via B.O.B" not in PAGE.lower()
-        assert "document generation" not in PAGE.lower()
-        assert "doc gen" not in PAGE.lower()
+    def test_no_extra_wise_agent_prices_in_table(self):
+        assert "$11" not in PAGE
+        assert "$80" not in PAGE
+        assert "$69" not in PAGE
+        assert "$499" in PAGE
+        assert "$42" in PAGE
 
     def test_home_title_h1_and_bob_faq_unchanged(self):
         assert f"<title>{HOME_TITLE}</title>" in LANDING
@@ -462,7 +432,11 @@ class TestFollowUpBossAlternativeCopy:
         assert HOME_BOB_P2 in LANDING
         assert LANDING.count(HOME_BOB_P1) == 2
         assert LANDING.count(HOME_BOB_P2) == 2
-        assert "follow-up-boss-alternative" not in LANDING
         assert "wise-agent-alternative" not in LANDING
         assert "kvcore-alternative" not in LANDING
         assert "the free real estate CRM page" in LANDING
+
+    def test_fub_template_was_left_alone(self):
+        assert "Looking for a Follow Up Boss alternative?" in FUB
+        assert "wise-agent-alternative" not in FUB
+        assert "kvcore-alternative" not in FUB

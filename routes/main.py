@@ -443,6 +443,18 @@ def follow_up_boss_alternative():
     return render_template('follow_up_boss_alternative.html', current_year=datetime.now().year)
 
 
+@main_bp.route('/wise-agent-alternative')
+def wise_agent_alternative():
+    """Public Wise Agent alternative page. Always 200, even if logged in."""
+    return render_template('wise_agent_alternative.html', current_year=datetime.now().year)
+
+
+@main_bp.route('/kvcore-alternative')
+def kvcore_alternative():
+    """Public kvCORE alternative page. Always 200, even if logged in."""
+    return render_template('kvcore_alternative.html', current_year=datetime.now().year)
+
+
 # =============================================================================
 # CONTACTS LIST (Authenticated)
 # =============================================================================

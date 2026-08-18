@@ -126,6 +126,10 @@ class TestLandingLeftoverCopy:
         assert "the free real estate CRM page" in LANDING
         assert "follow-up-boss-alternative" not in LANDING
         assert "Follow Up Boss alternative" not in LANDING
+        assert "wise-agent-alternative" not in LANDING
+        assert "Wise Agent alternative" not in LANDING
+        assert "kvcore-alternative" not in LANDING
+        assert "kvCORE alternative" not in LANDING
 
     def test_keeps_visible_faq_and_matching_json_ld(self):
         assert '"@type": "FAQPage"' in LANDING

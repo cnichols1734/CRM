@@ -24,6 +24,8 @@ ALLOWED_SITEMAP_PATHS = {
     "/terms-privacy",
     PAGE_PATH,
     "/follow-up-boss-alternative",
+    "/wise-agent-alternative",
+    "/kvcore-alternative",
 }
 BLOCKED_SEO_PATHS = (
     "/pricing",

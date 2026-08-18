@@ -1,0 +1,566 @@
+{% from "components/seo_meta.html" import public_seo %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kvCORE Alternative for Real Estate Agents | Origen</title>
+    {{ public_seo(
+        title="kvCORE Alternative for Real Estate Agents | Origen",
+        description="kvCORE is now BoldTrail. See how Origen compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
+        canonical=app_base_url ~ "/kvcore-alternative"
+    ) }}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "{{ app_base_url }}/#organization",
+          "name": "Origen TechnolOG",
+          "url": "{{ app_base_url }}/",
+          "logo": "{{ app_base_url }}/static/images/logo_og_dark.png"
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "{{ app_base_url }}/kvcore-alternative#software",
+          "name": "Origen TechnolOG",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "isAccessibleForFree": true,
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "description": "kvCORE is now BoldTrail. See how Origen compares: a free plan with up to 10,000 contacts and B.O.B., its built-in AI assistant.",
+          "url": "{{ app_base_url }}/kvcore-alternative",
+          "publisher": { "@id": "{{ app_base_url }}/#organization" }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "{{ app_base_url }}/kvcore-alternative#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "How much does kvCORE / BoldTrail cost?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "They do not publish a standard public price. Their pricing page is quote-only (Talk to Sales). Their blog says they don't publish standard public pricing."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is kvCORE the same as BoldTrail?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "BoldTrail is the current product. kvCORE is the earlier name."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Origen really free?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.\n\nThe current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is B.O.B.?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.\n\nIf you can do something in Origen, you can ask B.O.B. to do it for you."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can I try Origen without moving everything over?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Origen a full replacement for kvCORE / BoldTrail?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, Origen doesn't currently try to duplicate all of that."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <link rel="icon" href="{{ url_for('static', filename='images/favicon.svg') }}" type="image/svg+xml">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0f4f8',
+                            100: '#d9e2ec',
+                            200: '#bcccdc',
+                            300: '#9fb3c8',
+                            400: '#829ab1',
+                            500: '#627d98',
+                            600: '#486581',
+                            700: '#334e68',
+                            800: '#243b53',
+                            900: '#102a43',
+                        },
+                        accent: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .hero-bg {
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(ellipse at 20% 0%, rgba(249, 115, 22, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 100%, rgba(36, 59, 83, 0.06) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334e68' fill-opacity='0.03'%3E%3Cpath d='m36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .nav-blur {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px -8px rgba(249, 115, 22, 0.4);
+        }
+        .mobile-menu {
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        .mobile-menu.open {
+            transform: translateX(0);
+        }
+        .landing-faq {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .landing-faq details {
+            border-bottom: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq details:first-of-type {
+            border-top: 1px solid rgba(16, 42, 67, 0.12);
+        }
+        .landing-faq summary {
+            list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.15rem 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: #102a43;
+        }
+        .landing-faq summary::-webkit-details-marker {
+            display: none;
+        }
+        .landing-faq summary::after {
+            content: '';
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-right: 1.5px solid #627d98;
+            border-bottom: 1.5px solid #627d98;
+            transform: rotate(45deg);
+            margin-top: -4px;
+        }
+        .landing-faq details[open] summary {
+            color: #ea580c;
+        }
+        .landing-faq details[open] summary::after {
+            border-color: #f97316;
+            transform: rotate(225deg);
+            margin-top: 4px;
+        }
+        .landing-faq .faq-answer {
+            padding: 0 0 1.15rem;
+            color: #486581;
+            font-size: 1rem;
+            line-height: 1.6;
+        }
+        .compare-table {
+            width: 100%;
+            min-width: 40rem;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        .compare-table th,
+        .compare-table td {
+            padding: 1rem 1.5rem 1rem 0;
+            vertical-align: top;
+        }
+        .compare-table thead th {
+            padding-top: 0.75rem;
+            padding-bottom: 0.85rem;
+        }
+        .compare-table col.label { width: 26%; }
+        .compare-table col.fub { width: 42%; }
+        .compare-table col.origen { width: 32%; }
+    </style>
+</head>
+
+<body class="font-sans antialiased text-brand-800">
+
+    <nav class="fixed top-0 left-0 right-0 z-50 nav-blur bg-white/90 border-b border-brand-100/50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 md:h-20">
+                <a href="{{ url_for('main.landing') }}" class="flex items-center">
+                    <img src="{{ url_for('static', filename='images/logo_ogblueandblue.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                </a>
+
+                <div class="hidden md:flex items-center gap-8">
+                    <a href="{{ url_for('main.landing') }}#features" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">Features</a>
+                    <a href="{{ url_for('main.landing') }}#how-it-works" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">How It Works</a>
+                    <a href="{{ url_for('main.landing') }}#pricing" class="text-brand-600 hover:text-brand-900 font-medium transition-colors">Pricing</a>
+                </div>
+
+                <div class="hidden md:flex items-center gap-4">
+                    <a href="{{ url_for('auth.login') }}" class="text-brand-700 hover:text-brand-900 font-semibold transition-colors">
+                        Log In
+                    </a>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                        Start Free
+                        <i class="fas fa-arrow-right text-sm"></i>
+                    </a>
+                </div>
+
+                <button id="mobileMenuBtn" class="md:hidden p-2 text-brand-700 hover:text-brand-900">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobileMenuOverlay" class="fixed inset-0 bg-black/50 z-40 md:hidden opacity-0 pointer-events-none transition-opacity duration-300"></div>
+
+        <div id="mobileMenu" class="mobile-menu fixed top-0 right-0 w-80 h-screen md:hidden z-50" style="background-color: #ffffff;">
+            <div class="p-6 h-full bg-white">
+                <button id="closeMobileMenu" class="absolute top-4 right-4 p-2 text-brand-600 hover:text-brand-900 z-10">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+
+                <div class="mt-12 space-y-6">
+                    <a href="{{ url_for('main.landing') }}#features" class="block text-lg font-medium text-brand-700 hover:text-accent-500">Features</a>
+                    <a href="{{ url_for('main.landing') }}#how-it-works" class="block text-lg font-medium text-brand-700 hover:text-accent-500">How It Works</a>
+                    <a href="{{ url_for('main.landing') }}#pricing" class="block text-lg font-medium text-brand-700 hover:text-accent-500">Pricing</a>
+
+                    <hr class="border-brand-100">
+
+                    <a href="{{ url_for('auth.login') }}" class="block text-lg font-semibold text-brand-800">Log In</a>
+                    <a href="{{ url_for('auth.register') }}" class="block w-full text-center px-6 py-3 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-semibold rounded-xl shadow-lg">
+                        Start Free
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <section class="hero-bg pt-24 md:pt-32 pb-16 md:pb-20">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+                <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-brand-900 leading-tight mb-6">
+                    Looking for a kvCORE alternative?
+                </h1>
+                <p class="text-lg sm:text-xl text-brand-600 mb-6">
+                    kvCORE is now BoldTrail, from Inside Real Estate. It is a large real estate platform for agents, teams and brokerages. Pricing is quote-only. There is no published free plan. That is a real product, and it is built for a lot more than a solo agent's daily CRM work.
+                </p>
+                <p class="text-lg sm:text-xl text-brand-600 mb-6">
+                    Origen gives individual agents a simpler place to manage contacts, tasks, follow-ups, with a free plan you can keep using.
+                </p>
+                <p class="text-base text-brand-600 mb-8">
+                    No credit card required.
+                </p>
+                <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                    Start Free
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+                <p class="mt-4 text-sm text-brand-500">
+                    Free plan · 1 user · Up to 10,000 contacts · 25 B.O.B. messages per day
+                </p>
+        </div>
+    </section>
+
+    <section class="bg-white py-16 md:py-20">
+        <div class="px-4 sm:px-6 lg:px-8">
+            <div class="max-w-3xl mx-auto space-y-16">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">Origen vs. kvCORE / BoldTrail</h2>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        These products aren't identical, and they shouldn't be presented as though they are.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        BoldTrail is a large platform for agents, teams and brokerages. Official pages describe IDX, lead generation, recruiting and BackOffice as part of that ecosystem. Pricing is quote-only.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Origen is aimed at individual agents who want the core CRM work handled without starting with another monthly software bill.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed">
+                        Inside Real Estate acquired BoomTown in 2023 and official BoldTrail pages say BoomTown is being folded into BoldTrail.
+                    </p>
+                </div>
+            </div>
+
+            <div class="max-w-5xl mx-auto mt-10 mb-16 overflow-x-auto">
+                        <table class="compare-table text-left text-brand-700">
+                            <colgroup>
+                                <col class="label">
+                                <col class="fub">
+                                <col class="origen">
+                            </colgroup>
+                            <thead>
+                                <tr class="border-b border-brand-200">
+                                    <th class="font-semibold text-brand-900"> </th>
+                                    <th class="font-semibold text-brand-900">BoldTrail</th>
+                                    <th class="font-semibold text-brand-900">Origen</th>
+                                </tr>
+                            </thead>
+                            <tbody class="align-top">
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Starting price</th>
+                                    <td class="py-3 pr-4">Quote-only</td>
+                                    <td class="py-3">Free</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Free plan</th>
+                                    <td class="py-3 pr-4">No</td>
+                                    <td class="py-3">Yes</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">IDX / lead gen / recruiting / BackOffice</th>
+                                    <td class="py-3 pr-4">BoldTrail ecosystem</td>
+                                    <td class="py-3">Not included</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Credit card</th>
+                                    <td class="py-3 pr-4">Not published</td>
+                                    <td class="py-3">No</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Contacts</th>
+                                    <td class="py-3 pr-4">Not published</td>
+                                    <td class="py-3">Up to 10,000 on free</td>
+                                </tr>
+                                <tr class="border-b border-brand-100">
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Users</th>
+                                    <td class="py-3 pr-4">Not published</td>
+                                    <td class="py-3">1</td>
+                                </tr>
+                                <tr>
+                                    <th class="py-3 pr-4 font-semibold text-brand-800">Calendar</th>
+                                    <td class="py-3 pr-4">Not published</td>
+                                    <td class="py-3">Google Calendar task sync</td>
+                                </tr>
+                            </tbody>
+                        </table>
+            </div>
+
+            <div class="max-w-3xl mx-auto space-y-16">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">The biggest difference is what you actually need</h2>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        BoldTrail is built for a lot more than a solo agent's daily CRM work. That is useful if your business needs IDX websites, lead generation, recruiting or BackOffice.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Their own writing says a brand-new solo agent who hasn't closed a first deal yet can find the full BoldTrail ecosystem a lot, and that a lighter, lower-cost CRM may make more sense.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Origen starts with the work you do every day: contacts, tasks, follow-ups and keeping track of what's happening with your clients.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed">
+                        And you can start using it without a sales call or another monthly subscription.
+                    </p>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">Then there's B.O.B.</h2>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        B.O.B. is the AI assistant built into Origen.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Instead of clicking through the CRM every time you want to get something done, tell B.O.B. what you need.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Find a client. Update a contact. Add a note. Complete a task. Log activity. Organize contacts. Ask questions about what's already in your CRM.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        If you can do it in Origen, you can ask B.O.B. to do it for you.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        The free plan includes 25 B.O.B. messages per day.
+                    </p>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-8">
+                        B.O.B. can also be connected to Telegram, so you don't always have to be sitting inside the CRM to use it.
+                    </p>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                        Try Origen Free
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">When BoldTrail is probably the better fit</h2>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        BoldTrail may make more sense if you need:
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2 text-lg text-brand-600 leading-relaxed mb-4">
+                        <li>IDX websites</li>
+                        <li>Lead generation</li>
+                        <li>Recruiting</li>
+                        <li>BackOffice</li>
+                        <li>A platform for teams and brokerages</li>
+                        <li>The rest of the BoldTrail ecosystem</li>
+                    </ul>
+                    <p class="text-lg text-brand-600 leading-relaxed">
+                        BoldTrail is an established product with a much larger feature set in several of these areas.
+                    </p>
+                </div>
+
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold text-brand-900 mb-4">When Origen may be the better fit</h2>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-4">
+                        Origen may make more sense if:
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2 text-lg text-brand-600 leading-relaxed mb-4">
+                        <li>You're an individual real estate agent</li>
+                        <li>You want a CRM without another monthly bill</li>
+                        <li>You mainly need contacts, tasks and follow-up organization</li>
+                        <li>You use Gmail and Google Calendar</li>
+                        <li>You want AI that can actually perform CRM work for you</li>
+                        <li>You'd rather start simple and add more later</li>
+                    </ul>
+                    <p class="text-lg text-brand-600 leading-relaxed mb-8">
+                        You don't have to decide whether Origen can replace your current CRM before trying it. The free plan doesn't expire. Create an account, put a few contacts in it and see whether it fits the way you work.
+                    </p>
+                    <a href="{{ url_for('auth.register') }}" class="btn-primary inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-accent-500 to-accent-600 text-white font-bold text-lg rounded-xl shadow-xl">
+                        Start Free
+                        <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="bg-[#f4f4f4] py-16 md:py-20">
+        <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl sm:text-4xl font-bold text-brand-900 mb-10">Common questions</h2>
+            <div class="landing-faq">
+                <details>
+                    <summary>How much does kvCORE / BoldTrail cost?</summary>
+                    <p class="faq-answer">They do not publish a standard public price. Their pricing page is quote-only (Talk to Sales). Their blog says they don't publish standard public pricing.</p>
+                </details>
+                <details>
+                    <summary>Is kvCORE the same as BoldTrail?</summary>
+                    <p class="faq-answer">BoldTrail is the current product. kvCORE is the earlier name.</p>
+                </details>
+                <details>
+                    <summary>Is Origen really free?</summary>
+                    <p class="faq-answer">Yes. Origen has a free plan, not just a free trial. You don't need a credit card to start.</p>
+                    <p class="faq-answer">The current free plan includes one user, up to 10,000 contacts and 25 B.O.B. messages per day.</p>
+                </details>
+                <details>
+                    <summary>What is B.O.B.?</summary>
+                    <p class="faq-answer">B.O.B. is the AI assistant inside Origen. You can ask it questions about your CRM or tell it to do CRM work for you.</p>
+                    <p class="faq-answer">If you can do something in Origen, you can ask B.O.B. to do it for you.</p>
+                </details>
+                <details>
+                    <summary>Can I try Origen without moving everything over?</summary>
+                    <p class="faq-answer">Yes. You can create a free account and try Origen with a few contacts first. There's no need to commit to a paid plan just to see whether it works for you.</p>
+                </details>
+                <details>
+                    <summary>Is Origen a full replacement for kvCORE / BoldTrail?</summary>
+                    <p class="faq-answer">That depends. If you need IDX websites, lead generation, recruiting, BackOffice, or the rest of the BoldTrail ecosystem, Origen doesn't currently try to duplicate all of that.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <footer class="bg-brand-900 py-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center">
+                    <img src="{{ url_for('static', filename='images/logo_og_dark.png') }}" alt="Origen TechnolOG" class="h-8 md:h-10 w-auto object-contain" width="183" height="40" />
+                </div>
+
+                <div class="flex items-center gap-6 text-brand-400 text-sm">
+                    <a href="{{ url_for('auth.login') }}" class="hover:text-white transition-colors">Login</a>
+                    <a href="{{ url_for('auth.register') }}" class="hover:text-white transition-colors">Register</a>
+                    <a href="{{ url_for('auth.terms_privacy') }}" class="hover:text-white transition-colors">Terms & Privacy</a>
+                    <a href="#" onclick="openContactUsModal('landing'); return false;" class="hover:text-white transition-colors">Contact</a>
+                </div>
+
+                <div class="text-brand-500 text-sm">
+                    &copy; {{ current_year }} Origen TechnolOG. All rights reserved.
+                </div>
+            </div>
+            <p class="mt-8 max-w-3xl mx-auto text-center text-xs leading-relaxed text-brand-500">
+                kvCORE and BoldTrail are trademarks of their owners. Origen TechnolOG is not affiliated. Facts from boldtrail.com as of 2026-08-18.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const closeMobileMenu = document.getElementById('closeMobileMenu');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const mobileMenuOverlay = document.getElementById('mobileMenuOverlay');
+
+        function openMobileMenu() {
+            mobileMenu.classList.add('open');
+            mobileMenuOverlay.classList.remove('opacity-0', 'pointer-events-none');
+            mobileMenuOverlay.classList.add('opacity-100');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobileMenuFn() {
+            mobileMenu.classList.remove('open');
+            mobileMenuOverlay.classList.add('opacity-0', 'pointer-events-none');
+            mobileMenuOverlay.classList.remove('opacity-100');
+            document.body.style.overflow = '';
+        }
+
+        mobileMenuBtn.addEventListener('click', openMobileMenu);
+        closeMobileMenu.addEventListener('click', closeMobileMenuFn);
+        mobileMenuOverlay.addEventListener('click', closeMobileMenuFn);
+        mobileMenu.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', closeMobileMenuFn);
+        });
+    </script>
+
+    {% include 'modals/contact_us_modal.html' %}
+
+</body>
+</html>
