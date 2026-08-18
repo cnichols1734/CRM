@@ -34,7 +34,7 @@ templates/
   components/
     ui.html                        # Jinja2 macros (page_header, badge, avatar, etc.)
 
-static/dist/                       # Vite build output (committed to git)
+static/dist/                       # Vite build output (committed for local/CI; Railway rebuilds via railpack.json)
   app.js
   app.css
 ```
