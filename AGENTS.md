@@ -24,7 +24,7 @@ Read `documentation/skill.md`. Use it for humanizing and tightening prose, not f
 
 Flask-based multi-tenant CRM (AgentFlow) for real estate agents. Single Python service, server-rendered with Jinja2 templates and vanilla JavaScript with a progressive Stimulus/Tailwind frontend rewrite.
 
-**Stack**: Flask 3.1, SQLAlchemy, Supabase PostgreSQL, SQLite for local fallback, Gunicorn, Railway hosting, Tailwind CSS 3.x, Vite, Stimulus.
+**Stack**: Flask 3.1, SQLAlchemy, Supabase PostgreSQL, SQLite for local fallback, Gunicorn, Railway hosting (Railpack), Tailwind CSS 3.x, Vite, Stimulus.
 
 ## Common Commands
 
@@ -158,6 +158,14 @@ If you see "Multiple head revisions are present", the migration's `down_revision
 - Branch naming should match: `feat/description`, `fix/description`, and so on
 - Always branch from an up-to-date `main`
 - Push branches for review instead of committing directly to `main`
+
+## Railway Builds
+
+Production uses **Railpack**, not Nixpacks.
+
+`railpack.json` keeps the Python provider, installs Node 20, and runs `npm ci --include=dev && npm run build` so Vite output lands in `static/dist` on every deploy. Do not set `deploy.startCommand` there: `document-worker` and the crons share this repo and override start in the Railway dashboard.
+
+The web process start command lives in `Procfile`.
 
 ## External Service Secrets
 

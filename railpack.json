@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "provider": "python",
+  "packages": {
+    "node": "20"
+  },
+  "steps": {
+    "build": {
+      "commands": [
+        "...",
+        "npm ci --include=dev",
+        "npm run build",
+        "rm -rf node_modules"
+      ]
+    }
+  }
+}
