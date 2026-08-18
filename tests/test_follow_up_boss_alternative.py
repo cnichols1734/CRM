@@ -252,8 +252,10 @@ class TestFollowUpBossAlternativeCopy:
         assert "Start Free" in PAGE
         assert "Try Origen Free" in PAGE
         assert "url_for('auth.register')" in PAGE
-        assert "url_for('main.free_real_estate_crm')" in PAGE
+        assert "url_for('main.free_real_estate_crm')" not in PAGE
         assert "url_for('main.landing')" in PAGE
+        assert "More on Origen is on" not in PAGE
+        assert "the free real estate CRM page" not in PAGE
 
     def test_h1_is_the_human_line(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
