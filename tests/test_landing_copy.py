@@ -121,6 +121,12 @@ class TestLandingLeftoverCopy:
         assert "Coming Soon" in LANDING
         assert "Pricing TBD" in LANDING
 
+    def test_one_human_link_to_free_real_estate_crm(self):
+        assert LANDING.count("url_for('main.free_real_estate_crm')") == 1
+        assert "the free real estate CRM page" in LANDING
+        assert "follow-up-boss-alternative" not in LANDING
+        assert "Follow Up Boss alternative" not in LANDING
+
     def test_keeps_visible_faq_and_matching_json_ld(self):
         assert '"@type": "FAQPage"' in LANDING
         assert LANDING.count("<summary>") == 5

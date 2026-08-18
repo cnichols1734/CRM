@@ -1,4 +1,4 @@
-"""Public /free-real-estate-crm page: route, SEO, sitemap, and copy guards."""
+"""Public /follow-up-boss-alternative page: route, SEO, sitemap, and copy guards."""
 import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -7,23 +7,23 @@ from tier_config.tier_limits import get_tier_defaults
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PAGE = (ROOT / "templates" / "free_real_estate_crm.html").read_text()
+PAGE = (ROOT / "templates" / "follow_up_boss_alternative.html").read_text()
 LANDING = (ROOT / "templates" / "landing.html").read_text()
 SITEMAP = ROOT / "static" / "sitemap.xml"
 FREE_LIMITS = get_tier_defaults("free")
 
-PAGE_PATH = "/free-real-estate-crm"
-TITLE = "Free real estate CRM | Origen TechnolOG"
-H1 = "A real estate CRM you can start tonight."
-LEAD = "Built for agents, by agents. The free tier stays free. No card. About two minutes."
+PAGE_PATH = "/follow-up-boss-alternative"
+TITLE = "Follow Up Boss alternative | Origen TechnolOG"
+H1 = "A Follow Up Boss alternative you can start tonight."
+META = "Follow Up Boss Grow is $69 per user per month. Origen is a free real estate CRM. No card. About two minutes."
 SITEMAP_NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 ALLOWED_SITEMAP_PATHS = {
     "/",
     "/register",
     "/login",
     "/terms-privacy",
+    "/free-real-estate-crm",
     PAGE_PATH,
-    "/follow-up-boss-alternative",
 }
 BLOCKED_SEO_PATHS = (
     "/pricing",
@@ -52,21 +52,28 @@ BANNED_SLOP = (
 )
 FAQ_ITEMS = (
     (
-        "What does the free tier include?",
-        "One user, up to 10,000 contacts, and 25 B.O.B. messages a day. You can send email through Gmail and sync tasks to Google Calendar.",
+        "How much is Follow Up Boss?",
+        "Grow is $69 per user per month on followupboss.com/pricing. Pro is $499 a month for 10 users. Calling on Grow is $39 per user.",
     ),
     (
-        "Do I need a credit card?",
-        "No. Setup takes about two minutes.",
+        "Does Follow Up Boss have a free plan?",
+        "No. They offer a 14-day trial. Full access, no credit card required for those 14 days.",
+    ),
+    (
+        "What does Origen include?",
+        "One user, up to 10,000 contacts, tasks, and a dashboard. You can send email through Gmail and sync tasks to Google Calendar. B.O.B. is included, with 25 messages a day.",
     ),
     (
         "Can I buy Pro today?",
         "No. Paid features come later. Nothing paid is for sale today.",
     ),
-    (
-        "What can B.O.B. do?",
-        "B.O.B. is the AI assistant built into Origen. Instead of clicking through the CRM, just tell B.O.B. what you need done. It can find and update contacts, manage tasks, log activity, organize clients, and much more. If you can do it in Origen, you can ask B.O.B. to do it for you.\n\nThe free plan includes 25 messages a day, and you can also chat with B.O.B. through Telegram after connecting it from your profile.",
-    ),
+)
+FAKE_SEO_QUESTIONS = (
+    "origentech",
+    "Is this HubSpot",
+    "Is this Follow Up Boss or HubSpot",
+    "Is this origentech.com or Origin CRM",
+    "What can B.O.B. do?",
 )
 
 
@@ -76,22 +83,6 @@ def _faq_paragraphs(answer):
 
 def _json_ld_answer(answer):
     return "\\n\\n".join(_faq_paragraphs(answer))
-
-
-def _copy_without_bob_faq(html):
-    question, answer = FAQ_ITEMS[3]
-    stripped = html.replace(question, "")
-    for para in _faq_paragraphs(answer):
-        stripped = stripped.replace(para, "")
-    return stripped
-
-
-FAKE_SEO_QUESTIONS = (
-    "origentech",
-    "Is this HubSpot",
-    "Is this Follow Up Boss or HubSpot",
-    "Is this origentech.com or Origin CRM",
-)
 
 
 def _sitemap_paths():
@@ -115,7 +106,7 @@ def _visible_copy(html):
     return re.sub(r"\s+", " ", html)
 
 
-class TestFreeRealEstateCrmRoute:
+class TestFollowUpBossAlternativeRoute:
     def test_page_returns_200(self, client):
         resp = client.get(PAGE_PATH)
         assert resp.status_code == 200
@@ -127,7 +118,7 @@ class TestFreeRealEstateCrmRoute:
         resp = owner_a_client.get(PAGE_PATH)
         assert resp.status_code == 200
 
-    def test_sitemap_includes_page_as_only_extra_url(self, client):
+    def test_sitemap_includes_public_set_only(self, client):
         resp = client.get("/sitemap.xml")
         assert resp.status_code == 200
         paths = _sitemap_paths()
@@ -141,19 +132,11 @@ class TestFreeRealEstateCrmRoute:
         resp = client.get("/llms.txt")
         assert resp.status_code == 200
         text = resp.get_data(as_text=True)
-        assert "https://www.origentechnolog.com/free-real-estate-crm" in text
+        assert "https://www.origentechnolog.com/follow-up-boss-alternative" in text
         for blocked in BLOCKED_SEO_PATHS:
             assert f"https://www.origentechnolog.com{blocked}" not in text
         assert "https://www.origentechnolog.com/dashboard" not in text
         assert "—" not in text
-        assert "Unlimited contacts" not in text
-        assert "AI" not in text
-        assert "AI assistant" not in text
-        assert "One user, up to 10,000 contacts." in text
-        assert "25 messages a day on the free plan." in text
-        assert "change an email" in text
-        assert "Changing an email waits for Confirm (15 minutes)." not in text
-        assert "Confirm (15 minutes)" not in text
 
     def test_blocked_marketing_urls_are_not_built(self, client):
         for path in BLOCKED_SEO_PATHS:
@@ -161,7 +144,7 @@ class TestFreeRealEstateCrmRoute:
             assert resp.status_code == 404, f"{path} should not be a public page"
 
 
-class TestFreeRealEstateCrmSeo:
+class TestFollowUpBossAlternativeSeo:
     def test_unique_title_canonical_and_og(self, app, client):
         page = client.get(PAGE_PATH).get_data(as_text=True)
         home = client.get("/").get_data(as_text=True)
@@ -171,9 +154,9 @@ class TestFreeRealEstateCrmSeo:
 
         assert f"<title>{TITLE}</title>" in page
         assert f'rel="canonical" href="{page_url}"' in page
-        assert 'property="og:title" content="Free real estate CRM | Origen TechnolOG"' in page
+        assert f'property="og:title" content="{TITLE}"' in page
         assert f'property="og:url" content="{page_url}"' in page
-        assert 'property="og:description" content="Built for agents, by agents. The free tier stays free. No card. About two minutes."' in page
+        assert f'property="og:description" content="{META}"' in page
 
         assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in home
         assert f'rel="canonical" href="{home_url}"' in home
@@ -181,23 +164,33 @@ class TestFreeRealEstateCrmSeo:
         assert f'rel="canonical" href="{home_url}"' not in page
         assert TITLE not in home
 
-    def test_software_application_json_ld_price_is_zero(self, app, client):
+    def test_json_ld_types_and_price(self, app, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
         base = _app_base_url(app)
+        assert '"@type": "Organization"' in html
         assert '"@type": "SoftwareApplication"' in html
+        assert '"@type": "FAQPage"' in html
+        assert "SearchAction" not in html
+        assert "aggregateRating" not in html
         assert '"price": "0"' in html
         assert '"priceCurrency": "USD"' in html
         assert '"isAccessibleForFree": true' in html
         assert f'"url": "{base}{PAGE_PATH}"' in html
 
+    def test_no_robots_noindex(self, client):
+        html = client.get(PAGE_PATH).get_data(as_text=True)
+        assert "noindex" not in html.lower()
 
-class TestFreeRealEstateCrmCopy:
+
+class TestFollowUpBossAlternativeCopy:
     def test_required_human_copy(self):
         assert f"<title>{TITLE}</title>" in PAGE
         assert H1 in PAGE
-        assert LEAD in PAGE
+        assert META in PAGE
         assert "Start Free" in PAGE
         assert "url_for('auth.register')" in PAGE
+        assert "url_for('main.free_real_estate_crm')" in PAGE
+        assert "url_for('main.landing')" in PAGE
 
     def test_h1_is_the_human_line(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -207,6 +200,14 @@ class TestFreeRealEstateCrmCopy:
         h1 = re.sub(r"\s+", " ", h1).strip()
         assert h1 == H1
 
+    def test_lead_stays_sourced(self):
+        assert (
+            "Follow Up Boss Grow is $69 per user per month on their pricing page. "
+            "There is no free plan. You get a 14-day trial with full access and no credit card. "
+            "After that they charge. Origen is $0 to start, no credit card, and the free plan stays free. "
+            "One user, up to 10,000 contacts, 25 B.O.B. messages a day."
+        ) in PAGE
+
     def test_limits_match_repo(self):
         assert FREE_LIMITS["max_users"] == 1
         assert FREE_LIMITS["max_contacts"] == 10000
@@ -215,8 +216,17 @@ class TestFreeRealEstateCrmCopy:
         assert "one user" in visible.lower()
         assert "10,000 contacts" in visible
         assert "25 B.O.B. messages a day" in visible
-        assert "Unlimited contacts" not in PAGE
-        assert "unlimited contacts" not in PAGE.lower()
+        assert "25 messages a day" in visible
+        assert "$0" in visible
+        assert "unlimited contacts" in visible.lower()
+        assert "Unlimited (their pricing)" in PAGE
+        assert "up to 10,000" in visible.lower()
+
+    def test_does_not_claim_origen_has_unlimited_contacts(self):
+        visible = _visible_copy(PAGE)
+        assert re.search(r"Origen[^.]*unlimited contacts", visible, flags=re.I) is None
+        assert "Origen publishes unlimited contacts" not in PAGE
+        assert "unlimited contacts on Origen" not in PAGE.lower()
 
     def test_cta_goes_to_register(self, client):
         html = client.get(PAGE_PATH).get_data(as_text=True)
@@ -225,10 +235,27 @@ class TestFreeRealEstateCrmCopy:
     def test_no_em_dashes(self):
         assert "—" not in PAGE
 
-    def test_no_unlimited_contacts_or_never_paid_plan(self):
-        assert "Unlimited contacts" not in PAGE
+    def test_no_never_paid_plan(self):
         assert "never be a paid plan" not in PAGE.lower()
         assert "never be a paid" not in PAGE.lower()
+        assert "Paid features come later" in PAGE
+
+    def test_does_not_claim_fub_trial_needs_a_card(self):
+        lowered = PAGE.lower()
+        assert "trial requires a card" not in lowered
+        assert "trial requires a credit card" not in lowered
+        assert "need a credit card for the trial" not in lowered
+        assert "credit card required for those 14 days" in PAGE
+        assert "The trial has no card. Then they charge." in PAGE
+        assert "14-day trial with full access and no credit card" in PAGE
+
+    def test_does_not_claim_we_replace_fub_products(self):
+        lowered = PAGE.lower()
+        assert "replace action plans" not in lowered
+        assert "replace" in lowered
+        assert "we are not a replacement for them" in lowered
+        assert "200+ lead sources" not in PAGE
+        assert "we have calling" not in lowered
 
     def test_no_banned_slop(self):
         lowered = _visible_copy(PAGE).lower()
@@ -247,40 +274,34 @@ class TestFreeRealEstateCrmCopy:
             for para in _faq_paragraphs(answer):
                 assert PAGE.count(para) == 2
                 assert f'<p class="faq-answer">{para}</p>' in PAGE
-        include_answer = FAQ_ITEMS[0][1]
+        include_answer = FAQ_ITEMS[2][1]
         assert "One user" in include_answer
         assert "10,000 contacts" in include_answer
-        assert "25 B.O.B. messages a day" in include_answer
+        assert "25 messages a day" in include_answer
 
     def test_no_fake_seo_questions(self):
         for phrase in FAKE_SEO_QUESTIONS:
             assert phrase.lower() not in PAGE.lower()
 
-    def test_no_ai_word_outside_bob_faq(self):
-        visible = _visible_copy(_copy_without_bob_faq(PAGE))
+    def test_no_ai_word(self):
+        visible = _visible_copy(PAGE)
         assert re.search(r"\bAI\b", visible) is None
-        assert re.search(r"\bAI\b", _copy_without_bob_faq(PAGE)) is None
+        assert re.search(r"\bAI\b", PAGE) is None
 
-    def test_bob_faq_is_verbatim_and_card_stays(self):
-        question, answer = FAQ_ITEMS[3]
-        assert question == "What can B.O.B. do?"
-        assert "AI assistant" in answer
-        assert "If you can do it in Origen" in answer
-        assert "The free plan includes 25 messages a day" in answer
-        assert "Telegram" in answer
-        assert "from your profile" in answer
-        for para in _faq_paragraphs(answer):
-            assert f'<p class="faq-answer">{para}</p>' in PAGE
-            assert f'<p class="faq-answer">{para}</p>' in LANDING
-        assert "add a contact, change an email, or complete a task" in PAGE
-        assert "change an email" not in answer
-        assert "ZIP" not in answer
-        assert "What is B.O.B.?" not in PAGE
-        assert "B.O.B. is the built-in assistant." not in PAGE
+    def test_no_confirm_ttl_or_forbidden_claims(self):
         assert "Confirm (15 minutes)" not in PAGE
-        assert "Confirm (15 minutes)" not in answer
-        assert "waits for Confirm" not in answer
-        assert "waits for a yes" not in answer
-        assert "until you say yes" not in answer
-        assert "in the CRM or on Telegram" not in answer
-        assert "same 25" not in PAGE.lower()
+        assert "waits for Confirm" not in PAGE
+        assert "MLS" not in PAGE
+        assert "transaction" not in PAGE.lower()
+        assert "DocuSeal" not in PAGE
+        assert "calendar sync via B.O.B" not in PAGE.lower()
+
+    def test_sourced_fub_fit_line(self):
+        assert 'Generates less than 30 leads per month.' in PAGE
+        assert "We do not publish a lead count." in PAGE
+
+    def test_home_title_h1_and_bob_faq_unchanged(self):
+        assert "<title>Free Real Estate CRM | Origen TechnolOG</title>" in LANDING
+        assert "Your clients and follow-ups," in LANDING
+        assert "<summary>What can B.O.B. do?</summary>" in LANDING
+        assert LANDING.count("<summary>What can B.O.B. do?</summary>") == 1
