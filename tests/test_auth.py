@@ -153,6 +153,65 @@ class TestRegistration:
     def test_terms_privacy_page(self, client, seed):
         resp = client.get('/terms-privacy')
         assert resp.status_code == 200
+        assert b'logo_agentflow_light.png' in resp.data
+        assert b'crm-brand-logo-wrap--on-light' in resp.data
+
+
+class TestCheckRegistrationDeprecated:
+    """Legacy check-registration is gone; bookmarks go to /register."""
+
+    def test_registration_status_redirects_to_register(self, client, seed):
+        resp = client.get('/registration-status')
+        assert resp.status_code in (301, 302)
+        assert '/register' in resp.headers.get('Location', '')
+
+    def test_registration_status_with_email_redirects(self, client, seed):
+        resp = client.get('/registration-status?email=owner_a@test.com')
+        assert resp.status_code in (301, 302)
+        assert '/register' in resp.headers.get('Location', '')
+
+    def test_check_registration_alias_redirects(self, client, seed):
+        resp = client.get('/check-registration')
+        assert resp.status_code in (301, 302)
+        assert '/register' in resp.headers.get('Location', '')
+
+    def test_login_has_no_check_registration_link(self, client, seed):
+        resp = client.get('/login')
+        assert resp.status_code == 200
+        assert b'Check registration status' not in resp.data
+        assert b'registration-status' not in resp.data
+
+
+class TestAuthPagesRender:
+    """Public auth screens render and use the correct AgentFlow mark."""
+
+    def test_login_uses_dark_mark_on_dark_rail(self, client, seed):
+        resp = client.get('/login')
+        assert resp.status_code == 200
+        assert b'Sign in' in resp.data or b'Sign In' in resp.data
+        assert b'crm-brand-logo-wrap--on-dark' in resp.data
+        assert b'logo_agentflow_dark.png' in resp.data
+
+    def test_register_uses_dark_mark_on_dark_rail(self, client, seed):
+        resp = client.get('/register')
+        assert resp.status_code == 200
+        assert b'Create your account' in resp.data
+        assert b'crm-brand-logo-wrap--on-dark' in resp.data
+        assert b'logo_agentflow_dark.png' in resp.data
+
+    def test_reset_request_uses_dark_mark_on_card(self, client, seed):
+        resp = client.get('/reset_password')
+        assert resp.status_code == 200
+        assert b'Forgot Password' in resp.data
+        assert b'crm-brand-logo-wrap--on-dark' in resp.data
+        assert b'logo_agentflow_dark.png' in resp.data
+        assert b'family=Inter' not in resp.data
+        assert b'w-16 h-16 bg-gradient-to-br' not in resp.data
+
+    def test_reset_password_invalid_token_still_renders_request(self, client, seed):
+        resp = client.get('/reset_password/invalidtoken123', follow_redirects=True)
+        assert resp.status_code == 200
+        assert b'Forgot Password' in resp.data or b'reset' in resp.data.lower()
 
 
 class TestPasswordReset:

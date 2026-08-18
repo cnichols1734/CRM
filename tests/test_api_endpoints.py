@@ -112,11 +112,12 @@ class TestResourcesAPI:
 
 
 class TestRegistrationStatusAPI:
-    """Registration status endpoint."""
+    """Legacy check-registration now redirects to /register."""
 
-    def test_check_status(self, client, seed):
+    def test_check_status_redirects_to_register(self, client, seed):
         resp = client.get('/registration-status?email=owner_a@test.com')
-        assert resp.status_code == 200
+        assert resp.status_code in (301, 302)
+        assert '/register' in resp.headers.get('Location', '')
 
 
 class TestHealthAPI:

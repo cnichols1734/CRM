@@ -1451,143 +1451,169 @@ html.am-skin #planContent li {
   color: var(--ink-2) !important;
 }
 
-/* ── Auth pages ───────────────────────────────────────────── */
-html.am-skin .login-page,
-html.am-skin .register-page,
-html.am-skin .legal-page {
+/* ── Auth pages ─────────────────────────────────────────────
+   Public auth is theme-locked: light canvas, dark promo/card,
+   light form. The in-app theme must not flip these surfaces
+   (dark "Agent" on a dark card, or a black mark on light). */
+html.am-skin body.crm-auth-page .login-page,
+html.am-skin body.crm-auth-page .register-page,
+html.am-skin body.crm-auth-page .legal-page,
+html.am-skin body.crm-auth-page .auth-family {
   font-family: var(--font-sans) !important;
-  background: var(--canvas) !important;
+  background: #f4f4f4 !important;
   background-image: none !important;
-  color: var(--ink) !important;
+  color: rgba(0, 0, 0, 0.88) !important;
 }
-html.am-skin .login-page .card,
-html.am-skin .register-page .card {
-  background: var(--paper) !important;
-  border: 0.5px solid var(--hairline) !important;
-  box-shadow: none !important;
+html.am-skin body.crm-auth-page .login-page .card,
+html.am-skin body.crm-auth-page .register-page .card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.10) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08) !important;
   border-radius: 18px !important;
 }
-/* Soft left rail — paper-2, never pure black (was crushing contrast) */
-html.am-skin .login-page .left,
-html.am-skin .register-page .left {
-  background-color: var(--paper-2) !important;
-  background-image: radial-gradient(ellipse at 0% 0%, var(--accent-soft) 0%, transparent 55%) !important;
-  color: var(--ink) !important;
-  border-right: 0.5px solid var(--hairline) !important;
+html.am-skin body.crm-auth-page .login-page .left,
+html.am-skin body.crm-auth-page .register-page .left {
+  background-color: #2c2c2e !important;
+  background-image: radial-gradient(ellipse at 0% 0%, rgba(249, 115, 22, 0.16) 0%, transparent 55%) !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
-html.am-skin .login-page .left::before,
-html.am-skin .register-page .left::before {
-  background: var(--accent) !important;
+html.am-skin body.crm-auth-page .login-page .left::before,
+html.am-skin body.crm-auth-page .register-page .left::before {
+  background: #f97316 !important;
   background-image: none !important;
 }
-html.am-skin .login-page .left-muted,
-html.am-skin .register-page .left-muted {
-  color: var(--ink-3) !important;
+html.am-skin body.crm-auth-page .login-page .left-muted,
+html.am-skin body.crm-auth-page .register-page .left-muted {
+  color: hsla(0, 0%, 100%, 0.56) !important;
 }
-html.am-skin .login-page .left-title,
-html.am-skin .login-page .left .font-semibold,
-html.am-skin .login-page .left .font-extrabold,
-html.am-skin .register-page .left-title,
-html.am-skin .register-page .left .font-semibold {
-  color: var(--ink) !important;
+html.am-skin body.crm-auth-page .login-page .left-title,
+html.am-skin body.crm-auth-page .login-page .left .font-semibold,
+html.am-skin body.crm-auth-page .login-page .left .font-extrabold,
+html.am-skin body.crm-auth-page .register-page .left-title,
+html.am-skin body.crm-auth-page .register-page .left .font-semibold {
+  color: hsla(0, 0%, 100%, 0.92) !important;
 }
-html.am-skin .login-page .left-chip,
-html.am-skin .register-page .left-chip {
-  background: var(--accent-soft) !important;
-  color: var(--accent-ink) !important;
-  border-color: color-mix(in srgb, var(--accent) 28%, transparent) !important;
+html.am-skin body.crm-auth-page .login-page .left-chip,
+html.am-skin body.crm-auth-page .register-page .left-chip {
+  background: rgba(249, 115, 22, 0.16) !important;
+  color: #fb923c !important;
+  border-color: rgba(249, 115, 22, 0.28) !important;
 }
-html.am-skin .login-page .left-icon,
-html.am-skin .register-page .left-icon {
-  background: var(--paper) !important;
-  border-color: var(--hairline) !important;
-  color: var(--accent) !important;
+html.am-skin body.crm-auth-page .login-page .left-icon,
+html.am-skin body.crm-auth-page .register-page .left-icon {
+  background: #3a3a3c !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #f97316 !important;
 }
-html.am-skin .login-page .input,
-html.am-skin .login-page .icon-btn,
-html.am-skin .register-page .input {
-  background: var(--paper) !important;
-  border-color: var(--hairline) !important;
-  color: var(--ink) !important;
+html.am-skin body.crm-auth-page .login-page .input,
+html.am-skin body.crm-auth-page .login-page .icon-btn,
+html.am-skin body.crm-auth-page .register-page .input {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
+  color: rgba(0, 0, 0, 0.88) !important;
 }
-html.am-skin .login-page .input:focus,
-html.am-skin .register-page .input:focus {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px var(--accent-soft) !important;
+html.am-skin body.crm-auth-page .login-page .input:focus,
+html.am-skin body.crm-auth-page .register-page .input:focus {
+  border-color: #f97316 !important;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.18) !important;
 }
-html.am-skin .login-page .btn,
-html.am-skin .register-page .btn {
-  background: var(--am-key-bg) !important;
+html.am-skin body.crm-auth-page .login-page .btn,
+html.am-skin body.crm-auth-page .register-page .btn,
+html.am-skin body.crm-auth-page .auth-btn {
+  background: #ea580c !important;
   color: #fff !important;
   box-shadow: none !important;
 }
-html.am-skin .login-page .btn:hover,
-html.am-skin .register-page .btn:hover {
-  background: var(--am-key-pressed) !important;
+html.am-skin body.crm-auth-page .login-page .btn:hover,
+html.am-skin body.crm-auth-page .register-page .btn:hover,
+html.am-skin body.crm-auth-page .auth-btn:hover {
+  background: #c2410c !important;
 }
-html.am-skin .login-page .kicker,
-html.am-skin .login-page .subtitle,
-html.am-skin .login-page .label,
-html.am-skin .login-page .title,
-html.am-skin .register-page .kicker,
-html.am-skin .register-page .subtitle,
-html.am-skin .register-page .label,
-html.am-skin .register-page .title,
-html.am-skin .register-page .legal {
-  color: var(--ink) !important;
+html.am-skin body.crm-auth-page .login-page .title,
+html.am-skin body.crm-auth-page .login-page .label,
+html.am-skin body.crm-auth-page .register-page .title,
+html.am-skin body.crm-auth-page .register-page .label {
+  color: rgba(0, 0, 0, 0.88) !important;
 }
-html.am-skin .login-page .subtitle,
-html.am-skin .login-page .kicker,
-html.am-skin .register-page .subtitle,
-html.am-skin .register-page .kicker,
-html.am-skin .register-page .legal {
-  color: var(--ink-3) !important;
+html.am-skin body.crm-auth-page .login-page .subtitle,
+html.am-skin body.crm-auth-page .login-page .kicker,
+html.am-skin body.crm-auth-page .register-page .subtitle,
+html.am-skin body.crm-auth-page .register-page .kicker,
+html.am-skin body.crm-auth-page .register-page .legal {
+  color: rgba(0, 0, 0, 0.56) !important;
 }
-html.am-skin .login-page a,
-html.am-skin .register-page a {
-  color: var(--accent-ink) !important;
+html.am-skin body.crm-auth-page .login-page .footer-link,
+html.am-skin body.crm-auth-page .register-page .footer-link,
+html.am-skin body.crm-auth-page .login-page .support-action {
+  color: #ea580c !important;
+}
+html.am-skin body.crm-auth-page .auth-card {
+  background: #2c2c2e !important;
+  border: 1px solid rgba(255, 255, 255, 0.10) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12) !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin body.crm-auth-page .auth-input {
+  background: #3a3a3c !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin body.crm-auth-page .auth-title,
+html.am-skin body.crm-auth-page .auth-label {
+  color: hsla(0, 0%, 100%, 0.92) !important;
+}
+html.am-skin body.crm-auth-page .auth-subtitle,
+html.am-skin body.crm-auth-page .auth-kicker {
+  color: hsla(0, 0%, 100%, 0.56) !important;
+}
+html.am-skin body.crm-auth-page .auth-back {
+  color: rgba(0, 0, 0, 0.56) !important;
+}
+html.am-skin body.crm-auth-page .auth-ssl {
+  color: rgba(0, 0, 0, 0.48) !important;
 }
 
-html.am-skin .legal-page .legal-toc,
-html.am-skin .legal-page .legal-doc {
-  background: var(--paper) !important;
-  border-color: var(--hairline) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-toc,
+html.am-skin body.crm-auth-page .legal-page .legal-doc {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
 }
-html.am-skin .legal-page .legal-title,
-html.am-skin .legal-page .legal-h2,
-html.am-skin .legal-page .legal-h3,
-html.am-skin .legal-page .legal-toc a {
-  color: var(--ink) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-title,
+html.am-skin body.crm-auth-page .legal-page .legal-h2,
+html.am-skin body.crm-auth-page .legal-page .legal-h3,
+html.am-skin body.crm-auth-page .legal-page .legal-toc a {
+  color: rgba(0, 0, 0, 0.88) !important;
 }
-html.am-skin .legal-page .legal-copy {
-  color: var(--ink-2) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-copy {
+  color: rgba(0, 0, 0, 0.72) !important;
 }
-html.am-skin .legal-page .legal-kicker,
-html.am-skin .legal-page .legal-meta,
-html.am-skin .legal-page .legal-home,
-html.am-skin .legal-page .legal-top,
-html.am-skin .legal-page .legal-toc h2 {
-  color: var(--ink-3) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-kicker,
+html.am-skin body.crm-auth-page .legal-page .legal-meta,
+html.am-skin body.crm-auth-page .legal-page .legal-home,
+html.am-skin body.crm-auth-page .legal-page .legal-top,
+html.am-skin body.crm-auth-page .legal-page .legal-toc h2 {
+  color: rgba(0, 0, 0, 0.56) !important;
 }
-html.am-skin .legal-page .legal-toc h3,
-html.am-skin .legal-page .legal-toc a:hover,
-html.am-skin .legal-page .legal-home:hover,
-html.am-skin .legal-page .legal-top:hover,
-html.am-skin .legal-page .legal-callout a {
-  color: var(--accent-ink) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-toc h3,
+html.am-skin body.crm-auth-page .legal-page .legal-toc a:hover,
+html.am-skin body.crm-auth-page .legal-page .legal-home:hover,
+html.am-skin body.crm-auth-page .legal-page .legal-top:hover,
+html.am-skin body.crm-auth-page .legal-page .legal-callout a {
+  color: #ea580c !important;
 }
-html.am-skin .legal-page .legal-callout {
-  background: var(--paper-2) !important;
-  border-color: var(--hairline) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-callout {
+  background: #f0f0f0 !important;
+  border-color: rgba(0, 0, 0, 0.10) !important;
 }
-html.am-skin .legal-page .legal-h2 {
-  border-bottom-color: var(--hairline) !important;
+html.am-skin body.crm-auth-page .legal-page .legal-h2 {
+  border-bottom-color: rgba(0, 0, 0, 0.10) !important;
 }
 @media (max-width: 1024px) {
-  html.am-skin .login-page .left,
-  html.am-skin .register-page .left {
+  html.am-skin body.crm-auth-page .login-page .left,
+  html.am-skin body.crm-auth-page .register-page .left {
     border-right: none !important;
-    border-bottom: 0.5px solid var(--hairline) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   }
 }
 

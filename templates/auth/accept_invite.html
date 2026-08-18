@@ -1,207 +1,94 @@
 {% extends "base.html" %}
+{% from "components/ui.html" import brand_logo %}
+
+{% block title %}Accept invite | AgentFlow{% endblock %}
 
 {% block content %}
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+{% include "auth/_styles.html" %}
 
-    .invite-shell {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-        position: relative;
-        overflow: hidden;
-    }
-    .invite-orb {
-        position: absolute;
-        border-radius: 9999px;
-        filter: blur(60px);
-        opacity: 0.6;
-        pointer-events: none;
-    }
-    .invite-orb.orb-1 {
-        width: 260px;
-        height: 260px;
-        background: rgba(45, 62, 80, 0.2);
-        top: -80px;
-        right: -80px;
-    }
-    .invite-orb.orb-2 {
-        width: 220px;
-        height: 220px;
-        background: rgba(250, 36, 60, 0.15);
-        bottom: -70px;
-        left: -70px;
-    }
-    .invite-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(18px);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        box-shadow:
-            0 0 0 1px rgba(15, 23, 42, 0.03),
-            0 12px 30px rgba(15, 23, 42, 0.08);
-    }
-    .input-group {
-        position: relative;
-    }
-    .input-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-        font-size: 14px;
-        pointer-events: none;
-    }
-    .premium-input {
-        padding-left: 40px;
-        height: 50px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-    }
-    .premium-input:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-    }
-    .premium-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    .simple-input {
-        height: 50px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-        padding: 0 16px;
-    }
-    .simple-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    .submit-btn {
-        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
-        transition: all 0.3s ease;
-    }
-    .submit-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
-    }
-    .strength-bar {
-        transition: width 0.3s ease, background-color 0.3s ease;
-    }
-</style>
+<div class="min-h-screen auth-family flex items-center justify-center px-4 py-12">
+  <div class="auth-family-shell auth-family-shell--wide">
+    <div class="auth-card">
+      <div class="p-8 lg:p-10 space-y-6">
+        <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
+          {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
+        </a>
 
-<div class="min-h-screen invite-shell flex items-center justify-center px-4 py-12">
-    <div class="invite-orb orb-1"></div>
-    <div class="invite-orb orb-2"></div>
-
-    <div class="w-full max-w-2xl relative z-10">
-        <div class="invite-card rounded-2xl overflow-hidden">
-            <div class="bg-gradient-to-r from-[#2d3e50] via-[#3d5a73] to-[#f97316] text-white px-8 py-6">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center">
-                            <i class="fas fa-building text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-xs uppercase tracking-wide text-white/80">You're invited to join</p>
-                            <h2 class="text-2xl font-semibold">{{ invite.organization.name }}</h2>
-                        </div>
-                    </div>
-                    <span class="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">
-                        {{ invite.role|capitalize }} Access
-                    </span>
-                </div>
-            </div>
-
-            <div class="p-8 lg:p-10 space-y-6">
-                <div class="text-center">
-                    <h3 class="text-2xl font-bold text-slate-900 mb-1">Complete your account</h3>
-                    <p class="text-slate-500">Create your profile to get started immediately.</p>
-                </div>
-
-                <form action="{{ url_for('auth.complete_invite', token=invite.token) }}" method="POST" class="space-y-5">
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
-                        <input type="email" value="{{ invite.email }}" disabled
-                               class="simple-input block w-full text-slate-700 bg-slate-100 cursor-not-allowed">
-                    </div>
-
-                    <div class="input-group">
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Username</label>
-                        <input type="text" name="username" required
-                               class="premium-input block w-full text-slate-900 placeholder-slate-400"
-                               placeholder="Pick a unique username">
-                        <i class="input-icon fas fa-user"></i>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-                        <div class="input-group">
-                            <input id="invitePassword" type="password" name="password" required minlength="8"
-                                   class="premium-input block w-full text-slate-900 placeholder-slate-400"
-                                   placeholder="Create a secure password">
-                            <i class="input-icon fas fa-lock"></i>
-                        </div>
-                        <div class="mt-2">
-                            <div class="h-2 rounded-full bg-slate-200 overflow-hidden">
-                                <div id="passwordStrengthBar" class="strength-bar h-2 w-1/4 bg-rose-400"></div>
-                            </div>
-                            <p id="passwordStrengthLabel" class="text-xs text-slate-500 mt-1">Strength: weak</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">First Name</label>
-                            <input type="text" name="first_name" required
-                                   class="simple-input block w-full text-slate-900 placeholder-slate-400"
-                                   placeholder="First name">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Last Name</label>
-                            <input type="text" name="last_name" required
-                                   class="simple-input block w-full text-slate-900 placeholder-slate-400"
-                                   placeholder="Last name">
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="input-group">
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">Phone (optional)</label>
-                            <input type="tel" name="phone"
-                                   class="premium-input block w-full text-slate-900 placeholder-slate-400"
-                                   placeholder="(555) 123-4567">
-                            <i class="input-icon fas fa-phone"></i>
-                        </div>
-                        <div class="input-group">
-                            <label class="block text-sm font-semibold text-slate-700 mb-2">License # (optional)</label>
-                            <input type="text" name="license_number"
-                                   class="premium-input block w-full text-slate-900 placeholder-slate-400"
-                                   placeholder="Real estate license">
-                            <i class="input-icon fas fa-id-card"></i>
-                        </div>
-                    </div>
-
-                    <button type="submit" class="submit-btn w-full h-12 rounded-xl text-base font-semibold text-white">
-                        Create Account &amp; Continue
-                    </button>
-                </form>
-
-                <div class="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-700 text-sm">
-                    <i class="fas fa-clock mt-0.5"></i>
-                    <span>This invitation expires on {{ invite.expires_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
-                </div>
-            </div>
+        <div>
+          <div class="auth-kicker">You're invited to join</div>
+          <h1 class="auth-title mt-1">{{ invite.organization.name }}</h1>
+          <p class="auth-subtitle mt-1">{{ invite.role|capitalize }} access. Complete your account to get started immediately.</p>
         </div>
+
+        <form action="{{ url_for('auth.complete_invite', token=invite.token) }}" method="POST" class="space-y-4">
+          <div>
+            <label class="auth-label">Email</label>
+            <input type="email" value="{{ invite.email }}" disabled
+                   class="auth-input">
+          </div>
+
+          <div>
+            <label class="auth-label" for="inviteUsername">Username</label>
+            <input id="inviteUsername" type="text" name="username" required
+                   class="auth-input" placeholder="Pick a unique username" autocomplete="username">
+          </div>
+
+          <div>
+            <label class="auth-label" for="invitePassword">Password</label>
+            <input id="invitePassword" type="password" name="password" required minlength="8"
+                   class="auth-input" placeholder="Create a secure password" autocomplete="new-password">
+            <div class="mt-2">
+              <div class="h-2 rounded-full overflow-hidden" style="background: rgba(255,255,255,0.12);">
+                <div id="passwordStrengthBar" class="h-2 w-1/4 bg-rose-400" style="transition: width .3s ease, background-color .3s ease;"></div>
+              </div>
+              <p id="passwordStrengthLabel" class="text-xs mt-1" style="color: hsla(0, 0%, 100%, 0.56);">Strength: weak</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="auth-label" for="inviteFirstName">First name</label>
+              <input id="inviteFirstName" type="text" name="first_name" required
+                     class="auth-input" placeholder="First name" autocomplete="given-name">
+            </div>
+            <div>
+              <label class="auth-label" for="inviteLastName">Last name</label>
+              <input id="inviteLastName" type="text" name="last_name" required
+                     class="auth-input" placeholder="Last name" autocomplete="family-name">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="auth-label" for="invitePhone">Phone (optional)</label>
+              <input id="invitePhone" type="tel" name="phone"
+                     class="auth-input" placeholder="(555) 123-4567" autocomplete="tel">
+            </div>
+            <div>
+              <label class="auth-label" for="inviteLicense">License # (optional)</label>
+              <input id="inviteLicense" type="text" name="license_number"
+                     class="auth-input" placeholder="Real estate license">
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" class="auth-btn">
+              Create Account &amp; Continue <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </form>
+
+        <div class="auth-notice">
+          <i class="fas fa-clock mt-0.5"></i>
+          <span>This invitation expires on {{ invite.expires_at.strftime('%B %d, %Y at %I:%M %p') }}</span>
+        </div>
+      </div>
     </div>
+
+    <div class="text-center mt-6">
+      <a href="{{ url_for('auth.login') }}" class="auth-back">Back to Sign In</a>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -226,7 +113,7 @@
     passwordInput?.addEventListener('input', (event) => {
         const { label, width, color } = getPasswordStrength(event.target.value);
         strengthLabel.textContent = `Strength: ${label}`;
-        strengthBar.className = `strength-bar h-2 ${color}`;
+        strengthBar.className = `h-2 ${color}`;
         strengthBar.style.width = width;
     });
 </script>

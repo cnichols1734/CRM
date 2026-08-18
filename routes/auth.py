@@ -324,31 +324,10 @@ def logout():
 # =============================================================================
 
 @auth_bp.route('/registration-status')
+@auth_bp.route('/check-registration')
 def registration_status():
-    """Check registration status without logging in."""
-    email = request.args.get('email', '').strip()
-    
-    if not email:
-        return render_template('auth/registration_status.html', org=None, message=None)
-    
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return render_template('auth/registration_status.html', 
-                             org=None, 
-                             message="No registration found for this email.")
-    
-    org = user.organization
-    status_messages = {
-        'pending_approval': 'Your registration is pending approval. We typically review within 24 hours.',
-        'active': 'Your organization is approved! You can log in now.',
-        'suspended': 'Your organization has been suspended. Please contact support.',
-        'pending_deletion': 'Your organization is scheduled for deletion.',
-        'rejected': 'Your registration was not approved. Please contact support for details.'
-    }
-    
-    return render_template('auth/registration_status.html',
-                         org=org,
-                         message=status_messages.get(org.status, 'Unknown status') if org else 'No organization found')
+    """Legacy check-registration gate. Auto signup is open; send people to /register."""
+    return redirect(url_for('auth.register'), code=302)
 
 
 @auth_bp.route('/invite/<token>')

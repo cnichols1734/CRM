@@ -1,227 +1,54 @@
 {% extends "base.html" %}
 {% from "components/ui.html" import brand_logo %}
 
+{% block title %}Forgot password | AgentFlow{% endblock %}
+
 {% block content %}
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-    
-    @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    @keyframes pulse-soft {
-        0%, 100% { opacity: 0.4; }
-        50% { opacity: 0.8; }
-    }
-    @keyframes shimmer {
-        0% { background-position: -1000px 0; }
-        100% { background-position: 1000px 0; }
-    }
-    
-    .reset-panel {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    .animate-fade-in-up { animation: fadeInUp 0.6s ease-out forwards; }
-    .delay-1 { animation-delay: 0.1s; opacity: 0; }
-    .delay-2 { animation-delay: 0.2s; opacity: 0; }
-    .delay-3 { animation-delay: 0.3s; opacity: 0; }
-    
-    /* Background */
-    .reset-bg {
-        background: 
-            radial-gradient(ellipse at 0% 0%, rgba(250, 36, 60, 0.03) 0%, transparent 50%),
-            radial-gradient(ellipse at 100% 100%, rgba(45, 62, 80, 0.04) 0%, transparent 50%),
-            linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    }
-    
-    /* Floating orbs */
-    .orb {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(40px);
-        animation: pulse-soft 4s ease-in-out infinite;
-    }
-    .orb-1 {
-        width: 250px;
-        height: 250px;
-        background: rgba(250, 36, 60, 0.12);
-        top: -80px;
-        right: -80px;
-    }
-    .orb-2 {
-        width: 180px;
-        height: 180px;
-        background: rgba(45, 62, 80, 0.08);
-        bottom: -60px;
-        left: -60px;
-        animation-delay: 2s;
-    }
-    
-    /* Premium card */
-    .premium-card {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.8);
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 8px 16px rgba(0, 0, 0, 0.04),
-            0 24px 48px rgba(0, 0, 0, 0.06);
-        transition: all 0.3s ease;
-    }
-    .premium-card:hover {
-        box-shadow: 
-            0 0 0 1px rgba(0, 0, 0, 0.03),
-            0 2px 4px rgba(0, 0, 0, 0.02),
-            0 12px 24px rgba(0, 0, 0, 0.06),
-            0 32px 64px rgba(0, 0, 0, 0.08);
-    }
-    
-    /* Accent line */
-    .accent-line {
-        height: 4px;
-        background: linear-gradient(90deg, #f97316, #eab308, #f97316);
-        background-size: 200% 100%;
-        animation: shimmer 3s linear infinite;
-    }
-    
-    /* Input styling */
-    .input-group {
-        position: relative;
-    }
-    .input-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #94a3b8;
-        transition: color 0.2s ease;
-        pointer-events: none;
-        font-size: 14px;
-    }
-    .premium-input {
-        padding-left: 42px;
-        height: 52px;
-        border: 2px solid #e2e8f0;
-        border-radius: 12px;
-        font-size: 15px;
-        transition: all 0.2s ease;
-        background: #f8fafc;
-    }
-    .premium-input:hover {
-        border-color: #cbd5e1;
-        background: #ffffff;
-    }
-    .premium-input:focus {
-        border-color: #2d3e50;
-        background: #ffffff;
-        box-shadow: 0 0 0 4px rgba(45, 62, 80, 0.08);
-        outline: none;
-    }
-    .premium-input:focus + .input-icon,
-    .input-group:focus-within .input-icon {
-        color: #2d3e50;
-    }
-    
-    /* Premium button */
-    .premium-btn {
-        position: relative;
-        overflow: hidden;
-        background: linear-gradient(135deg, #2d3e50 0%, #1a2634 100%);
-        transition: all 0.3s ease;
-    }
-    .premium-btn::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        transition: left 0.5s ease;
-    }
-    .premium-btn:hover::before {
-        left: 100%;
-    }
-    .premium-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(45, 62, 80, 0.25);
-    }
-</style>
+{% include "auth/_styles.html" %}
 
-<div class="min-h-screen reset-bg flex items-center justify-center px-4 py-12 relative overflow-hidden reset-panel">
-    <!-- Floating orbs -->
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    
-    <div class="w-full max-w-[420px] relative z-10">
-        <!-- Logo -->
-        <div class="text-center mb-8 animate-fade-in-up">
-            <div class="flex justify-center mb-6">
-                <div class="w-16 h-16 bg-gradient-to-br from-[#2d3e50] to-[#1a2634] rounded-xl flex items-center justify-center shadow-xl">
-                    {{ brand_logo(size_class='crm-brand-logo-wrap--h14 crm-brand-logo-wrap--on-dark', width=298, height=56) }}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Reset Card -->
-        <div class="animate-fade-in-up delay-1">
-            <div class="premium-card rounded-2xl overflow-hidden">
-                <div class="accent-line"></div>
-                
-                <div class="p-8 lg:p-10">
-                    <!-- Header -->
-                    <div class="text-center mb-8">
-                        <div class="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i class="fas fa-key text-slate-500 text-xl"></i>
-                        </div>
-                        <h2 class="text-2xl font-bold text-slate-900 mb-2">Forgot Password?</h2>
-                        <p class="text-slate-500">No worries, we'll send you reset instructions</p>
-                    </div>
-                    
-                    <form method="POST" action="" class="space-y-4">
-                        {{ form.hidden_tag() }}
-                        
-                        <!-- Email Field -->
-                        <div class="input-group">
-                            {{ form.email(class="premium-input block w-full text-slate-900 placeholder-slate-400", placeholder="Enter your email") }}
-                            <i class="input-icon fas fa-envelope"></i>
-                            {% if form.email.errors %}
-                                {% for error in form.email.errors %}
-                                    <p class="text-red-500 text-xs mt-2">{{ error }}</p>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
+<div class="min-h-screen auth-family flex items-center justify-center px-4 py-12">
+  <div class="auth-family-shell">
+    <div class="auth-card">
+      <div class="p-8 lg:p-10">
+        <a href="{{ url_for('main.landing') }}" class="inline-flex" aria-label="AgentFlow home">
+          {{ brand_logo(size_class='crm-brand-logo-wrap--h9 crm-brand-logo-wrap--on-dark', width=192, height=36) }}
+        </a>
 
-                        <!-- Submit Button -->
-                        <div class="pt-2">
-                            <button type="submit" class="premium-btn w-full h-14 rounded-xl text-base font-semibold text-white cursor-pointer">
-                                <span class="relative z-10 flex items-center justify-center">
-                                    Send Reset Link
-                                    <i class="fas fa-paper-plane ml-2"></i>
-                                </span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <div class="mt-8 mb-7">
+          <div class="auth-kicker">Account</div>
+          <h1 class="auth-title mt-1">Forgot Password?</h1>
+          <p class="auth-subtitle mt-1">No worries, we'll send you reset instructions</p>
         </div>
 
-        <!-- Back to Login Link -->
-        <div class="text-center mt-8 animate-fade-in-up delay-2">
-            <a href="{{ url_for('auth.login') }}" class="text-slate-500 hover:text-slate-700 transition-colors font-medium">
-                <i class="fas fa-arrow-left mr-2"></i>Back to Sign In
-            </a>
-        </div>
-        
-        <!-- Trust badge -->
-        <div class="text-center mt-6 animate-fade-in-up delay-3">
-            <div class="inline-flex items-center text-xs text-slate-400">
-                <i class="fas fa-shield-alt text-emerald-500 mr-2"></i>
-                256-bit SSL encryption · Your data stays private
-            </div>
-        </div>
+        <form method="POST" action="" class="space-y-4">
+          {{ form.hidden_tag() }}
+
+          <div>
+            <label class="auth-label" for="{{ form.email.id }}">Email</label>
+            {{ form.email(class="auth-input", placeholder="you@brokerage.com", autocomplete="email") }}
+            {% for error in form.email.errors %}
+              <p class="text-red-400 text-xs mt-1">{{ error }}</p>
+            {% endfor %}
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" class="auth-btn">
+              Send Reset Link <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
+
+    <div class="text-center mt-6">
+      <a href="{{ url_for('auth.login') }}" class="auth-back">Back to Sign In</a>
+    </div>
+    <div class="text-center mt-4">
+      <div class="auth-ssl">
+        <i class="fas fa-shield-alt"></i>
+        256-bit SSL encryption · Your data stays private
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}

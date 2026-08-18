@@ -47,7 +47,7 @@
     
     function handleSessionExpiry() {
         // Don't redirect on public pages (login, register, password reset, etc.)
-        const publicPaths = ['/login', '/register', '/auth/register', '/forgot-password', '/reset-password', '/accept-invite'];
+        const publicPaths = ['/login', '/register', '/auth/register', '/forgot-password', '/reset-password', '/reset_password', '/accept-invite', '/terms-privacy', '/check-registration', '/registration-status'];
         const currentPath = window.location.pathname;
         
         if (publicPaths.some(path => currentPath.startsWith(path))) {
